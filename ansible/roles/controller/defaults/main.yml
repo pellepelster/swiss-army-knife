@@ -1,0 +1,24 @@
+---
+# local path of the distribution zip built by `./gradlew :sak-controller:distZip` (required)
+controller_dist_zip: ""
+# everything of the controller lives below this path on the data volume
+controller_base_path: /storage/data/controller
+# the distribution is expanded here, replaced as a whole on every new zip
+controller_app_path: "{{ controller_base_path }}/app"
+controller_data_path: "{{ controller_base_path }}/data"
+# the s3 api stores the buckets here, caddy serves buckets with domains from it, so it
+# has to match sak.s3.data_dir of the controller configuration
+controller_s3_data_path: /storage/data/s3
+controller_config_file: "{{ controller_base_path }}/config.yaml"
+# local path of the controller configuration, config/controller-config.yaml (required),
+# its sak.data_dir has to match controller_data_path
+controller_config_src: ""
+# environment of the controller unit, holds the s3 credentials the configuration references
+controller_env_file: "{{ controller_base_path }}/controller.env"
+# local path of the environment file, written by tf:apply (required)
+controller_env_src: ""
+controller_user: sak
+controller_group: sak
+controller_java_package: openjdk-25-jre-headless
+# caddy keeps its certificates and acme state here
+controller_caddy_storage_path: /storage/caddy

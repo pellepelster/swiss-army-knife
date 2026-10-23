@@ -1,0 +1,7 @@
+# defaults of the controller, the configuration given with -config=<file> overrides them
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - io.pelle.sak.controller.SakControllerKt.module

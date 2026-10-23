@@ -1,0 +1,21 @@
+---
+ktor:
+  deployment:
+    port: 8080
+sak:
+  data_dir: /storage/data/controller/data
+  root_domain: pelle.io
+  redirects:
+    solidblocks.de: pelle.io
+    krawallbu.de: pelle.io
+    krawallbude.de: pelle.io
+    pellepelster.de: pelle.io
+    sanne.li: pelle.io
+  s3:
+    access_key_id: $SAK_S3_ACCESS_KEY_ID
+    secret_access_key: $SAK_S3_SECRET_ACCESS_KEY
+    data_dir: /storage/data/s3
+    buckets:
+      pelle.io:
+        domains:
+          - pelle.io

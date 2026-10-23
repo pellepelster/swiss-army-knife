@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+{
+	storage file_system {{ controller_caddy_storage_path }}
+}
+
+# nothing is served yet, every request is answered by closing the connection
+:80 {
+	abort
+}

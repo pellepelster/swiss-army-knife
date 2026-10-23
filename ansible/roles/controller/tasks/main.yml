@@ -1,0 +1,178 @@
+---
+- name: Check that the required variables are set
+  ansible.builtin.assert:
+    that:
+      - controller_dist_zip | length > 0
+      - controller_config_src | length > 0
+      - controller_env_src | length > 0
+    fail_msg: "controller_dist_zip, controller_config_src and controller_env_src must be set"
+    quiet: true
+
+- name: Install the java runtime
+  ansible.builtin.apt:
+    name:
+      - "{{ controller_java_package }}"
+      - unzip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# installed first, the caddy group owns the s3 data directory
+- name: Install caddy
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+
+- name: Create the controller group
+  ansible.builtin.group:
+    name: "{{ controller_group }}"
+    system: true
+
+- name: Create the controller user
+  ansible.builtin.user:
+    name: "{{ controller_user }}"
+    group: "{{ controller_group }}"
+    system: true
+    home: "{{ controller_base_path }}"
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create the controller directory
+  ansible.builtin.file:
+    path: "{{ controller_base_path }}"
+    state: directory
+    owner: root
+    group: "{{ controller_group }}"
+    mode: "0750"
+
+- name: Create the data directory
+  ansible.builtin.file:
+    path: "{{ controller_data_path }}"
+    state: directory
+    owner: "{{ controller_user }}"
+    group: "{{ controller_group }}"
+    mode: "0750"
+
+# caddy (group) can read the buckets to serve them at their domains, nobody else can,
+# setgid keeps the group on everything the controller creates below
+- name: Create the s3 data directory
+  ansible.builtin.file:
+    path: "{{ controller_s3_data_path }}"
+    state: directory
+    owner: "{{ controller_user }}"
+    group: caddy
+    mode: "2750"
+
+# the uploaded zip is kept, so an unchanged distribution is neither copied nor expanded again
+- name: Upload the distribution
+  ansible.builtin.copy:
+    src: "{{ controller_dist_zip }}"
+    dest: "{{ controller_base_path }}/sak-controller.zip"
+    owner: root
+    group: root
+    mode: "0644"
+  register: controller_dist
+
+- name: Check for an expanded distribution
+  ansible.builtin.stat:
+    path: "{{ controller_app_path }}/bin/sak-controller"
+  register: controller_start_script
+
+# the zip's top level directory carries the version (sak-controller-<version>/), it is
+# expanded next to the app directory and then swapped in, so no jars of an old version stay
+- name: Expand the distribution
+  when: controller_dist.changed or not controller_start_script.stat.exists
+  notify: Restart sak-controller
+  block:
+    - name: Remove a previous staging directory
+      ansible.builtin.file:
+        path: "{{ controller_base_path }}/.staging"
+        state: absent
+
+    - name: Create the staging directory
+      ansible.builtin.file:
+        path: "{{ controller_base_path }}/.staging"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Unpack the distribution into the staging directory
+      # the staging directory does not exist in check mode
+      when: not ansible_check_mode
+      ansible.builtin.unarchive:
+        src: "{{ controller_base_path }}/sak-controller.zip"
+        dest: "{{ controller_base_path }}/.staging"
+        remote_src: true
+        owner: root
+        group: root
+
+    - name: Replace the app directory with the new distribution
+      # the staging directory does not exist in check mode
+      when: not ansible_check_mode
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          rm -rf '{{ controller_app_path }}'
+          mv '{{ controller_base_path }}'/.staging/sak-controller-*/ '{{ controller_app_path }}'
+          rm -rf '{{ controller_base_path }}/.staging'
+      changed_when: true
+
+- name: Upload the controller configuration
+  ansible.builtin.copy:
+    src: "{{ controller_config_src }}"
+    dest: "{{ controller_config_file }}"
+    owner: root
+    group: "{{ controller_group }}"
+    mode: "0640"
+  notify: Restart sak-controller
+
+# read by systemd (as root) only, the controller gets the credentials via its environment
+- name: Upload the controller environment
+  ansible.builtin.copy:
+    src: "{{ controller_env_src }}"
+    dest: "{{ controller_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart sak-controller
+
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: sak-controller.service.j2
+    dest: /etc/systemd/system/sak-controller.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sak-controller
+
+- name: Enable and start sak-controller
+  ansible.builtin.systemd_service:
+    name: sak-controller
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Create the caddy storage directory
+  ansible.builtin.file:
+    path: "{{ controller_caddy_storage_path }}"
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: "0700"
+
+- name: Write the caddy configuration
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    owner: root
+    group: root
+    mode: "0644"
+    validate: caddy validate --adapter caddyfile --config %s
+  notify: Reload caddy
+
+- name: Enable and start caddy
+  ansible.builtin.systemd_service:
+    name: caddy
+    enabled: true
+    state: started

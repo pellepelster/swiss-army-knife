@@ -1,0 +1,7 @@
+---
+# reboot automatically when an upgrade (e.g. a new kernel) requires it
+common_unattended_upgrades_automatic_reboot: true
+# local time the automatic reboot happens at
+common_unattended_upgrades_automatic_reboot_time: "04:00"
+# remove dependencies that are no longer needed after an upgrade
+common_unattended_upgrades_remove_unused_dependencies: true

@@ -1,0 +1,16 @@
+---
+sak:
+  data_dir: /something
+  root_domain: example.org
+  caddy_admin_url: http://localhost:3019
+  redirects:
+    www.example.org: example.org
+  s3:
+    access_key_id: sak
+    secret_access_key: changeme
+    data_dir: /somewhere/s3
+    buckets:
+      backups: {}
+      media:
+        domains:
+          - media.example.org

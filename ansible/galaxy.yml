@@ -1,0 +1,17 @@
+namespace: pelle
+name: sak
+version: 0.1.0
+readme: README.md
+authors:
+  - Christian 'Pelle' Pelster <pelle@pelle.io>
+description: Provisioning for the swiss-army-knife controller server
+license:
+  - MIT
+tags:
+  - infrastructure
+dependencies:
+  ansible.posix: ">=1.5.0"
+  community.general: ">=8.0.0"
+build_ignore:
+  - "*.tar.gz"
+  - requirements.yml

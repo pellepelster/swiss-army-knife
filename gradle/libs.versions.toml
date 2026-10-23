@@ -1,0 +1,31 @@
+[versions]
+awssdk = "2.57.3"
+jackson = "3.2.4"
+junit = "5.13.4"
+kotest = "6.2.6"
+kotlin = "2.4.21"
+kotlin-logging = "8.0.4"
+kotlinx-serialization = "1.11.0"
+ktor = "3.6.0"
+logback = "1.6.5"
+
+[libraries]
+awssdk-bom = { module = "software.amazon.awssdk:bom", version.ref = "awssdk" }
+awssdk-apache-client = { module = "software.amazon.awssdk:apache-client" }
+awssdk-s3 = { module = "software.amazon.awssdk:s3" }
+jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
+jackson-dataformat-xml = { module = "tools.jackson.dataformat:jackson-dataformat-xml" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-serialization-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+ktor-bom = { module = "io.ktor:ktor-bom", version.ref = "ktor" }
+ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml" }
+ktor-server-core = { module = "io.ktor:ktor-server-core" }
+ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

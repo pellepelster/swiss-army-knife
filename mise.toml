@@ -1,0 +1,62 @@
+[tools]
+terraform = "1.17.0"
+"pipx:ansible-core" = "2.18.19"
+# the backend the `pipx:` tool above installs with
+pipx = "1.17.2"
+
+# the only terraform call, every tf:* task runs through it; the credentials are read from
+# pass when a task runs (not when mise loads this file) unless already set in the environment
+[tasks."tf"]
+description = "Run terraform in infra/ with the Hetzner Cloud and AWS credentials from pass"
+env = {
+    AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
+    AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
+    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token | head -n1')) }}"
+}
+usage = '''
+arg "<args>" var=#true help="arguments passed to terraform"
+'''
+# usage_args is shell quoted (e.g. '-input=false'), eval restores the original arguments
+run = '''
+eval "set -- ${usage_args}"
+terraform -chdir=infra "$@"
+'''
+
+[tasks."tf:init"]
+description = "Initialize Terraform for the Hetzner Cloud infrastructure in infra/"
+run = "mise run tf -- init"
+
+[tasks."tf:plan"]
+description = "Show the changes Terraform would make to the Hetzner Cloud infrastructure"
+run = "mise run tf -- plan"
+
+[tasks."tf:apply"]
+description = "Create or update sak-controller and its sak-data volume in Hetzner Cloud"
+run = "mise run tf -- apply"
+
+# uses the client key and the pinned host key that tf:apply writes to infra/.ssh/,
+# extra arguments are passed to ssh (e.g. `mise run ssh -- uptime`)
+[tasks."ssh"]
+description = "Log in to sak-controller as root with the generated ssh client key"
+run = "ssh -i infra/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=infra/.ssh/known_hosts -o StrictHostKeyChecking=yes root@\"$(mise run tf -- output -raw controller_ipv4)\""
+
+# the collection is linked (not copied) into .ansible/collections, so changes below
+# ansible/ take effect without reinstalling it; the inventory is written by tf:apply,
+# the controller zip is built before every run and only deployed when it changed
+[tasks."ansible:run"]
+description = "Provision sak-controller with the pelle.sak collection"
+env = { ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/.ansible/collections" }
+run = """
+if [ ! -f infra/.ansible/inventory.yml ]; then
+  echo "infra/.ansible/inventory.yml is missing, run 'mise run tf:apply' first" >&2
+  exit 1
+fi
+mkdir -p .ansible/collections/ansible_collections/pelle
+ln -sfn ../../../../ansible .ansible/collections/ansible_collections/pelle/sak
+ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
+./gradlew :sak-controller:distZip
+ansible-playbook -i infra/.ansible/inventory.yml \
+  -e controller_dist_zip="$(ls "$PWD"/sak-controller/build/distributions/sak-controller-*.zip)" \
+  -e controller_config_src="$PWD/config/controller-config.yaml" \
+  pelle.sak.controller
+"""

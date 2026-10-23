@@ -1,0 +1,36 @@
+---
+- name: Check that the data volume device is set
+  ansible.builtin.assert:
+    that:
+      - storage_device | length > 0
+    fail_msg: "storage_device must be set to the data volume's block device"
+    quiet: true
+
+- name: Wait for the data volume device
+  ansible.builtin.wait_for:
+    path: "{{ storage_device }}"
+    timeout: "{{ storage_device_timeout }}"
+
+# only formats a device without a filesystem, an existing one is never replaced
+# (no force), but it is grown to the size of the device after a volume resize
+- name: Ensure the data volume has a filesystem
+  community.general.filesystem:
+    dev: "{{ storage_device }}"
+    fstype: "{{ storage_fstype }}"
+    resizefs: true
+
+- name: Create the mount point
+  ansible.builtin.file:
+    path: "{{ storage_mount_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Mount the data volume
+  ansible.posix.mount:
+    src: "{{ storage_device }}"
+    path: "{{ storage_mount_path }}"
+    fstype: "{{ storage_fstype }}"
+    opts: "{{ storage_mount_options }}"
+    state: mounted

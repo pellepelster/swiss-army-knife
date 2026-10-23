@@ -1,0 +1,8 @@
+---
+- name: Provision sak-controller
+  hosts: controller
+  become: true
+  roles:
+    - pelle.sak.common
+    - pelle.sak.storage
+    - pelle.sak.controller

@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+[Unit]
+Description=sak-controller
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor={{ controller_base_path }} {{ controller_s3_data_path }}
+
+[Service]
+Type=simple
+User={{ controller_user }}
+Group={{ controller_group }}
+WorkingDirectory={{ controller_data_path }}
+EnvironmentFile={{ controller_env_file }}
+ExecStart={{ controller_app_path }}/bin/sak-controller -config={{ controller_config_file }}
+Restart=on-failure
+RestartSec=5
+# the jvm exits with 143 on SIGTERM
+SuccessExitStatus=143
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ controller_data_path }} {{ controller_s3_data_path }}
+
+[Install]
+WantedBy=multi-user.target
