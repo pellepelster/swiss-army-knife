@@ -85,8 +85,9 @@ class SiteMetricsServiceTest {
                 // caddy logs aborted requests with status 0
                 series("requests", mapOf("status" to "0"), lastBucket to 3),
                 series("bytes", mapOf("status" to "200"), lastBucket to 1000, firstBucket to 24),
-                // outside of the range
+                // outside of the range, also just before its start
                 series("requests", mapOf("status" to "200"), firstBucket - 120 to 7),
+                series("requests", mapOf("status" to "200"), firstBucket - 60 to 9),
             )
         userAgentResponse =
             response(

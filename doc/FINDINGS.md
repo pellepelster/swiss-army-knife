@@ -18,7 +18,7 @@ commit of its own, the status column tracks them.
 | 10 | low | fixed | login tokens can reach caddy's error log |
 | 11 | low | fixed | console host proxies the whole controller, no hsts |
 | 12 | low | fixed | jwt defense in depth (`exp`, `kid`) |
-| 13 | low | open | bucket index truncates toward zero |
+| 13 | low | fixed | bucket index truncates toward zero |
 | 14 | low | open | a console setup failure stops the whole controller |
 | 15 | medium | open | ui: live view hides errors |
 | 16 | low | open | ui: search debounce timer outlives the component |
@@ -134,7 +134,7 @@ is emitted but no verifier reads it (see S3).
 
 Fix: a login token without `exp` is rejected.
 
-### 13. Bucket index truncates toward zero (low)
+### 13. Bucket index truncates toward zero (low, fixed)
 
 `MetricsRange.kt`: `/` truncates toward zero, a point in `(start-step, start)` lands in bucket 0
 instead of being dropped. Not triggered today, victorialogs aligns to `start`.

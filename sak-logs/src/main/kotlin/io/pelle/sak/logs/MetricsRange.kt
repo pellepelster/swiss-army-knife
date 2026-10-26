@@ -52,7 +52,8 @@ class TimeSeriesGrid(
         points: List<StatsPoint>,
     ) {
         points.forEach { point ->
-            val index = ((point.timestamp.epochSecond - start.epochSecond) / stepSeconds).toInt()
+            // floored, a point just before the start must not land in the first bucket
+            val index = Math.floorDiv(point.timestamp.epochSecond - start.epochSecond, stepSeconds).toInt()
             if (index in 0 until range.buckets) target[index] += point.value.toLong()
         }
     }
