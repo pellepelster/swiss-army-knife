@@ -39,14 +39,26 @@ class BinaryStorageS3Backend(
         val bucketPath = requireBucket(bucket)
         val digest = MessageDigest.getInstance("MD5")
 
-        storage.write(dataPath(bucketPath, key), DigestInputStream(content, digest))
-        val etag = digest.digest().toHex()
+        val etag =
+            conflictsAsKeyConflict(key) {
+                storage.write(dataPath(bucketPath, key), DigestInputStream(content, digest))
+                digest.digest().toHex()
+            }
 
-        writeMeta(
-            bucketPath,
-            key,
-            MetaFile(etag, metadata.contentType, metadata.cacheControl, metadata.contentEncoding, metadata.userMetadata),
-        )
+        try {
+            conflictsAsKeyConflict(key) {
+                writeMeta(
+                    bucketPath,
+                    key,
+                    MetaFile(etag, metadata.contentType, metadata.cacheControl, metadata.contentEncoding, metadata.userMetadata),
+                )
+            }
+        } catch (e: KeyConflictException) {
+            // the sidecar of 'a' ('a.json') collides with the sidecars below 'a.json/', the data
+            // is not kept without its sidecar
+            storage.delete(dataPath(bucketPath, key))
+            throw e
+        }
 
         return PutResult(etag)
     }
@@ -213,8 +225,10 @@ class BinaryStorageS3Backend(
         val key = uploadMeta.key
         val etag = "${partDigest.digest().toHex()}-${parts.size}"
 
-        SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), it) }
-        writeMeta(bucketPath, key, uploadMeta.meta.copy(etag = etag))
+        conflictsAsKeyConflict(key) {
+            SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), it) }
+            writeMeta(bucketPath, key, uploadMeta.meta.copy(etag = etag))
+        }
         storage.deleteTree(uploadPath)
 
         return PutResult(etag)
@@ -289,6 +303,17 @@ class BinaryStorageS3Backend(
         return uploadPath
     }
 
+    private fun <T> conflictsAsKeyConflict(
+        key: String,
+        block: () -> T,
+    ): T =
+        try {
+            block()
+        } catch (_: BlobPathConflictException) {
+            throw KeyConflictException(key)
+        }
+
+    // keys map to paths, so a key ending with '/' (a directory marker on s3) is invalid here
     private fun requireValidKey(key: String): List<String> {
         if (key.isEmpty()) throw InvalidKeyException(key)
         val segments = key.split('/')

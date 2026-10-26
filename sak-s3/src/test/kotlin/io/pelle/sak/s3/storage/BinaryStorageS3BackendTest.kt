@@ -100,6 +100,25 @@ class BinaryStorageS3BackendTest {
     }
 
     @Test
+    fun `a key that is an object can not be a prefix and vice versa`() {
+        put("file")
+        shouldThrow<KeyConflictException> { put("file/child") }
+        storage.getObject("bucket1", "file").shouldNotBeNull()
+
+        put("dir/child")
+        shouldThrow<KeyConflictException> { put("dir") }
+        storage.getObject("bucket1", "dir/child").shouldNotBeNull()
+        storage.headObject("bucket1", "dir").shouldBeNull()
+
+        // the metadata sidecar of 'a' lives at 'a.json', clashing with sidecars below 'a.json/'
+        put("sidecar.json/child")
+        shouldThrow<KeyConflictException> { put("sidecar") }
+        storage.headObject("bucket1", "sidecar").shouldBeNull()
+        // nothing staged is left behind by the failed writes
+        tempDir.resolve(BlobPath.STAGING_DIRECTORY).toFile().list().shouldNotBeNull().shouldBeEmpty()
+    }
+
+    @Test
     fun `headObject returns null for missing key`() {
         storage.headObject("bucket1", "missing.txt").shouldBeNull()
         storage.getObject("bucket1", "missing.txt").shouldBeNull()

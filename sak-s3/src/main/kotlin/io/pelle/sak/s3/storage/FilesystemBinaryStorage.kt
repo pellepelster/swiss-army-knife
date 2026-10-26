@@ -5,6 +5,7 @@ import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.file.DirectoryNotEmptyException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -74,7 +75,8 @@ class FilesystemBinaryStorage(
         content: (OutputStream) -> Unit,
     ): BlobInfo {
         val target = resolve(path)
-        Files.createDirectories(target.parent)
+        if (Files.isDirectory(target)) throw BlobPathConflictException(path)
+        createParent(target, path)
         Files.createDirectories(tmpDir)
 
         val staged = tmpDir.resolve(UUID.randomUUID().toString())
@@ -90,7 +92,7 @@ class FilesystemBinaryStorage(
             throw e
         }
         try {
-            moveIntoPlace(staged, target)
+            moveIntoPlace(staged, target, path)
         } catch (e: Throwable) {
             Files.deleteIfExists(staged)
             throw e
@@ -192,14 +194,29 @@ class FilesystemBinaryStorage(
 
     private fun resolve(path: BlobPath): Path = path.segments.fold(rootPath) { current, component -> current.resolve(component) }
 
+    // a blob on the way to the target (e.g. the blob 'a' for the path 'a/b') makes the
+    // directory creation fail
+    private fun createParent(
+        target: Path,
+        path: BlobPath,
+    ) {
+        try {
+            Files.createDirectories(target.parent)
+        } catch (_: FileAlreadyExistsException) {
+            throw BlobPathConflictException(path)
+        }
+    }
+
     private fun moveIntoPlace(
         staged: Path,
         target: Path,
+        path: BlobPath,
     ) {
         try {
             Files.move(staged, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         } catch (_: NoSuchFileException) {
-            Files.createDirectories(target.parent)
+            // a concurrent delete pruned the parent in the meantime
+            createParent(target, path)
             Files.move(staged, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         }
     }

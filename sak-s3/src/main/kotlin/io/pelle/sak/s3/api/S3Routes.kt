@@ -31,6 +31,7 @@ import io.pelle.sak.s3.auth.SigV4Verifier
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.InvalidKeyException
 import io.pelle.sak.s3.storage.InvalidPartException
+import io.pelle.sak.s3.storage.KeyConflictException
 import io.pelle.sak.s3.storage.NoSuchBucketException
 import io.pelle.sak.s3.storage.NoSuchUploadException
 import io.pelle.sak.s3.storage.ObjectMetadata
@@ -115,6 +116,8 @@ private class S3Api(
             error(call, 404, "NoSuchUpload", e.message ?: "no such upload")
         } catch (e: InvalidKeyException) {
             error(call, 400, "InvalidRequest", e.message ?: "invalid key")
+        } catch (e: KeyConflictException) {
+            error(call, 400, "InvalidRequest", e.message ?: "key conflict")
         } catch (e: InvalidPartException) {
             error(call, 400, "InvalidPart", e.message ?: "invalid part")
         } catch (e: Exception) {

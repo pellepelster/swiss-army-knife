@@ -58,6 +58,11 @@ class InvalidKeyException(
     val key: String,
 ) : RuntimeException("invalid object key '$key'")
 
+// s3 allows an object 'a' next to 'a/b', the filesystem layout does not
+class KeyConflictException(
+    val key: String,
+) : RuntimeException("object key '$key' conflicts with an existing object or prefix")
+
 class InvalidPartException(
     message: String,
 ) : RuntimeException(message)
