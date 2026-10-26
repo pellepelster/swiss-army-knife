@@ -26,13 +26,16 @@ transforms:
       .time = format_timestamp!(from_unix_timestamp!(to_int(round(to_float!(.ts) * 1000)), unit: "milliseconds"), format: "%+")
       del(.ts)
       headers = map_keys(object(.request.headers) ?? {}) -> |key| { downcase(key) }
-      user_agent = to_string(headers."user-agent"[0]) ?? ""
+      # both are chosen by the client, bounded so nobody can make the stored entries and the
+      # metrics computed from them arbitrarily large
+      user_agent = truncate(to_string(headers."user-agent"[0]) ?? "", 512)
       if user_agent != "" { .user_agent = user_agent }
+      .request.uri = truncate(to_string(.request.uri) ?? "", 2048)
       del(.request.headers)
       del(.resp_headers)
       # every caddy route appends its site, the stream the entry belongs to
       if !is_string(.site) { .site = "unmatched" }
-      .message = join([to_string(.request.method) ?? "-", to_string(.request.host) ?? "-", to_string(.request.uri) ?? "-", to_string(.status) ?? "-"], " ")
+      .message = join([to_string(.request.method) ?? "-", to_string(.request.host) ?? "-", .request.uri, to_string(.status) ?? "-"], " ")
 
 sinks:
   victorialogs:

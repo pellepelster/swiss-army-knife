@@ -3,6 +3,7 @@ package io.pelle.sak.logs
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.longs.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.ktor.client.request.get
@@ -149,6 +150,16 @@ class SiteMetricsServiceTest {
         UserAgentClassifier.classify("Mozilla/5.0 (Windows NT 10.0) Chrome/141.0 Safari/537.36 Edg/141.0") shouldBe UserAgentGroup.EDGE
         UserAgentClassifier.classify("curl/8.5.0") shouldBe UserAgentGroup.SDK
         UserAgentClassifier.classify("something") shouldBe UserAgentGroup.OTHER
+    }
+
+    @Test
+    fun `classifies oversized user agents in bounded time`() {
+        // without the bound the safari rule backtracks quadratically over this
+        val oversized = "Version/1 ".repeat(60_000)
+
+        val started = System.nanoTime()
+        UserAgentClassifier.classify(oversized) shouldBe UserAgentGroup.OTHER
+        (System.nanoTime() - started) shouldBeLessThan 1_000_000_000L
     }
 
     @Test

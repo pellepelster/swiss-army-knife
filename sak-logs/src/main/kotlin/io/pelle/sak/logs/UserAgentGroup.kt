@@ -67,6 +67,12 @@ object UserAgentClassifier {
             UserAgentGroup.SAFARI to "Version/[\\d.]+ .*Safari|^Mozilla/5\\.0 \\(i(?:Phone|Pad)",
         ).map { (group, pattern) -> group to Regex(pattern, RegexOption.IGNORE_CASE) }
 
-    fun classify(userAgent: String): UserAgentGroup =
-        RULES.firstOrNull { (_, pattern) -> pattern.containsMatchIn(userAgent) }?.first ?: UserAgentGroup.OTHER
+    // vector stores at most this much of a user agent, and java's regex backtracks, so the rules
+    // only ever see a bounded input
+    const val MAX_LENGTH = 512
+
+    fun classify(userAgent: String): UserAgentGroup {
+        val bounded = userAgent.take(MAX_LENGTH)
+        return RULES.firstOrNull { (_, pattern) -> pattern.containsMatchIn(bounded) }?.first ?: UserAgentGroup.OTHER
+    }
 }

@@ -8,7 +8,7 @@ commit of its own, the status column tracks them.
 |---|---|---|---|
 | 1 | medium | fixed | anyone can lock the admin out of logging in |
 | 2 | medium | fixed | no request body limit |
-| 3 | medium | open | metrics group by raw, attacker-controlled `user_agent` |
+| 3 | medium | fixed | metrics group by raw, attacker-controlled `user_agent` |
 | 4 | medium | open | sessions survive removal from `allowed_emails` |
 | 5 | low | open | login timing leaks whether an address is allowed |
 | 6 | low | open | sse keepalive can drop an entry |
@@ -54,7 +54,7 @@ restart-loops (and loses the in-memory rate limiter state).
 Fix: `RequestBodyLimit` of 16KiB on `/api` (413 before the body is read), `request_body
 max_size` of 1MiB on the console route in caddy.
 
-### 3. Metrics group by raw, attacker-controlled `user_agent` (medium)
+### 3. Metrics group by raw, attacker-controlled `user_agent` (medium, fixed)
 
 `SiteMetricsService.kt` `stats by (user_agent)`, `UserAgentGroup.kt`, `vector.yaml`: any visitor
 of any site controls the header (caddy accepts ~1MB), vector ships it verbatim and victorialogs
