@@ -83,7 +83,8 @@ class SakCaddyTest {
                         {
                           "handle": [{ "handler": "static_response", "abort": true }]
                         }
-                      ]
+                      ],
+                      "logs": {}
                     }
                   }
                 }

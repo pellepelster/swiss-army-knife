@@ -31,6 +31,8 @@ fun caddyConfig(
     caddyConfig {
         server("sak") {
             listen(":80", ":443")
+            // the ingress writes the access log to the file its caddyfile configures
+            enableAccessLog()
 
             route {
                 protocol("http")

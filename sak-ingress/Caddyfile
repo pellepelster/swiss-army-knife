@@ -4,6 +4,25 @@
 	admin localhost:2019
 	persist_config off
 	storage file_system /data
+
+	# json log files below /data/log, access logs are only written for servers that enable
+	# them, sak-controller does that for its server
+	log default {
+		output file /data/log/caddy.log {
+			roll_size 100MiB
+			roll_keep 10
+		}
+		format json
+		exclude http.log.access
+	}
+	log access {
+		output file /data/log/access.log {
+			roll_size 100MiB
+			roll_keep 10
+		}
+		format json
+		include http.log.access
+	}
 }
 
 # nothing is served until sak-controller configures caddy, every request is answered by
