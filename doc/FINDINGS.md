@@ -24,7 +24,7 @@ commit of its own, the status column tracks them.
 | 16 | low | fixed | ui: search debounce timer outlives the component |
 | 17 | low | fixed | ui: live view updates per entry |
 | 18 | low | fixed | ui: unknown site in the url |
-| 19 | low | open | ui: stored session trusted without validation |
+| 19 | low | fixed | ui: stored session trusted without validation |
 | 20 | low | open | ui: sites never retried after a network error |
 | S1 | - | open | duplicate stream filter builders |
 | S2 | - | open | duplicate json line decoding |
@@ -179,7 +179,7 @@ right now", and the dropdown has no selected option.
 
 Fix: an unknown site is reported as such.
 
-### 19. Stored session trusted without validation (low)
+### 19. Stored session trusted without validation (low, fixed)
 
 `auth.service.ts`: `Date.parse('garbage')` is NaN, `NaN <= now` is false, so a corrupted stored
 session counts as valid until the server answers 401.

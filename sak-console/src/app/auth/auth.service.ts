@@ -106,7 +106,13 @@ function loadSession(): Session | null {
   try {
     const stored = localStorage.getItem(SESSION_STORAGE_KEY);
     const session = stored ? (JSON.parse(stored) as Partial<Session>) : null;
-    if (session?.token && session.email && session.expiresAt) {
+    // an expiry that is no date would count as never expiring
+    if (
+      typeof session?.token === 'string' &&
+      typeof session.email === 'string' &&
+      typeof session.expiresAt === 'string' &&
+      !Number.isNaN(Date.parse(session.expiresAt))
+    ) {
       return { token: session.token, email: session.email, expiresAt: session.expiresAt };
     }
   } catch {

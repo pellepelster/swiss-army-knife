@@ -106,6 +106,13 @@ describe('AuthService', () => {
     TestBed.resetTestingModule();
     localStorage.setItem(SESSION_STORAGE_KEY, '{not json');
     expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
+
+    TestBed.resetTestingModule();
+    localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ token: 'session-token', email: 'admin@example.org', expiresAt: 'never' }),
+    );
+    expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
   });
 
   it('forgets the session on logout', () => {
