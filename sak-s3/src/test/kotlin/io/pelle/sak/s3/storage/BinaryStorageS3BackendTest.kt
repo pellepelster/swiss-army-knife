@@ -236,13 +236,13 @@ class BinaryStorageS3BackendTest {
         val part2 = "b".repeat(1024).toByteArray()
 
         val uploadId = storage.createMultipartUpload("bucket1", "big.bin", ObjectMetadata(contentType = "application/octet-stream"))
-        val etag1 = storage.uploadPart("bucket1", uploadId, 1, part1.inputStream())
-        val etag2 = storage.uploadPart("bucket1", uploadId, 2, part2.inputStream())
+        val etag1 = storage.uploadPart("bucket1", "big.bin", uploadId, 1, part1.inputStream())
+        val etag2 = storage.uploadPart("bucket1", "big.bin", uploadId, 2, part2.inputStream())
 
         etag1 shouldBe md5Hex(part1)
         etag2 shouldBe md5Hex(part2)
 
-        val result = storage.completeMultipartUpload("bucket1", uploadId, listOf(PartRef(1, etag1), PartRef(2, etag2)))
+        val result = storage.completeMultipartUpload("bucket1", "big.bin", uploadId, listOf(PartRef(1, etag1), PartRef(2, etag2)))
 
         val partDigests = MessageDigest.getInstance("MD5").digest(md5Hex(part1).hexToBytes() + md5Hex(part2).hexToBytes())
         result.etag shouldBe "${partDigests.joinToString("") { "%02x".format(it) }}-2"
@@ -260,26 +260,26 @@ class BinaryStorageS3BackendTest {
     @Test
     fun `completeMultipartUpload rejects wrong etag and unordered parts`() {
         val uploadId = storage.createMultipartUpload("bucket1", "big.bin", ObjectMetadata())
-        val etag1 = storage.uploadPart("bucket1", uploadId, 1, "one".byteInputStream())
-        val etag2 = storage.uploadPart("bucket1", uploadId, 2, "two".byteInputStream())
+        val etag1 = storage.uploadPart("bucket1", "big.bin", uploadId, 1, "one".byteInputStream())
+        val etag2 = storage.uploadPart("bucket1", "big.bin", uploadId, 2, "two".byteInputStream())
 
         shouldThrow<InvalidPartException> {
-            storage.completeMultipartUpload("bucket1", uploadId, listOf(PartRef(1, "wrong")))
+            storage.completeMultipartUpload("bucket1", "big.bin", uploadId, listOf(PartRef(1, "wrong")))
         }
         shouldThrow<InvalidPartException> {
-            storage.completeMultipartUpload("bucket1", uploadId, listOf(PartRef(2, etag2), PartRef(1, etag1)))
+            storage.completeMultipartUpload("bucket1", "big.bin", uploadId, listOf(PartRef(2, etag2), PartRef(1, etag1)))
         }
         shouldThrow<InvalidPartException> {
-            storage.completeMultipartUpload("bucket1", uploadId, emptyList())
+            storage.completeMultipartUpload("bucket1", "big.bin", uploadId, emptyList())
         }
     }
 
     @Test
     fun `abortMultipartUpload removes upload state`() {
         val uploadId = storage.createMultipartUpload("bucket1", "big.bin", ObjectMetadata())
-        storage.uploadPart("bucket1", uploadId, 1, "data".byteInputStream())
+        storage.uploadPart("bucket1", "big.bin", uploadId, 1, "data".byteInputStream())
 
-        storage.abortMultipartUpload("bucket1", uploadId)
+        storage.abortMultipartUpload("bucket1", "big.bin", uploadId)
 
         bucketDir()
             .resolve("uploads/$uploadId")
@@ -289,12 +289,26 @@ class BinaryStorageS3BackendTest {
     }
 
     @Test
+    fun `an upload only accepts its own key`() {
+        val uploadId = storage.createMultipartUpload("bucket1", "big.bin", ObjectMetadata())
+        val etag = storage.uploadPart("bucket1", "big.bin", uploadId, 1, "data".byteInputStream())
+
+        shouldThrow<NoSuchUploadException> { storage.uploadPart("bucket1", "other.bin", uploadId, 2, "data".byteInputStream()) }
+        shouldThrow<NoSuchUploadException> { storage.completeMultipartUpload("bucket1", "other.bin", uploadId, listOf(PartRef(1, etag))) }
+        shouldThrow<NoSuchUploadException> { storage.abortMultipartUpload("bucket1", "other.bin", uploadId) }
+        storage.headObject("bucket1", "other.bin").shouldBeNull()
+
+        storage.completeMultipartUpload("bucket1", "big.bin", uploadId, listOf(PartRef(1, etag)))
+        storage.getObject("bucket1", "big.bin").shouldNotBeNull()
+    }
+
+    @Test
     fun `unknown uploadId throws NoSuchUploadException`() {
         shouldThrow<NoSuchUploadException> {
-            storage.uploadPart("bucket1", "00000000-0000-0000-0000-000000000000", 1, "data".byteInputStream())
+            storage.uploadPart("bucket1", "big.bin", "00000000-0000-0000-0000-000000000000", 1, "data".byteInputStream())
         }
         shouldThrow<NoSuchUploadException> {
-            storage.uploadPart("bucket1", "../../escape", 1, "data".byteInputStream())
+            storage.uploadPart("bucket1", "big.bin", "../../escape", 1, "data".byteInputStream())
         }
     }
 

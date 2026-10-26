@@ -172,12 +172,13 @@ class BinaryStorageS3Backend(
 
     override fun uploadPart(
         bucket: String,
+        key: String,
         uploadId: String,
         partNumber: Int,
         content: InputStream,
     ): String {
         val bucketPath = requireBucket(bucket)
-        val uploadPath = requireUpload(bucketPath, uploadId)
+        val uploadPath = requireUpload(bucketPath, key, uploadId).path
         if (partNumber < 1) throw InvalidPartException("part number must be >= 1")
 
         val digest = MessageDigest.getInstance("MD5")
@@ -189,14 +190,12 @@ class BinaryStorageS3Backend(
 
     override fun completeMultipartUpload(
         bucket: String,
+        key: String,
         uploadId: String,
         parts: List<PartRef>,
     ): PutResult {
         val bucketPath = requireBucket(bucket)
-        val uploadPath = requireUpload(bucketPath, uploadId)
-        val uploadMeta =
-            storage.open(uploadPath.resolve(UPLOAD_META))?.use { mapper.readValue<UploadMetaFile>(it) }
-                ?: throw NoSuchUploadException(uploadId)
+        val (uploadPath, uploadMeta) = requireUpload(bucketPath, key, uploadId)
 
         if (parts.isEmpty()) throw InvalidPartException("part list must not be empty")
         parts.zipWithNext().forEach { (a, b) ->
@@ -229,7 +228,6 @@ class BinaryStorageS3Backend(
                 }
             }
 
-        val key = uploadMeta.key
         val etag = "${partDigest.digest().toHex()}-${parts.size}"
 
         conflictsAsKeyConflict(key) {
@@ -243,9 +241,10 @@ class BinaryStorageS3Backend(
 
     override fun abortMultipartUpload(
         bucket: String,
+        key: String,
         uploadId: String,
     ) {
-        storage.deleteTree(requireUpload(requireBucket(bucket), uploadId))
+        storage.deleteTree(requireUpload(requireBucket(bucket), key, uploadId).path)
     }
 
     private fun info(
@@ -300,14 +299,23 @@ class BinaryStorageS3Backend(
         uploadId: String,
     ) = bucketPath.resolve(UPLOADS, uploadId)
 
+    private data class Upload(
+        val path: BlobPath,
+        val meta: UploadMetaFile,
+    )
+
     private fun requireUpload(
         bucketPath: BlobPath,
+        key: String,
         uploadId: String,
-    ): BlobPath {
+    ): Upload {
         if (!uploadId.matches(UPLOAD_ID_REGEX)) throw NoSuchUploadException(uploadId)
         val uploadPath = uploadPath(bucketPath, uploadId)
-        if (storage.stat(uploadPath.resolve(UPLOAD_META)) == null) throw NoSuchUploadException(uploadId)
-        return uploadPath
+        val meta =
+            storage.open(uploadPath.resolve(UPLOAD_META))?.use { mapper.readValue<UploadMetaFile>(it) }
+                ?: throw NoSuchUploadException(uploadId)
+        if (meta.key != key) throw NoSuchUploadException(uploadId)
+        return Upload(uploadPath, meta)
     }
 
     private fun <T> conflictsAsKeyConflict(

@@ -104,8 +104,10 @@ interface S3StorageBackend {
         metadata: ObjectMetadata,
     ): String
 
+    // an upload belongs to the key it was created for, every other key is NoSuchUpload
     fun uploadPart(
         bucket: String,
+        key: String,
         uploadId: String,
         partNumber: Int,
         content: InputStream,
@@ -113,12 +115,14 @@ interface S3StorageBackend {
 
     fun completeMultipartUpload(
         bucket: String,
+        key: String,
         uploadId: String,
         parts: List<PartRef>,
     ): PutResult
 
     fun abortMultipartUpload(
         bucket: String,
+        key: String,
         uploadId: String,
     )
 }

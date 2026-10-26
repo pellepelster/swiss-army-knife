@@ -300,7 +300,7 @@ private class S3Api(
 
             val partNumber = query("partNumber")!!.toIntOrNull() ?: throw S3Exception.invalidRequest("invalid partNumber")
             val content = body()
-            val etag = io { storage.uploadPart(bucket, query("uploadId")!!, partNumber, content) }
+            val etag = io { storage.uploadPart(bucket, key, query("uploadId")!!, partNumber, content) }
             call.response.header(HttpHeaders.ETag, S3Xml.quote(etag))
             call.respond(HttpStatusCode.OK)
         }
@@ -317,7 +317,7 @@ private class S3Api(
                     throw S3Exception.invalidRequest("malformed CompleteMultipartUpload body")
                 }
 
-            val result = io { storage.completeMultipartUpload(bucket, query("uploadId")!!, parts.map { PartRef(it.partNumber, it.etag) }) }
+            val result = io { storage.completeMultipartUpload(bucket, key, query("uploadId")!!, parts.map { PartRef(it.partNumber, it.etag) }) }
 
             respondXml(
                 CompleteMultipartUploadResult(
@@ -332,7 +332,7 @@ private class S3Api(
         suspend fun abortMultipartUpload() {
             checkAccess(S3Operation.ABORT_MULTIPART_UPLOAD, key)
 
-            io { storage.abortMultipartUpload(bucket, query("uploadId")!!) }
+            io { storage.abortMultipartUpload(bucket, key, query("uploadId")!!) }
             call.respond(HttpStatusCode.NoContent)
         }
 
