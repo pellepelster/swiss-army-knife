@@ -22,6 +22,7 @@ data class SakConfig(
     val s3: S3Config,
     // the console and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
+    val logs: LogsConfig = LogsConfig(),
 ) {
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
@@ -31,6 +32,13 @@ data class SakConfig(
 
     // the login links in the e-mails point here
     val consoleUrl: String get() = auth?.consoleUrl ?: "https://$consoleHost"
+
+    @Serializable
+    data class LogsConfig(
+        // the ingress access logs end up here, the console shows the metrics of the sites from it
+        @SerialName("victorialogs_url")
+        val victorialogsUrl: String = DEFAULT_VICTORIALOGS_URL,
+    )
 
     @Serializable
     data class AuthConfig(
@@ -72,6 +80,8 @@ data class SakConfig(
 
     companion object {
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
+
+        const val DEFAULT_VICTORIALOGS_URL = "http://127.0.0.1:9428"
     }
 }
 

@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":sak-s3"))
     implementation(project(":sak-caddy"))
     implementation(project(":sak-auth"))
+    implementation(project(":sak-logs"))
     runtimeOnly(project(":sak-console"))
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.config.yaml)

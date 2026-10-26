@@ -5,17 +5,22 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.authenticate
 import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.logs.SiteMetricsService
+import io.pelle.sak.logs.VictoriaLogsClient
+import io.pelle.sak.logs.sites
 
 const val API_PATH_PREFIX = "/api"
 
@@ -60,6 +65,11 @@ fun Application.console(
             route(API_PATH_PREFIX) {
                 route("/auth") {
                     auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })
+                }
+                authenticate(SESSION_AUTH) {
+                    route("/sites") {
+                        sites(sites(config), SiteMetricsService(VictoriaLogsClient(config.logs.victorialogsUrl)))
+                    }
                 }
                 // unknown api paths are no console pages
                 route("{...}") {

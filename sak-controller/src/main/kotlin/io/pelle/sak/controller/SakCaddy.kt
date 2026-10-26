@@ -36,12 +36,14 @@ fun caddyConfig(
 
             route {
                 protocol("http")
+                logField(SITE_LOG_FIELD, REDIRECT_SITE)
                 redirect("https://{http.request.host}{http.request.uri}")
                 terminal()
             }
 
             route {
                 host(s3Host(config))
+                logField(SITE_LOG_FIELD, S3_SITE)
                 rewrite("$S3_PATH_PREFIX{http.request.uri}")
                 reverseProxy("localhost:$port")
                 terminal()
@@ -50,6 +52,7 @@ fun caddyConfig(
             if (config.auth != null) {
                 route {
                     host(config.consoleHost)
+                    logField(SITE_LOG_FIELD, CONSOLE_SITE)
                     reverseProxy("localhost:$port")
                     terminal()
                 }
@@ -60,6 +63,7 @@ fun caddyConfig(
                 .forEach { (bucket, bucketConfig) ->
                     route {
                         host(*bucketConfig.domains.toTypedArray())
+                        logField(SITE_LOG_FIELD, bucket)
                         fileServer(root = bucketObjectsDir(config, bucket).toString(), indexNames = listOf("index.html"))
                         terminal()
                     }
@@ -68,12 +72,14 @@ fun caddyConfig(
             config.redirects.forEach { (from, to) ->
                 route {
                     host(from)
+                    logField(SITE_LOG_FIELD, REDIRECT_SITE)
                     redirect("https://$to{http.request.uri}")
                     terminal()
                 }
             }
 
             route {
+                logField(SITE_LOG_FIELD, UNMATCHED_SITE)
                 abort()
             }
         }

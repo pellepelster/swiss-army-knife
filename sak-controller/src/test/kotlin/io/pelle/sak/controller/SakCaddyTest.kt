@@ -1,10 +1,12 @@
 package io.pelle.sak.controller
 
 import com.sun.net.httpserver.HttpServer
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.caddy.CaddyJson
 import io.pelle.sak.caddy.CaddyManager
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.logs.Site
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -44,6 +46,7 @@ class SakCaddyTest {
                         {
                           "match": [{ "protocol": "http" }],
                           "handle": [
+                            { "handler": "log_append", "key": "site", "value": "redirect" },
                             {
                               "handler": "static_response",
                               "status_code": 308,
@@ -55,6 +58,7 @@ class SakCaddyTest {
                         {
                           "match": [{ "host": ["s3.example.org"] }],
                           "handle": [
+                            { "handler": "log_append", "key": "site", "value": "s3" },
                             { "handler": "rewrite", "uri": "/s3{http.request.uri}" },
                             { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                           ],
@@ -63,6 +67,7 @@ class SakCaddyTest {
                         {
                           "match": [{ "host": ["example.org", "www.example.org"] }],
                           "handle": [
+                            { "handler": "log_append", "key": "site", "value": "site" },
                             {
                               "handler": "file_server",
                               "root": "/data/s3/buckets/site/data",
@@ -74,6 +79,7 @@ class SakCaddyTest {
                         {
                           "match": [{ "host": ["example.com"] }],
                           "handle": [
+                            { "handler": "log_append", "key": "site", "value": "redirect" },
                             {
                               "handler": "static_response",
                               "status_code": 308,
@@ -83,7 +89,10 @@ class SakCaddyTest {
                           "terminal": true
                         },
                         {
-                          "handle": [{ "handler": "static_response", "abort": true }]
+                          "handle": [
+                            { "handler": "log_append", "key": "site", "value": "unmatched" },
+                            { "handler": "static_response", "abort": true }
+                          ]
                         }
                       ],
                       "logs": {}
@@ -114,12 +123,25 @@ class SakCaddyTest {
                 """
                 {
                   "match": [{ "host": ["console.example.org"] }],
-                  "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }],
+                  "handle": [
+                    { "handler": "log_append", "key": "site", "value": "console" },
+                    { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
+                  ],
                   "terminal": true
                 }
                 """.trimIndent(),
             )
         routes.size shouldBe 6
+    }
+
+    @Test
+    fun `buckets served at their domains are sites, their names must not clash with the other sites`() {
+        sites(config).map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
+        sites(config).first() shouldBe Site("site", listOf("example.org", "www.example.org"))
+
+        shouldThrow<IllegalArgumentException> {
+            sites(config.copy(s3 = config.s3.copy(buckets = mapOf("console" to SakConfig.S3BucketConfig(listOf("example.org"))))))
+        }
     }
 
     @Test
