@@ -13,4 +13,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.ktor.server.test.host)
+    // the test engine only hands out a streaming response once its handler ended
+    testImplementation(libs.ktor.server.netty)
 }

@@ -68,7 +68,8 @@ class VictoriaLogsClient(
             .toList()
 
     // the entries of the last startOffset matching the query and every new one as it arrives,
-    // until the returned stream is closed
+    // until the returned stream is closed; the request timeout only covers the headers, not
+    // the open stream
     fun tail(
         query: String,
         startOffset: Duration,
@@ -79,7 +80,6 @@ class VictoriaLogsClient(
                 HttpResponse.BodyHandlers.ofInputStream(),
                 "query" to query,
                 "start_offset" to "${startOffset.seconds}s",
-                timeout = null,
             )
         return LogTail(response.body())
     }
@@ -88,13 +88,12 @@ class VictoriaLogsClient(
         path: String,
         bodyHandler: HttpResponse.BodyHandler<T>,
         vararg form: Pair<String, String>,
-        timeout: Duration? = Duration.ofSeconds(15),
     ): HttpResponse<T> {
         val request =
             HttpRequest
                 .newBuilder(URI.create("$url$path"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .apply { timeout?.let { timeout(it) } }
+                .timeout(Duration.ofSeconds(15))
                 .POST(
                     HttpRequest.BodyPublishers.ofString(
                         form.joinToString("&") { (key, value) -> "$key=${URLEncoder.encode(value, Charsets.UTF_8)}" },

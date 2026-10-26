@@ -12,7 +12,7 @@ commit of its own, the status column tracks them.
 | 4 | medium | fixed | sessions survive removal from `allowed_emails` |
 | 5 | low | fixed | login timing leaks whether an address is allowed |
 | 6 | low | fixed | sse keepalive can drop an entry |
-| 7 | low | open | live tails pin io threads with no cap |
+| 7 | low | fixed | live tails pin io threads with no cap |
 | 8 | low | open | malformed responses escape as 500s, newline in `q` becomes a 503 |
 | 9 | low | open | search has no time bound |
 | 10 | low | open | login tokens can reach caddy's error log |
@@ -87,7 +87,7 @@ timeout cancels a receive that already took it (documented kotlinx behaviour). R
 
 Fix: `select { onReceiveCatching; onTimeout }`, whose clauses are atomic.
 
-### 7. Live tails pin io threads with no cap (low)
+### 7. Live tails pin io threads with no cap (low, fixed)
 
 `SiteRoutes.kt` `launch(Dispatchers.IO)`, `VictoriaLogsClient.kt` `timeout = null`: 64 shared
 threads, ~60 open tabs starve mail sending and metrics. The `null` timeout is unnecessary, the jdk

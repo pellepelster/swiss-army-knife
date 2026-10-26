@@ -8,10 +8,14 @@ import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.runBlocking
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -135,6 +139,37 @@ class SiteLogsTest {
 
             synchronized(queries) { queries.single().second.getValue("query") } shouldBe "* | fields _time, site, request.uri, status"
         }
+
+    // against a real server, the test engine only hands out a streaming response once its handler ended
+    @Test
+    fun `follows at most the configured number of live views at once`() {
+        val server =
+            embeddedServer(Netty, port = 0) {
+                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs, maxLiveViews = 1, keepaliveInterval = 200.milliseconds) } }
+            }.start()
+        try {
+            val port = runBlocking { server.engine.resolvedConnectors().first().port }
+            val http = java.net.http.HttpClient.newHttpClient()
+            fun live() = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:$port/api/v1/logs/all/live")).build()
+
+            val first = http.send(live(), java.net.http.HttpResponse.BodyHandlers.ofInputStream())
+            first.statusCode() shouldBe 200
+            first.body().bufferedReader().readLine() shouldBe ": following"
+
+            http.send(live(), java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode() shouldBe 503
+
+            // released once the view is gone, which the server notices with its next keepalive
+            first.body().close()
+            generateSequence { http.send(live(), java.net.http.HttpResponse.BodyHandlers.ofInputStream()) }
+                .take(50)
+                .onEach { if (it.statusCode() != 200) Thread.sleep(100) }
+                .first { it.statusCode() == 200 }
+                .body()
+                .close()
+        } finally {
+            server.stop()
+        }
+    }
 
     @Test
     fun `serves searches of known sites and all sites only`() =

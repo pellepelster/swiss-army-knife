@@ -24,6 +24,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -52,6 +53,9 @@ private val KEEPALIVE_INTERVAL = 15.seconds
 
 private const val MAX_SEARCH_LENGTH = 200
 
+// every open live view blocks a thread of the io dispatcher on its tail
+const val MAX_LIVE_VIEWS = 8
+
 private const val LOGS_TAG = "logs"
 
 // the sites, their metrics and their logs, meant to be mounted behind the console's authentication,
@@ -61,8 +65,12 @@ fun Route.sites(
     sites: List<Site>,
     metrics: SiteMetricsService,
     logs: SiteLogs,
+    maxLiveViews: Int = MAX_LIVE_VIEWS,
+    keepaliveInterval: kotlin.time.Duration = KEEPALIVE_INTERVAL,
 ) {
     install(ContentNegotiation) { json() }
+
+    val liveViews = Semaphore(maxLiveViews)
 
     fun Operation.Builder.common(summary: String) {
         tag(LOGS_TAG)
@@ -177,52 +185,61 @@ fun Route.sites(
     // goes away
     get("/{site}/live") {
         val site = call.logsSite(sites) ?: return@get
-        val entries =
-            try {
-                withContext(Dispatchers.IO) { logs.follow(site.value) }
-            } catch (e: VictoriaLogsException) {
-                logger.warn(e) { "could not follow the logs" }
-                call.respond(HttpStatusCode.ServiceUnavailable)
-                return@get
-            }
-
-        call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respondTextWriter(ContentType.Text.EventStream) {
-            coroutineScope {
-                val received = Channel<LogEntry>(Channel.BUFFERED)
-                val reader =
-                    launch(Dispatchers.IO) {
-                        try {
-                            while (true) received.send(entries.next() ?: break)
-                        } catch (_: java.io.IOException) {
-                            // the tail was closed below
-                        } finally {
-                            received.close()
-                        }
-                    }
+        if (!liveViews.tryAcquire()) {
+            logger.warn { "not following the logs, $maxLiveViews live views are open already" }
+            call.respond(HttpStatusCode.ServiceUnavailable)
+            return@get
+        }
+        try {
+            val entries =
                 try {
-                    write(": following\n\n")
-                    flush()
-                    while (true) {
-                        // a select never loses an entry, a cancelled receive could
-                        val next =
-                            select<ChannelResult<LogEntry>?> {
-                                received.onReceiveCatching { it }
-                                onTimeout(KEEPALIVE_INTERVAL) { null }
+                    withContext(Dispatchers.IO) { logs.follow(site.value) }
+                } catch (e: VictoriaLogsException) {
+                    logger.warn(e) { "could not follow the logs" }
+                    call.respond(HttpStatusCode.ServiceUnavailable)
+                    return@get
+                }
+
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respondTextWriter(ContentType.Text.EventStream) {
+                coroutineScope {
+                    val received = Channel<LogEntry>(Channel.BUFFERED)
+                    val reader =
+                        launch(Dispatchers.IO) {
+                            try {
+                                while (true) received.send(entries.next() ?: break)
+                            } catch (_: java.io.IOException) {
+                                // the tail was closed below
+                            } finally {
+                                received.close()
                             }
-                        when {
-                            next == null -> write(": keepalive\n\n")
-                            next.isClosed -> break
-                            else -> write("data: ${Json.encodeToString(LogEntry.serializer(), next.getOrThrow())}\n\n")
                         }
+                    try {
+                        write(": following\n\n")
                         flush()
+                        while (true) {
+                            // a select never loses an entry, a cancelled receive could
+                            val next =
+                                select<ChannelResult<LogEntry>?> {
+                                    received.onReceiveCatching { it }
+                                    onTimeout(keepaliveInterval) { null }
+                                }
+                            when {
+                                next == null -> write(": keepalive\n\n")
+                                next.isClosed -> break
+                                else -> write("data: ${Json.encodeToString(LogEntry.serializer(), next.getOrThrow())}\n\n")
+                            }
+                            flush()
+                        }
+                    } finally {
+                        // also ends the blocking read of the reader
+                        entries.close()
+                        reader.cancel()
                     }
-                } finally {
-                    // also ends the blocking read of the reader
-                    entries.close()
-                    reader.cancel()
                 }
             }
+        } finally {
+            liveViews.release()
         }
     }.describe {
         common("Follow the logs")
@@ -242,7 +259,7 @@ fun Route.sites(
                 ContentType.Text.EventStream { schema = jsonSchema<LogEntry>() }
             }
             HttpStatusCode.NotFound { description = "Unknown site" }
-            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
+            HttpStatusCode.ServiceUnavailable { description = "The logs are not available, or too many live views are open" }
         }
     }
 }
