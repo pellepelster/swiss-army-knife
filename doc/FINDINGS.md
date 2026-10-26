@@ -10,7 +10,7 @@ commit of its own, the status column tracks them.
 | 2 | medium | fixed | no request body limit |
 | 3 | medium | fixed | metrics group by raw, attacker-controlled `user_agent` |
 | 4 | medium | fixed | sessions survive removal from `allowed_emails` |
-| 5 | low | open | login timing leaks whether an address is allowed |
+| 5 | low | fixed | login timing leaks whether an address is allowed |
 | 6 | low | open | sse keepalive can drop an entry |
 | 7 | low | open | live tails pin io threads with no cap |
 | 8 | low | open | malformed responses escape as 500s, newline in `q` becomes a 503 |
@@ -72,7 +72,7 @@ does, which logs out everyone.
 
 Fix: the session validation checks `mayLogin` too, so the allowlist doubles as revocation list.
 
-### 5. Login timing leaks whether an address is allowed (low)
+### 5. Login timing leaks whether an address is allowed (low, fixed)
 
 `AuthRoutes.kt` `/login`: the ecdsa signing of the link runs synchronously only for allowed
 addresses, the comment claims otherwise. Sub-millisecond, but it is the one difference the design

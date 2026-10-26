@@ -125,17 +125,19 @@ fun Route.auth(
             return@post
         }
 
-        if (mayLogin(email) && mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
-            val redirect = safeRedirect(request.redirect)
+        // everything that depends on the address happens after the answer, so neither the answer
+        // nor its timing tells whether the address may log in
+        val redirect = safeRedirect(request.redirect)
+        call.application.launch(Dispatchers.IO) {
+            if (!mayLogin(email) || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
+                return@launch
+            }
             val link = "${consoleUrl.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}&redirect=${redirect.encodeURLParameter()}"
-            // sent in the background, the response time does not tell anything either
-            call.application.launch(Dispatchers.IO) {
-                try {
-                    mailSender.send(email, "Sign in to the console", loginMail(consoleUrl, link, tokens.loginTokenTtl))
-                    logger.info { "sent login link to '$email'" }
-                } catch (e: Exception) {
-                    logger.warn(e) { "could not send login link to '$email'" }
-                }
+            try {
+                mailSender.send(email, "Sign in to the console", loginMail(consoleUrl, link, tokens.loginTokenTtl))
+                logger.info { "sent login link to '$email'" }
+            } catch (e: Exception) {
+                logger.warn(e) { "could not send login link to '$email'" }
             }
         }
 
