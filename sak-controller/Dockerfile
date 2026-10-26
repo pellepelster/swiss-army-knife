@@ -14,6 +14,8 @@ WORKDIR /data
 EXPOSE 8080
 VOLUME /data
 
-# the configuration has to be mounted, its sak.data_dir should point to /data
+# the configuration has to be mounted, its sak.data_dir should point to /data; the
+# controller listens on 127.0.0.1 only (ktor.deployment.host), so it is meant to run
+# with the host network behind the ingress
 ENTRYPOINT ["/opt/sak-controller/bin/sak-controller"]
 CMD ["-config=/etc/sak/config.yaml"]
