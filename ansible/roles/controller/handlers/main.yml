@@ -1,11 +1,12 @@
 ---
+- name: Restart sak-ingress
+  ansible.builtin.systemd_service:
+    name: sak-ingress
+    state: restarted
+    daemon_reload: true
+
 - name: Restart sak-controller
   ansible.builtin.systemd_service:
     name: sak-controller
     state: restarted
     daemon_reload: true
-
-- name: Reload caddy
-  ansible.builtin.systemd_service:
-    name: caddy
-    state: reloaded

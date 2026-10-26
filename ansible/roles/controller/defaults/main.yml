@@ -1,10 +1,11 @@
 ---
-# local path of the distribution zip built by `./gradlew :sak-controller:distZip` (required)
-controller_dist_zip: ""
+# local path of the image archive written by `mise run docker:save` (required)
+controller_image_archive: ""
+# the image the archive contains, it is only loaded from the archive and never pulled
+controller_image: localhost/sak-controller:latest
 # everything of the controller lives below this path on the data volume
 controller_base_path: /storage/data/controller
-# the distribution is expanded here, replaced as a whole on every new zip
-controller_app_path: "{{ controller_base_path }}/app"
+# mounted at the same path into the container, the controller hands caddy paths below it
 controller_data_path: "{{ controller_base_path }}/data"
 # the s3 api stores the buckets here (always s3 below sak.data_dir), caddy serves buckets
 # with domains from it
@@ -13,12 +14,23 @@ controller_config_file: "{{ controller_base_path }}/config.yaml"
 # local path of the controller configuration, config/controller-config.yaml (required),
 # its sak.data_dir has to match controller_data_path
 controller_config_src: ""
-# environment of the controller unit, holds the s3 credentials the configuration references
+# environment of the controller container, holds the s3 credentials the configuration references
 controller_env_file: "{{ controller_base_path }}/controller.env"
 # local path of the environment file, written by tf:apply (required)
 controller_env_src: ""
 controller_user: sak
 controller_group: sak
-controller_java_package: openjdk-25-jre-headless
+# the user the image runs as, the host user and group get the same ids so the files
+# the container writes belong to them
+controller_uid: 10000
+controller_gid: 10000
+# local path of the ingress (caddy) image archive written by `mise run docker:save` (required)
+controller_ingress_image_archive: ""
+controller_ingress_image: localhost/sak-ingress:latest
+controller_ingress_user: sak-ingress
+controller_ingress_group: sak-ingress
+# the user the ingress image runs as
+controller_ingress_uid: 10001
+controller_ingress_gid: 10001
 # caddy keeps its certificates and acme state here
-controller_caddy_storage_path: /storage/caddy
+controller_ingress_data_path: /storage/data/ingress

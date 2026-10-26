@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+[Unit]
+Description=sak-controller
+
+[Container]
+ContainerName=sak-controller
+Image={{ controller_image }}
+Pull=never
+# the controller configures caddy via its admin api on localhost, caddy proxies to the
+# controller on localhost
+Network=host
+User={{ controller_uid }}
+Group={{ controller_gid }}
+EnvironmentFile={{ controller_env_file }}
+Volume={{ controller_config_file }}:/etc/sak/config.yaml:ro
+Volume={{ controller_data_path }}:{{ controller_data_path }}
+# the image's /data volume is not used, the data lives in the mounted controller_data_path
+PodmanArgs=--image-volume=ignore
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=on-failure
+RestartSec=5
+# the jvm exits with 143 on SIGTERM
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

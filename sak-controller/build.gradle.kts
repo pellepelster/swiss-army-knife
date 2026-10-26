@@ -22,8 +22,12 @@ application {
     applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
-// the controller is shipped as zip only
+// the controller is shipped as docker image, built from the installDist output
 tasks.distTar {
+    enabled = false
+}
+
+tasks.distZip {
     enabled = false
 }
 

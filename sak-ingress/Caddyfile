@@ -1,0 +1,13 @@
+# the admin api stays on localhost:2019, sak-controller configures the routes through it
+# and reconfigures caddy after every restart, so the config is not persisted
+{
+	admin localhost:2019
+	persist_config off
+	storage file_system /data
+}
+
+# nothing is served until sak-controller configures caddy, every request is answered by
+# closing the connection
+:80 {
+	abort
+}
