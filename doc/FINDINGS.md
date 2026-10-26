@@ -11,7 +11,7 @@ commit of its own, the status column tracks them.
 | 3 | medium | fixed | metrics group by raw, attacker-controlled `user_agent` |
 | 4 | medium | fixed | sessions survive removal from `allowed_emails` |
 | 5 | low | fixed | login timing leaks whether an address is allowed |
-| 6 | low | open | sse keepalive can drop an entry |
+| 6 | low | fixed | sse keepalive can drop an entry |
 | 7 | low | open | live tails pin io threads with no cap |
 | 8 | low | open | malformed responses escape as 500s, newline in `q` becomes a 503 |
 | 9 | low | open | search has no time bound |
@@ -80,7 +80,7 @@ tries to avoid.
 
 Fix: allowlist check, token and mail all move into the background coroutine.
 
-### 6. SSE keepalive can drop an entry (low)
+### 6. SSE keepalive can drop an entry (low, fixed)
 
 `SiteRoutes.kt` `withTimeoutOrNull { received.receiveCatching() }`: an element is lost when the
 timeout cancels a receive that already took it (documented kotlinx behaviour). Rare, real.

@@ -19,10 +19,12 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ChannelResult
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
@@ -202,7 +204,12 @@ fun Route.sites(
                     write(": following\n\n")
                     flush()
                     while (true) {
-                        val next = withTimeoutOrNull(KEEPALIVE_INTERVAL) { received.receiveCatching() }
+                        // a select never loses an entry, a cancelled receive could
+                        val next =
+                            select<ChannelResult<LogEntry>?> {
+                                received.onReceiveCatching { it }
+                                onTimeout(KEEPALIVE_INTERVAL) { null }
+                            }
                         when {
                             next == null -> write(": keepalive\n\n")
                             next.isClosed -> break
