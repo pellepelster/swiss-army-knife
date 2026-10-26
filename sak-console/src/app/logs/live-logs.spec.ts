@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { Observable, Subject } from 'rxjs';
+import { Observable, Subject, map, merge } from 'rxjs';
 import { LiveLogs, MAX_ENTRIES } from './live-logs';
 import { LiveLogError, LogEntry, LogsService, parseEvents } from './logs.service';
 
@@ -27,7 +27,7 @@ describe('parseEvents', () => {
 describe('LiveLogs', () => {
   let http: HttpTestingController;
   // one stream per follow, with the site it follows
-  let streams: { site: string; entries: Subject<LogEntry>; closed: boolean }[];
+  let streams: { site: string; entries: Subject<LogEntry>; chunks: Subject<LogEntry[]>; closed: boolean }[];
   // how many of the next streams the server refuses
   let refusals: number;
 
@@ -52,8 +52,13 @@ describe('LiveLogs', () => {
     const logs = TestBed.inject(LogsService);
     vi.spyOn(logs, 'follow').mockImplementation(
       (site: string, opened: () => void = () => undefined) =>
-        new Observable<LogEntry>((subscriber) => {
-          const stream = { site, entries: new Subject<LogEntry>(), closed: false };
+        new Observable<LogEntry[]>((subscriber) => {
+          const stream = {
+            site,
+            entries: new Subject<LogEntry>(),
+            chunks: new Subject<LogEntry[]>(),
+            closed: false,
+          };
           streams.push(stream);
           // the server refuses the stream, it never opens
           if (refusals > 0) {
@@ -62,7 +67,7 @@ describe('LiveLogs', () => {
             return;
           }
           opened();
-          const subscription = stream.entries.subscribe(subscriber);
+          const subscription = merge(stream.entries.pipe(map((entry) => [entry])), stream.chunks).subscribe(subscriber);
           return () => {
             stream.closed = true;
             subscription.unsubscribe();
@@ -115,6 +120,15 @@ describe('LiveLogs', () => {
       ['pelle.io', '/a', '200'],
     ]);
     expect(rows()[0][0]).toMatch(/^2026-10-2[67] \d\d:00:00$/);
+  });
+
+  it('adds a chunk of entries at once, newest first', async () => {
+    const { harness, rows } = await open();
+
+    streams[0].chunks.next([entry('/1'), entry('/2'), entry('/3')]);
+    await harness.fixture.whenStable();
+
+    expect(rows().map((row) => row[2])).toEqual(['/3', '/2', '/1']);
   });
 
   it('keeps the newest entries only', async () => {

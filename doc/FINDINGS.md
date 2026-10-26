@@ -22,7 +22,7 @@ commit of its own, the status column tracks them.
 | 14 | low | fixed | a console setup failure stops the whole controller |
 | 15 | medium | fixed | ui: live view hides errors |
 | 16 | low | fixed | ui: search debounce timer outlives the component |
-| 17 | low | open | ui: live view updates per entry |
+| 17 | low | fixed | ui: live view updates per entry |
 | 18 | low | open | ui: unknown site in the url |
 | 19 | low | open | ui: stored session trusted without validation |
 | 20 | low | open | ui: sites never retried after a network error |
@@ -165,7 +165,7 @@ Fix: the failure is shown, the reconnects back off.
 
 Fix: cleared on destroy.
 
-### 17. Live view updates per entry (low)
+### 17. Live view updates per entry (low, fixed)
 
 `live-logs.ts`: a five minute backlog of thousands of entries arrives in a burst and triggers
 change detection per entry, with a new array each time.

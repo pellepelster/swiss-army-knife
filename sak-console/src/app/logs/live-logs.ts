@@ -361,8 +361,9 @@ export class LiveLogs {
             this.state.set('following');
           })
           .subscribe({
-            next: (entry) =>
-              this.followed.update((entries) => [entry, ...entries].slice(0, MAX_ENTRIES)),
+            // newest first, one update per chunk
+            next: (chunk) =>
+              this.followed.update((entries) => [...[...chunk].reverse(), ...entries].slice(0, MAX_ENTRIES)),
             error: (error: unknown) => {
               this.error.set(
                 error instanceof LiveLogError && error.status === 503

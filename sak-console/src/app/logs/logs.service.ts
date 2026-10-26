@@ -47,10 +47,11 @@ export class LogsService {
     });
   }
 
-  // the entries of the last minutes, then every new one until unsubscribed; fetch instead of an
-  // EventSource, which can not send the session token; opened is called once the stream is open
-  follow(site: string, opened: () => void = () => undefined): Observable<LogEntry> {
-    return new Observable<LogEntry>((subscriber) => {
+  // the entries of the last minutes, then every new one until unsubscribed, oldest first and in
+  // the chunks they arrive in, the backlog comes in bursts; fetch instead of an EventSource, which
+  // can not send the session token; opened is called once the stream is open
+  follow(site: string, opened: () => void = () => undefined): Observable<LogEntry[]> {
+    return new Observable<LogEntry[]>((subscriber) => {
       const abort = new AbortController();
       const token = this.auth.token();
 
@@ -77,7 +78,9 @@ export class LogsService {
             }
             const { data, rest } = parseEvents(buffered + value);
             buffered = rest;
-            data.forEach((entry) => subscriber.next(JSON.parse(entry) as LogEntry));
+            if (data.length > 0) {
+              subscriber.next(data.map((entry) => JSON.parse(entry) as LogEntry));
+            }
           }
           subscriber.complete();
         })
