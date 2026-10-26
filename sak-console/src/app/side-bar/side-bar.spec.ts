@@ -25,14 +25,6 @@ describe('SideBar', () => {
     http = TestBed.inject(HttpTestingController);
 
     fixture = TestBed.createComponent(SideBar);
-    http.expectOne('/api/v1/sites').flush({
-      sites: [
-        { id: 'pelle.io', domains: ['pelle.io'] },
-        { id: 's3', domains: ['s3.pelle.io'] },
-      ],
-      ranges: [],
-      defaultRange: '24h',
-    });
     await fixture.whenStable();
     element = fixture.nativeElement;
   });
@@ -48,15 +40,14 @@ describe('SideBar', () => {
     return element.querySelector('[role=menu]');
   };
 
-  it('links every site', () => {
+  it('links the overview and the sites', () => {
     const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')].map((link) => [
       link.textContent?.trim(),
       link.getAttribute('href'),
     ]);
     expect(links).toEqual([
       ['Overview', '/'],
-      ['pelle.io', '/sites/pelle.io'],
-      ['s3', '/sites/s3'],
+      ['Logs', '/logs'],
     ]);
   });
 

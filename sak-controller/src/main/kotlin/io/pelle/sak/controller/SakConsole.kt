@@ -70,7 +70,7 @@ fun Application.console(
                         auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })
                     }
                     authenticate(SESSION_AUTH) {
-                        route("/sites") {
+                        route("/logs") {
                             sites(sites(config), SiteMetricsService(VictoriaLogsClient(config.logs.victorialogsUrl)))
                         }
                     }

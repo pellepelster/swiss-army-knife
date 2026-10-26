@@ -24,8 +24,10 @@ test('shows the requests of a site from the ingress access log', async ({ page }
 
   // the overview links the sites, so does the navigation
   await expect(page.getByTestId('site-s3')).toBeVisible();
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 's3' }).click();
-  await expect(page).toHaveURL('/sites/s3');
+  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Logs' }).click();
+  // the first site, in the url like every selected one
+  await expect(page).toHaveURL('/logs/s3');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
   await expect(page.getByTestId('site-title')).toHaveText('s3');
   await expect(page.getByText('s3.example.org')).toBeVisible();
 
@@ -45,10 +47,18 @@ test('shows the requests of a site from the ingress access log', async ({ page }
   await expect(agents).toContainText('Chrome');
   await expect(agents).toContainText('Scripts and SDKs');
 
-  // the unmatched requests are a site of their own
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'unmatched' }).click();
-  await page.getByLabel('Range').selectOption('15m');
+  // the unmatched requests are a site of their own, the range stays when switching
+  await page.getByLabel('Site', { exact: true }).selectOption('unmatched');
+  await expect(page).toHaveURL('/logs/unmatched');
+  await expect(page.getByLabel('Range')).toHaveValue('15m');
   await expect(page.getByTestId('kpi-requests')).toHaveText('1');
+
+  // the selection survives a reload and the back button returns to the previous site
+  await page.reload();
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('unmatched');
+  await page.goBack();
+  await expect(page).toHaveURL('/logs/s3');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
 
   expect(errors).toEqual([]);
 });

@@ -68,7 +68,7 @@ export class SitesService {
       return;
     }
     this.loading = true;
-    this.http.get<SitesResponse>('/api/v1/sites').subscribe({
+    this.http.get<SitesResponse>('/api/v1/logs').subscribe({
       next: (sites) => this.sites.set(sites),
       error: () => (this.loading = false),
       complete: () => (this.loading = false),
@@ -76,7 +76,7 @@ export class SitesService {
   }
 
   metrics(site: string, range: string): Observable<SiteMetrics> {
-    return this.http.get<SiteMetrics>(`/api/v1/sites/${encodeURIComponent(site)}/metrics`, {
+    return this.http.get<SiteMetrics>(`/api/v1/logs/${encodeURIComponent(site)}/metrics`, {
       params: { range },
     });
   }

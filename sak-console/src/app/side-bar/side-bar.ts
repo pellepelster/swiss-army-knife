@@ -4,7 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
-import { SitesService } from '../sites/sites.service';
 
 // the navigation rail of the blcks console: the pages on top, the personal menu with the
 // sign out at the bottom; below 992px it slides in from a top bar
@@ -44,13 +43,10 @@ import { SitesService } from '../sites/sites.service';
           <span class="nav-square"></span>
           <span class="nav-text">Overview</span>
         </a>
-        <div class="label-mono nav-section-label">Sites</div>
-        @for (site of sites(); track site.id) {
-          <a class="nav-item" [routerLink]="['/sites', site.id]" routerLinkActive="active">
-            <span class="nav-square"></span>
-            <span class="nav-text font-mono">{{ site.id }}</span>
-          </a>
-        }
+        <a class="nav-item" routerLink="/logs" routerLinkActive="active">
+          <span class="nav-square"></span>
+          <span class="nav-text">Logs</span>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -91,7 +87,6 @@ import { SitesService } from '../sites/sites.service';
 export class SideBar {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly sitesService = inject(SitesService);
 
   private readonly personal = viewChild.required<ElementRef<HTMLElement>>('personal');
 
@@ -101,10 +96,8 @@ export class SideBar {
   protected readonly email = this.auth.email;
   protected readonly expiresAt = this.auth.expiresAt;
   protected readonly initials = computed(() => initialsOf(this.email()));
-  protected readonly sites = computed(() => this.sitesService.sites()?.sites ?? []);
 
   constructor() {
-    this.sitesService.load();
     this.router.events
       .pipe(
         filter((event) => event instanceof NavigationEnd),

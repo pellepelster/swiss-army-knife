@@ -153,8 +153,8 @@ class SakConsoleTest {
             me.statusCode() shouldBe 200
             me.json().string("email") shouldBe "admin@example.org"
 
-            get(port, "/api/v1/sites").statusCode() shouldBe 401
-            val sites = get(port, "/api/v1/sites", session.string("sessionToken"))
+            get(port, "/api/v1/logs").statusCode() shouldBe 401
+            val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
                 listOf("s3", "console", "redirect", "unmatched")

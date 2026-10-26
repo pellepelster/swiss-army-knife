@@ -34,9 +34,9 @@ sak:
 
 Caddy tags every access log entry with the site it served (a bucket with domains, `s3`,
 `console`, `redirect` or `unmatched`), vector ships the log to victorialogs (both run next to the
-ingress, see the controller ansible role), and `/sites/:site` shows the requests per status,
+ingress, see the controller ansible role), and `/logs/:site` shows the requests per status,
 the transferred bytes and the clients of a site over a range, computed by
-`GET /api/v1/sites/{site}/metrics?range=` with logsql stats queries.
+`GET /api/v1/logs/{site}/metrics?range=` with logsql stats queries.
 
 The styling is the blcks theme (`src/theme`, a copy of blcks-theme) with the layout of the blcks
 console: the navigation on the left, the personal menu with the sign out at its bottom.

@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { TimeSeries } from '../charts/chart-config';
 import { TimeSeriesChart } from '../charts/time-series-chart';
 import { formatBytes, formatCount, formatPercent } from '../shared/format';
@@ -34,13 +35,25 @@ interface AgentShare {
       <div class="page-header d-flex align-items-end justify-content-between">
         <div>
           <div class="label-mono">Site</div>
-          <h1 class="mb-1 font-mono" data-testid="site-title">{{ site() }}</h1>
+          <h1 class="mb-1 font-mono" data-testid="site-title">{{ shownSite() }}</h1>
           @if (domains().length) {
             <div class="page-subtitle font-mono">{{ domains().join(', ') }}</div>
           }
         </div>
-        <div class="d-flex align-items-center gap-2">
-          <label for="metrics-range" class="form-label mb-0">Range</label>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <label for="metrics-site" class="form-label mb-0">Site</label>
+          <select
+            id="metrics-site"
+            class="form-select form-select-sm w-auto font-mono"
+            (change)="selectSite($any($event.target).value)"
+          >
+            @for (choice of siteChoices(); track choice.id) {
+              <option [value]="choice.id" [selected]="choice.id === shownSite()">
+                {{ choice.id }}
+              </option>
+            }
+          </select>
+          <label for="metrics-range" class="form-label mb-0 ms-2">Range</label>
           <select
             id="metrics-range"
             class="form-select form-select-sm w-auto"
@@ -147,8 +160,15 @@ interface AgentShare {
 export class SiteMetrics {
   private readonly sites = inject(SitesService);
 
-  // the route parameter
-  readonly site = input.required<string>();
+  // the route parameter, without one the first site is shown
+  readonly site = input<string>();
+
+  private readonly router = inject(Router);
+
+  protected readonly siteChoices = computed(() => this.sites.sites()?.sites ?? []);
+
+  // only once the site is in the url, /logs continues at the first one
+  protected readonly shownSite = computed(() => this.site() ?? null);
 
   protected readonly range = signal<string | null>(null);
 
@@ -159,7 +179,7 @@ export class SiteMetrics {
   );
 
   protected readonly domains = computed(
-    () => this.sites.sites()?.sites.find((site) => site.id === this.site())?.domains ?? [],
+    () => this.siteChoices().find((site) => site.id === this.shownSite())?.domains ?? [],
   );
 
   protected readonly metrics = signal<Metrics | null>(null);
@@ -222,11 +242,22 @@ export class SiteMetrics {
   constructor() {
     this.sites.load();
 
+    // the shown site is always part of the url, /logs continues at the first one
+    effect(() => {
+      const first = this.siteChoices()[0]?.id;
+      if (this.site() === undefined && first !== undefined) {
+        void this.router.navigate(['/logs', first], { replaceUrl: true });
+      }
+    });
+
     // reloads whenever the site or the range changes, a late answer for a previous
     // selection never replaces the current one
     effect((onCleanup) => {
-      const site = this.site();
+      const site = this.shownSite();
       const range = this.selectedRange();
+      if (site === null) {
+        return;
+      }
       this.failed.set(false);
       this.metrics.set(null);
       const subscription = this.sites.metrics(site, range).subscribe({
@@ -235,5 +266,10 @@ export class SiteMetrics {
       });
       onCleanup(() => subscription.unsubscribe());
     });
+  }
+
+  // the site is part of the url, so a site can be linked and the back button returns to the last one
+  protected selectSite(site: string): void {
+    void this.router.navigate(['/logs', site]);
   }
 }
