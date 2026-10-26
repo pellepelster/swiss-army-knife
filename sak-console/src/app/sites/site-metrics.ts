@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TimeSeries } from '../charts/chart-config';
 import { TimeSeriesChart } from '../charts/time-series-chart';
 import { formatBytes, formatCount, formatPercent } from '../shared/format';
@@ -47,6 +48,9 @@ interface AgentShare {
             class="form-select form-select-sm w-auto font-mono"
             (change)="selectSite($any($event.target).value)"
           >
+            @if (failed() === 'unknown') {
+              <option [value]="shownSite()" [selected]="true" disabled>{{ shownSite() }}</option>
+            }
             @for (choice of siteChoices(); track choice.id) {
               <option [value]="choice.id" [selected]="choice.id === shownSite()">
                 {{ choice.id }}
@@ -68,7 +72,11 @@ interface AgentShare {
         </div>
       </div>
 
-      @if (failed()) {
+      @if (failed() === 'unknown') {
+        <div class="alert alert-warning" role="alert">
+          There is no site <span class="font-mono">{{ shownSite() }}</span>, choose one of the sites.
+        </div>
+      } @else if (failed()) {
         <div class="alert alert-danger" role="alert">
           The metrics could not be loaded, the logs may not be available right now.
         </div>
@@ -183,7 +191,8 @@ export class SiteMetrics {
   );
 
   protected readonly metrics = signal<Metrics | null>(null);
-  protected readonly failed = signal(false);
+  // why the metrics are missing, an unknown site or unavailable logs
+  protected readonly failed = signal<'unknown' | 'unavailable' | null>(null);
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
@@ -258,11 +267,14 @@ export class SiteMetrics {
       if (site === null) {
         return;
       }
-      this.failed.set(false);
+      this.failed.set(null);
       this.metrics.set(null);
       const subscription = this.sites.metrics(site, range).subscribe({
         next: (metrics) => this.metrics.set(metrics),
-        error: () => this.failed.set(true),
+        error: (error: unknown) =>
+          this.failed.set(
+            error instanceof HttpErrorResponse && error.status === 404 ? 'unknown' : 'unavailable',
+          ),
       });
       onCleanup(() => subscription.unsubscribe());
     });

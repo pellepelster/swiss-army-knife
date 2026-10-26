@@ -148,6 +148,21 @@ describe('SiteMetrics', () => {
       'could not be loaded',
     );
   });
+
+  it('reports a site that does not exist', async () => {
+    const harness = await open('/logs/statistics/nope');
+
+    http
+      .expectOne('/api/v1/logs/nope/metrics?range=24h')
+      .flush(null, { status: 404, statusText: 'Not Found' });
+    await harness.fixture.whenStable();
+
+    const page = harness.routeNativeElement!;
+    expect(page.querySelector('[role=alert]')?.textContent).toContain('There is no site nope');
+    const select = page.querySelector<HTMLSelectElement>('#metrics-site')!;
+    expect(select.value).toBe('nope');
+    expect([...select.options].map((option) => option.value)).toEqual(['nope', 'pelle.io', 's3']);
+  });
 });
 
 describe('format', () => {

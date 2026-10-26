@@ -23,7 +23,7 @@ commit of its own, the status column tracks them.
 | 15 | medium | fixed | ui: live view hides errors |
 | 16 | low | fixed | ui: search debounce timer outlives the component |
 | 17 | low | fixed | ui: live view updates per entry |
-| 18 | low | open | ui: unknown site in the url |
+| 18 | low | fixed | ui: unknown site in the url |
 | 19 | low | open | ui: stored session trusted without validation |
 | 20 | low | open | ui: sites never retried after a network error |
 | S1 | - | open | duplicate stream filter builders |
@@ -172,7 +172,7 @@ change detection per entry, with a new array each time.
 
 Fix: entries are emitted and prepended per chunk.
 
-### 18. Unknown site in the url (low)
+### 18. Unknown site in the url (low, fixed)
 
 `site-metrics.ts`: `/logs/statistics/nope` gets a 404 but shows "the logs may not be available
 right now", and the dropdown has no selected option.
