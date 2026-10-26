@@ -25,7 +25,7 @@ commit of its own, the status column tracks them.
 | 17 | low | fixed | ui: live view updates per entry |
 | 18 | low | fixed | ui: unknown site in the url |
 | 19 | low | fixed | ui: stored session trusted without validation |
-| 20 | low | open | ui: sites never retried after a network error |
+| 20 | low | fixed | ui: sites never retried after a network error |
 | S1 | - | open | duplicate stream filter builders |
 | S2 | - | open | duplicate json line decoding |
 | S3 | - | open | dead key rotation plumbing |
@@ -186,7 +186,7 @@ session counts as valid until the server answers 401.
 
 Fix: a session with an unreadable expiry is discarded on load.
 
-### 20. Sites never retried after a network error (low)
+### 20. Sites never retried after a network error (low, fixed)
 
 `sites.service.ts`: `load()` gives up after one failure, sidebar and pages stay empty until a
 reload.
