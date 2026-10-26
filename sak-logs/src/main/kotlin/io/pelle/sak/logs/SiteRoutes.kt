@@ -142,7 +142,8 @@ fun Route.sites(
     get("/{site}/search") {
         val site = call.logsSite(sites) ?: return@get
         val text = call.request.queryParameters["q"]?.trim().orEmpty()
-        if (text.isEmpty() || text.length > MAX_SEARCH_LENGTH) {
+        // victorialogs rejects control characters in a quoted string
+        if (text.isEmpty() || text.length > MAX_SEARCH_LENGTH || text.any { it.isISOControl() }) {
             call.respond(HttpStatusCode.BadRequest)
             return@get
         }
@@ -175,7 +176,7 @@ fun Route.sites(
                 description = "The matching requests, newest first"
                 schema = jsonSchema<List<LogEntry>>()
             }
-            HttpStatusCode.BadRequest { description = "No or too long search text" }
+            HttpStatusCode.BadRequest { description = "No, too long or control characters in the search text" }
             HttpStatusCode.NotFound { description = "Unknown site" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }

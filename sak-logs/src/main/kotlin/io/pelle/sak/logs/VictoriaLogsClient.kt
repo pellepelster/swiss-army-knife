@@ -122,13 +122,16 @@ class VictoriaLogsClient(
             throw VictoriaLogsException("unreadable victorialogs entry: $line", e)
         }
 
-    private fun parse(body: String): List<StatsSeries> {
-        val json =
-            try {
-                Json.parseToJsonElement(body).jsonObject
-            } catch (e: IllegalArgumentException) {
-                throw VictoriaLogsException("unreadable victorialogs response: $body", e)
-            }
+    // any response of an unexpected shape is a failed query, not a failed request
+    private fun parse(body: String): List<StatsSeries> =
+        try {
+            parseStats(body)
+        } catch (e: IllegalArgumentException) {
+            throw VictoriaLogsException("unreadable victorialogs response: $body", e)
+        }
+
+    private fun parseStats(body: String): List<StatsSeries> {
+        val json = Json.parseToJsonElement(body).jsonObject
         if (json["status"]?.jsonPrimitive?.contentOrNull != "success") {
             throw VictoriaLogsException("victorialogs query failed: $body")
         }
@@ -161,15 +164,21 @@ class LogTail(
 ) : java.io.Closeable {
     private val lines = stream.bufferedReader().lineSequence().filter { it.isNotBlank() }.iterator()
 
-    // blocks until the next entry arrives, null once victorialogs ended the tail
-    fun next(): Map<String, String>? =
-        if (lines.hasNext()) {
-            Json.parseToJsonElement(lines.next()).jsonObject.mapValues { (_, value) ->
-                (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
+    // blocks until the next entry arrives, null once victorialogs ended the tail; a line that
+    // is no entry is skipped, it must not end the live view
+    fun next(): Map<String, String>? {
+        while (lines.hasNext()) {
+            val line = lines.next()
+            try {
+                return Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->
+                    (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
+                }
+            } catch (_: IllegalArgumentException) {
+                continue
             }
-        } else {
-            null
         }
+        return null
+    }
 
     override fun close() = stream.close()
 }

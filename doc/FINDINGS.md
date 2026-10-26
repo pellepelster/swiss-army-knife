@@ -13,7 +13,7 @@ commit of its own, the status column tracks them.
 | 5 | low | fixed | login timing leaks whether an address is allowed |
 | 6 | low | fixed | sse keepalive can drop an entry |
 | 7 | low | fixed | live tails pin io threads with no cap |
-| 8 | low | open | malformed responses escape as 500s, newline in `q` becomes a 503 |
+| 8 | low | fixed | malformed responses escape as 500s, newline in `q` becomes a 503 |
 | 9 | low | open | search has no time bound |
 | 10 | low | open | login tokens can reach caddy's error log |
 | 11 | low | open | console host proxies the whole controller, no hsts |
@@ -95,7 +95,7 @@ request timeout only covers the headers, not the streaming body.
 
 Fix: a semaphore of concurrent tails (503 above), the default header timeout for the tail.
 
-### 8. Malformed responses escape as 500s, newline in `q` becomes a 503 (low)
+### 8. Malformed responses escape as 500s, newline in `q` becomes a 503 (low, fixed)
 
 `VictoriaLogsClient.kt`: a non-object `data` or a bad json line throws outside the `try`, a bad
 tail line kills the whole stream. `SiteLogs.kt`: `q=a%0Ab` makes victorialogs answer 400 (go's

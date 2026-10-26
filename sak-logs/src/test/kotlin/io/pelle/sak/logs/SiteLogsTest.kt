@@ -187,6 +187,7 @@ class SiteLogsTest {
             client.get("/api/v1/logs/unknown/live").status shouldBe HttpStatusCode.NotFound
             client.get("/api/v1/logs/pelle.io/search?q=%20").status shouldBe HttpStatusCode.BadRequest
             client.get("/api/v1/logs/pelle.io/search").status shouldBe HttpStatusCode.BadRequest
+            client.get("/api/v1/logs/pelle.io/search?q=a%0Ab").status shouldBe HttpStatusCode.BadRequest
         }
 
     @Test

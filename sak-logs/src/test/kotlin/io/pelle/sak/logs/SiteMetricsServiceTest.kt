@@ -136,6 +136,13 @@ class SiteMetricsServiceTest {
     }
 
     @Test
+    fun `responses of an unexpected shape are failed queries`() {
+        statusResponse = """{"status":"success","data":{"result":[{"metric":{},"values":"oops"}]}}"""
+
+        shouldThrow<VictoriaLogsException> { service.metrics(site, MetricsRange.LAST_HOUR, now) }
+    }
+
+    @Test
     fun `an unreachable victorialogs is reported`() {
         val unreachable = SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1"))
 
