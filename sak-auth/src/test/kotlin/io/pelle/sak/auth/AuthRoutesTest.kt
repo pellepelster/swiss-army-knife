@@ -40,20 +40,22 @@ class AuthRoutesTest {
 
     private val tokens = TokenService(SigningKey.generate(), CONSOLE_URL)
 
+    private val mayLogin = { email: String -> email == "admin@example.org" }
+
     private fun authTest(
         loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
         linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
-            install(Authentication) { session(tokens) }
+            install(Authentication) { session(tokens, mayLogin) }
             routing {
                 route("/api/v1/auth") {
                     auth(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
                         CONSOLE_URL,
-                        mayLogin = { it == "admin@example.org" },
+                        mayLogin,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
                     )
@@ -152,9 +154,12 @@ class AuthRoutesTest {
         }
 
     @Test
-    fun `addresses that are no longer allowed can not exchange links sent before`() =
+    fun `addresses that are no longer allowed can neither exchange links nor use sessions issued before`() =
         authTest {
             client.exchange(tokens.issueLoginToken("removed@example.org", "/")).status shouldBe HttpStatusCode.Unauthorized
+
+            val session = tokens.issueSessionToken("removed@example.org").token
+            client.get("/api/v1/auth/me") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
         }
 
     @Test

@@ -9,7 +9,7 @@ commit of its own, the status column tracks them.
 | 1 | medium | fixed | anyone can lock the admin out of logging in |
 | 2 | medium | fixed | no request body limit |
 | 3 | medium | fixed | metrics group by raw, attacker-controlled `user_agent` |
-| 4 | medium | open | sessions survive removal from `allowed_emails` |
+| 4 | medium | fixed | sessions survive removal from `allowed_emails` |
 | 5 | low | open | login timing leaks whether an address is allowed |
 | 6 | low | open | sse keepalive can drop an entry |
 | 7 | low | open | live tails pin io threads with no cap |
@@ -64,7 +64,7 @@ of repeated `Version/1 ` costs seconds of cpu on every page view for the whole r
 
 Fix: truncate `user_agent` (512) and `request.uri` (2048) in vector, cap the classifier's input.
 
-### 4. Sessions survive removal from `allowed_emails` (medium)
+### 4. Sessions survive removal from `allowed_emails` (medium, fixed)
 
 `AuthRoutes.kt` `session()`: only `/exchange` re-checks the allowlist, a 30 day session jwt is
 valid by signature alone. Editing the config does not revoke anyone, only deleting the signing key

@@ -78,21 +78,25 @@ data class MeResponse(
     val expiresAt: String,
 )
 
-// routes below authenticate(SESSION_AUTH) accept the session tokens of the given service
-fun AuthenticationConfig.session(tokens: TokenService) {
+// routes below authenticate(SESSION_AUTH) accept the session tokens of the given service, as
+// long as the address may still log in: the allowed addresses double as the revocation list
+fun AuthenticationConfig.session(
+    tokens: TokenService,
+    mayLogin: (email: String) -> Boolean,
+) {
     jwt(SESSION_AUTH) {
         verifier(tokens.sessionVerifier)
         validate { credential ->
             val email = credential.subject
             val expiresAt = credential.expiresAt
-            if (email != null && expiresAt != null) SessionPrincipal(email, expiresAt.toInstant()) else null
+            if (email != null && expiresAt != null && mayLogin(email)) SessionPrincipal(email, expiresAt.toInstant()) else null
         }
         challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
     }
 }
 
 // the e-mail login: login sends a link with a login token to allowed addresses, the console's
-// signin page exchanges it for a session token; needs authentication { session(tokens) }
+// signin page exchanges it for a session token; needs authentication { session(tokens, mayLogin) }
 @OptIn(ExperimentalKtorApi::class)
 fun Route.auth(
     tokens: TokenService,

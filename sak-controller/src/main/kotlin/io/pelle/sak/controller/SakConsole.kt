@@ -66,8 +66,9 @@ fun Application.console(
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
     val allowedEmails = auth.allowedEmails.map { it.trim().lowercase() }.toSet()
+    val mayLogin = { email: String -> email in allowedEmails }
 
-    install(Authentication) { session(tokens) }
+    install(Authentication) { session(tokens, mayLogin) }
 
     routing {
         route("/") {
@@ -78,7 +79,7 @@ fun Application.console(
 
                 route(API_VERSION) {
                     route("/auth") {
-                        auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })
+                        auth(tokens, mailSender, config.consoleUrl, mayLogin)
                     }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
