@@ -125,6 +125,7 @@ class SakCaddyTest {
                   "match": [{ "host": ["console.example.org"] }],
                   "handle": [
                     { "handler": "log_append", "key": "site", "value": "console" },
+                    { "handler": "request_body", "max_size": 1048576 },
                     { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                   ],
                   "terminal": true

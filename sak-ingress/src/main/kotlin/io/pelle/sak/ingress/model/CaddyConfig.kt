@@ -176,6 +176,13 @@ data class CaddyUpstream(
 )
 
 @Serializable
+@SerialName("request_body")
+data class CaddyRequestBody(
+    @SerialName("max_size")
+    val maxSize: Long,
+) : CaddyHandler()
+
+@Serializable
 @SerialName("rewrite")
 data class CaddyRewrite(
     val uri: String? = null,

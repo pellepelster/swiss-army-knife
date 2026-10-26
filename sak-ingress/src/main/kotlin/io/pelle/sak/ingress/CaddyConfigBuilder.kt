@@ -21,6 +21,7 @@ import io.pelle.sak.ingress.model.CaddyLogFilterAction
 import io.pelle.sak.ingress.model.CaddyLogWriter
 import io.pelle.sak.ingress.model.CaddyLogging
 import io.pelle.sak.ingress.model.CaddyMatch
+import io.pelle.sak.ingress.model.CaddyRequestBody
 import io.pelle.sak.ingress.model.CaddyReverseProxy
 import io.pelle.sak.ingress.model.CaddyRewrite
 import io.pelle.sak.ingress.model.CaddyRoute
@@ -268,6 +269,11 @@ class CaddyRouteBuilder {
         statusCode: Int? = null,
     ) {
         handlers.add(CaddyFileServer(root = root, indexNames = indexNames, statusCode = statusCode))
+    }
+
+    // the handlers after it see at most maxSize bytes of request body
+    fun maxRequestBodySize(maxSize: Long) {
+        handlers.add(CaddyRequestBody(maxSize = maxSize))
     }
 
     fun rewrite(uri: String) {

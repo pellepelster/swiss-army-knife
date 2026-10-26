@@ -7,6 +7,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.http.content.singlePageApplication
+import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.openapi.hide
@@ -27,6 +28,12 @@ import io.pelle.sak.logs.sites
 const val API_PATH_PREFIX = "/api"
 
 const val API_VERSION = "/v1"
+
+// the api only ever receives small json bodies
+const val API_MAX_BODY_SIZE = 16L * 1024
+
+// what caddy lets through to the console at most, uploads go to the s3 host
+const val CONSOLE_MAX_BODY_SIZE = 1024L * 1024
 
 // sak-console packages its build below this resource path
 const val CONSOLE_RESOURCES = "console"
@@ -67,6 +74,8 @@ fun Application.console(
             install(ConsoleSecurityHeaders)
 
             route(API_PATH_PREFIX) {
+                install(RequestBodyLimit) { bodyLimit { API_MAX_BODY_SIZE } }
+
                 route(API_VERSION) {
                     route("/auth") {
                         auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })

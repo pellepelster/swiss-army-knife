@@ -53,6 +53,7 @@ fun caddyConfig(
                 route {
                     host(config.consoleHost)
                     logField(SITE_LOG_FIELD, CONSOLE_SITE)
+                    maxRequestBodySize(CONSOLE_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
                     terminal()
                 }

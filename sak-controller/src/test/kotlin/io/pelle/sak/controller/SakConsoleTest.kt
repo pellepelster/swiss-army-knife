@@ -165,6 +165,16 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `rejects api requests with large bodies`() {
+        withServer { port ->
+            val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
+
+            post(port, "/api/v1/auth/login", """{"email":"$email"}""").statusCode() shouldBe 413
+            greenMail.waitForIncomingEmail(500, 1) shouldBe false
+        }
+    }
+
+    @Test
     fun `addresses that are not allowed get no link`() {
         withServer { port ->
             post(port, "/api/v1/auth/login", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
