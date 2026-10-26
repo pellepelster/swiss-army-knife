@@ -8,12 +8,22 @@ import { AuthService } from '../auth/auth.service';
   selector: 'app-home',
   imports: [DatePipe],
   template: `
-    <h1>Console</h1>
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <h1 class="h3 mb-0">Console</h1>
+      <button class="btn btn-outline-secondary btn-sm" type="button" (click)="logout()">
+        Sign out
+      </button>
+    </div>
     @if (me(); as me) {
-      <p data-testid="signed-in-as">Signed in as <strong>{{ me.email }}</strong></p>
-      <p>The session expires {{ me.expiresAt | date: 'medium' }}.</p>
+      <div class="card">
+        <div class="card-body">
+          <p class="mb-1" data-testid="signed-in-as">Signed in as <strong>{{ me.email }}</strong></p>
+          <p class="mb-0 text-body-secondary small">
+            The session expires {{ me.expiresAt | date: 'medium' }}.
+          </p>
+        </div>
+      </div>
     }
-    <button type="button" (click)="logout()">Sign out</button>
   `,
 })
 export class Home {

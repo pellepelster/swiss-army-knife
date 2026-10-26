@@ -8,15 +8,22 @@ import { AuthService } from '../auth/auth.service';
   selector: 'app-signin',
   imports: [RouterLink],
   template: `
-    @if (failed()) {
-      <h1>Sign in failed</h1>
-      <p role="alert">
-        The login link is invalid, expired or was already used.
-        <a routerLink="/login">Request a new one</a>.
-      </p>
-    } @else {
-      <p>Signing in…</p>
-    }
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-5">
+        @if (failed()) {
+          <h1 class="h4 mb-3">Sign in failed</h1>
+          <div class="alert alert-danger" role="alert">
+            The login link is invalid, expired or was already used.
+            <a class="alert-link" routerLink="/login">Request a new one</a>.
+          </div>
+        } @else {
+          <div class="d-flex align-items-center gap-2 text-body-secondary">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Signing in…
+          </div>
+        }
+      </div>
+    </div>
   `,
 })
 export class Signin implements OnInit {
