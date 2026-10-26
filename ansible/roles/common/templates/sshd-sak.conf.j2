@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# key based root login only, debian's defaults already behave like this for root
+# (prohibit-password), making it explicit keeps it that way for any other user
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+KbdInteractiveAuthentication no

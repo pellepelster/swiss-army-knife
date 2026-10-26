@@ -45,6 +45,16 @@
     - apt-daily.timer
     - apt-daily-upgrade.timer
 
+- name: Harden sshd
+  ansible.builtin.template:
+    src: sshd-sak.conf.j2
+    dest: /etc/ssh/sshd_config.d/50-sak.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: sshd -t -f %s
+  notify: Restart sshd
+
 - name: Install nftables
   ansible.builtin.apt:
     name: nftables
