@@ -2,14 +2,14 @@
 FROM alpine:3.24
 
 RUN apk add --no-cache openjdk25-jre-headless \
-    && addgroup -S sak \
-    && adduser -S -G sak -H -h /data -s /sbin/nologin sak \
+    && addgroup -S -g 10000 sak \
+    && adduser -S -u 10000 -G sak -H -h /data -s /sbin/nologin sak \
     && mkdir -p /data \
     && chown sak:sak /data
 
 COPY build/install/sak-controller /opt/sak-controller
 
-USER sak
+USER 10000:10000
 WORKDIR /data
 EXPOSE 8080
 VOLUME /data
