@@ -1,0 +1,18 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+
+# only this table is managed, the ruleset is not flushed so tables of other
+# services (e.g. podman's) stay untouched
+table inet sak
+flush table inet sak
+
+table inet sak {
+	chain output {
+		type filter hook output priority filter; policy accept;
+
+		# the cloud-init user data served by the metadata service holds the ssh host
+		# key, only root may read it, nothing else on the host (the containers included,
+		# they share the host network) can reach the service
+		ip daddr {{ common_metadata_address }} meta skuid != 0 counter reject with icmpx type admin-prohibited
+	}
+}

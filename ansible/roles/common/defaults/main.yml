@@ -5,3 +5,5 @@ common_unattended_upgrades_automatic_reboot: true
 common_unattended_upgrades_automatic_reboot_time: "04:00"
 # remove dependencies that are no longer needed after an upgrade
 common_unattended_upgrades_remove_unused_dependencies: true
+# the cloud metadata service, its user data (the ssh host key) is reachable by root only
+common_metadata_address: 169.254.169.254

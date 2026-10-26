@@ -4,7 +4,7 @@ Ansible collection that provisions the `sak-controller` server.
 
 | Role                | Purpose                                                                           |
 |---------------------|-----------------------------------------------------------------------------------|
-| `pelle.sak.common`  | Base setup, enables automatic unattended upgrades                                 |
+| `pelle.sak.common`  | Base setup, enables automatic unattended upgrades, blocks the cloud metadata service (it serves the ssh host key) for everything but root |
 | `pelle.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` |
 | `pelle.sak.controller` | Loads the `sak-controller` and `sak-ingress` (caddy, denies everything until the controller configures it, storage in `/storage/data/ingress`, json logs in `/storage/data/ingress/log`) images into podman and runs them as quadlets; the s3 buckets live in `/storage/data/controller/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000) |
 
