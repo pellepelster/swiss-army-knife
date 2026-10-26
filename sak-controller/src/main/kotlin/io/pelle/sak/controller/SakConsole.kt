@@ -9,6 +9,7 @@ import io.ktor.server.auth.authenticate
 import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.SESSION_AUTH
@@ -80,8 +81,10 @@ fun Application.console(
                 // unknown api paths and versions are no console pages
                 route("{...}") {
                     handle { call.respond(HttpStatusCode.NotFound) }
-                }
+                }.hide()
             }
+
+            apiDoc()
 
             singlePageApplication {
                 useResources = true

@@ -4,7 +4,7 @@ import { deleteAllMails } from './mailpit';
 
 test.beforeEach(async ({ page, request }) => {
   await deleteAllMails(request);
-  await signIn(page, request);
+  await signIn(page, request, 'logs@example.org');
 });
 
 // the buckets e2e-stats and e2e-other (e2e/controller-config.yaml) are sites only this test writes

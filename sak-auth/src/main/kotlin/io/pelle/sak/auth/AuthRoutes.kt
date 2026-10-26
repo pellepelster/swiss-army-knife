@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodeURLParameter
+import io.ktor.openapi.HttpSecurityScheme
+import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
@@ -17,7 +19,9 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
+import io.ktor.utils.io.ExperimentalKtorApi
 import jakarta.mail.internet.AddressException
 import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +33,20 @@ import java.time.Instant
 private val logger = KotlinLogging.logger {}
 
 const val SESSION_AUTH = "session"
+
+// the security scheme of the session token in the openapi document, named like the authentication
+// provider, the security requirements of the routes behind it are taken from that
+const val SESSION_SECURITY_SCHEME = SESSION_AUTH
+
+// the security scheme of the session token, the routes behind authenticate(SESSION_AUTH) require it
+val sessionSecurityScheme =
+    HttpSecurityScheme(
+        scheme = "bearer",
+        bearerFormat = "JWT",
+        description = "The session token the console gets for a login link, see POST /api/v1/auth/exchange.",
+    )
+
+private const val AUTH_TAG = "auth"
 
 data class SessionPrincipal(
     val email: String,
@@ -75,6 +93,7 @@ fun AuthenticationConfig.session(tokens: TokenService) {
 
 // the e-mail login: login sends a link with a login token to allowed addresses, the console's
 // signin page exchanges it for a session token; needs authentication { session(tokens) }
+@OptIn(ExperimentalKtorApi::class)
 fun Route.auth(
     tokens: TokenService,
     mailSender: MailSender,
@@ -113,6 +132,21 @@ fun Route.auth(
         }
 
         call.respond(HttpStatusCode.Accepted)
+    }.describe {
+        tag(AUTH_TAG)
+        summary = "Request a login link"
+        description =
+            "Sends a link with a login token, valid for 15 minutes, to the address if it may sign in. " +
+            "Answered the same way for every address."
+        requestBody {
+            required = true
+            schema = jsonSchema<LoginRequest>()
+        }
+        responses {
+            HttpStatusCode.Accepted { description = "The link is on its way if the address may sign in" }
+            HttpStatusCode.BadRequest { description = "No valid e-mail address" }
+            HttpStatusCode.TooManyRequests { description = "Too many login requests from this client" }
+        }
     }
 
     post("/exchange") {
@@ -126,6 +160,21 @@ fun Route.auth(
         val session = tokens.issueSessionToken(claims.email)
         call.response.header(HttpHeaders.CacheControl, "no-store")
         call.respond(ExchangeResponse(session.token, session.email, session.expiresAt.toString(), safeRedirect(claims.redirect)))
+    }.describe {
+        tag(AUTH_TAG)
+        summary = "Exchange a login token for a session token"
+        description = "Every login token can be exchanged once, the session token is valid for 30 days."
+        requestBody {
+            required = true
+            schema = jsonSchema<ExchangeRequest>()
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The session token and where the login started"
+                schema = jsonSchema<ExchangeResponse>()
+            }
+            HttpStatusCode.Unauthorized { description = "The login token is invalid, expired or was already used" }
+        }
     }
 
     authenticate(SESSION_AUTH) {
@@ -133,6 +182,16 @@ fun Route.auth(
             val principal = call.principal<SessionPrincipal>()!!
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(MeResponse(principal.email, principal.expiresAt.toString()))
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "The signed in user"
+            responses {
+                HttpStatusCode.OK {
+                    description = "The address and when the session expires"
+                    schema = jsonSchema<MeResponse>()
+                }
+                HttpStatusCode.Unauthorized { description = "No valid session token" }
+            }
         }
     }
 }

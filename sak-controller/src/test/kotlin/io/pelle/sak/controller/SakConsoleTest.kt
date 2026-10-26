@@ -209,6 +209,54 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `serves the openapi document of the api and swagger ui`() {
+        withServer { port ->
+            listOf("/doc/openapi.json", "/swagger/openapi.json").forEach { path ->
+                val response = get(port, path)
+                response.statusCode() shouldBe 200
+                response.headers().firstValue("Content-Type").get() shouldContain "application/json"
+                val doc = response.json()
+                doc.getValue("info").jsonObject.string("version") shouldBe "v1"
+
+                val paths = doc.getValue("paths").jsonObject
+                paths.keys shouldBe
+                    setOf(
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/exchange",
+                        "/api/v1/auth/me",
+                        "/api/v1/logs",
+                        "/api/v1/logs/{site}/metrics",
+                        "/api/v1/logs/{site}/search",
+                        "/api/v1/logs/{site}/live",
+                    )
+                // the routes behind the login require the session token, the login itself does not
+                val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject
+                me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"))
+                paths.getValue("/api/v1/auth/login").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
+                doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue("session").jsonObject.let {
+                    it.string("type") shouldBe "http"
+                    it.string("scheme") shouldBe "bearer"
+                }
+            }
+
+            val redirect =
+                HttpClient
+                    .newBuilder()
+                    .followRedirects(HttpClient.Redirect.NEVER)
+                    .build()
+                    .send(HttpRequest.newBuilder(URI.create("http://localhost:$port/swagger")).build(), HttpResponse.BodyHandlers.discarding())
+            redirect.statusCode() shouldBe 302
+            redirect.headers().firstValue("Location").get() shouldBe "/swagger/"
+
+            val swagger = get(port, "/swagger/")
+            swagger.statusCode() shouldBe 200
+            swagger.body() shouldContain "swagger-initializer.js"
+            swagger.headers().firstValue("Content-Security-Policy").get() shouldBe CONSOLE_CONTENT_SECURITY_POLICY
+            get(port, "/swagger/swagger-ui-bundle.js").statusCode() shouldBe 200
+        }
+    }
+
+    @Test
     fun `the s3 api is not shadowed by the console`() {
         withServer { port ->
             val response = get(port, "/s3/bucket1/hello.txt")

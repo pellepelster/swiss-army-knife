@@ -20,7 +20,7 @@ const row = (page: Page, path: string) =>
 
 test.beforeEach(async ({ page, request: api }) => {
   await deleteAllMails(api);
-  await signIn(page, api);
+  await signIn(page, api, 'live@example.org');
 });
 
 test('follows the requests as they arrive, pauses and searches the stored ones', async ({ page }) => {

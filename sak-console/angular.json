@@ -26,6 +26,21 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "{swagger-ui-bundle.js,swagger-ui.css}",
+                "input": "node_modules/swagger-ui-dist",
+                "output": "swagger"
+              },
+              {
+                "glob": "ibm-plex-sans-latin-{400,600}-normal.woff2",
+                "input": "node_modules/@fontsource/ibm-plex-sans/files",
+                "output": "swagger/fonts"
+              },
+              {
+                "glob": "ibm-plex-mono-latin-{400,600}-normal.woff2",
+                "input": "node_modules/@fontsource/ibm-plex-mono/files",
+                "output": "swagger/fonts"
               }
             ],
             "styles": [

@@ -6,13 +6,15 @@ import { loginLinkFor } from './mailpit';
 
 export const ADMIN = 'admin@example.org';
 
-// signs in with the link e-mailed to the address, ends on the page the login started from
-export async function signIn(page: Page, request: APIRequestContext): Promise<void> {
+// signs in with the link e-mailed to the address, ends on the page the login started from; every
+// spec signs in with an address of its own (e2e/controller-config.yaml), the controller sends
+// at most five links an hour to each
+export async function signIn(page: Page, request: APIRequestContext, address: string): Promise<void> {
   await page.goto('/login');
-  await page.getByLabel('E-mail address').fill(ADMIN);
+  await page.getByLabel('E-mail address').fill(address);
   await page.getByRole('button', { name: 'Send login link' }).click();
-  await page.goto(await loginLinkFor(request, ADMIN));
-  await expect(page.getByTestId('personal-menu')).toContainText(ADMIN);
+  await page.goto(await loginLinkFor(request, address));
+  await expect(page.getByTestId('personal-menu')).toContainText(address);
 }
 
 export async function signOut(page: Page): Promise<void> {

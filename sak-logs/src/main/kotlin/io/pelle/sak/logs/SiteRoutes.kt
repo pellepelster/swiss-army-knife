@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.openapi.Operation
+import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
@@ -13,6 +15,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.openapi.describe
+import io.ktor.utils.io.ExperimentalKtorApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -46,13 +50,22 @@ private val KEEPALIVE_INTERVAL = 15.seconds
 
 private const val MAX_SEARCH_LENGTH = 200
 
-// the sites, their metrics and their logs, meant to be mounted behind the console's authentication
+private const val LOGS_TAG = "logs"
+
+// the sites, their metrics and their logs, meant to be mounted behind the console's authentication,
+// which the openapi document takes its security requirement from
+@OptIn(ExperimentalKtorApi::class)
 fun Route.sites(
     sites: List<Site>,
     metrics: SiteMetricsService,
     logs: SiteLogs,
 ) {
     install(ContentNegotiation) { json() }
+
+    fun Operation.Builder.common(summary: String) {
+        tag(LOGS_TAG)
+        this.summary = summary
+    }
 
     get {
         call.respond(
@@ -62,6 +75,14 @@ fun Route.sites(
                 MetricsRange.DEFAULT.key,
             ),
         )
+    }.describe {
+        common("The sites and the ranges of their metrics")
+        responses {
+            HttpStatusCode.OK {
+                description = "The sites, the ranges and the default range"
+                schema = jsonSchema<SitesResponse>()
+            }
+        }
     }
 
     get("/{site}/metrics") {
@@ -82,6 +103,29 @@ fun Route.sites(
             logger.warn(e) { "could not query the metrics of site '${site.id}'" }
             call.respond(HttpStatusCode.ServiceUnavailable)
         }
+    }.describe {
+        common("The request metrics of a site")
+        description = "Requests per status class and code, transferred bytes and user agent groups over a range."
+        parameters {
+            path("site") {
+                description = "The id of the site"
+                required = true
+                schema = jsonSchema<String>()
+            }
+            query("range") {
+                description = "The range, one of the keys GET /api/v1/logs lists, 24h by default"
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The metrics of the range"
+                schema = jsonSchema<SiteMetrics>()
+            }
+            HttpStatusCode.BadRequest { description = "Unknown range" }
+            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
+        }
     }
 
     // the newest entries containing the text q
@@ -98,6 +142,32 @@ fun Route.sites(
         } catch (e: VictoriaLogsException) {
             logger.warn(e) { "could not search the logs" }
             call.respond(HttpStatusCode.ServiceUnavailable)
+        }
+    }.describe {
+        common("Search the logs")
+        description =
+            "The newest ${SiteLogs.SEARCH_LIMIT} requests whose request line (method, host, path, status) or user agent " +
+            "contains the text, case-insensitively."
+        parameters {
+            path("site") {
+                description = "The id of the site, or all for every site"
+                required = true
+                schema = jsonSchema<String>()
+            }
+            query("q") {
+                description = "The text to search for, at most $MAX_SEARCH_LENGTH characters"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The matching requests, newest first"
+                schema = jsonSchema<List<LogEntry>>()
+            }
+            HttpStatusCode.BadRequest { description = "No or too long search text" }
+            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }
     }
 
@@ -146,6 +216,26 @@ fun Route.sites(
                     reader.cancel()
                 }
             }
+        }
+    }.describe {
+        common("Follow the logs")
+        description =
+            "The requests of the last minutes, then every new one as it arrives, as server-sent events whose data " +
+            "is a log entry; comments keep the stream open."
+        parameters {
+            path("site") {
+                description = "The id of the site, or all for every site"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "A stream of log entries"
+                ContentType.Text.EventStream { schema = jsonSchema<LogEntry>() }
+            }
+            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }
     }
 }

@@ -12,6 +12,7 @@ dependencies {
     runtimeOnly(project(":sak-console"))
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.config.yaml)
+    implementation(libs.ktor.server.routing.openapi)
     runtimeOnly(libs.logback.classic)
 
     testImplementation(libs.greenmail.junit5)
