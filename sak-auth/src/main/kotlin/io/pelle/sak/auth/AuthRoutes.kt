@@ -3,7 +3,6 @@ package io.pelle.sak.auth
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.encodeURLParameter
 import io.ktor.openapi.HttpSecurityScheme
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
@@ -132,7 +131,8 @@ fun Route.auth(
             if (!mayLogin(email) || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
                 return@launch
             }
-            val link = "${consoleUrl.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}&redirect=${redirect.encodeURLParameter()}"
+            // the redirect travels in the token, the signin page takes it from the exchange
+            val link = "${consoleUrl.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}"
             try {
                 mailSender.send(email, "Sign in to the console", loginMail(consoleUrl, link, tokens.loginTokenTtl))
                 logger.info { "sent login link to '$email'" }

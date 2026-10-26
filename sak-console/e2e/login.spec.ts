@@ -23,7 +23,6 @@ test('signs in with the e-mailed link and returns to the requested page', async 
   await expect(page.getByTestId('login-sent')).toBeVisible();
 
   const link = await loginLinkFor(request, ADMIN);
-  expect(link).toContain('&redirect=%2F%3Ftab%3Dsites');
   await page.goto(link);
 
   await expect(page).toHaveURL('/?tab=sites');

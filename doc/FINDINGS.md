@@ -29,7 +29,7 @@ commit of its own, the status column tracks them.
 | S1 | - | done | duplicate stream filter builders |
 | S2 | - | done | duplicate json line decoding |
 | S3 | - | done | dead key rotation plumbing |
-| S4 | - | open | redundant `redirect` in the login link |
+| S4 | - | done | redundant `redirect` in the login link |
 | S5 | - | open | `SiteChoice` wrapper and duplicate openapi path |
 | S6 | - | open | `SESSION_SECURITY_SCHEME` alias |
 

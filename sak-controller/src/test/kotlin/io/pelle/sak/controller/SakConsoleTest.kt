@@ -141,7 +141,7 @@ class SakConsoleTest {
             get(port, "/api/v1/auth/me").statusCode() shouldBe 401
 
             val link = requestLoginLink(port)
-            link["redirect"] shouldBe "/buckets?tab=1"
+            link.keys shouldBe setOf("token")
 
             val exchange = post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""")
             exchange.statusCode() shouldBe 200

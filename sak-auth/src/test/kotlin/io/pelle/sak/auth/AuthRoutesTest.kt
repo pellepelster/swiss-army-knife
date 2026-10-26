@@ -99,7 +99,7 @@ class AuthRoutesTest {
             mail.subject shouldBe "Sign in to the console"
             val link = Url(mail.text.lines().single { it.startsWith(CONSOLE_URL) })
             link.toString() shouldStartWith "$CONSOLE_URL/signin?token="
-            link.parameters["redirect"] shouldBe "/buckets?tab=1"
+            link.parameters.names() shouldBe setOf("token")
             val token = link.parameters["token"]!!
 
             val exchange = client.exchange(token)
@@ -136,11 +136,11 @@ class AuthRoutesTest {
     @Test
     fun `redirects outside of the console fall back to the console root`() =
         authTest {
-            client.login("admin@example.org", "https://evil.example.com/")
-            receiveLink().parameters["redirect"] shouldBe "/"
-
-            client.login("admin@example.org", "//evil.example.com/")
-            receiveLink().parameters["redirect"] shouldBe "/"
+            for (redirect in listOf("https://evil.example.com/", "//evil.example.com/")) {
+                client.login("admin@example.org", redirect)
+                val session = client.exchange(receiveLink().parameters["token"]!!).bodyAsText().json()
+                session["redirect"]!!.jsonPrimitive.content shouldBe "/"
+            }
         }
 
     @Test
