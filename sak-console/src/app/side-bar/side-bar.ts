@@ -43,9 +43,14 @@ import { AuthService } from '../auth/auth.service';
           <span class="nav-square"></span>
           <span class="nav-text">Overview</span>
         </a>
-        <a class="nav-item" routerLink="/logs" routerLinkActive="active">
+        <div class="label-mono nav-section-label">Logs</div>
+        <a class="nav-item" routerLink="/logs/statistics" routerLinkActive="active">
           <span class="nav-square"></span>
-          <span class="nav-text">Logs</span>
+          <span class="nav-text">Statistics</span>
+        </a>
+        <a class="nav-item" routerLink="/logs/live" routerLinkActive="active">
+          <span class="nav-square"></span>
+          <span class="nav-text">Live</span>
         </a>
       </nav>
 

@@ -167,7 +167,7 @@ export class SiteMetrics {
 
   protected readonly siteChoices = computed(() => this.sites.sites()?.sites ?? []);
 
-  // only once the site is in the url, /logs continues at the first one
+  // only once the site is in the url, /logs/statistics continues at the first one
   protected readonly shownSite = computed(() => this.site() ?? null);
 
   protected readonly range = signal<string | null>(null);
@@ -242,11 +242,11 @@ export class SiteMetrics {
   constructor() {
     this.sites.load();
 
-    // the shown site is always part of the url, /logs continues at the first one
+    // the shown site is always part of the url, /logs/statistics continues at the first one
     effect(() => {
       const first = this.siteChoices()[0]?.id;
       if (this.site() === undefined && first !== undefined) {
-        void this.router.navigate(['/logs', first], { replaceUrl: true });
+        void this.router.navigate(['/logs/statistics', first], { replaceUrl: true });
       }
     });
 
@@ -270,6 +270,6 @@ export class SiteMetrics {
 
   // the site is part of the url, so a site can be linked and the back button returns to the last one
   protected selectSite(site: string): void {
-    void this.router.navigate(['/logs', site]);
+    void this.router.navigate(['/logs/statistics', site]);
   }
 }

@@ -14,7 +14,7 @@ import { SitesService } from '../sites/sites.service';
       <div class="label-mono mb-2">Sites</div>
       <div class="card-grid">
         @for (site of sites(); track site.id) {
-          <a class="card-link" [routerLink]="['/logs', site.id]" [attr.data-testid]="'site-' + site.id">
+          <a class="card-link" [routerLink]="['/logs/statistics', site.id]" [attr.data-testid]="'site-' + site.id">
             <div class="card h-100">
               <div class="card-body">
                 <div class="fw-semibold font-mono">{{ site.id }}</div>

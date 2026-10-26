@@ -46,34 +46,82 @@ class VictoriaLogsClient(
         start: Instant,
         end: Instant,
         step: Duration,
-    ): List<StatsSeries> {
-        val form =
-            listOf(
+    ): List<StatsSeries> =
+        parse(
+            send(
+                "/select/logsql/stats_query_range",
+                HttpResponse.BodyHandlers.ofString(),
                 "query" to query,
                 "start" to start.epochSecond.toString(),
                 "end" to end.epochSecond.toString(),
                 "step" to "${step.seconds}s",
-            ).joinToString("&") { (key, value) -> "$key=${URLEncoder.encode(value, Charsets.UTF_8)}" }
+            ).body(),
+        )
 
+    // the entries matching a logsql query, one map of field names to values per entry
+    fun query(query: String): List<Map<String, String>> =
+        send("/select/logsql/query", HttpResponse.BodyHandlers.ofString(), "query" to query)
+            .body()
+            .lineSequence()
+            .filter { it.isNotBlank() }
+            .map { record(it) }
+            .toList()
+
+    // the entries of the last startOffset matching the query and every new one as it arrives,
+    // until the returned stream is closed
+    fun tail(
+        query: String,
+        startOffset: Duration,
+    ): LogTail {
+        val response =
+            send(
+                "/select/logsql/tail",
+                HttpResponse.BodyHandlers.ofInputStream(),
+                "query" to query,
+                "start_offset" to "${startOffset.seconds}s",
+                timeout = null,
+            )
+        return LogTail(response.body())
+    }
+
+    private fun <T> send(
+        path: String,
+        bodyHandler: HttpResponse.BodyHandler<T>,
+        vararg form: Pair<String, String>,
+        timeout: Duration? = Duration.ofSeconds(15),
+    ): HttpResponse<T> {
         val request =
             HttpRequest
-                .newBuilder(URI.create("$url/select/logsql/stats_query_range"))
+                .newBuilder(URI.create("$url$path"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .timeout(Duration.ofSeconds(15))
-                .POST(HttpRequest.BodyPublishers.ofString(form))
-                .build()
+                .apply { timeout?.let { timeout(it) } }
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        form.joinToString("&") { (key, value) -> "$key=${URLEncoder.encode(value, Charsets.UTF_8)}" },
+                    ),
+                ).build()
 
         val response =
             try {
-                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+                httpClient.send(request, bodyHandler)
             } catch (e: java.io.IOException) {
                 throw VictoriaLogsException("victorialogs at '$url' is not reachable", e)
             }
         if (response.statusCode() !in 200..299) {
-            throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: ${response.body()}")
+            val body = response.body().let { if (it is java.io.InputStream) it.use { s -> String(s.readAllBytes()) } else it }
+            throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: $body")
         }
-        return parse(response.body())
+        return response
     }
+
+    private fun record(line: String): Map<String, String> =
+        try {
+            Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->
+                (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
+            }
+        } catch (e: IllegalArgumentException) {
+            throw VictoriaLogsException("unreadable victorialogs entry: $line", e)
+        }
 
     private fun parse(body: String): List<StatsSeries> {
         val json =
@@ -106,4 +154,23 @@ class VictoriaLogsClient(
             )
         }
     }
+}
+
+// a running live tail, every line is one entry as a map of field names to values
+class LogTail(
+    private val stream: java.io.InputStream,
+) : java.io.Closeable {
+    private val lines = stream.bufferedReader().lineSequence().filter { it.isNotBlank() }.iterator()
+
+    // blocks until the next entry arrives, null once victorialogs ended the tail
+    fun next(): Map<String, String>? =
+        if (lines.hasNext()) {
+            Json.parseToJsonElement(lines.next()).jsonObject.mapValues { (_, value) ->
+                (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
+            }
+        } else {
+            null
+        }
+
+    override fun close() = stream.close()
 }

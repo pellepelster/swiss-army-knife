@@ -49,6 +49,8 @@ class SiteMetricsServiceTest {
 
     private val service = SiteMetricsService(client)
 
+    private val logs = SiteLogs(client)
+
     private val site = Site("pelle.io", listOf("pelle.io"))
 
     // 12:34:56, the 1h range has 2 minute steps and its last bucket starts at 12:34
@@ -155,7 +157,7 @@ class SiteMetricsServiceTest {
             statusResponse = response(series("requests", mapOf("status" to "200"), Instant.now().epochSecond to 5))
             userAgentResponse = response()
             application {
-                routing { route("/api/v1/logs") { sites(listOf(site), service) } }
+                routing { route("/api/v1/logs") { sites(listOf(site), service, logs) } }
             }
 
             val sites = Json.parseToJsonElement(client.get("/api/v1/logs").bodyAsText()).jsonObject
@@ -179,7 +181,7 @@ class SiteMetricsServiceTest {
         testApplication {
             application {
                 routing {
-                    route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1"))) }
+                    route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
                 }
             }
 

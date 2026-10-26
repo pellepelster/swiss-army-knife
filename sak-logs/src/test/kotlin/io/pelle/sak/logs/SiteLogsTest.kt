@@ -1,0 +1,168 @@
+package io.pelle.sak.logs
+
+import com.sun.net.httpserver.HttpServer
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
+import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import java.net.InetSocketAddress
+import java.net.URLDecoder
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+class SiteLogsTest {
+    private val queries = mutableListOf<Pair<String, Map<String, String>>>()
+
+    // the tail stays open until the test ends, like victorialogs keeps it open for new entries
+    private val tailOpen = CountDownLatch(1)
+
+    private val victoriaLogs =
+        HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
+            createContext("/select/logsql/") { exchange ->
+                val form =
+                    String(exchange.requestBody.readAllBytes()).split('&').associate {
+                        it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8)
+                    }
+                synchronized(queries) { queries.add(exchange.requestURI.path to form) }
+                when (exchange.requestURI.path) {
+                    "/select/logsql/query" -> {
+                        val body =
+                            (
+                                """{"_time":"2026-10-26T21:00:02Z","site":"pelle.io","request.uri":"/missing","status":"404"}""" + "\n" +
+                                    """{"_time":"2026-10-26T21:00:01Z","site":"pelle.io","request.uri":"/","status":"200"}""" + "\n"
+                            ).toByteArray()
+                        exchange.sendResponseHeaders(200, body.size.toLong())
+                        exchange.responseBody.use { it.write(body) }
+                    }
+                    "/select/logsql/tail" -> {
+                        exchange.sendResponseHeaders(200, 0)
+                        exchange.responseBody.use {
+                            it.write("""{"_time":"2026-10-26T21:00:01Z","site":"pelle.io","request.uri":"/a","status":"200"}""".toByteArray())
+                            it.write("\n".toByteArray())
+                            it.flush()
+                            it.write("""{"_time":"2026-10-26T21:00:02Z","site":"s3","request.uri":"/b?x=1","status":"0"}""".toByteArray())
+                            it.write("\n".toByteArray())
+                            it.flush()
+                            tailOpen.await(10, TimeUnit.SECONDS)
+                        }
+                    }
+                }
+            }
+            executor = java.util.concurrent.Executors.newCachedThreadPool()
+            start()
+        }
+
+    private val victoriaLogsClient = VictoriaLogsClient("http://127.0.0.1:${victoriaLogs.address.port}")
+
+    private val logs = SiteLogs(victoriaLogsClient)
+
+    private val site = Site("pelle.io", listOf("pelle.io"))
+
+    @AfterEach
+    fun stop() {
+        tailOpen.countDown()
+        victoriaLogs.stop(0)
+    }
+
+    @Test
+    fun `searches the request lines and user agents of a site case-insensitively, newest first`() {
+        logs.search(site, " Missing ") shouldBe
+            listOf(
+                LogEntry("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
+                LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
+            )
+
+        queries.single().second.getValue("query") shouldBe
+            """_stream:{site="pelle.io"} (_msg:~"(?i)Missing" OR user_agent:~"(?i)Missing") """ +
+            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 200"""
+    }
+
+    @Test
+    fun `searches all sites and matches the text literally`() {
+        logs.search(null, """a.b "c" (d)\""")
+
+        queries.single().second.getValue("query") shouldBe
+            """* (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +
+            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 200"""
+    }
+
+    @Test
+    fun `follows the entries of the last minutes and the new ones`() {
+        logs.follow(site).use { entries ->
+            entries.next() shouldBe LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/a", 200)
+            entries.next() shouldBe LogEntry("2026-10-26T21:00:02Z", "s3", "/b?x=1", 0)
+        }
+
+        queries.single() shouldBe
+            ("/select/logsql/tail" to mapOf("query" to """_stream:{site="pelle.io"} | fields _time, site, request.uri, status""", "start_offset" to "300s"))
+    }
+
+    @Test
+    fun `streams the followed entries as server-sent events`() =
+        testApplication {
+            application {
+                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs) } }
+            }
+
+            client.prepareGet("/api/v1/logs/all/live").execute { response ->
+                response.status shouldBe HttpStatusCode.OK
+                response.headers["Content-Type"] shouldContain "text/event-stream"
+                response.headers["Cache-Control"] shouldBe "no-store"
+                val channel = response.bodyAsChannel()
+                val lines = mutableListOf<String>()
+                withTimeout(10_000) {
+                    while (lines.count { it.startsWith("data: ") } < 2) lines.add(channel.readUTF8Line() ?: break)
+                }
+                val events = lines.filter { it.startsWith("data: ") }.map { Json.parseToJsonElement(it.removePrefix("data: ")).jsonObject }
+
+                events.map { it["path"]!!.jsonPrimitive.content } shouldBe listOf("/a", "/b?x=1")
+                events.last()["site"]!!.jsonPrimitive.content shouldBe "s3"
+            }
+
+            synchronized(queries) { queries.single().second.getValue("query") } shouldBe "* | fields _time, site, request.uri, status"
+        }
+
+    @Test
+    fun `serves searches of known sites and all sites only`() =
+        testApplication {
+            application {
+                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs) } }
+            }
+
+            val found = client.get("/api/v1/logs/pelle.io/search?q=missing")
+            found.status shouldBe HttpStatusCode.OK
+            Json.parseToJsonElement(found.bodyAsText()).jsonArray.first().jsonObject["status"]!!.jsonPrimitive.content shouldBe "404"
+
+            client.get("/api/v1/logs/all/search?q=missing").status shouldBe HttpStatusCode.OK
+            client.get("/api/v1/logs/unknown/search?q=missing").status shouldBe HttpStatusCode.NotFound
+            client.get("/api/v1/logs/unknown/live").status shouldBe HttpStatusCode.NotFound
+            client.get("/api/v1/logs/pelle.io/search?q=%20").status shouldBe HttpStatusCode.BadRequest
+            client.get("/api/v1/logs/pelle.io/search").status shouldBe HttpStatusCode.BadRequest
+        }
+
+    @Test
+    fun `answers service unavailable when victorialogs is down`() =
+        testApplication {
+            val down = VictoriaLogsClient("http://127.0.0.1:1")
+            application {
+                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(down), SiteLogs(down)) } }
+            }
+
+            client.get("/api/v1/logs/pelle.io/search?q=x").status shouldBe HttpStatusCode.ServiceUnavailable
+            client.get("/api/v1/logs/pelle.io/live").status shouldBe HttpStatusCode.ServiceUnavailable
+        }
+}

@@ -7,6 +7,7 @@ test.beforeEach(async ({ page, request }) => {
   await signIn(page, request);
 });
 
+// the buckets e2e-stats and e2e-other (e2e/controller-config.yaml) are sites only this test writes
 test('shows the requests of a site from the ingress access log', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
@@ -14,22 +15,22 @@ test('shows the requests of a site from the ingress access log', async ({ page }
   });
   const browser = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36';
   appendAccessLog(
-    { site: 's3', status: 200, size: 1000, uri: '/bucket/a', userAgent: browser },
-    { site: 's3', status: 200, size: 1000, uri: '/bucket/b', userAgent: browser },
-    { site: 's3', status: 200, size: 500, uri: '/bucket/c', userAgent: 'aws-sdk-java/2.30.0' },
-    { site: 's3', status: 404, size: 0, uri: '/bucket/missing', userAgent: 'curl/8.5.0' },
+    { site: 'e2e-stats', status: 200, size: 1000, uri: '/a', userAgent: browser },
+    { site: 'e2e-stats', status: 200, size: 1000, uri: '/b', userAgent: browser },
+    { site: 'e2e-stats', status: 200, size: 500, uri: '/c', userAgent: 'aws-sdk-java/2.30.0' },
+    { site: 'e2e-stats', status: 404, size: 0, uri: '/missing', userAgent: 'curl/8.5.0' },
     // another site, not counted
-    { site: 'unmatched', status: 0, size: 0, uri: '/.env', userAgent: 'zgrab/0.x' },
+    { site: 'e2e-other', status: 200, size: 10, uri: '/', userAgent: browser },
   );
 
   // the overview links the sites, so does the navigation
-  await expect(page.getByTestId('site-s3')).toBeVisible();
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Logs' }).click();
+  await expect(page.getByTestId('site-e2e-stats')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Statistics' }).click();
   // the first site, in the url like every selected one
-  await expect(page).toHaveURL('/logs/s3');
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
-  await expect(page.getByTestId('site-title')).toHaveText('s3');
-  await expect(page.getByText('s3.example.org')).toBeVisible();
+  await expect(page).toHaveURL('/logs/statistics/e2e-stats');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-stats');
+  await expect(page.getByTestId('site-title')).toHaveText('e2e-stats');
+  await expect(page.getByText('stats.example.org')).toBeVisible();
 
   // vector ships the entries within a few seconds
   await expect(async () => {
@@ -47,18 +48,18 @@ test('shows the requests of a site from the ingress access log', async ({ page }
   await expect(agents).toContainText('Chrome');
   await expect(agents).toContainText('Scripts and SDKs');
 
-  // the unmatched requests are a site of their own, the range stays when switching
-  await page.getByLabel('Site', { exact: true }).selectOption('unmatched');
-  await expect(page).toHaveURL('/logs/unmatched');
+  // every site has its own requests, the range stays when switching
+  await page.getByLabel('Site', { exact: true }).selectOption('e2e-other');
+  await expect(page).toHaveURL('/logs/statistics/e2e-other');
   await expect(page.getByLabel('Range')).toHaveValue('15m');
   await expect(page.getByTestId('kpi-requests')).toHaveText('1');
 
   // the selection survives a reload and the back button returns to the previous site
   await page.reload();
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('unmatched');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-other');
   await page.goBack();
-  await expect(page).toHaveURL('/logs/s3');
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
+  await expect(page).toHaveURL('/logs/statistics/e2e-stats');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-stats');
 
   expect(errors).toEqual([]);
 });

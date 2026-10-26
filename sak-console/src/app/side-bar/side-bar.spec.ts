@@ -40,14 +40,15 @@ describe('SideBar', () => {
     return element.querySelector('[role=menu]');
   };
 
-  it('links the overview and the sites', () => {
+  it('links the overview and the log views', () => {
     const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')].map((link) => [
       link.textContent?.trim(),
       link.getAttribute('href'),
     ]);
     expect(links).toEqual([
       ['Overview', '/'],
-      ['Logs', '/logs'],
+      ['Statistics', '/logs/statistics'],
+      ['Live', '/logs/live'],
     ]);
   });
 

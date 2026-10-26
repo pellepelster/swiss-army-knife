@@ -18,6 +18,7 @@ import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
 import io.pelle.sak.logs.sites
@@ -71,7 +72,8 @@ fun Application.console(
                     }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
-                            sites(sites(config), SiteMetricsService(VictoriaLogsClient(config.logs.victorialogsUrl)))
+                            val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
+                            sites(sites(config), SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
                     }
                 }

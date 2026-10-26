@@ -10,6 +10,14 @@ sak:
   s3:
     access_key_id: e2e
     secret_access_key: e2e-secret
+    # served at their domains, so they are sites; only the statistics test writes their requests
+    buckets:
+      e2e-stats:
+        domains:
+          - stats.example.org
+      e2e-other:
+        domains:
+          - other.example.org
   auth:
     console_url: http://localhost:18080
     allowed_emails:

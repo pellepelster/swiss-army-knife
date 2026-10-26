@@ -47,8 +47,8 @@ describe('SiteMetrics', () => {
         provideHttpClientTesting(),
         provideRouter(
           [
-            { path: 'logs', component: SiteMetrics },
-            { path: 'logs/:site', component: SiteMetrics },
+            { path: 'logs/statistics', component: SiteMetrics },
+            { path: 'logs/statistics/:site', component: SiteMetrics },
           ],
           withComponentInputBinding(),
         ),
@@ -59,7 +59,7 @@ describe('SiteMetrics', () => {
 
   afterEach(() => http.verify());
 
-  const open = async (url = '/logs/pelle.io') => {
+  const open = async (url = '/logs/statistics/pelle.io') => {
     const harness = await RouterTestingHarness.create(url);
     http.expectOne('/api/v1/logs').flush({
       sites: [
@@ -107,12 +107,12 @@ describe('SiteMetrics', () => {
   });
 
   it('continues at the first site without one in the url', async () => {
-    const harness = await open('/logs');
+    const harness = await open('/logs/statistics');
 
     http.expectOne('/api/v1/logs/pelle.io/metrics?range=24h').flush(metrics('24h'));
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toBe('/logs/pelle.io');
+    expect(TestBed.inject(Router).url).toBe('/logs/statistics/pelle.io');
     expect(harness.routeNativeElement!.querySelector('[data-testid=site-title]')?.textContent).toBe(
       'pelle.io',
     );
@@ -130,7 +130,7 @@ describe('SiteMetrics', () => {
     select.dispatchEvent(new Event('change'));
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toBe('/logs/s3');
+    expect(TestBed.inject(Router).url).toBe('/logs/statistics/s3');
     http.expectOne('/api/v1/logs/s3/metrics?range=24h').flush({ ...metrics('24h'), site: 's3' });
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement!.querySelector('[data-testid=site-title]')?.textContent).toBe('s3');

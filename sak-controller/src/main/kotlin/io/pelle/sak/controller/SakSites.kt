@@ -1,6 +1,7 @@
 package io.pelle.sak.controller
 
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.logs.ALL_SITES
 import io.pelle.sak.logs.Site
 import io.pelle.sak.logs.SiteMetricsService
 
@@ -18,7 +19,8 @@ const val REDIRECT_SITE = "redirect"
 // requests for hosts nothing is configured for, closed without an answer
 const val UNMATCHED_SITE = "unmatched"
 
-val RESERVED_SITES = setOf(S3_SITE, CONSOLE_SITE, REDIRECT_SITE, UNMATCHED_SITE)
+// all stands for every site in the console's log views
+val RESERVED_SITES = setOf(S3_SITE, CONSOLE_SITE, REDIRECT_SITE, UNMATCHED_SITE, ALL_SITES)
 
 // the buckets served at their domains are sites of their own, named like the bucket
 fun sites(config: SakConfig): List<Site> {

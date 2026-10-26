@@ -30,13 +30,19 @@ sak:
       # tls: true          # implicit tls, e.g. port 465
 ```
 
-## Sites
+## Logs
 
 Caddy tags every access log entry with the site it served (a bucket with domains, `s3`,
 `console`, `redirect` or `unmatched`), vector ships the log to victorialogs (both run next to the
-ingress, see the controller ansible role), and `/logs/:site` shows the requests per status,
-the transferred bytes and the clients of a site over a range, computed by
-`GET /api/v1/logs/{site}/metrics?range=` with logsql stats queries.
+ingress, see the controller ansible role).
+
+- `/logs/statistics/:site` shows the requests per status, the transferred bytes and the clients of
+  a site over a range (`GET /api/v1/logs/{site}/metrics?range=`, logsql stats queries)
+- `/logs/live/:site` follows the requests of a site or `all` of them as they arrive
+  (`GET /api/v1/logs/{site}/live`, server-sent events from victorialogs' live tailing), with the
+  time, site, path and status of each; pause stops following, a search text (`?q=`) stops it and
+  searches the stored entries instead (`GET /api/v1/logs/{site}/search?q=`), follow drops the
+  search and follows again
 
 The styling is the blcks theme (`src/theme`, a copy of blcks-theme) with the layout of the blcks
 console: the navigation on the left, the personal menu with the sign out at its bottom.
