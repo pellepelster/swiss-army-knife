@@ -16,7 +16,7 @@ commit of its own, the status column tracks them.
 | 8 | low | fixed | malformed responses escape as 500s, newline in `q` becomes a 503 |
 | 9 | low | fixed | search has no time bound |
 | 10 | low | fixed | login tokens can reach caddy's error log |
-| 11 | low | open | console host proxies the whole controller, no hsts |
+| 11 | low | fixed | console host proxies the whole controller, no hsts |
 | 12 | low | open | jwt defense in depth (`exp`, `kid`) |
 | 13 | low | open | bucket index truncates toward zero |
 | 14 | low | open | a console setup failure stops the whole controller |
@@ -118,7 +118,7 @@ controller restarts while the admin clicks the link, the 502 error entry stores
 
 Fix: the same query filter on the default log.
 
-### 11. Console host proxies the whole controller, no hsts (low)
+### 11. Console host proxies the whole controller, no hsts (low, fixed)
 
 `SakCaddy.kt`: the console route is host-based only, so `https://console.<root>/s3/…` reaches the
 s3 api outside the security headers. Harmless (sigv4) but needless. No

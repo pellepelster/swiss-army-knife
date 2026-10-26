@@ -50,9 +50,18 @@ fun caddyConfig(
             }
 
             if (config.auth != null) {
+                // the controller also serves the s3 api, which belongs to the s3 host only
+                route {
+                    host(config.consoleHost)
+                    path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*")
+                    logField(SITE_LOG_FIELD, CONSOLE_SITE)
+                    respond(404)
+                    terminal()
+                }
                 route {
                     host(config.consoleHost)
                     logField(SITE_LOG_FIELD, CONSOLE_SITE)
+                    responseHeader("Strict-Transport-Security", "max-age=31536000")
                     maxRequestBodySize(CONSOLE_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
                     terminal()

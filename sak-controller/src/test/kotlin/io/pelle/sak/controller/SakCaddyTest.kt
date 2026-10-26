@@ -122,9 +122,26 @@ class SakCaddyTest {
             Json.parseToJsonElement(
                 """
                 {
+                  "match": [{ "host": ["console.example.org"], "path": ["/s3", "/s3/*"] }],
+                  "handle": [
+                    { "handler": "log_append", "key": "site", "value": "console" },
+                    { "handler": "static_response", "status_code": 404 }
+                  ],
+                  "terminal": true
+                }
+                """.trimIndent(),
+            )
+        routes[3] shouldBe
+            Json.parseToJsonElement(
+                """
+                {
                   "match": [{ "host": ["console.example.org"] }],
                   "handle": [
                     { "handler": "log_append", "key": "site", "value": "console" },
+                    {
+                      "handler": "headers",
+                      "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
+                    },
                     { "handler": "request_body", "max_size": 1048576 },
                     { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                   ],
@@ -132,7 +149,7 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        routes.size shouldBe 6
+        routes.size shouldBe 7
     }
 
     @Test
