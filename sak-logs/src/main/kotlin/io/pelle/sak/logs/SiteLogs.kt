@@ -25,17 +25,14 @@ class SiteLogs(
         limit: Int = SEARCH_LIMIT,
     ): List<LogEntry> =
         client
-            .query("${filter(site)} _time:$SEARCH_WINDOW ${textFilter(text)} | $FIELDS | sort by (_time desc) | limit $limit")
+            .query("${streamFilter(site)} _time:$SEARCH_WINDOW ${textFilter(text)} | $FIELDS | sort by (_time desc) | limit $limit")
             .map { it.toLogEntry() }
 
     // the entries of the last minutes first, then every new one; the tail has to be closed
     fun follow(site: Site?): LogEntries {
-        val tail = client.tail("${filter(site)} | $FIELDS", FOLLOW_BACKLOG)
+        val tail = client.tail("${streamFilter(site)} | $FIELDS", FOLLOW_BACKLOG)
         return LogEntries(tail)
     }
-
-    private fun filter(site: Site?) =
-        if (site == null) "*" else "_stream:{${SiteMetricsService.SITE}=${quoted(site.id)}}"
 
     companion object {
         // as many as the console's live view keeps of the followed ones
@@ -56,8 +53,6 @@ class SiteLogs(
             val pattern = quoted("(?i)$literal")
             return "(_msg:~$pattern OR user_agent:~$pattern)"
         }
-
-        private fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
         fun Map<String, String>.toLogEntry() =
             LogEntry(

@@ -158,8 +158,6 @@ class SiteMetricsService(
             .sortedByDescending { it.requests }
     }
 
-    private fun streamFilter(site: Site) = "_stream:{$SITE=\"${site.id.replace("\\", "\\\\").replace("\"", "\\\"")}\"}"
-
     companion object {
         // the stream field the access log entries carry their site in
         const val SITE = "site"

@@ -26,7 +26,7 @@ commit of its own, the status column tracks them.
 | 18 | low | fixed | ui: unknown site in the url |
 | 19 | low | fixed | ui: stored session trusted without validation |
 | 20 | low | fixed | ui: sites never retried after a network error |
-| S1 | - | open | duplicate stream filter builders |
+| S1 | - | done | duplicate stream filter builders |
 | S2 | - | open | duplicate json line decoding |
 | S3 | - | open | dead key rotation plumbing |
 | S4 | - | open | redundant `redirect` in the login link |
