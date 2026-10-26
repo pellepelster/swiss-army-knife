@@ -1,6 +1,7 @@
 package io.pelle.sak.auth
 
 import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTVerificationException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -84,6 +85,20 @@ class TokenServiceTest {
         tokens.exchangeLoginToken(otherKey.issueLoginToken("admin@example.org", "/")) shouldBe null
         tokens.exchangeLoginToken(otherIssuer.issueLoginToken("admin@example.org", "/")) shouldBe null
         shouldThrow<JWTVerificationException> { tokens.sessionVerifier.verify(otherKey.issueSessionToken("admin@example.org").token) }
+    }
+
+    @Test
+    fun `login tokens without expiry are rejected`() {
+        val token =
+            JWT
+                .create()
+                .withIssuer("https://console.example.org")
+                .withSubject("admin@example.org")
+                .withClaim("token_use", "login")
+                .withJWTId("id")
+                .sign(Algorithm.ECDSA256(key.publicKey, key.privateKey))
+
+        tokens.exchangeLoginToken(token) shouldBe null
     }
 
     @Test

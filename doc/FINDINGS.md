@@ -17,7 +17,7 @@ commit of its own, the status column tracks them.
 | 9 | low | fixed | search has no time bound |
 | 10 | low | fixed | login tokens can reach caddy's error log |
 | 11 | low | fixed | console host proxies the whole controller, no hsts |
-| 12 | low | open | jwt defense in depth (`exp`, `kid`) |
+| 12 | low | fixed | jwt defense in depth (`exp`, `kid`) |
 | 13 | low | open | bucket index truncates toward zero |
 | 14 | low | open | a console setup failure stops the whole controller |
 | 15 | medium | open | ui: live view hides errors |
@@ -126,7 +126,7 @@ s3 api outside the security headers. Harmless (sigv4) but needless. No
 
 Fix: `/s3*` is not served on the console host, the console route sets hsts.
 
-### 12. JWT defense in depth (low)
+### 12. JWT defense in depth (low, fixed)
 
 `TokenService.kt`: java-jwt validates `exp` only if present, a signed login token without one
 NPEs in `putIfAbsent` and is never marked used. Only reachable with the private key. The `kid`

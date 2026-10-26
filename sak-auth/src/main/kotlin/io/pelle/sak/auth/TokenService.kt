@@ -60,10 +60,12 @@ class TokenService(
             }
         val id = jwt.id ?: return null
         val email = jwt.subject ?: return null
+        // the verifier only checks the expiry of tokens that have one
+        val expiresAt = jwt.expiresAtAsInstant ?: return null
 
         val now = clock.instant()
         usedLoginTokens.values.removeIf { it.isBefore(now) }
-        if (usedLoginTokens.putIfAbsent(id, jwt.expiresAtAsInstant) != null) {
+        if (usedLoginTokens.putIfAbsent(id, expiresAt) != null) {
             return null
         }
 
