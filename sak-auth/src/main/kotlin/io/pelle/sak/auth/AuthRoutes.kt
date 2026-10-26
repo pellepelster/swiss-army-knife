@@ -99,8 +99,11 @@ fun Route.auth(
     mailSender: MailSender,
     consoleUrl: String,
     mayLogin: (email: String) -> Boolean,
+    // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
     loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
+    // links altogether, the ceiling of what the smtp server is asked to send
+    linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
 ) {
     install(ContentNegotiation) { json() }
 
@@ -112,12 +115,13 @@ fun Route.auth(
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
-        if (!loginsPerClient.tryAcquire(call.clientAddress())) {
+        val client = call.clientAddress()
+        if (!loginsPerClient.tryAcquire(client)) {
             call.respond(HttpStatusCode.TooManyRequests)
             return@post
         }
 
-        if (mayLogin(email) && loginsPerAddress.tryAcquire(email)) {
+        if (mayLogin(email) && mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
             val redirect = safeRedirect(request.redirect)
             val link = "${consoleUrl.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}&redirect=${redirect.encodeURLParameter()}"
             // sent in the background, the response time does not tell anything either
@@ -194,6 +198,24 @@ fun Route.auth(
             }
         }
     }
+}
+
+// whether another link may be sent, the log tells when an allowed address asks in vain
+private fun mayHaveLink(
+    email: String,
+    client: String,
+    loginsPerAddress: RateLimiter,
+    linksPerHour: RateLimiter,
+): Boolean {
+    if (!loginsPerAddress.tryAcquire("$email $client")) {
+        logger.info { "not sending another login link to '$email' for $client this hour" }
+        return false
+    }
+    if (!linksPerHour.tryAcquire("")) {
+        logger.warn { "not sending a login link to '$email', the links of this hour are used up" }
+        return false
+    }
+    return true
 }
 
 // the address the login links are sent to, lower cased so it matches the allowed addresses

@@ -42,6 +42,7 @@ class AuthRoutesTest {
 
     private fun authTest(
         loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
+        linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
@@ -54,6 +55,7 @@ class AuthRoutesTest {
                         CONSOLE_URL,
                         mayLogin = { it == "admin@example.org" },
                         loginsPerClient = loginsPerClient,
+                        linksPerHour = linksPerHour,
                     )
                 }
             }
@@ -165,11 +167,24 @@ class AuthRoutesTest {
         }
 
     @Test
-    fun `at most five links per hour are sent to an address`() =
+    fun `at most five links per hour are sent to an address for one client, other clients still get theirs`() =
         authTest {
             repeat(6) { client.login("admin@example.org").status shouldBe HttpStatusCode.Accepted }
 
             repeat(5) { receiveLink() }
+            withTimeoutOrNull(500) { mails.receive() } shouldBe null
+
+            client.login("admin@example.org") { header("X-Forwarded-For", "192.0.2.7") }.status shouldBe HttpStatusCode.Accepted
+            receiveLink()
+        }
+
+    @Test
+    fun `the links of an hour are limited altogether`() =
+        authTest(linksPerHour = RateLimiter(1, Duration.ofHours(1))) {
+            client.login("admin@example.org").status shouldBe HttpStatusCode.Accepted
+            receiveLink()
+
+            client.login("admin@example.org") { header("X-Forwarded-For", "192.0.2.7") }.status shouldBe HttpStatusCode.Accepted
             withTimeoutOrNull(500) { mails.receive() } shouldBe null
         }
 
