@@ -3,7 +3,7 @@
 Description=sak-controller
 After=network-online.target
 Wants=network-online.target
-RequiresMountsFor={{ controller_base_path }} {{ controller_s3_data_path }}
+RequiresMountsFor={{ controller_base_path }}
 
 [Service]
 Type=simple
@@ -21,7 +21,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths={{ controller_data_path }} {{ controller_s3_data_path }}
+ReadWritePaths={{ controller_data_path }}
 
 [Install]
 WantedBy=multi-user.target

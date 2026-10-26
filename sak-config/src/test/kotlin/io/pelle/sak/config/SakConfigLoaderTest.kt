@@ -34,11 +34,11 @@ class SakConfigLoaderTest {
         config.s3.buckets.keys shouldBe setOf("backups", "media")
         config.s3.buckets.getValue("backups").domains shouldBe emptyList()
         config.s3.buckets.getValue("media").domains shouldBe listOf("media.example.org")
-        config.s3DataDir shouldBe Path.of("/somewhere/s3")
+        config.s3DataDir shouldBe Path.of("/something/s3")
     }
 
     @Test
-    fun `s3 data dir defaults to s3 below the data dir`() {
+    fun `s3 data dir is s3 below the data dir`() {
         load("data_dir: /data\n$ROOT_DOMAIN$S3").s3DataDir shouldBe Path.of("/data/s3")
     }
 

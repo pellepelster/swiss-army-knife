@@ -21,7 +21,7 @@ data class SakConfig(
     val redirects: Map<String, String> = emptyMap(),
     val s3: S3Config,
 ) {
-    val s3DataDir: Path get() = s3.dataDir ?: dataDir.resolve("s3")
+    val s3DataDir: Path get() = dataDir.resolve("s3")
 
     @Serializable
     data class S3Config(
@@ -29,9 +29,6 @@ data class SakConfig(
         val accessKeyId: String,
         @SerialName("secret_access_key")
         val secretAccessKey: String,
-        @SerialName("data_dir")
-        @Serializable(with = PathSerializer::class)
-        val dataDir: Path? = null,
         val buckets: Map<String, S3BucketConfig> = emptyMap(),
     )
 

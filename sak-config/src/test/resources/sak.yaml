@@ -8,7 +8,6 @@ sak:
   s3:
     access_key_id: sak
     secret_access_key: changeme
-    data_dir: /somewhere/s3
     buckets:
       backups: {}
       media:
