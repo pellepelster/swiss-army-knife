@@ -15,12 +15,25 @@
 		format json
 		exclude http.log.access
 	}
+	# client addresses are masked to their network, presigned url credentials never
+	# reach the log
 	log access {
 		output file /data/log/access.log {
 			roll_size 100MiB
 			roll_keep 10
 		}
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask 24 64
+				request>client_ip ip_mask 24 64
+				request>uri query {
+					delete X-Amz-Signature
+					delete X-Amz-Credential
+					delete X-Amz-Security-Token
+				}
+			}
+		}
 		include http.log.access
 	}
 }
