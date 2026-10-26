@@ -213,6 +213,20 @@ class BinaryStorageS3BackendTest {
     }
 
     @Test
+    fun `listObjects with a nested prefix lists below it only`() {
+        listOf("a/b/one.txt", "a/b/two.txt", "a/bc.txt", "a/b/c/three.txt", "x.txt").forEach { put(it) }
+
+        storage.listObjects("bucket1", "a/b/", null, null, 1000).objects.map { it.key } shouldContainExactly
+            listOf("a/b/c/three.txt", "a/b/one.txt", "a/b/two.txt")
+        storage.listObjects("bucket1", "a/b", null, null, 1000).objects.map { it.key } shouldContainExactly
+            listOf("a/b/c/three.txt", "a/b/one.txt", "a/b/two.txt", "a/bc.txt")
+        storage.listObjects("bucket1", "a/b/t", null, null, 1000).objects.map { it.key } shouldContainExactly listOf("a/b/two.txt")
+        storage.listObjects("bucket1", "a/b/", "/", null, 1000).commonPrefixes shouldContainExactly listOf("a/b/c/")
+        storage.listObjects("bucket1", "missing/", null, null, 1000).objects.shouldBeEmpty()
+        storage.listObjects("bucket1", "../", null, null, 1000).objects.shouldBeEmpty()
+    }
+
+    @Test
     fun `listObjects with max keys 0 returns an empty untruncated listing`() {
         put("a.txt")
 

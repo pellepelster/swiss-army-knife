@@ -103,10 +103,20 @@ class BinaryStorageS3Backend(
         // s3 answers max-keys=0 with an empty listing that is not truncated
         if (maxKeys <= 0) return ObjectListing(emptyList(), emptyList(), isTruncated = false, nextContinuationToken = null)
 
+        // only the directory the prefix points into is walked ('a/b/c' -> 'a/b/'), not the bucket
+        val prefixDirectory = prefix?.substringBeforeLast('/', "")?.split('/')?.filter { it.isNotEmpty() }.orEmpty()
+        val listed =
+            try {
+                storage.list(bucketPath.resolve(DATA).resolve(prefixDirectory))
+            } catch (_: IllegalArgumentException) {
+                // a prefix with an invalid path segment ('..') matches no key
+                emptyList()
+            }
+
         val entries =
-            storage
-                .list(bucketPath.resolve(DATA))
+            listed
                 .asSequence()
+                .map { it.copy(segments = prefixDirectory + it.segments) }
                 .filter { prefix == null || it.path.startsWith(prefix) }
                 .filter { startAfter == null || it.path > startAfter }
 
