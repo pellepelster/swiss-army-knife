@@ -3,9 +3,9 @@ package io.pelle.sak.controller
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.caddy.CaddyJson
-import io.pelle.sak.caddy.CaddyManager
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.ingress.CaddyJson
+import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.Site
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray

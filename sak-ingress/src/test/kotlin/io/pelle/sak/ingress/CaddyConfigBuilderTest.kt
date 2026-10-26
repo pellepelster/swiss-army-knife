@@ -1,12 +1,12 @@
-package io.pelle.sak.caddy
+package io.pelle.sak.ingress
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.pelle.sak.caddy.model.CaddyConfig
-import io.pelle.sak.caddy.model.CaddyFileServer
-import io.pelle.sak.caddy.model.CaddyHeaders
-import io.pelle.sak.caddy.model.CaddyLogAppend
+import io.pelle.sak.ingress.model.CaddyConfig
+import io.pelle.sak.ingress.model.CaddyFileServer
+import io.pelle.sak.ingress.model.CaddyHeaders
+import io.pelle.sak.ingress.model.CaddyLogAppend
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 

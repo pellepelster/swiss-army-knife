@@ -6,7 +6,7 @@ plugins {
 dependencies {
     implementation(project(":sak-config"))
     implementation(project(":sak-s3"))
-    implementation(project(":sak-caddy"))
+    implementation(project(":sak-ingress"))
     implementation(project(":sak-auth"))
     implementation(project(":sak-logs"))
     runtimeOnly(project(":sak-console"))

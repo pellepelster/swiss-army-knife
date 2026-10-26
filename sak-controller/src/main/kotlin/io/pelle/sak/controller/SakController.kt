@@ -7,9 +7,9 @@ import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.pelle.sak.caddy.CaddyManager
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
+import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.s3.StaticCredentialsAccessCallback
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend

@@ -1,6 +1,6 @@
-package io.pelle.sak.caddy
+package io.pelle.sak.ingress
 
-import io.pelle.sak.caddy.model.CaddyConfig
+import io.pelle.sak.ingress.model.CaddyConfig
 import kotlinx.serialization.json.Json
 import java.net.URI
 import java.net.http.HttpClient

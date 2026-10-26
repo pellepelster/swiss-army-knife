@@ -1,4 +1,4 @@
-package io.pelle.sak.caddy.model
+package io.pelle.sak.ingress.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

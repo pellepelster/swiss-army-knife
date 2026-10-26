@@ -1,4 +1,4 @@
-package io.pelle.sak.caddy
+package io.pelle.sak.ingress
 
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow

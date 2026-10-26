@@ -1,11 +1,11 @@
 package io.pelle.sak.controller
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.caddy.CaddyException
-import io.pelle.sak.caddy.CaddyManager
-import io.pelle.sak.caddy.caddyConfig
-import io.pelle.sak.caddy.model.CaddyConfig
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.ingress.CaddyException
+import io.pelle.sak.ingress.CaddyManager
+import io.pelle.sak.ingress.caddyConfig
+import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.BlobPath
 import java.nio.file.Path
