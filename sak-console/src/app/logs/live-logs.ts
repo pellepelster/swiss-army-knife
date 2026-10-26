@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { SitesService } from '../sites/sites.service';
@@ -289,6 +289,9 @@ export class LiveLogs {
 
   constructor() {
     this.sites.load();
+
+    // a pending search must not navigate once the view is gone
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.debounce));
 
     // the search box shows the search of the url
     effect(() => {

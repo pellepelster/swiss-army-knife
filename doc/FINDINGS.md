@@ -21,7 +21,7 @@ commit of its own, the status column tracks them.
 | 13 | low | fixed | bucket index truncates toward zero |
 | 14 | low | fixed | a console setup failure stops the whole controller |
 | 15 | medium | fixed | ui: live view hides errors |
-| 16 | low | open | ui: search debounce timer outlives the component |
+| 16 | low | fixed | ui: search debounce timer outlives the component |
 | 17 | low | open | ui: live view updates per entry |
 | 18 | low | open | ui: unknown site in the url |
 | 19 | low | open | ui: stored session trusted without validation |
@@ -158,7 +158,7 @@ on this path.
 
 Fix: the failure is shown, the reconnects back off.
 
-### 16. Search debounce timer outlives the component (low)
+### 16. Search debounce timer outlives the component (low, fixed)
 
 `live-logs.ts`: type in the search, click "Statistics" within 300ms, and the timer navigates with
 `?q=` merged onto the statistics url.

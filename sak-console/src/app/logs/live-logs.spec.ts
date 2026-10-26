@@ -41,7 +41,10 @@ describe('LiveLogs', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter(
-          [{ path: 'logs/live/:site', component: LiveLogs }],
+          [
+            { path: 'logs/live/:site', component: LiveLogs },
+            { path: 'elsewhere', children: [] },
+          ],
           withComponentInputBinding(),
         ),
       ],
@@ -253,6 +256,18 @@ describe('LiveLogs', () => {
     expect(search.value).toBe('');
     expect(streams.length).toBe(2);
     expect(state()).toBe('Live');
+  });
+
+  it('drops a pending search when the view is left', async () => {
+    const { page } = await open();
+    const search = page.querySelector<HTMLInputElement>('input[type=search]')!;
+    search.value = 'missing';
+    search.dispatchEvent(new Event('input'));
+
+    await TestBed.inject(Router).navigateByUrl('/elsewhere');
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(TestBed.inject(Router).url).toBe('/elsewhere');
   });
 
   it('searches the search text of the url', async () => {
