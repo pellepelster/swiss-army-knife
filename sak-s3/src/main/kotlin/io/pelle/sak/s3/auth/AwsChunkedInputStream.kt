@@ -14,11 +14,11 @@ class AwsChunkedInputStream(
     private var remainingInChunk = 0L
     private var firstChunk = true
     private var finished = false
+    private val singleByte = ByteArray(1)
 
     override fun read(): Int {
-        val buffer = ByteArray(1)
-        val read = read(buffer, 0, 1)
-        return if (read == -1) -1 else buffer[0].toInt() and 0xff
+        val read = read(singleByte, 0, 1)
+        return if (read == -1) -1 else singleByte[0].toInt() and 0xff
     }
 
     override fun read(
