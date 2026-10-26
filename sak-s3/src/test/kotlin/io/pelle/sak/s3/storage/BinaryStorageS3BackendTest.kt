@@ -3,6 +3,7 @@ package io.pelle.sak.s3.storage
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -190,6 +191,17 @@ class BinaryStorageS3BackendTest {
         page3.objects.map { it.key } shouldContainExactly listOf("e.txt")
         page3.isTruncated.shouldBeFalse()
         page3.nextContinuationToken.shouldBeNull()
+    }
+
+    @Test
+    fun `listObjects with max keys 0 returns an empty untruncated listing`() {
+        put("a.txt")
+
+        val listing = storage.listObjects("bucket1", null, null, null, 0)
+
+        listing.objects.shouldBeEmpty()
+        listing.isTruncated.shouldBeFalse()
+        listing.nextContinuationToken.shouldBeNull()
     }
 
     @Test

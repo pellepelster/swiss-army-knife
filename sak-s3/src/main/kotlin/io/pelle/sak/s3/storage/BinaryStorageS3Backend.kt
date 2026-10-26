@@ -88,6 +88,8 @@ class BinaryStorageS3Backend(
         maxKeys: Int,
     ): ObjectListing {
         val bucketPath = requireBucket(bucket)
+        // s3 answers max-keys=0 with an empty listing that is not truncated
+        if (maxKeys <= 0) return ObjectListing(emptyList(), emptyList(), isTruncated = false, nextContinuationToken = null)
 
         val entries =
             storage
