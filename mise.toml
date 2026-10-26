@@ -60,3 +60,10 @@ ansible-playbook -i infra/.ansible/inventory.yml \
   -e controller_config_src="$PWD/config/controller-config.yaml" \
   pelle.sak.controller
 """
+
+[tasks."docker:build"]
+description = "Build the sak-controller docker image"
+run = """
+./gradlew :sak-controller:installDist
+docker build -t sak-controller sak-controller
+"""
