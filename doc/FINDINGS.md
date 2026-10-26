@@ -15,7 +15,7 @@ commit of its own, the status column tracks them.
 | 7 | low | fixed | live tails pin io threads with no cap |
 | 8 | low | fixed | malformed responses escape as 500s, newline in `q` becomes a 503 |
 | 9 | low | fixed | search has no time bound |
-| 10 | low | open | login tokens can reach caddy's error log |
+| 10 | low | fixed | login tokens can reach caddy's error log |
 | 11 | low | open | console host proxies the whole controller, no hsts |
 | 12 | low | open | jwt defense in depth (`exp`, `kid`) |
 | 13 | low | open | bucket index truncates toward zero |
@@ -110,7 +110,7 @@ line is skipped.
 
 Fix: the search is bounded to the longest statistics range (30 days).
 
-### 10. Login tokens can reach caddy's error log (low)
+### 10. Login tokens can reach caddy's error log (low, fixed)
 
 `sak-ingress/Caddyfile`: the access log deletes `token`, `log default` is plain json. If the
 controller restarts while the admin clicks the link, the 502 error entry stores
