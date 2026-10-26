@@ -8,10 +8,10 @@ import { AuthService } from '../auth/auth.service';
   selector: 'app-signin',
   imports: [RouterLink],
   template: `
-    <div class="row justify-content-center">
-      <div class="col-md-8 col-lg-5">
+    <div class="page page-narrow">
+      <div>
         @if (failed()) {
-          <h1 class="h4 mb-3">Sign in failed</h1>
+          <h1 class="mb-3">Sign in failed</h1>
           <div class="alert alert-danger" role="alert">
             The login link is invalid, expired or was already used.
             <a class="alert-link" routerLink="/login">Request a new one</a>.

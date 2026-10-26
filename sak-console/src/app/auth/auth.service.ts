@@ -44,6 +44,8 @@ export class AuthService {
 
   readonly email = computed(() => this.session()?.email ?? null);
 
+  readonly expiresAt = computed(() => this.session()?.expiresAt ?? null);
+
   // null when signed out or the session expired
   token(): string | null {
     const session = this.session();

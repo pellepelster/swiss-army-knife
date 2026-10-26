@@ -10,11 +10,15 @@ type State = 'idle' | 'sending' | 'sent' | 'rate-limited' | 'failed';
   selector: 'app-login',
   imports: [ReactiveFormsModule],
   template: `
-    <div class="row justify-content-center">
-      <div class="col-md-8 col-lg-5">
-        <div class="card shadow-sm">
+    <div class="page page-narrow">
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <img src="favicon.png" alt="" width="16" height="16" />
+        <span class="fw-semibold">sak<span class="text-secondary">::</span>console</span>
+      </div>
+      <div>
+        <div class="card">
           <div class="card-body p-4">
-            <h1 class="h4 mb-3">Sign in</h1>
+            <h1 class="mb-3">Sign in</h1>
             @if (state() === 'sent') {
               <div class="alert alert-success mb-0" role="status" data-testid="login-sent">
                 If <strong>{{ email.value }}</strong> may sign in, a link is on its way. Open it

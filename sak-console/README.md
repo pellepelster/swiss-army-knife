@@ -30,6 +30,17 @@ sak:
       # tls: true          # implicit tls, e.g. port 465
 ```
 
+## Sites
+
+Caddy tags every access log entry with the site it served (a bucket with domains, `s3`,
+`console`, `redirect` or `unmatched`), vector ships the log to victorialogs (both run next to the
+ingress, see the controller ansible role), and `/sites/:site` shows the requests per status,
+the transferred bytes and the clients of a site over a range, computed by
+`GET /api/v1/sites/{site}/metrics?range=` with logsql stats queries.
+
+The styling is the blcks theme (`src/theme`, a copy of blcks-theme) with the layout of the blcks
+console: the navigation on the left, the personal menu with the sign out at its bottom.
+
 ## Development
 
 ```shell
@@ -45,6 +56,7 @@ npm test -- --watch=false       # unit tests, also run by ./gradlew check
 ```
 
 Runs the Playwright tests in `e2e/` against the installed controller (`e2e/controller-config.yaml`,
-port 18080) with a [mailpit](https://mailpit.axllent.org) e-mail sink in docker (smtp on 11025,
-api and web ui on 18025). The tests read the login links from mailpit and follow them in the
-browser. Needs docker.
+port 18080) with a [mailpit](https://mailpit.axllent.org) e-mail sink (smtp on 11025, api and web
+ui on 18025), victorialogs (19428) and vector, all in docker with the images and the vector
+configuration the controller role deploys. The tests read the login links from mailpit and follow
+them in the browser, and write access log entries vector ships to victorialogs. Needs docker.

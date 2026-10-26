@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CONSOLE_URL } from '../playwright.config';
+import { ADMIN, signOut } from './console';
 import { deleteAllMails, expectNoMailTo, loginLinkFor } from './mailpit';
 
 test.beforeEach(async ({ request }) => {
@@ -12,32 +13,43 @@ test('signs in with the e-mailed link and returns to the requested page', async 
     if (message.type() === 'error') errors.push(message.text());
   });
 
-  await page.goto('/?tab=buckets');
-  await expect(page).toHaveURL('/login?redirect=%2F%3Ftab%3Dbuckets');
+  await page.goto('/?tab=sites');
+  await expect(page).toHaveURL('/login?redirect=%2F%3Ftab%3Dsites');
+  // no navigation for signed out users
+  await expect(page.getByRole('navigation', { name: 'Navigation' })).toHaveCount(0);
 
   await page.getByLabel('E-mail address').fill('Admin@example.org');
   await page.getByRole('button', { name: 'Send login link' }).click();
   await expect(page.getByTestId('login-sent')).toBeVisible();
 
-  const link = await loginLinkFor(request, 'admin@example.org');
-  expect(link).toContain('&redirect=%2F%3Ftab%3Dbuckets');
+  const link = await loginLinkFor(request, ADMIN);
+  expect(link).toContain('&redirect=%2F%3Ftab%3Dsites');
   await page.goto(link);
 
-  await expect(page).toHaveURL('/?tab=buckets');
-  await expect(page.getByTestId('signed-in-as')).toHaveText('Signed in as admin@example.org');
-  expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toContain('admin@example.org');
+  await expect(page).toHaveURL('/?tab=sites');
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByTestId('personal-menu')).toContainText(ADMIN);
+  expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toContain(ADMIN);
+
+  // the personal menu at the bottom of the navigation
+  await page.getByTestId('personal-menu').click();
+  await expect(page.getByTestId('signed-in-as')).toHaveText(ADMIN);
+  await expect(page.getByRole('menu')).toContainText('Session expires');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
 
   // the session outlives the page
   await page.reload();
-  await expect(page.getByTestId('signed-in-as')).toBeVisible();
+  await expect(page.getByTestId('personal-menu')).toBeVisible();
 
   // the signin page with the token is not in the history anymore
   await page.goBack();
   await expect(page).not.toHaveURL(/token=/);
 
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signOut(page);
   await expect(page).toHaveURL('/login');
+  await expect(page.getByTestId('personal-menu')).toHaveCount(0);
   await page.goto('/');
   await expect(page).toHaveURL('/login?redirect=%2F');
 
@@ -47,12 +59,12 @@ test('signs in with the e-mailed link and returns to the requested page', async 
 
 test('a link can only be used once', async ({ browser, page, request }) => {
   await page.goto('/login');
-  await page.getByLabel('E-mail address').fill('admin@example.org');
+  await page.getByLabel('E-mail address').fill(ADMIN);
   await page.getByRole('button', { name: 'Send login link' }).click();
-  const link = await loginLinkFor(request, 'admin@example.org');
+  const link = await loginLinkFor(request, ADMIN);
 
   await page.goto(link);
-  await expect(page.getByTestId('signed-in-as')).toBeVisible();
+  await expect(page.getByTestId('personal-menu')).toBeVisible();
 
   // e.g. someone who read the link along the way
   const other = await browser.newContext({ baseURL: CONSOLE_URL });

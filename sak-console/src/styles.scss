@@ -1,0 +1,86 @@
+@use 'theme/theme';
+@use 'theme/components';
+
+// the layouts and the metrics components of the blcks console
+
+.page {
+  max-width: 1240px;
+  padding: 24px 28px;
+}
+
+.page-narrow {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  column-gap: 2rem;
+  row-gap: 0.75rem;
+}
+
+.page-subtitle {
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-link:hover .card {
+  border-color: var(--app-accent);
+}
+
+.metrics-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.metrics-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.metrics-chart {
+  position: relative;
+  height: 320px;
+}
+
+.metrics-legend-swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.agent-shares {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) 1fr max-content max-content;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+}
+
+.agent-share-track {
+  height: 0.6rem;
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-tertiary-bg);
+  overflow: hidden;
+}
+
+.agent-share-bar {
+  height: 100%;
+  background: var(--app-accent);
+  min-width: 2px;
+}

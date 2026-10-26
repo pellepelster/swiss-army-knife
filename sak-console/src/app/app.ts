@@ -1,21 +1,43 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AuthService } from './auth/auth.service';
+import { SideBar } from './side-bar/side-bar';
 
 @Component({
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, SideBar],
   selector: 'app-root',
+  styles: `
+    .shell {
+      --app-topbar-height: 3rem;
+      display: flex;
+      align-items: stretch;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    main {
+      flex: 1;
+      min-width: 0;
+      overflow: auto;
+    }
+
+    @media (max-width: 991.98px) {
+      app-side-bar ~ main {
+        padding-top: var(--app-topbar-height);
+      }
+    }
+  `,
   template: `
-    <nav class="navbar bg-body-tertiary border-bottom">
-      <div class="container">
-        <span class="navbar-brand d-flex align-items-center gap-2">
-          <img src="favicon.png" alt="" width="16" height="16" />
-          sak console
-        </span>
-      </div>
-    </nav>
-    <main class="container py-4">
-      <router-outlet />
-    </main>
+    <div class="shell">
+      @if (auth.isLoggedIn()) {
+        <app-side-bar />
+      }
+      <main>
+        <router-outlet />
+      </main>
+    </div>
   `,
 })
-export class App {}
+export class App {
+  protected readonly auth = inject(AuthService);
+}

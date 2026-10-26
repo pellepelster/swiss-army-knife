@@ -1,12 +1,26 @@
 import { defineConfig, devices } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 // the end-to-end tests run the console as it is deployed: served by the controller (built with
-// `./gradlew :sak-controller:installDist`), the login links go to a mailpit e-mail sink in docker
+// `./gradlew :sak-controller:installDist`), the login links go to a mailpit e-mail sink, the
+// access log the tests write is shipped by vector to victorialogs, all three in docker
 export const CONSOLE_URL = 'http://localhost:18080';
 export const MAILPIT_URL = 'http://localhost:18025';
+export const VICTORIALOGS_URL = 'http://127.0.0.1:19428';
+
+// created once by the main process, the workers inherit it with the environment
+process.env['SAK_E2E_ACCESS_LOG_DIR'] ??= mkdtempSync(join(tmpdir(), 'sak-console-e2e-logs-'));
+export const ACCESS_LOG_DIR = process.env['SAK_E2E_ACCESS_LOG_DIR'];
+
+// the images the controller role deploys
+const roleDefaults = readFileSync(resolve(__dirname, '../ansible/roles/controller/defaults/main.yml'), 'utf8');
+const image = (name: string) => roleDefaults.match(new RegExp(`^${name}: (\\S+)$`, 'm'))![1];
+const vectorConfig = resolve(__dirname, '../ansible/roles/controller/files/vector.yaml');
+
+// docker passes the signal on to the container, killing the docker client would leave it running
+const gracefulShutdown = { signal: 'SIGTERM', timeout: 10_000 } as const;
 
 export default defineConfig({
   testDir: './e2e',
@@ -26,8 +40,25 @@ export default defineConfig({
       url: `${MAILPIT_URL}/api/v1/info`,
       timeout: 120_000,
       reuseExistingServer: !process.env['CI'],
-      // docker passes the signal on to the container, killing the docker client would leave it running
-      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+      gracefulShutdown,
+    },
+    {
+      command: `docker run --rm --name sak-console-e2e-victorialogs -p 127.0.0.1:19428:9428 ${image('controller_victorialogs_image')} -httpListenAddr=:9428 -storageDataPath=/tmp/victoria-logs-data`,
+      url: `${VICTORIALOGS_URL}/health`,
+      timeout: 120_000,
+      reuseExistingServer: !process.env['CI'],
+      gracefulShutdown,
+    },
+    {
+      // in the network of victorialogs, where it listens on 127.0.0.1:9428 like in production
+      command:
+        `docker run --rm --name sak-console-e2e-vector --network container:sak-console-e2e-victorialogs ` +
+        `--volume ${ACCESS_LOG_DIR}:/var/log/caddy:ro --volume ${vectorConfig}:/etc/vector/vector.yaml:ro ` +
+        `--tmpfs /var/lib/vector ${image('controller_vector_image')} --config /etc/vector/vector.yaml`,
+      wait: { stderr: /Vector has started/ },
+      timeout: 120_000,
+      reuseExistingServer: !process.env['CI'],
+      gracefulShutdown,
     },
     {
       command: '../sak-controller/build/install/sak-controller/bin/sak-controller -config=e2e/controller-config.yaml',
@@ -35,7 +66,7 @@ export default defineConfig({
       timeout: 60_000,
       reuseExistingServer: !process.env['CI'],
       env: { SAK_E2E_DATA_DIR: mkdtempSync(join(tmpdir(), 'sak-console-e2e-')) },
-      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+      gracefulShutdown,
     },
   ],
 });

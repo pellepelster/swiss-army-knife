@@ -19,3 +19,5 @@ sak:
       port: 11025
       from: login@example.org
       starttls: false
+  logs:
+    victorialogs_url: http://127.0.0.1:19428

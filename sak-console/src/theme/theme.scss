@@ -1,0 +1,9 @@
+// Bootstrap resolves from this package (it is a dependency of blcks-theme), so every consumer
+// renders the same Bootstrap build. Consumers that only need part of it take theme-lean instead.
+//
+// Bootstrap 5 ships as @import-only Sass, so the layers below cannot be pulled in with @use;
+// keeping that here means consumers stay on the module system, and this package's own build
+// silences the deprecation.
+
+@import 'config';
+@import 'bootstrap/scss/bootstrap';

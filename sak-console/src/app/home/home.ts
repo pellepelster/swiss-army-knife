@@ -1,39 +1,40 @@
-import { DatePipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
+import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { SitesService } from '../sites/sites.service';
 
 @Component({
   selector: 'app-home',
-  imports: [DatePipe],
+  imports: [RouterLink],
   template: `
-    <div class="d-flex align-items-center justify-content-between mb-4">
-      <h1 class="h3 mb-0">Console</h1>
-      <button class="btn btn-outline-secondary btn-sm" type="button" (click)="logout()">
-        Sign out
-      </button>
-    </div>
-    @if (me(); as me) {
-      <div class="card">
-        <div class="card-body">
-          <p class="mb-1" data-testid="signed-in-as">Signed in as <strong>{{ me.email }}</strong></p>
-          <p class="mb-0 text-body-secondary small">
-            The session expires {{ me.expiresAt | date: 'medium' }}.
-          </p>
-        </div>
+    <div class="page">
+      <div class="page-header">
+        <h1 class="mb-1">Overview</h1>
+        <div class="page-subtitle">The sites the ingress serves, their requests are in the logs.</div>
       </div>
-    }
+      <div class="label-mono mb-2">Sites</div>
+      <div class="card-grid">
+        @for (site of sites(); track site.id) {
+          <a class="card-link" [routerLink]="['/sites', site.id]" [attr.data-testid]="'site-' + site.id">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="fw-semibold font-mono">{{ site.id }}</div>
+                <div class="page-subtitle font-mono">
+                  {{ site.domains.length ? site.domains.join(', ') : 'no domains' }}
+                </div>
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    </div>
   `,
 })
 export class Home {
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
+  private readonly sitesService = inject(SitesService);
 
-  protected readonly me = toSignal(this.auth.me());
+  protected readonly sites = computed(() => this.sitesService.sites()?.sites ?? []);
 
-  protected logout(): void {
-    this.auth.logout();
-    void this.router.navigate(['/login']);
+  constructor() {
+    this.sitesService.load();
   }
 }
