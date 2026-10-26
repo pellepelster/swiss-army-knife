@@ -149,7 +149,7 @@ fun Route.sites(
         }
 
         try {
-            call.respond(withContext(Dispatchers.IO) { logs.search(site.value, text) })
+            call.respond(withContext(Dispatchers.IO) { logs.search(site, text) })
         } catch (e: VictoriaLogsException) {
             logger.warn(e) { "could not search the logs" }
             call.respond(HttpStatusCode.ServiceUnavailable)
@@ -194,7 +194,7 @@ fun Route.sites(
         try {
             val entries =
                 try {
-                    withContext(Dispatchers.IO) { logs.follow(site.value) }
+                    withContext(Dispatchers.IO) { logs.follow(site) }
                 } catch (e: VictoriaLogsException) {
                     logger.warn(e) { "could not follow the logs" }
                     call.respond(HttpStatusCode.ServiceUnavailable)
@@ -265,18 +265,12 @@ fun Route.sites(
     }
 }
 
-// the site in the path, null standing for all of them; answers not found for unknown ones
-private suspend fun ApplicationCall.logsSite(sites: List<Site>): SiteChoice? {
+// the site in the path, all of them included; answers not found for unknown ones
+private suspend fun ApplicationCall.logsSite(sites: List<Site>): Site? {
     val id = parameters["site"]
-    if (id == ALL_SITES) return SiteChoice(null)
-    val site = sites.firstOrNull { it.id == id }
+    val site = if (id == ALL_SITES) Site.ALL else sites.firstOrNull { it.id == id }
     if (site == null) {
         respond(HttpStatusCode.NotFound)
-        return null
     }
-    return SiteChoice(site)
+    return site
 }
-
-private class SiteChoice(
-    val value: Site?,
-)

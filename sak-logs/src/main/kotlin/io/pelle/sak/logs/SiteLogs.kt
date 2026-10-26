@@ -20,7 +20,7 @@ class SiteLogs(
     // the newest entries whose request line (method, host, path, status) or user agent contains
     // the text, case-insensitively
     fun search(
-        site: Site?,
+        site: Site,
         text: String,
         limit: Int = SEARCH_LIMIT,
     ): List<LogEntry> =
@@ -29,7 +29,7 @@ class SiteLogs(
             .map { it.toLogEntry() }
 
     // the entries of the last minutes first, then every new one; the tail has to be closed
-    fun follow(site: Site?): LogEntries {
+    fun follow(site: Site): LogEntries {
         val tail = client.tail("${streamFilter(site)} | $FIELDS", FOLLOW_BACKLOG)
         return LogEntries(tail)
     }

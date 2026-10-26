@@ -97,7 +97,7 @@ class SiteLogsTest {
 
     @Test
     fun `searches all sites and matches the text literally`() {
-        logs.search(null, """a.b "c" (d)\""")
+        logs.search(Site.ALL, """a.b "c" (d)\""")
 
         queries.single().second.getValue("query") shouldBe
             """* _time:30d (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +

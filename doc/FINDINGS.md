@@ -30,7 +30,7 @@ commit of its own, the status column tracks them.
 | S2 | - | done | duplicate json line decoding |
 | S3 | - | done | dead key rotation plumbing |
 | S4 | - | done | redundant `redirect` in the login link |
-| S5 | - | open | `SiteChoice` wrapper and duplicate openapi path |
+| S5 | - | done | `SiteChoice` wrapper and duplicate openapi path |
 | S6 | - | open | `SESSION_SECURITY_SCHEME` alias |
 
 ## Backend
@@ -203,8 +203,8 @@ Fix: retried with a delay, not after a 401.
   exists.
 - S4 `AuthRoutes.kt` appends `&redirect=…` to the login link, the signin page ignores it and uses
   the claim from `/exchange`; dropped, which keeps the value out of logs and history.
-- S5 `SiteChoice` only encodes "all vs not found"; `/swagger/openapi.json` duplicates
-  `/doc/openapi.json`.
+- S5 `SiteChoice` only encodes "all vs not found", all sites are a site of their own now.
+  `/swagger/openapi.json` duplicates `/doc/openapi.json` but stays, swagger was asked for there.
 - S6 `SESSION_SECURITY_SCHEME = SESSION_AUTH` is an alias with no purpose.
 
 ## Verified sound
