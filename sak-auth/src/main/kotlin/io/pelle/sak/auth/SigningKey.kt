@@ -6,7 +6,6 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
-import java.security.MessageDigest
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
@@ -20,14 +19,6 @@ class SigningKey(
     val privateKey: ECPrivateKey,
     val publicKey: ECPublicKey,
 ) {
-    // tokens name the key they were signed with, so the key can be rotated later
-    val keyId: String =
-        Base64
-            .getUrlEncoder()
-            .withoutPadding()
-            .encodeToString(MessageDigest.getInstance("SHA-256").digest(publicKey.encoded))
-            .take(16)
-
     fun toPem(): String = pem(PRIVATE_KEY, privateKey.encoded) + pem(PUBLIC_KEY, publicKey.encoded)
 
     companion object {

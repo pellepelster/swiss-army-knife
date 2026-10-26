@@ -84,7 +84,6 @@ class TokenService(
     ) = clock.instant().let { now ->
         JWT
             .create()
-            .withKeyId(key.keyId)
             .withIssuer(issuer)
             .withSubject(email)
             .withClaim(TOKEN_USE, use)

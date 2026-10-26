@@ -102,22 +102,17 @@ class TokenServiceTest {
     }
 
     @Test
-    fun `tokens name the key they are signed with`() {
-        JWT.decode(tokens.issueSessionToken("admin@example.org").token).keyId shouldBe key.keyId
-    }
-
-    @Test
     fun `the signing key is generated once, kept readable by the owner only and survives a pem round trip`() {
         val file = tempDir.resolve("auth/signing-key.pem")
 
         val generated = SigningKey.loadOrCreate(file)
         val loaded = SigningKey.loadOrCreate(file)
 
-        loaded.keyId shouldBe generated.keyId
         loaded.privateKey shouldBe generated.privateKey
+        loaded.publicKey shouldBe generated.publicKey
         PosixFilePermissions.toString(Files.getPosixFilePermissions(file)) shouldBe "rw-------"
         SigningKey.fromPem(generated.toPem()).publicKey shouldBe generated.publicKey
-        SigningKey.generate().keyId shouldNotBe generated.keyId
+        SigningKey.generate().publicKey shouldNotBe generated.publicKey
     }
 
     @Test

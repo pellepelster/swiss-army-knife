@@ -28,7 +28,7 @@ commit of its own, the status column tracks them.
 | 20 | low | fixed | ui: sites never retried after a network error |
 | S1 | - | done | duplicate stream filter builders |
 | S2 | - | done | duplicate json line decoding |
-| S3 | - | open | dead key rotation plumbing |
+| S3 | - | done | dead key rotation plumbing |
 | S4 | - | open | redundant `redirect` in the login link |
 | S5 | - | open | `SiteChoice` wrapper and duplicate openapi path |
 | S6 | - | open | `SESSION_SECURITY_SCHEME` alias |
