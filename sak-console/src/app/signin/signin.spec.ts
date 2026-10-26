@@ -34,7 +34,7 @@ describe('Signin', () => {
   it('exchanges the login token and continues where the login started', async () => {
     const harness = await RouterTestingHarness.create('/signin?token=login-token&redirect=%2Fignored');
 
-    const request = http.expectOne('/api/auth/exchange');
+    const request = http.expectOne('/api/v1/auth/exchange');
     expect(request.request.body).toEqual({ token: 'login-token' });
     request.flush({
       sessionToken: 'session-token',
@@ -52,7 +52,7 @@ describe('Signin', () => {
     const harness = await RouterTestingHarness.create('/signin?token=used-token');
 
     expect(TestBed.inject(Location).path()).toBe('/signin');
-    http.expectOne('/api/auth/exchange').flush(null, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/v1/auth/exchange').flush(null, { status: 401, statusText: 'Unauthorized' });
     await harness.fixture.whenStable();
 
     expect(harness.routeNativeElement?.querySelector('[role=alert]')?.textContent).toContain(

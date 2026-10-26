@@ -123,7 +123,7 @@ class SakConsoleTest {
         port: Int,
         mails: Int = 1,
     ): Map<String, String> {
-        post(port, "/api/auth/login", """{"email":"admin@example.org","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
+        post(port, "/api/v1/auth/login", """{"email":"admin@example.org","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
         greenMail.waitForIncomingEmail(5_000, mails) shouldBe true
 
         val mail = greenMail.receivedMessages.last()
@@ -138,36 +138,36 @@ class SakConsoleTest {
     @Test
     fun `signs in with the link e-mailed to an allowed address`() {
         withServer { port ->
-            get(port, "/api/auth/me").statusCode() shouldBe 401
+            get(port, "/api/v1/auth/me").statusCode() shouldBe 401
 
             val link = requestLoginLink(port)
             link["redirect"] shouldBe "/buckets?tab=1"
 
-            val exchange = post(port, "/api/auth/exchange", """{"token":"${link.getValue("token")}"}""")
+            val exchange = post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""")
             exchange.statusCode() shouldBe 200
             val session = exchange.json()
             session.string("email") shouldBe "admin@example.org"
             session.string("redirect") shouldBe "/buckets?tab=1"
 
-            val me = get(port, "/api/auth/me", session.string("sessionToken"))
+            val me = get(port, "/api/v1/auth/me", session.string("sessionToken"))
             me.statusCode() shouldBe 200
             me.json().string("email") shouldBe "admin@example.org"
 
-            get(port, "/api/sites").statusCode() shouldBe 401
-            val sites = get(port, "/api/sites", session.string("sessionToken"))
+            get(port, "/api/v1/sites").statusCode() shouldBe 401
+            val sites = get(port, "/api/v1/sites", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
                 listOf("s3", "console", "redirect", "unmatched")
 
             // the link only works once
-            post(port, "/api/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
+            post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
         }
     }
 
     @Test
     fun `addresses that are not allowed get no link`() {
         withServer { port ->
-            post(port, "/api/auth/login", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
+            post(port, "/api/v1/auth/login", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
 
             greenMail.waitForIncomingEmail(1_000, 1) shouldBe false
         }
@@ -179,12 +179,12 @@ class SakConsoleTest {
         var sessionToken = ""
         withServer(config) { port ->
             val link = requestLoginLink(port)
-            sessionToken = post(port, "/api/auth/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+            sessionToken = post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
         }
 
         Files.exists(signingKeyFile(config)) shouldBe true
         withServer(config) { port ->
-            get(port, "/api/auth/me", sessionToken).statusCode() shouldBe 200
+            get(port, "/api/v1/auth/me", sessionToken).statusCode() shouldBe 200
         }
     }
 
@@ -202,8 +202,9 @@ class SakConsoleTest {
             val script = Regex("""src="(main-[^"]+\.js)"""").find(get(port, "/").body())!!.groupValues[1]
             get(port, "/$script").headers().firstValue("Content-Type").get() shouldContain "javascript"
 
-            get(port, "/api/unknown").statusCode() shouldBe 404
-            get(port, "/api/auth/me").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
+            get(port, "/api/v1/unknown").statusCode() shouldBe 404
+            get(port, "/api/v2/auth/me").statusCode() shouldBe 404
+            get(port, "/api/v1/auth/me").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
         }
     }
 
@@ -221,7 +222,7 @@ class SakConsoleTest {
     fun `without auth configuration there is neither console nor login`() {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404
-            post(port, "/api/auth/login", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
+            post(port, "/api/v1/auth/login", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
             Files.exists(signingKeyFile(config(auth = false))) shouldNotBe true
         }
     }

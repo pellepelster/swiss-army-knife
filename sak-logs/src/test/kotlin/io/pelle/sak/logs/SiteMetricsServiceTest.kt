@@ -155,23 +155,23 @@ class SiteMetricsServiceTest {
             statusResponse = response(series("requests", mapOf("status" to "200"), Instant.now().epochSecond to 5))
             userAgentResponse = response()
             application {
-                routing { route("/api/sites") { sites(listOf(site), service) } }
+                routing { route("/api/v1/sites") { sites(listOf(site), service) } }
             }
 
-            val sites = Json.parseToJsonElement(client.get("/api/sites").bodyAsText()).jsonObject
+            val sites = Json.parseToJsonElement(client.get("/api/v1/sites").bodyAsText()).jsonObject
             sites["sites"]!!.jsonArray.single().jsonObject["id"]!!.jsonPrimitive.content shouldBe "pelle.io"
             sites["ranges"]!!.jsonArray.map { it.jsonObject["key"]!!.jsonPrimitive.content } shouldContain "30d"
             sites["defaultRange"]!!.jsonPrimitive.content shouldBe "24h"
 
-            val metrics = client.get("/api/sites/pelle.io/metrics?range=7d")
+            val metrics = client.get("/api/v1/sites/pelle.io/metrics?range=7d")
             metrics.status shouldBe HttpStatusCode.OK
             val json = Json.parseToJsonElement(metrics.bodyAsText()).jsonObject
             json["range"]!!.jsonPrimitive.content shouldBe "7d"
             json["series"]!!.jsonArray.first().jsonObject["total"]!!.jsonPrimitive.long shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
-            client.get("/api/sites/unknown/metrics").status shouldBe HttpStatusCode.NotFound
-            client.get("/api/sites/pelle.io/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
+            client.get("/api/v1/sites/unknown/metrics").status shouldBe HttpStatusCode.NotFound
+            client.get("/api/v1/sites/pelle.io/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
         }
 
     @Test
@@ -179,10 +179,10 @@ class SiteMetricsServiceTest {
         testApplication {
             application {
                 routing {
-                    route("/api/sites") { sites(listOf(site), SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1"))) }
+                    route("/api/v1/sites") { sites(listOf(site), SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1"))) }
                 }
             }
 
-            client.get("/api/sites/pelle.io/metrics").status shouldBe HttpStatusCode.ServiceUnavailable
+            client.get("/api/v1/sites/pelle.io/metrics").status shouldBe HttpStatusCode.ServiceUnavailable
         }
 }

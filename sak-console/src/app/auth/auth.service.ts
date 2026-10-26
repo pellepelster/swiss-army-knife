@@ -22,8 +22,8 @@ export interface Me {
 
 export const SESSION_STORAGE_KEY = 'sak.session';
 
-// the api answers login and exchange without a session, every other /api request needs one
-export const PUBLIC_API_URLS = ['/api/auth/login', '/api/auth/exchange'];
+// the api answers login and exchange without a session, every other /api/v1 request needs one
+export const PUBLIC_API_URLS = ['/api/v1/auth/login', '/api/v1/auth/exchange'];
 
 // only paths below the console are followed after the login, the backend enforces the same
 export function safeRedirect(redirect: string | null | undefined): string {
@@ -60,13 +60,13 @@ export class AuthService {
   // answered the same way for every address, a link is only sent to allowed ones
   requestLogin(email: string, redirect: string | null): Observable<void> {
     return this.http
-      .post('/api/auth/login', { email, redirect: safeRedirect(redirect) })
+      .post('/api/v1/auth/login', { email, redirect: safeRedirect(redirect) })
       .pipe(map(() => undefined));
   }
 
   // trades the login token from the e-mailed link for a session, emits where to go next
   signIn(loginToken: string): Observable<string> {
-    return this.http.post<ExchangeResponse>('/api/auth/exchange', { token: loginToken }).pipe(
+    return this.http.post<ExchangeResponse>('/api/v1/auth/exchange', { token: loginToken }).pipe(
       tap((response) =>
         this.store({
           token: response.sessionToken,
@@ -79,7 +79,7 @@ export class AuthService {
   }
 
   me(): Observable<Me> {
-    return this.http.get<Me>('/api/auth/me');
+    return this.http.get<Me>('/api/v1/auth/me');
   }
 
   logout(): void {

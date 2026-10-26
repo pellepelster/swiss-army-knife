@@ -38,7 +38,7 @@ val playwrightInstall by tasks.registering(Exec::class) {
 val e2eTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Run the end-to-end tests of the console against the controller and a mailpit e-mail sink"
-    dependsOn(playwrightInstall, ":sak-controller:installDist")
+    dependsOn(playwrightInstall, ":sak-controller:installDist", ":sak-controller:vectorTest")
     commandLine("npx", "playwright", "test")
 }
 

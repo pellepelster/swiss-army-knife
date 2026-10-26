@@ -47,7 +47,7 @@ describe('AuthService', () => {
       .requestLogin('admin@example.org', 'https://evil.example.com/')
       .subscribe(() => (done = true));
 
-    const request = http.expectOne('/api/auth/login');
+    const request = http.expectOne('/api/v1/auth/login');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ email: 'admin@example.org', redirect: '/' });
     request.flush(null, { status: 202, statusText: 'Accepted' });
@@ -60,7 +60,7 @@ describe('AuthService', () => {
     let redirect: string | undefined;
 
     auth.signIn('login-token').subscribe((value) => (redirect = value));
-    const request = http.expectOne('/api/auth/exchange');
+    const request = http.expectOne('/api/v1/auth/exchange');
     expect(request.request.body).toEqual({ token: 'login-token' });
     request.flush({
       sessionToken: 'session-token',

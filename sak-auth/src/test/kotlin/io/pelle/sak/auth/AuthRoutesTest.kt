@@ -47,7 +47,7 @@ class AuthRoutesTest {
         application {
             install(Authentication) { session(tokens) }
             routing {
-                route("/api/auth") {
+                route("/api/v1/auth") {
                     auth(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
@@ -64,7 +64,7 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         redirect: String? = null,
-    ) = post("/api/auth/login") {
+    ) = post("/api/v1/auth/login") {
         contentType(ContentType.Application.Json)
         setBody(
             """{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}}""",
@@ -72,7 +72,7 @@ class AuthRoutesTest {
     }
 
     private suspend fun HttpClient.exchange(token: String) =
-        post("/api/auth/exchange") {
+        post("/api/v1/auth/exchange") {
             contentType(ContentType.Application.Json)
             setBody("""{"token":"$token"}""")
         }
@@ -105,7 +105,7 @@ class AuthRoutesTest {
             session["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
             session["redirect"]!!.jsonPrimitive.content shouldBe "/buckets?tab=1"
 
-            val me = client.get("/api/auth/me") { bearerAuth(session["sessionToken"]!!.jsonPrimitive.content) }
+            val me = client.get("/api/v1/auth/me") { bearerAuth(session["sessionToken"]!!.jsonPrimitive.content) }
             me.status shouldBe HttpStatusCode.OK
             me.bodyAsText().json()["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
 
@@ -125,7 +125,7 @@ class AuthRoutesTest {
         authTest {
             client.login("not-an-address").status shouldBe HttpStatusCode.BadRequest
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
-            client.post("/api/auth/login") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
+            client.post("/api/v1/auth/login") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
                 HttpStatusCode.BadRequest
         }
 
@@ -142,9 +142,9 @@ class AuthRoutesTest {
     @Test
     fun `the api rejects requests without a valid session token`() =
         authTest {
-            client.get("/api/auth/me").status shouldBe HttpStatusCode.Unauthorized
-            client.get("/api/auth/me") { bearerAuth("garbage") }.status shouldBe HttpStatusCode.Unauthorized
-            client.get("/api/auth/me") { bearerAuth(tokens.issueLoginToken("admin@example.org", "/")) }.status shouldBe
+            client.get("/api/v1/auth/me").status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/me") { bearerAuth("garbage") }.status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/me") { bearerAuth(tokens.issueLoginToken("admin@example.org", "/")) }.status shouldBe
                 HttpStatusCode.Unauthorized
             client.exchange("garbage").status shouldBe HttpStatusCode.Unauthorized
         }
@@ -176,7 +176,7 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         block: HttpRequestBuilder.() -> Unit,
-    ) = post("/api/auth/login") {
+    ) = post("/api/v1/auth/login") {
         contentType(ContentType.Application.Json)
         setBody("""{"email":"$email"}""")
         block()

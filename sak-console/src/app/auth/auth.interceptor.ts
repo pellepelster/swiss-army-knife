@@ -7,7 +7,7 @@ import { AuthService, PUBLIC_API_URLS } from './auth.service';
 // sends the session token with requests to the console's own api only, a rejected token
 // ends the session and leads back to the login
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  if (!request.url.startsWith('/api/') || PUBLIC_API_URLS.includes(request.url)) {
+  if (!request.url.startsWith('/api/v1/') || PUBLIC_API_URLS.includes(request.url)) {
     return next(request);
   }
 

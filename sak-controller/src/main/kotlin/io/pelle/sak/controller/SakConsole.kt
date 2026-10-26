@@ -24,6 +24,8 @@ import io.pelle.sak.logs.sites
 
 const val API_PATH_PREFIX = "/api"
 
+const val API_VERSION = "/v1"
+
 // sak-console packages its build below this resource path
 const val CONSOLE_RESOURCES = "console"
 
@@ -63,15 +65,17 @@ fun Application.console(
             install(ConsoleSecurityHeaders)
 
             route(API_PATH_PREFIX) {
-                route("/auth") {
-                    auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })
-                }
-                authenticate(SESSION_AUTH) {
-                    route("/sites") {
-                        sites(sites(config), SiteMetricsService(VictoriaLogsClient(config.logs.victorialogsUrl)))
+                route(API_VERSION) {
+                    route("/auth") {
+                        auth(tokens, mailSender, config.consoleUrl, mayLogin = { it in allowedEmails })
+                    }
+                    authenticate(SESSION_AUTH) {
+                        route("/sites") {
+                            sites(sites(config), SiteMetricsService(VictoriaLogsClient(config.logs.victorialogsUrl)))
+                        }
                     }
                 }
-                // unknown api paths are no console pages
+                // unknown api paths and versions are no console pages
                 route("{...}") {
                     handle { call.respond(HttpStatusCode.NotFound) }
                 }

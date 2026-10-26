@@ -35,17 +35,17 @@ describe('authInterceptor', () => {
   });
 
   it('sends the session token to the api', () => {
-    client.get('/api/auth/me').subscribe();
+    client.get('/api/v1/auth/me').subscribe();
 
-    expect(http.expectOne('/api/auth/me').request.headers.get('Authorization')).toBe(
+    expect(http.expectOne('/api/v1/auth/me').request.headers.get('Authorization')).toBe(
       'Bearer session-token',
     );
   });
 
   it('keeps the session token from the public api and other origins', () => {
     for (const url of [
-      '/api/auth/login',
-      '/api/auth/exchange',
+      '/api/v1/auth/login',
+      '/api/v1/auth/exchange',
       'https://evil.example.com/api/x',
       '/assets/x',
     ]) {
@@ -57,8 +57,8 @@ describe('authInterceptor', () => {
   it('ends the session and leads to the login when the api rejects the token', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
-    client.get('/api/auth/me').subscribe({ error: () => undefined });
-    http.expectOne('/api/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
+    client.get('/api/v1/auth/me').subscribe({ error: () => undefined });
+    http.expectOne('/api/v1/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { redirect: '/' } });

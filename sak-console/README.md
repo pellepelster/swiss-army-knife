@@ -1,17 +1,17 @@
 # sak-console
 
 The Angular console of sak-controller, served at `console.<root_domain>`. Its build is packaged
-below `console/` in a jar that sak-controller serves, the api is on the same origin under `/api`.
+below `console/` in a jar that sak-controller serves, the api is on the same origin under `/api/v1`.
 The console and its login are only served when `sak.auth` is configured.
 
 ## E-mail login
 
-1. `/login` posts the address to `POST /api/auth/login`, which always answers `202`; only the
+1. `/login` posts the address to `POST /api/v1/auth/login`, which always answers `202`; only the
    `sak.auth.allowed_emails` get a mail with `<console>/signin?token=<login token>&redirect=<path>`
 2. the login token is an ES256 jwt valid for 15 minutes, `/signin` exchanges it once at
-   `POST /api/auth/exchange` for a session token (valid for 30 days), stores that in local
+   `POST /api/v1/auth/exchange` for a session token (valid for 30 days), stores that in local
    storage and continues at the path the login started from
-3. the `authInterceptor` sends the session token as bearer token with every `/api` request, a
+3. the `authInterceptor` sends the session token as bearer token with every `/api/v1` request, a
    `401` ends the session; the `authGuard` sends signed out users to `/login`
 
 The signing key is generated on first start at `<data_dir>/auth/signing-key.pem`.

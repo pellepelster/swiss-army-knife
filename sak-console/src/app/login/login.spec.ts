@@ -39,7 +39,7 @@ describe('Login', () => {
     const harness = await RouterTestingHarness.create('/login?redirect=%2Fbuckets');
 
     const page = await submit(harness, 'admin@example.org');
-    const request = http.expectOne('/api/auth/login');
+    const request = http.expectOne('/api/v1/auth/login');
     expect(request.request.body).toEqual({ email: 'admin@example.org', redirect: '/buckets' });
     request.flush(null, { status: 202, statusText: 'Accepted' });
     await harness.fixture.whenStable();
@@ -51,7 +51,7 @@ describe('Login', () => {
     const harness = await RouterTestingHarness.create('/login');
 
     const page = await submit(harness, 'admin@example.org');
-    http.expectOne('/api/auth/login').flush(null, { status: 429, statusText: 'Too Many Requests' });
+    http.expectOne('/api/v1/auth/login').flush(null, { status: 429, statusText: 'Too Many Requests' });
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('Too many login attempts');
