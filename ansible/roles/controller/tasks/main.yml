@@ -128,13 +128,9 @@
   # the uploaded archive does not exist in check mode
   when: not ansible_check_mode and (item.item.changed or item.rc != 0)
   changed_when: true
-  notify: "Restart {{ item.item.item.name }}"
-
-- name: Remove the images replaced by a load
-  ansible.builtin.command:
-    cmd: podman image prune --force
-  register: controller_image_prune
-  changed_when: controller_image_prune.stdout | length > 0
+  notify:
+    - "Restart {{ item.item.item.name }}"
+    - Remove replaced images
 
 - name: Upload the controller configuration
   ansible.builtin.copy:

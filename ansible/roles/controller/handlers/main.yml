@@ -10,3 +10,11 @@
     name: sak-controller
     state: restarted
     daemon_reload: true
+
+# handlers run in the order they are defined, the replaced images are only unused once
+# the containers were restarted on the loaded ones
+- name: Remove replaced images
+  ansible.builtin.command:
+    cmd: podman image prune --force
+  register: controller_image_prune
+  changed_when: controller_image_prune.stdout | length > 0
