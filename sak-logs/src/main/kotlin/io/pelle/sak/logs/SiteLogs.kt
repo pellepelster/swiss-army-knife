@@ -25,7 +25,7 @@ class SiteLogs(
         limit: Int = SEARCH_LIMIT,
     ): List<LogEntry> =
         client
-            .query("${filter(site)} ${textFilter(text)} | $FIELDS | sort by (_time desc) | limit $limit")
+            .query("${filter(site)} _time:$SEARCH_WINDOW ${textFilter(text)} | $FIELDS | sort by (_time desc) | limit $limit")
             .map { it.toLogEntry() }
 
     // the entries of the last minutes first, then every new one; the tail has to be closed
@@ -40,6 +40,9 @@ class SiteLogs(
     companion object {
         // as many as the console's live view keeps of the followed ones
         const val SEARCH_LIMIT = 500
+
+        // as far back as the longest statistics range, not over the whole retention
+        const val SEARCH_WINDOW = "30d"
 
         // the entries a live view starts with
         val FOLLOW_BACKLOG: Duration = Duration.ofMinutes(5)

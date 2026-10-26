@@ -14,7 +14,7 @@ commit of its own, the status column tracks them.
 | 6 | low | fixed | sse keepalive can drop an entry |
 | 7 | low | fixed | live tails pin io threads with no cap |
 | 8 | low | fixed | malformed responses escape as 500s, newline in `q` becomes a 503 |
-| 9 | low | open | search has no time bound |
+| 9 | low | fixed | search has no time bound |
 | 10 | low | open | login tokens can reach caddy's error log |
 | 11 | low | open | console host proxies the whole controller, no hsts |
 | 12 | low | open | jwt defense in depth (`exp`, `kid`) |
@@ -104,7 +104,7 @@ tail line kills the whole stream. `SiteLogs.kt`: `q=a%0Ab` makes victorialogs an
 Fix: control characters in `q` are rejected with 400, parsing is wrapped uniformly, a bad tail
 line is skipped.
 
-### 9. Search has no time bound (low)
+### 9. Search has no time bound (low, fixed)
 
 `SiteLogs.kt`: the regex runs over the full retention to find 500 rows.
 
