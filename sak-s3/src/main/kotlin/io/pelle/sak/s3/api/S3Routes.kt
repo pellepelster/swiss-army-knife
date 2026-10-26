@@ -24,6 +24,7 @@ import io.ktor.server.routing.route
 import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
+import io.pelle.sak.s3.auth.AwsChunkedFormatException
 import io.pelle.sak.s3.auth.AwsChunkedInputStream
 import io.pelle.sak.s3.auth.PayloadHashMismatchException
 import io.pelle.sak.s3.auth.Sha256VerifyingInputStream
@@ -118,6 +119,8 @@ private class S3Api(
             error(call, 404, "NoSuchUpload", e.message ?: "no such upload")
         } catch (e: InvalidKeyException) {
             error(call, 400, "InvalidRequest", e.message ?: "invalid key")
+        } catch (e: AwsChunkedFormatException) {
+            error(call, 400, "IncompleteBody", e.message ?: "malformed aws-chunked body")
         } catch (e: PayloadHashMismatchException) {
             error(call, 400, "XAmzContentSHA256Mismatch", e.message ?: "payload hash mismatch")
         } catch (e: KeyConflictException) {
@@ -313,7 +316,10 @@ private class S3Api(
             checkAccess(S3Operation.COMPLETE_MULTIPART_UPLOAD, key)
 
             val content = body()
-            val xml = io { content.use { it.readBytes().toString(Charsets.UTF_8) } }
+            // a part list of 10000 parts is well below 1 MiB, nothing larger is read into memory
+            val bytes = io { content.use { it.readNBytes(MAX_COMPLETE_BODY_BYTES + 1) } }
+            if (bytes.size > MAX_COMPLETE_BODY_BYTES) throw S3Exception(400, "MaxMessageLengthExceeded", "CompleteMultipartUpload body is too large")
+            val xml = bytes.toString(Charsets.UTF_8)
             val parts =
                 try {
                     S3Xml.fromXml(xml, CompleteMultipartUploadRequest::class.java).parts
@@ -435,6 +441,8 @@ private class S3Api(
 
     companion object {
         private const val USER_METADATA_PREFIX = "x-amz-meta-"
+
+        private const val MAX_COMPLETE_BODY_BYTES = 1024 * 1024
 
         private val HTTP_DATE_FORMAT =
             DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.US).withZone(ZoneOffset.UTC)

@@ -1,7 +1,12 @@
 package io.pelle.sak.s3.auth
 
 import java.io.EOFException
+import java.io.IOException
 import java.io.InputStream
+
+class AwsChunkedFormatException(
+    message: String,
+) : IOException(message)
 
 class AwsChunkedInputStream(
     private val source: InputStream,
@@ -43,8 +48,8 @@ class AwsChunkedInputStream(
 
         val header = readLine() ?: throw EOFException("missing aws-chunked chunk header")
         val size =
-            header.substringBefore(';').trim().toLongOrNull(16)
-                ?: throw EOFException("malformed aws-chunked chunk header '$header'")
+            header.substringBefore(';').trim().toLongOrNull(16)?.takeIf { it >= 0 }
+                ?: throw AwsChunkedFormatException("malformed aws-chunked chunk header '${header.take(64)}'")
 
         if (size == 0L) {
             while (true) {
@@ -58,13 +63,20 @@ class AwsChunkedInputStream(
         return true
     }
 
+    // chunk headers and trailers are short, a client sending an endless line must not grow
+    // the buffer without bounds
     private fun readLine(): String? {
         val line = StringBuilder()
         while (true) {
             val byte = source.read()
             if (byte == -1) return if (line.isEmpty()) null else line.toString()
             if (byte == '\n'.code) return line.toString().removeSuffix("\r")
+            if (line.length >= MAX_LINE_LENGTH) throw AwsChunkedFormatException("aws-chunked line exceeds $MAX_LINE_LENGTH bytes")
             line.append(byte.toChar())
         }
+    }
+
+    companion object {
+        const val MAX_LINE_LENGTH = 4096
     }
 }

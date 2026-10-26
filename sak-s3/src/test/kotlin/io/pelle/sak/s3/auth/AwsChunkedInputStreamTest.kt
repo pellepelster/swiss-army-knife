@@ -83,4 +83,13 @@ class AwsChunkedInputStreamTest {
 
         shouldThrow<EOFException> { AwsChunkedInputStream(payload.inputStream()).readBytes() }
     }
+
+    @Test
+    fun `malformed and endless chunk headers are rejected`() {
+        shouldThrow<AwsChunkedFormatException> { AwsChunkedInputStream("zz\r\nhello".byteInputStream()).readBytes() }
+        shouldThrow<AwsChunkedFormatException> { AwsChunkedInputStream("-1\r\nhello".byteInputStream()).readBytes() }
+
+        val endless = "a".repeat(AwsChunkedInputStream.MAX_LINE_LENGTH + 1).byteInputStream()
+        shouldThrow<AwsChunkedFormatException> { AwsChunkedInputStream(endless).readBytes() }
+    }
 }
