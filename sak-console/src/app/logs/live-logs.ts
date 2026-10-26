@@ -3,7 +3,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { SitesService } from '../sites/sites.service';
-import { ALL_SITES, LogEntry, LogsService } from './logs.service';
+import { ALL_SITES, LiveLogError, LogEntry, LogsService } from './logs.service';
 
 // the most entries the live view keeps, the oldest ones are dropped
 export const MAX_ENTRIES = 500;
@@ -27,7 +27,10 @@ function loadPageSize(): number {
   }
 }
 
+// the first reconnect waits this long, every further one twice as long up to the maximum
 const RECONNECT_DELAY_MS = 3000;
+
+const MAX_RECONNECT_DELAY_MS = 60000;
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -340,25 +343,40 @@ export class LiveLogs {
     });
   }
 
-  // reconnects after a pause when the stream ends or breaks, until unsubscribed
+  // reconnects when the stream ends or breaks, waiting longer after every failed attempt, until
+  // unsubscribed; why it can not follow is shown until a stream is open again
   private follow(site: string): Subscription {
     const subscription = new Subscription();
+    let attempts = 0;
     const connect = (state: State) => {
       this.state.set(state);
       subscription.add(
         this.logs
-          .follow(site, () => this.state.set('following'))
+          .follow(site, () => {
+            attempts = 0;
+            this.error.set(null);
+            this.state.set('following');
+          })
           .subscribe({
             next: (entry) =>
               this.followed.update((entries) => [entry, ...entries].slice(0, MAX_ENTRIES)),
-            error: () => retry(),
+            error: (error: unknown) => {
+              this.error.set(
+                error instanceof LiveLogError && error.status === 503
+                  ? 'The logs can not be followed right now, they are not available or too many live views are open.'
+                  : 'The connection to the logs broke.',
+              );
+              retry();
+            },
             complete: () => retry(),
           }),
       );
     };
     const retry = () => {
       this.state.set('reconnecting');
-      subscription.add(timer(RECONNECT_DELAY_MS).subscribe(() => connect('reconnecting')));
+      const delay = Math.min(RECONNECT_DELAY_MS * 2 ** attempts, MAX_RECONNECT_DELAY_MS);
+      attempts++;
+      subscription.add(timer(delay).subscribe(() => connect('reconnecting')));
     };
     connect('connecting');
     return subscription;

@@ -20,7 +20,7 @@ commit of its own, the status column tracks them.
 | 12 | low | fixed | jwt defense in depth (`exp`, `kid`) |
 | 13 | low | fixed | bucket index truncates toward zero |
 | 14 | low | fixed | a console setup failure stops the whole controller |
-| 15 | medium | open | ui: live view hides errors |
+| 15 | medium | fixed | ui: live view hides errors |
 | 16 | low | open | ui: search debounce timer outlives the component |
 | 17 | low | open | ui: live view updates per entry |
 | 18 | low | open | ui: unknown site in the url |
@@ -150,7 +150,7 @@ Fix: the console failing to set up is logged as an error and the controller runs
 
 ## UI
 
-### 15. Live view hides errors (medium)
+### 15. Live view hides errors (medium, fixed)
 
 `live-logs.ts`: on any failure other than 401 (e.g. victorialogs down, 503) the view reconnects
 every 3 seconds forever and shows "Reconnecting" with no message, the `error` signal is never set

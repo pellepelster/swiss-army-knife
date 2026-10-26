@@ -5,7 +5,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Observable, Subject } from 'rxjs';
 import { LiveLogs, MAX_ENTRIES } from './live-logs';
-import { LogEntry, LogsService, parseEvents } from './logs.service';
+import { LiveLogError, LogEntry, LogsService, parseEvents } from './logs.service';
 
 const entry = (path: string, status = 200, site = 'pelle.io'): LogEntry => ({
   time: '2026-10-26T21:00:00Z',
@@ -28,11 +28,14 @@ describe('LiveLogs', () => {
   let http: HttpTestingController;
   // one stream per follow, with the site it follows
   let streams: { site: string; entries: Subject<LogEntry>; closed: boolean }[];
+  // how many of the next streams the server refuses
+  let refusals: number;
 
   beforeEach(() => {
     localStorage.clear();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     streams = [];
+    refusals = 0;
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -49,6 +52,12 @@ describe('LiveLogs', () => {
         new Observable<LogEntry>((subscriber) => {
           const stream = { site, entries: new Subject<LogEntry>(), closed: false };
           streams.push(stream);
+          // the server refuses the stream, it never opens
+          if (refusals > 0) {
+            refusals--;
+            subscriber.error(new LiveLogError(503));
+            return;
+          }
           opened();
           const subscription = stream.entries.subscribe(subscriber);
           return () => {
@@ -269,6 +278,29 @@ describe('LiveLogs', () => {
     expect(TestBed.inject(Router).url).toBe('/logs/live/s3');
     expect(streams[0].closed).toBe(true);
     expect(streams.map((stream) => stream.site)).toEqual(['all', 's3']);
+  });
+
+  it('tells why it can not follow and waits longer after every failed attempt', async () => {
+    refusals = 2;
+    const { harness, page, state } = await open();
+    const alert = () => page.querySelector('[role=alert]')?.textContent ?? null;
+
+    expect(streams.length).toBe(1);
+    expect(state()).toBe('Reconnecting');
+    expect(alert()).toContain('can not be followed right now');
+
+    // the first attempt after 3s is refused again, the next one waits 6s
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(streams.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(streams.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(1000);
+    await harness.fixture.whenStable();
+    expect(streams.length).toBe(3);
+
+    // an open stream clears the error
+    expect(state()).toBe('Live');
+    expect(alert()).toBeNull();
   });
 
   it('reconnects when the stream breaks', async () => {
