@@ -210,7 +210,9 @@ class SigV4Verifier(
     companion object {
         const val ALGORITHM = "AWS4-HMAC-SHA256"
 
-        private const val EMPTY_BODY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        const val EMPTY_BODY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+        const val UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD"
 
         private val AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
 

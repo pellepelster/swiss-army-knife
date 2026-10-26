@@ -25,6 +25,8 @@ import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.auth.AwsChunkedInputStream
+import io.pelle.sak.s3.auth.PayloadHashMismatchException
+import io.pelle.sak.s3.auth.Sha256VerifyingInputStream
 import io.pelle.sak.s3.auth.SigV4Request
 import io.pelle.sak.s3.auth.SigV4Result
 import io.pelle.sak.s3.auth.SigV4Verifier
@@ -116,6 +118,8 @@ private class S3Api(
             error(call, 404, "NoSuchUpload", e.message ?: "no such upload")
         } catch (e: InvalidKeyException) {
             error(call, 400, "InvalidRequest", e.message ?: "invalid key")
+        } catch (e: PayloadHashMismatchException) {
+            error(call, 400, "XAmzContentSHA256Mismatch", e.message ?: "payload hash mismatch")
         } catch (e: KeyConflictException) {
             error(call, 400, "InvalidRequest", e.message ?: "key conflict")
         } catch (e: InvalidPartException) {
@@ -347,9 +351,17 @@ private class S3Api(
             }
         }
 
+        // the signature covers the declared payload hash, verifying the body against it makes
+        // the signature cover the body; the chunk signatures of aws-chunked bodies and the
+        // trailing checksums are not verified
         private suspend fun body(): InputStream {
             val stream = call.receiveStream()
-            return if (awsChunked) AwsChunkedInputStream(stream) else stream
+            val declaredHash = call.request.headers["x-amz-content-sha256"] ?: SigV4Verifier.EMPTY_BODY_SHA256
+            return when {
+                awsChunked -> AwsChunkedInputStream(stream)
+                declaredHash == SigV4Verifier.UNSIGNED_PAYLOAD -> stream
+                else -> Sha256VerifyingInputStream(stream, declaredHash)
+            }
         }
 
         private fun metadata(): ObjectMetadata {
