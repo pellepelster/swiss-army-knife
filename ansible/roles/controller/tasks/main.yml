@@ -17,29 +17,6 @@
     update_cache: true
     cache_valid_time: 3600
 
-# earlier versions ran the controller from a distribution zip and caddy from the debian
-# package, a unit in /etc/systemd/system would shadow the one quadlet generates
-- name: Check for the sak-controller unit of the zip distribution
-  ansible.builtin.stat:
-    path: /etc/systemd/system/sak-controller.service
-  register: controller_zip_unit
-
-- name: Stop the sak-controller unit of the zip distribution
-  ansible.builtin.systemd_service:
-    name: sak-controller
-    state: stopped
-  when: controller_zip_unit.stat.exists
-
-- name: Remove the sak-controller unit of the zip distribution
-  ansible.builtin.file:
-    path: /etc/systemd/system/sak-controller.service
-    state: absent
-
-- name: Remove the caddy package
-  ansible.builtin.apt:
-    name: caddy
-    state: absent
-
 - name: Create the sak group
   ansible.builtin.group:
     name: "{{ controller_group }}"
