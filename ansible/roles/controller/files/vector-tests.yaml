@@ -1,0 +1,47 @@
+# unit tests of vector.yaml, run with `./gradlew :sak-controller:vectorTest` (needs docker)
+tests:
+  - name: caddy access log entries become victorialogs records of their site
+    inputs:
+      - insert_at: caddy_access_parsed
+        type: log
+        log_fields:
+          message: '{"level":"info","ts":1793000000.123,"logger":"http.log.access","msg":"handled request","request":{"remote_ip":"192.0.2.0","client_ip":"192.0.2.0","proto":"HTTP/2.0","method":"GET","host":"pelle.io","uri":"/index.html","headers":{"User-Agent":["curl/8.5.0"],"Cookie":["session=secret"]}},"site":"pelle.io","bytes_read":0,"duration":0.0012,"size":1024,"status":200,"resp_headers":{"Server":["Caddy"]}}'
+    outputs:
+      - extract_from: caddy_access_parsed
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "GET pelle.io /index.html 200")
+              assert_eq!(.time, "2026-10-26T07:33:20.123+00:00")
+              assert_eq!(.site, "pelle.io")
+              assert_eq!(.status, 200)
+              assert_eq!(.size, 1024)
+              assert_eq!(.user_agent, "curl/8.5.0")
+              assert_eq!(.request.uri, "/index.html")
+              assert!(!exists(.ts))
+              assert!(!exists(.request.headers))
+              assert!(!exists(.resp_headers))
+
+  - name: entries without site belong to the unmatched one
+    inputs:
+      - insert_at: caddy_access_parsed
+        type: log
+        log_fields:
+          message: '{"ts":1793000000,"request":{"method":"GET","host":"scanner.example.com","uri":"/.env","headers":{}},"status":0,"size":0}'
+    outputs:
+      - extract_from: caddy_access_parsed
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.site, "unmatched")
+              assert_eq!(.message, "GET scanner.example.com /.env 0")
+              assert!(!exists(.user_agent))
+
+  - name: lines that are no json are dropped
+    inputs:
+      - insert_at: caddy_access_parsed
+        type: log
+        log_fields:
+          message: "not json"
+    no_outputs_from:
+      - caddy_access_parsed

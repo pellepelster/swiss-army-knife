@@ -1,0 +1,53 @@
+# ships the ingress access log (caddy json) to victorialogs, the console computes the metrics
+# of the sites from it; the paths are the ones inside the sak-vector container, the quadlet
+# mounts the ingress log directory and the data directory there
+data_dir: /var/lib/vector
+
+sources:
+  # access.log and the files caddy rolls it into (access-<time>.log), vector recognizes the
+  # rolled files by their content and does not ship them twice
+  caddy_access:
+    type: file
+    include:
+      - /var/log/caddy/access*.log
+    ignore_older_secs: 604800
+
+transforms:
+  # lines that are no json are dropped; the request headers are, except the user agent, and
+  # the client address is already masked by caddy
+  caddy_access_parsed:
+    type: remap
+    inputs:
+      - caddy_access
+    drop_on_error: true
+    reroute_dropped: false
+    source: |
+      . = object!(parse_json!(string!(.message)))
+      .time = format_timestamp!(from_unix_timestamp!(to_int(round(to_float!(.ts) * 1000)), unit: "milliseconds"), format: "%+")
+      del(.ts)
+      headers = map_keys(object(.request.headers) ?? {}) -> |key| { downcase(key) }
+      user_agent = to_string(headers."user-agent"[0]) ?? ""
+      if user_agent != "" { .user_agent = user_agent }
+      del(.request.headers)
+      del(.resp_headers)
+      # every caddy route appends its site, the stream the entry belongs to
+      if !is_string(.site) { .site = "unmatched" }
+      .message = join([to_string(.request.method) ?? "-", to_string(.request.host) ?? "-", to_string(.request.uri) ?? "-", to_string(.status) ?? "-"], " ")
+
+sinks:
+  victorialogs:
+    type: elasticsearch
+    inputs:
+      - caddy_access_parsed
+    # victorialogs only listens on localhost, vector reaches it in the host network
+    endpoints:
+      - http://127.0.0.1:9428/insert/elasticsearch/
+    api_version: v8
+    mode: bulk
+    compression: gzip
+    healthcheck:
+      enabled: false
+    query:
+      _msg_field: message
+      _time_field: time
+      _stream_fields: site

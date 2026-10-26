@@ -29,3 +29,14 @@ controller_ingress_image_archive: ""
 controller_ingress_image: localhost/sak-ingress:latest
 # caddy keeps its certificates and acme state here
 controller_ingress_data_path: /storage/data/ingress
+# victorialogs keeps the ingress access logs the console computes the metrics of the sites
+# from, it only listens on localhost; both images are pulled, not built
+controller_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0
+controller_victorialogs_data_path: /storage/data/victorialogs
+# longer than the longest range the console shows (30 days)
+controller_victorialogs_retention: 35d
+controller_victorialogs_max_disk_usage: 10GiB
+# vector ships the access log from the ingress data directory to victorialogs
+controller_vector_image: docker.io/timberio/vector:0.60.0-alpine
+controller_vector_data_path: /storage/data/vector
+controller_vector_config_file: "{{ controller_base_path }}/vector.yaml"

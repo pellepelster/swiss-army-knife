@@ -11,6 +11,18 @@
     state: restarted
     daemon_reload: true
 
+- name: Restart sak-victorialogs
+  ansible.builtin.systemd_service:
+    name: sak-victorialogs
+    state: restarted
+    daemon_reload: true
+
+- name: Restart sak-vector
+  ansible.builtin.systemd_service:
+    name: sak-vector
+    state: restarted
+    daemon_reload: true
+
 # handlers run in the order they are defined, the replaced images are only unused once
 # the containers were restarted on the loaded ones
 - name: Remove replaced images

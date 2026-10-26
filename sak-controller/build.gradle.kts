@@ -40,3 +40,20 @@ tasks.distZip {
 tasks.test {
     inputs.file(rootProject.file("config/controller-config.yaml")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
+
+// the unit tests of the vector configuration the controller role deploys, run with the image
+// the role deploys (needs docker, so not part of check; the console's e2eTest depends on it)
+val vectorTest by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Run the unit tests of the vector configuration in docker"
+    val files = rootProject.file("ansible/roles/controller/files")
+    val image =
+        rootProject
+            .file("ansible/roles/controller/defaults/main.yml")
+            .readLines()
+            .single { it.startsWith("controller_vector_image:") }
+            .substringAfter(":")
+            .trim()
+    inputs.dir(files)
+    commandLine("docker", "run", "--rm", "--volume", "$files:/etc/vector:ro", image, "test", "/etc/vector/vector.yaml", "/etc/vector/vector-tests.yaml")
+}

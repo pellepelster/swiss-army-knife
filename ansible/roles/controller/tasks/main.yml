@@ -67,6 +67,57 @@
     group: "{{ controller_group }}"
     mode: "0700"
 
+# caddy writes its logs here, vector gets the directory mounted before caddy may have created it
+- name: Create the ingress log directory
+  ansible.builtin.file:
+    path: "{{ controller_ingress_data_path }}/log"
+    state: directory
+    owner: "{{ controller_user }}"
+    group: "{{ controller_group }}"
+    mode: "0700"
+
+- name: Create the log data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ controller_user }}"
+    group: "{{ controller_group }}"
+    mode: "0700"
+  loop:
+    - "{{ controller_victorialogs_data_path }}"
+    - "{{ controller_vector_data_path }}"
+
+# the tags are pinned, an image that exists is the right one; pulled here already, the vector
+# configuration is validated with its image
+- name: Check for the log images
+  ansible.builtin.command:
+    cmd: podman image exists {{ item }}
+  loop:
+    - "{{ controller_victorialogs_image }}"
+    - "{{ controller_vector_image }}"
+  register: controller_log_images
+  changed_when: false
+  failed_when: controller_log_images.rc not in [0, 1]
+
+- name: Pull the log images
+  ansible.builtin.command:
+    cmd: podman pull {{ item.item }}
+  loop: "{{ controller_log_images.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Upload the vector configuration
+  ansible.builtin.copy:
+    src: vector.yaml
+    dest: "{{ controller_vector_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: podman run --rm --network none --volume %s:/etc/vector/vector.yaml:ro {{ controller_vector_image }} validate --no-environment /etc/vector/vector.yaml
+  notify: Restart sak-vector
+
 # the uploaded archives are kept, so an unchanged image is neither copied nor loaded again
 - name: Upload the images
   ansible.builtin.copy:
@@ -134,6 +185,8 @@
   loop:
     - sak-ingress
     - sak-controller
+    - sak-victorialogs
+    - sak-vector
   notify: "Restart {{ item }}"
 
 # quadlet units are generated on daemon-reload and enabled by their [Install] section
@@ -145,3 +198,5 @@
   loop:
     - sak-ingress
     - sak-controller
+    - sak-victorialogs
+    - sak-vector
