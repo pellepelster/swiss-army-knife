@@ -113,15 +113,6 @@ class VictoriaLogsClient(
         return response
     }
 
-    private fun record(line: String): Map<String, String> =
-        try {
-            Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->
-                (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
-            }
-        } catch (e: IllegalArgumentException) {
-            throw VictoriaLogsException("unreadable victorialogs entry: $line", e)
-        }
-
     // any response of an unexpected shape is a failed query, not a failed request
     private fun parse(body: String): List<StatsSeries> =
         try {
@@ -168,12 +159,9 @@ class LogTail(
     // is no entry is skipped, it must not end the live view
     fun next(): Map<String, String>? {
         while (lines.hasNext()) {
-            val line = lines.next()
             try {
-                return Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->
-                    (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
-                }
-            } catch (_: IllegalArgumentException) {
+                return record(lines.next())
+            } catch (_: VictoriaLogsException) {
                 continue
             }
         }
@@ -182,3 +170,13 @@ class LogTail(
 
     override fun close() = stream.close()
 }
+
+// one entry of a query or a tail as a map of field names to values
+private fun record(line: String): Map<String, String> =
+    try {
+        Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->
+            (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
+        }
+    } catch (e: IllegalArgumentException) {
+        throw VictoriaLogsException("unreadable victorialogs entry: $line", e)
+    }

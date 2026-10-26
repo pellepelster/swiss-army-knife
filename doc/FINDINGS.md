@@ -27,7 +27,7 @@ commit of its own, the status column tracks them.
 | 19 | low | fixed | ui: stored session trusted without validation |
 | 20 | low | fixed | ui: sites never retried after a network error |
 | S1 | - | done | duplicate stream filter builders |
-| S2 | - | open | duplicate json line decoding |
+| S2 | - | done | duplicate json line decoding |
 | S3 | - | open | dead key rotation plumbing |
 | S4 | - | open | redundant `redirect` in the login link |
 | S5 | - | open | `SiteChoice` wrapper and duplicate openapi path |
