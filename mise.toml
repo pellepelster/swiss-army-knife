@@ -1,5 +1,7 @@
 [tools]
 terraform = "1.17.0"
+# builds and tests sak-console, the gradle build calls npm
+node = "22.22.3"
 "pipx:ansible-core" = "2.18.19"
 # the backend the `pipx:` tool above installs with
 pipx = "1.17.2"

@@ -20,8 +20,41 @@ data class SakConfig(
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
     val redirects: Map<String, String> = emptyMap(),
     val s3: S3Config,
+    // the console and its e-mail login are only served when configured
+    val auth: AuthConfig? = null,
 ) {
     val s3DataDir: Path get() = dataDir.resolve("s3")
+
+    val authDataDir: Path get() = dataDir.resolve("auth")
+
+    val consoleHost: String get() = "console.$rootDomain"
+
+    // the login links in the e-mails point here
+    val consoleUrl: String get() = auth?.consoleUrl ?: "https://$consoleHost"
+
+    @Serializable
+    data class AuthConfig(
+        // only these addresses get a login link, compared case-insensitively
+        @SerialName("allowed_emails")
+        val allowedEmails: List<String> = emptyList(),
+        val smtp: SmtpConfig,
+        // overrides https://console.<root_domain>, e.g. for local tests
+        @SerialName("console_url")
+        val consoleUrl: String? = null,
+    )
+
+    @Serializable
+    data class SmtpConfig(
+        val host: String,
+        val port: Int = 587,
+        val username: String? = null,
+        val password: String? = null,
+        val from: String,
+        // implicit tls (smtps, usually port 465) instead of starttls
+        val tls: Boolean = false,
+        // plain smtp, only meant for local test sinks
+        val starttls: Boolean = true,
+    )
 
     @Serializable
     data class S3Config(

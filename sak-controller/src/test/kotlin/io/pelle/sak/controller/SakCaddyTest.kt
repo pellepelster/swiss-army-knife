@@ -6,6 +6,8 @@ import io.pelle.sak.caddy.CaddyJson
 import io.pelle.sak.caddy.CaddyManager
 import io.pelle.sak.config.SakConfig
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.nio.file.Path
@@ -93,6 +95,31 @@ class SakCaddyTest {
             """.trimIndent()
 
         Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, 8080))) shouldBe Json.parseToJsonElement(expected)
+    }
+
+    @Test
+    fun `proxies the console to the controller when the login is configured`() {
+        val withAuth =
+            config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
+
+        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, 8080))).jsonObject["apps"]!!
+            .jsonObject["http"]!!
+            .jsonObject["servers"]!!
+            .jsonObject["sak"]!!
+            .jsonObject["routes"]!!
+            .jsonArray
+
+        routes[2] shouldBe
+            Json.parseToJsonElement(
+                """
+                {
+                  "match": [{ "host": ["console.example.org"] }],
+                  "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }],
+                  "terminal": true
+                }
+                """.trimIndent(),
+            )
+        routes.size shouldBe 6
     }
 
     @Test

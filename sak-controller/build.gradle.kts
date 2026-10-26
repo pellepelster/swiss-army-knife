@@ -7,9 +7,13 @@ dependencies {
     implementation(project(":sak-config"))
     implementation(project(":sak-s3"))
     implementation(project(":sak-caddy"))
+    implementation(project(":sak-auth"))
+    runtimeOnly(project(":sak-console"))
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.config.yaml)
     runtimeOnly(libs.logback.classic)
+
+    testImplementation(libs.greenmail.junit5)
 
     testImplementation(platform(libs.awssdk.bom))
     testImplementation(libs.awssdk.s3)

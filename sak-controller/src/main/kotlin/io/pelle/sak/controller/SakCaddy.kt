@@ -47,6 +47,14 @@ fun caddyConfig(
                 terminal()
             }
 
+            if (config.auth != null) {
+                route {
+                    host(config.consoleHost)
+                    reverseProxy("localhost:$port")
+                    terminal()
+                }
+            }
+
             config.s3.buckets
                 .filterValues { it.domains.isNotEmpty() }
                 .forEach { (bucket, bucketConfig) ->

@@ -13,3 +13,13 @@ sak:
       media:
         domains:
           - media.example.org
+  auth:
+    allowed_emails:
+      - Admin@example.org
+    smtp:
+      host: smtp.example.org
+      port: 465
+      username: login
+      password: changeme
+      from: login@example.org
+      tls: true

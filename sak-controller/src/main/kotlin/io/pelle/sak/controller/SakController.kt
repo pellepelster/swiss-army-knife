@@ -54,4 +54,6 @@ fun Application.sak(config: SakConfig) {
             s3(storage, accessCallback, proxiedPathPrefix = S3_PATH_PREFIX)
         }
     }
+
+    config.auth?.let { console(config, it) }
 }

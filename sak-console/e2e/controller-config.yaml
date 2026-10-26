@@ -1,0 +1,21 @@
+# the controller of the end-to-end tests, see playwright.config.ts
+ktor:
+  deployment:
+    port: 18080
+sak:
+  data_dir: $SAK_E2E_DATA_DIR
+  root_domain: example.org
+  # nothing listens here, the controller keeps retrying to configure caddy in the background
+  caddy_admin_url: http://localhost:12019
+  s3:
+    access_key_id: e2e
+    secret_access_key: e2e-secret
+  auth:
+    console_url: http://localhost:18080
+    allowed_emails:
+      - admin@example.org
+    smtp:
+      host: localhost
+      port: 11025
+      from: login@example.org
+      starttls: false

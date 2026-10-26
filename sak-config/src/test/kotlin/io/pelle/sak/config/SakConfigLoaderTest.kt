@@ -35,6 +35,40 @@ class SakConfigLoaderTest {
         config.s3.buckets.getValue("backups").domains shouldBe emptyList()
         config.s3.buckets.getValue("media").domains shouldBe listOf("media.example.org")
         config.s3DataDir shouldBe Path.of("/something/s3")
+        config.authDataDir shouldBe Path.of("/something/auth")
+        config.consoleUrl shouldBe "https://console.example.org"
+        config.auth shouldBe
+            SakConfig.AuthConfig(
+                allowedEmails = listOf("Admin@example.org"),
+                smtp =
+                    SakConfig.SmtpConfig(
+                        host = "smtp.example.org",
+                        port = 465,
+                        username = "login",
+                        password = "changeme",
+                        from = "login@example.org",
+                        tls = true,
+                    ),
+            )
+    }
+
+    @Test
+    fun `auth is disabled by default`() {
+        load("data_dir: /data\n$ROOT_DOMAIN$S3").auth shouldBe null
+    }
+
+    @Test
+    fun `smtp defaults to starttls on port 587 and the console url can be overridden`() {
+        val config =
+            load(
+                "data_dir: /data\n$ROOT_DOMAIN${S3}auth:\n  console_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
+            )
+
+        config.consoleUrl shouldBe "http://localhost:4200"
+        config.auth!!.allowedEmails shouldBe emptyList()
+        config.auth.smtp.port shouldBe 587
+        config.auth.smtp.tls shouldBe false
+        config.auth.smtp.starttls shouldBe true
     }
 
     @Test
