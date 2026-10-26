@@ -44,35 +44,19 @@
     name: caddy
     state: absent
 
-- name: Create the controller group
+- name: Create the sak group
   ansible.builtin.group:
     name: "{{ controller_group }}"
     gid: "{{ controller_gid }}"
     system: true
 
-- name: Create the controller user
+- name: Create the sak user
   ansible.builtin.user:
     name: "{{ controller_user }}"
     uid: "{{ controller_uid }}"
     group: "{{ controller_group }}"
     system: true
     home: "{{ controller_base_path }}"
-    create_home: false
-    shell: /usr/sbin/nologin
-
-- name: Create the ingress group
-  ansible.builtin.group:
-    name: "{{ controller_ingress_group }}"
-    gid: "{{ controller_ingress_gid }}"
-    system: true
-
-- name: Create the ingress user
-  ansible.builtin.user:
-    name: "{{ controller_ingress_user }}"
-    uid: "{{ controller_ingress_uid }}"
-    group: "{{ controller_ingress_group }}"
-    system: true
-    home: "{{ controller_ingress_data_path }}"
     create_home: false
     shell: /usr/sbin/nologin
 
@@ -92,23 +76,22 @@
     group: "{{ controller_group }}"
     mode: "0750"
 
-# the ingress (group) can read the buckets to serve them at their domains, nobody else can,
-# it gets the directory mounted and never needs to traverse the directories above it,
-# setgid keeps the group on everything the controller creates below
+# the ingress runs as the same user and serves the buckets at their domains, it gets the
+# directory mounted and never needs to traverse the directories above it
 - name: Create the s3 data directory
   ansible.builtin.file:
     path: "{{ controller_s3_data_path }}"
     state: directory
     owner: "{{ controller_user }}"
-    group: "{{ controller_ingress_group }}"
-    mode: "2750"
+    group: "{{ controller_group }}"
+    mode: "0750"
 
 - name: Create the ingress data directory
   ansible.builtin.file:
     path: "{{ controller_ingress_data_path }}"
     state: directory
-    owner: "{{ controller_ingress_user }}"
-    group: "{{ controller_ingress_group }}"
+    owner: "{{ controller_user }}"
+    group: "{{ controller_group }}"
     mode: "0700"
 
 # the uploaded archives are kept, so an unchanged image is neither copied nor loaded again

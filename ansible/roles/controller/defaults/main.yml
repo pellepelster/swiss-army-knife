@@ -20,17 +20,12 @@ controller_env_file: "{{ controller_base_path }}/controller.env"
 controller_env_src: ""
 controller_user: sak
 controller_group: sak
-# the user the image runs as, the host user and group get the same ids so the files
-# the container writes belong to them
+# the user all images run as, the host user and group are identical so the files the
+# containers write belong to them
 controller_uid: 10000
 controller_gid: 10000
 # local path of the ingress (caddy) image archive written by `mise run docker:save` (required)
 controller_ingress_image_archive: ""
 controller_ingress_image: localhost/sak-ingress:latest
-controller_ingress_user: sak-ingress
-controller_ingress_group: sak-ingress
-# the user the ingress image runs as
-controller_ingress_uid: 10001
-controller_ingress_gid: 10001
 # caddy keeps its certificates and acme state here
 controller_ingress_data_path: /storage/data/ingress

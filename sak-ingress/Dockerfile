@@ -4,17 +4,17 @@ FROM alpine:3.24
 RUN apk add --no-cache caddy libcap-setcap \
     && setcap cap_net_bind_service=+ep /usr/sbin/caddy \
     && apk del libcap-setcap \
-    && addgroup -S -g 10001 sak-ingress \
-    && adduser -S -u 10001 -G sak-ingress -H -h /data -s /sbin/nologin sak-ingress \
+    && addgroup -S -g 10000 sak \
+    && adduser -S -u 10000 -G sak -H -h /data -s /sbin/nologin sak \
     && mkdir -p /data \
-    && chown sak-ingress:sak-ingress /data
+    && chown sak:sak /data
 
 COPY Caddyfile /etc/caddy/Caddyfile
 
 # caddy keeps its certificates and acme state in /data
 ENV XDG_DATA_HOME=/data
 
-USER 10001:10001
+USER 10000:10000
 WORKDIR /data
 EXPOSE 80 443
 VOLUME /data

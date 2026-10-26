@@ -8,8 +8,8 @@ Image={{ controller_ingress_image }}
 Pull=never
 # serves 80 and 443 and the admin api on localhost, where sak-controller reaches it
 Network=host
-User={{ controller_ingress_uid }}
-Group={{ controller_ingress_gid }}
+User={{ controller_uid }}
+Group={{ controller_gid }}
 Volume={{ controller_ingress_data_path }}:/data
 # mounted at the same path, sak-controller configures the file servers with host paths
 Volume={{ controller_s3_data_path }}:{{ controller_s3_data_path }}:ro
