@@ -18,3 +18,16 @@ sak:
       pelle.io:
         domains:
           - pelle.io
+  # the console at console.pelle.io, its login links are sent through scaleway's
+  # transactional email (smtp credentials from pass, see `mise run tf`)
+  auth:
+    allowed_emails:
+      - pelle@pelle.io
+    smtp:
+      host: $SAK_SMTP_HOST
+      port: $SAK_SMTP_PORT
+      username: $SAK_SMTP_USERNAME
+      password: $SAK_SMTP_PASSWORD
+      from: noreply@mail.pelle.io
+      # implicit tls on port 465
+      tls: true

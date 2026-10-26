@@ -9,11 +9,16 @@ pipx = "1.17.2"
 # the only terraform call, every tf:* task runs through it; the credentials are read from
 # pass when a task runs (not when mise loads this file) unless already set in the environment
 [tasks."tf"]
-description = "Run terraform in infra/ with the Hetzner Cloud and AWS credentials from pass"
+description = "Run terraform in infra/ with the Hetzner Cloud, AWS and SMTP credentials from pass"
 env = {
     AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
     AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
-    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token | head -n1')) }}"
+    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token | head -n1')) }}",
+    # the scaleway transactional email account the console's login links are sent with
+    TF_VAR_smtp_host = "{{ get_env(name='TF_VAR_smtp_host', default=exec(command='pass show scaleway/pelle.io/smtp_host | head -n1')) }}",
+    TF_VAR_smtp_port = "{{ get_env(name='TF_VAR_smtp_port', default=exec(command='pass show scaleway/pelle.io/smtp_port | head -n1')) }}",
+    TF_VAR_smtp_username = "{{ get_env(name='TF_VAR_smtp_username', default=exec(command='pass show scaleway/pelle.io/smtp_user | head -n1')) }}",
+    TF_VAR_smtp_password = "{{ get_env(name='TF_VAR_smtp_password', default=exec(command='pass show scaleway/pelle.io/smtp_password | head -n1')) }}"
 }
 usage = '''
 arg "<args>" var=#true help="arguments passed to terraform"

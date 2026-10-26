@@ -92,16 +92,33 @@ class SakControllerTest {
 
     @Test
     fun `the deployed configuration in config is valid`() {
-        System.setProperty("SAK_S3_ACCESS_KEY_ID", "key")
-        System.setProperty("SAK_S3_SECRET_ACCESS_KEY", "secret")
+        val environment =
+            mapOf(
+                "SAK_S3_ACCESS_KEY_ID" to "key",
+                "SAK_S3_SECRET_ACCESS_KEY" to "secret",
+                "SAK_SMTP_HOST" to "smtp.example.org",
+                "SAK_SMTP_PORT" to "465",
+                "SAK_SMTP_USERNAME" to "smtp-user",
+                "SAK_SMTP_PASSWORD" to "smtp-password",
+            )
+        environment.forEach { (name, value) -> System.setProperty(name, value) }
         try {
             val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, "../config/controller-config.yaml"))
 
             config.s3.accessKeyId shouldBe "key"
             config.s3.secretAccessKey shouldBe "secret"
+            config.consoleUrl shouldBe "https://console.pelle.io"
+            config.auth!!.smtp shouldBe
+                SakConfig.SmtpConfig(
+                    host = "smtp.example.org",
+                    port = 465,
+                    username = "smtp-user",
+                    password = "smtp-password",
+                    from = "noreply@mail.pelle.io",
+                    tls = true,
+                )
         } finally {
-            System.clearProperty("SAK_S3_ACCESS_KEY_ID")
-            System.clearProperty("SAK_S3_SECRET_ACCESS_KEY")
+            environment.keys.forEach { System.clearProperty(it) }
         }
     }
 

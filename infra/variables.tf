@@ -21,3 +21,26 @@ variable "data_volume_size" {
   type        = number
   default     = 64
 }
+
+# set by `mise run tf` from pass (scaleway/pelle.io)
+variable "smtp_host" {
+  description = "SMTP server the controller sends the console's login links through."
+  type        = string
+}
+
+variable "smtp_port" {
+  description = "Port of the SMTP server, config/controller-config.yaml expects implicit TLS (465)."
+  type        = number
+}
+
+variable "smtp_username" {
+  description = "Username of the SMTP server."
+  type        = string
+  sensitive   = true
+}
+
+variable "smtp_password" {
+  description = "Password of the SMTP server."
+  type        = string
+  sensitive   = true
+}

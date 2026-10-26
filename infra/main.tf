@@ -170,12 +170,16 @@ resource "random_password" "s3_secret_access_key" {
   special = false
 }
 
-# the s3 credentials config/controller-config.yaml references, deployed as systemd
+# the s3 and smtp credentials config/controller-config.yaml references, deployed as systemd
 # EnvironmentFile of the controller unit
 resource "local_sensitive_file" "controller_env" {
   content              = <<-EOT
     SAK_S3_ACCESS_KEY_ID=${random_string.s3_access_key_id.result}
     SAK_S3_SECRET_ACCESS_KEY=${random_password.s3_secret_access_key.result}
+    SAK_SMTP_HOST=${var.smtp_host}
+    SAK_SMTP_PORT=${var.smtp_port}
+    SAK_SMTP_USERNAME=${var.smtp_username}
+    SAK_SMTP_PASSWORD=${var.smtp_password}
   EOT
   filename             = "${path.module}/.ansible/controller.env"
   file_permission      = "0600"
