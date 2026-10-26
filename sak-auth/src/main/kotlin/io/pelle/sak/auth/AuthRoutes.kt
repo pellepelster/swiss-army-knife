@@ -34,10 +34,7 @@ private val logger = KotlinLogging.logger {}
 const val SESSION_AUTH = "session"
 
 // the security scheme of the session token in the openapi document, named like the authentication
-// provider, the security requirements of the routes behind it are taken from that
-const val SESSION_SECURITY_SCHEME = SESSION_AUTH
-
-// the security scheme of the session token, the routes behind authenticate(SESSION_AUTH) require it
+// provider, which the security requirements of the routes behind it are taken from
 val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",

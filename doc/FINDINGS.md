@@ -31,7 +31,7 @@ commit of its own, the status column tracks them.
 | S3 | - | done | dead key rotation plumbing |
 | S4 | - | done | redundant `redirect` in the login link |
 | S5 | - | done | `SiteChoice` wrapper and duplicate openapi path |
-| S6 | - | open | `SESSION_SECURITY_SCHEME` alias |
+| S6 | - | done | `SESSION_SECURITY_SCHEME` alias |
 
 ## Backend
 
