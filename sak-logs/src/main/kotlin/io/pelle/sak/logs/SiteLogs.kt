@@ -38,7 +38,8 @@ class SiteLogs(
         if (site == null) "*" else "_stream:{${SiteMetricsService.SITE}=${quoted(site.id)}}"
 
     companion object {
-        const val SEARCH_LIMIT = 200
+        // as many as the console's live view keeps of the followed ones
+        const val SEARCH_LIMIT = 500
 
         // the entries a live view starts with
         val FOLLOW_BACKLOG: Duration = Duration.ofMinutes(5)

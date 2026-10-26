@@ -30,6 +30,7 @@ describe('LiveLogs', () => {
   let streams: { site: string; entries: Subject<LogEntry>; closed: boolean }[];
 
   beforeEach(() => {
+    localStorage.clear();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     streams = [];
     TestBed.configureTestingModule({
@@ -105,15 +106,94 @@ describe('LiveLogs', () => {
   });
 
   it('keeps the newest entries only', async () => {
-    const { harness, rows } = await open();
+    const { harness, page, rows } = await open();
 
     for (let i = 0; i < MAX_ENTRIES + 5; i++) {
       streams[0].entries.next(entry(`/${i}`));
     }
     await harness.fixture.whenStable();
 
-    expect(rows().length).toBe(MAX_ENTRIES);
+    expect(page.querySelector('[data-testid=live-range]')?.textContent?.trim()).toBe(
+      `1–50 of ${MAX_ENTRIES}`,
+    );
     expect(rows()[0][2]).toBe(`/${MAX_ENTRIES + 4}`);
+  });
+
+  it('shows the entries in pages of the selected size', async () => {
+    const { harness, page, rows } = await open();
+    for (let i = 1; i <= 120; i++) {
+      streams[0].entries.next(entry(`/${i}`));
+    }
+    await harness.fixture.whenStable();
+    const range = () => page.querySelector('[data-testid=live-range]')?.textContent?.trim();
+    const pageButton = (label: string) =>
+      [...page.querySelectorAll<HTMLButtonElement>('.pagination button')].find(
+        (button) => button.getAttribute('aria-label') === label || button.textContent?.trim() === label,
+      )!;
+    const current = () => page.querySelector('[aria-current=page]')?.textContent?.trim();
+
+    // 50 rows by default, newest first
+    expect(rows().length).toBe(50);
+    expect(rows()[0][2]).toBe('/120');
+    expect(range()).toBe('1–50 of 120');
+    expect([...page.querySelectorAll('.pagination button')].map((b) => b.textContent?.trim())).toEqual([
+      '«', '‹', '1', '2', '3', '›', '»',
+    ]);
+    expect(pageButton('Previous page').disabled).toBe(true);
+
+    pageButton('Next page').click();
+    await harness.fixture.whenStable();
+    expect(current()).toBe('2');
+    expect(rows()[0][2]).toBe('/70');
+    expect(range()).toBe('51–100 of 120');
+
+    pageButton('Last page').click();
+    await harness.fixture.whenStable();
+    expect(rows().length).toBe(20);
+    expect(range()).toBe('101–120 of 120');
+    expect(pageButton('Next page').disabled).toBe(true);
+
+    // a new size starts at the first page and is remembered
+    const size = page.querySelector<HTMLSelectElement>('#live-page-size')!;
+    expect([...size.options].map((option) => option.value)).toEqual(['25', '50', '100']);
+    size.value = '25';
+    size.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    expect(rows().length).toBe(25);
+    expect(current()).toBe('1');
+    expect(range()).toBe('1–25 of 120');
+    expect(localStorage.getItem('sak.live.pageSize')).toBe('25');
+
+    pageButton('5').click();
+    await harness.fixture.whenStable();
+    expect([...page.querySelectorAll('.pagination button')].map((b) => b.textContent?.trim())).toEqual([
+      '«', '‹', '1', '2', '3', '4', '5', '›', '»',
+    ]);
+    expect(range()).toBe('101–120 of 120');
+  });
+
+  it('starts with the remembered page size and the first page of a new search', async () => {
+    localStorage.setItem('sak.live.pageSize', '25');
+    const { harness, page, rows } = await open('/logs/live/all?q=missing');
+
+    http
+      .expectOne('/api/v1/logs/all/search?q=missing')
+      .flush(Array.from({ length: 60 }, (_, i) => entry(`/missing/${i}`, 404)));
+    await harness.fixture.whenStable();
+    expect(rows().length).toBe(25);
+    page.querySelector<HTMLButtonElement>('[aria-label="Last page"]')!.click();
+    await harness.fixture.whenStable();
+    expect(rows().length).toBe(10);
+
+    await TestBed.inject(Router).navigateByUrl('/logs/live/all?q=other');
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/logs/all/search?q=other').flush(
+      Array.from({ length: 60 }, (_, i) => entry(`/other/${i}`, 404)),
+    );
+    await harness.fixture.whenStable();
+
+    expect(page.querySelector('[aria-current=page]')?.textContent?.trim()).toBe('1');
+    expect(rows()[0][2]).toBe('/other/0');
   });
 
   it('pauses and follows again from the start', async () => {

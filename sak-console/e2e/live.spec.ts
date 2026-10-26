@@ -85,10 +85,20 @@ test('follows one site only', async ({ page }) => {
   await expect(row(page, 'here')).toBeVisible({ timeout: 20_000 });
   await expect(row(page, 'elsewhere')).toHaveCount(0);
 
+  // the rows come in pages of the selected size, the size is remembered
+  await expect(page.getByLabel('Rows')).toHaveValue('50');
+  await page.getByLabel('Rows').selectOption('25');
+  await expect(page.getByTestId('live-range')).toHaveText(/1–\d+ of \d+/);
+  await expect(page.getByRole('navigation', { name: 'Pages' }).getByRole('button', { name: '1' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
   // the site and the search survive a reload
   await page.getByRole('searchbox', { name: 'Search' }).fill(`${run}/here`);
   await expect(page.getByTestId('live-state')).toHaveText('1 found');
   await page.reload();
+  await expect(page.getByLabel('Rows')).toHaveValue('25');
   await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
   await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue(`${run}/here`);
   await expect(page.getByTestId('live-state')).toHaveText('1 found');

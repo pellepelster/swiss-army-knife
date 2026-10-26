@@ -88,7 +88,7 @@ class SiteLogsTest {
 
         queries.single().second.getValue("query") shouldBe
             """_stream:{site="pelle.io"} (_msg:~"(?i)Missing" OR user_agent:~"(?i)Missing") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 200"""
+            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 500"""
     }
 
     @Test
@@ -97,7 +97,7 @@ class SiteLogsTest {
 
         queries.single().second.getValue("query") shouldBe
             """* (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 200"""
+            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 500"""
     }
 
     @Test

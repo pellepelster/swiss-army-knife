@@ -8,6 +8,25 @@ import { ALL_SITES, LogEntry, LogsService } from './logs.service';
 // the most entries the live view keeps, the oldest ones are dropped
 export const MAX_ENTRIES = 500;
 
+export const PAGE_SIZES = [25, 50, 100];
+
+const DEFAULT_PAGE_SIZE = 50;
+
+// the page size is remembered per browser
+const PAGE_SIZE_KEY = 'sak.live.pageSize';
+
+// how many page numbers the pagination shows around the current page
+const PAGE_LINKS = 5;
+
+function loadPageSize(): number {
+  try {
+    const stored = Number(localStorage.getItem(PAGE_SIZE_KEY));
+    return PAGE_SIZES.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
+  } catch {
+    return DEFAULT_PAGE_SIZE;
+  }
+}
+
 const RECONNECT_DELAY_MS = 3000;
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -40,6 +59,16 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
       max-width: 40rem;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .live-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-top: 1px solid var(--bs-border-color);
     }
   `,
   template: `
@@ -102,7 +131,7 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
             </tr>
           </thead>
           <tbody>
-            @for (entry of shown(); track $index) {
+            @for (entry of visible(); track $index) {
               <tr>
                 <td class="font-mono" [title]="entry.time">{{ entry.time | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
                 <td class="font-mono">{{ entry.site }}</td>
@@ -116,6 +145,53 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
             }
           </tbody>
         </table>
+        <div class="live-footer">
+          <div class="d-flex align-items-center gap-2">
+            <label for="live-page-size" class="form-label mb-0">Rows</label>
+            <select
+              id="live-page-size"
+              class="form-select form-select-sm w-auto"
+              (change)="selectPageSize(+$any($event.target).value)"
+            >
+              @for (size of pageSizes; track size) {
+                <option [value]="size" [selected]="size === pageSize()">{{ size }}</option>
+              }
+            </select>
+            @if (shown().length > 0) {
+              <span class="text-secondary small font-mono" data-testid="live-range">
+                {{ firstShown() }}–{{ lastShown() }} of {{ shown().length }}
+              </span>
+            }
+          </div>
+          <nav aria-label="Pages">
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item" [class.disabled]="page() === 1">
+                <button type="button" class="page-link" aria-label="First page" [disabled]="page() === 1" (click)="goTo(1)">«</button>
+              </li>
+              <li class="page-item" [class.disabled]="page() === 1">
+                <button type="button" class="page-link" aria-label="Previous page" [disabled]="page() === 1" (click)="goTo(page() - 1)">‹</button>
+              </li>
+              @for (number of pageNumbers(); track number) {
+                <li class="page-item" [class.active]="number === page()">
+                  <button
+                    type="button"
+                    class="page-link"
+                    [attr.aria-current]="number === page() ? 'page' : null"
+                    (click)="goTo(number)"
+                  >
+                    {{ number }}
+                  </button>
+                </li>
+              }
+              <li class="page-item" [class.disabled]="page() === pages()">
+                <button type="button" class="page-link" aria-label="Next page" [disabled]="page() === pages()" (click)="goTo(page() + 1)">›</button>
+              </li>
+              <li class="page-item" [class.disabled]="page() === pages()">
+                <button type="button" class="page-link" aria-label="Last page" [disabled]="page() === pages()" (click)="goTo(pages())">»</button>
+              </li>
+            </ul>
+          </nav>
+        </div>
       </div>
     </div>
   `,
@@ -145,6 +221,38 @@ export class LiveLogs {
   protected readonly following = computed(() => !this.searching() && !this.paused());
 
   protected readonly shown = computed(() => (this.searching() ? this.found() : this.followed()));
+
+  protected readonly pageSizes = PAGE_SIZES;
+  protected readonly pageSize = signal(loadPageSize());
+  private readonly requestedPage = signal(1);
+
+  protected readonly pages = computed(() =>
+    Math.max(1, Math.ceil(this.shown().length / this.pageSize())),
+  );
+
+  // the last page instead of the requested one while entries were dropped
+  protected readonly page = computed(() => Math.min(this.requestedPage(), this.pages()));
+
+  protected readonly visible = computed(() => {
+    const start = (this.page() - 1) * this.pageSize();
+    return this.shown().slice(start, start + this.pageSize());
+  });
+
+  protected readonly firstShown = computed(() => (this.page() - 1) * this.pageSize() + 1);
+
+  protected readonly lastShown = computed(() =>
+    Math.min(this.page() * this.pageSize(), this.shown().length),
+  );
+
+  // up to PAGE_LINKS page numbers with the current page in the middle
+  protected readonly pageNumbers = computed(() => {
+    const count = Math.min(PAGE_LINKS, this.pages());
+    const first = Math.min(
+      Math.max(1, this.page() - Math.floor(PAGE_LINKS / 2)),
+      this.pages() - count + 1,
+    );
+    return Array.from({ length: count }, (_, index) => first + index);
+  });
 
   protected readonly stateLabel = computed(
     () =>
@@ -194,6 +302,7 @@ export class LiveLogs {
       untracked(() => {
         this.followed.set([]);
         this.error.set(null);
+        this.requestedPage.set(1);
       });
       const subscription = this.follow(site);
       onCleanup(() => subscription.unsubscribe());
@@ -208,6 +317,7 @@ export class LiveLogs {
       untracked(() => {
         this.state.set('searching');
         this.error.set(null);
+        this.requestedPage.set(1);
       });
       const subscription = this.logs.search(site, text).subscribe({
         next: (entries) => {
@@ -252,6 +362,20 @@ export class LiveLogs {
     };
     connect('connecting');
     return subscription;
+  }
+
+  protected goTo(page: number): void {
+    this.requestedPage.set(Math.min(Math.max(1, page), this.pages()));
+  }
+
+  protected selectPageSize(size: number): void {
+    this.pageSize.set(size);
+    this.requestedPage.set(1);
+    try {
+      localStorage.setItem(PAGE_SIZE_KEY, `${size}`);
+    } catch {
+      // the size is only kept for this page then
+    }
   }
 
   protected typed(text: string): void {
