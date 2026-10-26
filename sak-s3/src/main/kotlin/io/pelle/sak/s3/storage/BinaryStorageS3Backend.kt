@@ -5,7 +5,7 @@ import java.io.SequenceInputStream
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.Base64
-import java.util.Collections
+import java.util.Enumeration
 import java.util.UUID
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -214,13 +214,20 @@ class BinaryStorageS3Backend(
             partDigest.update(storedEtag.hexToBytes())
         }
 
+        // the parts are opened one after the other as the sequence stream advances, opening
+        // all of them up front costs a file descriptor per part (up to 10000)
         val partStreams =
-            Collections.enumeration(
-                parts.map { part ->
-                    storage.open(uploadPath.resolve(partFileName(part.partNumber)))
+            object : Enumeration<InputStream> {
+                private val remaining = parts.iterator()
+
+                override fun hasMoreElements() = remaining.hasNext()
+
+                override fun nextElement(): InputStream {
+                    val part = remaining.next()
+                    return storage.open(uploadPath.resolve(partFileName(part.partNumber)))
                         ?: throw InvalidPartException("part ${part.partNumber} was not uploaded")
-                },
-            )
+                }
+            }
 
         val key = uploadMeta.key
         val etag = "${partDigest.digest().toHex()}-${parts.size}"
