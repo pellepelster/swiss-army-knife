@@ -165,19 +165,19 @@ class SigV4Verifier(
         var i = 0
         while (i < value.length) {
             val c = value[i]
-            if (c == '%' && i + 2 < value.length) {
-                val decoded = value.substring(i + 1, i + 3).toIntOrNull(16)
-                if (decoded != null) {
-                    out.write(decoded)
-                    i += 3
-                    continue
-                }
+            // toIntOrNull(16) would also take a sign ('%+F', '%-1'), only two hex digits are an escape
+            if (c == '%' && i + 2 < value.length && value[i + 1].isHexDigit() && value[i + 2].isHexDigit()) {
+                out.write(value.substring(i + 1, i + 3).toInt(16))
+                i += 3
+                continue
             }
             out.write(c.toString().toByteArray())
             i++
         }
         return String(out.toByteArray())
     }
+
+    private fun Char.isHexDigit() = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
 
     private fun uriEncode(
         value: String,
