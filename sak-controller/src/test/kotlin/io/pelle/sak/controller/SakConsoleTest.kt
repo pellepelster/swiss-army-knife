@@ -277,6 +277,19 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `an unreadable signing key leaves the console out but serves the s3 api`() {
+        val config = config()
+        Files.createDirectories(signingKeyFile(config).parent)
+        Files.writeString(signingKeyFile(config), "not a key")
+
+        withServer(config) { port ->
+            get(port, "/").statusCode() shouldBe 404
+            get(port, "/api/v1/auth/me").statusCode() shouldBe 404
+            get(port, "/s3/bucket1/hello.txt").statusCode() shouldBe 403
+        }
+    }
+
+    @Test
     fun `without auth configuration there is neither console nor login`() {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404

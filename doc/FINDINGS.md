@@ -19,7 +19,7 @@ commit of its own, the status column tracks them.
 | 11 | low | fixed | console host proxies the whole controller, no hsts |
 | 12 | low | fixed | jwt defense in depth (`exp`, `kid`) |
 | 13 | low | fixed | bucket index truncates toward zero |
-| 14 | low | open | a console setup failure stops the whole controller |
+| 14 | low | fixed | a console setup failure stops the whole controller |
 | 15 | medium | open | ui: live view hides errors |
 | 16 | low | open | ui: search debounce timer outlives the component |
 | 17 | low | open | ui: live view updates per entry |
@@ -141,7 +141,7 @@ instead of being dropped. Not triggered today, victorialogs aligns to `start`.
 
 Fix: `Math.floorDiv`.
 
-### 14. A console setup failure stops the whole controller (low)
+### 14. A console setup failure stops the whole controller (low, fixed)
 
 `SakController.kt`: a corrupt `signing-key.pem` or a bucket named like a reserved site throws
 inside `module()`, so the s3 api does not start either.

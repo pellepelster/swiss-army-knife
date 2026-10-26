@@ -55,5 +55,12 @@ fun Application.sak(config: SakConfig) {
         }
     }
 
-    config.auth?.let { console(config, it) }
+    // a broken console, e.g. an unreadable signing key, must not take the s3 api down with it
+    config.auth?.let {
+        try {
+            console(config, it)
+        } catch (e: Exception) {
+            logger.error(e) { "the console could not be set up, it is not served" }
+        }
+    }
 }

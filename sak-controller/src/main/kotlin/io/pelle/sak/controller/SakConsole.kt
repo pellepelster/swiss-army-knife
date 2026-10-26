@@ -55,12 +55,14 @@ private val ConsoleSecurityHeaders =
         }
     }
 
-// the console and its api, caddy proxies console.<root_domain> here unchanged
+// the console and its api, caddy proxies console.<root_domain> here unchanged; everything that
+// can fail happens before anything is installed, so a failure leaves no half a console behind
 fun Application.console(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
+    val consoleSites = sites(config)
     val mailSender =
         with(auth.smtp) {
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
@@ -84,7 +86,7 @@ fun Application.console(
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
-                            sites(sites(config), SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
+                            sites(consoleSites, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
                     }
                 }
