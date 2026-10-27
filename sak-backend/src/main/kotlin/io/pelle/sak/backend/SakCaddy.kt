@@ -54,21 +54,25 @@ fun caddyConfig(
             }
 
             if (config.auth != null) {
-                // the controller also serves the s3 api, which belongs to the s3 host only
-                route {
-                    host(config.consoleHost)
-                    path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*")
-                    logField(SITE_LOG_FIELD, CONSOLE_SITE)
-                    respond(404)
-                    terminal()
-                }
-                route {
-                    host(config.consoleHost)
-                    logField(SITE_LOG_FIELD, CONSOLE_SITE)
-                    responseHeader("Strict-Transport-Security", "max-age=31536000")
-                    maxRequestBodySize(CONSOLE_MAX_BODY_SIZE)
-                    reverseProxy("localhost:$port")
-                    terminal()
+                // the console and sak-frontend, both served by the controller, which tells them
+                // apart by the host
+                listOf(config.consoleHost to CONSOLE_SITE, config.appsHost to APPS_SITE).forEach { (host, site) ->
+                    // the controller also serves the s3 api, which belongs to the s3 host only
+                    route {
+                        host(host)
+                        path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*")
+                        logField(SITE_LOG_FIELD, site)
+                        respond(404)
+                        terminal()
+                    }
+                    route {
+                        host(host)
+                        logField(SITE_LOG_FIELD, site)
+                        responseHeader("Strict-Transport-Security", "max-age=31536000")
+                        maxRequestBodySize(CONSOLE_MAX_BODY_SIZE)
+                        reverseProxy("localhost:$port")
+                        terminal()
+                    }
                 }
             }
 

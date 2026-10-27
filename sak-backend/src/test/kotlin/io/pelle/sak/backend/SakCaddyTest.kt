@@ -100,7 +100,7 @@ class SakCaddyTest {
     }
 
     @Test
-    fun `proxies the console to the controller when the login is configured`() {
+    fun `proxies the console and sak-frontend to the controller when the login is configured`() {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
@@ -142,8 +142,14 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        // http, s3, the two console routes, the site, unmatched; no redirects
-        routes.size shouldBe 6
+        // sak-frontend alike at apps.<root_domain>
+        routes[4].jsonObject["match"] shouldBe Json.parseToJsonElement("""[{ "host": ["apps.example.org"], "path": ["/s3", "/s3/*"] }]""")
+        routes[5].jsonObject["match"] shouldBe Json.parseToJsonElement("""[{ "host": ["apps.example.org"] }]""")
+        routes[5].jsonObject["handle"]!!.jsonArray.first() shouldBe
+            Json.parseToJsonElement("""{ "handler": "log_append", "key": "site", "value": "apps" }""")
+        routes[5].jsonObject["handle"]!!.jsonArray.last() shouldBe routes[3].jsonObject["handle"]!!.jsonArray.last()
+        // http, s3, the two console and the two frontend routes, the site, unmatched; no redirects
+        routes.size shouldBe 8
     }
 
     @Test

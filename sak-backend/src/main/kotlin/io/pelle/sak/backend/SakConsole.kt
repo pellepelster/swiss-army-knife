@@ -11,6 +11,7 @@ import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.openapi.hide
+import io.ktor.server.routing.host
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.CONSOLE_APP
@@ -46,19 +47,19 @@ const val CONSOLE_MAX_BODY_SIZE = 1024L * 1024
 // sak-console packages its build below this resource path
 const val CONSOLE_RESOURCES = "console"
 
+// sak-frontend packages its build below this resource path
+const val FRONTEND_RESOURCES = "frontend"
+
 const val CONSOLE_CONTENT_SECURITY_POLICY =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
         "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-// the apps the login links lead to, sak-frontend only where it is configured
-fun loginApps(
-    config: SakConfig,
-    auth: SakConfig.AuthConfig,
-): Map<String, LoginApp> =
-    buildMap {
-        put(CONSOLE_APP, LoginApp(config.consoleUrl, "the console"))
-        auth.frontendUrl?.let { put(FRONTEND_APP, LoginApp(it, "the apps")) }
-    }
+// the apps the login links lead to
+fun loginApps(config: SakConfig): Map<String, LoginApp> =
+    mapOf(
+        CONSOLE_APP to LoginApp(config.consoleUrl, "the console"),
+        FRONTEND_APP to LoginApp(config.frontendUrl, "the apps"),
+    )
 
 const val FRONTEND_APP = "frontend"
 
@@ -75,8 +76,9 @@ private val ConsoleSecurityHeaders =
         }
     }
 
-// the console and its api, caddy proxies console.<root_domain> here unchanged; everything that
-// can fail happens before anything is installed, so a failure leaves no half a console behind
+// the console, sak-frontend and their api, caddy proxies console.<root_domain> and
+// apps.<root_domain> here unchanged; everything that can fail happens before anything is
+// installed, so a failure leaves no half a console behind
 fun Application.console(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
@@ -105,7 +107,7 @@ fun Application.console(
 
                 route(API_VERSION) {
                     route("/auth") {
-                        auth(tokens, mailSender, loginApps(config, auth), rolesOf)
+                        auth(tokens, mailSender, loginApps(config), rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
@@ -139,6 +141,13 @@ fun Application.console(
 
             apiDoc()
 
+            // caddy keeps the host, apps.<root_domain> gets sak-frontend and every other one the console
+            host(config.appsHost) {
+                singlePageApplication {
+                    useResources = true
+                    filesPath = FRONTEND_RESOURCES
+                }
+            }
             singlePageApplication {
                 useResources = true
                 filesPath = CONSOLE_RESOURCES

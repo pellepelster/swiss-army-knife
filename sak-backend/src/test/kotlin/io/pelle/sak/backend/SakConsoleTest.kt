@@ -31,6 +31,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
+import java.net.Socket
 import java.net.URLDecoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -150,6 +151,17 @@ class SakConsoleTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
+    // the java http client does not let a request set its host, caddy keeps the host of the client
+    private fun getWithHost(
+        port: Int,
+        host: String,
+        path: String,
+    ): String =
+        Socket("localhost", port).use { socket ->
+            socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray())
+            socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
+        }
+
     private fun HttpResponse<String>.json(): JsonObject = Json.parseToJsonElement(body()).jsonObject
 
     private fun JsonObject.string(name: String) = getValue(name).jsonPrimitive.content
@@ -193,7 +205,7 @@ class SakConsoleTest {
             val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
-                listOf("s3", "console", "redirect", "unmatched")
+                listOf("s3", "console", "apps", "redirect", "unmatched")
 
             // the link only works once
             post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
@@ -507,6 +519,21 @@ class SakConsoleTest {
             get(port, "/api/v1/unknown").statusCode() shouldBe 404
             get(port, "/api/v2/auth/me").statusCode() shouldBe 404
             get(port, "/api/v1/auth/me").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
+        }
+    }
+
+    @Test
+    fun `serves sak-frontend at apps of the root domain and the console at every other host`() {
+        withServer { port ->
+            listOf("/", "/notes", "/signin?token=abc").forEach { path ->
+                val page = getWithHost(port, "apps.example.org", path)
+                page shouldStartWith "HTTP/1.1 200"
+                page shouldContain "<title>Apps</title>"
+                page shouldContain "Content-Security-Policy: $CONSOLE_CONTENT_SECURITY_POLICY"
+            }
+            getWithHost(port, "console.example.org", "/") shouldContain "<title>sak console</title>"
+            // the api is the same at both
+            getWithHost(port, "apps.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
         }
     }
 
