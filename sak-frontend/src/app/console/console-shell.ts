@@ -57,8 +57,13 @@ export class ConsoleShell {
     link.rel = 'stylesheet';
     link.href = CONSOLE_STYLESHEET;
     link.dataset['console'] = '';
-    // shown without its look rather than not at all
-    link.onload = link.onerror = () => this.styled.set(true);
+    link.onload = () => this.styled.set(true);
+    // shown without its look rather than not at all, but told in the browser's console, e.g. for
+    // a dev server started before the stylesheet was part of the build
+    link.onerror = () => {
+      console.error(`the stylesheet of the console (${CONSOLE_STYLESHEET}) could not be loaded`);
+      this.styled.set(true);
+    };
     document.head.appendChild(link);
     inject(DestroyRef).onDestroy(() => {
       link.remove();
