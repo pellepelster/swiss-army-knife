@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { NotesStore, SAVE_TEXT_AFTER_MS } from './notes-store';
+import { NotesStore, SAVE_TEXT_AFTER_MS, UNDO_DELETE_MS } from './notes-store';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, SCALED, FILE_ID } from './notes-testing';
@@ -290,9 +290,55 @@ describe('NotesStore', () => {
     expect(store.error()).toBeNull();
   });
 
-  it('deletes notes at once and brings them back when the backend can not', () => {
+  it('deletes a note in the backend once it can no longer be brought back', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);
+    expect(store.deleted()?.id).toBe(2);
+    expect(store.pagination()?.total).toBe(1);
+
+    vi.advanceTimersByTime(UNDO_DELETE_MS - 1);
+    http.expectNone({ method: 'DELETE' });
+    vi.advanceTimersByTime(1);
+    http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
+
+    expect(store.deleted()).toBeNull();
+    expect(store.notes().map((note) => note.id)).toEqual([1]);
+  });
+
+  it('brings a deleted note back in its place, the backend keeps it', () => {
+    store.remove(2);
+    store.undoRemove();
+
+    expect(store.notes().map((note) => note.id)).toEqual([2, 1]);
+    expect(store.deleted()).toBeNull();
+    expect(store.pagination()?.total).toBe(2);
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
+    http.expectNone({ method: 'DELETE' });
+  });
+
+  it('saves the text of a note brought back that was not saved before it was deleted', () => {
+    store.setText(1, 'milk and bread');
+    store.remove(1);
+    store.undoRemove();
+
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.text).toBe(
+      'milk and bread',
+    );
+  });
+
+  it('deletes the note deleted before at once when another one is deleted', () => {
+    store.remove(2);
+    store.remove(1);
+
+    http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
+    expect(store.deleted()?.id).toBe(1);
+    store.undoRemove();
+    expect(store.notes().map((note) => note.id)).toEqual([1]);
+  });
+
+  it('brings a deleted note back when the backend can not delete it', () => {
+    store.remove(2);
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
     http
       .expectOne({ method: 'DELETE', url: '/api/v1/notes/2' })
       .flush(null, { status: 500, statusText: 'Error' });
@@ -443,6 +489,7 @@ describe('NotesStore', () => {
         noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
         noteResponse(1, 'milk', 'yellow', ['shopping']),
       );
+      vi.advanceTimersByTime(UNDO_DELETE_MS);
       http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
 
       expect(store.notes().map((note) => note.id)).toEqual([3, 1]);

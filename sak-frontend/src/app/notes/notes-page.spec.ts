@@ -162,13 +162,20 @@ describe('NotesPage', () => {
     expect(button('All').textContent).toContain('51');
   });
 
-  it('deletes a note and changes the color of another', async () => {
+  it('deletes a note, brings it back with undo and changes the color of another', async () => {
     button('Delete note 3').click();
-    http
-      .expectOne({ method: 'DELETE', url: '/api/v1/notes/3' })
-      .flush(null, { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
     expect(texts()).not.toContain('Prototype the note taking app');
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Note deleted');
+
+    button('Undo').click();
+    await fixture.whenStable();
+    expect(texts()).toContain('Prototype the note taking app');
+    expect(page.querySelector('[role="status"]')).toBeNull();
+    http.expectNone({ method: 'DELETE' });
+
+    button('Delete note 3').click();
+    await fixture.whenStable();
 
     const note = notes()[0];
     button('green', note).click();

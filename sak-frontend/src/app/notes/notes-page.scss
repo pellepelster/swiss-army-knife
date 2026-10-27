@@ -20,3 +20,34 @@
     padding-bottom: 11rem;
   }
 }
+
+// the note deleted last can be brought back while the bar shrinks; at the bottom left, apart from
+// the floating buttons on a phone
+.undo-toast {
+  z-index: 1030;
+
+  // bootstrap sets these on .progress itself
+  .progress {
+    --bs-progress-height: 4px;
+    --bs-progress-bar-bg: var(--ink);
+  }
+}
+
+.undo-toast-time {
+  width: 100%;
+  animation-name: undo-time-left;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes undo-time-left {
+  to {
+    width: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .undo-toast {
+    width: calc(100% - 6.5rem);
+  }
+}

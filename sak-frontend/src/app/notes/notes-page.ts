@@ -11,7 +11,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { PaginationControl } from '../shared/pagination';
 import { NoteCard } from './note-card';
-import { Note, NotesStore } from './notes-store';
+import { Note, NotesStore, UNDO_DELETE_MS } from './notes-store';
 import { RecordingOverlay } from './recording-overlay';
 
 // the notes as a wall of post-its, a page at a time, filtered by one label at a time
@@ -174,6 +174,20 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
     </div>
 
+    @for (note of deleted(); track note.id) {
+      <div class="undo-toast toast show position-fixed bottom-0 start-0 m-3" role="status">
+        <div class="d-flex align-items-center gap-2 p-2 ps-3">
+          <span class="flex-grow-1">Note deleted</span>
+          <button type="button" class="btn btn-sm btn-primary" (click)="store.undoRemove()">
+            Undo
+          </button>
+        </div>
+        <div class="progress rounded-0" aria-hidden="true">
+          <div class="undo-toast-time progress-bar" [style.animation-duration.ms]="undoMs"></div>
+        </div>
+      </div>
+    }
+
     <app-recording-overlay />
   `,
 })
@@ -187,6 +201,15 @@ export class NotesPage {
   protected readonly offset = signal(0);
 
   protected readonly addingPhoto = signal(false);
+
+  protected readonly undoMs = UNDO_DELETE_MS;
+
+  // the note deleted last as long as it can be brought back; a list, so the bar showing the time
+  // left starts anew for the next note deleted
+  protected readonly deleted = computed(() => {
+    const note = this.store.deleted();
+    return note ? [note] : [];
+  });
 
   protected readonly shown = computed(() => {
     const label = this.filter();

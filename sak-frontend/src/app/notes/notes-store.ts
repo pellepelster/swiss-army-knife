@@ -44,6 +44,9 @@ export const MAX_LABELS = 10;
 // how long typing pauses before the text is saved
 export const SAVE_TEXT_AFTER_MS = 600;
 
+// how long a deleted note can be brought back before the backend deletes it
+export const UNDO_DELETE_MS = 7000;
+
 // labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
 // backend stores them the same way
 function normalizeLabel(label: string): string {
@@ -75,6 +78,14 @@ export class NotesStore {
 
   private loadingNotes?: Subscription;
 
+  // the note deleted last while it can be brought back, whether its text was saved and the timer
+  // deleting it in the backend
+  private pendingDelete: {
+    note: Note;
+    unsavedText: boolean;
+    timer: ReturnType<typeof setTimeout>;
+  } | null = null;
+
   // the page and label loaded last, e.g. `0|work`
   private loadedQuery: string | null = null;
 
@@ -95,6 +106,9 @@ export class NotesStore {
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
 
+  // the note deleted last while it can be brought back with undoRemove, null otherwise
+  readonly deleted = signal<Note | null>(null);
+
   // what went wrong last, null when everything is saved; every action clears it when it starts
   readonly error = signal<string | null>(null);
 
@@ -109,18 +123,19 @@ export class NotesStore {
   );
 
   constructor() {
-    // the text typed and not saved yet when the page goes away or into the background, e.g. the
-    // installed app is closed right after typing; a phone ends an app in the background without
-    // pagehide
+    // the text typed and not saved yet and the note deleted last when the page goes away or into
+    // the background, e.g. the installed app is closed right after typing; a phone ends an app in
+    // the background without pagehide
     const window = this.document.defaultView;
-    const leaving = () => this.saveTextLeaving();
+    const leaving = () => this.saveLeaving();
     const hidden = () => {
-      if (this.document.visibilityState === 'hidden') this.saveTextLeaving();
+      if (this.document.visibilityState === 'hidden') this.saveLeaving();
     };
     window?.addEventListener('pagehide', leaving);
     this.document.addEventListener('visibilitychange', hidden);
     inject(DestroyRef).onDestroy(() => {
       this.pendingText.forEach((timer) => clearTimeout(timer));
+      clearTimeout(this.pendingDelete?.timer);
       this.loadingNotes?.unsubscribe();
       window?.removeEventListener('pagehide', leaving);
       this.document.removeEventListener('visibilitychange', hidden);
@@ -350,24 +365,59 @@ export class NotesStore {
   }
 
   // gone at once, back when the backend could not delete it
+  // the note goes at once, the backend deletes it after UNDO_DELETE_MS unless undoRemove brings it
+  // back; deleting another note meanwhile deletes this one in the backend at once
   remove(id: number): void {
     this.error.set(null);
-    const notes = this.all();
+    const note = this.all().find((n) => n.id === id);
+    if (!note) return;
+    this.deleteNow();
+    const unsavedText = this.pendingText.has(id);
     clearTimeout(this.pendingText.get(id));
     this.pendingText.delete(id);
     this.changedWhileLoading?.add(id);
-    this.all.set(notes.filter((note) => note.id !== id));
+    this.all.update((notes) => notes.filter((n) => n.id !== id));
     this.countNotes(-1);
+    // a request from now on, notes loaded meanwhile keep it away
     this.startRequest(id);
-    this.http.delete(`/api/v1/notes/${id}`).subscribe({
+    const timer = setTimeout(() => this.deleteNow(), UNDO_DELETE_MS);
+    this.pendingDelete = { note, unsavedText, timer };
+    this.deleted.set(note);
+  }
+
+  // brings the note deleted last back, as long as the backend has not deleted it
+  undoRemove(): void {
+    const pending = this.pendingDelete;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingDelete = null;
+    this.deleted.set(null);
+    this.finishRequest(pending.note.id);
+    this.restore(pending.note);
+    if (pending.unsavedText) this.save(pending.note.id);
+  }
+
+  private deleteNow(): void {
+    const pending = this.pendingDelete;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingDelete = null;
+    this.deleted.set(null);
+    const { note } = pending;
+    this.http.delete(`/api/v1/notes/${note.id}`).subscribe({
       error: () => {
-        this.finishRequest(id);
-        this.all.set(notes);
-        this.countNotes(1);
+        this.finishRequest(note.id);
+        this.restore(note);
         this.error.set('The note could not be deleted.');
       },
-      complete: () => this.finishRequest(id),
+      complete: () => this.finishRequest(note.id),
     });
+  }
+
+  private restore(note: Note): void {
+    this.changedWhileLoading?.add(note.id);
+    this.all.update((notes) => [...notes, note].sort(newestFirst));
+    this.countNotes(1);
   }
 
   // saves the note as it is now; the answer brings the time it was saved, what was changed
@@ -401,10 +451,25 @@ export class NotesStore {
       });
   }
 
-  // saves the notes whose text waits for typing to pause with requests the browser finishes after
-  // the page is gone (keepalive), their answers are not waited for
-  private saveTextLeaving(): void {
+  // saves the notes whose text waits for typing to pause and deletes the note deleted last with
+  // requests the browser finishes after the page is gone (keepalive), their answers are not waited
+  // for
+  private saveLeaving(): void {
     const token = this.auth.token();
+    const pending = this.pendingDelete;
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingDelete = null;
+      this.deleted.set(null);
+      void fetch(apiUrl(`/api/v1/notes/${pending.note.id}`), {
+        method: 'DELETE',
+        keepalive: true,
+        headers: {
+          ...SERVICE_WORKER_BYPASS,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }).catch(() => undefined);
+    }
     for (const id of [...this.pendingText.keys()]) {
       clearTimeout(this.pendingText.get(id));
       this.pendingText.delete(id);
