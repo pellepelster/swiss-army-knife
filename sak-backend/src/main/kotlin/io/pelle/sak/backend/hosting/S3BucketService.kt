@@ -27,6 +27,12 @@ sealed interface CreateBucketResult {
     data object DomainTaken : CreateBucketResult
 }
 
+sealed interface DeleteBucketResult {
+    data object Deleted : DeleteBucketResult
+
+    data object NotFound : DeleteBucketResult
+}
+
 sealed interface UpdateDomainsResult {
     data class Updated(
         val bucket: S3Bucket,
@@ -131,7 +137,15 @@ class S3BucketService(
             return UpdateDomainsResult.DomainTaken
         }
         changed()
-        return UpdateDomainsResult.Updated(bucket.copy(domains = normalized))
+        return UpdateDomainsResult.Updated(repository.byName(name) ?: bucket.copy(domains = normalized))
+    }
+
+    // the bucket stays as deleted and is served nowhere any more, its key pair is refused; its name
+    // stays taken and its objects stay in the storage until it is purged
+    fun delete(name: String): DeleteBucketResult {
+        if (!repository.delete(name)) return DeleteBucketResult.NotFound
+        changed()
+        return DeleteBucketResult.Deleted
     }
 
     private sealed interface DomainCheck {

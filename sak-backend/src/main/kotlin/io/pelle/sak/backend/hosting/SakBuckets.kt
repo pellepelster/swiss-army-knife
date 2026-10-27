@@ -17,6 +17,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
@@ -67,6 +68,7 @@ fun Route.buckets(
             domains,
             bucketService.subdomain(name),
             createdAt.toString(),
+            updatedAt?.toString(),
             statistics.response(name),
         )
 
@@ -130,6 +132,30 @@ fun Route.buckets(
                 HttpStatusCode.Conflict,
                 "A bucket of the name exists, <name>.<root_domain> is already served, or another bucket is served at one of the domains",
             )
+        }
+    }
+
+    delete("/{bucket}") {
+        when (withContext(Dispatchers.IO) { bucketService.delete(call.parameters["bucket"].orEmpty()) }) {
+            DeleteBucketResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+            DeleteBucketResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+        }
+    }.describe {
+        tag(S3_TAG)
+        summary = "Delete a bucket"
+        description =
+            "The bucket is no longer served and its key pair is refused. Its name stays taken and its objects stay " +
+            "in the storage until it is purged."
+        parameters {
+            path("bucket") {
+                description = "The name of the bucket"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.NoContent { description = "The bucket is deleted" }
+            HttpStatusCode.NotFound { description = "Unknown bucket" }
         }
     }
 

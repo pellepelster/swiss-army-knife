@@ -58,12 +58,12 @@ import { RedirectsService } from './redirects.service';
             {{ redirect.createdAt | localDateTime: 'medium' : 'short' }}
           </dd>
         </div>
-        <div>
-          <dt>Updated</dt>
-          <dd data-testid="updated">
-            {{ redirect.updatedAt | localDateTime: 'medium' : 'short' }}
-          </dd>
-        </div>
+        @if (redirect.updatedAt; as updatedAt) {
+          <div>
+            <dt>Updated</dt>
+            <dd data-testid="updated">{{ updatedAt | localDateTime: 'medium' : 'short' }}</dd>
+          </div>
+        }
         <div>
           <dt>Leads to</dt>
           <dd class="mono" data-testid="location">

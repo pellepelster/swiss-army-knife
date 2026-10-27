@@ -36,7 +36,7 @@ class FileServiceTest {
         val content = Media.JPEG + "a photo".toByteArray()
 
         val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>().file
-        file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), clock.instant())
+        file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
         service.path(file) shouldBe dir.resolve(file.sha256.take(2)).resolve(file.sha256)
         Files.readAllBytes(service.path(file)) shouldBe content
         service.byId("pelle@pelle.io", file.id) shouldBe file

@@ -273,7 +273,7 @@ class SakAppsTest {
             val list = get(port, "/api/v1/static-hosting", session).body()
             val bucket = get(port, "/api/v1/static-hosting/created", session)
             bucket.statusCode() shouldBe 200
-            bucket.json().keys shouldBe setOf("name", "domains", "subdomain", "createdAt", "statistics")
+            bucket.json().keys shouldBe setOf("name", "domains", "subdomain", "createdAt", "updatedAt", "statistics")
             bucket.json().string("subdomain") shouldBe "created.example.org"
             get(port, "/api/v1/static-hosting/unknown", session).statusCode() shouldBe 404
 
@@ -640,6 +640,12 @@ class SakAppsTest {
             domains(get(port, "/api/v1/static-hosting/site", session)) shouldBe listOf("example.org")
             put("/api/v1/static-hosting/site/domains", """{"domains":["no domain"]}""").statusCode() shouldBe 400
             put("/api/v1/static-hosting/unknown/domains", """{"domains":[]}""").statusCode() shouldBe 404
+
+            // a deleted bucket is gone, its name stays taken
+            delete(port, "/api/v1/static-hosting/site", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/static-hosting/site", session).statusCode() shouldBe 404
+            get(port, "/api/v1/static-hosting/site", session).statusCode() shouldBe 404
+            post(port, "/api/v1/static-hosting", """{"name":"site"}""", session).statusCode() shouldBe 409
         }
     }
 

@@ -14,7 +14,8 @@ export interface Redirect {
   target: RedirectTarget;
   location?: string | null;
   createdAt: string;
-  updatedAt: string;
+  // missing until it is changed
+  updatedAt: string | null;
 }
 
 // the domains caddy redirects

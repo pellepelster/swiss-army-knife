@@ -42,7 +42,7 @@ class RedirectServiceTest {
     fun `redirects to external domains and to the domain a bucket is served at`() {
         val external = service.create("Example.COM", RedirectTarget.Domain("Other.example.net"))
         external.shouldBeInstanceOf<CreateRedirectResult.Created>().redirect shouldBe
-            Redirect("example.com", RedirectTarget.Domain("other.example.net"), clock.instant(), clock.instant())
+            Redirect("example.com", RedirectTarget.Domain("other.example.net"), clock.instant(), null)
         service.create("example.de", RedirectTarget.Bucket("site")).shouldBeInstanceOf<CreateRedirectResult.Created>()
 
         service.all().map { it.sourceDomain to service.location(it.target) } shouldBe

@@ -62,7 +62,6 @@ class LabelRepository(
                 .insertInto(LABELS)
                 .set(LABELS.NAME, name)
                 .set(LABELS.CREATED_AT, now)
-                .set(LABELS.UPDATED_AT, now)
                 .returning()
                 .fetchOne()
                 ?.toLabel()
@@ -93,7 +92,6 @@ class LabelRepository(
         val now = clock.instant()
         return database.dsl
             .update(LABELS)
-            .set(LABELS.UPDATED_AT, now)
             .set(LABELS.DELETED_AT, now)
             .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
             .execute() > 0
@@ -104,6 +102,6 @@ class LabelRepository(
             id = id!!,
             name = name!!,
             createdAt = createdAt!!,
-            updatedAt = updatedAt!!,
+            updatedAt = updatedAt,
         )
 }

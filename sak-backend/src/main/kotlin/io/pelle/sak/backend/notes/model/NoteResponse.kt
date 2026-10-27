@@ -13,5 +13,6 @@ data class NoteResponse(
     val photos: List<PhotoResponse>,
     val recordings: List<RecordingResponse>,
     val createdAt: String,
-    val updatedAt: String,
+    // missing until it is changed
+    val updatedAt: String?,
 )

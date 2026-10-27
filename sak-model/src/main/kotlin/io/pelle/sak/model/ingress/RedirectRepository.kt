@@ -15,6 +15,7 @@ class RedirectRepository(
     fun all(): List<Redirect> =
         database.dsl
             .selectFrom(REDIRECTS)
+            .where(REDIRECTS.DELETED_AT.isNull)
             .orderBy(REDIRECTS.SOURCE_DOMAIN)
             .fetch()
             .map { it.toRedirect() }
@@ -22,11 +23,11 @@ class RedirectRepository(
     fun byId(sourceDomain: String): Redirect? =
         database.dsl
             .selectFrom(REDIRECTS)
-            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
+            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)
             .fetchOne()
             ?.toRedirect()
 
-    // null when the source has a redirect already
+    // null when the source has a redirect already, one that is not deleted
     fun insert(
         sourceDomain: String,
         target: RedirectTarget,
@@ -40,7 +41,6 @@ class RedirectRepository(
                 .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
                 .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
                 .set(REDIRECTS.CREATED_AT, now)
-                .set(REDIRECTS.UPDATED_AT, now)
                 .returning()
                 .fetchOne()
                 ?.toRedirect()
@@ -59,16 +59,17 @@ class RedirectRepository(
             .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
             .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
             .set(REDIRECTS.UPDATED_AT, clock.instant())
-            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
+            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)
             .returning()
             .fetchOne()
             ?.toRedirect()
 
-    // false when there was none
+    // the redirect stays as deleted, its domain can be redirected again; false when there was none
     fun delete(sourceDomain: String): Boolean =
         database.dsl
-            .deleteFrom(REDIRECTS)
-            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
+            .update(REDIRECTS)
+            .set(REDIRECTS.DELETED_AT, clock.instant())
+            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)
             .execute() > 0
 
     private fun RedirectTarget.type() =
@@ -87,7 +88,7 @@ class RedirectRepository(
                     else -> error("redirect of '$sourceDomain' has the unknown target type '$targetType'")
                 },
             createdAt = createdAt!!,
-            updatedAt = updatedAt!!,
+            updatedAt = updatedAt,
         )
 
     companion object {

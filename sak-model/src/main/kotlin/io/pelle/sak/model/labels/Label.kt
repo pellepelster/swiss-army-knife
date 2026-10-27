@@ -8,7 +8,7 @@ data class Label(
     val id: Int,
     val name: String,
     val createdAt: Instant,
-    val updatedAt: Instant,
+    val updatedAt: Instant?,
 )
 
 // what renaming a label came to

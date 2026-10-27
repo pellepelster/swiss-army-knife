@@ -11,6 +11,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
 import io.kotest.matchers.shouldNotBe
+import java.time.Clock
+import java.time.ZoneOffset
 
 class RedirectRepositoryTest {
     @TempDir
@@ -41,5 +43,23 @@ class RedirectRepositoryTest {
         shouldThrow<DataAccessException> { insert("OTHER", "example.org", null) }
         shouldThrow<DataAccessException> { insert("BUCKET", null, "unknown") }
         insert("BUCKET", null, "site") shouldBe 1
+    }
+
+    @Test
+    fun `deletes redirects softly, the domain can be redirected again`() {
+        val now = Instant.parse("2026-10-27T08:00:00Z")
+        val repository = RedirectRepository(database, Clock.fixed(now, ZoneOffset.UTC))
+        repository.insert("example.com", RedirectTarget.Domain("example.org"))!!.updatedAt shouldBe null
+        repository.update("example.com", RedirectTarget.Domain("example.net"))!!.updatedAt shouldBe now
+
+        repository.delete("example.com") shouldBe true
+        repository.delete("example.com") shouldBe false
+        repository.byId("example.com") shouldBe null
+        repository.all() shouldBe emptyList()
+        repository.update("example.com", RedirectTarget.Domain("example.org")) shouldBe null
+
+        repository.insert("example.com", RedirectTarget.Domain("example.de"))!!.target shouldBe RedirectTarget.Domain("example.de")
+        repository.insert("example.com", RedirectTarget.Domain("example.at")) shouldBe null
+        database.dsl.fetchCount(REDIRECTS) shouldBe 2
     }
 }

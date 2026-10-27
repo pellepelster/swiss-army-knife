@@ -131,4 +131,19 @@ class S3BucketServiceTest {
         service.byName("site")!!.domains shouldBe emptyList()
         changes.size shouldBe 2
     }
+
+    @Test
+    fun `deletes buckets softly, their name stays taken and their domains are free`() {
+        service.create("site", listOf("example.com"))
+        changes.clear()
+
+        service.delete("site") shouldBe DeleteBucketResult.Deleted
+        service.delete("site") shouldBe DeleteBucketResult.NotFound
+        changes shouldBe listOf("changed")
+
+        service.byName("site") shouldBe null
+        service.all() shouldBe emptyList()
+        service.create("site") shouldBe CreateBucketResult.NameTaken
+        service.create("other", listOf("example.com")).shouldBeInstanceOf<CreateBucketResult.Created>()
+    }
 }

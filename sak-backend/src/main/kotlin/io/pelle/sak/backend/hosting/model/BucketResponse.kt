@@ -11,5 +11,7 @@ data class BucketResponse(
     // which were allowed before
     val subdomain: String? = null,
     val createdAt: String,
+    // missing until its domains are changed
+    val updatedAt: String? = null,
     val statistics: BucketStatisticsResponse,
 )

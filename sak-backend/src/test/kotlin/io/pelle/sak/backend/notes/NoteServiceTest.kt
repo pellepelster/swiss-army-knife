@@ -63,7 +63,8 @@ class NoteServiceTest {
         note.color shouldBe NoteColor.PINK
         note.labels.map { it.name } shouldBe listOf("home", "todo")
         note.createdAt shouldBe clock.now
-        note.updatedAt shouldBe clock.now
+        // a new note is not changed yet
+        note.updatedAt shouldBe null
         service.byId(PELLE, note.id) shouldBe note
         labels.page(0, 10).items.map { it.name } shouldBe listOf("home", "todo")
     }

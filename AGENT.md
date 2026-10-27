@@ -2,7 +2,14 @@
 
 ## Persistence (`sak-model`)
 
-- Every entity has `created`, `updated` and `deleted` (soft delete) timestamps.
+- Every table, link tables included, has `created_at`, `updated_at` and `deleted_at` (`SchemaTest`
+  checks it):
+  - `created_at` is set when the row is inserted, never null;
+  - `updated_at` is null until the row really changes, an insert never sets it;
+  - `deleted_at` is null until the row is deleted, a delete sets nothing else.
+- Every entity supports soft delete only, no row is ever deleted for real: every read skips the
+  rows with `deleted_at` set, a value unique among the live rows has a partial unique index
+  (`WHERE deleted_at IS NULL`). A deleted bucket keeps its name taken until it is purged.
 - The repository sets them, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
   fields and answer the row as it is stored.

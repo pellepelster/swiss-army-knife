@@ -244,6 +244,29 @@ describe('Hosting', () => {
     expect(page().querySelector('[role=alert]')?.textContent).toContain('There is no such bucket.');
   });
 
+  it('deletes a bucket from its toolbar after a second click only', async () => {
+    await open('/static-hosting/site');
+    http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=updated]')).toBeNull();
+
+    button('Delete the bucket site').click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'DELETE' });
+    button('Keep').click();
+    await harness.fixture.whenStable();
+    button('Delete the bucket site').click();
+    await harness.fixture.whenStable();
+    button('Delete').click();
+
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/static-hosting/site' })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/static-hosting');
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=50').flush(pageOf([]));
+  });
+
   it('fetches the key pair once for the credentials and the publishing tab', async () => {
     await open('/static-hosting/site/credentials');
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));

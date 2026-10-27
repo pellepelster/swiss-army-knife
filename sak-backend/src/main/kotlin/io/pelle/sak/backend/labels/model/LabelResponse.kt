@@ -7,5 +7,6 @@ data class LabelResponse(
     val id: Int,
     val name: String,
     val createdAt: String,
-    val updatedAt: String,
+    // missing until it is changed
+    val updatedAt: String?,
 )

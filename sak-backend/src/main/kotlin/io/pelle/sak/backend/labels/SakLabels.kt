@@ -37,7 +37,7 @@ private const val LABELS_TAG = "labels"
 const val INVALID_LABEL_NAME = "A label name must have 1 to ${LabelService.MAX_NAME_LENGTH} characters and no control characters."
 private const val LABEL_EXISTS = "A label of the name exists."
 
-fun Label.response() = LabelResponse(id, name, createdAt.toString(), updatedAt.toString())
+fun Label.response() = LabelResponse(id, name, createdAt.toString(), updatedAt?.toString())
 
 // the id of the path, null after answering 404 when it is no number
 suspend fun RoutingCall.idParameter(): Int? =

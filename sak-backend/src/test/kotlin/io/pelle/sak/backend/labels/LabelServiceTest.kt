@@ -38,7 +38,7 @@ class LabelServiceTest {
     @Test
     fun `creates labels with normalized names, unique among the ones not deleted`() {
         val label = create("  Home   Office ")
-        label shouldBe Label(label.id, "home office", clock.now, clock.now)
+        label shouldBe Label(label.id, "home office", clock.now, null)
 
         service.create("HOME office") shouldBe CreateLabelResult.Exists
         for (name in listOf("", "   ", "a".repeat(65), "bell\u0007")) {

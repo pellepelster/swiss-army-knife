@@ -61,7 +61,6 @@ class FileRepository(
             .set(FILES.SIZE, size)
             .set(FILES.UPLOADED_BY, uploadedBy)
             .set(FILES.CREATED_AT, now)
-            .set(FILES.UPDATED_AT, now)
             .returning()
             .fetchOne()!!
             .toFile()
@@ -75,7 +74,7 @@ class FileRepository(
             size = size!!,
             uploadedBy = uploadedBy!!,
             createdAt = createdAt!!,
-            updatedAt = updatedAt!!,
+            updatedAt = updatedAt,
             discovered = discovered,
         )
 }

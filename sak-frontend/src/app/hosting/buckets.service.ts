@@ -22,6 +22,8 @@ export interface Bucket {
   // which were allowed before
   subdomain?: string;
   createdAt: string;
+  // missing until its domains are changed
+  updatedAt?: string | null;
   statistics: BucketStatistics;
 }
 
@@ -65,6 +67,11 @@ export class BucketsService {
 
   create(name: string, domains: string[]): Observable<Bucket> {
     return this.http.post<Bucket>('/api/v1/static-hosting', { name, domains });
+  }
+
+  // it is no longer served and its key pair is refused, its objects stay
+  delete(name: string): Observable<void> {
+    return this.http.delete<void>(`/api/v1/static-hosting/${encodeURIComponent(name)}`);
   }
 
   // serves the bucket at the domains instead of its current ones

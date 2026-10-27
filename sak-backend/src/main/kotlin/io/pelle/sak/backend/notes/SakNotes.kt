@@ -52,7 +52,7 @@ private fun Note.response() =
         photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
         recordings.map { RecordingResponse(it, fileUrl(it), thumbnailUrl(it)) },
         createdAt.toString(),
-        updatedAt.toString(),
+        updatedAt?.toString(),
     )
 
 private fun NoteProblem.message() =

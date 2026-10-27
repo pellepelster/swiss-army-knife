@@ -29,6 +29,8 @@ class LabelRepositoryTest {
         repository.delete(home.id) shouldBe false
         repository.byId(home.id) shouldBe null
         database.dsl.fetchCount(LABELS) shouldBe 1
+        // deleting is no change, only deleted_at is set
+        database.dsl.selectFrom(LABELS).fetchOne()!!.updatedAt shouldBe null
         repository.insert("home")!!.id shouldBe home.id + 1
     }
 

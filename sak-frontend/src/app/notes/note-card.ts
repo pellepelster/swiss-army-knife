@@ -162,8 +162,8 @@ interface Media {
           ></button>
         }
       </div>
-      <time class="note-time" [attr.datetime]="note().updated.toISOString()">
-        {{ note().updated | localDateTime }}
+      <time class="note-time" [attr.datetime]="(note().updated ?? note().created).toISOString()">
+        {{ note().updated ?? note().created | localDateTime }}
       </time>
       <input
         #camera

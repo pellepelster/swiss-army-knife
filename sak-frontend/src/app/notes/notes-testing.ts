@@ -26,7 +26,7 @@ export const noteResponse = (
     thumbnailUrl: `/api/v1/files/${id}/thumbnail`,
   })),
   createdAt: CREATED,
-  updatedAt: CREATED,
+  updatedAt: null,
 });
 
 // what a list endpoint answers with the items

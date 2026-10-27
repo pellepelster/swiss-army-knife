@@ -38,7 +38,8 @@ data class Note(
     val photos: List<Int>,
     val recordings: List<Int>,
     val createdAt: Instant,
-    val updatedAt: Instant,
+    // null until the note is changed
+    val updatedAt: Instant?,
 )
 
 enum class NoteProblem {

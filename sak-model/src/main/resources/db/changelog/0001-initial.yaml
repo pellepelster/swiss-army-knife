@@ -3,13 +3,17 @@
 # has no element for check constraints, the table with one is created with plain sql. The unique
 # indexes over the rows that are not deleted only are partial ones in plain sql for sqlite only,
 # jooq generates its classes from the schema in h2, which knows no partial indexes.
+# Every table has created_at, set when the row is inserted, updated_at, null until the row is
+# changed, and deleted_at, null until the row is deleted; no row is ever deleted for real
+# (SchemaTest).
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
       author: sak
       changes:
         # the buckets of the s3 api, each with the key pair that may access it; the secret is
-        # stored as is, sigv4 needs it to verify the requests
+        # stored as is, sigv4 needs it to verify the requests. A deleted bucket stays as a row with
+        # deleted_at set, its name stays taken until it is purged
         - createTable:
             tableName: s3_buckets
             columns:
@@ -36,17 +40,30 @@ databaseChangeLog:
                   type: timestamp
                   constraints:
                     nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
 
         # the domains a bucket is served at, in their order, the first is where redirects to the
-        # bucket lead; a domain belongs to one bucket at most
+        # bucket lead; a domain belongs to one bucket at most among the rows that are not deleted.
+        # The domains a bucket is no longer served at, and the ones of a deleted bucket, stay as
+        # rows with deleted_at set
         - createTable:
             tableName: s3_buckets_domains
             columns:
               - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
                   name: domain
                   type: varchar(253)
                   constraints:
-                    primaryKey: true
                     nullable: false
               - column:
                   name: bucket_name
@@ -55,39 +72,52 @@ databaseChangeLog:
                     nullable: false
                     foreignKeyName: s3_buckets_domains_bucket_name_fkey
                     references: s3_buckets(name)
-                    deleteCascade: true
               - column:
                   name: position
                   type: int
                   constraints:
                     nullable: false
-        - createIndex:
-            tableName: s3_buckets_domains
-            indexName: s3_buckets_domains_position_key
-            unique: true
-            columns:
               - column:
-                  name: bucket_name
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
               - column:
-                  name: position
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX s3_buckets_domains_domain_key ON s3_buckets_domains (domain) WHERE deleted_at IS NULL
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX s3_buckets_domains_position_key ON s3_buckets_domains (bucket_name, position) WHERE deleted_at IS NULL
 
         # the domains caddy redirects, each to an external domain or to the domain a bucket is
-        # served at; exactly the column of the target type is set
+        # served at; exactly the column of the target type is set. A deleted redirect stays as a
+        # row with deleted_at set, a domain is redirected once among the rows that are not deleted
         - sql:
             sql: >-
               CREATE TABLE redirects (
-                source_domain VARCHAR(253) NOT NULL PRIMARY KEY,
+                id INTEGER NOT NULL PRIMARY KEY,
+                source_domain VARCHAR(253) NOT NULL,
                 target_type VARCHAR(16) NOT NULL,
                 target_domain VARCHAR(253),
                 target_bucket VARCHAR(63),
                 created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
                 CONSTRAINT redirects_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES s3_buckets (name),
                 CONSTRAINT redirects_target_check CHECK (
                   (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
                   OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)
                 )
               )
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX redirects_source_domain_key ON redirects (source_domain) WHERE deleted_at IS NULL
 
         # the labels every application can attach to its entities, each application links them in
         # a table of its own. A deleted label stays as a row with deleted_at set; the name is
@@ -114,8 +144,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: timestamp
-                  constraints:
-                    nullable: false
               - column:
                   name: deleted_at
                   type: timestamp
@@ -164,8 +192,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: timestamp
-                  constraints:
-                    nullable: false
               - column:
                   name: deleted_at
                   type: timestamp
@@ -207,8 +233,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: timestamp
-                  constraints:
-                    nullable: false
               - column:
                   name: deleted_at
                   type: timestamp
@@ -253,8 +277,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: timestamp
-                  constraints:
-                    nullable: false
               - column:
                   name: deleted_at
                   type: timestamp
@@ -302,8 +324,6 @@ databaseChangeLog:
               - column:
                   name: updated_at
                   type: timestamp
-                  constraints:
-                    nullable: false
               - column:
                   name: deleted_at
                   type: timestamp

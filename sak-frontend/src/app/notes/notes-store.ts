@@ -19,7 +19,8 @@ export interface Note {
   readonly photos: readonly number[];
   readonly recordings: readonly number[];
   readonly created: Date;
-  readonly updated: Date;
+  // null until the note is changed
+  readonly updated: Date | null;
 }
 
 // what the api answers, the labels are the shared ones
@@ -31,7 +32,7 @@ interface NoteResponse {
   photos: { id: number; url: string; thumbnailUrl: string }[];
   recordings: { id: number; url: string; thumbnailUrl: string }[];
   createdAt: string;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 // the most labels a note has, the backend takes no more
@@ -367,7 +368,7 @@ export class NotesStore {
         next: (response) => {
           this.error.set(null);
           this.all.update((notes) =>
-            notes.map((n) => (n.id === id ? { ...n, updated: new Date(response.updatedAt) } : n)),
+            notes.map((n) => (n.id === id ? { ...n, updated: toDate(response.updatedAt) } : n)),
           );
         },
         error: () => {
@@ -455,6 +456,10 @@ function toNote(response: NoteResponse): Note {
     photos: response.photos.map((photo) => photo.id),
     recordings: response.recordings.map((recording) => recording.id),
     created: new Date(response.createdAt),
-    updated: new Date(response.updatedAt),
+    updated: toDate(response.updatedAt),
   };
+}
+
+function toDate(value: string | null): Date | null {
+  return value === null ? null : new Date(value);
 }

@@ -12,6 +12,6 @@ data class StoredFile(
     val size: Long,
     val uploadedBy: String,
     val createdAt: Instant,
-    val updatedAt: Instant,
+    val updatedAt: Instant?,
     val discovered: String? = null,
 )

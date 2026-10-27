@@ -21,7 +21,7 @@ data class NoteRow(
     val labelIds: Set<Int>,
     val files: List<Int>,
     val createdAt: Instant,
-    val updatedAt: Instant,
+    val updatedAt: Instant?,
 )
 
 // the database access of the notes and the links to their labels and files, only NoteService
@@ -86,7 +86,6 @@ class NoteRepository(
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.CREATED_AT, now)
-                    .set(NOTES.UPDATED_AT, now)
                     .returning()
                     .fetchOne()!!
             labelIds.forEach { insertLabel(dsl, note.id!!, it, now) }
@@ -132,7 +131,6 @@ class NoteRepository(
             val deleted =
                 dsl
                     .update(NOTES)
-                    .set(NOTES.UPDATED_AT, now)
                     .set(NOTES.DELETED_AT, now)
                     .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
                     .execute() > 0
@@ -189,7 +187,6 @@ class NoteRepository(
             .set(NOTES_LABELS.NOTE_ID, noteId)
             .set(NOTES_LABELS.LABEL_ID, labelId)
             .set(NOTES_LABELS.CREATED_AT, now)
-            .set(NOTES_LABELS.UPDATED_AT, now)
             .execute()
     }
 
@@ -201,7 +198,6 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_LABELS)
-            .set(NOTES_LABELS.UPDATED_AT, now)
             .set(NOTES_LABELS.DELETED_AT, now)
             .where(condition, NOTES_LABELS.DELETED_AT.isNull)
             .execute()
@@ -250,7 +246,6 @@ class NoteRepository(
             .set(NOTES_FILES.FILE_ID, fileId)
             .set(NOTES_FILES.POSITION, position)
             .set(NOTES_FILES.CREATED_AT, now)
-            .set(NOTES_FILES.UPDATED_AT, now)
             .execute()
     }
 
@@ -262,7 +257,6 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_FILES)
-            .set(NOTES_FILES.UPDATED_AT, now)
             .set(NOTES_FILES.DELETED_AT, now)
             .where(condition, NOTES_FILES.DELETED_AT.isNull)
             .execute()
@@ -302,6 +296,6 @@ class NoteRepository(
             labelIds = labelIds,
             files = files,
             createdAt = createdAt!!,
-            updatedAt = updatedAt!!,
+            updatedAt = updatedAt,
         )
 }
