@@ -1,5 +1,7 @@
 package io.pelle.sak.backend
 
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.createRouteScopedPlugin
@@ -8,6 +10,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
+import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.openapi.hide
@@ -37,6 +40,7 @@ import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
 import io.pelle.sak.logs.sites
+import java.net.URI
 
 const val API_PATH_PREFIX = "/api"
 
@@ -46,17 +50,26 @@ const val API_VERSION = "/v1"
 const val API_MAX_BODY_SIZE = 16L * 1024
 
 // what caddy lets through to sak-frontend at most, a file of the file storage with room to
-// spare; uploads to buckets go to the s3 host
+// spare; uploads to buckets go to the s3 api at api.<root_domain>, without a limit
 const val APPS_MAX_BODY_SIZE = FileService.DEFAULT_MAX_SIZE + 1024L * 1024
+
+// how long a browser keeps the answer to a preflight request
+private const val CORS_MAX_AGE_SECONDS = 24L * 60 * 60
 
 // sak-frontend packages its build below this resource path
 const val FRONTEND_RESOURCES = "frontend"
 
-// blob: are the files of the file storage, fetched with the session and shown as object urls
-const val CONTENT_SECURITY_POLICY =
+// the pages call the api at api.<root_domain>; blob: are the files of the file storage, fetched
+// with the session and shown as object urls
+fun contentSecurityPolicy(config: SakConfig) =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-        "media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; " +
-        "frame-ancestors 'none'"
+        "media-src 'self' blob:; connect-src 'self' https://${config.apiHost}; object-src 'none'; base-uri 'self'; " +
+        "form-action 'self'; frame-ancestors 'none'"
+
+// the origins sak-frontend is served from, apps.<root_domain> and the one of its login links,
+// e.g. the dev server; only they may call the api from another origin
+fun frontendOrigins(config: SakConfig): Set<URI> =
+    setOf(URI("https://${config.appsHost}"), URI(config.frontendUrl).let { URI(it.scheme, null, it.host, it.port, null, null, null) })
 
 // the apps the login links lead to, sak-frontend; the mails say "Sign in to <root_domain>"
 fun loginApps(config: SakConfig): Map<String, LoginApp> = mapOf(FRONTEND_APP to LoginApp(config.frontendUrl, config.rootDomain))
@@ -67,17 +80,23 @@ fun signingKeyFile(config: SakConfig) = config.authDataDir.resolve("signing-key.
 
 // the session token lives in the local storage of sak-frontend, scripts from anywhere else must
 // never run on its pages; no referrer keeps the login token of the signin url to itself
+private class SecurityHeadersConfig {
+    var contentSecurityPolicy = ""
+}
+
 private val SecurityHeaders =
-    createRouteScopedPlugin("SecurityHeaders") {
+    createRouteScopedPlugin("SecurityHeaders", ::SecurityHeadersConfig) {
+        val contentSecurityPolicy = pluginConfig.contentSecurityPolicy
         onCall { call ->
-            call.response.header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+            call.response.header("Content-Security-Policy", contentSecurityPolicy)
             call.response.header("Referrer-Policy", "no-referrer")
             call.response.header("X-Content-Type-Options", "nosniff")
         }
     }
 
-// sak-frontend and its api, caddy proxies apps.<root_domain> here unchanged; everything that can
-// fail happens before anything is installed, so a failure leaves no half an app behind
+// sak-frontend and its api, caddy proxies apps.<root_domain> here unchanged and api.<root_domain>/v1
+// below /api; everything that can fail happens before anything is installed, so a failure leaves
+// no half an app behind
 fun Application.apps(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
@@ -99,9 +118,18 @@ fun Application.apps(
 
     install(Authentication) { session(tokens, rolesOf) }
 
+    // the session travels in the authorization header, never in a cookie, so no credentials
+    install(CORS) {
+        frontendOrigins(config).forEach { allowHost(it.authority, schemes = listOf(it.scheme)) }
+        listOf(HttpMethod.Put, HttpMethod.Delete).forEach { allowMethod(it) }
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.ContentType)
+        maxAgeInSeconds = CORS_MAX_AGE_SECONDS
+    }
+
     routing {
         route("/") {
-            install(SecurityHeaders)
+            install(SecurityHeaders) { contentSecurityPolicy = contentSecurityPolicy(config) }
 
             route(API_PATH_PREFIX) {
                 install(RequestBodyLimit) { bodyLimit { API_MAX_BODY_SIZE } }

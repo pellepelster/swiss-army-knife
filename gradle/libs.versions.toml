@@ -43,6 +43,7 @@ ktor-server-body-limit = { module = "io.ktor:ktor-server-body-limit" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
 ktor-server-core = { module = "io.ktor:ktor-server-core" }
+ktor-server-cors = { module = "io.ktor:ktor-server-cors" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
 ktor-server-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }

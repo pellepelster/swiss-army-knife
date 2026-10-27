@@ -6,7 +6,14 @@
       "name": "app",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/favicon.svg", "/favicon-32.png", "/index.html", "/notes.webmanifest", "/*.css", "/*.js"]
+        "files": [
+          "/favicon.svg",
+          "/favicon-32.png",
+          "/index.html",
+          "/notes.webmanifest",
+          "/*.css",
+          "/*.js"
+        ]
       }
     },
     {
@@ -18,16 +25,13 @@
       }
     }
   ],
-  "dataGroups": [
-    {
-      "name": "thumbnails",
-      "urls": ["/api/v1/files/*/thumbnail"],
-      "cacheConfig": {
-        "strategy": "performance",
-        "maxSize": 500,
-        "maxAge": "30d"
-      }
-    }
-  ],
-  "navigationUrls": ["/**", "!/api/**", "!/swagger/**", "!/doc/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**"]
+  "navigationUrls": [
+    "/**",
+    "!/api/**",
+    "!/swagger/**",
+    "!/doc/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**"
+  ]
 }

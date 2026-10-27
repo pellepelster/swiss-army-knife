@@ -59,7 +59,10 @@ class SakAppsTest {
 
     private val http = HttpClient.newHttpClient()
 
-    private fun config(auth: Boolean = true): SakConfig {
+    private fun config(
+        auth: Boolean = true,
+        frontendUrl: String = APPS_URL,
+    ): SakConfig {
         val configFile = tempDir.resolve("config.yaml")
         Files.writeString(
             configFile,
@@ -73,7 +76,7 @@ class SakAppsTest {
                     "\n" +
                         """
                         auth:
-                          frontend_url: $APPS_URL
+                          frontend_url: $frontendUrl
                           admins:
                             - Admin@example.org
                           smtp:
@@ -228,7 +231,7 @@ class SakAppsTest {
             val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
-                listOf("s3", "apps", "redirect", "unmatched")
+                listOf("api", "apps", "redirect", "unmatched")
 
             // the link only works once
             post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
@@ -291,8 +294,8 @@ class SakAppsTest {
             post(port, "/api/v1/static-hosting", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"under_score"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"dot.ted"}""", session).statusCode() shouldBe 400
-            // s3.<root_domain> and apps.<root_domain> are the controller's own
-            post(port, "/api/v1/static-hosting", """{"name":"s3"}""", session).statusCode() shouldBe 400
+            // apps.<root_domain> and api.<root_domain> are the controller's own
+            post(port, "/api/v1/static-hosting", """{"name":"api"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"apps"}""", session).statusCode() shouldBe 400
 
             // neither the list nor the bucket carry its keys
@@ -733,7 +736,7 @@ class SakAppsTest {
                 val page = get(port, path)
                 page.statusCode() shouldBe 200
                 page.body() shouldContain "<app-root>"
-                page.headers().firstValue("Content-Security-Policy").get() shouldBe CONTENT_SECURITY_POLICY
+                page.headers().firstValue("Content-Security-Policy").get() shouldBe contentSecurityPolicy(config())
                 page.headers().firstValue("Referrer-Policy").get() shouldBe "no-referrer"
             }
 
@@ -747,6 +750,33 @@ class SakAppsTest {
     }
 
     @Test
+    fun `lets sak-frontend call the api from its origins only`() {
+        withServer(config(frontendUrl = "http://localhost:4200")) { port ->
+            fun preflight(origin: String) =
+                http.send(
+                    HttpRequest
+                        .newBuilder(URI.create("http://localhost:$port/api/v1/notes/1"))
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "PUT")
+                        .header("Access-Control-Request-Headers", "authorization,content-type")
+                        .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                        .build(),
+                    HttpResponse.BodyHandlers.discarding(),
+                )
+
+            listOf("https://apps.example.org", "http://localhost:4200").forEach { origin ->
+                preflight(origin).let {
+                    it.statusCode() shouldBe 200
+                    it.headers().firstValue("Access-Control-Allow-Origin").get() shouldBe origin
+                    it.headers().firstValue("Access-Control-Allow-Headers").get().lowercase() shouldContain "authorization"
+                }
+            }
+            preflight("https://evil.example.com").headers().firstValue("Access-Control-Allow-Origin").isPresent shouldBe false
+            contentSecurityPolicy(config()) shouldContain "connect-src 'self' https://api.example.org"
+        }
+    }
+
+    @Test
     fun `serves sak-frontend at every host, the console is one of its apps`() {
         withServer { port ->
             listOf("apps.example.org", "localhost").forEach { host ->
@@ -754,7 +784,7 @@ class SakAppsTest {
                     val page = getWithHost(port, host, path)
                     page shouldStartWith "HTTP/1.1 200"
                     page shouldContain "<title>Apps</title>"
-                    page shouldContain "Content-Security-Policy: $CONTENT_SECURITY_POLICY"
+                    page shouldContain "Content-Security-Policy: ${contentSecurityPolicy(config())}"
                 }
             }
             // the console's themed bootstrap is a stylesheet of its own, loaded with its pages
@@ -827,7 +857,7 @@ class SakAppsTest {
             val swagger = get(port, "/swagger/")
             swagger.statusCode() shouldBe 200
             swagger.body() shouldContain "swagger-initializer.js"
-            swagger.headers().firstValue("Content-Security-Policy").get() shouldBe CONTENT_SECURITY_POLICY
+            swagger.headers().firstValue("Content-Security-Policy").get() shouldBe contentSecurityPolicy(config())
             get(port, "/swagger/swagger-ui-bundle.js").statusCode() shouldBe 200
         }
     }

@@ -4,12 +4,14 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { authInterceptor } from './auth/auth.interceptor';
+import { apiUrlInterceptor } from './shared/api-url';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    // the session is added to the paths of the api, before they become urls of api.<root_domain>
+    provideHttpClient(withInterceptors([authInterceptor, apiUrlInterceptor])),
     // keeps the app on the phone, it starts without the network; only in the production build
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

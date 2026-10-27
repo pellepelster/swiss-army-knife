@@ -73,7 +73,7 @@ export class BucketsService {
   }
 }
 
-// the endpoint of the s3 api, s3. next to the apps of the frontend
+// the endpoint of the s3 api, api. next to the apps of the frontend
 export function s3Endpoint(hostname: string = location.hostname): string {
-  return `https://s3.${hostname.replace(/^apps\./, '')}`;
+  return `https://api.${hostname.replace(/^apps\./, '')}`;
 }

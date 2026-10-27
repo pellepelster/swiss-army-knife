@@ -31,6 +31,9 @@ data class SakConfig(
     // sak-frontend, its apps and their login
     val appsHost: String get() = "apps.$rootDomain"
 
+    // the api of sak-frontend below /v1 and the s3 api of the buckets
+    val apiHost: String get() = "api.$rootDomain"
+
     // the login links of sak-frontend point here
     val frontendUrl: String get() = auth?.frontendUrl ?: "https://$appsHost"
 

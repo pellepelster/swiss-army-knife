@@ -29,7 +29,11 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await expect(page).toHaveURL('/static-hosting/e2e-hosting/configuration');
   await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
   await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
-  await expect(page.getByTestId('domains')).toHaveText('https://hosting.example.org/');
+  // its domain and its subdomain of the root domain
+  await expect(page.getByTestId('domains').getByRole('listitem')).toHaveText([
+    'https://hosting.example.org/',
+    'https://e2e-hosting.example.org/',
+  ]);
 
   // the domains change on the edit page, the name can not
   await page.getByRole('link', { name: 'Edit', exact: true }).click();

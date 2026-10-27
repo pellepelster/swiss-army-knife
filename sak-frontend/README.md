@@ -1,9 +1,12 @@
 # sak-frontend
 
 The apps, each under a path of its own, served by sak-backend at `apps.<root_domain>`; the index
-page lists them and, under Administration, the console (`src/app/apps.ts`). Its build is packaged below `frontend/` in a jar the backend
-serves, the api is on the same origin under `/api/v1`. The pages use Bootstrap, the console has
-its own theme on top of it (see Console).
+page lists them and, under Administration, the console (`src/app/apps.ts`). Its build is packaged
+below `frontend/` in a jar the backend serves. The api is `/api/v1` of the backend; at
+`apps.<root_domain>` the frontend calls it at `api.<root_domain>/v1` (`shared/api-url.ts`, the
+backend lets that origin in with CORS), everywhere else, the dev server and the e2e tests, on the
+same origin. `api.<root_domain>` also serves the s3 api of the buckets at `/<bucket>/<key>`. The
+pages use Bootstrap, the console has its own theme on top of it (see Console).
 
 ## E-mail login
 
@@ -112,8 +115,8 @@ The notes can be installed as an app, on Android e.g. into the app drawer: the a
 an Install button when the browser allows it, Chrome's menu has "Install app" as well. The
 manifest (`public/notes.webmanifest`) opens the app at `/notes`, its scope is the whole frontend
 so the login stays in the app. Angular's service worker (`ngsw-config.json`, production builds
-only) keeps the app and the thumbnails on the device, it never answers below `/api` with the
-app, the notes always come from the backend.
+only) keeps the app on the device, it never answers below `/api` with the app, the notes and
+their files always come from the backend.
 
 The icons are drawn as svg in `public/` and rendered to png at the sizes the manifest names. The
 notes' icon is the `note-sticky` and the hosting's the `cloud` icon of

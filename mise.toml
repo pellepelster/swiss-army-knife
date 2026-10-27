@@ -209,7 +209,8 @@ cat <<ADDRESSES
 
   frontend   http://localhost:4200   the apps, the console at /console
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
-  ingress    https://apps.localhost  the apps behind caddy, its certificate is caddy's own
+  ingress    https://apps.localhost  the apps behind caddy, its certificate is caddy's own,
+             https://api.localhost   their api at /v1 and the s3 api of the buckets
   mailpit    http://localhost:8025   every login link arrives here
   logs       http://localhost:9428   victorialogs, vector ships the access log of the ingress
 

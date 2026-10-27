@@ -23,7 +23,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.s3Host
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.CreateRedirectResult
 import io.pelle.sak.model.ingress.DeleteRedirectResult
@@ -37,7 +36,7 @@ import kotlinx.coroutines.withContext
 private val logger = KotlinLogging.logger {}
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
-fun reservedDomains(config: SakConfig): Set<String> = setOf(s3Host(config), config.appsHost)
+fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.appsHost)
 
 // the domains every bucket is served at
 fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }

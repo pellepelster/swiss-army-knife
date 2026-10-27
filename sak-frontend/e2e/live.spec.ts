@@ -35,15 +35,15 @@ test('follows the requests as they arrive, pauses and searches the stored ones',
   await expect(page.getByTestId('follow-toggle')).toContainText('Pause');
 
   // a new request shows up with its time, site, path and status
-  appendAccessLog(request('s3', 'first', 404));
+  appendAccessLog(request('api', 'first', 404));
   await expect(row(page, 'first')).toBeVisible({ timeout: 20_000 });
-  await expect(row(page, 'first').getByRole('cell')).toHaveText([/\d{1,2}:\d\d:\d\d/, 's3', `/${run}/first`, '404']);
+  await expect(row(page, 'first').getByRole('cell')).toHaveText([/\d{1,2}:\d\d:\d\d/, 'api', `/${run}/first`, '404']);
 
   // paused, nothing new shows up until it follows again
   await page.getByTestId('follow-toggle').click();
   await expect(page.getByTestId('live-state')).toHaveText('Paused');
   await expect(page.getByTestId('follow-toggle')).toContainText('Follow');
-  appendAccessLog(request('s3', 'while-paused'));
+  appendAccessLog(request('api', 'while-paused'));
   await page.waitForTimeout(4_000);
   await expect(row(page, 'while-paused')).toHaveCount(0);
   await expect(row(page, 'first')).toBeVisible();
@@ -60,7 +60,7 @@ test('follows the requests as they arrive, pauses and searches the stored ones',
   await expect(page.getByTestId('live-state')).toHaveText('1 found');
   await expect(row(page, 'first')).toBeVisible();
   await expect(row(page, 'while-paused')).toHaveCount(0);
-  appendAccessLog(request('s3', 'while-searching'));
+  appendAccessLog(request('api', 'while-searching'));
   await page.waitForTimeout(4_000);
   await expect(row(page, 'while-searching')).toHaveCount(0);
 
@@ -76,11 +76,11 @@ test('follows the requests as they arrive, pauses and searches the stored ones',
 
 test('follows one site only', async ({ page }) => {
   await page.goto('/console/logs/live');
-  await page.getByLabel('Site', { exact: true }).selectOption('s3');
-  await expect(page).toHaveURL('/console/logs/live/s3');
+  await page.getByLabel('Site', { exact: true }).selectOption('api');
+  await expect(page).toHaveURL('/console/logs/live/api');
   await expect(page.getByTestId('live-state')).toHaveText('Live');
 
-  appendAccessLog(request('unmatched', 'elsewhere', 0), request('s3', 'here'));
+  appendAccessLog(request('unmatched', 'elsewhere', 0), request('api', 'here'));
 
   await expect(row(page, 'here')).toBeVisible({ timeout: 20_000 });
   await expect(row(page, 'elsewhere')).toHaveCount(0);
@@ -99,7 +99,7 @@ test('follows one site only', async ({ page }) => {
   await expect(page.getByTestId('live-state')).toHaveText('1 found');
   await page.reload();
   await expect(page.getByLabel('Rows')).toHaveValue('25');
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('s3');
+  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('api');
   await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue(`${run}/here`);
   await expect(page.getByTestId('live-state')).toHaveText('1 found');
 });

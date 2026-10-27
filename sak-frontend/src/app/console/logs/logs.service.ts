@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map } from 'rxjs';
 import { MAX_LIMIT, Page } from '../../shared/api';
+import { apiUrl } from '../../shared/api-url';
 import { AuthService } from '../../auth/auth.service';
 
 export interface LogEntry {
@@ -59,7 +60,7 @@ export class LogsService {
       const abort = new AbortController();
       const token = this.auth.token();
 
-      fetch(`/api/v1/logs/${encodeURIComponent(site)}/live`, {
+      fetch(apiUrl(`/api/v1/logs/${encodeURIComponent(site)}/live`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         signal: abort.signal,
       })

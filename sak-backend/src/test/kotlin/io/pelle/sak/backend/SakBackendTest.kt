@@ -167,7 +167,7 @@ class SakBackendTest {
                         httpRequest
                             .toBuilder()
                             .encodedPath("$S3_PATH_PREFIX${httpRequest.encodedPath()}")
-                            .putHeader("X-Forwarded-Host", "s3.example.org")
+                            .putHeader("X-Forwarded-Host", "api.example.org")
                             .build(),
                     ).build(),
             )

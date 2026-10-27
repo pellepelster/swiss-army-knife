@@ -1,8 +1,21 @@
 // swagger ui of the console api, served next to the console so it can use the console's session
-// for "try it out"; a file instead of an inline script, the content security policy forbids those
+// for "try it out"; a file instead of an inline script, the content security policy forbids those.
+// At apps.<root_domain> the api is api.<root_domain>/v1, like the apps call it (shared/api-url.ts)
+function apiUrl(url) {
+  const here = new URL(url, location.href);
+  if (here.origin !== location.origin || !here.pathname.startsWith('/api/v1/')) return url;
+  if (!location.hostname.startsWith('apps.')) return url;
+  const host = location.host.replace(/^apps\./, 'api.');
+  return `${location.protocol}//${host}/v1/${here.pathname.slice('/api/v1/'.length)}${here.search}`;
+}
+
 window.onload = function () {
   const ui = SwaggerUIBundle({
     url: 'openapi.json',
+    requestInterceptor: function (request) {
+      request.url = apiUrl(request.url);
+      return request;
+    },
     dom_id: '#swagger-ui',
     deepLinking: true,
     presets: [SwaggerUIBundle.presets.apis],

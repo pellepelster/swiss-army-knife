@@ -27,7 +27,7 @@ class SakCaddyTest {
     private val bucketDomains = mapOf("private" to emptyList(), "site" to listOf("example.org", "www.example.org"))
 
     @Test
-    fun `proxies s3 at the root domain, serves buckets at their domains, redirects and closes every other connection`() {
+    fun `proxies s3 at the api host, serves buckets at their domains, redirects and closes every other connection`() {
         val expected =
             """
             {
@@ -50,9 +50,9 @@ class SakCaddyTest {
                           "terminal": true
                         },
                         {
-                          "match": [{ "host": ["s3.example.org"] }],
+                          "match": [{ "host": ["api.example.org"] }],
                           "handle": [
-                            { "handler": "log_append", "key": "site", "value": "s3" },
+                            { "handler": "log_append", "key": "site", "value": "api" },
                             { "handler": "rewrite", "uri": "/s3{http.request.uri}" },
                             { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                           ],
@@ -112,11 +112,11 @@ class SakCaddyTest {
             .jsonObject["routes"]!!
             .jsonArray
 
-        routes[2] shouldBe
+        routes[1] shouldBe
             Json.parseToJsonElement(
                 """
                 {
-                  "match": [{ "host": ["apps.example.org"], "path": ["/s3", "/s3/*"] }],
+                  "match": [{ "host": ["apps.example.org"], "path": ["/s3", "/s3/*", "/api", "/api/*"] }],
                   "handle": [
                     { "handler": "log_append", "key": "site", "value": "apps" },
                     { "handler": "static_response", "status_code": 404 }
@@ -125,7 +125,7 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        routes[3] shouldBe
+        routes[2] shouldBe
             Json.parseToJsonElement(
                 """
                 {
@@ -143,9 +143,29 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        // http, s3, the two frontend routes, the site, unmatched; no redirects and no console
-        // host any more
-        routes.size shouldBe 6
+        // the api below /api of the controller
+        routes[3] shouldBe
+            Json.parseToJsonElement(
+                """
+                {
+                  "match": [{ "host": ["api.example.org"], "path": ["/v1", "/v1/*"] }],
+                  "handle": [
+                    { "handler": "log_append", "key": "site", "value": "api" },
+                    {
+                      "handler": "headers",
+                      "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
+                    },
+                    { "handler": "request_body", "max_size": 11534336 },
+                    { "handler": "rewrite", "uri": "/api{http.request.uri}" },
+                    { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
+                  ],
+                  "terminal": true
+                }
+                """.trimIndent(),
+            )
+        // http, the two frontend routes, the api, the s3 api, the site, unmatched; no redirects and
+        // no console host any more
+        routes.size shouldBe 7
     }
 
     @Test
@@ -196,7 +216,7 @@ class SakCaddyTest {
     @Test
     fun `buckets served at their domains are sites, the redirected domains belong to the redirect site`() {
         val sites = sites(config, bucketDomains, listOf("example.com"))
-        sites.map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
+        sites.map { it.id } shouldBe listOf("site", "api", "redirect", "unmatched")
         sites.first() shouldBe Site("site", listOf("example.org", "www.example.org"))
         sites[2] shouldBe Site("redirect", listOf("example.com"))
     }

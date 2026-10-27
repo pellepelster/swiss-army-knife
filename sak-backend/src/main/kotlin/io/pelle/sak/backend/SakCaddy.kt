@@ -15,8 +15,6 @@ import java.util.concurrent.TimeUnit
 
 const val S3_PATH_PREFIX = "/s3"
 
-fun s3Host(config: SakConfig) = "s3.${config.rootDomain}"
-
 fun bucketPath(bucket: String) = BlobPath(listOf("buckets", bucket))
 
 fun bucketObjectsDir(
@@ -56,34 +54,46 @@ fun caddyConfig(
                 terminal()
             }
 
+            if (config.auth != null) {
+                // sak-frontend, served by the controller; the api and the s3 api the controller
+                // serves as well belong to api.<root_domain> only
+                route {
+                    host(config.appsHost)
+                    path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*", API_PATH_PREFIX, "$API_PATH_PREFIX/*")
+                    logField(SITE_LOG_FIELD, APPS_SITE)
+                    respond(404)
+                    terminal()
+                }
+                route {
+                    host(config.appsHost)
+                    logField(SITE_LOG_FIELD, APPS_SITE)
+                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    maxRequestBodySize(APPS_MAX_BODY_SIZE)
+                    reverseProxy("localhost:$port")
+                    terminal()
+                }
+
+                // the api of sak-frontend, below /api of the controller; no bucket is named v1,
+                // bucket names have at least three characters
+                route {
+                    host(config.apiHost)
+                    path(API_VERSION, "$API_VERSION/*")
+                    logField(SITE_LOG_FIELD, API_SITE)
+                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    maxRequestBodySize(APPS_MAX_BODY_SIZE)
+                    rewrite("$API_PATH_PREFIX{http.request.uri}")
+                    reverseProxy("localhost:$port")
+                    terminal()
+                }
+            }
+
+            // everything else at api.<root_domain> is the s3 api, below /s3 of the controller
             route {
-                host(s3Host(config))
-                logField(SITE_LOG_FIELD, S3_SITE)
+                host(config.apiHost)
+                logField(SITE_LOG_FIELD, API_SITE)
                 rewrite("$S3_PATH_PREFIX{http.request.uri}")
                 reverseProxy("localhost:$port")
                 terminal()
-            }
-
-            if (config.auth != null) {
-                // sak-frontend, served by the controller
-                listOf(config.appsHost to APPS_SITE).forEach { (host, site) ->
-                    // the controller also serves the s3 api, which belongs to the s3 host only
-                    route {
-                        host(host)
-                        path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*")
-                        logField(SITE_LOG_FIELD, site)
-                        respond(404)
-                        terminal()
-                    }
-                    route {
-                        host(host)
-                        logField(SITE_LOG_FIELD, site)
-                        responseHeader("Strict-Transport-Security", "max-age=31536000")
-                        maxRequestBodySize(APPS_MAX_BODY_SIZE)
-                        reverseProxy("localhost:$port")
-                        terminal()
-                    }
-                }
             }
 
             bucketDomains

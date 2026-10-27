@@ -370,6 +370,6 @@ describe('Hosting', () => {
   });
 
   it('takes the endpoint from the host of the apps', () => {
-    expect(s3Endpoint('apps.pelle.io')).toBe('https://s3.pelle.io');
+    expect(s3Endpoint('apps.pelle.io')).toBe('https://api.pelle.io');
   });
 });
