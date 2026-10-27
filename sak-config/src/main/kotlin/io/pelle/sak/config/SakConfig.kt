@@ -18,7 +18,6 @@ data class SakConfig(
     val rootDomain: String,
     @SerialName("caddy_admin_url")
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
-    val redirects: Map<String, String> = emptyMap(),
     val s3: S3Config = S3Config(),
     // the console and its e-mail login are only served when configured
     val auth: AuthConfig? = null,

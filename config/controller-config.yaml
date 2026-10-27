@@ -5,12 +5,6 @@ ktor:
 sak:
   data_dir: /storage/data/controller/data
   root_domain: pelle.io
-  redirects:
-    solidblocks.de: pelle.io
-    krawallbu.de: pelle.io
-    krawallbude.de: pelle.io
-    pellepelster.de: pelle.io
-    sanne.li: pelle.io
   # the domains buckets are served at, the buckets and their keys are created in the console
   s3:
     buckets:

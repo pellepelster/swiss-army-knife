@@ -176,7 +176,7 @@ class SiteMetricsServiceTest {
             statusResponse = response(series("requests", mapOf("status" to "200"), Instant.now().epochSecond to 5))
             userAgentResponse = response()
             application {
-                routing { route("/api/v1/logs") { sites(listOf(site), service, logs) } }
+                routing { route("/api/v1/logs") { sites({ listOf(site) }, service, logs) } }
             }
 
             val sites = Json.parseToJsonElement(client.get("/api/v1/logs").bodyAsText()).jsonObject
@@ -210,7 +210,7 @@ class SiteMetricsServiceTest {
         testApplication {
             application {
                 routing {
-                    route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
+                    route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
                 }
             }
 

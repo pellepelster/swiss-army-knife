@@ -22,6 +22,7 @@ import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.model.ingress.RedirectService
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
@@ -65,9 +66,9 @@ fun Application.console(
     auth: SakConfig.AuthConfig,
     statistics: BucketStatisticsCache,
     bucketService: S3BucketService,
+    redirectService: RedirectService,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
-    val consoleSites = sites(config)
     val mailSender =
         with(auth.smtp) {
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
@@ -92,7 +93,7 @@ fun Application.console(
                         route("/logs") {
                             install(RequireRole) { role = Role.ADMIN }
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
-                            sites(consoleSites, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
+                            sites({ sites(config, redirectService.all().map { it.sourceDomain }) }, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
                         route("/buckets") {
                             install(RequireRole) { role = Role.ADMIN }

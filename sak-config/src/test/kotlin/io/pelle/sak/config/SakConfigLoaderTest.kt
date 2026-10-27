@@ -28,7 +28,6 @@ class SakConfigLoaderTest {
         config.dataDir shouldBe Path.of("/something")
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
-        config.redirects shouldBe mapOf("www.example.org" to "example.org")
         config.s3.buckets.keys shouldBe setOf("backups", "media")
         config.s3.buckets.getValue("backups").domains shouldBe emptyList()
         config.s3.buckets.getValue("media").domains shouldBe listOf("media.example.org")
@@ -123,8 +122,8 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `redirects default to none`() {
-        load("data_dir: /data\n$ROOT_DOMAIN$S3").redirects shouldBe emptyMap()
+    fun `fails on the redirects, they moved to the database`() {
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}redirects:\n  example.com: example.org\n$S3") }
     }
 
     @Test

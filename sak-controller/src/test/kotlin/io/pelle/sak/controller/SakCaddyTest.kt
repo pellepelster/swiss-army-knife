@@ -3,6 +3,8 @@ package io.pelle.sak.controller
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
@@ -19,7 +21,6 @@ class SakCaddyTest {
         SakConfig(
             dataDir = Path.of("/data"),
             rootDomain = "example.org",
-            redirects = mapOf("example.com" to "example.org"),
             s3 =
                 SakConfig.S3Config(
                     buckets =
@@ -101,7 +102,7 @@ class SakCaddyTest {
             }
             """.trimIndent()
 
-        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, 8080))) shouldBe Json.parseToJsonElement(expected)
+        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, mapOf("example.com" to "example.org"), 8080))) shouldBe Json.parseToJsonElement(expected)
     }
 
     @Test
@@ -109,7 +110,7 @@ class SakCaddyTest {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
-        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, 8080))).jsonObject["apps"]!!
+        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, emptyMap(), 8080))).jsonObject["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -147,34 +148,44 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        routes.size shouldBe 7
+        // http, s3, the two console routes, the site, unmatched; no redirects
+        routes.size shouldBe 6
     }
 
     @Test
     fun `buckets served at their domains are sites, their names must not clash with the other sites`() {
-        sites(config).map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
-        sites(config).first() shouldBe Site("site", listOf("example.org", "www.example.org"))
+        sites(config, listOf("example.com")).map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
+        sites(config, listOf("example.com")).first() shouldBe Site("site", listOf("example.org", "www.example.org"))
+        sites(config, listOf("example.com"))[2] shouldBe Site("redirect", listOf("example.com"))
 
         shouldThrow<IllegalArgumentException> {
-            sites(config.copy(s3 = config.s3.copy(buckets = mapOf("console" to SakConfig.S3BucketConfig(listOf("example.org"))))))
+            sites(config.copy(s3 = config.s3.copy(buckets = mapOf("console" to SakConfig.S3BucketConfig(listOf("example.org"))))), emptyList())
         }
     }
 
     @Test
-    fun `reconcile pushes the apps to the caddy admin api and keeps going when caddy is unreachable`() {
+    fun `reconcile pushes the apps built anew to the caddy admin api and keeps going when caddy is unreachable`() {
         val requests = mutableListOf<Pair<String, String>>()
+        val bodies = mutableListOf<String>()
         val admin = HttpServer.create(InetSocketAddress(0), 0)
         admin.createContext("/") { exchange ->
             requests.add(exchange.requestMethod to exchange.requestURI.path)
+            bodies.add(String(exchange.requestBody.readAllBytes()))
             exchange.sendResponseHeaders(200, -1)
             exchange.close()
         }
         admin.start()
         val port = admin.address.port
 
-        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), caddyConfig(config, 8080))
+        var redirects = emptyMap<String, String>()
+        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, redirects, 8080) })
         reconciler.reconcile()
         requests shouldBe listOf("POST" to "/config/apps")
+        bodies.last() shouldNotContain "example.com"
+
+        redirects = mapOf("example.com" to "example.org")
+        reconciler.reconcile()
+        bodies.last() shouldContain "example.com"
 
         admin.stop(0)
         reconciler.reconcile()

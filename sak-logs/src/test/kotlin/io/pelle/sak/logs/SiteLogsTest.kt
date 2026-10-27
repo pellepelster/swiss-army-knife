@@ -119,7 +119,7 @@ class SiteLogsTest {
     fun `streams the followed entries as server-sent events`() =
         testApplication {
             application {
-                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs) } }
+                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
             client.prepareGet("/api/v1/logs/all/live").execute { response ->
@@ -145,7 +145,7 @@ class SiteLogsTest {
     fun `follows at most the configured number of live views at once`() {
         val server =
             embeddedServer(Netty, port = 0) {
-                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs, maxLiveViews = 1, keepaliveInterval = 200.milliseconds) } }
+                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs, maxLiveViews = 1, keepaliveInterval = 200.milliseconds) } }
             }.start()
         try {
             val port = runBlocking { server.engine.resolvedConnectors().first().port }
@@ -175,7 +175,7 @@ class SiteLogsTest {
     fun `serves searches of known sites and all sites only`() =
         testApplication {
             application {
-                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(victoriaLogsClient), logs) } }
+                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
             val found = client.get("/api/v1/logs/pelle.io/search?q=missing")
@@ -195,7 +195,7 @@ class SiteLogsTest {
         testApplication {
             val down = VictoriaLogsClient("http://127.0.0.1:1")
             application {
-                routing { route("/api/v1/logs") { sites(listOf(site), SiteMetricsService(down), SiteLogs(down)) } }
+                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(down), SiteLogs(down)) } }
             }
 
             client.get("/api/v1/logs/pelle.io/search?q=x").status shouldBe HttpStatusCode.ServiceUnavailable

@@ -24,8 +24,10 @@ fun bucketObjectsDir(
     bucket: String,
 ): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
 
+// redirects maps every redirected domain to the domain it leads to
 fun caddyConfig(
     config: SakConfig,
+    redirects: Map<String, String>,
     port: Int,
 ): CaddyConfig =
     caddyConfig {
@@ -79,7 +81,7 @@ fun caddyConfig(
                     }
                 }
 
-            config.redirects.forEach { (from, to) ->
+            redirects.forEach { (from, to) ->
                 route {
                     host(from)
                     logField(SITE_LOG_FIELD, REDIRECT_SITE)
@@ -95,9 +97,10 @@ fun caddyConfig(
         }
     }
 
+// pushes the configuration to caddy periodically and when asked to, built anew every time
 class CaddyReconciler(
     private val caddyManager: CaddyManager,
-    private val config: CaddyConfig,
+    private val config: () -> CaddyConfig,
     private val intervalSeconds: Long = DEFAULT_INTERVAL_SECONDS,
 ) {
     private val logger = KotlinLogging.logger {}
@@ -109,7 +112,7 @@ class CaddyReconciler(
     @Synchronized
     fun reconcile() {
         try {
-            caddyManager.updateApps(config)
+            caddyManager.updateApps(config())
             if (lastAttemptFailed) {
                 logger.info { "configured caddy at '${caddyManager.adminUrl}'" }
             }
@@ -129,6 +132,11 @@ class CaddyReconciler(
             Executors.newSingleThreadScheduledExecutor { Thread(it, "caddy-reconciler").apply { isDaemon = true } }.also {
                 it.scheduleWithFixedDelay(::reconcile, 0, intervalSeconds, TimeUnit.SECONDS)
             }
+    }
+
+    // right away, e.g. after the redirects changed, without waiting for the next period
+    fun reconcileNow() {
+        executor?.execute(::reconcile)
     }
 
     fun stop() {

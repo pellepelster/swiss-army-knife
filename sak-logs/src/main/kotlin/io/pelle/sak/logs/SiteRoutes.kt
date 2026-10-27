@@ -59,10 +59,11 @@ const val MAX_LIVE_VIEWS = 8
 private const val LOGS_TAG = "logs"
 
 // the sites, their metrics and their logs, meant to be mounted behind the console's authentication,
-// which the openapi document takes its security requirement from
+// which the openapi document takes its security requirement from; the sites are asked for on
+// every request, they change with the redirects
 @OptIn(ExperimentalKtorApi::class)
 fun Route.sites(
-    sites: List<Site>,
+    sites: () -> List<Site>,
     metrics: SiteMetricsService,
     logs: SiteLogs,
     maxLiveViews: Int = MAX_LIVE_VIEWS,
@@ -80,7 +81,7 @@ fun Route.sites(
     get {
         call.respond(
             SitesResponse(
-                sites,
+                sites(),
                 MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label) },
                 MetricsRange.DEFAULT.key,
             ),
@@ -262,9 +263,9 @@ fun Route.sites(
 }
 
 // the site in the path, all of them included; answers not found for unknown ones
-private suspend fun ApplicationCall.logsSite(sites: List<Site>): Site? {
+private suspend fun ApplicationCall.logsSite(sites: () -> List<Site>): Site? {
     val id = parameters["site"]
-    val site = if (id == ALL_SITES) Site.ALL else sites.firstOrNull { it.id == id }
+    val site = if (id == ALL_SITES) Site.ALL else sites().firstOrNull { it.id == id }
     if (site == null) {
         respond(HttpStatusCode.NotFound)
     }
