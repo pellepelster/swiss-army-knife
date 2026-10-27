@@ -190,7 +190,6 @@ class NoteRepository(
             .insertInto(NOTES_LABELS)
             .set(NOTES_LABELS.NOTE_ID, noteId)
             .set(NOTES_LABELS.LABEL_ID, labelId)
-            .set(NOTES_LABELS.ACTIVE, ACTIVE)
             .set(NOTES_LABELS.CREATED_AT, now.utc())
             .set(NOTES_LABELS.UPDATED_AT, now.utc())
             .execute()
@@ -204,7 +203,6 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_LABELS)
-            .set(NOTES_LABELS.ACTIVE, null as Int?)
             .set(NOTES_LABELS.UPDATED_AT, now.utc())
             .set(NOTES_LABELS.DELETED_AT, now.utc())
             .where(condition, NOTES_LABELS.DELETED_AT.isNull)
@@ -253,7 +251,6 @@ class NoteRepository(
             .set(NOTES_FILES.NOTE_ID, noteId)
             .set(NOTES_FILES.FILE_ID, fileId)
             .set(NOTES_FILES.POSITION, position)
-            .set(NOTES_FILES.ACTIVE, ACTIVE)
             .set(NOTES_FILES.CREATED_AT, now.utc())
             .set(NOTES_FILES.UPDATED_AT, now.utc())
             .execute()
@@ -267,7 +264,6 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_FILES)
-            .set(NOTES_FILES.ACTIVE, null as Int?)
             .set(NOTES_FILES.UPDATED_AT, now.utc())
             .set(NOTES_FILES.DELETED_AT, now.utc())
             .where(condition, NOTES_FILES.DELETED_AT.isNull)
@@ -312,8 +308,4 @@ class NoteRepository(
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
             updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
         )
-
-    companion object {
-        private const val ACTIVE = 1
-    }
 }

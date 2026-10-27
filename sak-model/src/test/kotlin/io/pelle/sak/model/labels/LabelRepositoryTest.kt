@@ -33,25 +33,19 @@ class LabelRepositoryTest {
     }
 
     @Test
-    fun `the schema keeps active and deleted_at in step`() {
-        fun insert(
-            active: Int?,
-            deletedAt: LocalDateTime?,
-        ) = database.dsl
-            .insertInto(LABELS)
-            .set(LABELS.NAME, "home")
-            .set(LABELS.ACTIVE, active)
-            .set(LABELS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-            .set(LABELS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-            .set(LABELS.DELETED_AT, deletedAt)
-            .execute()
+    fun `the schema keeps the name unique among the labels that are not deleted only`() {
+        fun insert(deletedAt: LocalDateTime?) =
+            database.dsl
+                .insertInto(LABELS)
+                .set(LABELS.NAME, "home")
+                .set(LABELS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(LABELS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(LABELS.DELETED_AT, deletedAt)
+                .execute()
 
-        shouldThrow<DataAccessException> { insert(null, null) }
-        shouldThrow<DataAccessException> { insert(1, LocalDateTime.of(2026, 10, 27, 9, 0)) }
-        shouldThrow<DataAccessException> { insert(2, null) }
-        insert(1, null) shouldBe 1
-        shouldThrow<DataAccessException> { insert(1, null) }
-        insert(null, LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
-        insert(null, LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
+        insert(null) shouldBe 1
+        shouldThrow<DataAccessException> { insert(null) }
+        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
+        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
     }
 }

@@ -1,6 +1,8 @@
 # the initial schema of the controller's database; sqlite only takes checks and foreign keys when
 # a table is created, the unique constraints over several columns are unique indexes. Liquibase
-# has no element for check constraints, the two tables with one are created with plain sql.
+# has no element for check constraints, the table with one is created with plain sql. The unique
+# indexes over the rows that are not deleted only are partial ones in plain sql for sqlite only,
+# jooq generates its classes from the schema in h2, which knows no partial indexes.
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
@@ -87,31 +89,38 @@ databaseChangeLog:
               )
 
         # the labels every application can attach to its entities, each application links them in
-        # a table of its own. A deleted label stays as a row with deleted_at set; active is 1 for
-        # the labels that are not deleted and null for the deleted ones, so the name is unique
-        # among the labels that are not deleted only (sqlite takes nulls as distinct)
-        - sql:
-            sql: >-
-              CREATE TABLE labels (
-                id INTEGER NOT NULL PRIMARY KEY,
-                name VARCHAR(64) NOT NULL,
-                active INTEGER,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP,
-                CONSTRAINT labels_active_check CHECK (
-                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
-                )
-              )
-        - createIndex:
+        # a table of its own. A deleted label stays as a row with deleted_at set; the name is
+        # unique among the labels that are not deleted only
+        - createTable:
             tableName: labels
-            indexName: labels_name_key
-            unique: true
             columns:
               - column:
-                  name: name
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
               - column:
-                  name: active
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX labels_name_key ON labels (name) WHERE deleted_at IS NULL
 
         # the files of the generic file storage, each upload is a file of its own; the content
         # lives in the data dir under its sha-256 (lower case hex), the same content is stored
@@ -210,66 +219,93 @@ databaseChangeLog:
                   name: owner
 
         # the labels attached to a note. A label removed from a note, the labels of a deleted note
-        # and the links to a deleted label stay as rows with deleted_at set; active is 1 for the
-        # rows that are not deleted and null for the deleted ones, so a label is attached to a note
-        # once among the rows that are not deleted
-        - sql:
-            sql: >-
-              CREATE TABLE notes_labels (
-                id INTEGER NOT NULL PRIMARY KEY,
-                note_id INTEGER NOT NULL,
-                label_id INTEGER NOT NULL,
-                active INTEGER,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP,
-                CONSTRAINT notes_labels_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes (id),
-                CONSTRAINT notes_labels_label_id_fkey FOREIGN KEY (label_id) REFERENCES labels (id),
-                CONSTRAINT notes_labels_active_check CHECK (
-                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
-                )
-              )
-        - createIndex:
+        # and the links to a deleted label stay as rows with deleted_at set; a label is attached to
+        # a note once among the rows that are not deleted
+        - createTable:
             tableName: notes_labels
-            indexName: notes_labels_label_key
-            unique: true
             columns:
               - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
                   name: note_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_labels_note_id_fkey
+                    references: notes(id)
               - column:
                   name: label_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_labels_label_id_fkey
+                    references: labels(id)
               - column:
-                  name: active
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX notes_labels_label_key ON notes_labels (note_id, label_id) WHERE deleted_at IS NULL
 
         # the files of a note in their order, its photos and its recordings, told apart by the
         # type of the file. A file removed from a note, or the files of a deleted note, stay as
-        # rows with deleted_at set; active is 1 for the rows that are not deleted and null for the
-        # deleted ones, so a file is attached to a note once among the rows that are not deleted
-        - sql:
-            sql: >-
-              CREATE TABLE notes_files (
-                id INTEGER NOT NULL PRIMARY KEY,
-                note_id INTEGER NOT NULL,
-                file_id INTEGER NOT NULL,
-                position INTEGER NOT NULL,
-                active INTEGER,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP,
-                CONSTRAINT notes_files_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes (id),
-                CONSTRAINT notes_files_file_id_fkey FOREIGN KEY (file_id) REFERENCES files (id),
-                CONSTRAINT notes_files_active_check CHECK (
-                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
-                )
-              )
-        - createIndex:
+        # rows with deleted_at set; a file is attached to a note once among the rows that are not
+        # deleted
+        - createTable:
             tableName: notes_files
-            indexName: notes_files_file_key
-            unique: true
             columns:
               - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
                   name: note_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_files_note_id_fkey
+                    references: notes(id)
               - column:
                   name: file_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_files_file_id_fkey
+                    references: files(id)
               - column:
-                  name: active
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX notes_files_file_key ON notes_files (note_id, file_id) WHERE deleted_at IS NULL

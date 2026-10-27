@@ -63,7 +63,6 @@ class LabelRepository(
             database.dsl
                 .insertInto(LABELS)
                 .set(LABELS.NAME, name)
-                .set(LABELS.ACTIVE, ACTIVE)
                 .set(LABELS.CREATED_AT, now.utc())
                 .set(LABELS.UPDATED_AT, now.utc())
                 .returning()
@@ -98,7 +97,6 @@ class LabelRepository(
     ): Boolean =
         database.dsl
             .update(LABELS)
-            .set(LABELS.ACTIVE, null as Int?)
             .set(LABELS.UPDATED_AT, now.utc())
             .set(LABELS.DELETED_AT, now.utc())
             .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
@@ -113,8 +111,4 @@ class LabelRepository(
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
             updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
         )
-
-    companion object {
-        private const val ACTIVE = 1
-    }
 }

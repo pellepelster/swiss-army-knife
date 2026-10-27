@@ -1,5 +1,6 @@
 package io.pelle.sak.model.notes
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
@@ -7,10 +8,12 @@ import io.pelle.sak.model.jooq.tables.references.NOTES
 import io.pelle.sak.model.jooq.tables.references.NOTES_FILES
 import io.pelle.sak.model.jooq.tables.references.NOTES_LABELS
 import io.pelle.sak.model.labels.LabelRepository
+import org.jooq.exception.DataAccessException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
+import java.time.LocalDateTime
 
 class NoteRepositoryTest {
     @TempDir
@@ -133,5 +136,26 @@ class NoteRepositoryTest {
         labelLinks(kept.id) shouldBe listOf(milk to false, eggs to true)
         repository.byId("pelle@pelle.io", kept.id)!!.labelIds shouldBe setOf(milk)
         repository.count("pelle@pelle.io", eggs) shouldBe 0
+    }
+
+    @Test
+    fun `the schema attaches a file to a note once among the links that are not deleted only`() {
+        val beach = file("beach")
+        val note = repository.insert("pelle@pelle.io", "holidays", "blue", emptySet(), emptyList(), now)
+        fun insert(deletedAt: LocalDateTime?) =
+            database.dsl
+                .insertInto(NOTES_FILES)
+                .set(NOTES_FILES.NOTE_ID, note.id)
+                .set(NOTES_FILES.FILE_ID, beach)
+                .set(NOTES_FILES.POSITION, 0)
+                .set(NOTES_FILES.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(NOTES_FILES.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(NOTES_FILES.DELETED_AT, deletedAt)
+                .execute()
+
+        insert(null) shouldBe 1
+        shouldThrow<DataAccessException> { insert(null) }
+        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
+        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
     }
 }
