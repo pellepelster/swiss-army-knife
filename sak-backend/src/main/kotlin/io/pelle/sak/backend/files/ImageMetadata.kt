@@ -22,16 +22,21 @@ internal object ImageMetadata {
             null
         }
 
-    // exif or xmp metadata, which can tell where the image was taken; gif has none
+    // exif or xmp metadata, which can tell where the image was taken; gif has none. Null when the
+    // image can not be read
     fun hasMetadata(
         image: Path,
         contentType: String,
-    ): Boolean =
-        when (contentType) {
-            "image/jpeg" -> jpegHasMetadata(image)
-            "image/png" -> pngHasMetadata(image)
-            "image/webp" -> riffChunks(image).any { it == "EXIF" || it == "XMP " }
-            else -> false
+    ): Boolean? =
+        try {
+            when (contentType) {
+                "image/jpeg" -> jpegHasMetadata(image)
+                "image/png" -> pngHasMetadata(image)
+                "image/webp" -> riffChunks(image).any { it == "EXIF" || it == "XMP " }
+                else -> false
+            }
+        } catch (_: IOException) {
+            null
         }
 
     private fun imageIoSize(image: Path): Pair<Int, Int>? =

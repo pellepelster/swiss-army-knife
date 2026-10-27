@@ -29,6 +29,7 @@ import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import kotlin.system.exitProcess
+import io.pelle.sak.api.installUnexpectedErrors
 
 private val logger = KotlinLogging.logger {}
 
@@ -44,6 +45,7 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
+    installUnexpectedErrors()
     val config = SakConfigLoader.load(environment.config)
     val port = environment.config.property("ktor.deployment.port").getString().toInt()
     logger.info { "starting sak-backend on port $port with data dir ${config.dataDir}" }

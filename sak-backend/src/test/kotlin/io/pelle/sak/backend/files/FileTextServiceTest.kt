@@ -13,6 +13,8 @@ import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.io.IOException
+import java.nio.file.Files
 
 private const val PELLE = "pelle@pelle.io"
 
@@ -114,6 +116,15 @@ class FileTextServiceTest {
         val file = FileRepository(database).insert("0".repeat(64), "application/pdf", 3, PELLE).id
 
         service.discover(PELLE, file) shouldBe DiscoverTextResult.Unsupported
+        recognizer.images shouldBe emptyList()
+    }
+
+    @Test
+    fun `tells when the content of a file can not be read`() {
+        val lost = photo("lost")
+        Files.delete(files.path(files.byId(PELLE, lost)!!))
+
+        service.discover(PELLE, lost).shouldBeInstanceOf<DiscoverTextResult.Failed>().cause.shouldBeInstanceOf<IOException>()
         recognizer.images shouldBe emptyList()
     }
 }

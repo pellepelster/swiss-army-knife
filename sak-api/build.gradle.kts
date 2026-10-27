@@ -8,6 +8,7 @@ dependencies {
     api(platform(libs.ktor.bom))
     api(libs.ktor.server.core)
     api(libs.ktor.server.routing.openapi)
+    implementation(libs.ktor.server.status.pages)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.ktor.server.test.host)

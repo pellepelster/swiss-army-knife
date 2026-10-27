@@ -5,6 +5,7 @@ import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
 import java.nio.file.Files
+import java.io.IOException
 
 sealed interface DiscoverTextResult {
     data class Discovered(
@@ -19,8 +20,9 @@ sealed interface DiscoverTextResult {
     // nothing is configured to discover the text in files of the type
     data object NotConfigured : DiscoverTextResult
 
+    // the model failed, or the content of the file could not be read
     data class Failed(
-        val cause: TextRecognitionException,
+        val cause: Exception,
     ) : DiscoverTextResult
 }
 
@@ -50,6 +52,8 @@ class FileTextService(
             try {
                 read(Files.readAllBytes(files.path(file))).trim()
             } catch (e: TextRecognitionException) {
+                return DiscoverTextResult.Failed(e)
+            } catch (e: IOException) {
                 return DiscoverTextResult.Failed(e)
             }
         files.setDiscovered(file, text)

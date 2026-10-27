@@ -181,9 +181,10 @@ class FileService(
                 if (seconds > MAX_RECORDING_SECONDS) StoreFileResult.RecordingTooLong else null
             } else {
                 val (width, height) = ImageMetadata.size(content, contentType) ?: return StoreFileResult.UnsupportedType
+                val hasMetadata = ImageMetadata.hasMetadata(content, contentType) ?: return StoreFileResult.UnsupportedType
                 when {
                     maxOf(width, height) > MAX_IMAGE_SIZE -> StoreFileResult.ImageTooLarge
-                    ImageMetadata.hasMetadata(content, contentType) -> StoreFileResult.ImageWithMetadata
+                    hasMetadata -> StoreFileResult.ImageWithMetadata
                     else -> null
                 }
             }
