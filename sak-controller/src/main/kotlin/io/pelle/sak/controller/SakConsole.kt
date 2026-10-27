@@ -62,6 +62,7 @@ private val ConsoleSecurityHeaders =
 fun Application.console(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
+    statistics: BucketStatisticsCache,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
     val consoleSites = sites(config)
@@ -90,6 +91,10 @@ fun Application.console(
                             install(RequireRole) { role = Role.ADMIN }
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                             sites(consoleSites, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
+                        }
+                        route("/s3/buckets") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            buckets({ buckets(config) }, statistics)
                         }
                     }
                 }

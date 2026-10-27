@@ -19,6 +19,11 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
@@ -164,6 +169,49 @@ class SakConsoleTest {
         }
     }
 
+    private fun signIn(port: Int): String {
+        val link = requestLoginLink(port)
+        return post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+    }
+
+    @Test
+    fun `serves the buckets and their statistics, which writes through the s3 api renew`() {
+        withServer { port ->
+            val session = signIn(port)
+            get(port, "/api/v1/s3/buckets").statusCode() shouldBe 401
+
+            val buckets = Json.parseToJsonElement(get(port, "/api/v1/s3/buckets", session).body()).jsonArray
+            buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
+
+            fun statistics(): JsonObject {
+                // counted in the background, asked again while it is
+                repeat(50) {
+                    val response = get(port, "/api/v1/s3/buckets/bucket1/statistics", session)
+                    if (response.statusCode() == 200) return response.json()
+                    response.statusCode() shouldBe 202
+                    Thread.sleep(100)
+                }
+                throw AssertionError("bucket1 was not counted")
+            }
+            statistics().string("objects") shouldBe "0"
+
+            S3Client
+                .builder()
+                .endpointOverride(URI.create("http://localhost:$port/s3"))
+                .region(Region.US_EAST_1)
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("smoke-key", "smoke-secret")))
+                .build()
+                .use { it.putObject({ request -> request.bucket("bucket1").key("a.txt") }, RequestBody.fromString("12345")) }
+
+            statistics().let {
+                it.string("objects") shouldBe "1"
+                it.string("bytes") shouldBe "5"
+            }
+            get(port, "/api/v1/s3/buckets/unknown/statistics", session).statusCode() shouldBe 404
+        }
+    }
+
     @Test
     fun `rejects api requests with large bodies`() {
         withServer { port ->
@@ -238,6 +286,8 @@ class SakConsoleTest {
                         "/api/v1/logs/{site}/metrics",
                         "/api/v1/logs/{site}/search",
                         "/api/v1/logs/{site}/live",
+                        "/api/v1/s3/buckets",
+                        "/api/v1/s3/buckets/{bucket}/statistics",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

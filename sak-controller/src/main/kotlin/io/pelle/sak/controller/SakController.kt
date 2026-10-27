@@ -48,17 +48,19 @@ fun Application.sak(config: SakConfig) {
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
     val accessCallback = StaticCredentialsAccessCallback(config.s3.accessKeyId, config.s3.secretAccessKey, config.s3.buckets.keys)
+    val statistics = BucketStatisticsCache(storage)
+    statistics.warm(buckets(config).map { it.name })
 
     routing {
         route(S3_PATH_PREFIX) {
-            s3(storage, accessCallback, proxiedPathPrefix = S3_PATH_PREFIX)
+            s3(InvalidatingS3StorageBackend(storage, statistics::invalidate), accessCallback, proxiedPathPrefix = S3_PATH_PREFIX)
         }
     }
 
     // a broken console, e.g. an unreadable signing key, must not take the s3 api down with it
     config.auth?.let {
         try {
-            console(config, it)
+            console(config, it, statistics)
         } catch (e: Exception) {
             logger.error(e) { "the console could not be set up, it is not served" }
         }
