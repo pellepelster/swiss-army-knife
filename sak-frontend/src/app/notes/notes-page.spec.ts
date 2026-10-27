@@ -57,7 +57,7 @@ describe('NotesPage', () => {
   });
 
   it('adds a note on top, ready to be written on', async () => {
-    button('+ New note').click();
+    button('New note').click();
     http
       .expectOne({ method: 'POST', url: '/api/v1/notes' })
       .flush(noteResponse(4, '', 'yellow', []));
@@ -86,7 +86,7 @@ describe('NotesPage', () => {
     expect(texts()).toEqual(['Buy milk']);
 
     // a note added while filtering gets the label and stays in sight
-    button('+ New note').click();
+    button('New note').click();
     const created = http.expectOne({ method: 'POST', url: '/api/v1/notes' });
     expect(created.request.body.labels).toEqual(['groceries']);
     created.flush(noteResponse(4, '', 'yellow', ['groceries']));

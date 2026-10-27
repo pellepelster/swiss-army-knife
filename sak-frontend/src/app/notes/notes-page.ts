@@ -18,7 +18,9 @@ import { Note, NotesStore } from './notes-store';
   styleUrl: './notes-page.scss',
   template: `
     <header class="toolbar">
-      <a class="back" routerLink="/" aria-label="All apps">←</a>
+      <a class="back" routerLink="/" aria-label="All apps"
+        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
+      ></a>
       <h1 class="title">Notes</h1>
       <input
         #camera
@@ -38,9 +40,15 @@ import { Note, NotesStore } from './notes-store';
         [disabled]="addingPhoto()"
         (click)="camera.click()"
       >
-        {{ addingPhoto() ? '…' : '📷' }}
+        @if (addingPhoto()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-camera" aria-hidden="true"></i>
+        }
       </button>
-      <button type="button" class="add" (click)="add()">+ New note</button>
+      <button type="button" class="add" (click)="add()">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i> New note
+      </button>
     </header>
 
     <nav class="filters" aria-label="Filter by label">

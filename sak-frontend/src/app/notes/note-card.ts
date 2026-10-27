@@ -48,7 +48,7 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
                 [attr.aria-label]="'Remove photo ' + (index + 1)"
                 (click)="confirmingPhoto.set(photo)"
               >
-                ×
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
               </button>
             }
           </li>
@@ -81,7 +81,7 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
             [attr.aria-label]="'Remove label ' + label"
             (click)="store.removeLabel(note().id, label)"
           >
-            ×
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </li>
       }
@@ -139,7 +139,11 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
         [disabled]="store.uploading().has(note().id)"
         (click)="camera.click()"
       >
-        {{ store.uploading().has(note().id) ? '…' : '📷' }}
+        @if (store.uploading().has(note().id)) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-camera" aria-hidden="true"></i>
+        }
       </button>
       <button
         type="button"
@@ -148,7 +152,7 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
         title="Delete"
         (click)="store.remove(note().id)"
       >
-        🗑
+        <i class="fa-solid fa-trash" aria-hidden="true"></i>
       </button>
     </footer>
   `,

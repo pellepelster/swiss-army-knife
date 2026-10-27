@@ -19,7 +19,9 @@ import { AuthService } from '../auth/auth.service';
         @for (app of apps; track app.path) {
           <li>
             <a class="app" [routerLink]="app.path">
-              <span class="icon" aria-hidden="true">{{ app.icon }}</span>
+              <span class="icon" aria-hidden="true"
+                ><i class="fa-solid" [class]="app.icon"></i
+              ></span>
               <span class="name">{{ app.name }}</span>
               <span class="description">{{ app.description }}</span>
             </a>
