@@ -11,6 +11,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.ingress.RedirectService
+import io.pelle.sak.model.files.FileService
 import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.s3.S3BucketService
@@ -60,6 +61,9 @@ class SakServices(
 // the controller's database, the buckets, their keys, the redirects, the labels and the notes are in it
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
+// the content of the file storage, below the first two characters of the sha-256
+fun filesDir(config: SakConfig) = config.dataDir.resolve("files")
+
 fun Application.sak(config: SakConfig): SakServices {
     Files.createDirectories(config.dataDir)
     Files.createDirectories(config.s3DataDir)
@@ -77,7 +81,8 @@ fun Application.sak(config: SakConfig): SakServices {
         )
     redirectService = RedirectService(database, bucketService, reservedDomains = { reservedDomains(config) })
     val labelService = LabelService(database)
-    val noteService = NoteService(database, labelService)
+    val fileService = FileService(database, filesDir(config))
+    val noteService = NoteService(database, labelService, fileService)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
@@ -91,7 +96,7 @@ fun Application.sak(config: SakConfig): SakServices {
     // a broken console, e.g. an unreadable signing key, must not take the s3 api down with it
     config.auth?.let {
         try {
-            console(config, it, statistics, bucketService, redirectService, labelService, noteService)
+            console(config, it, statistics, bucketService, redirectService, labelService, noteService, fileService)
         } catch (e: Exception) {
             logger.error(e) { "the console could not be set up, it is not served" }
         }

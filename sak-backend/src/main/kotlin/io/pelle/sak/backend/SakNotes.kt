@@ -36,32 +36,52 @@ import kotlinx.serialization.Serializable
 
 private const val NOTES_TAG = "notes"
 
-// labels are sorted by name
+// labels are sorted by name, photos are files of the file storage in their order
 @Serializable
 data class NoteResponse(
     val id: Int,
     val text: String,
     val color: String,
     val labels: List<LabelResponse>,
+    val photos: List<PhotoResponse>,
     val createdAt: String,
     val updatedAt: String,
 )
 
-// the labels by name, the unknown ones are created
+@Serializable
+data class PhotoResponse(
+    val sha256: String,
+    val url: String,
+)
+
+// the labels by name, the unknown ones are created; the photos by the sha-256 of files uploaded
+// to the file storage before
 @Serializable
 data class NoteRequest(
     val text: String = "",
     val color: String = NoteColor.YELLOW.id,
     val labels: List<String> = emptyList(),
+    val photos: List<String> = emptyList(),
 )
 
-private fun Note.response() = NoteResponse(id, text, color.id, labels.map { it.response() }, createdAt.toString(), updatedAt.toString())
+private fun Note.response() =
+    NoteResponse(
+        id,
+        text,
+        color.id,
+        labels.map { it.response() },
+        photos.map { PhotoResponse(it, fileUrl(it)) },
+        createdAt.toString(),
+        updatedAt.toString(),
+    )
 
 private fun NoteProblem.message() =
     when (this) {
         NoteProblem.TEXT_TOO_LONG -> "The text must have at most ${NoteService.MAX_TEXT_LENGTH} characters."
         NoteProblem.INVALID_COLOR -> "The color must be one of ${NoteColor.entries.joinToString(", ") { it.id }}."
         NoteProblem.INVALID_LABEL -> INVALID_LABEL_NAME
+        NoteProblem.UNKNOWN_PHOTO -> "Every photo must be a file of the file storage."
+        NoteProblem.TOO_MANY_PHOTOS -> "A note can have at most ${NoteService.MAX_PHOTOS} photos."
     }
 
 private suspend fun RoutingCall.respondSaved(
@@ -110,7 +130,7 @@ fun Route.notes(noteService: NoteService) {
 
     post {
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.owner, request.text, request.color, request.labels) }, created = true)
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.owner, request.text, request.color, request.labels, request.photos) }, created = true)
     }.describe {
         tag(NOTES_TAG)
         summary = "Create a note"
@@ -124,7 +144,7 @@ fun Route.notes(noteService: NoteService) {
                 description = "The new note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name or a malformed request")
+            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, an unknown photo, too many photos or a malformed request")
         }
     }
 
@@ -148,11 +168,11 @@ fun Route.notes(noteService: NoteService) {
     put("/{id}") {
         val id = call.idParameter() ?: return@put
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.owner, id, request.text, request.color, request.labels) })
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.owner, id, request.text, request.color, request.labels, request.photos) })
     }.describe {
         tag(NOTES_TAG)
         summary = "Change a note"
-        description = "Replaces the text, the color and the labels; the labels that do not exist yet are created."
+        description = "Replaces the text, the color, the labels and the photos; the labels that do not exist yet are created."
         parameters { noteId() }
         requestBody {
             required = true
@@ -163,7 +183,7 @@ fun Route.notes(noteService: NoteService) {
                 description = "The changed note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name or a malformed request")
+            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, an unknown photo, too many photos or a malformed request")
             HttpStatusCode.NotFound { description = "The signed in user has no such note" }
         }
     }

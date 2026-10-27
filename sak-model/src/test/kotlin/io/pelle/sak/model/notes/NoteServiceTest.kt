@@ -4,6 +4,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.NOTES
+import io.pelle.sak.model.files.FileService
+import io.pelle.sak.model.files.FileServiceTest
+import io.pelle.sak.model.files.StoreFileResult
 import io.pelle.sak.model.labels.LabelService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -32,7 +35,12 @@ class NoteServiceTest {
 
     private val labels by lazy { LabelService(database, clock) }
 
-    private val service by lazy { NoteService(database, labels, clock) }
+    private val files by lazy { FileService(database, tempDir.resolve("files"), clock) }
+
+    private val service by lazy { NoteService(database, labels, files, clock) }
+
+    private fun photo(content: String) =
+        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.sha256
 
     private fun create(
         text: String,
@@ -119,6 +127,25 @@ class NoteServiceTest {
         service.update(PELLE, theirs.id, "taken", "pink") shouldBe SaveNoteResult.NotFound
         service.delete(PELLE, theirs.id) shouldBe DeleteNoteResult.NotFound
         service.byId(OTHER, theirs.id) shouldBe theirs
+    }
+
+    @Test
+    fun `keeps the photos of a note in their order, files of the file storage`() {
+        val beach = photo("beach")
+        val sunset = photo("sunset")
+
+        val note = service.create(PELLE, "holidays", "blue", photos = listOf(sunset, beach, sunset))
+        note.shouldBeInstanceOf<SaveNoteResult.Saved>().note.photos shouldBe listOf(sunset, beach)
+        service.byId(PELLE, note.note.id)!!.photos shouldBe listOf(sunset, beach)
+        service.page(PELLE, 0, 10).items.single().photos shouldBe listOf(sunset, beach)
+
+        service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf(beach))
+            .shouldBeInstanceOf<SaveNoteResult.Saved>().note.photos shouldBe listOf(beach)
+        service.byId(PELLE, note.note.id)!!.photos shouldBe listOf(beach)
+        service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf("0".repeat(64))) shouldBe
+            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
+        service.create(PELLE, "many", "blue", photos = (0..NoteService.MAX_PHOTOS).map { photo("photo $it") }) shouldBe
+            SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_PHOTOS))
     }
 
     @Test

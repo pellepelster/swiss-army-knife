@@ -36,6 +36,7 @@ import java.net.URLDecoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.security.MessageDigest
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -432,6 +433,58 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `stores files under their sha-256, serves them to everyone and keeps them as photos of notes`() {
+        withServer { port ->
+            val session = signIn(port)
+            val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a photo".toByteArray()
+            fun upload(
+                bytes: ByteArray,
+                sessionToken: String? = session,
+            ) = http.send(
+                HttpRequest
+                    .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
+                    .header("Content-Type", "application/octet-stream")
+                    .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+
+            upload(jpeg, null).statusCode() shouldBe 401
+            // larger than the json bodies of the api
+            val large = upload(jpeg + ByteArray(64 * 1024))
+            large.statusCode() shouldBe 201
+            val uploaded = upload(jpeg)
+            uploaded.statusCode() shouldBe 201
+            val sha256 = uploaded.json().string("sha256")
+            sha256 shouldBe MessageDigest.getInstance("SHA-256").digest(jpeg).joinToString("") { "%02x".format(it) }
+            uploaded.json().string("url") shouldBe "/files/$sha256"
+            uploaded.json().string("contentType") shouldBe "image/jpeg"
+            upload("<script>".toByteArray()).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images can be stored."}]}"""
+            }
+            upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
+
+            // served without a session, it never changes under its hash
+            http.send(HttpRequest.newBuilder(URI.create("http://localhost:$port/files/$sha256")).build(), HttpResponse.BodyHandlers.ofByteArray()).let {
+                it.statusCode() shouldBe 200
+                it.body() shouldBe jpeg
+                it.headers().firstValue("Content-Type").get() shouldBe "image/jpeg"
+                it.headers().firstValue("Cache-Control").get() shouldBe "public, max-age=31536000, immutable"
+            }
+            get(port, "/files/${"0".repeat(64)}").statusCode() shouldBe 404
+            get(port, "/files/unknown").statusCode() shouldBe 404
+
+            post(port, "/api/v1/notes", """{"text":"holidays","photos":["$sha256"]}""", session).let {
+                it.statusCode() shouldBe 201
+                it.json().getValue("photos").jsonArray.single().jsonObject.string("url") shouldBe "/files/$sha256"
+            }
+            post(port, "/api/v1/notes", """{"text":"x","photos":["${"0".repeat(64)}"]}""", session).statusCode() shouldBe 400
+        }
+    }
+
+    @Test
     fun `serves buckets at the domains they are created with and changes them`() {
         withServer { port ->
             val session = signIn(port)
@@ -573,6 +626,7 @@ class SakConsoleTest {
                         "/api/v1/labels/{id}",
                         "/api/v1/notes",
                         "/api/v1/notes/{id}",
+                        "/api/v1/files",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

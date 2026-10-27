@@ -16,3 +16,9 @@ databaseChangeLog:
   - include:
       file: 0005-notes.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0006-files.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 0007-notes-photos.yaml
+      relativeToChangelogFile: true

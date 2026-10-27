@@ -26,6 +26,7 @@ import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.RedirectService
+import io.pelle.sak.model.files.FileService
 import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.s3.S3BucketService
@@ -38,11 +39,12 @@ const val API_PATH_PREFIX = "/api"
 
 const val API_VERSION = "/v1"
 
-// the api only ever receives small json bodies
+// the api only receives small json bodies, but for the files of the file storage
 const val API_MAX_BODY_SIZE = 16L * 1024
 
-// what caddy lets through to the console at most, uploads go to the s3 host
-const val CONSOLE_MAX_BODY_SIZE = 1024L * 1024
+// what caddy lets through to the console and sak-frontend at most, a file of the file storage
+// with room to spare; uploads to buckets go to the s3 host
+const val CONSOLE_MAX_BODY_SIZE = FileService.DEFAULT_MAX_SIZE + 1024L * 1024
 
 // sak-console packages its build below this resource path
 const val CONSOLE_RESOURCES = "console"
@@ -87,6 +89,7 @@ fun Application.console(
     redirectService: RedirectService,
     labelService: LabelService,
     noteService: NoteService,
+    fileService: FileService,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
     val mailSender =
@@ -131,12 +134,21 @@ fun Application.console(
                             install(RequireRole) { role = Role.ADMIN }
                             notes(noteService)
                         }
+                        route("/files") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
+                            files(fileService)
+                        }
                     }
                 }
                 // unknown api paths and versions are no console pages
                 route("{...}") {
                     handle { call.respond(HttpStatusCode.NotFound) }
                 }.hide()
+            }
+
+            route(FILES_PATH) {
+                servedFiles(fileService)
             }
 
             apiDoc()

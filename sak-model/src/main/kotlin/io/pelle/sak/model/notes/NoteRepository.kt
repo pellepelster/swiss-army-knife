@@ -4,6 +4,7 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
 import io.pelle.sak.model.jooq.tables.references.NOTES
 import io.pelle.sak.model.jooq.tables.references.NOTES_LABELS
+import io.pelle.sak.model.jooq.tables.references.NOTES_PHOTOS
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
@@ -11,18 +12,20 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// a note as it is stored, with the ids of its labels
+// a note as it is stored, with the ids of its labels and the sha-256 of its photos in their order
 internal data class NoteRow(
     val id: Int,
     val owner: String,
     val text: String,
     val color: String,
     val labelIds: Set<Int>,
+    val photos: List<String>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
 
-// the database access of the notes and the links to their labels, only NoteService uses it; it
+// the database access of the notes and the links to their labels and photos, only NoteService
+// uses it; it
 // reads and changes the notes of one owner that are not deleted only
 internal class NoteRepository(
     private val database: SakDatabase,
@@ -42,8 +45,10 @@ internal class NoteRepository(
                 .limit(limit)
                 .offset(offset)
                 .fetch()
-        val labels = labelIds(database.dsl, notes.map { it.id!! })
-        return notes.map { it.toRow(labels[it.id].orEmpty()) }
+        val ids = notes.map { it.id!! }
+        val labels = labelIds(database.dsl, ids)
+        val photos = photos(database.dsl, ids)
+        return notes.map { it.toRow(labels[it.id].orEmpty(), photos[it.id].orEmpty()) }
     }
 
     fun count(
@@ -59,13 +64,14 @@ internal class NoteRepository(
             .selectFrom(NOTES)
             .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
             .fetchOne()
-            ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty()) }
+            ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty(), photos(database.dsl, listOf(id))[id].orEmpty()) }
 
     fun insert(
         owner: String,
         text: String,
         color: String,
         labelIds: Set<Int>,
+        photos: List<String>,
         now: Instant,
     ): NoteRow =
         database.dsl.transactionResult { configuration ->
@@ -81,7 +87,8 @@ internal class NoteRepository(
                     .returning()
                     .fetchOne()!!
             insertLabels(dsl, note.id!!, labelIds)
-            note.toRow(labelIds)
+            insertPhotos(dsl, note.id!!, photos)
+            note.toRow(labelIds, photos)
         }
 
     // false when there is none
@@ -91,6 +98,7 @@ internal class NoteRepository(
         text: String,
         color: String,
         labelIds: Set<Int>,
+        photos: List<String>,
         now: Instant,
     ): Boolean =
         database.dsl.transactionResult { configuration ->
@@ -106,6 +114,8 @@ internal class NoteRepository(
             if (updated) {
                 dsl.deleteFrom(NOTES_LABELS).where(NOTES_LABELS.NOTE_ID.eq(id)).execute()
                 insertLabels(dsl, id, labelIds)
+                dsl.deleteFrom(NOTES_PHOTOS).where(NOTES_PHOTOS.NOTE_ID.eq(id)).execute()
+                insertPhotos(dsl, id, photos)
             }
             updated
         }
@@ -152,6 +162,30 @@ internal class NoteRepository(
             .execute()
     }
 
+    private fun insertPhotos(
+        dsl: DSLContext,
+        noteId: Int,
+        photos: List<String>,
+    ) = photos.forEachIndexed { position, sha256 ->
+        dsl
+            .insertInto(NOTES_PHOTOS)
+            .set(NOTES_PHOTOS.NOTE_ID, noteId)
+            .set(NOTES_PHOTOS.POSITION, position)
+            .set(NOTES_PHOTOS.FILE_SHA256, sha256)
+            .execute()
+    }
+
+    private fun photos(
+        dsl: DSLContext,
+        noteIds: Collection<Int>,
+    ): Map<Int, List<String>> =
+        dsl
+            .selectFrom(NOTES_PHOTOS)
+            .where(NOTES_PHOTOS.NOTE_ID.`in`(noteIds))
+            .orderBy(NOTES_PHOTOS.NOTE_ID, NOTES_PHOTOS.POSITION)
+            .fetch()
+            .groupBy({ it.noteId!! }, { it.fileSha256!! })
+
     private fun labelIds(
         dsl: DSLContext,
         noteIds: Collection<Int>,
@@ -165,13 +199,17 @@ internal class NoteRepository(
 
     private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
-    private fun NotesRecord.toRow(labelIds: Set<Int>) =
+    private fun NotesRecord.toRow(
+        labelIds: Set<Int>,
+        photos: List<String>,
+    ) =
         NoteRow(
             id = id!!,
             owner = owner!!,
             text = text!!,
             color = color!!,
             labelIds = labelIds,
+            photos = photos,
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
             updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
         )

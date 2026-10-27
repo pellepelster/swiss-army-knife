@@ -2,6 +2,7 @@ package io.pelle.sak.model.notes
 
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.Slice
+import io.pelle.sak.model.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.labels.ResolveLabelsResult
@@ -24,13 +25,15 @@ enum class NoteColor {
     }
 }
 
-// owner is the address of the user the note belongs to; labels are sorted by name
+// owner is the address of the user the note belongs to; labels are sorted by name, photos are the
+// sha-256 of files of the file storage in their order
 data class Note(
     val id: Int,
     val owner: String,
     val text: String,
     val color: NoteColor,
     val labels: List<Label>,
+    val photos: List<String>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -39,6 +42,8 @@ enum class NoteProblem {
     TEXT_TOO_LONG,
     INVALID_COLOR,
     INVALID_LABEL,
+    UNKNOWN_PHOTO,
+    TOO_MANY_PHOTOS,
 }
 
 sealed interface SaveNoteResult {
@@ -61,17 +66,20 @@ sealed interface DeleteNoteResult {
 
 // the notes of the notes app, the only way to them; every note belongs to its owner, the address
 // of the user that created it, and is only seen and changed by them. The labels are the shared
-// ones, a label unknown yet is created when a note gets it
+// ones, a label unknown yet is created when a note gets it; the photos are files uploaded to the
+// file storage before
 class NoteService internal constructor(
     private val repository: NoteRepository,
     private val labels: LabelService,
+    private val files: FileService,
     private val clock: Clock,
 ) {
     constructor(
         database: SakDatabase,
         labels: LabelService,
+        files: FileService,
         clock: Clock = Clock.systemUTC(),
-    ) : this(NoteRepository(database), labels, clock)
+    ) : this(NoteRepository(database), labels, files, clock)
 
     init {
         labels.onDelete(repository::detachLabel)
@@ -101,30 +109,35 @@ class NoteService internal constructor(
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
+        photos: List<String> = emptyList(),
     ): SaveNoteResult =
-        when (val checked = check(text, color, labelNames)) {
+        when (val checked = check(text, color, labelNames, photos)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), clock.instant())
+                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.photos, clock.instant())
                 SaveNoteResult.Saved(row.toNote(checked.labels))
             }
         }
 
-    // replaces the text, the color and the labels
+    // replaces the text, the color, the labels and the photos
     fun update(
         owner: String,
         id: Int,
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
+        photos: List<String> = emptyList(),
     ): SaveNoteResult {
         val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
-        return when (val checked = check(text, color, labelNames)) {
+        return when (val checked = check(text, color, labelNames, photos)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
                 val now = clock.instant()
-                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), now)) return SaveNoteResult.NotFound
-                SaveNoteResult.Saved(note.copy(text = text, color = checked.color.id, updatedAt = now).toNote(checked.labels))
+                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.photos, now)) {
+                    return SaveNoteResult.NotFound
+                }
+                val updated = note.copy(text = text, color = checked.color.id, photos = checked.photos, updatedAt = now)
+                SaveNoteResult.Saved(updated.toNote(checked.labels))
             }
         }
     }
@@ -139,6 +152,7 @@ class NoteService internal constructor(
         data class Valid(
             val color: NoteColor,
             val labels: List<Label>,
+            val photos: List<String>,
         ) : Checked
 
         data class Invalid(
@@ -146,22 +160,26 @@ class NoteService internal constructor(
         ) : Checked
     }
 
-    // the labels are only created when the note is valid otherwise
+    // the labels are only created when the note is valid otherwise; a photo twice is kept once
     private fun check(
         text: String,
         color: String,
         labelNames: Collection<String>,
+        photos: List<String>,
     ): Checked {
         val problems = mutableSetOf<NoteProblem>()
         if (text.length > MAX_TEXT_LENGTH) problems += NoteProblem.TEXT_TOO_LONG
         val noteColor = NoteColor.of(color)
         if (noteColor == null) problems += NoteProblem.INVALID_COLOR
         if (labelNames.any { LabelService.normalize(it) == null }) problems += NoteProblem.INVALID_LABEL
+        val distinctPhotos = photos.distinct()
+        if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
+        if (files.existing(distinctPhotos).size < distinctPhotos.size) problems += NoteProblem.UNKNOWN_PHOTO
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
 
         return when (val resolved = labels.resolve(labelNames)) {
             is ResolveLabelsResult.InvalidNames -> Checked.Invalid(setOf(NoteProblem.INVALID_LABEL))
-            is ResolveLabelsResult.Resolved -> Checked.Valid(noteColor!!, resolved.labels)
+            is ResolveLabelsResult.Resolved -> Checked.Valid(noteColor!!, resolved.labels, distinctPhotos)
         }
     }
 
@@ -174,9 +192,11 @@ class NoteService internal constructor(
     private fun List<Label>.ids() = map { it.id }.toSet()
 
     private fun NoteRow.toNote(labels: List<Label>) =
-        Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, createdAt, updatedAt)
+        Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, photos, createdAt, updatedAt)
 
     companion object {
         const val MAX_TEXT_LENGTH = 10_000
+
+        const val MAX_PHOTOS = 20
     }
 }

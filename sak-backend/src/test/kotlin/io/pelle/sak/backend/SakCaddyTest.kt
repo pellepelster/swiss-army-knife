@@ -136,7 +136,7 @@ class SakCaddyTest {
                       "handler": "headers",
                       "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
                     },
-                    { "handler": "request_body", "max_size": 1048576 },
+                    { "handler": "request_body", "max_size": 11534336 },
                     { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                   ],
                   "terminal": true
