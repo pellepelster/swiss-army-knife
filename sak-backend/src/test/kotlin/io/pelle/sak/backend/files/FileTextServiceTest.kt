@@ -10,12 +10,10 @@ import io.pelle.sak.openrouter.TextRecognizer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 import java.io.IOException
 import java.nio.file.Files
 import io.pelle.sak.model.testing.Media
+import io.pelle.sak.api.testing.testClock
 
 private const val PELLE = "pelle@pelle.io"
 
@@ -23,7 +21,7 @@ class FileTextServiceTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val clock = Clock.fixed(Instant.parse("2026-10-27T08:00:00Z"), ZoneOffset.UTC)
+    private val clock = testClock()
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 

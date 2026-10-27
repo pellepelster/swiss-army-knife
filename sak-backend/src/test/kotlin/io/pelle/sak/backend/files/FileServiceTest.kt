@@ -13,17 +13,15 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 import javax.imageio.ImageIO
 import io.pelle.sak.model.testing.Media
+import io.pelle.sak.api.testing.testClock
 
 class FileServiceTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val clock = Clock.fixed(Instant.parse("2026-10-27T08:00:00Z"), ZoneOffset.UTC)
+    private val clock = testClock()
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 

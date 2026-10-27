@@ -12,12 +12,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
-import java.time.Clock
 import java.time.Duration
-import java.time.Instant
-import java.time.ZoneOffset
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
+import io.pelle.sak.api.testing.testClock
 
 class BucketStatisticsCacheTest {
     @TempDir
@@ -29,7 +27,7 @@ class BucketStatisticsCacheTest {
 
     private val ticker = Ticker { nanos.get() }
 
-    private val clock = Clock.fixed(Instant.parse("2026-10-27T08:00:00Z"), ZoneOffset.UTC)
+    private val clock = testClock()
 
     // runs what the cache hands it at once
     private val direct = Executor { it.run() }

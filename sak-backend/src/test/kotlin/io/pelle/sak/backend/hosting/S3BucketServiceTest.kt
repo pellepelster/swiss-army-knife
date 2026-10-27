@@ -7,15 +7,13 @@ import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
+import io.pelle.sak.api.testing.testClock
 
 class S3BucketServiceTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val clock = Clock.fixed(Instant.parse("2026-10-27T08:00:00Z"), ZoneOffset.UTC)
+    private val clock = testClock()
 
     private val changes = mutableListOf<String>()
 

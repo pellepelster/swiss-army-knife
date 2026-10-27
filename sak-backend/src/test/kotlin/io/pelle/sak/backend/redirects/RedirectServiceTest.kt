@@ -9,15 +9,14 @@ import io.pelle.sak.backend.hosting.S3BucketService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
+import io.pelle.sak.api.testing.testClock
+import io.pelle.sak.api.testing.TEST_NOW
 
 class RedirectServiceTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val clock = Clock.fixed(Instant.parse("2026-10-27T08:00:00Z"), ZoneOffset.UTC)
+    private val clock = testClock()
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
@@ -84,7 +83,7 @@ class RedirectServiceTest {
     fun `changes where a redirect leads to, checked as when it is created`() {
         service.create("example.com", RedirectTarget.Domain("example.org"))
         changes.clear()
-        val later = Clock.fixed(clock.instant().plusSeconds(60), ZoneOffset.UTC)
+        val later = testClock(TEST_NOW.plusSeconds(60))
         val service = RedirectService(database, buckets, later).apply { onChange { changes.add("changed") } }
 
         service.update("EXAMPLE.com", RedirectTarget.Bucket("site")).shouldBeInstanceOf<UpdateRedirectResult.Updated>().redirect shouldBe
