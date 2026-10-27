@@ -1,14 +1,12 @@
-import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
-import { Subscription, timer } from 'rxjs';
-
-// how long the copy button says it copied
-const CODE_COPIED_MS = 2000;
+import { Component, computed, input, signal } from '@angular/core';
+import { CopyButton } from '../shared/copy-button';
 
 // a file or a command to take over as it is, as a terminal window: its name in the bar with a
 // copy button, the code below; what is copied can differ from what is shown, e.g. a secret that
 // is shown masked
 @Component({
   selector: 'app-code-block',
+  imports: [CopyButton],
   styles: `
     // a terminal window, dark in light and dark mode alike
     :host {
@@ -61,24 +59,6 @@ const CODE_COPIED_MS = 2000;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .bar ::ng-deep button {
-      display: inline-flex;
-      flex: none;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border: 1px solid #4a4843;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--terminal-text);
-      font: inherit;
-      cursor: pointer;
-
-      &:hover,
-      &:focus-visible {
-        border-color: var(--terminal-text);
-      }
-    }
     pre {
       margin: 0;
       padding: 12px 14px;
@@ -102,15 +82,12 @@ const CODE_COPIED_MS = 2000;
       <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
       <span class="name">{{ name() }}</span>
       <ng-content />
-      <button type="button" [attr.aria-label]="copyLabel()" (click)="copy()">
-        <i
-          class="fa-solid"
-          [class.fa-check]="copied()"
-          [class.fa-copy]="!copied()"
-          aria-hidden="true"
-        ></i>
-        {{ copied() ? 'Copied' : 'Copy' }}
-      </button>
+      <app-copy-button
+        look="terminal"
+        [text]="copyText() ?? code()"
+        [label]="copyLabel()"
+        (failed)="copyFailed.set($event)"
+      />
     </div>
     <pre
       [attr.data-testid]="testId()"
@@ -140,24 +117,5 @@ export class CodeBlock {
     }));
   });
 
-  protected readonly copied = signal(false);
   protected readonly copyFailed = signal(false);
-
-  private timer?: Subscription;
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.timer?.unsubscribe());
-  }
-
-  protected async copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.copyText() ?? this.code());
-      this.copyFailed.set(false);
-      this.copied.set(true);
-      this.timer?.unsubscribe();
-      this.timer = timer(CODE_COPIED_MS).subscribe(() => this.copied.set(false));
-    } catch {
-      this.copyFailed.set(true);
-    }
-  }
 }

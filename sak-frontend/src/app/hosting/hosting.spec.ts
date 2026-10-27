@@ -5,7 +5,7 @@ import { provideRouter, Router, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Subject } from 'rxjs';
 import { AccessLogsService, LogEntry } from './access-logs/access-logs.service';
-import { COPIED_MS } from './bucket-credentials';
+import { COPIED_MS } from '../shared/copy-button';
 import { POLL_INTERVAL_MS, s3Endpoint } from './buckets.service';
 import { hostingRoutes } from './hosting.routes';
 

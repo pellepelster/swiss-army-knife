@@ -45,6 +45,7 @@
 - No modals: create on `/<entities>/create`, edit on `/<entities>/<id>/edit`, all editable
   attributes at once, saved or cancelled.
 - Bootstrap everywhere.
+- Copying to the clipboard is `app-copy-button` (`shared/copy-button.ts`), never written anew.
 - The apps follow the browser's `prefers-color-scheme` with no switch of their own (css custom
   properties in `src/styles.scss`).
 - Dates and times in the browser's locale via the `localDateTime` pipe

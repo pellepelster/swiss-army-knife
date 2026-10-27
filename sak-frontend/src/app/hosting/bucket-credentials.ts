@@ -1,19 +1,14 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription, timer } from 'rxjs';
+import { Component, inject, signal } from '@angular/core';
+import { CopyButton } from '../shared/copy-button';
 import { BucketStore } from './bucket-store';
 import { s3Endpoint } from './buckets.service';
-
-// how long a copy button says it copied
-export const COPIED_MS = 2000;
-
-type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
 
 // the credentials tab of a bucket: the endpoint of the s3 api and the key pair that may access
 // this bucket only; the keys are only fetched when asked for, the secret stays hidden until it
 // is shown or copied
 @Component({
   selector: 'app-bucket-credentials',
+  imports: [CopyButton],
   styleUrl: '../shared/app-parts.scss',
   styles: `
     .value {
@@ -51,20 +46,11 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
         <dt>Endpoint</dt>
         <dd class="value">
           <code class="mono" data-testid="endpoint">{{ endpoint }}</code>
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Copy endpoint"
-            title="Copy endpoint"
-            (click)="copy('endpoint', endpoint)"
-          >
-            <i
-              class="fa-solid"
-              [class.fa-check]="copied() === 'endpoint'"
-              [class.fa-copy]="copied() !== 'endpoint'"
-              aria-hidden="true"
-            ></i>
-          </button>
+          <app-copy-button
+            [text]="endpoint"
+            label="Copy endpoint"
+            (failed)="copyFailed.set($event)"
+          />
         </dd>
         <dt>Bucket</dt>
         <dd>
@@ -74,20 +60,11 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
           <dt>Access key</dt>
           <dd class="value">
             <code class="mono" data-testid="access-key">{{ secret.accessKeyId }}</code>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Copy access key"
-              title="Copy access key"
-              (click)="copy('accessKeyId', secret.accessKeyId)"
-            >
-              <i
-                class="fa-solid"
-                [class.fa-check]="copied() === 'accessKeyId'"
-                [class.fa-copy]="copied() !== 'accessKeyId'"
-                aria-hidden="true"
-              ></i>
-            </button>
+            <app-copy-button
+              [text]="secret.accessKeyId"
+              label="Copy access key"
+              (failed)="copyFailed.set($event)"
+            />
           </dd>
           <dt>Secret key</dt>
           <dd class="value">
@@ -109,20 +86,11 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
                 aria-hidden="true"
               ></i>
             </button>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Copy secret key"
-              title="Copy secret key"
-              (click)="copy('secretAccessKey', secret.secretAccessKey)"
-            >
-              <i
-                class="fa-solid"
-                [class.fa-check]="copied() === 'secretAccessKey'"
-                [class.fa-copy]="copied() !== 'secretAccessKey'"
-                aria-hidden="true"
-              ></i>
-            </button>
+            <app-copy-button
+              [text]="secret.secretAccessKey"
+              label="Copy secret key"
+              (failed)="copyFailed.set($event)"
+            />
           </dd>
         } @else {
           <dt>Keys</dt>
@@ -152,27 +120,9 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
   `,
 })
 export class BucketCredentials {
-  private readonly destroyRef = inject(DestroyRef);
   protected readonly store = inject(BucketStore);
 
   protected readonly endpoint = s3Endpoint();
   protected readonly shown = signal(false);
-  protected readonly copied = signal<Copied | null>(null);
   protected readonly copyFailed = signal(false);
-
-  private copiedTimer?: Subscription;
-
-  protected async copy(what: Copied, value: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(value);
-      this.copyFailed.set(false);
-      this.copied.set(what);
-      this.copiedTimer?.unsubscribe();
-      this.copiedTimer = timer(COPIED_MS)
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe(() => this.copied.set(null));
-    } catch {
-      this.copyFailed.set(true);
-    }
-  }
 }
