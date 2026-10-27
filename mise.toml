@@ -100,8 +100,10 @@ env = {
 }
 run = """
 mkdir -p "$SAK_LOCAL_DATA_DIR"
-docker run -d --rm --name sak-local-mailpit -p 127.0.0.1:8025:8025 -p 127.0.0.1:1025:1025 axllent/mailpit:v1.32.0 >/dev/null \
-  || docker start sak-local-mailpit >/dev/null
+# a mailpit of an earlier run may still be going away
+docker rm -f sak-local-mailpit >/dev/null 2>&1 || true
+while docker container inspect sak-local-mailpit >/dev/null 2>&1; do sleep 0.2; done
+docker run -d --rm --name sak-local-mailpit -p 127.0.0.1:8025:8025 -p 127.0.0.1:1025:1025 axllent/mailpit:v1.32.0 >/dev/null
 trap 'docker stop sak-local-mailpit >/dev/null' EXIT
 ./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
 """

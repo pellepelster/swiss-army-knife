@@ -23,6 +23,20 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
                 loading="lazy"
               />
             </a>
+            <button
+              type="button"
+              class="photo-discover"
+              [attr.aria-label]="'Discover the text in photo ' + (index + 1)"
+              title="Discover the text"
+              [disabled]="store.discovering().has(photo)"
+              (click)="store.discoverText(note().id, photo)"
+            >
+              @if (store.discovering().has(photo)) {
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+              } @else {
+                <i class="fa-solid fa-robot" aria-hidden="true"></i>
+              }
+            </button>
             @if (confirmingPhoto() === photo) {
               <div
                 class="photo-confirm"

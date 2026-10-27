@@ -158,6 +158,40 @@ describe('NotesStore', () => {
     expect(store.notes()[1].labels).not.toContain('label 11');
   });
 
+  it('adds the text discovered in a photo to the text of the note', async () => {
+    const discovered = store.discoverText(1, SHA256);
+    expect(store.discovering().has(SHA256)).toBe(true);
+    http
+      .expectOne({ method: 'POST', url: `/api/v1/files/${SHA256}/discover/text` })
+      .flush({ text: 'Total 12.50' });
+    await discovered;
+
+    expect(store.notes()[1].text).toBe('milk\n\nTotal 12.50');
+    expect(store.discovering().size).toBe(0);
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.text).toBe(
+      'milk\n\nTotal 12.50',
+    );
+  });
+
+  it('tells when a photo has no text or its text can not be discovered', async () => {
+    let discovered = store.discoverText(1, SHA256);
+    http.expectOne({ method: 'POST' }).flush({ text: '' });
+    await discovered;
+    expect(store.error()).toBe('There is no text in the photo.');
+    expect(store.notes()[1].text).toBe('milk');
+
+    discovered = store.discoverText(1, SHA256);
+    http
+      .expectOne({ method: 'POST' })
+      .flush(
+        { errors: [{ message: 'Text discovery is not configured.' }] },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+    await discovered;
+    expect(store.error()).toBe('Text discovery is not configured.');
+    http.expectNone({ method: 'PUT' });
+  });
+
   it('deletes notes at once and brings them back when the backend can not', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);

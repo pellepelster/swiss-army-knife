@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PhotoScaler } from './photo-scaler';
@@ -68,6 +68,9 @@ export class NotesStore {
 
   // the notes a photo is being uploaded for
   readonly uploading = signal<ReadonlySet<number>>(new Set());
+
+  // the photos whose text is being discovered
+  readonly discovering = signal<ReadonlySet<string>>(new Set());
 
   // what went wrong last, null when everything is saved
   readonly error = signal<string | null>(null);
@@ -183,6 +186,29 @@ export class NotesStore {
     }
   }
 
+  // the text the backend discovers in the photo is added to the text of the note
+  async discoverText(id: number, sha256: string): Promise<void> {
+    this.discovering.update((photos) => new Set([...photos, sha256]));
+    try {
+      const { text } = await firstValueFrom(
+        this.http.post<{ text: string }>(`/api/v1/files/${sha256}/discover/text`, null),
+      );
+      if (!text) {
+        this.error.set('There is no text in the photo.');
+        return;
+      }
+      const changed = this.change(id, (note) => ({
+        ...note,
+        text: note.text.trim() ? `${note.text.trimEnd()}\n\n${text}` : text,
+      }));
+      if (changed) this.save(id);
+    } catch (error: unknown) {
+      this.error.set(firstMessage(error) ?? 'The text could not be discovered.');
+    } finally {
+      this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== sha256)));
+    }
+  }
+
   // the file stays in the storage, other notes may show it too
   removePhoto(id: number, sha256: string): void {
     const changed = this.change(id, (note) =>
@@ -261,6 +287,14 @@ export class NotesStore {
     );
     return changed;
   }
+}
+
+// the first message of the api's error body, e.g. that the discovery is not configured
+function firstMessage(error: unknown): string | null {
+  if (!(error instanceof HttpErrorResponse)) return null;
+  const message = (error.error as { errors?: { message?: unknown }[] } | null)?.errors?.[0]
+    ?.message;
+  return typeof message === 'string' ? message : null;
 }
 
 function toNote(response: NoteResponse): Note {

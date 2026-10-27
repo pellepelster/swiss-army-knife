@@ -156,6 +156,19 @@ describe('NotesPage', () => {
     expect(note.querySelector('.note-photos')).toBeNull();
   });
 
+  it('discovers the text in a photo into the note', async () => {
+    button('Discover the text in photo 1', notes()[2]).click();
+    http
+      .expectOne({ method: 'POST', url: `/api/v1/files/${SHA256}/discover/text` })
+      .flush({ text: 'Total 12.50' });
+    await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }), {
+      timeout: 1000,
+    });
+    await fixture.whenStable();
+
+    expect(texts()[2]).toBe('Buy milk\n\nTotal 12.50');
+  });
+
   it('creates a note from the photo taken in the toolbar', async () => {
     const input = page.querySelector<HTMLInputElement>('.toolbar input[type=file]')!;
     expect(input.getAttribute('capture')).toBe('environment');
