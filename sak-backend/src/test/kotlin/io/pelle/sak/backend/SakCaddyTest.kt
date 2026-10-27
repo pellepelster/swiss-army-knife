@@ -14,6 +14,12 @@ import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.nio.file.Path
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import org.slf4j.LoggerFactory
+import java.net.ServerSocket
 
 class SakCaddyTest {
     private val config =
@@ -237,5 +243,41 @@ class SakCaddyTest {
 
         admin.stop(0)
         reconciler.reconcile()
+    }
+
+    @Test
+    fun `tells when caddy is not reachable from the start and when it is configured at last`() {
+        val events = ListAppender<ILoggingEvent>().apply { start() }
+        val logger = LoggerFactory.getLogger(CaddyReconciler::class.java) as Logger
+        logger.level = Level.DEBUG
+        logger.addAppender(events)
+        try {
+            // a free port nothing listens at yet
+            val port = ServerSocket(0).use { it.localPort }
+            val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, emptyMap(), 8080) })
+
+            reconciler.reconcile()
+            reconciler.reconcile()
+            val restarted = HttpServer.create(InetSocketAddress(port), 0)
+            restarted.createContext("/") { exchange ->
+                exchange.requestBody.readAllBytes()
+                // no connection is kept open to a caddy that goes away
+                exchange.responseHeaders.add("Connection", "close")
+                exchange.sendResponseHeaders(200, -1)
+                exchange.close()
+            }
+            restarted.start()
+            try {
+                reconciler.reconcile()
+                reconciler.reconcile()
+            } finally {
+                restarted.stop(0)
+            }
+            reconciler.reconcile()
+
+            events.list.map { it.level } shouldBe listOf(Level.WARN, Level.DEBUG, Level.INFO, Level.WARN)
+        } finally {
+            logger.detachAppender(events)
+        }
     }
 }

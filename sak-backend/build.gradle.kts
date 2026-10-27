@@ -22,6 +22,8 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.server.routing.openapi)
     runtimeOnly(libs.logback.classic)
+    // to look at what is logged
+    testImplementation(libs.logback.classic)
 
     testImplementation(libs.greenmail.junit5)
 

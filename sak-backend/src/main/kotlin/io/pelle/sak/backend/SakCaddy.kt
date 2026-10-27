@@ -140,7 +140,9 @@ class CaddyReconciler(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private var lastAttemptFailed = true
+    // whether the last attempt configured caddy, null before the first one; the first failure and
+    // the first success are told, the failures repeating it at debug only
+    private var configured: Boolean? = null
 
     private var executor: ScheduledExecutorService? = null
 
@@ -148,17 +150,17 @@ class CaddyReconciler(
     fun reconcile() {
         try {
             caddyManager.updateApps(config())
-            if (lastAttemptFailed) {
+            if (configured != true) {
                 logger.info { "configured caddy at '${caddyManager.adminUrl}'" }
             }
-            lastAttemptFailed = false
+            configured = true
         } catch (e: CaddyException) {
             logger.warn(e) { "caddy at '${caddyManager.adminUrl}' rejected the configuration" }
-            lastAttemptFailed = true
+            configured = false
         } catch (e: Exception) {
             val message = { "caddy at '${caddyManager.adminUrl}' is not reachable (${e.message}), retrying periodically" }
-            if (lastAttemptFailed) logger.debug(message) else logger.warn(message)
-            lastAttemptFailed = true
+            if (configured == false) logger.debug(message) else logger.warn(message)
+            configured = false
         }
     }
 
