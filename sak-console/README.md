@@ -7,7 +7,7 @@ The console and its login are only served when `sak.auth` is configured.
 ## E-mail login
 
 1. `/login` posts the address to `POST /api/v1/auth/login`, which always answers `202`; only the
-   `sak.auth.allowed_emails` get a mail with `<console>/signin?token=<login token>`
+   `sak.auth.admins` get a mail with `<console>/signin?token=<login token>`
 2. the login token is an ES256 jwt valid for 15 minutes, `/signin` exchanges it once at
    `POST /api/v1/auth/exchange` for a session token (valid for 30 days), stores that in local
    storage and continues at the path the login started from
@@ -19,7 +19,7 @@ The signing key is generated on first start at `<data_dir>/auth/signing-key.pem`
 ```yaml
 sak:
   auth:
-    allowed_emails:
+    admins:
       - admin@example.org
     smtp:
       host: smtp.example.org

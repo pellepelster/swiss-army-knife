@@ -14,7 +14,7 @@ sak:
         domains:
           - media.example.org
   auth:
-    allowed_emails:
+    admins:
       - Admin@example.org
     smtp:
       host: smtp.example.org

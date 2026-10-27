@@ -67,8 +67,8 @@ fun Application.console(
         with(auth.smtp) {
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
-    val allowedEmails = auth.allowedEmails.map { it.trim().lowercase() }.toSet()
-    val mayLogin = { email: String -> email in allowedEmails }
+    val admins = auth.admins.map { it.trim().lowercase() }.toSet()
+    val mayLogin = { email: String -> email in admins }
 
     install(Authentication) { session(tokens, mayLogin) }
 

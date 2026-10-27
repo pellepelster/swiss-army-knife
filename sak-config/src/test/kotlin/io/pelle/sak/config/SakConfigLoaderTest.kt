@@ -39,7 +39,7 @@ class SakConfigLoaderTest {
         config.consoleUrl shouldBe "https://console.example.org"
         config.auth shouldBe
             SakConfig.AuthConfig(
-                allowedEmails = listOf("Admin@example.org"),
+                admins = listOf("Admin@example.org"),
                 smtp =
                     SakConfig.SmtpConfig(
                         host = "smtp.example.org",
@@ -50,6 +50,13 @@ class SakConfigLoaderTest {
                         tls = true,
                     ),
             )
+    }
+
+    @Test
+    fun `fails on the allowed_emails the admins were called before`() {
+        shouldThrow<RuntimeException> {
+            load("data_dir: /data\n$ROOT_DOMAIN${S3}auth:\n  allowed_emails:\n    - admin@example.org\n  smtp:\n    host: localhost\n    from: login@example.org\n")
+        }.message shouldContain "allowed_emails"
     }
 
     @Test
@@ -65,7 +72,7 @@ class SakConfigLoaderTest {
             )
 
         config.consoleUrl shouldBe "http://localhost:4200"
-        config.auth!!.allowedEmails shouldBe emptyList()
+        config.auth!!.admins shouldBe emptyList()
         config.auth.smtp.port shouldBe 587
         config.auth.smtp.tls shouldBe false
         config.auth.smtp.starttls shouldBe true

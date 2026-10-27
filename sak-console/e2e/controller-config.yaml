@@ -20,8 +20,8 @@ sak:
           - other.example.org
   auth:
     console_url: http://localhost:18080
-    # one address per spec, each gets at most five login links an hour
-    allowed_emails:
+    # one address per spec, each gets at most five login links an hour from one client
+    admins:
       - admin@example.org
       - live@example.org
       - logs@example.org

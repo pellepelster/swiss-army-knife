@@ -21,7 +21,7 @@ sak:
   # the console at console.pelle.io, its login links are sent through scaleway's
   # transactional email (smtp credentials from pass, see `mise run tf`)
   auth:
-    allowed_emails:
+    admins:
       - pelle@pelle.io
     smtp:
       host: $SAK_SMTP_HOST

@@ -43,8 +43,8 @@ data class SakConfig(
     @Serializable
     data class AuthConfig(
         // only these addresses get a login link, compared case-insensitively
-        @SerialName("allowed_emails")
-        val allowedEmails: List<String> = emptyList(),
+        // the addresses that may sign in to the console, as admins
+        val admins: List<String> = emptyList(),
         val smtp: SmtpConfig,
         // overrides https://console.<root_domain>, e.g. for local tests
         @SerialName("console_url")

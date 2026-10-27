@@ -60,7 +60,7 @@ class SakConsoleTest {
                         """
                         auth:
                           console_url: $CONSOLE_URL
-                          allowed_emails:
+                          admins:
                             - Admin@example.org
                           smtp:
                             host: localhost
