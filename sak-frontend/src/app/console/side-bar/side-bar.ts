@@ -39,6 +39,11 @@ import { LocalDateTimePipe } from '../../shared/local-date-time.pipe';
       </div>
 
       <nav class="nav-section" aria-label="Navigation">
+        <!-- back to the index, the list of the apps -->
+        <a class="nav-item" routerLink="/">
+          <span class="nav-square"></span>
+          <span class="nav-text">Back</span>
+        </a>
         <a
           class="nav-item"
           routerLink="/console"
@@ -62,12 +67,6 @@ import { LocalDateTimePipe } from '../../shared/local-date-time.pipe';
         <a class="nav-item" href="/swagger/">
           <span class="nav-square"></span>
           <span class="nav-text">Swagger</span>
-        </a>
-        <div class="label-mono nav-section-label">Apps</div>
-        <!-- the apps of the frontend, which the console is one of -->
-        <a class="nav-item" routerLink="/">
-          <span class="nav-square"></span>
-          <span class="nav-text">All apps</span>
         </a>
       </nav>
 

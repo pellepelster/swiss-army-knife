@@ -41,17 +41,17 @@ describe('SideBar', () => {
     return element.querySelector('[role=menu]');
   };
 
-  it('links the overview and the log views', () => {
+  it('links back to the index, the overview and the log views', () => {
     const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')].map((link) => [
       link.textContent?.trim(),
       link.getAttribute('href'),
     ]);
     expect(links).toEqual([
+      ['Back', '/'],
       ['Overview', '/console'],
       ['Statistics', '/console/logs/statistics'],
       ['Live', '/console/logs/live'],
       ['Swagger', '/swagger/'],
-      ['All apps', '/'],
     ]);
   });
 
