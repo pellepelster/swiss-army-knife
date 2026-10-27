@@ -2,7 +2,7 @@
   "id": "/notes",
   "name": "Notes",
   "short_name": "Notes",
-  "description": "Post-its with photos and labels",
+  "description": "Post-Its from text, images or audio",
   "start_url": "/notes",
   "scope": "/",
   "display": "standalone",

@@ -1,9 +1,19 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
+import { AudioRecorder } from './audio-recorder';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 
-// one note as a post-it: the thumbnails of its photos on top, each leads to the whole photo, its text is edited in place, labels are added below
-// it; a photo is taken with the camera of a phone or chosen from the files elsewhere
+// a photo or a recording of a note, shown alike
+interface Media {
+  readonly sha256: string;
+  readonly kind: 'photo' | 'recording';
+  readonly label: string;
+}
+
+// one note as a post-it: the thumbnails of its photos and the waveforms of its recordings on top,
+// a photo leads to the whole photo, a recording plays in place, the robot on each writes it into
+// the text; the text is edited in place, labels are added below it. A photo is taken with the
+// camera of a phone or chosen from the files elsewhere, a recording with the microphone
 @Component({
   selector: 'app-note-card',
   imports: [LocalDateTimePipe],
@@ -12,46 +22,61 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
     '[attr.data-testid]': "'note-' + note().id",
   },
   template: `
-    @if (note().photos.length) {
-      <ul class="note-photos" aria-label="Photos">
-        @for (photo of note().photos; track photo; let index = $index) {
+    @if (media().length) {
+      <ul class="note-photos" aria-label="Photos and recordings">
+        @for (item of media(); track item.sha256) {
           <li class="photo">
-            <a [href]="photoUrl(photo)" target="_blank" rel="noopener">
-              <img
-                [src]="photoUrl(photo) + '/thumbnail'"
-                [alt]="'Photo ' + (index + 1) + ' of note ' + note().id"
-                loading="lazy"
-              />
-            </a>
+            @if (item.kind === 'photo') {
+              <a [href]="fileUrl(item.sha256)" target="_blank" rel="noopener">
+                <img
+                  [src]="fileUrl(item.sha256) + '/thumbnail'"
+                  [alt]="item.label + ' of note ' + note().id"
+                  loading="lazy"
+                />
+              </a>
+            } @else {
+              <button
+                type="button"
+                class="recording"
+                [attr.aria-label]="(playing() === item.sha256 ? 'Pause ' : 'Play ') + item.label"
+                [attr.aria-pressed]="playing() === item.sha256"
+                (click)="play(item.sha256)"
+              >
+                <img [src]="fileUrl(item.sha256) + '/thumbnail'" alt="" loading="lazy" />
+                <span class="recording-play" aria-hidden="true">
+                  <i
+                    class="fa-solid"
+                    [class.fa-play]="playing() !== item.sha256"
+                    [class.fa-pause]="playing() === item.sha256"
+                  ></i>
+                </span>
+              </button>
+            }
             <button
               type="button"
               class="photo-discover"
-              [attr.aria-label]="'Discover the text in photo ' + (index + 1)"
+              [attr.aria-label]="'Discover the text in ' + item.label.toLowerCase()"
               title="Discover the text"
-              [disabled]="store.discovering().has(photo)"
-              (click)="store.discoverText(note().id, photo)"
+              [disabled]="store.discovering().has(item.sha256)"
+              (click)="store.discoverText(note().id, item.sha256)"
             >
-              @if (store.discovering().has(photo)) {
+              @if (store.discovering().has(item.sha256)) {
                 <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
               } @else {
                 <i class="fa-solid fa-robot" aria-hidden="true"></i>
               }
             </button>
-            @if (confirmingPhoto() === photo) {
+            @if (confirming() === item.sha256) {
               <div
                 class="photo-confirm"
                 role="group"
-                [attr.aria-label]="'Remove photo ' + (index + 1) + '?'"
+                [attr.aria-label]="'Remove ' + item.label.toLowerCase() + '?'"
               >
-                <span>Remove photo?</span>
-                <button type="button" class="photo-confirm-remove" (click)="removePhoto(photo)">
+                <span>Remove {{ item.kind }}?</span>
+                <button type="button" class="photo-confirm-remove" (click)="remove(item)">
                   Remove
                 </button>
-                <button
-                  type="button"
-                  class="photo-confirm-keep"
-                  (click)="confirmingPhoto.set(null)"
-                >
+                <button type="button" class="photo-confirm-keep" (click)="confirming.set(null)">
                   Keep
                 </button>
               </div>
@@ -59,8 +84,8 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
               <button
                 type="button"
                 class="photo-remove"
-                [attr.aria-label]="'Remove photo ' + (index + 1)"
-                (click)="confirmingPhoto.set(photo)"
+                [attr.aria-label]="'Remove ' + item.label.toLowerCase()"
+                (click)="confirming.set(item.sha256)"
               >
                 <i class="fa-solid fa-trash" aria-hidden="true"></i>
               </button>
@@ -161,6 +186,25 @@ import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
       </button>
       <button
         type="button"
+        class="note-photo"
+        [class.recording-now]="store.recordingFor() === note().id"
+        [attr.aria-label]="
+          (store.recordingFor() === note().id ? 'Stop recording for note ' : 'Record for note ') +
+          note().id
+        "
+        [title]="store.recordingFor() === note().id ? 'Stop recording' : 'Record'"
+        [disabled]="store.recordingFor() !== null && store.recordingFor() !== note().id"
+        (click)="store.record(note().id)"
+      >
+        @if (store.recordingFor() === note().id) {
+          <i class="fa-solid fa-stop" aria-hidden="true"></i>
+          <span class="recording-seconds">{{ recorder.seconds() ?? 0 }}s</span>
+        } @else {
+          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+        }
+      </button>
+      <button
+        type="button"
         class="note-delete"
         [attr.aria-label]="'Delete note ' + note().id"
         title="Delete"
@@ -184,15 +228,55 @@ export class NoteCard {
   protected readonly newLabel = signal('');
 
   // the photo whose removal is asked for, removed only once it is confirmed
-  protected readonly confirmingPhoto = signal<string | null>(null);
+  protected readonly recorder = inject(AudioRecorder);
 
-  protected removePhoto(sha256: string): void {
-    this.confirmingPhoto.set(null);
-    this.store.removePhoto(this.note().id, sha256);
+  // the photos first, then the recordings, as the backend keeps them
+  protected readonly media = computed<readonly Media[]>(() => [
+    ...this.note().photos.map((sha256, index) => ({
+      sha256,
+      kind: 'photo' as const,
+      label: `Photo ${index + 1}`,
+    })),
+    ...this.note().recordings.map((sha256, index) => ({
+      sha256,
+      kind: 'recording' as const,
+      label: `Recording ${index + 1}`,
+    })),
+  ]);
+
+  // the photo or recording whose removal is asked for, removed only once it is confirmed
+  protected readonly confirming = signal<string | null>(null);
+
+  // the recording that plays, one at a time
+  protected readonly playing = signal<string | null>(null);
+  private audio: HTMLAudioElement | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.audio?.pause());
   }
 
-  // the whole photo, its thumbnail is below it
-  protected photoUrl(sha256: string): string {
+  protected remove(item: Media): void {
+    this.confirming.set(null);
+    if (item.kind === 'photo') this.store.removePhoto(this.note().id, item.sha256);
+    else this.store.removeRecording(this.note().id, item.sha256);
+  }
+
+  // plays the recording in the note, a second tap pauses it
+  protected play(sha256: string): void {
+    const playing = this.playing();
+    this.audio?.pause();
+    this.audio = null;
+    this.playing.set(null);
+    if (playing === sha256) return;
+    const audio = new Audio(this.fileUrl(sha256));
+    audio.addEventListener('ended', () => this.playing.set(null));
+    this.audio = audio;
+    this.playing.set(sha256);
+    void audio.play().catch(() => this.playing.set(null));
+  }
+
+  // the whole photo or recording, its thumbnail or waveform is below it
+  protected fileUrl(sha256: string): string {
     return `/api/v1/files/${sha256}`;
   }
 

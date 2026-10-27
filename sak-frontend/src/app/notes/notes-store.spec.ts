@@ -2,8 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { NotesStore, SAVE_TEXT_AFTER_MS } from './notes-store';
+import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, SCALED, SHA256 } from './notes-testing';
+import { FakeRecorder, RECORDED } from './notes-testing';
 
 describe('NotesStore', () => {
   let http: HttpTestingController;
@@ -16,6 +18,7 @@ describe('NotesStore', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: PhotoScaler, useValue: scaler },
+        { provide: AudioRecorder, useClass: FakeRecorder },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -51,6 +54,7 @@ describe('NotesStore', () => {
       color: 'green',
       labels: ['ideas'],
       photos: [],
+      recordings: [],
     });
     request.flush(noteResponse(3, '', 'green', ['ideas']));
 
@@ -71,6 +75,7 @@ describe('NotesStore', () => {
       color: 'yellow',
       labels: ['shopping'],
       photos: [],
+      recordings: [],
     });
     text.flush({
       ...noteResponse(1, 'milk and bread', 'yellow', ['shopping']),
@@ -126,6 +131,7 @@ describe('NotesStore', () => {
           color: 'yellow',
           labels: ['holidays'],
           photos: [SHA256],
+          recordings: [],
         });
         created.flush(noteResponse(3, '', 'yellow', ['holidays'], [SHA256]));
       });
@@ -190,6 +196,47 @@ describe('NotesStore', () => {
     await discovered;
     expect(store.error()).toBe('Text discovery is not configured.');
     http.expectNone({ method: 'PUT' });
+  });
+
+  it('records for a note until it is stopped, keeps the recording and writes nothing down', async () => {
+    const recorded = store.record(1);
+    expect(store.recordingFor()).toBe(1);
+    // a second tap stops it
+    void store.record(1);
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => {
+        expect(upload.request.body).toBe(RECORDED);
+        expect(upload.request.headers.get('Content-Type')).toBe('audio/wav');
+        upload.flush({ sha256: SHA256 });
+      });
+    await recorded;
+
+    expect(store.recordingFor()).toBeNull();
+    expect(store.notes()[1].recordings).toEqual([SHA256]);
+    expect(
+      http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.recordings,
+    ).toEqual([SHA256]);
+    http.expectNone(`/api/v1/files/${SHA256}/discover/text`);
+
+    store.removeRecording(1, SHA256);
+    expect(http.expectOne({ method: 'PUT' }).request.body.recordings).toEqual([]);
+  });
+
+  it('records a new note', async () => {
+    const recorded = store.record('new', ['ideas']);
+    void store.record('new');
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => upload.flush({ sha256: SHA256 }));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
+      .then((created) => {
+        expect(created.request.body.recordings).toEqual([SHA256]);
+        expect(created.request.body.labels).toEqual(['ideas']);
+        created.flush(noteResponse(3, '', 'yellow', ['ideas'], [], [SHA256]));
+      });
+    expect((await recorded)?.recordings).toEqual([SHA256]);
   });
 
   it('deletes notes at once and brings them back when the backend can not', () => {

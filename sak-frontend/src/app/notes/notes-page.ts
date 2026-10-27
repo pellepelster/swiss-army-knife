@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NoteCard } from './note-card';
+import { AudioRecorder } from './audio-recorder';
 import { Note, NotesStore } from './notes-store';
 
 // the notes as a wall of post-its, filtered by one label at a time
@@ -44,6 +45,26 @@ import { Note, NotesStore } from './notes-store';
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
         } @else {
           <i class="fa-solid fa-camera" aria-hidden="true"></i>
+        }
+      </button>
+      <button
+        type="button"
+        class="add add-photo"
+        [class.recording-now]="store.recordingFor() === 'new'"
+        [attr.aria-label]="
+          store.recordingFor() === 'new'
+            ? 'Stop the recording of the new note'
+            : 'New note with a recording'
+        "
+        [title]="store.recordingFor() === 'new' ? 'Stop recording' : 'New note with a recording'"
+        [disabled]="store.recordingFor() !== null && store.recordingFor() !== 'new'"
+        (click)="record()"
+      >
+        @if (store.recordingFor() === 'new') {
+          <i class="fa-solid fa-stop" aria-hidden="true"></i>
+          <span class="recording-seconds">{{ recorder.seconds() ?? 0 }}s</span>
+        } @else {
+          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
         }
       </button>
       <button type="button" class="add" (click)="add()">
@@ -111,6 +132,8 @@ export class NotesPage implements OnInit {
 
   protected readonly addingPhoto = signal(false);
 
+  protected readonly recorder = inject(AudioRecorder);
+
   protected readonly shown = computed(() => {
     const label = this.filter();
     const notes = this.store.notes();
@@ -139,6 +162,12 @@ export class NotesPage implements OnInit {
     } finally {
       this.addingPhoto.set(false);
     }
+  }
+
+  // records a new note, a second tap stops the recording; the note gets the label shown
+  protected async record(): Promise<void> {
+    const label = this.filter();
+    this.focus(await this.store.record('new', label === null ? [] : [label]));
   }
 
   private focus(note: Note | null): void {

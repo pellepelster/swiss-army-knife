@@ -16,7 +16,12 @@ re-encoded as JPEG in the browser (`PhotoScaler`, which drops the exif data with
 stored in the backend's file storage (`POST /api/v1/files`); the notes show their thumbnails
 (`/api/v1/files/<sha256>/thumbnail`), each leads to the whole photo (`/api/v1/files/<sha256>`). The robot on a photo discovers the text in
 it (`POST /api/v1/files/<sha256>/discover/text`, a vision model at OpenRouter) and appends it to
-the text of the note. The page works on phones (one column,
+the text of the note.
+
+A note can also have recordings, taken with the microphone in its footer or in the toolbar for a
+new note: an audio worklet hands over the samples, which are stored as 16 kHz mono wav
+(`AudioRecorder`, at most 5 minutes). A recording shows its waveform (its thumbnail), plays in
+place, and its robot writes it down with a speech to text model at OpenRouter. The page works on phones (one column,
 larger hit targets) and on desktops (a wall of post-its).
 
 Every app shows its own favicon: a route names it in its data (`data: { favicon }`, the notes

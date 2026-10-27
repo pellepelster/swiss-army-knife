@@ -4,8 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotesPage } from './notes-page';
 import { NotesStore } from './notes-store';
+import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, SHA256 } from './notes-testing';
+import { FakeRecorder, RECORDED } from './notes-testing';
 
 describe('NotesPage', () => {
   let fixture: ComponentFixture<NotesPage>;
@@ -26,6 +28,7 @@ describe('NotesPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: PhotoScaler, useValue: scaler },
+        { provide: AudioRecorder, useClass: FakeRecorder },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -39,7 +42,7 @@ describe('NotesPage', () => {
         pageOf([
           noteResponse(3, 'Prototype the note taking app', 'blue', ['todo', 'work']),
           noteResponse(2, 'Call the plumber', 'pink', ['home', 'todo']),
-          noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [SHA256]),
+          noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [SHA256], ['c'.repeat(64)]),
         ]),
       );
     http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
@@ -153,7 +156,9 @@ describe('NotesPage', () => {
       [],
     );
     await fixture.whenStable();
-    expect(note.querySelector('.note-photos')).toBeNull();
+    // the recording of the note stays
+    expect(note.querySelector('.note-photos a')).toBeNull();
+    expect(note.querySelectorAll('.recording').length).toBe(1);
   });
 
   it('discovers the text in a photo into the note', async () => {
@@ -167,6 +172,51 @@ describe('NotesPage', () => {
     await fixture.whenStable();
 
     expect(texts()[2]).toBe('Buy milk\n\nTotal 12.50');
+  });
+
+  it('shows the waveform of a recording, plays it and discovers its text with the robot', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    const note = notes()[2];
+    const recording = note.querySelector<HTMLButtonElement>('.recording')!;
+    expect(recording.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/v1/files/' + 'c'.repeat(64) + '/thumbnail',
+    );
+
+    button('Play Recording 1', note).click();
+    await fixture.whenStable();
+    expect(play).toHaveBeenCalled();
+    expect(recording.getAttribute('aria-pressed')).toBe('true');
+    button('Pause Recording 1', note).click();
+    await fixture.whenStable();
+    expect(pause).toHaveBeenCalled();
+
+    button('Discover the text in recording 1', note).click();
+    http
+      .expectOne({ method: 'POST', url: '/api/v1/files/' + 'c'.repeat(64) + '/discover/text' })
+      .flush({ text: 'on the way home' });
+    await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }), {
+      timeout: 1000,
+    });
+    await fixture.whenStable();
+    expect(texts()[2]).toBe('Buy milk\n\non the way home');
+  });
+
+  it('records for a note with the microphone in its footer', async () => {
+    const note = notes()[0];
+    button('Record for note 3', note).click();
+    await fixture.whenStable();
+    expect(note.textContent).toContain('0s');
+
+    button('Stop recording for note 3', note).click();
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => upload.flush({ sha256: 'd'.repeat(64) }));
+    await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/3' }), {
+      timeout: 1000,
+    });
+    await fixture.whenStable();
+    expect(note.querySelectorAll('.recording').length).toBe(1);
   });
 
   it('creates a note from the photo taken in the toolbar', async () => {

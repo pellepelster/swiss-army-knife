@@ -3,7 +3,7 @@ export interface AppEntry {
   readonly path: string;
   readonly name: string;
   readonly description: string;
-  // a solid icon of font awesome, e.g. fa-note-sticky
+  // the app icon, the one the app is installed with
   readonly icon: string;
 }
 
@@ -11,7 +11,7 @@ export const APPS: readonly AppEntry[] = [
   {
     path: '/notes',
     name: 'Notes',
-    description: 'Post-its with labels to sort them',
-    icon: 'fa-note-sticky',
+    description: 'Post-Its from text, images or audio',
+    icon: 'icons/notes.svg',
   },
 ];

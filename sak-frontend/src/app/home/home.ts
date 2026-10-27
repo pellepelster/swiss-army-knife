@@ -30,9 +30,7 @@ import { InstallService } from '../install.service';
         @for (app of apps; track app.path) {
           <li>
             <a class="app" [routerLink]="app.path">
-              <span class="icon" aria-hidden="true"
-                ><i class="fa-solid" [class]="app.icon"></i
-              ></span>
+              <img class="icon" [src]="app.icon" alt="" width="48" height="48" />
               <span class="name">{{ app.name }}</span>
               <span class="description">{{ app.description }}</span>
             </a>

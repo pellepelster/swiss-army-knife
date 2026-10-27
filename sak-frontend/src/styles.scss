@@ -189,8 +189,8 @@ body {
 
 // big enough to hit with a finger
 .color-swatch {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 1px solid rgb(0 0 0 / 25%);
   border-radius: 50%;
@@ -297,6 +297,54 @@ body {
   &:disabled {
     cursor: default;
   }
+}
+
+// a recording: its waveform with a play button over it, it plays in place
+.recording {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  &[aria-pressed='true'] img {
+    outline: 2px solid var(--note-ink);
+    outline-offset: -2px;
+  }
+}
+
+.recording-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 0.9rem;
+  transform: translate(-50%, -50%);
+}
+
+// a button while it records, it stops the recording and shows how long it runs
+.recording-now {
+  color: #c62828;
+  opacity: 1;
+}
+
+.note-photo.recording-now {
+  width: auto;
+  padding: 0 6px;
+}
+
+.recording-seconds {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .photo-input {
