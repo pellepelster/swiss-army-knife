@@ -1,12 +1,17 @@
 # Agent guidelines
 
-## Model (`sak-model`)
+## Persistence (`sak-model`)
 
 - Every entity has `created`, `updated` and `deleted` (soft delete) timestamps.
-- Database access only in `<entity>Repository` (the only class touching jOOQ and its generated
-  tables); it is `internal` and used only by its `<entity>Service`.
-- All business logic lives in `<entity>Service`, which talks only to other services and its own
-  repository. Everything outside `sak-model` uses services, never repositories or `SakDatabase.dsl`.
+- `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
+  only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
+  `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.
+
+## Services (`sak-backend`)
+
+- All business logic lives in `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the
+  app's routes. A service talks only to other services and its own repository, a repository is
+  used only by its service; routes use services, never repositories.
 
 ## API (`/api`)
 
