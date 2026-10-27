@@ -1,7 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
+import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
@@ -310,7 +310,7 @@ export class NotesStore {
       }));
       if (changed) this.save(id);
     } catch (error: unknown) {
-      this.error.set(firstMessage(error) ?? 'The text could not be discovered.');
+      this.error.set(errorMessages(error)[0] ?? 'The text could not be discovered.');
     } finally {
       this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== fileId)));
     }
@@ -441,13 +441,6 @@ export class NotesStore {
   }
 }
 
-// the first message of the api's error body, e.g. that the discovery is not configured
-function firstMessage(error: unknown): string | null {
-  if (!(error instanceof HttpErrorResponse)) return null;
-  const message = (error.error as { errors?: { message?: unknown }[] } | null)?.errors?.[0]
-    ?.message;
-  return typeof message === 'string' ? message : null;
-}
 
 // as the backend sorts them
 function newestFirst(a: Note, b: Note): number {
