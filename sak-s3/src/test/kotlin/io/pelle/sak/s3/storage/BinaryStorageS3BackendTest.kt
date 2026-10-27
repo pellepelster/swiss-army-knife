@@ -41,6 +41,20 @@ class BinaryStorageS3BackendTest {
     ) = storage.putObject("bucket1", key, content.byteInputStream(), metadata)
 
     @Test
+    fun `counts the objects of a bucket and their size, not the metadata or unfinished uploads`() {
+        storage.usage("bucket1") shouldBe BlobUsage(0, 0)
+
+        put("a.txt", "12345")
+        put("dir/sub/b.txt", "123")
+        storage.createMultipartUpload("bucket1", "c.txt", ObjectMetadata())
+
+        storage.usage("bucket1") shouldBe BlobUsage(2, 8)
+
+        storage.deleteObject("bucket1", "a.txt")
+        storage.usage("bucket1") shouldBe BlobUsage(1, 3)
+    }
+
+    @Test
     fun `putObject stores content and returns md5 etag`() {
         val content = "hello world".toByteArray()
 

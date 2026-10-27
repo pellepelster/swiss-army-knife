@@ -286,6 +286,10 @@ class BinaryStorageS3Backend(
         key: String,
     ): MetaFile? = storage.open(metaPath(bucketPath, key))?.use { mapper.readValue<MetaFile>(it) }
 
+    // the objects of the bucket and their size; staged writes and multipart parts are not in
+    // its data yet
+    fun usage(bucket: String): BlobUsage = storage.usage(requireBucket(bucket).resolve(DATA))
+
     private fun requireBucket(bucket: String): BlobPath {
         if (!bucket.matches(BUCKET_NAME_REGEX)) throw NoSuchBucketException(bucket)
         return resolver.resolve(bucket) ?: throw NoSuchBucketException(bucket)

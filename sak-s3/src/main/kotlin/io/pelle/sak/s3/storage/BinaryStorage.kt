@@ -17,6 +17,12 @@ data class BlobListEntry(
     val path get() = segments.joinToString("/")
 }
 
+// how many blobs are below a path and how large they are altogether
+data class BlobUsage(
+    val blobs: Long,
+    val bytes: Long,
+)
+
 // a blob can not be written where a parent of its path is a blob or where it has children
 class BlobPathConflictException(
     val path: BlobPath,
@@ -48,4 +54,7 @@ interface BinaryStorage {
     fun deleteTree(path: BlobPath)
 
     fun list(prefix: BlobPath): List<BlobListEntry>
+
+    // counted without listing every blob, blobs that disappear while counting are left out
+    fun usage(prefix: BlobPath): BlobUsage
 }

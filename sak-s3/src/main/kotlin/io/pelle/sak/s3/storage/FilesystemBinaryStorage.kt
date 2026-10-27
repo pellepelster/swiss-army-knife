@@ -6,11 +6,14 @@ import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.FileAlreadyExistsException
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.UUID
 import kotlin.io.path.exists
 import kotlin.io.path.isRegularFile
@@ -190,6 +193,36 @@ class FilesystemBinaryStorage(
                         }
                     }.toList()
             }.sortedBy { it.path }
+    }
+
+    override fun usage(prefix: BlobPath): BlobUsage {
+        val dir = resolve(prefix)
+        if (!dir.exists()) return BlobUsage(0, 0)
+
+        var blobs = 0L
+        var bytes = 0L
+        Files.walkFileTree(
+            dir,
+            object : SimpleFileVisitor<Path>() {
+                override fun visitFile(
+                    file: Path,
+                    attributes: BasicFileAttributes,
+                ): FileVisitResult {
+                    if (attributes.isRegularFile) {
+                        blobs++
+                        bytes += attributes.size()
+                    }
+                    return FileVisitResult.CONTINUE
+                }
+
+                // deleted while counting
+                override fun visitFileFailed(
+                    file: Path,
+                    exception: java.io.IOException,
+                ): FileVisitResult = if (exception is NoSuchFileException) FileVisitResult.CONTINUE else throw exception
+            },
+        )
+        return BlobUsage(blobs, bytes)
     }
 
     private fun resolve(path: BlobPath): Path = path.segments.fold(rootPath) { current, component -> current.resolve(component) }
