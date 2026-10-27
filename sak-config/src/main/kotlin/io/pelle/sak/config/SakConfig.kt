@@ -47,6 +47,9 @@ data class SakConfig(
         // overrides https://console.<root_domain>, e.g. for local tests
         @SerialName("console_url")
         val consoleUrl: String? = null,
+        // where sak-frontend runs, its login links lead there; without it there are none
+        @SerialName("frontend_url")
+        val frontendUrl: String? = null,
     )
 
     @Serializable

@@ -53,10 +53,21 @@ data class SessionPrincipal(
     val roles: Set<Role>,
 )
 
+// app is the one the link leads to, the console when missing
 @Serializable
 data class LoginRequest(
     val email: String,
     val redirect: String? = null,
+    val app: String = CONSOLE_APP,
+)
+
+const val CONSOLE_APP = "console"
+
+// an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
+// goes into the mail's subject, e.g. "Sign in to the console"
+data class LoginApp(
+    val url: String,
+    val name: String,
 )
 
 @Serializable
@@ -100,14 +111,15 @@ fun AuthenticationConfig.session(
     }
 }
 
-// the e-mail login: login sends a link with a login token to allowed addresses, the console's
-// signin page exchanges it for a session token with the roles of the address; addresses without
-// roles may not log in; needs authentication { session(tokens, rolesOf) }
+// the e-mail login: login sends a link with a login token to allowed addresses, the signin page
+// of the app the login started from exchanges it for a session token with the roles of the
+// address; addresses without roles may not log in; needs authentication { session(tokens, rolesOf) }
 @OptIn(ExperimentalKtorApi::class)
 fun Route.auth(
     tokens: TokenService,
     mailSender: MailSender,
-    consoleUrl: String,
+    // by the name a login request gives, only these get links
+    apps: Map<String, LoginApp>,
     rolesOf: (email: String) -> Set<Role>,
     // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
@@ -122,8 +134,14 @@ fun Route.auth(
     post("/login") {
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
-        if (email == null) {
-            call.respondErrors("No valid e-mail address.")
+        val app = apps[request.app]
+        val errors =
+            listOfNotNull(
+                "No valid e-mail address.".takeIf { email == null },
+                "Unknown app.".takeIf { app == null },
+            )
+        if (email == null || app == null) {
+            call.respondErrors(*errors.toTypedArray())
             return@post
         }
         val client = call.clientAddress()
@@ -140,9 +158,9 @@ fun Route.auth(
                 return@launch
             }
             // the redirect travels in the token, the signin page takes it from the exchange
-            val link = "${consoleUrl.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}"
+            val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}"
             try {
-                mailSender.send(email, "Sign in to the console", loginMail(consoleUrl, link, tokens.loginTokenTtl))
+                mailSender.send(email, "Sign in to ${app.name}", loginMail(app.url, link, tokens.loginTokenTtl))
                 logger.info { "sent login link to '$email'" }
             } catch (e: Exception) {
                 logger.warn(e) { "could not send login link to '$email'" }
@@ -154,7 +172,7 @@ fun Route.auth(
         tag(AUTH_TAG)
         summary = "Request a login link"
         description =
-            "Sends a link with a login token, valid for 15 minutes, to the address if it may sign in. " +
+            "Sends a link with a login token, valid for 15 minutes, to the signin page of the app if the address may sign in. " +
             "Answered the same way for every address."
         requestBody {
             required = true
@@ -162,7 +180,7 @@ fun Route.auth(
         }
         responses {
             HttpStatusCode.Accepted { description = "The link is on its way if the address may sign in" }
-            errors(HttpStatusCode.BadRequest, "No valid e-mail address, or a malformed request")
+            errors(HttpStatusCode.BadRequest, "No valid e-mail address, an unknown app, or a malformed request")
             HttpStatusCode.TooManyRequests { description = "Too many login requests from this client" }
         }
     }
@@ -268,13 +286,13 @@ private fun ApplicationCall.clientAddress(): String =
         ?: request.local.remoteAddress
 
 private fun loginMail(
-    consoleUrl: String,
+    appUrl: String,
     link: String,
     ttl: Duration,
 ) = """
     |Hello,
     |
-    |use the following link to sign in to $consoleUrl:
+    |use the following link to sign in to $appUrl:
     |
     |$link
     |

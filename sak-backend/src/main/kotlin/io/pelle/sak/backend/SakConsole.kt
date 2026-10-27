@@ -13,6 +13,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.pelle.sak.auth.CONSOLE_APP
+import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.auth.RequireRole
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SESSION_AUTH
@@ -47,6 +49,18 @@ const val CONSOLE_RESOURCES = "console"
 const val CONSOLE_CONTENT_SECURITY_POLICY =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
         "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+// the apps the login links lead to, sak-frontend only where it is configured
+fun loginApps(
+    config: SakConfig,
+    auth: SakConfig.AuthConfig,
+): Map<String, LoginApp> =
+    buildMap {
+        put(CONSOLE_APP, LoginApp(config.consoleUrl, "the console"))
+        auth.frontendUrl?.let { put(FRONTEND_APP, LoginApp(it, "the apps")) }
+    }
+
+const val FRONTEND_APP = "frontend"
 
 fun signingKeyFile(config: SakConfig) = config.authDataDir.resolve("signing-key.pem")
 
@@ -91,7 +105,7 @@ fun Application.console(
 
                 route(API_VERSION) {
                     route("/auth") {
-                        auth(tokens, mailSender, config.consoleUrl, rolesOf)
+                        auth(tokens, mailSender, loginApps(config, auth), rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {

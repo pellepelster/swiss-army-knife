@@ -58,7 +58,7 @@ class AuthRoutesTest {
                     auth(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
-                        CONSOLE_URL,
+                        mapOf(CONSOLE_APP to LoginApp(CONSOLE_URL, "the console"), "frontend" to LoginApp(FRONTEND_URL, "the apps")),
                         rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
@@ -72,10 +72,11 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         redirect: String? = null,
+        app: String? = null,
     ) = post("/api/v1/auth/login") {
         contentType(ContentType.Application.Json)
         setBody(
-            """{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}}""",
+            """{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}${app?.let { ",\"app\":\"$it\"" } ?: ""}}""",
         )
     }
 
@@ -140,6 +141,23 @@ class AuthRoutesTest {
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
             client.post("/api/v1/auth/login") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
                 HttpStatusCode.BadRequest
+        }
+
+    @Test
+    fun `the link leads to the signin page of the app the login started from`() =
+        authTest {
+            client.login("admin@example.org", "/notes", app = "frontend").status shouldBe HttpStatusCode.Accepted
+            val mail = mails.receive()
+            mail.subject shouldBe "Sign in to the apps"
+            val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
+            link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
+            client.exchange(link.parameters["token"]!!).bodyAsText().json()["redirect"]!!.jsonPrimitive.content shouldBe "/notes"
+
+            client.login("not-an-address", app = "unknown").let {
+                it.status shouldBe HttpStatusCode.BadRequest
+                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."},{"message":"Unknown app."}]}"""
+            }
+            withTimeoutOrNull(500) { mails.receive() } shouldBe null
         }
 
     @Test
@@ -237,5 +255,7 @@ class AuthRoutesTest {
 
     companion object {
         private const val CONSOLE_URL = "https://console.example.org"
+
+        private const val FRONTEND_URL = "https://apps.example.org"
     }
 }

@@ -1,5 +1,6 @@
-# the backend of `mise run backend:run`, its data lives below build/local/; the console of
-# `mise run console:run` proxies /api to it, the login links go to the mailpit backend:run starts
+# the backend of `mise run backend:run`, its data lives below build/local/; the console
+# (`mise run console:run`) and the frontend (`mise run frontend:run`) proxy /api to it, the login
+# links go to the mailpit backend:run starts
 ktor:
   deployment:
     port: 8080
@@ -10,6 +11,7 @@ sak:
   caddy_admin_url: http://localhost:12019
   auth:
     console_url: http://localhost:4200
+    frontend_url: http://localhost:4300
     admins:
       - admin@localhost
     smtp:
