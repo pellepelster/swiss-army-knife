@@ -16,8 +16,13 @@ export function apiUrl(url: string, here: Location | URL = location): string {
   return `${here.protocol}//${apiHost(here.host)}/v1/${url.slice(API_PREFIX.length)}`;
 }
 
-// every request of the api to where apiUrl says
+// the service worker keeps nothing of the api: its requests go past it to the network, their
+// answers and failures show as they are instead of the worker's 504; the backend allows the
+// header in its cors configuration
+export const SERVICE_WORKER_BYPASS = { 'ngsw-bypass': 'true' };
+
+// every request of the api to where apiUrl says, past the service worker
 export const apiUrlInterceptor: HttpInterceptorFn = (request, next) => {
-  const url = apiUrl(request.url);
-  return next(url === request.url ? request : request.clone({ url }));
+  if (!request.url.startsWith(API_PREFIX)) return next(request);
+  return next(request.clone({ url: apiUrl(request.url), setHeaders: SERVICE_WORKER_BYPASS }));
 };

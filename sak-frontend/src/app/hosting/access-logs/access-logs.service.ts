@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
-import { apiUrl } from '../../shared/api-url';
+import { apiUrl, SERVICE_WORKER_BYPASS } from '../../shared/api-url';
 
 // a bucket served at its domains, the site its access logs are kept under
 interface Site {
@@ -116,7 +116,10 @@ export class AccessLogsService {
       const token = this.auth.token();
 
       fetch(apiUrl(`${accessLogsUrl(bucket)}/live`), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...SERVICE_WORKER_BYPASS,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         signal: abort.signal,
       })
         .then(async (response) => {

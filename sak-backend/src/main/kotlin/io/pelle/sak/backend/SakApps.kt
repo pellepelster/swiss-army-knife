@@ -129,6 +129,8 @@ fun Application.apps(
         listOf(HttpMethod.Put, HttpMethod.Delete).forEach { allowMethod(it) }
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        // the requests of the frontend go past its service worker
+        allowHeader("ngsw-bypass")
         maxAgeInSeconds = CORS_MAX_AGE_SECONDS
     }
 

@@ -712,7 +712,7 @@ class SakAppsTest {
                         .newBuilder(URI.create("http://localhost:$port/api/v1/notes/1"))
                         .header("Origin", origin)
                         .header("Access-Control-Request-Method", "PUT")
-                        .header("Access-Control-Request-Headers", "authorization,content-type")
+                        .header("Access-Control-Request-Headers", "authorization,content-type,ngsw-bypass")
                         .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
                         .build(),
                     HttpResponse.BodyHandlers.discarding(),
@@ -722,7 +722,10 @@ class SakAppsTest {
                 preflight(origin).let {
                     it.statusCode() shouldBe 200
                     it.headers().firstValue("Access-Control-Allow-Origin").get() shouldBe origin
-                    it.headers().firstValue("Access-Control-Allow-Headers").get().lowercase() shouldContain "authorization"
+                    it.headers().firstValue("Access-Control-Allow-Headers").get().lowercase().let { headers ->
+                        headers shouldContain "authorization"
+                        headers shouldContain "ngsw-bypass"
+                    }
                 }
             }
             preflight("https://evil.example.com").headers().firstValue("Access-Control-Allow-Origin").isPresent shouldBe false
