@@ -1,13 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { appendAccessLog, signIn } from './console';
+import { appendAccessLog, ensureBucket, signIn } from './console';
 import { deleteAllMails } from './mailpit';
 
 test.beforeEach(async ({ page, request }) => {
   await deleteAllMails(request);
   await signIn(page, request, 'logs@example.org');
+  // served at their domains, so they are sites
+  await ensureBucket(page, 'e2e-stats', ['stats.example.org']);
+  await ensureBucket(page, 'e2e-other', ['other.example.org']);
+  // the sites are read once, with the buckets there now
+  await page.reload();
 });
 
-// the buckets e2e-stats and e2e-other (e2e/controller-config.yaml) are sites only this test writes
+// the buckets e2e-stats and e2e-other are sites only this test writes
 test('shows the requests of a site from the ingress access log', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
@@ -26,7 +31,9 @@ test('shows the requests of a site from the ingress access log', async ({ page }
   // the overview shows the requests of every site, the navigation leads to each one's
   await expect(page.getByRole('img', { name: 'Requests, last 4 hours' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Statistics' }).click();
-  // the first site, in the url like every selected one
+  // the first site by name, in the url like every selected one
+  await expect(page).toHaveURL('/logs/statistics/e2e-other');
+  await page.getByLabel('Site', { exact: true }).selectOption('e2e-stats');
   await expect(page).toHaveURL('/logs/statistics/e2e-stats');
   await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-stats');
   await expect(page.getByTestId('site-title')).toHaveText('e2e-stats');

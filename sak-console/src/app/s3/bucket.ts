@@ -3,7 +3,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
+import { errorMessages } from '../shared/api';
+import { DomainList } from '../shared/domain-list';
+import { enteredDomains, validDomains } from '../shared/domains';
 import { formatBytes, formatCount } from '../shared/format';
+import { Modal } from '../shared/modal';
 import { Icon } from '../shared/icon';
 import { Bucket, BucketSecret, BucketsService } from './buckets.service';
 import { POLL_INTERVAL_MS } from './buckets';
@@ -17,7 +21,7 @@ type Copied = 'accessKeyId' | 'secretAccessKey';
 // hidden until it is shown or copied
 @Component({
   selector: 'app-bucket',
-  imports: [DatePipe, Icon, RouterLink],
+  imports: [DatePipe, DomainList, Icon, Modal, RouterLink],
   template: `
     <div class="page">
       <div class="page-header">
@@ -37,7 +41,10 @@ type Copied = 'accessKeyId' | 'secretAccessKey';
           <div class="card-body">
             <dl class="row mb-0">
               <dt class="col-sm-3">Domains</dt>
-              <dd class="col-sm-9 font-mono" data-testid="domains">{{ bucket.domains.join(', ') || '–' }}</dd>
+              <dd class="col-sm-9 d-flex flex-wrap align-items-center gap-2">
+                <span class="font-mono" data-testid="domains">{{ bucket.domains.join(', ') || '–' }}</span>
+                <button class="btn btn-sm btn-outline-secondary" type="button" (click)="openDialog(bucket)">Edit domains</button>
+              </dd>
               @if (bucket.statistics.failed) {
                 <dt class="col-sm-3">Objects</dt>
                 <dd class="col-sm-9 text-secondary">could not be counted</dd>
@@ -117,6 +124,36 @@ type Copied = 'accessKeyId' | 'secretAccessKey';
         </div>
       }
     </div>
+
+    @if (dialogOpen()) {
+      <app-modal title="Edit domains" (closed)="dialogOpen.set(false)">
+        <form (submit)="$event.preventDefault(); saveDomains()">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="edit-bucket-name">Bucket name</label>
+              <input class="form-control font-mono" id="edit-bucket-name" [value]="name()" readonly />
+            </div>
+            <app-domain-list [(domains)]="domains" />
+            @if (saveErrors().length) {
+              <div class="text-danger small mt-2" role="alert" data-testid="save-error">
+                @for (message of saveErrors(); track $index) {
+                  <div>{{ message }}</div>
+                }
+              </div>
+            }
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" (click)="dialogOpen.set(false)">Cancel</button>
+            <button class="btn btn-primary" type="submit" [disabled]="!validDomains(domains()) || saving()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              }
+              Save
+            </button>
+          </div>
+        </form>
+      </app-modal>
+    }
   `,
 })
 export class BucketDetail implements OnInit {
@@ -133,6 +170,12 @@ export class BucketDetail implements OnInit {
   protected readonly copied = signal<Copied | null>(null);
   protected readonly copyFailed = signal(false);
 
+  protected readonly dialogOpen = signal(false);
+  protected readonly domains = signal<string[]>([]);
+  protected readonly saving = signal(false);
+  protected readonly saveErrors = signal<string[]>([]);
+  protected readonly validDomains = validDomains;
+
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
 
@@ -145,6 +188,32 @@ export class BucketDetail implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  protected openDialog(bucket: Bucket): void {
+    this.domains.set(bucket.domains.length ? [...bucket.domains] : ['']);
+    this.saveErrors.set([]);
+    this.dialogOpen.set(true);
+  }
+
+  protected saveDomains(): void {
+    if (!validDomains(this.domains())) return;
+    this.saving.set(true);
+    this.saveErrors.set([]);
+    this.subscriptions.add(
+      this.service.updateDomains(this.name(), enteredDomains(this.domains())).subscribe({
+        next: (bucket) => {
+          this.saving.set(false);
+          this.dialogOpen.set(false);
+          this.bucket.set(bucket);
+        },
+        error: (error: unknown) => {
+          this.saving.set(false);
+          const messages = errorMessages(error);
+          this.saveErrors.set(messages.length ? messages : ['The domains could not be changed.']);
+        },
+      }),
+    );
   }
 
   protected retrieve(): void {

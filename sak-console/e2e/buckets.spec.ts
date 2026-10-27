@@ -17,12 +17,26 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await expect(page).toHaveURL('/s3');
 
   // e2e-other holds the object playwright.config.ts put where its data goes, before it exists
-  await page.getByLabel('Bucket name').fill('e2e-other');
   await page.getByRole('button', { name: 'Add bucket' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add bucket' });
+  await dialog.getByLabel('Bucket name').fill('e2e-other');
+  await dialog.getByLabel('Domain 1', { exact: true }).fill('other.example.org');
+  await dialog.getByRole('button', { name: 'Add bucket' }).click();
   await expect(page).toHaveURL('/s3/e2e-other');
   await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
   await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
   await expect(page.getByTestId('domains')).toHaveText('other.example.org');
+
+  // the domains change in a dialog, the name can not
+  await page.getByRole('button', { name: 'Edit domains' }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit domains' });
+  await expect(edit.getByLabel('Bucket name')).toHaveValue('e2e-other');
+  await expect(edit.getByLabel('Bucket name')).not.toBeEditable();
+  await edit.getByRole('button', { name: 'Add domain' }).click();
+  await edit.getByLabel('Domain 2', { exact: true }).fill('www.other.example.org');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect(page.getByTestId('domains')).toHaveText('other.example.org, www.other.example.org');
 
   // the keys are fetched when asked for, the secret stays hidden until shown
   await page.getByRole('button', { name: 'Retrieve credentials' }).click();
@@ -38,9 +52,12 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
 
   // a taken name is reported
   await page.getByRole('link', { name: 'S3 · Buckets' }).click();
-  await page.getByLabel('Bucket name').fill('e2e-other');
   await page.getByRole('button', { name: 'Add bucket' }).click();
-  await expect(page.getByTestId('create-error')).toContainText('exists already');
+  await dialog.getByLabel('Bucket name').fill('e2e-other');
+  await dialog.getByRole('button', { name: 'Remove domain 1' }).click();
+  await dialog.getByRole('button', { name: 'Add bucket' }).click();
+  await expect(dialog.getByTestId('create-error')).toHaveText('A bucket of the name exists.');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
 
   const other = page.getByTestId('bucket-e2e-other');
   await expect(other.getByTestId('objects')).toHaveText('1');

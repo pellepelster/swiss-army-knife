@@ -55,3 +55,21 @@ export function appendAccessLog(...entries: AccessLogEntry[]): void {
   );
   appendFileSync(join(ACCESS_LOG_DIR, 'access.log'), lines.join('\n') + '\n');
 }
+
+// creates the bucket served at the domains through the api with the session of the signed in page,
+// unless it exists already; the specs that need a bucket as a site make sure it is there
+export async function ensureBucket(page: Page, name: string, domains: string[]): Promise<void> {
+  const status = await page.evaluate(
+    async ({ name, domains }) => {
+      const session = JSON.parse(localStorage.getItem('sak.session') ?? '{}') as { token?: string };
+      const response = await fetch('/api/v1/buckets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ name, domains }),
+      });
+      return response.status;
+    },
+    { name, domains },
+  );
+  expect([201, 409]).toContain(status);
+}

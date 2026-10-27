@@ -6,7 +6,8 @@ import { Subscription } from 'rxjs';
 import { Bucket, BucketsService } from '../s3/buckets.service';
 import { errorMessages } from '../shared/api';
 import { Modal } from '../shared/modal';
-import { DOMAIN_PATTERN, Redirect, RedirectTarget, RedirectsService } from './redirects.service';
+import { DOMAIN_PATTERN } from '../shared/domains';
+import { Redirect, RedirectTarget, RedirectsService } from './redirects.service';
 
 type TargetType = RedirectTarget['type'];
 

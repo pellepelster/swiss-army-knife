@@ -106,4 +106,30 @@ describe('BucketDetail', () => {
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('no such bucket');
   });
+
+  it('changes the domains in a dialog, the name stays', async () => {
+    const { harness, page, button, text } = await open();
+    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    await harness.fixture.whenStable();
+
+    button('Edit domains').click();
+    await harness.fixture.whenStable();
+    const dialog = page.querySelector<HTMLElement>('[role=dialog]')!;
+    expect(dialog.querySelector<HTMLInputElement>('#edit-bucket-name')!.readOnly).toBe(true);
+    expect(dialog.querySelector<HTMLInputElement>('#edit-bucket-name')!.value).toBe('backups');
+    const domain = dialog.querySelector<HTMLInputElement>('#domain-0')!;
+    expect(domain.value).toBe('backups.example.org');
+    domain.value = 'files.example.org';
+    domain.dispatchEvent(new Event('input'));
+    await harness.fixture.whenStable();
+    [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Save')!.click();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/buckets/backups/domains' });
+    expect(request.request.body).toEqual({ domains: ['files.example.org'] });
+    request.flush({ ...bucket({ computing: false, failed: true }), domains: ['files.example.org'] });
+    await harness.fixture.whenStable();
+
+    expect(page.querySelector('[role=dialog]')).toBeNull();
+    expect(text('domains')).toBe('files.example.org');
+  });
 });

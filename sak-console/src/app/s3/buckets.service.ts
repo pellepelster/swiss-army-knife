@@ -44,8 +44,13 @@ export class BucketsService {
     return this.http.get<Bucket>(`/api/v1/buckets/${encodeURIComponent(name)}`);
   }
 
-  create(name: string): Observable<Bucket> {
-    return this.http.post<Bucket>('/api/v1/buckets', { name });
+  create(name: string, domains: string[]): Observable<Bucket> {
+    return this.http.post<Bucket>('/api/v1/buckets', { name, domains });
+  }
+
+  // serves the bucket at the domains instead of its current ones
+  updateDomains(name: string, domains: string[]): Observable<Bucket> {
+    return this.http.put<Bucket>(`/api/v1/buckets/${encodeURIComponent(name)}/domains`, { domains });
   }
 
   secret(name: string): Observable<BucketSecret> {

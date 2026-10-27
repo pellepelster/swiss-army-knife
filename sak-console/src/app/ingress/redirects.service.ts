@@ -14,9 +14,6 @@ export interface Redirect {
   createdAt: string;
 }
 
-// labels of letters, digits and hyphens, at least two of them, as the controller accepts them
-export const DOMAIN_PATTERN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i;
-
 @Injectable({ providedIn: 'root' })
 export class RedirectsService {
   private readonly http = inject(HttpClient);

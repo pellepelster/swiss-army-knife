@@ -23,6 +23,9 @@ const counted = (objects: number, bytes: number) => ({
 // what a list endpoint answers with the items
 const pageOf = <T>(items: T[]) => ({ items, pagination: { offset: 0, limit: 500, total: items.length } });
 
+// removes the one blank domain the dialog starts with
+const dialogRemove = (page: HTMLElement) => page.querySelector<HTMLButtonElement>('[aria-label="Remove domain 1"]')!.click();
+
 describe('Buckets', () => {
   let http: HttpTestingController;
 
@@ -98,42 +101,73 @@ describe('Buckets', () => {
     expect(page.querySelector('[role=alert]')?.textContent).toContain('does not allow');
   });
 
-  const typeName = async (page: HTMLElement, harness: RouterTestingHarness, name: string) => {
-    const input = page.querySelector<HTMLInputElement>('#bucket-name')!;
-    input.value = name;
-    input.dispatchEvent(new Event('input'));
+  // opens the dialog of the toolbar, its inputs are typed into
+  const openDialog = async (page: HTMLElement, harness: RouterTestingHarness) => {
+    [...page.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Add bucket')!.click();
     await harness.fixture.whenStable();
-    return page.querySelector<HTMLButtonElement>('form button[type=submit]')!;
+    const dialog = page.querySelector<HTMLElement>('[role=dialog]')!;
+    const type = async (selector: string, value: string) => {
+      const input = dialog.querySelector<HTMLInputElement>(selector)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      await harness.fixture.whenStable();
+    };
+    const button = (text: string) =>
+      [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === text)!;
+    return { dialog, type, button };
   };
 
-  it('creates a bucket and opens it', async () => {
+  it('creates a bucket with its domains in the dialog of the toolbar and opens it', async () => {
     const { harness, page } = await open();
     http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([]));
     await harness.fixture.whenStable();
 
-    expect((await typeName(page, harness, 'No_Bucket')).disabled).toBe(true);
-    const submit = await typeName(page, harness, 'new-bucket');
-    expect(submit.disabled).toBe(false);
-    submit.click();
+    const { dialog, type, button } = await openDialog(page, harness);
+    expect(dialog.getAttribute('aria-label')).toBe('Add bucket');
+    await type('#bucket-name', 'No_Bucket');
+    expect(button('Add bucket').disabled).toBe(true);
+    await type('#bucket-name', 'new-bucket');
+    expect(button('Add bucket').disabled).toBe(false);
+
+    await type('#domain-0', 'no domain');
+    expect(button('Add bucket').disabled).toBe(true);
+    await type('#domain-0', 'example.org');
+    button('Add domain').click();
+    await harness.fixture.whenStable();
+    await type('#domain-1', 'www.example.org');
+    button('Add domain').click();
+    await harness.fixture.whenStable();
+    expect(button('Add bucket').disabled).toBe(false);
+    button('Add bucket').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/buckets' });
-    expect(request.request.body).toEqual({ name: 'new-bucket' });
-    request.flush({ name: 'new-bucket', domains: [], createdAt: CREATED, statistics: counted(0, 0) }, { status: 201, statusText: 'Created' });
+    // the blank third domain is left out
+    expect(request.request.body).toEqual({ name: 'new-bucket', domains: ['example.org', 'www.example.org'] });
+    request.flush(
+      { name: 'new-bucket', domains: ['example.org', 'www.example.org'], createdAt: CREATED, statistics: counted(0, 0) },
+      { status: 201, statusText: 'Created' },
+    );
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/s3/new-bucket');
   });
 
-  it('reports a name that is taken', async () => {
+  it('shows what the api rejected the bucket for', async () => {
     const { harness, page } = await open();
     http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([]));
     await harness.fixture.whenStable();
 
-    (await typeName(page, harness, 'backups')).click();
-    http.expectOne({ method: 'POST', url: '/api/v1/buckets' }).flush(null, { status: 409, statusText: 'Conflict' });
+    const { type, button } = await openDialog(page, harness);
+    await type('#bucket-name', 'backups');
+    dialogRemove(page);
+    await harness.fixture.whenStable();
+    button('Add bucket').click();
+    http
+      .expectOne({ method: 'POST', url: '/api/v1/buckets' })
+      .flush({ errors: [{ message: 'A bucket of the name exists.' }] }, { status: 409, statusText: 'Conflict' });
     await harness.fixture.whenStable();
 
-    expect(page.querySelector('[data-testid=create-error]')?.textContent).toContain('exists already');
+    expect(page.querySelector('[data-testid=create-error]')?.textContent?.trim()).toBe('A bucket of the name exists.');
     expect(TestBed.inject(Router).url).toBe('/s3');
   });
 
