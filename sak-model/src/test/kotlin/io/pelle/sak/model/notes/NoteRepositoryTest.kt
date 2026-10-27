@@ -5,6 +5,8 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.jooq.tables.references.NOTES
 import io.pelle.sak.model.jooq.tables.references.NOTES_FILES
+import io.pelle.sak.model.jooq.tables.references.NOTES_LABELS
+import io.pelle.sak.model.labels.LabelRepository
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -32,6 +34,17 @@ class NoteRepositoryTest {
             .orderBy(NOTES_FILES.DELETED_AT.isNotNull, NOTES_FILES.POSITION)
             .fetch()
             .map { Link(it.id!!, it.fileId!!, it.position!!, it.deletedAt != null) }
+
+    private fun label(name: String) = LabelRepository(database).insert(name, now)!!.id
+
+    // the labels of the note with whether their link is deleted, by the order they were attached in
+    private fun labelLinks(noteId: Int) =
+        database.dsl
+            .selectFrom(NOTES_LABELS)
+            .where(NOTES_LABELS.NOTE_ID.eq(noteId))
+            .orderBy(NOTES_LABELS.ID)
+            .fetch()
+            .map { it.labelId!! to (it.deletedAt != null) }
 
     private data class Link(
         val id: Int,
@@ -89,5 +102,36 @@ class NoteRepositoryTest {
         repository.delete("pelle@pelle.io", note.id, later) shouldBe true
 
         links(note.id).single().deleted shouldBe true
+    }
+
+    @Test
+    fun `deletes the labels removed from a note softly, the labels that stay keep their link`() {
+        val milk = label("milk")
+        val eggs = label("eggs")
+        val note = repository.insert("pelle@pelle.io", "shopping", "yellow", setOf(milk, eggs), emptyList(), now)
+
+        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs), emptyList(), later)
+        repository.byId("pelle@pelle.io", note.id)!!.labelIds shouldBe setOf(eggs)
+        repository.count("pelle@pelle.io", milk) shouldBe 0
+        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs, milk), emptyList(), later)
+
+        repository.byId("pelle@pelle.io", note.id)!!.labelIds shouldBe setOf(milk, eggs)
+        labelLinks(note.id) shouldBe listOf(milk to true, eggs to false, milk to false)
+    }
+
+    @Test
+    fun `deletes the labels of a deleted note and the links to a deleted label softly`() {
+        val milk = label("milk")
+        val eggs = label("eggs")
+        val deleted = repository.insert("pelle@pelle.io", "shopping", "yellow", setOf(milk), emptyList(), now)
+        val kept = repository.insert("pelle@pelle.io", "breakfast", "yellow", setOf(milk, eggs), emptyList(), now)
+
+        repository.delete("pelle@pelle.io", deleted.id, later)
+        repository.detachLabel(eggs, later)
+
+        labelLinks(deleted.id) shouldBe listOf(milk to true)
+        labelLinks(kept.id) shouldBe listOf(milk to false, eggs to true)
+        repository.byId("pelle@pelle.io", kept.id)!!.labelIds shouldBe setOf(milk)
+        repository.count("pelle@pelle.io", eggs) shouldBe 0
     }
 }

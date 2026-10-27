@@ -88,7 +88,7 @@ class NoteService(
     ) : this(NoteRepository(database), labels, files, clock)
 
     init {
-        labels.onDelete(repository::detachLabel)
+        labels.onDelete { repository.detachLabel(it, clock.instant()) }
     }
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
