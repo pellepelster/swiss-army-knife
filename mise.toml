@@ -117,9 +117,87 @@ npx ng serve --port 4200
 """
 
 [tasks."frontend:run"]
-description = "Run the sak-frontend notes prototype on http://localhost:4300"
+description = "Run sak-frontend, the apps, on http://localhost:4300, its /api goes to backend:run"
 dir = "{{config_root}}/sak-frontend"
 run = """
 [ -d node_modules ] || npm ci
 npx ng serve --port 4300
 """
+
+# everything at once, each in its own process group with its log in build/local/logs; the backend
+# first, its build installs the npm dependencies of the frontend and the console, which must not
+# change under their dev servers. Ctrl-C stops everything.
+[tasks."run"]
+description = "Run the backend, mailpit, the console and the frontend until Ctrl-C"
+# the script keeps the process groups of the tasks in an array
+shell = "bash -c"
+run = '''
+logs="{{config_root}}/build/local/logs"
+mkdir -p "$logs"
+pids=()
+
+stop() {
+  # the terminal hands Ctrl-C to mise as well, which passes it on again: ignored while stopping
+  trap '' INT TERM
+  trap - EXIT
+  echo
+  echo "stopping everything…"
+  for pid in "${pids[@]}"; do kill -INT -- "-$pid" 2>/dev/null; done
+  # gradle hands the backend to its daemon, which stops it once its client is gone
+  for _ in $(seq 1 30); do
+    alive=0
+    for pid in "${pids[@]}"; do kill -0 -- "-$pid" 2>/dev/null && alive=1; done
+    [ "$alive" = 0 ] && break
+    sleep 0.5
+  done
+  for pid in "${pids[@]}"; do kill -KILL -- "-$pid" 2>/dev/null; done
+  pkill -f 'io.pelle.sak.backend.SakBackendKt' 2>/dev/null
+  docker stop sak-local-mailpit >/dev/null 2>&1
+  echo "stopped"
+}
+trap stop INT TERM EXIT
+
+# starts a task in its own process group, so stop() reaches everything it starts
+start() {
+  setsid mise run "$1" > "$logs/$1.log" 2>&1 < /dev/null &
+  pids+=($!)
+}
+
+# waits for the line in the log of the task, gives up when the task ended or after the seconds
+await() {
+  local task=$1 line=$2 seconds=$3 pid=$4
+  for _ in $(seq 1 "$seconds"); do
+    grep -q "$line" "$logs/$task.log" && return 0
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "$task did not start, see $logs/$task.log" >&2
+      return 1
+    fi
+    sleep 1
+  done
+  echo "$task did not start within $seconds seconds, see $logs/$task.log" >&2
+  return 1
+}
+
+echo "starting the backend and mailpit…"
+start backend:run
+await backend:run "Responding at" 600 "${pids[0]}" || exit 1
+
+echo "starting the console and the frontend…"
+start console:run
+start frontend:run
+await console:run "Local:" 180 "${pids[1]}" || exit 1
+await frontend:run "Local:" 180 "${pids[2]}" || exit 1
+
+cat <<ADDRESSES
+
+  frontend   http://localhost:4300   sign in as admin@localhost
+  console    http://localhost:4200   sign in as admin@localhost
+  backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
+  mailpit    http://localhost:8025   the login links arrive here
+
+  logs in $logs
+  Ctrl-C stops everything
+
+ADDRESSES
+wait
+'''
