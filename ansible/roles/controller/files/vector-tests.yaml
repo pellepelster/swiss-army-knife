@@ -1,4 +1,4 @@
-# unit tests of vector.yaml, run with `./gradlew :sak-controller:vectorTest` (needs docker)
+# unit tests of vector.yaml, run with `./gradlew :sak-backend:vectorTest` (needs docker)
 tests:
   - name: caddy access log entries become victorialogs records of their site
     inputs:

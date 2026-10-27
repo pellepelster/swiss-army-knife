@@ -1,4 +1,4 @@
-// the angular console, its build is packaged below console/ in a jar sak-controller serves it from
+// the angular console, its build is packaged below console/ in a jar sak-backend serves it from
 plugins {
     `java-library`
 }
@@ -38,7 +38,7 @@ val playwrightInstall by tasks.registering(Exec::class) {
 val e2eTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Run the end-to-end tests of the console against the controller and a mailpit e-mail sink"
-    dependsOn(playwrightInstall, ":sak-controller:installDist", ":sak-controller:vectorTest")
+    dependsOn(playwrightInstall, ":sak-backend:installDist", ":sak-backend:vectorTest")
     commandLine("npx", "playwright", "test")
 }
 

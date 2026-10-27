@@ -63,7 +63,7 @@ ln -sfn ../../../../ansible .ansible/collections/ansible_collections/pelle/sak
 ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
 mise run docker:save
 ansible-playbook -i infra/.ansible/inventory.yml \
-  -e controller_image_archive="$PWD/build/images/sak-controller.tar.gz" \
+  -e controller_image_archive="$PWD/build/images/sak-backend.tar.gz" \
   -e controller_ingress_image_archive="$PWD/build/images/sak-ingress.tar.gz" \
   -e controller_config_src="$PWD/config/controller-config.yaml" \
   pelle.sak.controller
@@ -71,10 +71,10 @@ ansible-playbook -i infra/.ansible/inventory.yml \
 
 # the images are tagged below localhost/, so podman never tries to pull them
 [tasks."docker:build"]
-description = "Build the sak-controller and sak-ingress docker images"
+description = "Build the sak-backend and sak-ingress docker images"
 run = """
-./gradlew :sak-controller:installDist
-docker build -t localhost/sak-controller:latest sak-controller
+./gradlew :sak-backend:installDist
+docker build -t localhost/sak-backend:latest sak-backend
 docker build -t localhost/sak-ingress:latest sak-ingress
 """
 
@@ -85,6 +85,6 @@ description = "Export the docker images to build/images/ for deployment"
 depends = ["docker:build"]
 run = """
 mkdir -p build/images
-docker save localhost/sak-controller:latest | gzip -n > build/images/sak-controller.tar.gz
+docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.tar.gz
 docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
 """

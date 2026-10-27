@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 // the end-to-end tests run the console as it is deployed: served by the controller (built with
-// `./gradlew :sak-controller:installDist`), the login links go to a mailpit e-mail sink, the
+// `./gradlew :sak-backend:installDist`), the login links go to a mailpit e-mail sink, the
 // access log the tests write is shipped by vector to victorialogs, all three in docker
 export const CONSOLE_URL = 'http://localhost:18080';
 export const MAILPIT_URL = 'http://localhost:18025';
@@ -69,7 +69,7 @@ export default defineConfig({
       gracefulShutdown,
     },
     {
-      command: '../sak-controller/build/install/sak-controller/bin/sak-controller -config=e2e/controller-config.yaml',
+      command: '../sak-backend/build/install/sak-backend/bin/sak-backend -config=e2e/controller-config.yaml',
       url: `${CONSOLE_URL}/`,
       timeout: 60_000,
       reuseExistingServer: !process.env['CI'],

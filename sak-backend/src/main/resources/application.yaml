@@ -1,0 +1,9 @@
+# defaults of the controller, the configuration given with -config=<file> overrides them
+ktor:
+  deployment:
+    # the controller is only ever reached through the ingress on the same host
+    host: 127.0.0.1
+    port: 8080
+  application:
+    modules:
+      - io.pelle.sak.backend.SakBackendKt.module

@@ -1,7 +1,7 @@
 # sak-console
 
-The Angular console of sak-controller, served at `console.<root_domain>`. Its build is packaged
-below `console/` in a jar that sak-controller serves, the api is on the same origin under `/api/v1`.
+The Angular console of sak-backend, served at `console.<root_domain>`. Its build is packaged
+below `console/` in a jar that sak-backend serves, the api is on the same origin under `/api/v1`.
 The console and its login are only served when `sak.auth` is configured.
 
 ## E-mail login

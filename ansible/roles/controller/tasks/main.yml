@@ -127,7 +127,7 @@
     group: root
     mode: "0600"
   loop:
-    - { name: sak-controller, archive: "{{ controller_image_archive }}", image: "{{ controller_image }}" }
+    - { name: sak-backend, archive: "{{ controller_image_archive }}", image: "{{ controller_image }}" }
     - { name: sak-ingress, archive: "{{ controller_ingress_image_archive }}", image: "{{ controller_ingress_image }}" }
   loop_control:
     label: "{{ item.name }}"
@@ -163,7 +163,7 @@
     owner: root
     group: "{{ controller_group }}"
     mode: "0640"
-  notify: Restart sak-controller
+  notify: Restart sak-backend
 
 # read by podman (as root) only, the controller gets the credentials via its environment
 - name: Upload the controller environment
@@ -173,7 +173,22 @@
     owner: root
     group: root
     mode: "0600"
-  notify: Restart sak-controller
+  notify: Restart sak-backend
+
+# sak-backend was called sak-controller, its container would keep the port taken
+- name: Stop the sak-controller container
+  ansible.builtin.systemd_service:
+    name: sak-controller
+    state: stopped
+  failed_when: false
+
+- name: Remove the sak-controller quadlet and image archive
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/containers/systemd/sak-controller.container
+    - "{{ controller_base_path }}/sak-controller-image.tar.gz"
 
 - name: Install the quadlets
   ansible.builtin.template:
@@ -184,7 +199,7 @@
     mode: "0644"
   loop:
     - sak-ingress
-    - sak-controller
+    - sak-backend
     - sak-victorialogs
     - sak-vector
   notify: "Restart {{ item }}"
@@ -197,6 +212,6 @@
     daemon_reload: true
   loop:
     - sak-ingress
-    - sak-controller
+    - sak-backend
     - sak-victorialogs
     - sak-vector

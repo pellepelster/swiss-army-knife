@@ -143,7 +143,7 @@ Fix: `Math.floorDiv`.
 
 ### 14. A console setup failure stops the whole controller (low, fixed)
 
-`SakController.kt`: a corrupt `signing-key.pem` or a bucket named like a reserved site throws
+`SakBackend.kt`: a corrupt `signing-key.pem` or a bucket named like a reserved site throws
 inside `module()`, so the s3 api does not start either.
 
 Fix: the console failing to set up is logged as an error and the controller runs without it.

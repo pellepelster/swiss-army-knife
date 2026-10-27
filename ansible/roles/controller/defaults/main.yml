@@ -2,7 +2,7 @@
 # local path of the image archive written by `mise run docker:save` (required)
 controller_image_archive: ""
 # the image the archive contains, it is only loaded from the archive and never pulled
-controller_image: localhost/sak-controller:latest
+controller_image: localhost/sak-backend:latest
 # everything of the controller lives below this path on the data volume
 controller_base_path: /storage/data/controller
 # mounted at the same path into the container, the controller hands caddy paths below it

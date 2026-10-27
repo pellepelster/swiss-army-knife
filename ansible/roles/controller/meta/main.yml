@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: Christian 'Pelle' Pelster
-  description: Runs the sak-controller and the sak-ingress (caddy) images as podman quadlets
+  description: Runs the sak-backend and the sak-ingress (caddy) images as podman quadlets
   license: MIT
   min_ansible_version: "2.16"
   platforms:
