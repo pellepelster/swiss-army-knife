@@ -63,8 +63,9 @@ import { AuthService } from '../auth/auth.service';
           <span class="nav-text">Redirects</span>
         </a>
         <div class="label-mono nav-section-label">API</div>
-        <!-- swagger ui is no page of the console app, it is loaded on its own -->
-        <a class="nav-item" href="/swagger/">
+        <!-- swagger ui is no page of the console app, it is loaded on its own in a new tab, which
+             shares the session in local storage -->
+        <a class="nav-item" href="/swagger/" target="_blank" rel="noopener">
           <span class="nav-square"></span>
           <span class="nav-text">Swagger</span>
         </a>

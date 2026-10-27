@@ -4,16 +4,21 @@ import { deleteAllMails } from './mailpit';
 
 const ADDRESS = 'api@example.org';
 
-test('documents the api in swagger ui, which tries it out with the console session', async ({ page, request }) => {
+test('documents the api in swagger ui, which tries it out with the console session', async ({ page: console, request }) => {
+  await deleteAllMails(request);
+  await signIn(console, request, ADDRESS);
+
+  // in a new tab, the console stays open
+  const [page] = await Promise.all([
+    console.context().waitForEvent('page'),
+    console.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Swagger' }).click(),
+  ]);
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await deleteAllMails(request);
-  await signIn(page, request, ADDRESS);
-
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Swagger' }).click();
   await expect(page).toHaveURL('/swagger/');
+  await expect(console).not.toHaveURL('/swagger/');
   await expect(page.getByRole('heading', { name: /sak console api/ })).toBeVisible();
   for (const path of ['/api/v1/auth/login', '/api/v1/logs/{site}/live', '/api/v1/logs/{site}/search']) {
     await expect(page.getByText(path, { exact: true })).toBeVisible();

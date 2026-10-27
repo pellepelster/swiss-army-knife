@@ -54,6 +54,9 @@ describe('SideBar', () => {
       ['Redirects', '/ingress/redirects'],
       ['Swagger', '/swagger/'],
     ]);
+    const swagger = element.querySelector<HTMLAnchorElement>('nav a[href="/swagger/"]')!;
+    expect(swagger.target).toBe('_blank');
+    expect(swagger.rel).toBe('noopener');
   });
 
   it('signs out from the personal menu at the bottom', async () => {
