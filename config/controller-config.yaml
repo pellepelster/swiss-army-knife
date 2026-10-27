@@ -3,7 +3,7 @@ ktor:
   deployment:
     port: 8080
 sak:
-  data_dir: /storage/data/controller/data
+  data_dir: /storage/data/backend/data
   root_domain: pelle.io
   auth:
     admins:

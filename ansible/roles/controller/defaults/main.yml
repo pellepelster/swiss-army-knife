@@ -3,8 +3,8 @@
 controller_image_archive: ""
 # the image the archive contains, it is only loaded from the archive and never pulled
 controller_image: localhost/sak-backend:latest
-# everything of the controller lives below this path on the data volume
-controller_base_path: /storage/data/controller
+# everything of the backend lives below this path on the data volume
+controller_base_path: /storage/data/backend
 # mounted at the same path into the container, the controller hands caddy paths below it
 controller_data_path: "{{ controller_base_path }}/data"
 # the s3 api stores the buckets here (always s3 below sak.data_dir), caddy serves buckets
