@@ -16,7 +16,6 @@ sak:
     # every login link lands in mailpit, none leaves the machine
     admins:
       - admin@localhost
-      - pelle@pelle.io
     smtp:
       host: localhost
       port: 1025

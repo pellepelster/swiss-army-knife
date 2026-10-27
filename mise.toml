@@ -213,7 +213,7 @@ cat <<ADDRESSES
   mailpit    http://localhost:8025   every login link arrives here
   logs       http://localhost:9428   victorialogs, vector ships the access log of the ingress
 
-  sign in as admin@localhost or pelle@pelle.io (config/local-config.yaml), open the link
+  sign in as admin@localhost (config/local-config.yaml), open the link
   from mailpit in the same browser
 
   logs in $logs
