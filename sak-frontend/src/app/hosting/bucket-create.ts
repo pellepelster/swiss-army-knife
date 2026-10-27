@@ -11,7 +11,7 @@ import { DomainList } from './domain-list';
 @Component({
   selector: 'app-bucket-create',
   imports: [DomainList, RouterLink],
-  styleUrls: ['./hosting.scss', './hosting-page.scss'],
+  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
   template: `
     <header class="toolbar">
       <a class="back" routerLink="/static-hosting" aria-label="All buckets"

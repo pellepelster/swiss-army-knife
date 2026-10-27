@@ -10,7 +10,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
 @Component({
   selector: 'app-bucket-list',
   imports: [RouterLink],
-  styleUrls: ['./hosting.scss', './hosting-page.scss'],
+  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
   styles: `
     .buckets {
       display: grid;

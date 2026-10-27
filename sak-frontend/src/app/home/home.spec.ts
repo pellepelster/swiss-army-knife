@@ -47,8 +47,13 @@ describe('Home', () => {
     expect(links.map((link) => link.querySelector('.name')?.textContent)).toEqual([
       'Notes',
       'Static hosting',
+      'Redirects',
     ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/notes', '/static-hosting']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/notes',
+      '/static-hosting',
+      '/redirects',
+    ]);
 
     links[0].click();
     await harness.fixture.whenStable();

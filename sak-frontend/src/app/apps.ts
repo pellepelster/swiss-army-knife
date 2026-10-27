@@ -20,4 +20,10 @@ export const APPS: readonly AppEntry[] = [
     description: 'Websites from S3 buckets',
     icon: 'icons/hosting.svg',
   },
+  {
+    path: '/redirects',
+    name: 'Redirects',
+    description: 'Domains that lead elsewhere',
+    icon: 'icons/redirects.svg',
+  },
 ];

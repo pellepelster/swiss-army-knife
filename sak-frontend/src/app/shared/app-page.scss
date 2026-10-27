@@ -1,0 +1,7 @@
+// a page of an app, its parts (the tabs, the domain list) take app-parts.scss only
+:host {
+  display: block;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}

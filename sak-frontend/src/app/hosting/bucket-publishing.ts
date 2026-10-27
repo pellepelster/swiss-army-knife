@@ -13,7 +13,7 @@ export const SECRET_MASK = '•••••••••••••••••�
 @Component({
   selector: 'app-bucket-publishing',
   imports: [CodeBlock],
-  styleUrl: './hosting.scss',
+  styleUrl: '../shared/app-parts.scss',
   styles: `
     .steps {
       display: grid;

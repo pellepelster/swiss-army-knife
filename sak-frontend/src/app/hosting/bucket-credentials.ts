@@ -13,7 +13,7 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
 // is shown or copied
 @Component({
   selector: 'app-bucket-credentials',
-  styleUrl: './hosting.scss',
+  styleUrl: '../shared/app-parts.scss',
   styles: `
     .value {
       display: flex;

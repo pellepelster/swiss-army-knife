@@ -12,7 +12,7 @@ import { DomainList } from './domain-list';
 @Component({
   selector: 'app-bucket-edit',
   imports: [DomainList, RouterLink],
-  styleUrls: ['./hosting.scss', './hosting-page.scss'],
+  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
   template: `
     <header class="toolbar">
       <a class="back" [routerLink]="['/static-hosting', name()]" aria-label="Back to the bucket"

@@ -5,7 +5,7 @@ import { BucketStore } from './bucket-store';
 // changed on its edit page
 @Component({
   selector: 'app-bucket-configuration',
-  styleUrl: './hosting.scss',
+  styleUrl: '../shared/app-parts.scss',
   styles: `
     .configuration {
       display: grid;

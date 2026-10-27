@@ -9,7 +9,7 @@ import { BucketStore } from './bucket-store';
   selector: 'app-bucket-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [BucketStore],
-  styleUrls: ['./hosting.scss', './hosting-page.scss'],
+  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
   styles: `
     .overview {
       display: flex;

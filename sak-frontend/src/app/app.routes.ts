@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
 import { Home } from './home/home';
 import { hostingRoute } from './hosting/hosting.routes';
+import { redirectsRoute } from './redirects/redirects.routes';
 import { Login } from './login/login';
 import { NotesPage } from './notes/notes-page';
 import { Signin } from './signin/signin';
@@ -18,6 +19,7 @@ export const routes: Routes = [
     data: { favicon: { svg: 'icons/notes.svg', png: 'icons/notes-192.png' } },
   },
   hostingRoute,
+  redirectsRoute,
   { path: 'login', component: Login, title: 'Sign in' },
   { path: 'signin', component: Signin, title: 'Signing in' },
   { path: '**', redirectTo: '' },
