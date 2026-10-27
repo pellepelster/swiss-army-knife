@@ -212,6 +212,50 @@ body {
   opacity: 0.55;
 }
 
+// the photos fill the width of the post-it, two side by side when there are more
+.note-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+  margin: -4px -4px 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.photo {
+  position: relative;
+
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 2px;
+    background: rgb(0 0 0 / 8%);
+  }
+}
+
+.photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.photo-input {
+  display: none;
+}
+
+.note-photo,
 .note-delete {
   padding: 4px 6px;
   border: 0;

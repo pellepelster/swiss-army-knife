@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NoteCard } from './note-card';
-import { NotesStore } from './notes-store';
+import { Note, NotesStore } from './notes-store';
 
 // the notes as a wall of post-its, filtered by one label at a time
 @Component({
@@ -20,6 +20,26 @@ import { NotesStore } from './notes-store';
     <header class="toolbar">
       <a class="back" routerLink="/" aria-label="All apps">←</a>
       <h1 class="title">Notes</h1>
+      <input
+        #camera
+        class="photo-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        tabindex="-1"
+        aria-hidden="true"
+        (change)="addPhoto($any($event.target))"
+      />
+      <button
+        type="button"
+        class="add add-photo"
+        aria-label="New note with a photo"
+        title="New note with a photo"
+        [disabled]="addingPhoto()"
+        (click)="camera.click()"
+      >
+        {{ addingPhoto() ? '…' : '📷' }}
+      </button>
       <button type="button" class="add" (click)="add()">+ New note</button>
     </header>
 
@@ -81,6 +101,8 @@ export class NotesPage implements OnInit {
 
   protected readonly filter = signal<string | null>(null);
 
+  protected readonly addingPhoto = signal(false);
+
   protected readonly shown = computed(() => {
     const label = this.filter();
     const notes = this.store.notes();
@@ -94,7 +116,24 @@ export class NotesPage implements OnInit {
   // a new note gets the label shown, so it stays in sight; its text is focused right away
   protected async add(): Promise<void> {
     const label = this.filter();
-    const note = await this.store.add('', 'yellow', label === null ? [] : [label]);
+    this.focus(await this.store.add('', 'yellow', label === null ? [] : [label]));
+  }
+
+  // a new note of the photo taken or chosen, to be written on
+  protected async addPhoto(input: HTMLInputElement): Promise<void> {
+    const photo = input.files?.[0];
+    input.value = '';
+    if (!photo) return;
+    const label = this.filter();
+    this.addingPhoto.set(true);
+    try {
+      this.focus(await this.store.addWithPhoto(photo, label === null ? [] : [label]));
+    } finally {
+      this.addingPhoto.set(false);
+    }
+  }
+
+  private focus(note: Note | null): void {
     if (!note) return;
     afterNextRender(
       () =>

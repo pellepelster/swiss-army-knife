@@ -17,6 +17,14 @@
   background: var(--wall);
 }
 
+.add-photo {
+  padding: 10px 14px;
+}
+
+.add:disabled {
+  opacity: 0.6;
+}
+
 .back {
   margin-right: -4px;
   padding: 4px 8px;

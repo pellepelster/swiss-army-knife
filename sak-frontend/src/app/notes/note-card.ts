@@ -2,7 +2,8 @@ import { Component, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { Note, NOTE_COLORS, NotesStore } from './notes-store';
 
-// one note as a post-it: its text is edited in place, labels are added below it
+// one note as a post-it: its photos on top, its text is edited in place, labels are added below
+// it; a photo is taken with the camera of a phone or chosen from the files elsewhere
 @Component({
   selector: 'app-note-card',
   imports: [LocalDateTimePipe],
@@ -11,6 +12,30 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
     '[attr.data-testid]': "'note-' + note().id",
   },
   template: `
+    @if (note().photos.length) {
+      <ul class="note-photos" aria-label="Photos">
+        @for (photo of note().photos; track photo; let index = $index) {
+          <li class="photo">
+            <a [href]="'/files/' + photo" target="_blank" rel="noopener">
+              <img
+                [src]="'/files/' + photo"
+                [alt]="'Photo ' + (index + 1) + ' of note ' + note().id"
+                loading="lazy"
+              />
+            </a>
+            <button
+              type="button"
+              class="photo-remove"
+              [attr.aria-label]="'Remove photo ' + (index + 1)"
+              (click)="store.removePhoto(note().id, photo)"
+            >
+              ×
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
     <textarea
       class="note-text"
       placeholder="Write something…"
@@ -72,6 +97,26 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
       <time class="note-time" [attr.datetime]="note().updated.toISOString()">
         {{ note().updated | localDateTime }}
       </time>
+      <input
+        #camera
+        class="photo-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        tabindex="-1"
+        aria-hidden="true"
+        (change)="takePhoto($any($event.target))"
+      />
+      <button
+        type="button"
+        class="note-photo"
+        [attr.aria-label]="'Add a photo to note ' + note().id"
+        title="Add a photo"
+        [disabled]="store.uploading().has(note().id)"
+        (click)="camera.click()"
+      >
+        {{ store.uploading().has(note().id) ? '…' : '📷' }}
+      </button>
       <button
         type="button"
         class="note-delete"
@@ -94,6 +139,13 @@ export class NoteCard {
 
   protected readonly colors = NOTE_COLORS;
   protected readonly newLabel = signal('');
+
+  protected takePhoto(input: HTMLInputElement): void {
+    const photo = input.files?.[0];
+    // the same photo can be chosen again
+    input.value = '';
+    if (photo) void this.store.addPhoto(this.note().id, photo);
+  }
 
   protected addLabel(): void {
     this.store.addLabel(this.note().id, this.newLabel());

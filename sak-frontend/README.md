@@ -10,7 +10,10 @@ configuration) and the page the login started from opens afterwards.
 A note taking app: the notes are post-its that can be written on in place, colored and labelled,
 and filtered by one of their labels. The backend keeps them (`/api/v1/notes`), every user has
 their own; the labels are the ones all apps share (`/api/v1/labels`). Changes show at once and are
-saved in the background, the text once typing pauses (`NotesStore`). The page works on phones (one column,
+saved in the background, the text once typing pauses (`NotesStore`). A note can have photos, taken
+with the camera of a phone or chosen from the files: they are scaled down to 2048 pixels and
+re-encoded as JPEG in the browser (`PhotoScaler`, which drops the exif data with the location),
+stored in the backend's file storage (`POST /api/v1/files`) and shown from `/files/<sha256>`. The page works on phones (one column,
 larger hit targets) and on desktops (a wall of slightly turned post-its).
 
 ## Development

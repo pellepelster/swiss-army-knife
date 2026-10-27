@@ -2,23 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { NotesStore, SAVE_TEXT_AFTER_MS } from './notes-store';
-
-const CREATED = '2026-10-27T08:00:00Z';
-
-export const noteResponse = (id: number, text: string, color: string, labels: string[]) => ({
-  id,
-  text,
-  color,
-  labels: labels.map((name, index) => ({ id: index + 1, name })),
-  createdAt: CREATED,
-  updatedAt: CREATED,
-});
-
-// what a list endpoint answers with the items
-export const pageOf = <T>(items: T[]) => ({
-  items,
-  pagination: { offset: 0, limit: 500, total: items.length },
-});
+import { PhotoScaler } from './photo-scaler';
+import { noteResponse, pageOf, scaler, SCALED, SHA256 } from './notes-testing';
 
 describe('NotesStore', () => {
   let http: HttpTestingController;
@@ -27,7 +12,11 @@ describe('NotesStore', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: PhotoScaler, useValue: scaler },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(NotesStore);
@@ -57,7 +46,12 @@ describe('NotesStore', () => {
   it('creates notes on top', async () => {
     const added = store.add('', 'green', ['ideas']);
     const request = http.expectOne({ method: 'POST', url: '/api/v1/notes' });
-    expect(request.request.body).toEqual({ text: '', color: 'green', labels: ['ideas'] });
+    expect(request.request.body).toEqual({
+      text: '',
+      color: 'green',
+      labels: ['ideas'],
+      photos: [],
+    });
     request.flush(noteResponse(3, '', 'green', ['ideas']));
 
     expect((await added)?.id).toBe(3);
@@ -76,6 +70,7 @@ describe('NotesStore', () => {
       text: 'milk and bread',
       color: 'yellow',
       labels: ['shopping'],
+      photos: [],
     });
     text.flush({
       ...noteResponse(1, 'milk and bread', 'yellow', ['shopping']),
@@ -92,6 +87,63 @@ describe('NotesStore', () => {
     expect(http.expectOne({ method: 'PUT' }).request.body.color).toBe('blue');
     store.removeLabel(1, 'weekend');
     expect(http.expectOne({ method: 'PUT' }).request.body.labels).toEqual(['shopping']);
+  });
+
+  it('uploads a scaled photo to the file storage and attaches it to the note', async () => {
+    const added = store.addPhoto(1, new Blob(['original']));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => {
+        expect(upload.request.body).toBe(SCALED);
+        expect(upload.request.headers.get('Content-Type')).toBe('image/jpeg');
+        expect(store.uploading().has(1)).toBe(true);
+        upload.flush({ sha256: SHA256, url: `/files/${SHA256}` });
+      });
+    await added;
+
+    expect(store.notes()[1].photos).toEqual([SHA256]);
+    expect(store.uploading().size).toBe(0);
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual([
+      SHA256,
+    ]);
+
+    store.removePhoto(1, SHA256);
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
+      [],
+    );
+  });
+
+  it('creates a note from a photo', async () => {
+    const added = store.addWithPhoto(new Blob(['original']), ['holidays']);
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => upload.flush({ sha256: SHA256, url: `/files/${SHA256}` }));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
+      .then((created) => {
+        expect(created.request.body).toEqual({
+          text: '',
+          color: 'yellow',
+          labels: ['holidays'],
+          photos: [SHA256],
+        });
+        created.flush(noteResponse(3, '', 'yellow', ['holidays'], [SHA256]));
+      });
+
+    expect((await added)?.photos).toEqual([SHA256]);
+  });
+
+  it('tells when a photo could not be stored', async () => {
+    const added = store.addPhoto(1, new Blob(['original']));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) =>
+        upload.flush({ errors: [] }, { status: 413, statusText: 'Payload Too Large' }),
+      );
+    await added;
+
+    expect(store.error()).toBe('The photo could not be stored.');
+    expect(store.notes()[1].photos).toEqual([]);
   });
 
   it('deletes notes at once and brings them back when the backend can not', () => {

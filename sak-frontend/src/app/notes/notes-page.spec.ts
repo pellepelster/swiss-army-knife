@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotesPage } from './notes-page';
-import { noteResponse, pageOf } from './notes-store.spec';
+import { PhotoScaler } from './photo-scaler';
+import { noteResponse, pageOf, scaler, SHA256 } from './notes-testing';
 
 describe('NotesPage', () => {
   let fixture: ComponentFixture<NotesPage>;
@@ -19,7 +20,12 @@ describe('NotesPage', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: PhotoScaler, useValue: scaler },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(NotesPage);
@@ -32,7 +38,7 @@ describe('NotesPage', () => {
         pageOf([
           noteResponse(3, 'Prototype the note taking app', 'blue', ['todo', 'work']),
           noteResponse(2, 'Call the plumber', 'pink', ['home', 'todo']),
-          noteResponse(1, 'Buy milk', 'yellow', ['shopping']),
+          noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [SHA256]),
         ]),
       );
     http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
@@ -106,6 +112,31 @@ describe('NotesPage', () => {
     );
     await fixture.whenStable();
     expect(note.classList).toContain('note-green');
+  });
+
+  it('shows the photos of a note, each leads to the whole photo', () => {
+    const photo = notes()[2].querySelector<HTMLImageElement>('.note-photos img')!;
+    expect(photo.getAttribute('src')).toBe(`/files/${SHA256}`);
+    expect(photo.closest('a')?.getAttribute('href')).toBe(`/files/${SHA256}`);
+    expect(notes()[0].querySelector('.note-photos')).toBeNull();
+  });
+
+  it('creates a note from the photo taken in the toolbar', async () => {
+    const input = page.querySelector<HTMLInputElement>('.toolbar input[type=file]')!;
+    expect(input.getAttribute('capture')).toBe('environment');
+    Object.defineProperty(input, 'files', { value: [new File(['original'], 'photo.jpg')] });
+    input.dispatchEvent(new Event('change'));
+
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => upload.flush({ sha256: 'b'.repeat(64), url: '/files/' + 'b'.repeat(64) }));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
+      .then((created) => created.flush(noteResponse(4, '', 'yellow', [], ['b'.repeat(64)])));
+    await fixture.whenStable();
+
+    expect(notes()[0].querySelector('img')?.getAttribute('src')).toBe('/files/' + 'b'.repeat(64));
+    expect(document.activeElement).toBe(notes()[0].querySelector('textarea'));
   });
 
   it('tells when a change could not be saved', async () => {

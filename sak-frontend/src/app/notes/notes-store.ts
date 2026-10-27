@@ -1,16 +1,19 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { PhotoScaler } from './photo-scaler';
 
 export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as const;
 
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
+// photos are the sha-256 of files of the backend's file storage, served at /files/<sha256>
 export interface Note {
   readonly id: number;
   readonly text: string;
   readonly color: NoteColor;
   readonly labels: readonly string[];
+  readonly photos: readonly string[];
   readonly created: Date;
   readonly updated: Date;
 }
@@ -21,6 +24,7 @@ interface NoteResponse {
   text: string;
   color: NoteColor;
   labels: { id: number; name: string }[];
+  photos: { sha256: string; url: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -43,10 +47,12 @@ export function normalizeLabel(label: string): string {
 }
 
 // the notes of the signed in user, kept by the backend; changes show at once and are saved in
-// the background, the text once typing pauses
+// the background, the text once typing pauses. Photos are scaled down and uploaded to the file
+// storage first, then attached
 @Injectable({ providedIn: 'root' })
 export class NotesStore {
   private readonly http = inject(HttpClient);
+  private readonly scaler = inject(PhotoScaler);
 
   private readonly all = signal<readonly Note[]>([]);
   private readonly shared = signal<readonly string[]>([]);
@@ -56,6 +62,9 @@ export class NotesStore {
   readonly notes = this.all.asReadonly();
 
   readonly loading = signal(false);
+
+  // the notes a photo is being uploaded for
+  readonly uploading = signal<ReadonlySet<number>>(new Set());
 
   // what went wrong last, null when everything is saved
   readonly error = signal<string | null>(null);
@@ -100,10 +109,11 @@ export class NotesStore {
     text = '',
     color: NoteColor = 'yellow',
     labels: readonly string[] = [],
+    photos: readonly string[] = [],
   ): Promise<Note | null> {
     try {
       const response = await firstValueFrom(
-        this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels }),
+        this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels, photos }),
       );
       const note = toNote(response);
       this.all.update((notes) => [note, ...notes]);
@@ -147,6 +157,37 @@ export class NotesStore {
     if (changed) this.save(id);
   }
 
+  // a new note with the photo, null when the photo or the note could not be stored
+  async addWithPhoto(photo: Blob, labels: readonly string[] = []): Promise<Note | null> {
+    const sha256 = await this.upload(photo);
+    return sha256 === null ? null : this.add('', 'yellow', labels, [sha256]);
+  }
+
+  // attached once it is uploaded
+  async addPhoto(id: number, photo: Blob): Promise<void> {
+    this.uploading.update((ids) => new Set([...ids, id]));
+    try {
+      const sha256 = await this.upload(photo);
+      if (sha256 === null) return;
+      const changed = this.change(id, (note) =>
+        note.photos.includes(sha256) ? note : { ...note, photos: [...note.photos, sha256] },
+      );
+      if (changed) this.save(id);
+    } finally {
+      this.uploading.update((ids) => new Set([...ids].filter((other) => other !== id)));
+    }
+  }
+
+  // the file stays in the storage, other notes may show it too
+  removePhoto(id: number, sha256: string): void {
+    const changed = this.change(id, (note) =>
+      note.photos.includes(sha256)
+        ? { ...note, photos: note.photos.filter((photo) => photo !== sha256) }
+        : note,
+    );
+    if (changed) this.save(id);
+  }
+
   // gone at once, back when the backend could not delete it
   remove(id: number): void {
     const notes = this.all();
@@ -173,6 +214,7 @@ export class NotesStore {
         text: note.text,
         color: note.color,
         labels: note.labels,
+        photos: note.photos,
       })
       .subscribe({
         next: (response) => {
@@ -183,6 +225,22 @@ export class NotesStore {
         },
         error: () => this.error.set('The note could not be saved.'),
       });
+  }
+
+  // the sha-256 of the scaled down photo in the file storage, null when it could not be stored
+  private async upload(photo: Blob): Promise<string | null> {
+    try {
+      const scaled = await this.scaler.scale(photo);
+      const file = await firstValueFrom(
+        this.http.post<{ sha256: string }>('/api/v1/files', scaled, {
+          headers: { 'Content-Type': scaled.type || 'image/jpeg' },
+        }),
+      );
+      return file.sha256;
+    } catch {
+      this.error.set('The photo could not be stored.');
+      return null;
+    }
   }
 
   // false when the note is unknown or nothing changed
@@ -206,6 +264,7 @@ function toNote(response: NoteResponse): Note {
     text: response.text,
     color: response.color,
     labels: response.labels.map((label) => label.name),
+    photos: response.photos.map((photo) => photo.sha256),
     created: new Date(response.createdAt),
     updated: new Date(response.updatedAt),
   };
