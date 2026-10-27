@@ -115,7 +115,7 @@ a {
   --bs-btn-active-color: var(--ink);
 }
 
-// a post-it: a square-ish paper with a soft shadow
+// a post-it: a square-ish paper with a soft shadow, its corners rounded like bootstrap's cards
 .note {
   position: relative;
   display: flex;
@@ -128,7 +128,7 @@ a {
   box-shadow:
     0 1px 1px rgb(0 0 0 / 8%),
     0 8px 18px -6px rgb(0 0 0 / 30%);
-  border-radius: 2px 2px 18px 2px;
+  border-radius: var(--bs-border-radius-lg);
   transition: box-shadow 0.15s ease;
 
   &:focus-within {
