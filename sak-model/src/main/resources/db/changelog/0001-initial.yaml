@@ -81,6 +81,7 @@ databaseChangeLog:
                 target_domain VARCHAR(253),
                 target_bucket VARCHAR(63),
                 created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
                 CONSTRAINT redirects_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES s3_buckets (name),
                 CONSTRAINT redirects_target_check CHECK (
                   (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)

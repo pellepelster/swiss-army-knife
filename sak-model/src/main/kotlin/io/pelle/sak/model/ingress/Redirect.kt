@@ -18,4 +18,5 @@ data class Redirect(
     val sourceDomain: String,
     val target: RedirectTarget,
     val createdAt: Instant,
+    val updatedAt: Instant = createdAt,
 )

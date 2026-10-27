@@ -12,12 +12,14 @@ const toExternal = {
   target: { type: 'domain', domain: 'example.org' },
   location: 'example.org',
   createdAt: CREATED,
+  updatedAt: CREATED,
 };
 const toBucket = {
   sourceDomain: 'example.de',
   target: { type: 'bucket', bucket: 'site' },
   location: 'site.example.org',
   createdAt: CREATED,
+  updatedAt: CREATED,
 };
 
 // what a list endpoint answers with the items
@@ -75,31 +77,89 @@ describe('Redirects', () => {
       'https://example.org',
     );
     const bucket = page().querySelector('[data-testid="redirect-example.de"]')!;
-    expect(bucket.querySelector('a')?.getAttribute('href')).toBe('/static-hosting/site');
+    expect(bucket.querySelector('.target a')?.getAttribute('href')).toBe('/static-hosting/site');
     expect(button('Create redirect').getAttribute('href')).toBe('/redirects/create');
+    expect(button('example.com').getAttribute('href')).toBe('/redirects/example.com');
+    expect(button('Delete the redirect of example.com')).toBeUndefined();
   });
 
-  it('deletes a redirect after a second click only', async () => {
-    await open('/redirects');
-    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toExternal, toBucket]));
+  it('shows a redirect with its overview and its configuration', async () => {
+    await open('/redirects/example.de');
+    http.expectOne('/api/v1/redirects/example.de').flush(toBucket);
     await harness.fixture.whenStable();
 
-    const external = page().querySelector('[data-testid="redirect-example.com"]')!;
+    expect(url()).toBe('/redirects/example.de/configuration');
+    expect(page().querySelector('h1')?.textContent?.trim()).toBe('example.de');
+    expect(page().querySelector('[data-testid=location]')?.textContent?.trim()).toBe(
+      'https://site.example.org',
+    );
+    expect(page().querySelector('[data-testid=updated]')).not.toBeNull();
+    const target = page().querySelector('[data-testid=target]')!;
+    expect(target.querySelector('a')?.getAttribute('href')).toBe('/static-hosting/site');
+    expect(button('Edit').getAttribute('href')).toBe('/redirects/example.de/edit');
+  });
+
+  it('deletes a redirect from its toolbar after a second click only', async () => {
+    await open('/redirects/example.com');
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
+    await harness.fixture.whenStable();
+
     button('Delete the redirect of example.com').click();
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });
-    button('Keep', external).click();
+    button('Keep').click();
     await harness.fixture.whenStable();
     button('Delete the redirect of example.com').click();
     await harness.fixture.whenStable();
-    button('Delete', external).click();
+    button('Delete').click();
 
     http
       .expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' })
       .flush(null, { status: 204, statusText: 'No Content' });
-    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toBucket]));
     await harness.fixture.whenStable();
-    expect(page().querySelector('[data-testid="redirect-example.com"]')).toBeNull();
+    expect(url()).toBe('/redirects');
+    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toBucket]));
+  });
+
+  it('changes where a redirect leads to on its edit page', async () => {
+    await open('/redirects/example.com/edit');
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
+    await harness.fixture.whenStable();
+    http
+      .expectOne('/api/v1/static-hosting?limit=500')
+      .flush(
+        pageOf([{ name: 'site', domains: ['site.example.org'], createdAt: CREATED, statistics }]),
+      );
+    await harness.fixture.whenStable();
+
+    expect(page().querySelector<HTMLInputElement>('#source-domain')!.readOnly).toBe(true);
+    expect(page().querySelector<HTMLInputElement>('#target-domain-name')!.value).toBe(
+      'example.org',
+    );
+    page().querySelector<HTMLInputElement>('#target-bucket')!.click();
+    await harness.fixture.whenStable();
+    expect(button('Save').disabled).toBe(true);
+    await type('#target-bucket-name', 'site');
+    button('Save').click();
+
+    const rejected = http.expectOne({ method: 'PUT', url: '/api/v1/redirects/example.com' });
+    expect(rejected.request.body).toEqual({ target: { type: 'bucket', bucket: 'site' } });
+    rejected.flush(
+      { errors: [{ message: 'The bucket is not served at a domain.' }] },
+      { status: 422, statusText: 'Unprocessable Entity' },
+    );
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=save-error]')?.textContent?.trim()).toBe(
+      'The bucket is not served at a domain.',
+    );
+
+    button('Save').click();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/redirects/example.com' })
+      .flush({ ...toExternal, target: { type: 'bucket', bucket: 'site' } });
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/redirects/example.com/configuration');
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
   });
 
   it('redirects a domain to an external domain on its own page', async () => {
@@ -120,8 +180,8 @@ describe('Redirects', () => {
     });
     request.flush(toExternal, { status: 201, statusText: 'Created' });
     await harness.fixture.whenStable();
-    expect(url()).toBe('/redirects');
-    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toExternal]));
+    expect(url()).toBe('/redirects/example.com/configuration');
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
   });
 
   it('offers the buckets served at a domain and shows what the backend rejected', async () => {

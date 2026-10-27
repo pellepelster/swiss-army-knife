@@ -14,6 +14,7 @@ export interface Redirect {
   target: RedirectTarget;
   location?: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 // the domains caddy redirects
@@ -26,6 +27,17 @@ export class RedirectsService {
     return this.http
       .get<Page<Redirect>>('/api/v1/redirects', { params: { limit: MAX_LIMIT } })
       .pipe(map((page) => page.items));
+  }
+
+  redirect(sourceDomain: string): Observable<Redirect> {
+    return this.http.get<Redirect>(`/api/v1/redirects/${encodeURIComponent(sourceDomain)}`);
+  }
+
+  // where it leads to, the redirected domain can not be changed
+  update(sourceDomain: string, target: RedirectTarget): Observable<Redirect> {
+    return this.http.put<Redirect>(`/api/v1/redirects/${encodeURIComponent(sourceDomain)}`, {
+      target,
+    });
   }
 
   create(sourceDomain: string, target: RedirectTarget): Observable<Redirect> {

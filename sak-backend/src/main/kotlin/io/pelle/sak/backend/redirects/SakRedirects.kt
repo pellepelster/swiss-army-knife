@@ -3,6 +3,7 @@ package io.pelle.sak.backend.redirects
 import io.pelle.sak.backend.redirects.model.RedirectTarget
 import io.pelle.sak.backend.redirects.model.RedirectResponse
 import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
+import io.pelle.sak.backend.redirects.model.UpdateRedirectRequest
 import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.errors
@@ -22,10 +23,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.redirects.CreateRedirectResult
 import io.pelle.sak.backend.redirects.DeleteRedirectResult
+import io.pelle.sak.backend.redirects.UpdateRedirectResult
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.model.ingress.RedirectTarget as TargetOfRedirect
@@ -71,7 +74,7 @@ fun Route.redirects(redirectService: RedirectService) {
     install(ContentNegotiation) { json() }
     install(ApiErrors)
 
-    fun Redirect.response() = RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString())
+    fun Redirect.response() = RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString(), updatedAt.toString())
 
     get {
         val page = call.pageRequest() ?: return@get
@@ -124,6 +127,69 @@ fun Route.redirects(redirectService: RedirectService) {
                 "No valid domain, the source is the target, a domain the controller or a bucket serves, or a malformed request",
             )
             errors(HttpStatusCode.Conflict, "The domain is redirected already")
+            errors(HttpStatusCode.UnprocessableEntity, "The bucket is unknown or not served at a domain")
+        }
+    }
+
+    get("/{source}") {
+        when (val redirect = withContext(Dispatchers.IO) { redirectService.byId(call.parameters["source"].orEmpty()) }) {
+            null -> call.respond(HttpStatusCode.NotFound)
+            else -> call.respond(redirect.response())
+        }
+    }.describe {
+        tag(INGRESS_TAG)
+        summary = "A redirected domain"
+        parameters {
+            path("source") {
+                description = "The redirected domain"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The redirect with its target and the domain it leads to"
+                schema = jsonSchema<RedirectResponse>()
+            }
+            HttpStatusCode.NotFound { description = "The domain is not redirected" }
+        }
+    }
+
+    put("/{source}") {
+        val request = call.receive<UpdateRedirectRequest>()
+        val source = call.parameters["source"].orEmpty()
+        when (val result = withContext(Dispatchers.IO) { redirectService.update(source, request.target.target()) }) {
+            is UpdateRedirectResult.Updated -> call.respond(result.redirect.response())
+            UpdateRedirectResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            UpdateRedirectResult.InvalidDomain ->
+                call.respondErrors("The domain redirected to must be valid and differ from the redirected one.")
+            UpdateRedirectResult.UnknownBucket ->
+                call.respondErrors("There is no such bucket.", status = HttpStatusCode.UnprocessableEntity)
+            UpdateRedirectResult.BucketNotServed ->
+                call.respondErrors("The bucket is not served at a domain.", status = HttpStatusCode.UnprocessableEntity)
+        }
+    }.describe {
+        tag(INGRESS_TAG)
+        summary = "Change where a domain is redirected to"
+        description = "The redirected domain stays, its target is replaced. Caddy is configured right away."
+        parameters {
+            path("source") {
+                description = "The redirected domain"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        requestBody {
+            required = true
+            schema = jsonSchema<UpdateRedirectRequest>()
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The changed redirect"
+                schema = jsonSchema<RedirectResponse>()
+            }
+            errors(HttpStatusCode.BadRequest, "No valid domain, the redirected domain itself, or a malformed request")
+            HttpStatusCode.NotFound { description = "The domain is not redirected" }
             errors(HttpStatusCode.UnprocessableEntity, "The bucket is unknown or not served at a domain")
         }
     }

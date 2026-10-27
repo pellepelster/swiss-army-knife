@@ -9,49 +9,7 @@ import { BucketStore } from './bucket-store';
   selector: 'app-bucket-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [BucketStore],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
-  styles: `
-    .overview {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px 32px;
-      margin-bottom: 16px;
-    }
-    .overview div {
-      display: grid;
-      gap: 2px;
-    }
-    .overview dt {
-      color: var(--muted);
-      font-size: 0.8rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .overview dd {
-      margin: 0;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    .tabs {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--line);
-    }
-    .tab {
-      margin-bottom: -1px;
-      padding: 8px 14px;
-      border-bottom: 2px solid transparent;
-      color: var(--muted);
-      font-weight: 600;
-      text-decoration: none;
-
-      &.active {
-        border-bottom-color: var(--ink);
-        color: var(--ink);
-      }
-    }
-  `,
+  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss', '../shared/detail-view.scss'],
   template: `
     <header class="toolbar">
       <a class="back" routerLink="/static-hosting" aria-label="All buckets"

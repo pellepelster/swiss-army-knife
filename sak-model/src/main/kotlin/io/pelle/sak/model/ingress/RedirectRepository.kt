@@ -4,6 +4,7 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.RedirectsRecord
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
 import org.jooq.exception.IntegrityConstraintViolationException
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -18,6 +19,13 @@ class RedirectRepository(
             .fetch()
             .map { it.toRedirect() }
 
+    fun byId(sourceDomain: String): Redirect? =
+        database.dsl
+            .selectFrom(REDIRECTS)
+            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
+            .fetchOne()
+            ?.toRedirect()
+
     // false when the source has a redirect already
     fun insert(redirect: Redirect): Boolean =
         try {
@@ -27,12 +35,28 @@ class RedirectRepository(
                 .set(REDIRECTS.TARGET_TYPE, redirect.target.type())
                 .set(REDIRECTS.TARGET_DOMAIN, (redirect.target as? RedirectTarget.Domain)?.domain)
                 .set(REDIRECTS.TARGET_BUCKET, (redirect.target as? RedirectTarget.Bucket)?.bucket)
-                .set(REDIRECTS.CREATED_AT, LocalDateTime.ofInstant(redirect.createdAt, ZoneOffset.UTC))
+                .set(REDIRECTS.CREATED_AT, redirect.createdAt.utc())
+                .set(REDIRECTS.UPDATED_AT, redirect.updatedAt.utc())
                 .execute()
             true
         } catch (_: IntegrityConstraintViolationException) {
             false
         }
+
+    // the target of the redirect of the source, false when there is none
+    fun update(
+        sourceDomain: String,
+        target: RedirectTarget,
+        now: Instant,
+    ): Boolean =
+        database.dsl
+            .update(REDIRECTS)
+            .set(REDIRECTS.TARGET_TYPE, target.type())
+            .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
+            .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
+            .set(REDIRECTS.UPDATED_AT, now.utc())
+            .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
+            .execute() > 0
 
     // false when there was none
     fun delete(sourceDomain: String): Boolean =
@@ -40,6 +64,8 @@ class RedirectRepository(
             .deleteFrom(REDIRECTS)
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
             .execute() > 0
+
+    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun RedirectTarget.type() =
         when (this) {
@@ -57,6 +83,7 @@ class RedirectRepository(
                     else -> error("redirect of '$sourceDomain' has the unknown target type '$targetType'")
                 },
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
+            updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
         )
 
     companion object {

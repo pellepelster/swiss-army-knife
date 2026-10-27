@@ -26,6 +26,22 @@ sealed interface CreateRedirectResult {
     data object Exists : CreateRedirectResult
 }
 
+sealed interface UpdateRedirectResult {
+    data class Updated(
+        val redirect: Redirect,
+    ) : UpdateRedirectResult
+
+    data object NotFound : UpdateRedirectResult
+
+    // no valid domain or the source itself
+    data object InvalidDomain : UpdateRedirectResult
+
+    data object UnknownBucket : UpdateRedirectResult
+
+    // the bucket is not served at a domain, there is nothing to redirect to
+    data object BucketNotServed : UpdateRedirectResult
+}
+
 sealed interface DeleteRedirectResult {
     data object Deleted : DeleteRedirectResult
 
@@ -55,6 +71,8 @@ class RedirectService(
 
     fun all(): List<Redirect> = repository.all()
 
+    fun byId(sourceDomain: String): Redirect? = repository.byId(sourceDomain.lowercase())
+
     // the redirected domains, no bucket may be served at them
     fun sourceDomains(): Set<String> = repository.all().map { it.sourceDomain }.toSet()
 
@@ -74,17 +92,11 @@ class RedirectService(
             return CreateRedirectResult.InvalidDomain
         }
         val normalized =
-            when (target) {
-                is RedirectTarget.Domain -> {
-                    val domain = target.domain.lowercase()
-                    if (!isValidDomain(domain) || domain == source) return CreateRedirectResult.InvalidDomain
-                    RedirectTarget.Domain(domain)
-                }
-                is RedirectTarget.Bucket -> {
-                    val bucket = buckets.byName(target.bucket) ?: return CreateRedirectResult.UnknownBucket
-                    if (buckets.servedDomains(bucket).isEmpty()) return CreateRedirectResult.BucketNotServed
-                    target
-                }
+            when (val checked = check(source, target)) {
+                is CheckedTarget.Valid -> checked.target
+                CheckedTarget.InvalidDomain -> return CreateRedirectResult.InvalidDomain
+                CheckedTarget.UnknownBucket -> return CreateRedirectResult.UnknownBucket
+                CheckedTarget.BucketNotServed -> return CreateRedirectResult.BucketNotServed
             }
 
         val redirect = Redirect(source, normalized, clock.instant())
@@ -95,6 +107,26 @@ class RedirectService(
         return CreateRedirectResult.Created(redirect)
     }
 
+    // the target the redirect of the source leads to, checked as when it is created
+    fun update(
+        sourceDomain: String,
+        target: RedirectTarget,
+    ): UpdateRedirectResult {
+        val source = sourceDomain.lowercase()
+        val redirect = repository.byId(source) ?: return UpdateRedirectResult.NotFound
+        val normalized =
+            when (val checked = check(source, target)) {
+                is CheckedTarget.Valid -> checked.target
+                CheckedTarget.InvalidDomain -> return UpdateRedirectResult.InvalidDomain
+                CheckedTarget.UnknownBucket -> return UpdateRedirectResult.UnknownBucket
+                CheckedTarget.BucketNotServed -> return UpdateRedirectResult.BucketNotServed
+            }
+        val now = clock.instant()
+        if (!repository.update(source, normalized, now)) return UpdateRedirectResult.NotFound
+        changed()
+        return UpdateRedirectResult.Updated(redirect.copy(target = normalized, updatedAt = now))
+    }
+
     fun delete(sourceDomain: String): DeleteRedirectResult {
         if (!repository.delete(sourceDomain.lowercase())) {
             return DeleteRedirectResult.NotFound
@@ -102,6 +134,39 @@ class RedirectService(
         changed()
         return DeleteRedirectResult.Deleted
     }
+
+    private sealed interface CheckedTarget {
+        data class Valid(
+            val target: RedirectTarget,
+        ) : CheckedTarget
+
+        data object InvalidDomain : CheckedTarget
+
+        data object UnknownBucket : CheckedTarget
+
+        data object BucketNotServed : CheckedTarget
+    }
+
+    // the target with its domain in lower case, a domain must be valid and differ from the source,
+    // a bucket must be served at a domain
+    private fun check(
+        source: String,
+        target: RedirectTarget,
+    ): CheckedTarget =
+        when (target) {
+            is RedirectTarget.Domain -> {
+                val domain = target.domain.lowercase()
+                if (!isValidDomain(domain) || domain == source) CheckedTarget.InvalidDomain else CheckedTarget.Valid(RedirectTarget.Domain(domain))
+            }
+            is RedirectTarget.Bucket -> {
+                val bucket = buckets.byName(target.bucket)
+                when {
+                    bucket == null -> CheckedTarget.UnknownBucket
+                    buckets.servedDomains(bucket).isEmpty() -> CheckedTarget.BucketNotServed
+                    else -> CheckedTarget.Valid(target)
+                }
+            }
+        }
 
     private fun changed() = listeners.forEach { it() }
 }

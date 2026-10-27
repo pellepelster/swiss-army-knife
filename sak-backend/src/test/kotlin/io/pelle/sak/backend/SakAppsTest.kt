@@ -385,6 +385,19 @@ class SakAppsTest {
             val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
             redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.at", "example.com", "example.de")
 
+            get(port, "/api/v1/redirects/Example.com", session).let {
+                it.statusCode() shouldBe 200
+                it.json().string("location") shouldBe "example.net"
+            }
+            get(port, "/api/v1/redirects/example.ch", session).statusCode() shouldBe 404
+            put(port, "/api/v1/redirects/example.com", """{"target":{"type":"bucket","bucket":"site"}}""", session).let {
+                it.statusCode() shouldBe 200
+                it.json().string("location") shouldBe "site.example.org"
+            }
+            put(port, "/api/v1/redirects/example.com", """{"target":{"type":"domain","domain":"example.com"}}""", session).statusCode() shouldBe 400
+            put(port, "/api/v1/redirects/example.com", """{"target":{"type":"bucket","bucket":"unknown"}}""", session).statusCode() shouldBe 422
+            put(port, "/api/v1/redirects/example.ch", """{"target":{"type":"domain","domain":"example.net"}}""", session).statusCode() shouldBe 404
+
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
             Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("pagination").jsonObject.string("total") shouldBe "2"

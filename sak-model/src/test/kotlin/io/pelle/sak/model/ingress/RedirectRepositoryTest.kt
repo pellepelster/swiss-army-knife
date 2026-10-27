@@ -33,6 +33,7 @@ class RedirectRepositoryTest {
             .set(REDIRECTS.TARGET_DOMAIN, domain)
             .set(REDIRECTS.TARGET_BUCKET, bucket)
             .set(REDIRECTS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+            .set(REDIRECTS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
             .execute()
 
         shouldThrow<DataAccessException> { insert("DOMAIN", null, "site") }

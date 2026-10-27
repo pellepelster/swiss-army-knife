@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 import { Redirect, RedirectsService } from './redirects.service';
 
 // the domains caddy redirects, to an external domain or to the domain a bucket is served at;
-// a redirect is created on a page of its own and deleted after a second click
+// each leads to its page, a redirect is created on a page of its own
 @Component({
   selector: 'app-redirect-list',
   imports: [RouterLink],
@@ -46,14 +46,6 @@ import { Redirect, RedirectsService } from './redirects.service';
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-    .delete {
-      display: flex;
-      gap: 8px;
-    }
-    .button-danger {
-      background: var(--danger);
-      color: var(--sheet);
-    }
     .intro {
       margin: 0 0 16px;
     }
@@ -86,7 +78,9 @@ import { Redirect, RedirectsService } from './redirects.service';
         @for (redirect of redirects(); track redirect.sourceDomain) {
           <li class="redirect sheet" [attr.data-testid]="'redirect-' + redirect.sourceDomain">
             <div class="route">
-              <span class="source mono">{{ redirect.sourceDomain }}</span>
+              <a class="source mono" [routerLink]="['/redirects', redirect.sourceDomain]">{{
+                redirect.sourceDomain
+              }}</a>
               <span class="target">
                 <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                 <span class="kind">{{ redirect.target.type }}</span>
@@ -106,33 +100,6 @@ import { Redirect, RedirectsService } from './redirects.service';
                 }
               </span>
             </div>
-            <div class="delete">
-              @if (confirming() === redirect.sourceDomain) {
-                <button
-                  class="button button-small button-danger"
-                  type="button"
-                  (click)="delete(redirect)"
-                >
-                  Delete
-                </button>
-                <button
-                  class="button button-small button-quiet"
-                  type="button"
-                  (click)="confirming.set(null)"
-                >
-                  Keep
-                </button>
-              } @else {
-                <button
-                  class="button button-small button-quiet"
-                  type="button"
-                  [attr.aria-label]="'Delete the redirect of ' + redirect.sourceDomain"
-                  (click)="confirming.set(redirect.sourceDomain)"
-                >
-                  <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete
-                </button>
-              }
-            </div>
           </li>
         } @empty {
           <li class="empty sheet">No redirects yet.</li>
@@ -147,24 +114,12 @@ export class RedirectList {
   protected readonly redirects = signal<Redirect[]>([]);
   protected readonly loaded = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly confirming = signal<string | null>(null);
 
   private readonly subscriptions = new Subscription();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
     this.load();
-  }
-
-  protected delete(redirect: Redirect): void {
-    this.confirming.set(null);
-    this.subscriptions.add(
-      this.service.delete(redirect.sourceDomain).subscribe({
-        next: () => this.load(),
-        error: () =>
-          this.error.set(`The redirect of ${redirect.sourceDomain} could not be deleted.`),
-      }),
-    );
   }
 
   private load(): void {

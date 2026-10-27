@@ -9,4 +9,5 @@ data class RedirectResponse(
     val target: RedirectTarget,
     val location: String?,
     val createdAt: String,
+    val updatedAt: String,
 )
