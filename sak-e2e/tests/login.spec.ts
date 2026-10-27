@@ -9,37 +9,51 @@ test.beforeEach(async ({ request }) => {
   await clearInbox(request);
 });
 
-test('signs in with the e-mailed link, which works once only, and signs out', async ({ page, browser, request }) => {
-  // the apps need a session, the login remembers where it started from
-  await page.goto('/');
-  await expect(page).toHaveURL(/\/login/);
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+// the link of the run, asked for once: the backend sends 5 links an hour to an address
+test.describe.serial('the e-mailed link', () => {
+  let link: string;
 
-  await page.getByLabel('E-mail address').fill(ADMIN);
-  await page.getByRole('button', { name: 'Send login link' }).click();
-  await expect(page.getByTestId('login-sent')).toContainText(ADMIN);
+  test('signs in with the e-mailed link and signs out', async ({ page, request }) => {
+    // the apps need a session, the login remembers where it started from
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
-  const link = await loginLink(request, ADMIN);
-  await page.goto(link);
+    await page.getByLabel('E-mail address').fill(ADMIN);
+    await page.getByRole('button', { name: 'Send login link' }).click();
+    await expect(page.getByTestId('login-sent')).toContainText(ADMIN);
 
-  // signed in, the token is gone from the address and the history
-  await expect(page.getByRole('heading', { name: 'Apps' })).toBeVisible();
-  expect(page.url()).not.toContain('token=');
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Apps' })).toBeVisible();
+    link = await loginLink(request, ADMIN);
+    await page.goto(link);
 
-  // the same link again, in another browser, is refused
-  const other = await browser.newContext();
-  const again = await other.newPage();
-  await again.goto(link);
-  await expect(again.getByRole('heading', { name: 'Sign in failed' })).toBeVisible();
-  await expect(again.getByRole('alert')).toContainText('invalid, expired or was already used');
-  await other.close();
+    // signed in, the token is gone from the address and the history
+    await expect(page.getByRole('heading', { name: 'Apps' })).toBeVisible();
+    expect(page.url()).not.toContain('token=');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Apps' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page).toHaveURL(/\/login/);
-  await page.goto('/');
-  await expect(page).toHaveURL(/\/login/);
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('a sign-in link works only once', async ({ page, browser }) => {
+    // used by the test before: neither another browser nor the same one signs in with it again
+    const other = await browser.newContext();
+    const again = await other.newPage();
+    await again.goto(link);
+    await expect(again.getByRole('heading', { name: 'Sign in failed' })).toBeVisible();
+    await expect(again.getByRole('alert')).toContainText('invalid, expired or was already used');
+    await again.goto('/');
+    await expect(again).toHaveURL(/\/login/);
+    await other.close();
+
+    await page.goto(link);
+    await expect(page.getByRole('heading', { name: 'Sign in failed' })).toBeVisible();
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/login/);
+  });
 });
 
 test('answers an address that may not sign in alike and sends it nothing', async ({ page, request }) => {

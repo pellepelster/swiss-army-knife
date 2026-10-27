@@ -16,6 +16,9 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MutableClock(
     var now: Instant = Instant.parse("2026-10-26T12:00:00Z"),
@@ -49,6 +52,21 @@ class TokenServiceTest {
 
         tokens.exchangeLoginToken(token) shouldBe LoginClaims("admin@example.org", "/buckets")
         tokens.exchangeLoginToken(token) shouldBe null
+    }
+
+    @Test
+    fun `a login token is exchanged once also when it is exchanged many times at once`() {
+        val token = tokens.issueLoginToken("admin@example.org", "/")
+        // e.g. a mail scanner and the user, or a double click
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(16)
+        try {
+            val exchanges = (1..16).map { pool.submit<LoginClaims?> { start.await(); tokens.exchangeLoginToken(token) } }
+            start.countDown()
+            exchanges.mapNotNull { it.get(5, TimeUnit.SECONDS) } shouldBe listOf(LoginClaims("admin@example.org", "/"))
+        } finally {
+            pool.shutdownNow()
+        }
     }
 
     @Test
