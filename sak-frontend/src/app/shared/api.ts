@@ -15,7 +15,7 @@ export interface Page<T> {
 }
 
 // the most items a page of the api has
-export const MAX_LIMIT = 100;
+const MAX_LIMIT = 100;
 
 // the items a list shows on one page
 export const PAGE_SIZE = 50;

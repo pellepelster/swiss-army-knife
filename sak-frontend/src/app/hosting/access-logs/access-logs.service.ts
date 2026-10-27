@@ -6,12 +6,12 @@ import { AuthService } from '../../auth/auth.service';
 import { apiUrl } from '../../shared/api-url';
 
 // a bucket served at its domains, the site its access logs are kept under
-export interface Site {
+interface Site {
   id: string;
   domains: string[];
 }
 
-export interface MetricsRange {
+interface MetricsRange {
   key: string;
   label: string;
 }
@@ -23,20 +23,20 @@ export interface AccessLogs {
   defaultRange: string;
 }
 
-export interface StatusClassSeries {
+interface StatusClassSeries {
   statusClass: string;
   values: number[];
   total: number;
 }
 
-export interface StatusCodeSeries {
+interface StatusCodeSeries {
   status: string;
   statusClass: string;
   values: number[];
   total: number;
 }
 
-export interface UserAgentSeries {
+interface UserAgentSeries {
   group: string;
   values: number[];
   requests: number;
@@ -75,12 +75,12 @@ export class LiveLogError extends Error {
 }
 
 // the access logs of a bucket
-export function accessLogsUrl(bucket: string): string {
+function accessLogsUrl(bucket: string): string {
   return `/api/v1/static-hosting/${encodeURIComponent(bucket)}/access-logs`;
 }
 
 // the data of the server-sent events in the text, and what is left of an incomplete event
-export function parseEvents(text: string): { data: string[]; rest: string } {
+function parseEvents(text: string): { data: string[]; rest: string } {
   const events = text.split('\n\n');
   const rest = events.pop() ?? '';
   const data = events.flatMap((event) =>

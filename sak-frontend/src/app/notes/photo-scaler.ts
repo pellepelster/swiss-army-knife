@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 // the longest side of a stored photo
-export const MAX_PHOTO_SIZE = 2048;
+const MAX_PHOTO_SIZE = 2048;
 
 const JPEG_QUALITY = 0.85;
 

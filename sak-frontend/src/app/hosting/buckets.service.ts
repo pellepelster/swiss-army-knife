@@ -5,7 +5,7 @@ import { fetchAll, Page, PAGE_SIZE } from '../shared/api';
 
 // objects, bytes and computedAt are missing while the bucket is still being counted or when it
 // could not be counted
-export interface BucketStatistics {
+interface BucketStatistics {
   computing: boolean;
   failed: boolean;
   objects?: number;

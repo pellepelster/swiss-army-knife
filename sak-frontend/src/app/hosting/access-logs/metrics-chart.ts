@@ -21,10 +21,10 @@ export const STATUS_CLASS_COLORS: Record<StatusClassKey, string> = {
 
 export const BYTES_COLOR = CHART_ACCENT;
 
-export type ClientFamilyKey =
+type ClientFamilyKey =
   'browser' | 'ai' | 'search' | 'seo' | 'feed' | 'script' | 'scanner' | 'other';
 
-export const CLIENT_FAMILY_OF: Record<string, ClientFamilyKey> = {
+const CLIENT_FAMILY_OF: Record<string, ClientFamilyKey> = {
   chrome: 'browser',
   firefox: 'browser',
   safari: 'browser',
@@ -47,7 +47,7 @@ export const CLIENT_FAMILY_OF: Record<string, ClientFamilyKey> = {
   other: 'other',
 };
 
-export const CLIENT_FAMILY_ORDER: ClientFamilyKey[] = [
+const CLIENT_FAMILY_ORDER: ClientFamilyKey[] = [
   'browser',
   'ai',
   'search',
@@ -58,7 +58,7 @@ export const CLIENT_FAMILY_ORDER: ClientFamilyKey[] = [
   'other',
 ];
 
-export const CLIENT_FAMILY_LABELS: Record<ClientFamilyKey, string> = {
+const CLIENT_FAMILY_LABELS: Record<ClientFamilyKey, string> = {
   browser: 'Browsers',
   ai: 'AI',
   search: 'Search engines',
@@ -69,7 +69,7 @@ export const CLIENT_FAMILY_LABELS: Record<ClientFamilyKey, string> = {
   other: 'Other',
 };
 
-export const CLIENT_FAMILY_COLORS: Record<ClientFamilyKey, string> = {
+const CLIENT_FAMILY_COLORS: Record<ClientFamilyKey, string> = {
   browser: CATEGORICAL_COLORS.blue,
   ai: CATEGORICAL_COLORS.orange,
   search: CATEGORICAL_COLORS.green,
@@ -80,7 +80,7 @@ export const CLIENT_FAMILY_COLORS: Record<ClientFamilyKey, string> = {
   other: CATEGORICAL_COLORS.red,
 };
 
-export const USER_AGENT_LABELS: Record<string, string> = {
+const USER_AGENT_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   google: 'Google',

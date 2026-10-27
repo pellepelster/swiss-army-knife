@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 
-export type ColorScheme = 'light' | 'dark';
+type ColorScheme = 'light' | 'dark';
 
 // tells bootstrap the light or dark mode of the user's browser (data-bs-theme), and follows it
 // when it changes

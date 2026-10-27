@@ -2,7 +2,7 @@ import { Component, computed, DestroyRef, inject, input, signal } from '@angular
 import { Subscription, timer } from 'rxjs';
 
 // how long the copy button says it copied
-export const CODE_COPIED_MS = 2000;
+const CODE_COPIED_MS = 2000;
 
 // a file or a command to take over as it is, as a terminal window: its name in the bar with a
 // copy button, the code below; what is copied can differ from what is shown, e.g. a secret that

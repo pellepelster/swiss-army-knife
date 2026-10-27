@@ -7,7 +7,7 @@ import { PhotoScaler } from './photo-scaler';
 
 export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as const;
 
-export type NoteColor = (typeof NOTE_COLORS)[number];
+type NoteColor = (typeof NOTE_COLORS)[number];
 
 // photos and recordings are the ids of files of the backend's file storage, served with the
 // session at /api/v1/files/<id>
@@ -42,7 +42,7 @@ export const SAVE_TEXT_AFTER_MS = 600;
 
 // labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
 // backend stores them the same way
-export function normalizeLabel(label: string): string {
+function normalizeLabel(label: string): string {
   return label.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 

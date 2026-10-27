@@ -38,7 +38,7 @@ const SEGMENT_GAP = 2;
 const SIX_HOURS_SECONDS = 21600;
 const ONE_DAY_SECONDS = 86400;
 
-export function bucketLabel(bucket: string, stepSeconds: number): string {
+function bucketLabel(bucket: string, stepSeconds: number): string {
   const date = new Date(bucket);
   if (stepSeconds < SIX_HOURS_SECONDS) {
     return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });

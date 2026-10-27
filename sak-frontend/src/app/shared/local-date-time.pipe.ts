@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-export type DateTimeStyle = 'short' | 'medium' | 'long' | 'full';
+type DateTimeStyle = 'short' | 'medium' | 'long' | 'full';
 
 // a date and time in the locale of the user's browser, not the locale the app was built with;
 // null leaves the date or the time out

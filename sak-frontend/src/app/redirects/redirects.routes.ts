@@ -7,7 +7,7 @@ import { RedirectEdit } from './redirect-edit';
 import { RedirectList } from './redirect-list';
 import { RedirectView } from './redirect-view';
 
-export const REDIRECTS_FAVICON: Favicon = {
+const REDIRECTS_FAVICON: Favicon = {
   svg: 'icons/redirects.svg',
   png: 'icons/redirects-192.png',
 };

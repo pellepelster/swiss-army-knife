@@ -1,5 +1,5 @@
 // the apps of the frontend, the index page lists them
-export interface AppEntry {
+interface AppEntry {
   readonly path: string;
   readonly name: string;
   readonly description: string;

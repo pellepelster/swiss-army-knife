@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 // the rate the recordings are stored at, enough for speech
-export const RECORDING_RATE = 16_000;
+const RECORDING_RATE = 16_000;
 
 // a recording stops by itself after this long, so it stays below the backend's 10 MB per file
 export const MAX_RECORDING_SECONDS = 300;

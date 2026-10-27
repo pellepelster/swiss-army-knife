@@ -5,7 +5,7 @@ import { BucketSecret, BucketsService, s3Endpoint } from './buckets.service';
 import { CodeBlock } from './code-block';
 
 // how the secret key is shown until it is asked for
-export const SECRET_MASK = '••••••••••••••••••••';
+const SECRET_MASK = '••••••••••••••••••••';
 
 // the publishing tab of a bucket: how hugo deploys a site into it, the deployment target for the
 // site's configuration and the command with the key pair of the bucket; the keys are only

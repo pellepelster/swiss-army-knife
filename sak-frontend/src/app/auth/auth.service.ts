@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
 
-export interface Session {
+interface Session {
   token: string;
   email: string;
   expiresAt: string;
@@ -18,7 +18,7 @@ interface ExchangeResponse {
   redirect: string;
 }
 
-export interface Me {
+interface Me {
   email: string;
   expiresAt: string;
   roles: string[];
@@ -27,7 +27,7 @@ export interface Me {
 export const SESSION_STORAGE_KEY = 'sak.session';
 
 // the app the backend sends the login links to, the signin page of the frontend
-export const LOGIN_APP = 'frontend';
+const LOGIN_APP = 'frontend';
 
 // the api answers the login below this without a session, every other /api/v1 request needs one
 export const PUBLIC_API_PREFIX = '/api/v1/login/';

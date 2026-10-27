@@ -21,7 +21,7 @@ import { TimeSeriesChart } from './access-logs/time-series-chart';
 import { BucketStore } from './bucket-store';
 
 // the newest requests the list keeps
-export const MAX_REQUESTS = 200;
+const MAX_REQUESTS = 200;
 
 type Failure = 'unknown' | 'forbidden' | 'unavailable';
 

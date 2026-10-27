@@ -9,7 +9,7 @@ import { BucketList } from './bucket-list';
 import { BucketPublishing } from './bucket-publishing';
 import { BucketView } from './bucket-view';
 
-export const HOSTING_FAVICON: Favicon = { svg: 'icons/hosting.svg', png: 'icons/hosting-192.png' };
+const HOSTING_FAVICON: Favicon = { svg: 'icons/hosting.svg', png: 'icons/hosting-192.png' };
 
 // the buckets of the s3 api: the list, a page to create one, a bucket's page with its tabs and a
 // page to edit it; create and edit come first, the bucket's page would take them as its name
