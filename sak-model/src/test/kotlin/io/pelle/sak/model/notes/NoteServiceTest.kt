@@ -76,6 +76,14 @@ class NoteServiceTest {
     }
 
     @Test
+    fun `a note has at most ten labels, the same one written differently counts once`() {
+        val ten = (1..10).map { "label $it" }
+        create("ten", labelNames = ten + "LABEL 1").labels.size shouldBe 10
+        service.create(PELLE, "eleven", "yellow", ten + "label 11") shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_LABELS))
+        labels.byName("label 11") shouldBe null
+    }
+
+    @Test
     fun `pages the newest notes first, of all or of one label`() {
         val milk = create("milk", labelNames = listOf("shopping"))
         later()

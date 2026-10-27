@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotesPage } from './notes-page';
+import { NotesStore } from './notes-store';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, SHA256 } from './notes-testing';
 
@@ -119,6 +120,18 @@ describe('NotesPage', () => {
     expect(photo.getAttribute('src')).toBe(`/api/v1/files/${SHA256}/thumbnail`);
     expect(photo.closest('a')?.getAttribute('href')).toBe(`/api/v1/files/${SHA256}`);
     expect(notes()[0].querySelector('.note-photos')).toBeNull();
+  });
+
+  it('offers no further label once a note has ten', async () => {
+    const note = notes()[0];
+    for (let index = 1; index <= 8; index++) {
+      TestBed.inject(NotesStore).addLabel(3, `label ${index}`);
+      http.expectOne({ method: 'PUT', url: '/api/v1/notes/3' });
+    }
+    await fixture.whenStable();
+
+    expect(note.querySelector('.note-label-input')).toBeNull();
+    expect(note.textContent).toContain('A note has at most 10 labels.');
   });
 
   it('removes a photo only once the removal is confirmed', async () => {

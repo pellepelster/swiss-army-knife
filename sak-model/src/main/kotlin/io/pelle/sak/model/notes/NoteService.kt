@@ -42,6 +42,7 @@ enum class NoteProblem {
     TEXT_TOO_LONG,
     INVALID_COLOR,
     INVALID_LABEL,
+    TOO_MANY_LABELS,
     UNKNOWN_PHOTO,
     TOO_MANY_PHOTOS,
 }
@@ -172,6 +173,8 @@ class NoteService internal constructor(
         val noteColor = NoteColor.of(color)
         if (noteColor == null) problems += NoteProblem.INVALID_COLOR
         if (labelNames.any { LabelService.normalize(it) == null }) problems += NoteProblem.INVALID_LABEL
+        // the same label in another case or with other blanks is one
+        if (labelNames.mapNotNull { LabelService.normalize(it) }.distinct().size > MAX_LABELS) problems += NoteProblem.TOO_MANY_LABELS
         val distinctPhotos = photos.distinct()
         if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
         if (files.existing(distinctPhotos).size < distinctPhotos.size) problems += NoteProblem.UNKNOWN_PHOTO
@@ -196,6 +199,8 @@ class NoteService internal constructor(
 
     companion object {
         const val MAX_TEXT_LENGTH = 10_000
+
+        const val MAX_LABELS = 10
 
         const val MAX_PHOTOS = 20
     }

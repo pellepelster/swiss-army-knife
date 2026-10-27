@@ -81,6 +81,7 @@ private fun NoteProblem.message() =
         NoteProblem.TEXT_TOO_LONG -> "The text must have at most ${NoteService.MAX_TEXT_LENGTH} characters."
         NoteProblem.INVALID_COLOR -> "The color must be one of ${NoteColor.entries.joinToString(", ") { it.id }}."
         NoteProblem.INVALID_LABEL -> INVALID_LABEL_NAME
+        NoteProblem.TOO_MANY_LABELS -> "A note can have at most ${NoteService.MAX_LABELS} labels."
         NoteProblem.UNKNOWN_PHOTO -> "Every photo must be a file of the file storage."
         NoteProblem.TOO_MANY_PHOTOS -> "A note can have at most ${NoteService.MAX_PHOTOS} photos."
     }
@@ -145,7 +146,7 @@ fun Route.notes(noteService: NoteService) {
                 description = "The new note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, an unknown photo, too many photos or a malformed request")
+            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
         }
     }
 
@@ -184,7 +185,7 @@ fun Route.notes(noteService: NoteService) {
                 description = "The changed note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, an unknown photo, too many photos or a malformed request")
+            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
             HttpStatusCode.NotFound { description = "The signed in user has no such note" }
         }
     }

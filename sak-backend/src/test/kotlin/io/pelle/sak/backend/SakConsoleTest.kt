@@ -427,6 +427,9 @@ class SakConsoleTest {
                         "A label name must have 1 to 64 characters and no control characters.",
                     )
             }
+            val eleven = (1..11).joinToString(",") { "\"label $it\"" }
+            post(port, "/api/v1/notes", """{"text":"x","labels":[$eleven]}""", session).body() shouldBe
+                """{"errors":[{"message":"A note can have at most 10 labels."}]}"""
             put(port, "/api/v1/notes/4711", """{"text":"x"}""", session).statusCode() shouldBe 404
 
             delete(port, "/api/v1/notes/$milk", session).statusCode() shouldBe 204

@@ -37,6 +37,9 @@ interface Page<T> {
 // the most a page has, the notes and labels are asked for in one
 const MAX_LIMIT = 500;
 
+// the most labels a note has, the backend takes no more
+export const MAX_LABELS = 10;
+
 // how long typing pauses before the text is saved
 export const SAVE_TEXT_AFTER_MS = 600;
 
@@ -138,12 +141,14 @@ export class NotesStore {
       this.save(id);
   }
 
-  // a blank label or one the note has already changes nothing
+  // a blank label, one the note has already or one more than MAX_LABELS changes nothing
   addLabel(id: number, label: string): void {
     const normalized = normalizeLabel(label);
     if (!normalized) return;
     const changed = this.change(id, (note) =>
-      note.labels.includes(normalized) ? note : { ...note, labels: [...note.labels, normalized] },
+      note.labels.includes(normalized) || note.labels.length >= MAX_LABELS
+        ? note
+        : { ...note, labels: [...note.labels, normalized] },
     );
     if (changed) this.save(id);
   }

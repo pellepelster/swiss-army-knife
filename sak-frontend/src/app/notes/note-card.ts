@@ -1,6 +1,6 @@
 import { Component, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
-import { Note, NOTE_COLORS, NotesStore } from './notes-store';
+import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 
 // one note as a post-it: the thumbnails of its photos on top, each leads to the whole photo, its text is edited in place, labels are added below
 // it; a photo is taken with the camera of a phone or chosen from the files elsewhere
@@ -87,17 +87,21 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
       }
     </ul>
 
-    <form class="note-add-label" (submit)="$event.preventDefault(); addLabel()">
-      <input
-        class="note-label-input"
-        placeholder="+ label"
-        autocomplete="off"
-        [attr.list]="labelsList()"
-        [attr.aria-label]="'Add a label to note ' + note().id"
-        [value]="newLabel()"
-        (input)="newLabel.set($any($event.target).value)"
-      />
-    </form>
+    @if (note().labels.length < maxLabels) {
+      <form class="note-add-label" (submit)="$event.preventDefault(); addLabel()">
+        <input
+          class="note-label-input"
+          placeholder="+ label"
+          autocomplete="off"
+          [attr.list]="labelsList()"
+          [attr.aria-label]="'Add a label to note ' + note().id"
+          [value]="newLabel()"
+          (input)="newLabel.set($any($event.target).value)"
+        />
+      </form>
+    } @else {
+      <p class="note-labels-full">A note has at most {{ maxLabels }} labels.</p>
+    }
 
     <footer class="note-footer">
       <div class="note-colors" role="radiogroup" aria-label="Color">
@@ -158,6 +162,7 @@ export class NoteCard {
   readonly labelSelected = output<string>();
 
   protected readonly colors = NOTE_COLORS;
+  protected readonly maxLabels = MAX_LABELS;
   protected readonly newLabel = signal('');
 
   // the photo whose removal is asked for, removed only once it is confirmed

@@ -146,6 +146,18 @@ describe('NotesStore', () => {
     expect(store.notes()[1].photos).toEqual([]);
   });
 
+  it('attaches at most ten labels to a note', () => {
+    for (let index = 2; index <= 10; index++) {
+      store.addLabel(1, `label ${index}`);
+      http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' });
+    }
+    expect(store.notes()[1].labels.length).toBe(10);
+
+    store.addLabel(1, 'label 11');
+    http.expectNone({ method: 'PUT' });
+    expect(store.notes()[1].labels).not.toContain('label 11');
+  });
+
   it('deletes notes at once and brings them back when the backend can not', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);
