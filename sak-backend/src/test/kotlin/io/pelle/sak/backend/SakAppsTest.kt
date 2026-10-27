@@ -106,64 +106,51 @@ class SakAppsTest {
         }
     }
 
-    private fun get(
+    // a request of the api with the session, when given, and a body of the content type
+    private fun <T> request(
         port: Int,
+        method: String,
         path: String,
         sessionToken: String? = null,
-    ): HttpResponse<String> =
+        body: ByteArray? = null,
+        contentType: String = "application/json",
+        answer: HttpResponse.BodyHandler<T>,
+    ): HttpResponse<T> =
         http.send(
             HttpRequest
                 .newBuilder(URI.create("http://localhost:$port$path"))
                 .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
+                .apply { body?.let { header("Content-Type", contentType) } }
+                .method(method, body?.let { HttpRequest.BodyPublishers.ofByteArray(it) } ?: HttpRequest.BodyPublishers.noBody())
                 .build(),
-            HttpResponse.BodyHandlers.ofString(),
+            answer,
         )
+
+    private fun get(
+        port: Int,
+        path: String,
+        sessionToken: String? = null,
+    ) = request(port, "GET", path, sessionToken, answer = HttpResponse.BodyHandlers.ofString())
 
     private fun post(
         port: Int,
         path: String,
         json: String,
         sessionToken: String? = null,
-    ): HttpResponse<String> =
-        http.send(
-            HttpRequest
-                .newBuilder(URI.create("http://localhost:$port$path"))
-                .header("Content-Type", "application/json")
-                .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-
-    private fun delete(
-        port: Int,
-        path: String,
-        sessionToken: String,
-    ): HttpResponse<String> =
-        http.send(
-            HttpRequest
-                .newBuilder(URI.create("http://localhost:$port$path"))
-                .header("Authorization", "Bearer $sessionToken")
-                .DELETE()
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
+    ) = request(port, "POST", path, sessionToken, json.toByteArray(), answer = HttpResponse.BodyHandlers.ofString())
 
     private fun put(
         port: Int,
         path: String,
         json: String,
         sessionToken: String,
-    ): HttpResponse<String> =
-        http.send(
-            HttpRequest
-                .newBuilder(URI.create("http://localhost:$port$path"))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer $sessionToken")
-                .PUT(HttpRequest.BodyPublishers.ofString(json))
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
+    ) = request(port, "PUT", path, sessionToken, json.toByteArray(), answer = HttpResponse.BodyHandlers.ofString())
+
+    private fun delete(
+        port: Int,
+        path: String,
+        sessionToken: String,
+    ) = request(port, "DELETE", path, sessionToken, answer = HttpResponse.BodyHandlers.ofString())
 
     // the java http client does not let a request set its host, caddy keeps the host of the client
     private fun getWithHost(
@@ -493,15 +480,7 @@ class SakAppsTest {
             fun upload(
                 bytes: ByteArray,
                 sessionToken: String? = session,
-            ) = http.send(
-                HttpRequest
-                    .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
-                    .header("Content-Type", "application/octet-stream")
-                    .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
-                    .build(),
-                HttpResponse.BodyHandlers.ofString(),
-            )
+            ) = request(port, "POST", "/api/v1/files", sessionToken, bytes, "application/octet-stream", HttpResponse.BodyHandlers.ofString())
 
             upload(jpeg, null).statusCode() shouldBe 401
             // larger than the json bodies of the api
@@ -530,13 +509,7 @@ class SakAppsTest {
             fun download(
                 path: String,
                 sessionToken: String? = session,
-            ) = http.send(
-                HttpRequest
-                    .newBuilder(URI.create("http://localhost:$port$path"))
-                    .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
-                    .build(),
-                HttpResponse.BodyHandlers.ofByteArray(),
-            )
+            ) = request(port, "GET", path, sessionToken, answer = HttpResponse.BodyHandlers.ofByteArray())
 
             // served with a session only, it never changes under its id
             download("/api/v1/files/$id", null).statusCode() shouldBe 401
@@ -607,14 +580,7 @@ class SakAppsTest {
                 val session = signIn(port)
                 val jpeg = jpeg(4, 3)
                 val receipt =
-                    http.send(
-                        HttpRequest
-                            .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
-                            .header("Authorization", "Bearer $session")
-                            .POST(HttpRequest.BodyPublishers.ofByteArray(jpeg))
-                            .build(),
-                        HttpResponse.BodyHandlers.ofString(),
-                    ).json().string("id")
+                    request(port, "POST", "/api/v1/files", session, jpeg, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
                 fun discover(
                     file: String,
                     sessionToken: String? = session,
@@ -633,25 +599,12 @@ class SakAppsTest {
 
                 // a recording is written down, its thumbnail is its waveform, a note keeps it
                 val recording =
-                    http.send(
-                        HttpRequest
-                            .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
-                            .header("Authorization", "Bearer $session")
-                            .POST(HttpRequest.BodyPublishers.ofByteArray(wav()))
-                            .build(),
-                        HttpResponse.BodyHandlers.ofString(),
-                    ).json()
+                    request(port, "POST", "/api/v1/files", session, wav(), "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json()
                 recording.string("contentType") shouldBe "audio/wav"
                 val memo = recording.string("id")
                 discover(memo).json().string("text") shouldBe "Buy milk on the way home."
                 completions.last() shouldContain "\"format\":\"wav\""
-                http.send(
-                    HttpRequest
-                        .newBuilder(URI.create("http://localhost:$port/api/v1/files/$memo/thumbnail"))
-                        .header("Authorization", "Bearer $session")
-                        .build(),
-                    HttpResponse.BodyHandlers.ofByteArray(),
-                ).let {
+                request(port, "GET", "/api/v1/files/$memo/thumbnail", session, answer = HttpResponse.BodyHandlers.ofByteArray()).let {
                     it.statusCode() shouldBe 200
                     ImageIO.read(it.body().inputStream()).let { waveform -> waveform.width to waveform.height } shouldBe (480 to 360)
                 }
@@ -670,14 +623,7 @@ class SakAppsTest {
             val session = signIn(port)
             val png = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
             val file =
-                http.send(
-                    HttpRequest
-                        .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
-                        .header("Authorization", "Bearer $session")
-                        .POST(HttpRequest.BodyPublishers.ofByteArray(png))
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                ).json().string("id")
+                request(port, "POST", "/api/v1/files", session, png, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
             post(port, "/api/v1/files/$file/discover/text", "", session).let {
                 it.statusCode() shouldBe 503
                 it.body() shouldBe """{"errors":[{"message":"Text discovery is not configured."}]}"""
@@ -692,15 +638,7 @@ class SakAppsTest {
             fun put(
                 path: String,
                 json: String,
-            ) = http.send(
-                HttpRequest
-                    .newBuilder(URI.create("http://localhost:$port$path"))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer $session")
-                    .PUT(HttpRequest.BodyPublishers.ofString(json))
-                    .build(),
-                HttpResponse.BodyHandlers.ofString(),
-            )
+            ) = put(port, path, json, session)
             fun domains(response: HttpResponse<String>) = response.json().getValue("domains").jsonArray.map { it.jsonPrimitive.content }
 
             val site = post(port, "/api/v1/static-hosting", """{"name":"site","domains":["Example.com","www.example.com"]}""", session)
@@ -825,13 +763,7 @@ class SakAppsTest {
                 endpoints.filter { (method, path) ->
                     val url = path.replace(Regex("""\{[^}]+}"""), "e2e-anything")
                     val status =
-                        http.send(
-                            HttpRequest
-                                .newBuilder(URI.create("http://localhost:$port$url"))
-                                .method(method.uppercase(), HttpRequest.BodyPublishers.noBody())
-                                .build(),
-                            HttpResponse.BodyHandlers.discarding(),
-                        ).statusCode()
+                        request(port, method.uppercase(), url, answer = HttpResponse.BodyHandlers.discarding()).statusCode()
                     status != 401
                 }
             public shouldBe listOf("post" to "/api/v1/login/link", "post" to "/api/v1/login/exchange")
