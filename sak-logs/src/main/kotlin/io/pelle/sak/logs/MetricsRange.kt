@@ -12,6 +12,7 @@ enum class MetricsRange(
 ) {
     LAST_15_MINUTES("15m", "15 minutes", Duration.ofSeconds(30), 30),
     LAST_HOUR("1h", "1 hour", Duration.ofMinutes(2), 30),
+    LAST_4_HOURS("4h", "4 hours", Duration.ofMinutes(10), 24),
     LAST_6_HOURS("6h", "6 hours", Duration.ofMinutes(15), 24),
     LAST_12_HOURS("12h", "12 hours", Duration.ofMinutes(30), 24),
     LAST_24_HOURS("24h", "24 hours", Duration.ofHours(1), 24),

@@ -191,6 +191,16 @@ class SiteMetricsServiceTest {
             json["series"]!!.jsonArray.first().jsonObject["total"]!!.jsonPrimitive.long shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
+            // every site at once, over the 4 hours of the overview
+            val all = client.get("/api/v1/logs/all/metrics?range=4h")
+            all.status shouldBe HttpStatusCode.OK
+            Json.parseToJsonElement(all.bodyAsText()).jsonObject.let {
+                it["site"]!!.jsonPrimitive.content shouldBe "all"
+                it["stepSeconds"]!!.jsonPrimitive.long shouldBe 600
+                it["buckets"]!!.jsonArray.size shouldBe 24
+            }
+            queries.last().getValue("query") shouldContain "* |"
+
             client.get("/api/v1/logs/unknown/metrics").status shouldBe HttpStatusCode.NotFound
             client.get("/api/v1/logs/pelle.io/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
         }

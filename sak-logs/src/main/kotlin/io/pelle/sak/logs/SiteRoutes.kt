@@ -96,11 +96,7 @@ fun Route.sites(
     }
 
     get("/{site}/metrics") {
-        val site = sites.firstOrNull { it.id == call.parameters["site"] }
-        if (site == null) {
-            call.respond(HttpStatusCode.NotFound)
-            return@get
-        }
+        val site = call.logsSite(sites) ?: return@get
         val range = MetricsRange.from(call.request.queryParameters["range"])
         if (range == null) {
             call.respond(HttpStatusCode.BadRequest)
@@ -118,7 +114,7 @@ fun Route.sites(
         description = "Requests per status class and code, transferred bytes and user agent groups over a range."
         parameters {
             path("site") {
-                description = "The id of the site"
+                description = "The id of the site, or all for every site"
                 required = true
                 schema = jsonSchema<String>()
             }
