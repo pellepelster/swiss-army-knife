@@ -33,6 +33,7 @@ test('signs in with the e-mailed link and returns to the requested page', async 
   // the personal menu at the bottom of the navigation
   await page.getByTestId('personal-menu').click();
   await expect(page.getByTestId('signed-in-as')).toHaveText(ADMIN);
+  await expect(page.getByTestId('roles')).toHaveText('admin');
   await expect(page.getByRole('menu')).toContainText('Session expires');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);

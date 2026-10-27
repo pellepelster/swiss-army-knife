@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { SitesService } from '../sites/sites.service';
@@ -33,6 +34,9 @@ const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 60000;
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+// a session whose role does not allow the logs, retrying does not help
+const FORBIDDEN = 'Your role does not allow to see the logs.';
 
 type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching' | 'search';
 
@@ -330,10 +334,14 @@ export class LiveLogs {
           this.found.set(entries);
           this.state.set('search');
         },
-        error: () => {
+        error: (error: unknown) => {
           this.found.set([]);
           this.state.set('search');
-          this.error.set('The logs could not be searched, they may not be available right now.');
+          this.error.set(
+            error instanceof HttpErrorResponse && error.status === 403
+              ? FORBIDDEN
+              : 'The logs could not be searched, they may not be available right now.',
+          );
         },
       });
       onCleanup(() => subscription.unsubscribe());
@@ -365,6 +373,11 @@ export class LiveLogs {
             next: (chunk) =>
               this.followed.update((entries) => [...[...chunk].reverse(), ...entries].slice(0, MAX_ENTRIES)),
             error: (error: unknown) => {
+              if (error instanceof LiveLogError && error.status === 403) {
+                this.error.set(FORBIDDEN);
+                this.state.set('paused');
+                return;
+              }
               this.error.set(
                 error instanceof LiveLogError && error.status === 503
                   ? 'The logs can not be followed right now, they are not available or too many live views are open.'

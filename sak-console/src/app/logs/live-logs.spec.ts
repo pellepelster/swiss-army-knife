@@ -332,6 +332,18 @@ describe('LiveLogs', () => {
     expect(alert()).toBeNull();
   });
 
+  it('stops following when the role does not allow the logs', async () => {
+    const { harness, page, state } = await open();
+
+    streams[0].entries.error(new LiveLogError(403));
+    await harness.fixture.whenStable();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(streams.length).toBe(1);
+    expect(state()).toBe('Paused');
+    expect(page.querySelector('[role=alert]')?.textContent).toContain('does not allow');
+  });
+
   it('reconnects when the stream breaks', async () => {
     const { harness, state } = await open();
 

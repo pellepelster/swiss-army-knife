@@ -6,18 +6,22 @@ export interface Session {
   token: string;
   email: string;
   expiresAt: string;
+  // what the address may do, e.g. admin
+  roles: string[];
 }
 
 interface ExchangeResponse {
   sessionToken: string;
   email: string;
   expiresAt: string;
+  roles: string[];
   redirect: string;
 }
 
 export interface Me {
   email: string;
   expiresAt: string;
+  roles: string[];
 }
 
 export const SESSION_STORAGE_KEY = 'sak.session';
@@ -45,6 +49,8 @@ export class AuthService {
   readonly email = computed(() => this.session()?.email ?? null);
 
   readonly expiresAt = computed(() => this.session()?.expiresAt ?? null);
+
+  readonly roles = computed(() => this.session()?.roles ?? []);
 
   // null when signed out or the session expired
   token(): string | null {
@@ -74,6 +80,7 @@ export class AuthService {
           token: response.sessionToken,
           email: response.email,
           expiresAt: response.expiresAt,
+          roles: response.roles,
         }),
       ),
       map((response) => safeRedirect(response.redirect)),
@@ -113,7 +120,9 @@ function loadSession(): Session | null {
       typeof session.expiresAt === 'string' &&
       !Number.isNaN(Date.parse(session.expiresAt))
     ) {
-      return { token: session.token, email: session.email, expiresAt: session.expiresAt };
+      // sessions stored before there were roles have none, their token is rejected anyway
+      const roles = Array.isArray(session.roles) ? session.roles.filter((role) => typeof role === 'string') : [];
+      return { token: session.token, email: session.email, expiresAt: session.expiresAt, roles };
     }
   } catch {
     // unreadable or blocked storage is treated as signed out

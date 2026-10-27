@@ -66,16 +66,19 @@ describe('AuthService', () => {
       sessionToken: 'session-token',
       email: 'admin@example.org',
       expiresAt,
+      roles: ['admin'],
       redirect: '/buckets',
     });
 
     expect(redirect).toBe('/buckets');
     expect(auth.token()).toBe('session-token');
     expect(auth.email()).toBe('admin@example.org');
+    expect(auth.roles()).toEqual(['admin']);
     expect(JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)!)).toEqual({
       token: 'session-token',
       email: 'admin@example.org',
       expiresAt,
+      roles: ['admin'],
     });
   });
 
@@ -89,7 +92,10 @@ describe('AuthService', () => {
       }),
     );
 
-    expect(create().isLoggedIn()).toBe(true);
+    const auth = create();
+    expect(auth.isLoggedIn()).toBe(true);
+    // stored before there were roles
+    expect(auth.roles()).toEqual([]);
   });
 
   it('treats expired and malformed sessions as signed out', () => {

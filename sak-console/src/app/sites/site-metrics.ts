@@ -76,6 +76,8 @@ interface AgentShare {
         <div class="alert alert-warning" role="alert">
           There is no site <span class="font-mono">{{ shownSite() }}</span>, choose one of the sites.
         </div>
+      } @else if (failed() === 'forbidden') {
+        <div class="alert alert-warning" role="alert">Your role does not allow to see the logs.</div>
       } @else if (failed()) {
         <div class="alert alert-danger" role="alert">
           The metrics could not be loaded, the logs may not be available right now.
@@ -192,7 +194,7 @@ export class SiteMetrics {
 
   protected readonly metrics = signal<Metrics | null>(null);
   // why the metrics are missing, an unknown site or unavailable logs
-  protected readonly failed = signal<'unknown' | 'unavailable' | null>(null);
+  protected readonly failed = signal<'unknown' | 'forbidden' | 'unavailable' | null>(null);
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
@@ -273,7 +275,13 @@ export class SiteMetrics {
         next: (metrics) => this.metrics.set(metrics),
         error: (error: unknown) =>
           this.failed.set(
-            error instanceof HttpErrorResponse && error.status === 404 ? 'unknown' : 'unavailable',
+            !(error instanceof HttpErrorResponse)
+              ? 'unavailable'
+              : error.status === 404
+                ? 'unknown'
+                : error.status === 403
+                  ? 'forbidden'
+                  : 'unavailable',
           ),
       });
       onCleanup(() => subscription.unsubscribe());

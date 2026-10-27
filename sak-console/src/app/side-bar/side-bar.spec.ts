@@ -17,6 +17,7 @@ describe('SideBar', () => {
         token: 'session-token',
         email: 'pelle@pelle.io',
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        roles: ['admin'],
       }),
     );
     TestBed.configureTestingModule({
@@ -63,6 +64,7 @@ describe('SideBar', () => {
     const menu = (await openMenu())!;
     expect(menu.textContent).toContain('Signed in as');
     expect(menu.textContent).toContain('Session expires');
+    expect(menu.querySelector('[data-testid=roles]')?.textContent).toBe('admin');
 
     menu.querySelector<HTMLButtonElement>('[role=menuitem]')!.click();
 

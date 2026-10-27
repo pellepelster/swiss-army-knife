@@ -80,6 +80,9 @@ import { AuthService } from '../auth/auth.service';
               <div class="dropdown-header">
                 <div class="label-mono">Signed in as</div>
                 <div class="font-mono text-body" data-testid="signed-in-as">{{ email() }}</div>
+                @if (roles().length) {
+                  <div class="label-mono mt-1" data-testid="roles">{{ roles().join(', ') }}</div>
+                }
                 @if (expiresAt(); as expiresAt) {
                   <div class="small mt-1">Session expires {{ expiresAt | date: 'medium' }}</div>
                 }
@@ -106,6 +109,7 @@ export class SideBar {
 
   protected readonly email = this.auth.email;
   protected readonly expiresAt = this.auth.expiresAt;
+  protected readonly roles = this.auth.roles;
   protected readonly initials = computed(() => initialsOf(this.email()));
 
   constructor() {

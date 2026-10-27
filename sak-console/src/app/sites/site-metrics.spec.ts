@@ -149,6 +149,19 @@ describe('SiteMetrics', () => {
     );
   });
 
+  it('reports a role that does not allow the logs', async () => {
+    const harness = await open();
+
+    http
+      .expectOne('/api/v1/logs/pelle.io/metrics?range=24h')
+      .flush(null, { status: 403, statusText: 'Forbidden' });
+    await harness.fixture.whenStable();
+
+    expect(harness.routeNativeElement!.querySelector('[role=alert]')?.textContent).toContain(
+      'does not allow',
+    );
+  });
+
   it('reports a site that does not exist', async () => {
     const harness = await open('/logs/statistics/nope');
 
