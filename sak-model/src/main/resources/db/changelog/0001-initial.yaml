@@ -1,117 +1,302 @@
-# the initial schema of the controller's database. Plain sql, sqlite only takes checks and
-# foreign keys when a table is created.
+# the initial schema of the controller's database; sqlite only takes checks and foreign keys when
+# a table is created, they are part of createTable, the unique constraints over several columns
+# are unique indexes. Liquibase leaves out check constraints, modifySql appends them to the
+# statements that create their tables.
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
       author: sak
+      modifySql:
+        - regExpReplace:
+            replace: (?s)^(CREATE TABLE (?:\S+\.)?redirects \(.*)\)$
+            with: >-
+              $1, CONSTRAINT redirects_target_check CHECK (
+              (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
+              OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)))
+        - regExpReplace:
+            replace: (?s)^(CREATE TABLE (?:\S+\.)?labels \(.*)\)$
+            with: >-
+              $1, CONSTRAINT labels_active_check CHECK (
+              (deleted_at IS NULL AND active IS NOT NULL AND active = 1)
+              OR (deleted_at IS NOT NULL AND active IS NULL)))
       changes:
         # the buckets of the s3 api, each with the key pair that may access it; the secret is
         # stored as is, sigv4 needs it to verify the requests
-        - sql:
-            sql: >-
-              CREATE TABLE s3_buckets (
-                name VARCHAR(63) NOT NULL PRIMARY KEY,
-                access_key_id VARCHAR(20) NOT NULL,
-                secret_access_key VARCHAR(40) NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                CONSTRAINT s3_buckets_access_key_id_key UNIQUE (access_key_id)
-              )
+        - createTable:
+            tableName: s3_buckets
+            columns:
+              - column:
+                  name: name
+                  type: varchar(63)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: access_key_id
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: s3_buckets_access_key_id_key
+              - column:
+                  name: secret_access_key
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+
         # the domains a bucket is served at, in their order, the first is where redirects to the
         # bucket lead; a domain belongs to one bucket at most
-        - sql:
-            sql: >-
-              CREATE TABLE s3_buckets_domains (
-                domain VARCHAR(253) NOT NULL PRIMARY KEY,
-                bucket_name VARCHAR(63) NOT NULL,
-                position INTEGER NOT NULL,
-                CONSTRAINT s3_buckets_domains_bucket_name_fkey FOREIGN KEY (bucket_name) REFERENCES s3_buckets (name) ON DELETE CASCADE,
-                CONSTRAINT s3_buckets_domains_position_key UNIQUE (bucket_name, position)
-              )
+        - createTable:
+            tableName: s3_buckets_domains
+            columns:
+              - column:
+                  name: domain
+                  type: varchar(253)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: bucket_name
+                  type: varchar(63)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: s3_buckets_domains_bucket_name_fkey
+                    references: s3_buckets(name)
+                    deleteCascade: true
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: s3_buckets_domains
+            indexName: s3_buckets_domains_position_key
+            unique: true
+            columns:
+              - column:
+                  name: bucket_name
+              - column:
+                  name: position
+
         # the domains caddy redirects, each to an external domain or to the domain a bucket is
         # served at; exactly the column of the target type is set
-        - sql:
-            sql: >-
-              CREATE TABLE redirects (
-                source_domain VARCHAR(253) NOT NULL PRIMARY KEY,
-                target_type VARCHAR(16) NOT NULL,
-                target_domain VARCHAR(253),
-                target_bucket VARCHAR(63),
-                created_at TIMESTAMP NOT NULL,
-                CONSTRAINT redirects_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES s3_buckets (name),
-                CONSTRAINT redirects_target_check CHECK (
-                  (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
-                  OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)
-                )
-              )
+        - createTable:
+            tableName: redirects
+            columns:
+              - column:
+                  name: source_domain
+                  type: varchar(253)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: target_type
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_domain
+                  type: varchar(253)
+              - column:
+                  name: target_bucket
+                  type: varchar(63)
+                  constraints:
+                    foreignKeyName: redirects_target_bucket_fkey
+                    references: s3_buckets(name)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+
         # the labels every application can attach to its entities, each application links them in
         # a table of its own. A deleted label stays as a row with deleted_at set; active is 1 for
         # the labels that are not deleted and null for the deleted ones, so the name is unique
         # among the labels that are not deleted only (sqlite takes nulls as distinct)
-        - sql:
-            sql: >-
-              CREATE TABLE labels (
-                id INTEGER NOT NULL PRIMARY KEY,
-                name VARCHAR(64) NOT NULL,
-                active INTEGER,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP,
-                CONSTRAINT labels_name_key UNIQUE (name, active),
-                CONSTRAINT labels_active_check CHECK (
-                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
-                )
-              )
+        - createTable:
+            tableName: labels
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: active
+                  type: int
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - createIndex:
+            tableName: labels
+            indexName: labels_name_key
+            unique: true
+            columns:
+              - column:
+                  name: name
+              - column:
+                  name: active
+
         # the files of the generic file storage, addressed by the sha-256 of their content (lower
         # case hex); the content lives in the data dir, the table knows what it is, who uploaded it
         # first and the text discovered in it, null until it is discovered. A deleted file stays
         # as a row with deleted_at set.
-        - sql:
-            sql: >-
-              CREATE TABLE files (
-                sha256 CHAR(64) NOT NULL PRIMARY KEY,
-                content_type VARCHAR(127) NOT NULL,
-                size BIGINT NOT NULL,
-                uploaded_by VARCHAR(254) NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP,
-                discovered VARCHAR(100000)
-              )
+        - createTable:
+            tableName: files
+            columns:
+              - column:
+                  name: sha256
+                  type: char(64)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: content_type
+                  type: varchar(127)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: size
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uploaded_by
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+              - column:
+                  name: discovered
+                  type: varchar(100000)
+
         # the notes of the notes app, each belongs to the address of the user that created it; a
         # deleted note stays as a row with deleted_at set
-        - sql:
-            sql: >-
-              CREATE TABLE notes (
-                id INTEGER NOT NULL PRIMARY KEY,
-                owner VARCHAR(254) NOT NULL,
-                text VARCHAR(10000) NOT NULL,
-                color VARCHAR(16) NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                deleted_at TIMESTAMP
-              )
-        - sql:
-            sql: >-
-              CREATE INDEX notes_owner_idx ON notes (owner)
+        - createTable:
+            tableName: notes
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: text
+                  type: varchar(10000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: color
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - createIndex:
+            tableName: notes
+            indexName: notes_owner_idx
+            columns:
+              - column:
+                  name: owner
+
         # the labels attached to a note
-        - sql:
-            sql: >-
-              CREATE TABLE notes_labels (
-                note_id INTEGER NOT NULL,
-                label_id INTEGER NOT NULL,
-                CONSTRAINT notes_labels_pkey PRIMARY KEY (note_id, label_id),
-                CONSTRAINT notes_labels_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes (id),
-                CONSTRAINT notes_labels_label_id_fkey FOREIGN KEY (label_id) REFERENCES labels (id)
-              )
+        - createTable:
+            tableName: notes_labels
+            columns:
+              - column:
+                  name: note_id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: notes_labels_pkey
+                    nullable: false
+                    foreignKeyName: notes_labels_note_id_fkey
+                    references: notes(id)
+              - column:
+                  name: label_id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: notes_labels_pkey
+                    nullable: false
+                    foreignKeyName: notes_labels_label_id_fkey
+                    references: labels(id)
+
         # the files of a note in their order, its photos and its recordings, told apart by the
         # type of the file
-        - sql:
-            sql: >-
-              CREATE TABLE notes_files (
-                note_id INTEGER NOT NULL,
-                position INTEGER NOT NULL,
-                file_sha256 CHAR(64) NOT NULL,
-                CONSTRAINT notes_files_pkey PRIMARY KEY (note_id, position),
-                CONSTRAINT notes_files_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes (id),
-                CONSTRAINT notes_files_file_sha256_fkey FOREIGN KEY (file_sha256) REFERENCES files (sha256)
-              )
+        - createTable:
+            tableName: notes_files
+            columns:
+              - column:
+                  name: note_id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: notes_files_pkey
+                    nullable: false
+                    foreignKeyName: notes_files_note_id_fkey
+                    references: notes(id)
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: notes_files_pkey
+                    nullable: false
+              - column:
+                  name: file_sha256
+                  type: char(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_files_file_sha256_fkey
+                    references: files(sha256)
