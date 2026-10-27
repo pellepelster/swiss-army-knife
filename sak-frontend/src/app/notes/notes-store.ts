@@ -1,7 +1,10 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { AuthService } from '../auth/auth.service';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
+import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
@@ -54,6 +57,8 @@ function normalizeLabel(label: string): string {
 export class NotesStore {
   private readonly http = inject(HttpClient);
   private readonly scaler = inject(PhotoScaler);
+  private readonly auth = inject(AuthService);
+  private readonly document = inject(DOCUMENT);
   private readonly recorder = inject(AudioRecorder);
 
   private readonly all = signal<readonly Note[]>([]);
@@ -104,9 +109,21 @@ export class NotesStore {
   );
 
   constructor() {
+    // the text typed and not saved yet when the page goes away or into the background, e.g. the
+    // installed app is closed right after typing; a phone ends an app in the background without
+    // pagehide
+    const window = this.document.defaultView;
+    const leaving = () => this.saveTextLeaving();
+    const hidden = () => {
+      if (this.document.visibilityState === 'hidden') this.saveTextLeaving();
+    };
+    window?.addEventListener('pagehide', leaving);
+    this.document.addEventListener('visibilitychange', hidden);
     inject(DestroyRef).onDestroy(() => {
       this.pendingText.forEach((timer) => clearTimeout(timer));
       this.loadingNotes?.unsubscribe();
+      window?.removeEventListener('pagehide', leaving);
+      this.document.removeEventListener('visibilitychange', hidden);
     });
   }
 
@@ -377,6 +394,34 @@ export class NotesStore {
         },
         complete: () => this.finishRequest(id),
       });
+  }
+
+  // saves the notes whose text waits for typing to pause with requests the browser finishes after
+  // the page is gone (keepalive), their answers are not waited for
+  private saveTextLeaving(): void {
+    const token = this.auth.token();
+    for (const id of [...this.pendingText.keys()]) {
+      clearTimeout(this.pendingText.get(id));
+      this.pendingText.delete(id);
+      const note = this.all().find((n) => n.id === id);
+      if (!note) continue;
+      void fetch(apiUrl(`/api/v1/notes/${id}`), {
+        method: 'PUT',
+        keepalive: true,
+        headers: {
+          ...SERVICE_WORKER_BYPASS,
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          text: note.text,
+          color: note.color,
+          labels: note.labels,
+          photos: note.photos,
+          recordings: note.recordings,
+        }),
+      }).catch(() => undefined);
+    }
   }
 
   // the total of the pagination after notes were created or deleted here

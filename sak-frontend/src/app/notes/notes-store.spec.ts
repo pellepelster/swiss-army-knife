@@ -308,6 +308,49 @@ describe('NotesStore', () => {
     expect(store.pagination()).toEqual({ offset: 50, limit: 50, total: 51 });
   });
 
+  it('saves the text typed and not saved yet when the page goes away', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    try {
+      store.setText(1, 'milk and bread');
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe('/api/v1/notes/1');
+      expect(init.method).toBe('PUT');
+      expect(init.keepalive).toBe(true);
+      expect(JSON.parse(init.body as string)).toEqual({
+        text: 'milk and bread',
+        color: 'yellow',
+        labels: ['shopping'],
+        photos: [],
+        recordings: [],
+      });
+      // saved once, not again once typing would have paused
+      await vi.advanceTimersByTimeAsync(SAVE_TEXT_AFTER_MS);
+      http.expectNone({ method: 'PUT' });
+      window.dispatchEvent(new Event('pagehide'));
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('saves the text typed and not saved yet when the app goes into the background', () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    try {
+      store.setText(1, 'milk and bread');
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      vi.unstubAllGlobals();
+    }
+  });
+
   describe('when the notes are loaded again', () => {
     // the notes the backend answers, the labels are flushed too
     const answer = (...notes: ReturnType<typeof noteResponse>[]) => {
