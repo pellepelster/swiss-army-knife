@@ -31,9 +31,9 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await expect(page.getByTestId('secret-key')).toHaveText(/^•+$/);
   const credentials = page.getByRole('region', { name: 'Credentials' });
   const accessKeyId = (await accessKey.textContent())!;
-  await credentials.getByRole('button', { name: 'Copy' }).first().click();
+  await credentials.getByRole('button', { name: 'Copy access key' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(accessKeyId);
-  await credentials.getByRole('button', { name: 'Show' }).click();
+  await credentials.getByRole('button', { name: 'Show secret key' }).click();
   await expect(page.getByTestId('secret-key')).toHaveText(/^[A-Za-z0-9+/]{40}$/);
 
   // a taken name is reported

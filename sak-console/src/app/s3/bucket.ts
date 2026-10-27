@@ -4,6 +4,7 @@ import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/c
 import { RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { formatBytes, formatCount } from '../shared/format';
+import { Icon } from '../shared/icon';
 import { Bucket, BucketSecret, BucketsService } from './buckets.service';
 import { POLL_INTERVAL_MS } from './buckets';
 
@@ -16,7 +17,7 @@ type Copied = 'accessKeyId' | 'secretAccessKey';
 // hidden until it is shown or copied
 @Component({
   selector: 'app-bucket',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, Icon, RouterLink],
   template: `
     <div class="page">
       <div class="page-header">
@@ -67,18 +68,37 @@ type Copied = 'accessKeyId' | 'secretAccessKey';
                 <dt class="col-sm-3">Access key</dt>
                 <dd class="col-sm-9 d-flex align-items-center gap-2">
                   <code data-testid="access-key">{{ secret.accessKeyId }}</code>
-                  <button class="btn btn-sm btn-outline-secondary" type="button" (click)="copy('accessKeyId')">
-                    {{ copied() === 'accessKeyId' ? 'Copied' : 'Copy' }}
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    aria-label="Copy access key"
+                    title="Copy access key"
+                    (click)="copy('accessKeyId')"
+                  >
+                    <app-icon [name]="copied() === 'accessKeyId' ? 'check' : 'clipboard'" />
                   </button>
                 </dd>
                 <dt class="col-sm-3">Secret key</dt>
                 <dd class="col-sm-9 d-flex align-items-center gap-2 mb-0">
                   <code data-testid="secret-key">{{ shown() ? secret.secretAccessKey : '••••••••••••••••••••' }}</code>
-                  <button class="btn btn-sm btn-outline-secondary" type="button" (click)="shown.set(!shown())">
-                    {{ shown() ? 'Hide' : 'Show' }}
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    [attr.aria-label]="shown() ? 'Hide secret key' : 'Show secret key'"
+                    [title]="shown() ? 'Hide secret key' : 'Show secret key'"
+                    [attr.aria-pressed]="shown()"
+                    (click)="shown.set(!shown())"
+                  >
+                    <app-icon [name]="shown() ? 'eye-slash' : 'eye'" />
                   </button>
-                  <button class="btn btn-sm btn-outline-secondary" type="button" (click)="copy('secretAccessKey')">
-                    {{ copied() === 'secretAccessKey' ? 'Copied' : 'Copy' }}
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    aria-label="Copy secret key"
+                    title="Copy secret key"
+                    (click)="copy('secretAccessKey')"
+                  >
+                    <app-icon [name]="copied() === 'secretAccessKey' ? 'check' : 'clipboard'" />
                   </button>
                 </dd>
               </dl>

@@ -41,10 +41,13 @@ describe('BucketDetail', () => {
   const open = async () => {
     const harness = await RouterTestingHarness.create('/s3/backups');
     const page = harness.routeNativeElement!;
-    const button = (text: string) =>
-      [...page.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === text)!;
+    const button = (name: string) =>
+      [...page.querySelectorAll<HTMLButtonElement>('button')].find(
+        (b) => b.textContent?.trim() === name || b.getAttribute('aria-label') === name,
+      )!;
+    const icon = (name: string) => button(name).querySelector('app-icon')?.getAttribute('data-icon');
     const text = (testId: string) => page.querySelector(`[data-testid="${testId}"]`)?.textContent?.trim();
-    return { harness, page, button, text };
+    return { harness, page, button, icon, text };
   };
 
   it('shows the bucket and asks again while it is still being counted', async () => {
@@ -65,7 +68,7 @@ describe('BucketDetail', () => {
   });
 
   it('retrieves the credentials only when asked, hides the secret and copies them', async () => {
-    const { harness, button, text } = await open();
+    const { harness, button, icon, text } = await open();
     http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
     await harness.fixture.whenStable();
     http.expectNone('/api/v1/buckets/backups/secret');
@@ -76,24 +79,24 @@ describe('BucketDetail', () => {
 
     expect(text('access-key')).toBe(SECRET.accessKeyId);
     expect(text('secret-key')).not.toContain(SECRET.secretAccessKey);
-    button('Show').click();
+    expect(icon('Show secret key')).toBe('eye');
+    button('Show secret key').click();
     await harness.fixture.whenStable();
     expect(text('secret-key')).toBe(SECRET.secretAccessKey);
+    expect(icon('Hide secret key')).toBe('eye-slash');
 
-    const [copyKey, copySecret] = [...harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>('button')].filter(
-      (b) => b.textContent?.trim() === 'Copy',
-    );
-    copyKey.click();
+    button('Copy access key').click();
     await harness.fixture.whenStable();
     expect(writeText).toHaveBeenCalledWith(SECRET.accessKeyId);
-    copySecret.click();
+    button('Copy secret key').click();
     await harness.fixture.whenStable();
     expect(writeText).toHaveBeenLastCalledWith(SECRET.secretAccessKey);
-    expect(button('Copied')).toBeTruthy();
+    expect(icon('Copy secret key')).toBe('check');
+    expect(icon('Copy access key')).toBe('clipboard');
 
     await vi.advanceTimersByTimeAsync(COPIED_MS);
     await harness.fixture.whenStable();
-    expect(button('Copied')).toBeUndefined();
+    expect(icon('Copy secret key')).toBe('clipboard');
   });
 
   it('reports an unknown bucket', async () => {
