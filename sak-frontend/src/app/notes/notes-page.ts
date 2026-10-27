@@ -1,4 +1,12 @@
-import { afterNextRender, Component, computed, inject, Injector, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  inject,
+  Injector,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NoteCard } from './note-card';
 import { NotesStore } from './notes-store';
@@ -36,8 +44,12 @@ import { NotesStore } from './notes-store';
       }
     </nav>
 
+    @if (store.error(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
     <datalist id="known-labels">
-      @for (label of store.labels(); track label) {
+      @for (label of store.knownLabels(); track label) {
         <option [value]="label"></option>
       }
     </datalist>
@@ -51,7 +63,9 @@ import { NotesStore } from './notes-store';
         />
       } @empty {
         <p class="empty">
-          @if (filter(); as label) {
+          @if (store.loading()) {
+            Loading…
+          } @else if (filter(); as label) {
             No note is labelled #{{ label }}.
           } @else {
             No notes yet, add one.
@@ -61,7 +75,7 @@ import { NotesStore } from './notes-store';
     </main>
   `,
 })
-export class NotesPage {
+export class NotesPage implements OnInit {
   protected readonly store = inject(NotesStore);
   private readonly injector = inject(Injector);
 
@@ -73,10 +87,15 @@ export class NotesPage {
     return label === null ? notes : notes.filter((note) => note.labels.includes(label));
   });
 
+  ngOnInit(): void {
+    this.store.load();
+  }
+
   // a new note gets the label shown, so it stays in sight; its text is focused right away
-  protected add(): void {
+  protected async add(): Promise<void> {
     const label = this.filter();
-    const note = this.store.add('', 'yellow', label === null ? [] : [label]);
+    const note = await this.store.add('', 'yellow', label === null ? [] : [label]);
+    if (!note) return;
     afterNextRender(
       () =>
         document

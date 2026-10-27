@@ -6,10 +6,14 @@
 }
 
 .header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 16px 0 20px;
 }
 
 .title {
+  flex: 1;
   margin: 0;
   font-size: 1.6rem;
   letter-spacing: -0.02em;
@@ -65,4 +69,24 @@
 .description {
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.user {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sign-out {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
 }

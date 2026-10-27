@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { APPS } from '../apps';
+import { AuthService } from '../auth/auth.service';
 
 // the index page, a tile for every app
 @Component({
@@ -10,6 +11,8 @@ import { APPS } from '../apps';
   template: `
     <header class="header">
       <h1 class="title">Apps</h1>
+      <span class="user" data-testid="email">{{ auth.email() }}</span>
+      <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
       <ul class="apps">
@@ -27,5 +30,13 @@ import { APPS } from '../apps';
   `,
 })
 export class Home {
+  protected readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
   protected readonly apps = APPS;
+
+  protected signOut(): void {
+    this.auth.logout();
+    void this.router.navigate(['/login']);
+  }
 }

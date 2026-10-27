@@ -86,6 +86,14 @@
   gap: 24px;
 }
 
+.error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fde2e2;
+  color: #8a1c1c;
+}
+
 .empty {
   grid-column: 1 / -1;
   color: var(--muted);

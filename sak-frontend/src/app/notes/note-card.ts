@@ -1,11 +1,11 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, input, output, signal } from '@angular/core';
+import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { Note, NOTE_COLORS, NotesStore } from './notes-store';
 
 // one note as a post-it: its text is edited in place, labels are added below it
 @Component({
   selector: 'app-note-card',
-  imports: [DatePipe],
+  imports: [LocalDateTimePipe],
   host: {
     '[class]': "'note note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
@@ -70,7 +70,7 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
         }
       </div>
       <time class="note-time" [attr.datetime]="note().updated.toISOString()">
-        {{ note().updated | date: 'short' }}
+        {{ note().updated | localDateTime }}
       </time>
       <button
         type="button"

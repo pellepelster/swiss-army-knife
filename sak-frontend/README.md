@@ -1,17 +1,22 @@
 # sak-frontend
 
-The apps, each under a path of its own; the index page lists them (`src/app/apps.ts`).
+The apps, each under a path of its own; the index page lists them (`src/app/apps.ts`). Every app
+needs a session: without one the login page asks for an e-mail address, the backend mails a link
+to `/signin` (the console's e-mail login, `app: frontend`, `auth.frontend_url` of the backend's
+configuration) and the page the login started from opens afterwards.
 
 ## Notes (`/notes`)
 
-A prototype of a note taking app: the notes are post-its that can be written on in place, colored
-and labelled, and filtered by one of their labels. The notes are kept in memory only
-(`NotesStore`), a reload starts again with the sample notes. The page works on phones (one column,
+A note taking app: the notes are post-its that can be written on in place, colored and labelled,
+and filtered by one of their labels. The backend keeps them (`/api/v1/notes`), every user has
+their own; the labels are the ones all apps share (`/api/v1/labels`). Changes show at once and are
+saved in the background, the text once typing pauses (`NotesStore`). The page works on phones (one column,
 larger hit targets) and on desktops (a wall of slightly turned post-its).
 
 ## Development
 
 ```shell
-mise run frontend:run           # ng serve on http://localhost:4300
+mise run backend:run            # the backend on :8080, its login links go to mailpit on :8025
+mise run frontend:run           # ng serve on http://localhost:4300, proxies /api to the backend
 npm test -- --watch=false       # unit tests
 ```
