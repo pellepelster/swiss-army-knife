@@ -119,22 +119,9 @@ export const SECRET_MASK = '•••••••••••••••••�
               </div>
             }
           </li>
-          @if (secret(); as secret) {
-            <li>
-              <p>Any other S3 client works the same way, e.g. the AWS CLI:</p>
-              <app-code-block
-                name="aws s3 sync"
-                [code]="sync(secret, !shown())"
-                [copyText]="sync(secret, false)"
-                copyLabel="Copy the sync command"
-                testId="aws-sync"
-                [command]="true"
-              />
-            </li>
-          }
           <li>
             <p class="muted">
-              Both only upload what changed and delete what is gone. The site is served at the
+              It only uploads what changed and deletes what is gone. The site is served at the
               domains of the bucket once their DNS records point at the server.
             </p>
           </li>
@@ -169,16 +156,6 @@ export class BucketPublishing {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
-  // the built site in public/ into the bucket, the files that are gone deleted
-  protected sync(secret: BucketSecret, masked: boolean): string {
-    return [
-      `AWS_ACCESS_KEY_ID=${secret.accessKeyId} \\`,
-      `AWS_SECRET_ACCESS_KEY=${masked ? SECRET_MASK : secret.secretAccessKey} \\`,
-      'AWS_REGION=sak \\',
-      `aws s3 sync public/ s3://${this.store.name()} --delete --endpoint-url ${s3Endpoint()}`,
-    ].join('\n');
   }
 
   protected command(secret: BucketSecret, masked: boolean): string {

@@ -284,9 +284,7 @@ describe('Hosting', () => {
     expect(text('hugo-deploy')).toContain(`AWS_ACCESS_KEY_ID=${SECRET.accessKeyId}`);
     expect(text('hugo-deploy')).not.toContain(SECRET.secretAccessKey);
     expect(text('hugo-deploy')).toContain('hugo deploy --target site');
-    expect(text('aws-sync')).toContain(
-      `aws s3 sync public/ s3://site --delete --endpoint-url ${s3Endpoint()}`,
-    );
+    expect(page().querySelector('[data-testid=aws-sync]')).toBeNull();
     // a prompt before every command, not before the lines that continue it
     expect(page().querySelectorAll('[data-testid=hugo-deploy] .prompt').length).toBe(2);
     expect(page().textContent).toContain('withdeploy');

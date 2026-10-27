@@ -62,7 +62,7 @@ The buckets of the backend's s3 api, from which caddy serves websites at their d
 of buckets with their objects and size, a page to create a bucket with its domains, a bucket's page
 with its overview and its configuration (the domains) and credentials (the s3 endpoint and the key
 pair that may access this bucket only, shown on request) and publishing (the deployment target of a
-Hugo site and the `hugo deploy` and `aws s3 sync` commands with the key pair) in tabs, and a page
+Hugo site and the `hugo deploy` command with the key pair) in tabs, and a page
 to edit its domains.
 It takes `/api/v1/static-hosting`, the same buckets the console shows.
 
