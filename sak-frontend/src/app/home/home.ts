@@ -8,31 +8,38 @@ import { InstallService } from '../install.service';
 @Component({
   selector: 'app-home',
   imports: [RouterLink],
-  styleUrl: './home.scss',
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="header">
-      <h1 class="title">Apps</h1>
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <h1 class="h3 mb-0 flex-grow-1">Apps</h1>
       @if (installer.canInstall()) {
         <button
           type="button"
-          class="button install"
+          class="btn btn-primary"
           aria-label="Install the notes as an app"
           (click)="installer.install()"
         >
           <i class="fa-solid fa-download" aria-hidden="true"></i> Install
         </button>
       }
-      <span class="user" data-testid="email">{{ auth.email() }}</span>
-      <button type="button" class="button sign-out" (click)="signOut()">Sign out</button>
+      <span class="small text-body-secondary text-truncate" data-testid="email">{{
+        auth.email()
+      }}</span>
+      <button type="button" class="btn btn-outline-secondary" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
-      <ul class="apps">
+      <ul class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 list-unstyled">
         @for (app of apps; track app.path) {
-          <li>
-            <a class="app" [routerLink]="app.path">
-              <img class="icon" [src]="app.icon" alt="" width="48" height="48" />
-              <span class="name">{{ app.name }}</span>
-              <span class="description">{{ app.description }}</span>
+          <li class="col">
+            <a
+              class="card card-body h-100 flex-row align-items-center gap-3 link-body-emphasis text-decoration-none"
+              [routerLink]="app.path"
+            >
+              <img class="rounded-3 shadow-sm" [src]="app.icon" alt="" width="48" height="48" />
+              <span class="vstack">
+                <span class="fw-semibold fs-5" data-testid="app-name">{{ app.name }}</span>
+                <span class="small text-body-secondary">{{ app.description }}</span>
+              </span>
             </a>
           </li>
         }

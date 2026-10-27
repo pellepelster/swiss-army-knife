@@ -7,19 +7,23 @@ import { AuthService } from '../auth/auth.service';
 @Component({
   selector: 'app-signin',
   imports: [RouterLink],
-  styleUrl: '../auth/auth-page.scss',
+  host: { class: 'd-block container' },
   template: `
-    <main class="auth-card">
-      @if (failed()) {
-        <h1 class="auth-title">Sign in failed</h1>
-        <p class="auth-message auth-error" role="alert">
-          The login link is invalid, expired or was already used.
-          <a routerLink="/login">Request a new one</a>.
-        </p>
-      } @else {
-        <p class="auth-message">Signing in…</p>
-      }
-    </main>
+    <div class="row min-vh-100 align-items-center justify-content-center py-3">
+      <main class="col-12 col-sm-8 col-md-6 col-lg-4">
+        <div class="card card-body">
+          @if (failed()) {
+            <h1 class="h4 mb-3">Sign in failed</h1>
+            <p class="alert alert-danger mb-0" role="alert">
+              The login link is invalid, expired or was already used.
+              <a routerLink="/login">Request a new one</a>.
+            </p>
+          } @else {
+            <p class="mb-0">Signing in…</p>
+          }
+        </div>
+      </main>
+    </div>
   `,
 })
 export class Signin implements OnInit {

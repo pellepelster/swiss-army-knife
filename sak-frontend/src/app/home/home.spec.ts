@@ -37,7 +37,7 @@ describe('Home', () => {
     expect(page.querySelector('[data-testid=email]')?.textContent).toBe('pelle@pelle.io');
     const tiles = (section: string) =>
       [...page.querySelectorAll<HTMLAnchorElement>(`nav[aria-label="${section}"] a`)].map(
-        (link) => [link.querySelector('.name')?.textContent, link.getAttribute('href')],
+        (link) => [link.querySelector('[data-testid=app-name]')?.textContent, link.getAttribute('href')],
       );
     expect(tiles('Apps')).toEqual([
       ['Notes', '/notes'],
