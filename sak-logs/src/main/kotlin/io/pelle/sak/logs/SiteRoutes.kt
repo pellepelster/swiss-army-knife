@@ -57,7 +57,9 @@ private const val LOGS_TAG = "access logs"
 // requirement from; the site is asked for on every request, its domains change
 @OptIn(ExperimentalKtorApi::class)
 fun Route.accessLogs(
-    site: (ApplicationCall) -> Site?,
+    // called on the event loop, a lookup that blocks (e.g. a database query) switches to the io
+    // dispatcher itself
+    site: suspend (ApplicationCall) -> Site?,
     metrics: SiteMetricsService,
     logs: SiteLogs,
     maxLiveViews: Int = MAX_LIVE_VIEWS,
@@ -255,4 +257,4 @@ fun Route.accessLogs(
 }
 
 // the site of the path; answers not found when there is none
-private suspend fun ApplicationCall.logsSite(site: (ApplicationCall) -> Site?): Site? = site(this) ?: null.also { respond(HttpStatusCode.NotFound) }
+private suspend fun ApplicationCall.logsSite(site: suspend (ApplicationCall) -> Site?): Site? = site(this) ?: null.also { respond(HttpStatusCode.NotFound) }

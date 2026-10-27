@@ -46,6 +46,8 @@ import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
 import io.pelle.sak.logs.accessLogs
 import java.net.URI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 const val API_PATH_PREFIX = "/api"
 
@@ -155,7 +157,7 @@ fun Application.apps(
                             route("/{bucket}/access-logs") {
                                 val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                                 accessLogs(
-                                    { call -> bucketSite(bucketService, call.parameters["bucket"].orEmpty()) },
+                                    { call -> withContext(Dispatchers.IO) { bucketSite(bucketService, call.parameters["bucket"].orEmpty()) } },
                                     SiteMetricsService(victoriaLogs),
                                     SiteLogs(victoriaLogs),
                                 )
