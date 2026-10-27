@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { fetchAll, Page, PAGE_SIZE } from '../shared/api';
+import { apiHost } from '../shared/api-url';
 
 // objects, bytes and computedAt are missing while the bucket is still being counted or when it
 // could not be counted
@@ -80,5 +81,5 @@ export class BucketsService {
 
 // the endpoint of the s3 api, api. next to the apps of the frontend
 export function s3Endpoint(hostname: string = location.hostname): string {
-  return `https://api.${hostname.replace(/^apps\./, '')}`;
+  return `https://${apiHost(hostname)}`;
 }
