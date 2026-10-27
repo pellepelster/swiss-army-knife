@@ -52,9 +52,11 @@ const val APPS_MAX_BODY_SIZE = FileService.DEFAULT_MAX_SIZE + 1024L * 1024
 // sak-frontend packages its build below this resource path
 const val FRONTEND_RESOURCES = "frontend"
 
+// blob: are the files of the file storage, fetched with the session and shown as object urls
 const val CONTENT_SECURITY_POLICY =
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
-        "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+        "media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; " +
+        "frame-ancestors 'none'"
 
 // the apps the login links lead to, sak-frontend; the mails say "Sign in to <root_domain>"
 fun loginApps(config: SakConfig): Map<String, LoginApp> = mapOf(FRONTEND_APP to LoginApp(config.frontendUrl, config.rootDomain))
