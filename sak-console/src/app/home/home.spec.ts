@@ -60,7 +60,7 @@ describe('Home', () => {
 
   it('shows the requests of every site over 4 hours by status class and asks again every minute', async () => {
     const { harness, page, text } = await open();
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([]));
     http.expectOne(METRICS_URL).flush(metrics(10));
     await harness.fixture.whenStable();
 
@@ -79,7 +79,7 @@ describe('Home', () => {
   it('lists the buckets with their size and the total', async () => {
     const { harness, text } = await open();
     http.expectOne(METRICS_URL).flush(metrics(1));
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([
       bucket('a', { computing: false, failed: false, objects: 1, bytes: 1_500_000 }),
       bucket('b', { computing: true, failed: false }),
     ]));
@@ -88,7 +88,7 @@ describe('Home', () => {
     expect(text('overview-total-bytes')).toBe('counting…');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([
       bucket('a', { computing: false, failed: false, objects: 1, bytes: 1_500_000 }),
       bucket('b', { computing: false, failed: false, objects: 2, bytes: 1_000_000 }),
     ]));
@@ -101,7 +101,7 @@ describe('Home', () => {
   it('keeps the buckets when the requests cannot be loaded', async () => {
     const { harness, page, text } = await open();
     http.expectOne(METRICS_URL).flush(null, { status: 503, statusText: 'Service Unavailable' });
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([bucket('a', { computing: false, failed: false, objects: 0, bytes: 0 })]));
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([bucket('a', { computing: false, failed: false, objects: 0, bytes: 0 })]));
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('requests could not be loaded');

@@ -54,12 +54,12 @@ import { BucketStore } from './bucket-store';
   `,
   template: `
     <header class="toolbar">
-      <a class="back" routerLink="/hosting" aria-label="All buckets"
+      <a class="back" routerLink="/static-hosting" aria-label="All buckets"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="title mono">{{ name() }}</h1>
       @if (store.bucket()) {
-        <a class="button" [routerLink]="['/hosting', name(), 'edit']">
+        <a class="button" [routerLink]="['/static-hosting', name(), 'edit']">
           <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
         </a>
       }
@@ -94,10 +94,6 @@ import { BucketStore } from './bucket-store';
             <dt>Size</dt>
             <dd data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</dd>
           </div>
-          <div>
-            <dt>Counted</dt>
-            <dd>{{ bucket.statistics.computedAt | localDateTime: null : 'short' }}</dd>
-          </div>
         }
       </dl>
 
@@ -115,6 +111,13 @@ import { BucketStore } from './bucket-store';
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
           >Credentials</a
+        >
+        <a
+          class="tab"
+          routerLink="publishing"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          >Publishing</a
         >
       </nav>
       <router-outlet />

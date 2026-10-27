@@ -59,8 +59,8 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
       <a class="back" routerLink="/" aria-label="All apps"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Hosting</h1>
-      <a class="button" routerLink="/hosting/create">
+      <h1 class="title">Static hosting</h1>
+      <a class="button" routerLink="/static-hosting/create">
         <i class="fa-solid fa-plus" aria-hidden="true"></i> Create bucket
       </a>
     </header>
@@ -75,7 +75,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
           <li>
             <a
               class="bucket sheet"
-              [routerLink]="['/hosting', bucket.name]"
+              [routerLink]="['/static-hosting', bucket.name]"
               [attr.data-testid]="'bucket-' + bucket.name"
             >
               <span class="name mono">{{ bucket.name }}</span>

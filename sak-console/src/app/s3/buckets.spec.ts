@@ -51,7 +51,7 @@ describe('Buckets', () => {
   it('lists the buckets with their objects and size', async () => {
     const { harness, row } = await open();
 
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([
       { name: 'pelle.io', domains: ['pelle.io'], createdAt: CREATED, statistics: counted(1234, 2_500_000) },
       { name: 'backups', domains: [], createdAt: CREATED, statistics: counted(0, 0) },
     ]));
@@ -64,13 +64,13 @@ describe('Buckets', () => {
 
     // nothing is still being counted, so nothing is asked again
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    http.expectNone('/api/v1/buckets?limit=500');
+    http.expectNone('/api/v1/static-hosting?limit=500');
   });
 
   it('asks again while a bucket is still being counted', async () => {
     const { harness, row } = await open();
 
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([
       { name: 'pelle.io', domains: [], createdAt: CREATED, statistics: { computing: true, failed: false } },
       { name: 'backups', domains: [], createdAt: CREATED, statistics: { computing: false, failed: true } },
     ]));
@@ -80,7 +80,7 @@ describe('Buckets', () => {
     expect(row('backups').textContent).toContain('could not be counted');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([
       { name: 'pelle.io', domains: [], createdAt: CREATED, statistics: counted(3, 300) },
       { name: 'backups', domains: [], createdAt: CREATED, statistics: { computing: false, failed: true } },
     ]));
@@ -91,7 +91,7 @@ describe('Buckets', () => {
 
   it('reports a role that does not allow the buckets', async () => {
     const { harness, page } = await open();
-    http.expectOne('/api/v1/buckets?limit=500').flush(null, { status: 403, statusText: 'Forbidden' });
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(null, { status: 403, statusText: 'Forbidden' });
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('does not allow');
@@ -99,7 +99,7 @@ describe('Buckets', () => {
 
   it('adds buckets on their own page', async () => {
     const { harness, page } = await open();
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([]));
     await harness.fixture.whenStable();
 
     const add = [...page.querySelectorAll<HTMLAnchorElement>('a')].find((a) => a.textContent?.trim() === 'Add bucket');
@@ -109,7 +109,7 @@ describe('Buckets', () => {
 
   it('links every bucket to its page and shows none of its keys', async () => {
     const { harness, row } = await open();
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([{ name: 'backups', domains: [], createdAt: CREATED, statistics: counted(0, 0) }]));
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([{ name: 'backups', domains: [], createdAt: CREATED, statistics: counted(0, 0) }]));
     await harness.fixture.whenStable();
 
     expect(row('backups').querySelector('a')?.getAttribute('href')).toBe('/s3/buckets/backups');

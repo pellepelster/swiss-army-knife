@@ -15,7 +15,7 @@ import { DomainList } from './domain-list';
   styleUrls: ['./hosting.scss', './hosting-page.scss'],
   template: `
     <header class="toolbar">
-      <a class="back" [routerLink]="['/hosting', name()]" aria-label="Back to the bucket"
+      <a class="back" [routerLink]="['/static-hosting', name()]" aria-label="Back to the bucket"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="title">Edit bucket</h1>
@@ -44,7 +44,7 @@ import { DomainList } from './domain-list';
         }
 
         <div class="actions">
-          <a class="button button-quiet" [routerLink]="['/hosting', name()]">Cancel</a>
+          <a class="button button-quiet" [routerLink]="['/static-hosting', name()]">Cancel</a>
           <button class="button" type="submit" [disabled]="!valid() || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -95,7 +95,7 @@ export class BucketEdit implements OnInit {
     this.saveErrors.set([]);
     this.subscriptions.add(
       this.service.updateDomains(this.name(), enteredDomains(this.domains())).subscribe({
-        next: () => void this.router.navigate(['/hosting', this.name()]),
+        next: () => void this.router.navigate(['/static-hosting', this.name()]),
         error: (error: unknown) => {
           this.saving.set(false);
           const messages = errorMessages(error);

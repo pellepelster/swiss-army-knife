@@ -248,12 +248,12 @@ class SakConsoleTest {
 
         withServer(config) { port ->
             val session = signIn(port)
-            get(port, "/api/v1/buckets").statusCode() shouldBe 401
+            get(port, "/api/v1/static-hosting").statusCode() shouldBe 401
 
             fun statistics(): JsonObject {
                 // counted in the background, asked again while it is
                 repeat(50) {
-                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/buckets", session).body()).jsonObject.getValue("items").jsonArray
+                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/static-hosting", session).body()).jsonObject.getValue("items").jsonArray
                     buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
                     val statistics = buckets.single().jsonObject.getValue("statistics").jsonObject
                     if (statistics.string("computing") == "false") return statistics
@@ -283,24 +283,24 @@ class SakConsoleTest {
     fun `creates buckets with their own key pair, which only the secret endpoint serves`() {
         withServer { port ->
             val session = signIn(port)
-            post(port, "/api/v1/buckets", """{"name":"created"}""").statusCode() shouldBe 401
+            post(port, "/api/v1/static-hosting", """{"name":"created"}""").statusCode() shouldBe 401
 
-            val created = post(port, "/api/v1/buckets", """{"name":"created"}""", session)
+            val created = post(port, "/api/v1/static-hosting", """{"name":"created"}""", session)
             created.statusCode() shouldBe 201
             created.json().string("name") shouldBe "created"
-            post(port, "/api/v1/buckets", """{"name":"created"}""", session).statusCode() shouldBe 409
-            post(port, "/api/v1/buckets", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
-            post(port, "/api/v1/buckets", """{"name":"console"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"created"}""", session).statusCode() shouldBe 409
+            post(port, "/api/v1/static-hosting", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"console"}""", session).statusCode() shouldBe 400
 
             // neither the list nor the bucket carry its keys
-            val list = get(port, "/api/v1/buckets", session).body()
-            val bucket = get(port, "/api/v1/buckets/created", session)
+            val list = get(port, "/api/v1/static-hosting", session).body()
+            val bucket = get(port, "/api/v1/static-hosting/created", session)
             bucket.statusCode() shouldBe 200
             bucket.json().keys shouldBe setOf("name", "domains", "createdAt", "statistics")
-            get(port, "/api/v1/buckets/unknown", session).statusCode() shouldBe 404
+            get(port, "/api/v1/static-hosting/unknown", session).statusCode() shouldBe 404
 
-            get(port, "/api/v1/buckets/created/secret").statusCode() shouldBe 401
-            val secret = get(port, "/api/v1/buckets/created/secret", session)
+            get(port, "/api/v1/static-hosting/created/secret").statusCode() shouldBe 401
+            val secret = get(port, "/api/v1/static-hosting/created/secret", session)
             secret.statusCode() shouldBe 200
             secret.headers().firstValue("Cache-Control").get() shouldBe "no-store"
             val accessKeyId = secret.json().string("accessKeyId")
@@ -310,7 +310,7 @@ class SakConsoleTest {
             list shouldNotContain accessKeyId
             list shouldNotContain secretAccessKey.take(5)
             bucket.body() shouldNotContain accessKeyId
-            get(port, "/api/v1/buckets/unknown/secret", session).statusCode() shouldBe 404
+            get(port, "/api/v1/static-hosting/unknown/secret", session).statusCode() shouldBe 404
 
             // the key pair works on the new bucket
             S3Client
@@ -649,23 +649,23 @@ class SakConsoleTest {
             )
             fun domains(response: HttpResponse<String>) = response.json().getValue("domains").jsonArray.map { it.jsonPrimitive.content }
 
-            val site = post(port, "/api/v1/buckets", """{"name":"site","domains":["Example.com","www.example.com"]}""", session)
+            val site = post(port, "/api/v1/static-hosting", """{"name":"site","domains":["Example.com","www.example.com"]}""", session)
             site.statusCode() shouldBe 201
             domains(site) shouldBe listOf("example.com", "www.example.com")
-            post(port, "/api/v1/buckets", """{"name":"other","domains":["example.com"]}""", session).statusCode() shouldBe 409
-            post(port, "/api/v1/buckets", """{"name":"other","domains":["console.example.org"]}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"other","domains":["example.com"]}""", session).statusCode() shouldBe 409
+            post(port, "/api/v1/static-hosting", """{"name":"other","domains":["console.example.org"]}""", session).statusCode() shouldBe 400
 
             // the bucket is a site at its domains
             Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
                 .first().jsonObject.string("id") shouldBe "site"
 
-            put("/api/v1/buckets/site/domains", """{"domains":["example.org"]}""").let {
+            put("/api/v1/static-hosting/site/domains", """{"domains":["example.org"]}""").let {
                 it.statusCode() shouldBe 200
                 domains(it) shouldBe listOf("example.org")
             }
-            domains(get(port, "/api/v1/buckets/site", session)) shouldBe listOf("example.org")
-            put("/api/v1/buckets/site/domains", """{"domains":["no domain"]}""").statusCode() shouldBe 400
-            put("/api/v1/buckets/unknown/domains", """{"domains":[]}""").statusCode() shouldBe 404
+            domains(get(port, "/api/v1/static-hosting/site", session)) shouldBe listOf("example.org")
+            put("/api/v1/static-hosting/site/domains", """{"domains":["no domain"]}""").statusCode() shouldBe 400
+            put("/api/v1/static-hosting/unknown/domains", """{"domains":[]}""").statusCode() shouldBe 404
         }
     }
 
@@ -766,10 +766,10 @@ class SakConsoleTest {
                         "/api/v1/logs/{site}/metrics",
                         "/api/v1/logs/{site}/search",
                         "/api/v1/logs/{site}/live",
-                        "/api/v1/buckets",
-                        "/api/v1/buckets/{bucket}",
-                        "/api/v1/buckets/{bucket}/domains",
-                        "/api/v1/buckets/{bucket}/secret",
+                        "/api/v1/static-hosting",
+                        "/api/v1/static-hosting/{bucket}",
+                        "/api/v1/static-hosting/{bucket}/domains",
+                        "/api/v1/static-hosting/{bucket}/secret",
                         "/api/v1/redirects",
                         "/api/v1/redirects/{source}",
                         "/api/v1/labels",

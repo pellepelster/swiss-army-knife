@@ -36,24 +36,24 @@ export class BucketsService {
   // all of them, the console has far less than a page of them
   buckets(): Observable<Bucket[]> {
     return this.http
-      .get<Page<Bucket>>('/api/v1/buckets', { params: { limit: MAX_LIMIT } })
+      .get<Page<Bucket>>('/api/v1/static-hosting', { params: { limit: MAX_LIMIT } })
       .pipe(map((page) => page.items));
   }
 
   bucket(name: string): Observable<Bucket> {
-    return this.http.get<Bucket>(`/api/v1/buckets/${encodeURIComponent(name)}`);
+    return this.http.get<Bucket>(`/api/v1/static-hosting/${encodeURIComponent(name)}`);
   }
 
   create(name: string, domains: string[]): Observable<Bucket> {
-    return this.http.post<Bucket>('/api/v1/buckets', { name, domains });
+    return this.http.post<Bucket>('/api/v1/static-hosting', { name, domains });
   }
 
   // serves the bucket at the domains instead of its current ones
   updateDomains(name: string, domains: string[]): Observable<Bucket> {
-    return this.http.put<Bucket>(`/api/v1/buckets/${encodeURIComponent(name)}/domains`, { domains });
+    return this.http.put<Bucket>(`/api/v1/static-hosting/${encodeURIComponent(name)}/domains`, { domains });
   }
 
   secret(name: string): Observable<BucketSecret> {
-    return this.http.get<BucketSecret>(`/api/v1/buckets/${encodeURIComponent(name)}/secret`);
+    return this.http.get<BucketSecret>(`/api/v1/static-hosting/${encodeURIComponent(name)}/secret`);
   }
 }

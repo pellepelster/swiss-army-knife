@@ -123,7 +123,7 @@ fun Application.console(
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                             sites({ sites(config, bucketService.domains(), redirectService.all().map { it.sourceDomain }) }, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
-                        route("/buckets") {
+                        route("/static-hosting") {
                             install(RequireRole) { role = Role.ADMIN }
                             buckets(bucketService, statistics)
                         }

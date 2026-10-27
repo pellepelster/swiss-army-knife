@@ -71,7 +71,7 @@ describe('BucketCreate', () => {
     expect(button('Add bucket').disabled).toBe(false);
     button('Add bucket').click();
 
-    const request = http.expectOne({ method: 'POST', url: '/api/v1/buckets' });
+    const request = http.expectOne({ method: 'POST', url: '/api/v1/static-hosting' });
     // the blank third domain is left out
     expect(request.request.body).toEqual({ name: 'new-bucket', domains: ['example.org', 'www.example.org'] });
     request.flush(
@@ -93,7 +93,7 @@ describe('BucketCreate', () => {
     await type('#bucket-name', 'backups');
     button('Add bucket').click();
     http
-      .expectOne({ method: 'POST', url: '/api/v1/buckets' })
+      .expectOne({ method: 'POST', url: '/api/v1/static-hosting' })
       .flush({ errors: [{ message: 'A bucket of the name exists.' }] }, { status: 409, statusText: 'Conflict' });
     await harness.fixture.whenStable();
 

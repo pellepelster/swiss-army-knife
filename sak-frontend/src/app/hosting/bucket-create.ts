@@ -14,7 +14,7 @@ import { DomainList } from './domain-list';
   styleUrls: ['./hosting.scss', './hosting-page.scss'],
   template: `
     <header class="toolbar">
-      <a class="back" routerLink="/hosting" aria-label="All buckets"
+      <a class="back" routerLink="/static-hosting" aria-label="All buckets"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="title">Create bucket</h1>
@@ -51,7 +51,7 @@ import { DomainList } from './domain-list';
       }
 
       <div class="actions">
-        <a class="button button-quiet" routerLink="/hosting">Cancel</a>
+        <a class="button button-quiet" routerLink="/static-hosting">Cancel</a>
         <button class="button" type="submit" [disabled]="!valid() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -87,7 +87,7 @@ export class BucketCreate {
     this.errors.set([]);
     this.subscriptions.add(
       this.service.create(name, enteredDomains(this.domains())).subscribe({
-        next: (bucket) => void this.router.navigate(['/hosting', bucket.name]),
+        next: (bucket) => void this.router.navigate(['/static-hosting', bucket.name]),
         error: (error: unknown) => {
           this.creating.set(false);
           const messages = errorMessages(error);

@@ -62,7 +62,7 @@ export async function ensureBucket(page: Page, name: string, domains: string[]):
   const status = await page.evaluate(
     async ({ name, domains }) => {
       const session = JSON.parse(localStorage.getItem('sak.session') ?? '{}') as { token?: string };
-      const response = await fetch('/api/v1/buckets', {
+      const response = await fetch('/api/v1/static-hosting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
         body: JSON.stringify({ name, domains }),

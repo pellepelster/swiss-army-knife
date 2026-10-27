@@ -38,7 +38,7 @@ describe('Home', () => {
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
-  it('lists the apps, the notes and the hosting, and opens the notes at /notes', async () => {
+  it('lists the apps, the notes and the static hosting, and opens the notes at /notes', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
     const page = harness.routeNativeElement!;
@@ -46,9 +46,9 @@ describe('Home', () => {
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];
     expect(links.map((link) => link.querySelector('.name')?.textContent)).toEqual([
       'Notes',
-      'Hosting',
+      'Static hosting',
     ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/notes', '/hosting']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/notes', '/static-hosting']);
 
     links[0].click();
     await harness.fixture.whenStable();

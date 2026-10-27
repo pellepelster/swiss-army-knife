@@ -27,13 +27,15 @@ larger hit targets) and on desktops (a wall of post-its).
 Every app shows its own favicon: a route names it in its data (`data: { favicon }`, the notes
 show their app icon), the other pages show the swiss army knife (`FaviconService`).
 
-## Hosting (`/hosting`)
+## Static hosting (`/static-hosting`)
 
 The buckets of the backend's s3 api, from which caddy serves websites at their domains: the list
 of buckets with their objects and size, a page to create a bucket with its domains, a bucket's page
 with its overview and its configuration (the domains) and credentials (the s3 endpoint and the key
-pair that may access this bucket only, shown on request) in tabs, and a page to edit its domains.
-It takes `/api/v1/buckets`, the same buckets the console shows.
+pair that may access this bucket only, shown on request) and publishing (the deployment target of a
+Hugo site and the `hugo deploy` and `aws s3 sync` commands with the key pair) in tabs, and a page
+to edit its domains.
+It takes `/api/v1/static-hosting`, the same buckets the console shows.
 
 ## Installing the notes as an app
 

@@ -70,7 +70,7 @@ describe('BucketDetail', () => {
   it('shows the bucket and asks again while it is still being counted', async () => {
     const { harness, page, text } = await open();
 
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: true, failed: false }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: true, failed: false }));
     await harness.fixture.whenStable();
     expect(text('domains')).toBe('backups.example.org');
     expect(page.querySelector('[role=region][aria-label=Overview]')?.textContent).toContain('backups');
@@ -80,7 +80,7 @@ describe('BucketDetail', () => {
     expect(tabs[0].classList).toContain('active');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    http.expectOne('/api/v1/buckets/backups').flush(
+    http.expectOne('/api/v1/static-hosting/backups').flush(
       bucket({
         computing: false,
         failed: false,
@@ -97,12 +97,12 @@ describe('BucketDetail', () => {
 
   it('retrieves the credentials only when asked, hides the secret and copies them', async () => {
     const { harness, button, icon, text } = await open('/s3/buckets/backups/credentials');
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: false, failed: true }));
     await harness.fixture.whenStable();
-    http.expectNone('/api/v1/buckets/backups/secret');
+    http.expectNone('/api/v1/static-hosting/backups/secret');
 
     button('Retrieve credentials').click();
-    http.expectOne('/api/v1/buckets/backups/secret').flush(SECRET);
+    http.expectOne('/api/v1/static-hosting/backups/secret').flush(SECRET);
     await harness.fixture.whenStable();
 
     expect(text('access-key')).toBe(SECRET.accessKeyId);
@@ -129,7 +129,7 @@ describe('BucketDetail', () => {
 
   it('reports an unknown bucket', async () => {
     const { harness, page } = await open();
-    http.expectOne('/api/v1/buckets/backups').flush(null, { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/v1/static-hosting/backups').flush(null, { status: 404, statusText: 'Not Found' });
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('no such bucket');
@@ -137,13 +137,13 @@ describe('BucketDetail', () => {
 
   it('changes the domains on the edit page, the name stays', async () => {
     const { harness, page } = await open();
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: false, failed: true }));
     await harness.fixture.whenStable();
 
     [...page.querySelectorAll<HTMLAnchorElement>('a')].find((a) => a.textContent?.trim() === 'Edit')!.click();
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/s3/buckets/backups/edit');
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: false, failed: true }));
     await harness.fixture.whenStable();
 
     const edit = harness.routeNativeElement!;
@@ -157,7 +157,7 @@ describe('BucketDetail', () => {
     await harness.fixture.whenStable();
     [...edit.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Save')!.click();
 
-    const request = http.expectOne({ method: 'PUT', url: '/api/v1/buckets/backups/domains' });
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/static-hosting/backups/domains' });
     expect(request.request.body).toEqual({ domains: ['files.example.org'] });
     request.flush({
       ...bucket({ computing: false, failed: true }),
@@ -167,7 +167,7 @@ describe('BucketDetail', () => {
 
     expect(TestBed.inject(Router).url).toBe('/s3/buckets/backups/configuration');
     http
-      .expectOne('/api/v1/buckets/backups')
+      .expectOne('/api/v1/static-hosting/backups')
       .flush({ ...bucket({ computing: false, failed: true }), domains: ['files.example.org'] });
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement!.querySelector('[data-testid="domains"]')?.textContent?.trim()).toBe(
@@ -177,7 +177,7 @@ describe('BucketDetail', () => {
 
   it('cancels the edit page without saving', async () => {
     const { harness } = await open('/s3/buckets/backups/edit');
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: false, failed: true }));
     await harness.fixture.whenStable();
 
     [...harness.routeNativeElement!.querySelectorAll<HTMLAnchorElement>('a')]
@@ -185,6 +185,6 @@ describe('BucketDetail', () => {
       .click();
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/s3/buckets/backups/configuration');
-    http.expectOne('/api/v1/buckets/backups').flush(bucket({ computing: false, failed: true }));
+    http.expectOne('/api/v1/static-hosting/backups').flush(bucket({ computing: false, failed: true }));
   });
 });

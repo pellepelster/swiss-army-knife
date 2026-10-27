@@ -36,7 +36,7 @@ describe('RedirectCreate', () => {
   const open = async (buckets: object[] = []) => {
     const harness = await RouterTestingHarness.create('/redirects/create');
     const page = harness.routeNativeElement!;
-    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf(buckets));
+    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf(buckets));
     await harness.fixture.whenStable();
     const button = (text: string) =>
       [...page.querySelectorAll<HTMLElement>('button, a')].find(
