@@ -1,6 +1,5 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService, PUBLIC_API_PREFIX } from './auth.service';
 
@@ -12,7 +11,6 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const auth = inject(AuthService);
-  const router = inject(Router);
   const token = auth.token();
   if (!token) {
     return next(request);
@@ -20,11 +18,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })).pipe(
     catchError((error: unknown) => {
-      // a page asks for several things at once, the first rejection leads to the login
-      if (error instanceof HttpErrorResponse && error.status === 401 && auth.token()) {
-        auth.logout();
-        void router.navigate(['/login'], { queryParams: { redirect: router.url } });
-      }
+      if (error instanceof HttpErrorResponse && error.status === 401) auth.sessionRejected();
       return throwError(() => error);
     }),
   );

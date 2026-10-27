@@ -1,6 +1,5 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../../shared/api-url';
@@ -89,7 +88,6 @@ function parseEvents(text: string): { data: string[]; rest: string } {
 export class AccessLogsService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 
   accessLogs(bucket: string): Observable<AccessLogs> {
     return this.http.get<AccessLogs>(accessLogsUrl(bucket));
@@ -115,10 +113,7 @@ export class AccessLogsService {
         signal: abort.signal,
       })
         .then(async (response) => {
-          if (response.status === 401) {
-            this.auth.logout();
-            void this.router.navigate(['/login'], { queryParams: { redirect: this.router.url } });
-          }
+          if (response.status === 401) this.auth.sessionRejected();
           if (!response.ok || !response.body) {
             throw new LiveLogError(response.status);
           }

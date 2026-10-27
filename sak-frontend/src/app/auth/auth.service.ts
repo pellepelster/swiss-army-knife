@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
 
 interface Session {
@@ -48,6 +49,7 @@ export function safeRedirect(redirect: string | null | undefined): string {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   private readonly session = signal<Session | null>(loadSession());
 
@@ -98,6 +100,14 @@ export class AuthService {
 
   logout(): void {
     this.store(null);
+  }
+
+  // the backend rejected the session (401): it ends and the login leads back to the page; a page
+  // asks for several things at once, only the first rejection leads to the login
+  sessionRejected(): void {
+    if (!this.token()) return;
+    this.logout();
+    void this.router.navigate(['/login'], { queryParams: { redirect: this.router.url } });
   }
 
   private store(session: Session | null): void {
