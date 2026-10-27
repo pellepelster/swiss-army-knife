@@ -341,10 +341,11 @@ class SakConsoleTest {
 
             val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
             redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.com", "example.de")
-            // the redirected domains are the domains of the redirect site
+            // the redirected domains are the domains of the redirect site, the root domain leads to sak-frontend
             Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
                 .single { it.jsonObject.string("id") == "redirect" }
-                .jsonObject.getValue("domains").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("example.com", "example.de")
+                .jsonObject.getValue("domains").jsonArray.map { it.jsonPrimitive.content } shouldBe
+                listOf("example.com", "example.de", "example.org")
 
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404

@@ -10,6 +10,7 @@ import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.Site
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Test
@@ -150,6 +151,51 @@ class SakCaddyTest {
         routes[5].jsonObject["handle"]!!.jsonArray.last() shouldBe routes[3].jsonObject["handle"]!!.jsonArray.last()
         // http, s3, the two console and the two frontend routes, the site, unmatched; no redirects
         routes.size shouldBe 8
+    }
+
+    @Test
+    fun `the root domain leads to sak-frontend unless a bucket is served at it or it is redirected`() {
+        val withAuth =
+            config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
+        fun routes(
+            bucketDomains: Map<String, List<String>>,
+            redirects: Map<String, String> = emptyMap(),
+            config: SakConfig = withAuth,
+        ) = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080))).jsonObject["apps"]!!
+            .jsonObject["http"]!!
+            .jsonObject["servers"]!!
+            .jsonObject["sak"]!!
+            .jsonObject["routes"]!!
+            .jsonArray
+        // the route of a host list with the root domain in it
+        fun rootRoute(routes: List<JsonElement>) =
+            routes.singleOrNull { route ->
+                route.jsonObject["match"]?.jsonArray?.firstOrNull()?.jsonObject?.get("host")?.jsonArray.orEmpty()
+                    .any { it == Json.parseToJsonElement("\"example.org\"") }
+            }
+
+        rootRoute(routes(mapOf("site" to listOf("www.example.org")))) shouldBe
+            Json.parseToJsonElement(
+                """
+                {
+                  "match": [{ "host": ["example.org"] }],
+                  "handle": [
+                    { "handler": "log_append", "key": "site", "value": "redirect" },
+                    {
+                      "handler": "static_response",
+                      "status_code": 308,
+                      "headers": { "Location": ["https://apps.example.org{http.request.uri}"] }
+                    }
+                  ],
+                  "terminal": true
+                }
+                """.trimIndent(),
+            )
+        // the bucket's or the redirect's own route, and none without sak-frontend
+        rootRoute(routes(bucketDomains))!!.jsonObject["handle"]!!.jsonArray.last().jsonObject["handler"] shouldBe
+            Json.parseToJsonElement("\"file_server\"")
+        rootRoute(routes(emptyMap(), mapOf("example.org" to "example.net")))!!.toString() shouldContain "https://example.net"
+        rootRoute(routes(emptyMap(), config = config)) shouldBe null
     }
 
     @Test

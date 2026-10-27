@@ -24,6 +24,17 @@ fun bucketObjectsDir(
     bucket: String,
 ): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
 
+// the root domain leads to sak-frontend, unless a bucket is served at it or it is redirected
+// elsewhere; sak-frontend is only served with the login
+fun redirectsRootDomain(
+    config: SakConfig,
+    bucketDomains: Map<String, List<String>>,
+    redirectedDomains: Collection<String>,
+): Boolean =
+    config.auth != null &&
+        bucketDomains.values.none { config.rootDomain in it } &&
+        config.rootDomain !in redirectedDomains
+
 // bucketDomains are the domains each bucket is served at, redirects maps every redirected domain
 // to the domain it leads to
 fun caddyConfig(
@@ -92,6 +103,15 @@ fun caddyConfig(
                     host(from)
                     logField(SITE_LOG_FIELD, REDIRECT_SITE)
                     redirect("https://$to{http.request.uri}")
+                    terminal()
+                }
+            }
+
+            if (redirectsRootDomain(config, bucketDomains, redirects.keys)) {
+                route {
+                    host(config.rootDomain)
+                    logField(SITE_LOG_FIELD, REDIRECT_SITE)
+                    redirect("https://${config.appsHost}{http.request.uri}")
                     terminal()
                 }
             }

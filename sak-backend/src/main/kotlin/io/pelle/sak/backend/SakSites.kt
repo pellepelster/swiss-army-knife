@@ -26,7 +26,8 @@ const val UNMATCHED_SITE = "unmatched"
 val RESERVED_SITES = setOf(S3_SITE, CONSOLE_SITE, APPS_SITE, REDIRECT_SITE, UNMATCHED_SITE, ALL_SITES)
 
 // the buckets served at their domains are sites of their own, named like the bucket, whose names
-// are no reserved ones (S3BucketService); the redirected domains belong to the redirect site
+// are no reserved ones (S3BucketService); the redirected domains belong to the redirect site,
+// the root domain too while it leads to sak-frontend
 fun sites(
     config: SakConfig,
     bucketDomains: Map<String, List<String>>,
@@ -37,6 +38,9 @@ fun sites(
             Site(S3_SITE, listOf(s3Host(config))),
             config.auth?.let { Site(CONSOLE_SITE, listOf(config.consoleHost)) },
             config.auth?.let { Site(APPS_SITE, listOf(config.appsHost)) },
-            Site(REDIRECT_SITE, redirectedDomains),
+            Site(
+                REDIRECT_SITE,
+                redirectedDomains + listOfNotNull(config.rootDomain.takeIf { redirectsRootDomain(config, bucketDomains, redirectedDomains) }),
+            ),
             Site(UNMATCHED_SITE, emptyList()),
         )
