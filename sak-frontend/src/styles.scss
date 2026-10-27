@@ -41,7 +41,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-// a post-it: a square-ish paper with a soft shadow, slightly turned on wide screens
+// a post-it: a square-ish paper with a soft shadow
 .note {
   position: relative;
   display: flex;
@@ -55,27 +55,12 @@ body {
     0 1px 1px rgb(0 0 0 / 8%),
     0 8px 18px -6px rgb(0 0 0 / 30%);
   border-radius: 2px 2px 18px 2px;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: box-shadow 0.15s ease;
 
   &:focus-within {
-    transform: none;
     box-shadow:
       0 1px 1px rgb(0 0 0 / 8%),
       0 14px 26px -8px rgb(0 0 0 / 35%);
-  }
-}
-
-@media (min-width: 541px) and (hover: hover) {
-  .note:nth-child(3n + 1) {
-    transform: rotate(-1.2deg);
-  }
-  .note:nth-child(3n + 2) {
-    transform: rotate(0.8deg);
-  }
-  .note:hover {
-    transform: none;
   }
 }
 
