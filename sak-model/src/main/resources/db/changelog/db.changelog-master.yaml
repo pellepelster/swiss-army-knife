@@ -1,0 +1,6 @@
+# the schema of the controller's database, one file per change; jooq generates its classes from
+# this changelog (sak-model/build.gradle.kts)
+databaseChangeLog:
+  - include:
+      file: 0001-s3-buckets.yaml
+      relativeToChangelogFile: true

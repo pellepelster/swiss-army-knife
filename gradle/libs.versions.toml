@@ -4,13 +4,16 @@ awssdk = "2.57.3"
 caffeine = "3.3.1"
 greenmail = "2.1.15"
 jackson = "3.2.4"
+jooq = "3.21.9"
 junit = "5.13.4"
 kotest = "6.2.6"
 kotlin = "2.4.21"
 kotlin-logging = "8.0.4"
 kotlinx-serialization = "1.11.0"
 ktor = "3.6.0"
+liquibase = "5.0.4"
 logback = "1.6.5"
+sqlite-jdbc = "3.53.4.0"
 
 [libraries]
 angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angus-mail" }
@@ -22,6 +25,8 @@ greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "gr
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
 jackson-dataformat-xml = { module = "tools.jackson.dataformat:jackson-dataformat-xml" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+jooq-meta-extensions-liquibase = { module = "org.jooq:jooq-meta-extensions-liquibase", version.ref = "jooq" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
@@ -41,4 +46,9 @@ ktor-server-core = { module = "io.ktor:ktor-server-core" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
 ktor-server-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
+liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+
+[plugins]
+jooq-codegen = { id = "org.jooq.jooq-codegen-gradle", version.ref = "jooq" }
