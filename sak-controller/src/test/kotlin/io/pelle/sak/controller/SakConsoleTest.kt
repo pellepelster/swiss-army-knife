@@ -6,6 +6,7 @@ import com.icegreen.greenmail.util.ServerSetupTest
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.server.config.ConfigLoader
 import io.ktor.server.engine.embeddedServer
@@ -110,11 +111,13 @@ class SakConsoleTest {
         port: Int,
         path: String,
         json: String,
+        sessionToken: String? = null,
     ): HttpResponse<String> =
         http.send(
             HttpRequest
                 .newBuilder(URI.create("http://localhost:$port$path"))
                 .header("Content-Type", "application/json")
+                .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build(),
             HttpResponse.BodyHandlers.ofString(),
@@ -214,6 +217,51 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `creates buckets with their own key pair, which only the secret endpoint serves`() {
+        withServer { port ->
+            val session = signIn(port)
+            post(port, "/api/v1/buckets", """{"name":"created"}""").statusCode() shouldBe 401
+
+            val created = post(port, "/api/v1/buckets", """{"name":"created"}""", session)
+            created.statusCode() shouldBe 201
+            created.json().string("name") shouldBe "created"
+            post(port, "/api/v1/buckets", """{"name":"created"}""", session).statusCode() shouldBe 409
+            post(port, "/api/v1/buckets", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/buckets", """{"name":"console"}""", session).statusCode() shouldBe 400
+
+            // neither the list nor the bucket carry its keys
+            val list = get(port, "/api/v1/buckets", session).body()
+            val bucket = get(port, "/api/v1/buckets/created", session)
+            bucket.statusCode() shouldBe 200
+            bucket.json().keys shouldBe setOf("name", "domains", "createdAt", "statistics")
+            get(port, "/api/v1/buckets/unknown", session).statusCode() shouldBe 404
+
+            get(port, "/api/v1/buckets/created/secret").statusCode() shouldBe 401
+            val secret = get(port, "/api/v1/buckets/created/secret", session)
+            secret.statusCode() shouldBe 200
+            secret.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+            val accessKeyId = secret.json().string("accessKeyId")
+            val secretAccessKey = secret.json().string("secretAccessKey")
+            accessKeyId.length shouldBe 20
+            secretAccessKey.length shouldBe 40
+            list shouldNotContain accessKeyId
+            list shouldNotContain secretAccessKey.take(5)
+            bucket.body() shouldNotContain accessKeyId
+            get(port, "/api/v1/buckets/unknown/secret", session).statusCode() shouldBe 404
+
+            // the key pair works on the new bucket
+            S3Client
+                .builder()
+                .endpointOverride(URI.create("http://localhost:$port/s3"))
+                .region(Region.US_EAST_1)
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
+                .build()
+                .use { it.putObject({ request -> request.bucket("created").key("a.txt") }, RequestBody.fromString("12345")) }
+        }
+    }
+
+    @Test
     fun `rejects api requests with large bodies`() {
         withServer { port ->
             val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
@@ -288,6 +336,8 @@ class SakConsoleTest {
                         "/api/v1/logs/{site}/search",
                         "/api/v1/logs/{site}/live",
                         "/api/v1/buckets",
+                        "/api/v1/buckets/{bucket}",
+                        "/api/v1/buckets/{bucket}/secret",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

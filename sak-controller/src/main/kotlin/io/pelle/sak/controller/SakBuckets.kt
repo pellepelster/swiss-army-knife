@@ -4,27 +4,34 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.receive
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.config.SakConfig
+import io.pelle.sak.model.s3.CreateBucketResult
+import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
 import io.pelle.sak.s3.storage.PutResult
 import io.pelle.sak.s3.storage.S3StorageBackend
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import java.io.InputStream
@@ -37,16 +44,24 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 
-data class Bucket(
-    val name: String,
-    val domains: List<String>,
-)
-
+// without the bucket's keys, they are served on their own
 @Serializable
 data class BucketResponse(
     val name: String,
     val domains: List<String>,
+    val createdAt: String,
     val statistics: BucketStatisticsResponse,
+)
+
+@Serializable
+data class CreateBucketRequest(
+    val name: String,
+)
+
+@Serializable
+data class BucketSecretResponse(
+    val accessKeyId: String,
+    val secretAccessKey: String,
 )
 
 // objects, bytes and computedAt are missing while the bucket is still being counted or when it
@@ -65,12 +80,6 @@ data class BucketStatistics(
     val bytes: Long,
     val computedAt: Instant,
 )
-
-// the buckets of the controller, with the domains the configuration serves them at
-fun buckets(
-    config: SakConfig,
-    bucketService: S3BucketService,
-): List<Bucket> = bucketService.all().map { Bucket(it.name, config.s3.buckets[it.name]?.domains.orEmpty()) }
 
 // counting a bucket walks all of its objects, so the numbers are kept and recounted in the
 // background after a while, the old ones are served meanwhile; a write drops them
@@ -160,20 +169,30 @@ class InvalidatingS3StorageBackend(
 
 private const val S3_TAG = "s3"
 
-// the buckets with their statistics, meant to be mounted behind the console's authentication
+// the buckets with their statistics, meant to be mounted behind the console's authentication;
+// domainsOf names the domains a bucket is served at
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(
-    buckets: () -> List<Bucket>,
+    bucketService: S3BucketService,
+    domainsOf: (bucket: String) -> List<String>,
     statistics: BucketStatisticsCache,
 ) {
     install(ContentNegotiation) { json() }
+
+    suspend fun S3Bucket.response() =
+        BucketResponse(
+            name,
+            domainsOf(name),
+            createdAt.toString(),
+            statistics.response(name),
+        )
 
     get {
         // counted at once, a bucket not counted within a moment is still being counted
         val responses =
             coroutineScope {
-                buckets()
-                    .map { bucket -> async { BucketResponse(bucket.name, bucket.domains, statistics.response(bucket.name)) } }
+                withContext(Dispatchers.IO) { bucketService.all() }
+                    .map { bucket -> async { bucket.response() } }
                     .awaitAll()
             }
         call.respond(responses)
@@ -181,14 +200,94 @@ fun Route.buckets(
         tag(S3_TAG)
         summary = "The buckets with the number of their objects and their size"
         description =
-            "The numbers are counted in the background and kept, recounted after " +
-            "${BucketStatisticsCache.REFRESH_AFTER.toMinutes()} minutes and after every write to a bucket; a bucket not " +
-            "counted yet is still computing, ask again."
+            "The numbers are counted in the background and kept, recounted after ${BucketStatisticsCache.REFRESH_AFTER.toMinutes()} minutes and after every write to a " +
+            "bucket; a bucket not counted yet is still computing, ask again."
         responses {
             HttpStatusCode.OK {
                 description = "The buckets, the domains they are served at and their statistics"
                 schema = jsonSchema<List<BucketResponse>>()
             }
+        }
+    }
+
+    post {
+        val request = call.receive<CreateBucketRequest>()
+        when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name) }) {
+            is CreateBucketResult.Created -> {
+                statistics.warm(listOf(result.bucket.name))
+                call.respond(HttpStatusCode.Created, result.bucket.response())
+            }
+            CreateBucketResult.InvalidName -> call.respond(HttpStatusCode.BadRequest)
+            CreateBucketResult.NameTaken -> call.respond(HttpStatusCode.Conflict)
+        }
+    }.describe {
+        tag(S3_TAG)
+        summary = "Create a bucket"
+        description = "Creates the bucket with a key pair that may access this bucket only."
+        requestBody {
+            required = true
+            schema = jsonSchema<CreateBucketRequest>()
+        }
+        responses {
+            HttpStatusCode.Created {
+                description = "The new bucket"
+                schema = jsonSchema<BucketResponse>()
+            }
+            HttpStatusCode.BadRequest { description = "No valid bucket name, or one reserved for the controller's sites" }
+            HttpStatusCode.Conflict { description = "A bucket of the name exists" }
+        }
+    }
+
+    get("/{bucket}") {
+        val bucket = withContext(Dispatchers.IO) { bucketService.byName(call.parameters["bucket"].orEmpty()) }
+        if (bucket == null) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        call.respond(bucket.response())
+    }.describe {
+        tag(S3_TAG)
+        summary = "A bucket with the number of its objects and its size"
+        parameters {
+            path("bucket") {
+                description = "The name of the bucket"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The bucket, the domains it is served at and its statistics"
+                schema = jsonSchema<BucketResponse>()
+            }
+            HttpStatusCode.NotFound { description = "Unknown bucket" }
+        }
+    }
+
+    get("/{bucket}/secret") {
+        val bucket = withContext(Dispatchers.IO) { bucketService.byName(call.parameters["bucket"].orEmpty()) }
+        if (bucket == null) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        call.response.header(HttpHeaders.CacheControl, "no-store")
+        call.respond(BucketSecretResponse(bucket.accessKeyId, bucket.secretAccessKey))
+    }.describe {
+        tag(S3_TAG)
+        summary = "The key pair of a bucket"
+        parameters {
+            path("bucket") {
+                description = "The name of the bucket"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The access key and the secret that may access the bucket"
+                schema = jsonSchema<BucketSecretResponse>()
+            }
+            HttpStatusCode.NotFound { description = "Unknown bucket" }
         }
     }
 }

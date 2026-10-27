@@ -96,7 +96,7 @@ fun Application.console(
                         }
                         route("/buckets") {
                             install(RequireRole) { role = Role.ADMIN }
-                            buckets({ buckets(config, bucketService) }, statistics)
+                            buckets(bucketService, { config.s3.buckets[it]?.domains.orEmpty() }, statistics)
                         }
                     }
                 }
