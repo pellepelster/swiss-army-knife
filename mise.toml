@@ -139,6 +139,24 @@ run = """
 npx ng serve
 """
 
+# the end to end tests of sak-e2e need the local environment of `mise run run`
+[tasks."e2e:install"]
+description = "Install playwright and its chromium for the end to end tests in sak-e2e"
+dir = "{{config_root}}/sak-e2e"
+run = """
+npm ci
+npx playwright install chromium
+"""
+
+[tasks."e2e:run"]
+description = "Run the end to end tests of sak-e2e against the environment of mise run run"
+dir = "{{config_root}}/sak-e2e"
+# extra arguments go to playwright (e.g. `mise run e2e:run -- --headed`)
+run = """
+[ -d node_modules ] || mise run e2e:install
+npx playwright test
+"""
+
 # everything at once, each in its own process group with its log in build/local/logs; the backend
 # first, its build installs the npm dependencies of the frontend, which must not change under its
 # dev server. Ctrl-C stops everything.
