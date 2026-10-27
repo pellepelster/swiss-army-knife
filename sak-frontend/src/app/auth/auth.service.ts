@@ -46,6 +46,11 @@ export function safeRedirect(redirect: string | null | undefined): string {
   return redirect;
 }
 
+// the session lives in localStorage: the installed app starts without the network and the swagger
+// page takes the token from there, the content security policy (script-src 'self', object-src
+// 'none') keeps other scripts from reading it. What is stored besides the token (its expiry, the
+// roles) can be changed by anybody with the browser and only tells whether the token is worth
+// sending; nothing is shown or allowed by it, the backend decides with every request
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -54,10 +59,6 @@ export class AuthService {
   private readonly session = signal<Session | null>(loadSession());
 
   readonly email = computed(() => this.session()?.email ?? null);
-
-  readonly expiresAt = computed(() => this.session()?.expiresAt ?? null);
-
-  readonly roles = computed(() => this.session()?.roles ?? []);
 
   // null when signed out or the session expired
   token(): string | null {
