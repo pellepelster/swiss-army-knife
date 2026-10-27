@@ -146,6 +146,14 @@
   &[aria-invalid='true'] {
     border-color: var(--danger);
   }
+
+  // shown, not edited: no field to type into, only the outline of one on the sheet
+  &[readonly] {
+    border-style: dashed;
+    background: transparent;
+    color: var(--muted);
+    cursor: default;
+  }
 }
 
 .form-errors {
