@@ -171,8 +171,8 @@ resource "random_bytes" "secret_key_1" {
 }
 
 # the smtp credentials, the openrouter token and the secret key config/controller-config.yaml
-# references, deployed as systemd EnvironmentFile of the controller unit
-resource "local_sensitive_file" "controller_env" {
+# references, deployed as systemd EnvironmentFile of the sak-backend unit
+resource "local_sensitive_file" "backend_env" {
   content              = <<-EOT
     SAK_SECRET_KEY_1=${random_bytes.secret_key_1.base64}
     SAK_SMTP_HOST=${var.smtp_host}
@@ -181,7 +181,7 @@ resource "local_sensitive_file" "controller_env" {
     SAK_SMTP_PASSWORD=${var.smtp_password}
     SAK_OPENROUTER_API_TOKEN=${var.openrouter_api_token}
   EOT
-  filename             = "${path.module}/.ansible/controller.env"
+  filename             = "${path.module}/.ansible/backend.env"
   file_permission      = "0600"
   directory_permission = "0700"
 }
@@ -197,7 +197,7 @@ resource "local_file" "ansible_inventory" {
           ansible_ssh_private_key_file = abspath(local_sensitive_file.client_private_key.filename)
           ansible_ssh_common_args      = "-o IdentitiesOnly=yes -o UserKnownHostsFile=${abspath(local_file.known_hosts.filename)} -o StrictHostKeyChecking=yes"
           storage_device               = local.data_device
-          controller_env_src           = abspath(local_sensitive_file.controller_env.filename)
+          controller_env_src           = abspath(local_sensitive_file.backend_env.filename)
         }
       }
     }

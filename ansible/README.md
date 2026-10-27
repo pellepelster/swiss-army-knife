@@ -13,7 +13,7 @@ The `controller` role needs `controller_image_archive` and `controller_ingress_i
 to `build/images/`) and `controller_config_src`,
 the controller configuration `config/controller-config.yaml` (passed by `mise run ansible:run`), and `controller_env_src`,
 the environment file with the s3 credentials the configuration references (`$SAK_S3_ACCESS_KEY_ID`,
-`$SAK_S3_SECRET_ACCESS_KEY`), written to `infra/.ansible/controller.env` by `tf:apply` (set in the inventory).
+`$SAK_S3_SECRET_ACCESS_KEY`), written to `infra/.ansible/backend.env` by `tf:apply` (set in the inventory).
 
 ```yaml
 - hosts: controller
