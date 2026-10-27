@@ -21,8 +21,9 @@ import java.nio.file.attribute.PosixFilePermissions
 class SakDatabase private constructor(
     private val dataSource: SQLiteDataSource,
 ) {
-    // the generated classes name everything in upper case, the changelog in lower case
-    val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE, Settings().withRenderNameCase(RenderNameCase.LOWER))
+    // the generated classes name everything in upper case, the changelog in lower case; only the
+    // repositories of this module use it
+    internal val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE, Settings().withRenderNameCase(RenderNameCase.LOWER))
 
     private fun migrate() {
         dataSource.connection.use { connection ->

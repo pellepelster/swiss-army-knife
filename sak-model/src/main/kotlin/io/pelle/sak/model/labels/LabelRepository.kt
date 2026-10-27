@@ -8,9 +8,9 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// the database access of the labels, only LabelService uses it; it reads the labels that are not
+// the database access of the labels, only LabelService (sak-backend) uses it; it reads the labels that are not
 // deleted only
-internal class LabelRepository(
+class LabelRepository(
     private val database: SakDatabase,
 ) {
     fun page(

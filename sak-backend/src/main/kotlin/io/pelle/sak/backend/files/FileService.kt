@@ -1,6 +1,8 @@
-package io.pelle.sak.model.files
+package io.pelle.sak.backend.files
 
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.files.FileRepository
+import io.pelle.sak.model.files.StoredFile
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.RoundRectangle2D
@@ -19,19 +21,6 @@ import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.UnsupportedAudioFileException
 import kotlin.math.abs
-
-// a file of the file storage, one upload; sha256 is the hash of its content, uploadedBy the
-// address of the user that uploaded it, discovered the text discovered in it, null until then
-data class StoredFile(
-    val id: Int,
-    val sha256: String,
-    val contentType: String,
-    val size: Long,
-    val uploadedBy: String,
-    val createdAt: Instant,
-    val updatedAt: Instant,
-    val discovered: String? = null,
-)
 
 sealed interface StoreFileResult {
     data class Stored(
@@ -58,7 +47,7 @@ sealed interface StoreFileResult {
 // of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
 // from the uploader. The thumbnails of the images are made when they are first asked for and kept
 // next to them.
-class FileService internal constructor(
+class FileService(
     private val repository: FileRepository,
     private val dir: Path,
     private val clock: Clock,
@@ -199,7 +188,6 @@ class FileService internal constructor(
         private const val BUFFER_SIZE = 64 * 1024
 
         private const val HEAD_SIZE = 12
-
 
         const val THUMBNAIL_SIZE = 480
 

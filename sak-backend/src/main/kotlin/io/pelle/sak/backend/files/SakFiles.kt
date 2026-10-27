@@ -1,4 +1,4 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.files
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
@@ -24,15 +24,18 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.backend.API_PATH_PREFIX
+import io.pelle.sak.backend.API_VERSION
+import io.pelle.sak.backend.files.model.DiscoverTextResponse
+import io.pelle.sak.backend.files.model.FileResponse
 import io.pelle.sak.backend.labels.idParameter
-import io.pelle.sak.model.files.DiscoverTextResult
-import io.pelle.sak.model.files.FileService
-import io.pelle.sak.model.files.FileTextService
-import io.pelle.sak.model.files.StoreFileResult
+import io.pelle.sak.backend.files.DiscoverTextResult
+import io.pelle.sak.backend.files.FileService
+import io.pelle.sak.backend.files.FileTextService
+import io.pelle.sak.backend.files.StoreFileResult
 import io.pelle.sak.model.files.StoredFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -42,25 +45,9 @@ private const val FILES_TAG = "files"
 // where the files of the file storage are uploaded and served, both with a session only
 const val FILES_PATH = "$API_PATH_PREFIX$API_VERSION/files"
 
-// url is where the file is served, thumbnailUrl where a small jpeg of the image is
-@Serializable
-data class FileResponse(
-    val id: Int,
-    val contentType: String,
-    val size: Long,
-    val url: String,
-    val thumbnailUrl: String,
-    val createdAt: String,
-)
-
 fun fileUrl(id: Int) = "$FILES_PATH/$id"
 
 fun thumbnailUrl(id: Int) = "${fileUrl(id)}/thumbnail"
-
-@Serializable
-data class DiscoverTextResponse(
-    val text: String,
-)
 
 // discovering text costs money at openrouter, so every user may only ask this often
 fun discoverTextLimiter() = RateLimiter(30, Duration.ofHours(1))

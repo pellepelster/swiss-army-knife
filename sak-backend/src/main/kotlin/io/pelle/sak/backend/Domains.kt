@@ -1,4 +1,4 @@
-package io.pelle.sak.model
+package io.pelle.sak.backend
 
 // labels of letters, digits and hyphens, not starting or ending with a hyphen
 private val LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")

@@ -1,7 +1,9 @@
-package io.pelle.sak.model.s3
+package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.isValidDomain
+import io.pelle.sak.backend.isValidDomain
+import io.pelle.sak.model.s3.S3Bucket
+import io.pelle.sak.model.s3.S3BucketRepository
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -40,7 +42,7 @@ sealed interface UpdateDomainsResult {
 // the buckets of the s3 api, the key pair of each and the domains they are served at, the only
 // way to them; listeners hear of every change of the domains. Every bucket is also served at
 // <name>.<root_domain> when the root domain is given
-class S3BucketService internal constructor(
+class S3BucketService(
     private val repository: S3BucketRepository,
     private val clock: Clock,
     private val rootDomain: String?,

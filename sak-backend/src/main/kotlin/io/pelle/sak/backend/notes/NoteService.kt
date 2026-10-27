@@ -1,11 +1,13 @@
-package io.pelle.sak.model.notes
+package io.pelle.sak.backend.notes
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.Slice
-import io.pelle.sak.model.files.FileService
+import io.pelle.sak.backend.Slice
+import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
-import io.pelle.sak.model.labels.LabelService
-import io.pelle.sak.model.labels.ResolveLabelsResult
+import io.pelle.sak.backend.labels.LabelService
+import io.pelle.sak.backend.labels.ResolveLabelsResult
+import io.pelle.sak.model.notes.NoteRepository
+import io.pelle.sak.model.notes.NoteRow
 import java.time.Clock
 import java.time.Instant
 
@@ -72,7 +74,7 @@ sealed interface DeleteNoteResult {
 // of the user that created it, and is only seen and changed by them. The labels are the shared
 // ones, a label unknown yet is created when a note gets it; the photos are files uploaded to the
 // file storage before
-class NoteService internal constructor(
+class NoteService(
     private val repository: NoteRepository,
     private val labels: LabelService,
     private val files: FileService,

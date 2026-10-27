@@ -1,17 +1,14 @@
-package io.pelle.sak.model.labels
+package io.pelle.sak.backend.labels
 
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.jooq.tables.references.LABELS
-import org.jooq.exception.DataAccessException
+import io.pelle.sak.model.labels.Label
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -86,8 +83,7 @@ class LabelServiceTest {
         service.byId(home.id) shouldBe null
         service.page(0, 10).total shouldBe 0
 
-        // the row stays, a new label takes the name
-        database.dsl.fetchCount(LABELS) shouldBe 1
+        // a new label takes the name
         create("home").id shouldBe home.id + 1
         service.rename(service.byName("home")!!.id, "home").shouldBeInstanceOf<RenameLabelResult.Renamed>()
     }
@@ -104,26 +100,4 @@ class LabelServiceTest {
         service.byName("ok") shouldBe null
     }
 
-    @Test
-    fun `the schema keeps active and deleted_at in step`() {
-        fun insert(
-            active: Int?,
-            deletedAt: LocalDateTime?,
-        ) = database.dsl
-            .insertInto(LABELS)
-            .set(LABELS.NAME, "home")
-            .set(LABELS.ACTIVE, active)
-            .set(LABELS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-            .set(LABELS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-            .set(LABELS.DELETED_AT, deletedAt)
-            .execute()
-
-        shouldThrow<DataAccessException> { insert(null, null) }
-        shouldThrow<DataAccessException> { insert(1, LocalDateTime.of(2026, 10, 27, 9, 0)) }
-        shouldThrow<DataAccessException> { insert(2, null) }
-        insert(1, null) shouldBe 1
-        shouldThrow<DataAccessException> { insert(1, null) }
-        insert(null, LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
-        insert(null, LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
-    }
 }

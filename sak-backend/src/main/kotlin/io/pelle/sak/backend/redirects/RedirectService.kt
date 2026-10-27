@@ -1,29 +1,14 @@
-package io.pelle.sak.model.ingress
+package io.pelle.sak.backend.redirects
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.isValidDomain
-import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.backend.isValidDomain
+import io.pelle.sak.backend.hosting.S3BucketService
+import io.pelle.sak.model.ingress.Redirect
+import io.pelle.sak.model.ingress.RedirectRepository
+import io.pelle.sak.model.ingress.RedirectTarget
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
-
-// where a redirected domain leads to
-sealed interface RedirectTarget {
-    data class Domain(
-        val domain: String,
-    ) : RedirectTarget
-
-    // the first domain the bucket is served at
-    data class Bucket(
-        val bucket: String,
-    ) : RedirectTarget
-}
-
-data class Redirect(
-    val sourceDomain: String,
-    val target: RedirectTarget,
-    val createdAt: Instant,
-)
 
 sealed interface CreateRedirectResult {
     data class Created(
@@ -48,7 +33,7 @@ sealed interface DeleteRedirectResult {
 }
 
 // the domains caddy redirects, the only way to them; listeners hear of every change
-class RedirectService internal constructor(
+class RedirectService(
     private val repository: RedirectRepository,
     private val buckets: S3BucketService,
     private val clock: Clock,

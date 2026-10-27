@@ -7,8 +7,8 @@ import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// the database access of the redirects, only RedirectService uses it
-internal class RedirectRepository(
+// the database access of the redirects, only RedirectService (sak-backend) uses it
+class RedirectRepository(
     private val database: SakDatabase,
 ) {
     fun all(): List<Redirect> =

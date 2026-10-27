@@ -4,7 +4,7 @@ import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.pelle.sak.model.files.TextRecognitionException
+import io.pelle.sak.openrouter.TextRecognitionException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject

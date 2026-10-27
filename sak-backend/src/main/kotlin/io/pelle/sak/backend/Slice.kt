@@ -1,4 +1,4 @@
-package io.pelle.sak.model
+package io.pelle.sak.backend
 
 // a part of a list read from the database and how many items the whole list has
 data class Slice<T>(

@@ -2,7 +2,7 @@ package io.pelle.sak.backend
 
 import io.pelle.sak.logs.Site
 import io.pelle.sak.logs.SiteMetricsService
-import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.backend.hosting.S3BucketService
 
 // caddy appends the site to every access log entry (log_append), it is the only stream field
 // in victorialogs and what the access logs of a bucket are queried by

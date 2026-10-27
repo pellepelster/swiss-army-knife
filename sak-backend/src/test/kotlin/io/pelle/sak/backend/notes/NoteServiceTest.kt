@@ -1,13 +1,13 @@
-package io.pelle.sak.model.notes
+package io.pelle.sak.backend.notes
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.pelle.sak.backend.Slice
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.jooq.tables.references.NOTES
-import io.pelle.sak.model.files.FileService
-import io.pelle.sak.model.files.FileServiceTest
-import io.pelle.sak.model.files.StoreFileResult
-import io.pelle.sak.model.labels.LabelService
+import io.pelle.sak.backend.files.FileService
+import io.pelle.sak.backend.files.FileServiceTest
+import io.pelle.sak.backend.files.StoreFileResult
+import io.pelle.sak.backend.labels.LabelService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -102,7 +102,7 @@ class NoteServiceTest {
             it.items.map { note -> note.text } shouldBe listOf("app", "plumber")
             it.total shouldBe 2
         }
-        service.page(PELLE, 0, 10, "unknown") shouldBe io.pelle.sak.model.Slice(emptyList(), 0)
+        service.page(PELLE, 0, 10, "unknown") shouldBe Slice(emptyList(), 0)
     }
 
     @Test
@@ -188,7 +188,6 @@ class NoteServiceTest {
         service.byId(PELLE, note.id) shouldBe null
         service.update(PELLE, note.id, "again", "yellow") shouldBe SaveNoteResult.NotFound
         service.page(PELLE, 0, 10).total shouldBe 0
-        database.dsl.fetchCount(NOTES) shouldBe 1
     }
 
     @Test

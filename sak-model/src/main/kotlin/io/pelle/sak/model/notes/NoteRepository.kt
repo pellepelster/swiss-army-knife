@@ -14,7 +14,7 @@ import java.time.ZoneOffset
 
 // a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
 // recordings) in their order
-internal data class NoteRow(
+data class NoteRow(
     val id: Int,
     val owner: String,
     val text: String,
@@ -26,9 +26,8 @@ internal data class NoteRow(
 )
 
 // the database access of the notes and the links to their labels and files, only NoteService
-// uses it; it
-// reads and changes the notes of one owner that are not deleted only
-internal class NoteRepository(
+// (sak-backend) uses it; it reads and changes the notes of one owner that are not deleted only
+class NoteRepository(
     private val database: SakDatabase,
 ) {
     // the newest first, of one label or of all when labelId is null

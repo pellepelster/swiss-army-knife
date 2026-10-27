@@ -24,12 +24,12 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.config.SakConfig
-import io.pelle.sak.model.ingress.CreateRedirectResult
-import io.pelle.sak.model.ingress.DeleteRedirectResult
+import io.pelle.sak.backend.redirects.CreateRedirectResult
+import io.pelle.sak.backend.redirects.DeleteRedirectResult
 import io.pelle.sak.model.ingress.Redirect
-import io.pelle.sak.model.ingress.RedirectService
+import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.model.ingress.RedirectTarget as TargetOfRedirect
-import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

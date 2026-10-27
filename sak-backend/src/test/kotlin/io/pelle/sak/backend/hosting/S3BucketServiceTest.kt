@@ -1,4 +1,4 @@
-package io.pelle.sak.model.s3
+package io.pelle.sak.backend.hosting
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe

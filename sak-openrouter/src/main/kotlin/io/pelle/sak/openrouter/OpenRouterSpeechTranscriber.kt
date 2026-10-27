@@ -1,7 +1,7 @@
 package io.pelle.sak.openrouter
 
-import io.pelle.sak.model.files.SpeechTranscriber
-import io.pelle.sak.model.files.TextRecognitionException
+import io.pelle.sak.openrouter.SpeechTranscriber
+import io.pelle.sak.openrouter.TextRecognitionException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject

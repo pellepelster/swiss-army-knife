@@ -1,10 +1,11 @@
-package io.pelle.sak.model.files
+package io.pelle.sak.backend.files
 
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.files.StoredFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color

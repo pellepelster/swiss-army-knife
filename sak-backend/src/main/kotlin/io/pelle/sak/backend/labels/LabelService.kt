@@ -1,19 +1,12 @@
-package io.pelle.sak.model.labels
+package io.pelle.sak.backend.labels
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.Slice
+import io.pelle.sak.backend.Slice
+import io.pelle.sak.model.labels.Label
+import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
-
-// a label every application can attach to its entities; names are lower case and unique among
-// the labels that are not deleted
-data class Label(
-    val id: Int,
-    val name: String,
-    val createdAt: Instant,
-    val updatedAt: Instant,
-)
 
 sealed interface CreateLabelResult {
     data class Created(
@@ -56,7 +49,7 @@ sealed interface ResolveLabelsResult {
 
 // the labels, shared by every application, the only way to them; the applications that link
 // labels hear of every deleted one to drop their links to it
-class LabelService internal constructor(
+class LabelService(
     private val repository: LabelRepository,
     private val clock: Clock,
 ) {

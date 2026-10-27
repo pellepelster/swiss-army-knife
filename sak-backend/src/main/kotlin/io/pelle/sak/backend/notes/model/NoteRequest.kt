@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.notes.model
 
-import io.pelle.sak.model.notes.NoteColor
+import io.pelle.sak.backend.notes.NoteColor
 import kotlinx.serialization.Serializable
 
 // the labels by name, the unknown ones are created; the photos and recordings by the ids of images

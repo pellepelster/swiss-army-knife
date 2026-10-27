@@ -9,8 +9,8 @@ import io.ktor.server.netty.Netty
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.s3.CreateBucketResult
-import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.backend.hosting.CreateBucketResult
+import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

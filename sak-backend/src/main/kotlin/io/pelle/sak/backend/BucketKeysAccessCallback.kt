@@ -1,6 +1,6 @@
 package io.pelle.sak.backend
 
-import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation

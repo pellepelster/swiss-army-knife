@@ -11,8 +11,9 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// the database access of the buckets and their domains, only S3BucketService uses it
-internal class S3BucketRepository(
+// the database access of the buckets and their domains, only S3BucketService (sak-backend) uses
+// it
+class S3BucketRepository(
     private val database: SakDatabase,
 ) {
     fun all(): List<S3Bucket> {

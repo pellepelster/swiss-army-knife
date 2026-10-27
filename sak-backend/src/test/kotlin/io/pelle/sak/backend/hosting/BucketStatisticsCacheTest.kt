@@ -1,4 +1,4 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.hosting
 
 import com.github.benmanes.caffeine.cache.Ticker
 import io.kotest.matchers.shouldBe

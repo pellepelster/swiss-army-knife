@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.notes
 
-import io.pelle.sak.backend.fileUrl
+import io.pelle.sak.backend.files.fileUrl
+import io.pelle.sak.backend.files.thumbnailUrl
 import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.backend.labels.idParameter
 import io.pelle.sak.backend.labels.response
@@ -32,13 +33,12 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.SessionPrincipal
-import io.pelle.sak.backend.thumbnailUrl
-import io.pelle.sak.model.notes.DeleteNoteResult
-import io.pelle.sak.model.notes.Note
-import io.pelle.sak.model.notes.NoteColor
-import io.pelle.sak.model.notes.NoteProblem
-import io.pelle.sak.model.notes.NoteService
-import io.pelle.sak.model.notes.SaveNoteResult
+import io.pelle.sak.backend.notes.DeleteNoteResult
+import io.pelle.sak.backend.notes.Note
+import io.pelle.sak.backend.notes.NoteColor
+import io.pelle.sak.backend.notes.NoteProblem
+import io.pelle.sak.backend.notes.NoteService
+import io.pelle.sak.backend.notes.SaveNoteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

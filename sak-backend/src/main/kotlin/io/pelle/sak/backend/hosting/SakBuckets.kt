@@ -1,4 +1,4 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.Page
@@ -25,10 +25,15 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.model.s3.CreateBucketResult
+import io.pelle.sak.backend.hosting.model.BucketResponse
+import io.pelle.sak.backend.hosting.model.BucketSecretResponse
+import io.pelle.sak.backend.hosting.model.BucketStatisticsResponse
+import io.pelle.sak.backend.hosting.model.CreateBucketRequest
+import io.pelle.sak.backend.hosting.model.UpdateDomainsRequest
+import io.pelle.sak.backend.hosting.CreateBucketResult
 import io.pelle.sak.model.s3.S3Bucket
-import io.pelle.sak.model.s3.S3BucketService
-import io.pelle.sak.model.s3.UpdateDomainsResult
+import io.pelle.sak.backend.hosting.S3BucketService
+import io.pelle.sak.backend.hosting.UpdateDomainsResult
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
@@ -41,7 +46,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.Serializable
 import java.io.InputStream
 import java.time.Clock
 import java.time.Duration
@@ -52,29 +56,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 
-// without the bucket's keys, they are served on their own
-@Serializable
-data class BucketResponse(
-    val name: String,
-    val domains: List<String>,
-    // <name>.<root_domain>, the bucket is served there as well; missing for a name with dots,
-    // which were allowed before
-    val subdomain: String? = null,
-    val createdAt: String,
-    val statistics: BucketStatisticsResponse,
-)
-
-@Serializable
-data class CreateBucketRequest(
-    val name: String,
-    val domains: List<String> = emptyList(),
-)
-
-@Serializable
-data class UpdateDomainsRequest(
-    val domains: List<String>,
-)
-
 // why a bucket could not be created or its domains not changed
 private const val INVALID_NAME =
     "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, " +
@@ -84,23 +65,6 @@ private const val SUBDOMAIN_TAKEN =
     "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
 private const val INVALID_DOMAIN = "Every domain must be valid and neither one of the apps or the api nor a redirected one."
 private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
-
-@Serializable
-data class BucketSecretResponse(
-    val accessKeyId: String,
-    val secretAccessKey: String,
-)
-
-// objects, bytes and computedAt are missing while the bucket is still being counted or when it
-// could not be counted
-@Serializable
-data class BucketStatisticsResponse(
-    val computing: Boolean,
-    val failed: Boolean = false,
-    val objects: Long? = null,
-    val bytes: Long? = null,
-    val computedAt: String? = null,
-)
 
 data class BucketStatistics(
     val objects: Long,

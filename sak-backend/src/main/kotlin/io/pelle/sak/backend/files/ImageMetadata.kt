@@ -1,4 +1,4 @@
-package io.pelle.sak.model.files
+package io.pelle.sak.backend.files
 
 import java.io.DataInputStream
 import java.io.EOFException

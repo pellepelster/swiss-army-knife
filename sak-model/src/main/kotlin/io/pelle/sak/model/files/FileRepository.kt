@@ -7,9 +7,9 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// the database access of the files, only FileService uses it; it reads the files that are not
+// the database access of the files, only FileService (sak-backend) uses it; it reads the files that are not
 // deleted only
-internal class FileRepository(
+class FileRepository(
     private val database: SakDatabase,
 ) {
     fun byId(id: Int): StoredFile? =

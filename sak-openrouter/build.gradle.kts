@@ -5,6 +5,5 @@ plugins {
 }
 
 dependencies {
-    api(project(":sak-model"))
     implementation(libs.kotlinx.serialization.json)
 }

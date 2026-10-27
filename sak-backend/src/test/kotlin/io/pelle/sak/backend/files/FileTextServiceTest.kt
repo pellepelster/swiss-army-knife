@@ -1,9 +1,12 @@
-package io.pelle.sak.model.files
+package io.pelle.sak.backend.files
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.jooq.tables.references.FILES
+import io.pelle.sak.model.files.FileRepository
+import io.pelle.sak.openrouter.SpeechTranscriber
+import io.pelle.sak.openrouter.TextRecognitionException
+import io.pelle.sak.openrouter.TextRecognizer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -95,8 +98,8 @@ class FileTextServiceTest {
 
     @Test
     fun `discovers text in images and recordings only`() {
-        val file = photo("not an image after all")
-        database.dsl.update(FILES).set(FILES.CONTENT_TYPE, "application/pdf").where(FILES.ID.eq(file)).execute()
+        // the storage takes no such file, the row is there anyway
+        val file = FileRepository(database).insert("0".repeat(64), "application/pdf", 3, "pelle@pelle.io", Instant.now()).id
 
         service.discover(file) shouldBe DiscoverTextResult.Unsupported
         recognizer.images shouldBe emptyList()

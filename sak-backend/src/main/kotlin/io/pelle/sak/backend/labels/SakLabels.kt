@@ -24,11 +24,11 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.model.labels.CreateLabelResult
-import io.pelle.sak.model.labels.DeleteLabelResult
+import io.pelle.sak.backend.labels.CreateLabelResult
+import io.pelle.sak.backend.labels.DeleteLabelResult
 import io.pelle.sak.model.labels.Label
-import io.pelle.sak.model.labels.LabelService
-import io.pelle.sak.model.labels.RenameLabelResult
+import io.pelle.sak.backend.labels.LabelService
+import io.pelle.sak.backend.labels.RenameLabelResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
