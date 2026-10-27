@@ -3,6 +3,8 @@
 plugins {
     id("sak.kotlin-conventions")
     `java-library`
+    // the images and recordings the tests of the services store
+    `java-test-fixtures`
     alias(libs.plugins.jooq.codegen)
 }
 

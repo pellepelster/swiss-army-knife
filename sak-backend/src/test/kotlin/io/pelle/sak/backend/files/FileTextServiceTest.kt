@@ -15,6 +15,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.io.IOException
 import java.nio.file.Files
+import io.pelle.sak.model.testing.Media
 
 private const val PELLE = "pelle@pelle.io"
 
@@ -38,7 +39,7 @@ class FileTextServiceTest {
                 contentType: String,
             ): String {
                 images.add(image)
-                val text = String(image.drop(FileServiceTest.JPEG.size).toByteArray())
+                val text = String(image.drop(Media.JPEG.size).toByteArray())
                 if (text == "fail") throw TextRecognitionException("the model failed")
                 return " $text\n"
             }
@@ -61,7 +62,7 @@ class FileTextServiceTest {
     private val service by lazy { FileTextService(files, recognizer, transcriber) }
 
     private fun photo(content: String) =
-        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
     @Test
     fun `discovers the text in an image once and keeps it with the file`() {
@@ -98,7 +99,7 @@ class FileTextServiceTest {
 
     @Test
     fun `transcribes recordings once and keeps the text with the file`() {
-        val recording = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val recording = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
         service.discover(PELLE, recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
         service.discover(PELLE, recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
@@ -106,7 +107,7 @@ class FileTextServiceTest {
         recognizer.images shouldBe emptyList()
 
         FileTextService(files, recognizer, null).discover(PELLE, photo("another")).shouldBeInstanceOf<DiscoverTextResult.Discovered>()
-        val unheard = (files.store(FileServiceTest.wav(2).inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val unheard = (files.store(Media.wav(2).inputStream(), PELLE) as StoreFileResult.Stored).file.id
         FileTextService(files, recognizer, null).discover(PELLE, unheard) shouldBe DiscoverTextResult.NotConfigured
     }
 

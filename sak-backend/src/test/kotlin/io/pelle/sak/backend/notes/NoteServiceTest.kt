@@ -5,7 +5,6 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.backend.Slice
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.files.FileServiceTest
 import io.pelle.sak.backend.files.StoreFileResult
 import io.pelle.sak.backend.labels.LabelService
 import org.junit.jupiter.api.Test
@@ -15,6 +14,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import io.pelle.sak.model.testing.Media
 
 class NoteServiceTest {
     @TempDir
@@ -40,7 +40,7 @@ class NoteServiceTest {
     private val service by lazy { NoteService(database, labels, files, clock) }
 
     private fun photo(content: String) =
-        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
     private fun create(
         text: String,
@@ -161,7 +161,7 @@ class NoteServiceTest {
     @Test
     fun `keeps the recordings of a note apart from its photos, each of its kind`() {
         val beach = photo("beach")
-        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val memo = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
         val note = create("holidays", photos = listOf(beach), recordings = listOf(memo, memo))
         note.photos shouldBe listOf(beach)
@@ -182,7 +182,7 @@ class NoteServiceTest {
     @Test
     fun `a note only takes the photos and recordings its owner uploaded`() {
         val beach = photo("beach")
-        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val memo = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
         service.create(OTHER, "mine now", "blue", photos = listOf(beach), recordings = listOf(memo)) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))

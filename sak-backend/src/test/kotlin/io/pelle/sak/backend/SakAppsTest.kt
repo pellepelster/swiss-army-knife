@@ -41,14 +41,11 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import javax.imageio.ImageIO
-import javax.sound.sampled.AudioFileFormat
-import javax.sound.sampled.AudioFormat
-import javax.sound.sampled.AudioInputStream
-import javax.sound.sampled.AudioSystem
 import java.nio.file.Files
 import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
+import io.pelle.sak.model.testing.Media
 
 // the api of the apps and their e-mail login end to end: the controller sends the login links
 // through smtp to a greenmail sink, the test follows them like the signin page of the apps does
@@ -163,25 +160,6 @@ class SakAppsTest {
             socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray())
             socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
         }
-
-    private fun jpeg(
-        width: Int,
-        height: Int,
-    ) = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(width, height, BufferedImage.TYPE_INT_RGB), "jpg", it) }.toByteArray()
-
-    // a second of a quiet 16 kHz mono wav, what the notes record
-    private fun wav(): ByteArray {
-        val frames = 16_000
-        val pcm = ByteArray(frames * 2) { index -> if (index % 2 == 1) (index / 64 % 8).toByte() else 0 }
-        return ByteArrayOutputStream()
-            .also {
-                AudioSystem.write(
-                    AudioInputStream(pcm.inputStream(), AudioFormat(16_000f, 16, 1, true, false), frames.toLong()),
-                    AudioFileFormat.Type.WAVE,
-                    it,
-                )
-            }.toByteArray()
-    }
 
     private fun HttpResponse<String>.json(): JsonObject = body().json()
 
@@ -475,7 +453,7 @@ class SakAppsTest {
     fun `stores files under ids, serves them with a session only and keeps them as photos of notes`() {
         withServer { port ->
             val session = signIn(port)
-            val jpeg = jpeg(4, 3)
+            val jpeg = Media.jpeg(4, 3)
             fun upload(
                 bytes: ByteArray,
                 sessionToken: String? = session,
@@ -499,7 +477,7 @@ class SakAppsTest {
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
             // the apps scale photos down and drop their metadata, the storage takes nothing else
-            upload(jpeg(2049, 1)).let {
+            upload(Media.jpeg(2049, 1)).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"message":"An image must have at most 2048 pixels on its longer side."}]}"""
             }
@@ -577,7 +555,7 @@ class SakAppsTest {
         try {
             withServer(config) { port ->
                 val session = signIn(port)
-                val jpeg = jpeg(4, 3)
+                val jpeg = Media.jpeg(4, 3)
                 val receipt =
                     request(port, "POST", "/api/v1/files", session, jpeg, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
                 fun discover(
@@ -598,7 +576,7 @@ class SakAppsTest {
 
                 // a recording is written down, its thumbnail is its waveform, a note keeps it
                 val recording =
-                    request(port, "POST", "/api/v1/files", session, wav(), "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json()
+                    request(port, "POST", "/api/v1/files", session, Media.wav(), "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json()
                 recording.string("contentType") shouldBe "audio/wav"
                 val memo = recording.string("id")
                 discover(memo).json().string("text") shouldBe "Buy milk on the way home."
@@ -789,7 +767,6 @@ class SakAppsTest {
             getWithHost(port, "apps.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
         }
     }
-
 
     @Test
     fun `serves the openapi document of the api and swagger ui`() {
