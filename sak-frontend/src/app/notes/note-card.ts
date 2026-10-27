@@ -223,8 +223,6 @@ export class NoteCard {
   protected readonly maxLabels = MAX_LABELS;
   protected readonly newLabel = signal('');
 
-  // the photo whose removal is asked for, removed only once it is confirmed
-
   // the photos first, then the recordings, as the backend keeps them
   protected readonly media = computed<readonly Media[]>(() => [
     ...this.note().photos.map((id, index) => ({
