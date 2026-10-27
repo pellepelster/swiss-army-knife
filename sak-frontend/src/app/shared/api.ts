@@ -52,3 +52,15 @@ export function errorMessages(error: unknown): string[] {
     ? body.errors.map((e) => e.message).filter((m): m is string => typeof m === 'string')
     : [];
 }
+
+// what to tell about a failed request: the messages the api answered with, else the one given for
+// its status (e.g. 403 for a role that does not allow it), else the fallback
+export function apiErrorMessage(
+  error: unknown,
+  fallback: string,
+  byStatus: Record<number, string> = {},
+): string {
+  const messages = errorMessages(error);
+  if (messages.length) return messages.join(' ');
+  return (error instanceof HttpErrorResponse && byStatus[error.status]) || fallback;
+}

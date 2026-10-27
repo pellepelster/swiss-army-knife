@@ -1,8 +1,7 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { errorMessages } from '../shared/api';
+import { apiErrorMessage } from '../shared/api';
 import {
   RedirectTargetFields,
   redirectTarget,
@@ -103,17 +102,9 @@ export class RedirectCreate {
 
 // what the api answered, or what its status tells
 function createErrorMessage(error: unknown, domain: string): string {
-  const messages = errorMessages(error);
-  if (messages.length) return messages.join(' ');
-  if (!(error instanceof HttpErrorResponse)) return 'The redirect could not be created.';
-  switch (error.status) {
-    case 409:
-      return `${domain} is redirected already.`;
-    case 422:
-      return 'The bucket is unknown or not served at a domain.';
-    case 403:
-      return 'Your role does not allow to create redirects.';
-    default:
-      return 'The redirect could not be created.';
-  }
+  return apiErrorMessage(error, 'The redirect could not be created.', {
+    403: 'Your role does not allow to create redirects.',
+    409: `${domain} is redirected already.`,
+    422: 'The bucket is unknown or not served at a domain.',
+  });
 }

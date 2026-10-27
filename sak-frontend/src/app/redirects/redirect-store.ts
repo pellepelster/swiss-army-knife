@@ -1,6 +1,6 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { apiErrorMessage } from '../shared/api';
 import { Redirect, RedirectsService } from './redirects.service';
 
 // the redirect of a redirect's page, shared by the page and its tabs; provided by the page
@@ -25,9 +25,8 @@ export class RedirectStore {
 }
 
 export function redirectErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof HttpErrorResponse && error.status === 404)
-    return 'There is no such redirect.';
-  if (error instanceof HttpErrorResponse && error.status === 403)
-    return 'Your role does not allow to see the redirects.';
-  return fallback;
+  return apiErrorMessage(error, fallback, {
+    403: 'Your role does not allow to see the redirects.',
+    404: 'There is no such redirect.',
+  });
 }

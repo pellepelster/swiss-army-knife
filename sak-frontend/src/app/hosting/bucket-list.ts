@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -12,7 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
-import { lastPageOffset, Pagination } from '../shared/api';
+import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { formatBytes, formatCount } from '../shared/format';
 import { PaginationControl } from '../shared/pagination';
 import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
@@ -179,9 +178,9 @@ export class BucketList {
         },
         error: (error: unknown) =>
           this.error.set(
-            error instanceof HttpErrorResponse && error.status === 403
-              ? 'Your role does not allow to see the buckets.'
-              : 'The buckets could not be loaded.',
+            apiErrorMessage(error, 'The buckets could not be loaded.', {
+              403: 'Your role does not allow to see the buckets.',
+            }),
           ),
       });
   }

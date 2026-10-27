@@ -1,6 +1,6 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { apiErrorMessage } from '../shared/api';
 import { timer } from 'rxjs';
 import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
 
@@ -36,8 +36,8 @@ export class BucketStore {
 }
 
 export function bucketErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof HttpErrorResponse && error.status === 404) return 'There is no such bucket.';
-  if (error instanceof HttpErrorResponse && error.status === 403)
-    return 'Your role does not allow to see the buckets.';
-  return fallback;
+  return apiErrorMessage(error, fallback, {
+    403: 'Your role does not allow to see the buckets.',
+    404: 'There is no such bucket.',
+  });
 }

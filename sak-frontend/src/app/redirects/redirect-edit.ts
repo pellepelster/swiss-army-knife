@@ -1,8 +1,7 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { errorMessages } from '../shared/api';
+import { apiErrorMessage } from '../shared/api';
 import { redirectErrorMessage } from './redirect-store';
 import { RedirectTargetFields, redirectTarget, TargetType } from './redirect-target-fields';
 import { RedirectsService } from './redirects.service';
@@ -108,9 +107,9 @@ export class RedirectEdit implements OnInit {
 
 // what the api answered, or what its status tells
 function saveErrorMessage(error: unknown): string {
-  const messages = errorMessages(error);
-  if (messages.length) return messages.join(' ');
-  if (error instanceof HttpErrorResponse && error.status === 422)
-    return 'The bucket is unknown or not served at a domain.';
-  return redirectErrorMessage(error, 'The redirect could not be saved.');
+  return apiErrorMessage(error, 'The redirect could not be saved.', {
+    403: 'Your role does not allow to change redirects.',
+    404: 'There is no such redirect.',
+    422: 'The bucket is unknown or not served at a domain.',
+  });
 }

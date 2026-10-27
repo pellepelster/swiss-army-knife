@@ -1,8 +1,7 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { errorMessages } from '../shared/api';
+import { apiErrorMessage, errorMessages } from '../shared/api';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
 import { DomainList } from './domain-list';
@@ -91,9 +90,11 @@ export class BucketCreate {
           this.errors.set(
             messages.length
               ? messages
-              : error instanceof HttpErrorResponse && error.status === 403
-                ? ['Your role does not allow to create buckets.']
-                : [`The bucket ${name} could not be created.`],
+              : [
+                  apiErrorMessage(error, `The bucket ${name} could not be created.`, {
+                    403: 'Your role does not allow to create buckets.',
+                  }),
+                ],
           );
         },
       });

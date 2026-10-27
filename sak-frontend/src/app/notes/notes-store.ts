@@ -441,7 +441,6 @@ export class NotesStore {
   }
 }
 
-
 // as the backend sorts them
 function newestFirst(a: Note, b: Note): number {
   return b.created.getTime() - a.created.getTime() || b.id - a.id;
