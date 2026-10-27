@@ -14,7 +14,6 @@ import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
-import io.ktor.server.auth.principal
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -32,7 +31,7 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.auth.sessionEmail
 import io.pelle.sak.backend.notes.DeleteNoteResult
 import io.pelle.sak.backend.notes.Note
 import io.pelle.sak.backend.notes.NoteColor
@@ -79,7 +78,6 @@ private suspend fun RoutingCall.respondSaved(
     }
 
 // the address of the signed in user, the owner of the notes
-private val RoutingCall.owner get() = principal<SessionPrincipal>()!!.email
 
 // the notes of the signed in user with their labels, meant to be mounted behind the
 // authentication
@@ -91,7 +89,7 @@ fun Route.notes(noteService: NoteService) {
     get {
         val page = call.pageRequest() ?: return@get
         val label = call.request.queryParameters["label"]
-        val notes = withContext(Dispatchers.IO) { noteService.page(call.owner, page.offset, page.limit, label) }
+        val notes = withContext(Dispatchers.IO) { noteService.page(call.sessionEmail, page.offset, page.limit, label) }
         call.respond(page.of(notes.items.map { it.response() }, notes.total))
     }.describe {
         tag(NOTES_TAG)
@@ -114,7 +112,7 @@ fun Route.notes(noteService: NoteService) {
 
     post {
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.owner, request.text, request.color, request.labels, request.photos, request.recordings) }, created = true)
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.sessionEmail, request.text, request.color, request.labels, request.photos, request.recordings) }, created = true)
     }.describe {
         tag(NOTES_TAG)
         summary = "Create a note"
@@ -134,7 +132,7 @@ fun Route.notes(noteService: NoteService) {
 
     get("/{id}") {
         val id = call.idParameter() ?: return@get
-        val note = withContext(Dispatchers.IO) { noteService.byId(call.owner, id) }
+        val note = withContext(Dispatchers.IO) { noteService.byId(call.sessionEmail, id) }
         if (note == null) call.respond(HttpStatusCode.NotFound) else call.respond(note.response())
     }.describe {
         tag(NOTES_TAG)
@@ -152,7 +150,7 @@ fun Route.notes(noteService: NoteService) {
     put("/{id}") {
         val id = call.idParameter() ?: return@put
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.owner, id, request.text, request.color, request.labels, request.photos, request.recordings) })
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.sessionEmail, id, request.text, request.color, request.labels, request.photos, request.recordings) })
     }.describe {
         tag(NOTES_TAG)
         summary = "Change a note"
@@ -174,7 +172,7 @@ fun Route.notes(noteService: NoteService) {
 
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        when (withContext(Dispatchers.IO) { noteService.delete(call.owner, id) }) {
+        when (withContext(Dispatchers.IO) { noteService.delete(call.sessionEmail, id) }) {
             DeleteNoteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
             DeleteNoteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }

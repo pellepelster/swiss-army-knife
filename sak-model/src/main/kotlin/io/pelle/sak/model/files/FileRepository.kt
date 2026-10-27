@@ -8,21 +8,27 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 // the database access of the files, only FileService (sak-backend) uses it; it reads the files that are not
-// deleted only
+// deleted only, and only the ones of the address that uploaded them
 class FileRepository(
     private val database: SakDatabase,
 ) {
-    fun byId(id: Int): StoredFile? =
+    fun byId(
+        owner: String,
+        id: Int,
+    ): StoredFile? =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.ID.eq(id), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.eq(id), FILES.UPLOADED_BY.eq(owner), FILES.DELETED_AT.isNull)
             .fetchOne()
             ?.toFile()
 
-    fun byIds(ids: Collection<Int>): Map<Int, StoredFile> =
+    fun byIds(
+        owner: String,
+        ids: Collection<Int>,
+    ): Map<Int, StoredFile> =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.ID.`in`(ids), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.`in`(ids), FILES.UPLOADED_BY.eq(owner), FILES.DELETED_AT.isNull)
             .fetch()
             .map { it.toFile() }
             .associateBy { it.id }

@@ -52,6 +52,9 @@ data class SessionPrincipal(
     val roles: Set<Role>,
 )
 
+// the address of the signed in user, for routes behind authenticate(SESSION_AUTH)
+val ApplicationCall.sessionEmail: String get() = principal<SessionPrincipal>()!!.email
+
 // app is the one the link leads to, the default app of the routes when missing
 @Serializable
 data class LoginRequest(

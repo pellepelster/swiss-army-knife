@@ -80,6 +80,7 @@ class SakAppsTest {
                           frontend_url: $frontendUrl
                           admins:
                             - Admin@example.org
+                            - second@example.org
                           smtp:
                             host: localhost
                             port: ${greenMail.smtp.port}
@@ -202,12 +203,13 @@ class SakAppsTest {
     private fun requestLoginLink(
         port: Int,
         mails: Int = 1,
+        email: String = "admin@example.org",
     ): Map<String, String> {
-        post(port, "/api/v1/login/link", """{"email":"admin@example.org","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
+        post(port, "/api/v1/login/link", """{"email":"$email","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
         greenMail.waitForIncomingEmail(5_000, mails) shouldBe true
 
         val mail = greenMail.receivedMessages.last()
-        mail.allRecipients.single().toString() shouldBe "admin@example.org"
+        mail.allRecipients.single().toString() shouldBe email
         val link = GreenMailUtil.getBody(mail).lines().single { it.startsWith(APPS_URL) }
         link shouldStartWith "$APPS_URL/signin?"
         return URI.create(link).rawQuery.split('&').associate {
@@ -238,8 +240,13 @@ class SakAppsTest {
         }
     }
 
-    private fun signIn(port: Int): String {
-        val link = requestLoginLink(port)
+    // the session token of the address, mails is how many login mails the test has seen with this one
+    private fun signIn(
+        port: Int,
+        email: String = "admin@example.org",
+        mails: Int = 1,
+    ): String {
+        val link = requestLoginLink(port, mails, email)
         return post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
     }
 
@@ -547,6 +554,14 @@ class SakAppsTest {
                 it.json().getValue("photos").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$id"
             }
             post(port, "/api/v1/notes", """{"text":"x","photos":[4711]}""", session).statusCode() shouldBe 400
+
+            // another user neither sees the files nor attaches them to a note
+            val other = signIn(port, "second@example.org", mails = 2)
+            download("/api/v1/files/$id", other).statusCode() shouldBe 404
+            download("/api/v1/files/$image/thumbnail", other).statusCode() shouldBe 404
+            post(port, "/api/v1/files/$image/discover/text", "", other).statusCode() shouldBe 404
+            post(port, "/api/v1/notes", """{"text":"mine now","photos":[$id]}""", other).statusCode() shouldBe 400
+            download("/api/v1/files/$id").statusCode() shouldBe 200
         }
     }
 

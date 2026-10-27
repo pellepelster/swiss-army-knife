@@ -102,13 +102,13 @@ class NoteService(
             label?.let { name ->
                 labels.byName(name)?.id ?: return Slice(emptyList(), 0)
             }
-        return Slice(notes(repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
+        return Slice(notes(owner, repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
     }
 
     fun byId(
         owner: String,
         id: Int,
-    ): Note? = repository.byId(owner, id)?.let { notes(listOf(it)).single() }
+    ): Note? = repository.byId(owner, id)?.let { notes(owner, listOf(it)).single() }
 
     fun create(
         owner: String,
@@ -118,7 +118,7 @@ class NoteService(
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
     ): SaveNoteResult =
-        when (val checked = check(text, color, labelNames, photos, recordings)) {
+        when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
                 val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.files, clock.instant())
@@ -137,7 +137,7 @@ class NoteService(
         recordings: List<Int> = emptyList(),
     ): SaveNoteResult {
         val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
-        return when (val checked = check(text, color, labelNames, photos, recordings)) {
+        return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
                 val now = clock.instant()
@@ -173,8 +173,9 @@ class NoteService(
     }
 
     // the labels are only created when the note is valid otherwise; a photo or a recording twice is
-    // kept once, a photo must be an image and a recording audio of the file storage
+    // kept once, a photo must be an image and a recording audio the owner uploaded to the file storage
     private fun check(
+        owner: String,
         text: String,
         color: String,
         labelNames: Collection<String>,
@@ -192,7 +193,7 @@ class NoteService(
         if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
         val distinctRecordings = recordings.distinct()
         if (distinctRecordings.size > MAX_RECORDINGS) problems += NoteProblem.TOO_MANY_RECORDINGS
-        val stored = files.byIds(distinctPhotos + distinctRecordings)
+        val stored = files.byIds(owner, distinctPhotos + distinctRecordings)
         if (distinctPhotos.any { stored[it]?.contentType?.startsWith("image/") != true }) problems += NoteProblem.UNKNOWN_PHOTO
         if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
@@ -204,9 +205,12 @@ class NoteService(
     }
 
     // the labels and the files of all the notes are read at once, the files are told apart by their type
-    private fun notes(rows: List<NoteRow>): List<Note> {
+    private fun notes(
+        owner: String,
+        rows: List<NoteRow>,
+    ): List<Note> {
         val byId = labels.byIds(rows.flatMap { it.labelIds }).associateBy { it.id }
-        val stored = files.byIds(rows.flatMap { it.files })
+        val stored = files.byIds(owner, rows.flatMap { it.files })
         fun of(
             row: NoteRow,
             type: String,

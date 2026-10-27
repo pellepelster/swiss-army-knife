@@ -180,6 +180,18 @@ class NoteServiceTest {
     }
 
     @Test
+    fun `a note only takes the photos and recordings its owner uploaded`() {
+        val beach = photo("beach")
+        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+
+        service.create(OTHER, "mine now", "blue", photos = listOf(beach), recordings = listOf(memo)) shouldBe
+            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
+        val theirs = create("theirs", owner = OTHER)
+        service.update(OTHER, theirs.id, "theirs", "blue", photos = listOf(beach)) shouldBe
+            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
+    }
+
+    @Test
     fun `deletes notes softly`() {
         val note = create("milk")
 

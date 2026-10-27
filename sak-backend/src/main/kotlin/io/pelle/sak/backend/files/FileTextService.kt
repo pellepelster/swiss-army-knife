@@ -32,14 +32,19 @@ class FileTextService(
     private val recognizer: TextRecognizer?,
     private val transcriber: SpeechTranscriber? = null,
 ) {
-    fun discover(id: Int): DiscoverTextResult {
-        val file = files.byId(id) ?: return DiscoverTextResult.NotFound
+    // the text in a file of the owner, the address that uploaded it; the text once discovered is
+    // answered even when nothing is configured any more
+    fun discover(
+        owner: String,
+        id: Int,
+    ): DiscoverTextResult {
+        val file = files.byId(owner, id) ?: return DiscoverTextResult.NotFound
         val read: (ByteArray) -> String =
             when {
                 file.contentType.startsWith("image/") -> recognizer?.let { { bytes -> it.recognize(bytes, file.contentType) } }
                 file.contentType.startsWith("audio/") -> transcriber?.let { { bytes -> it.transcribe(bytes, file.contentType) } }
                 else -> return DiscoverTextResult.Unsupported
-            } ?: return DiscoverTextResult.NotConfigured
+            } ?: return file.discovered?.let { DiscoverTextResult.Discovered(it) } ?: DiscoverTextResult.NotConfigured
         file.discovered?.let { return DiscoverTextResult.Discovered(it) }
         val text =
             try {

@@ -48,8 +48,11 @@ class FileServiceTest {
         file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), clock.instant())
         service.path(file) shouldBe dir.resolve(file.sha256.take(2)).resolve(file.sha256)
         Files.readAllBytes(service.path(file)) shouldBe content
-        service.byId(file.id) shouldBe file
-        service.byIds(listOf(file.id, 4711)) shouldBe mapOf(file.id to file)
+        service.byId("pelle@pelle.io", file.id) shouldBe file
+        service.byIds("pelle@pelle.io", listOf(file.id, 4711)) shouldBe mapOf(file.id to file)
+        // only to the address that uploaded it
+        service.byId("other@example.org", file.id) shouldBe null
+        service.byIds("other@example.org", listOf(file.id)) shouldBe emptyMap()
     }
 
     @Test
@@ -57,6 +60,8 @@ class FileServiceTest {
         val content = PNG + "same".toByteArray()
         val first = (service.store(content.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
         val second = (service.store(content.inputStream(), "other@example.org") as StoreFileResult.Stored).file
+        service.byId("pelle@pelle.io", second.id) shouldBe null
+        service.byId("other@example.org", second.id) shouldBe second
 
         second.id shouldNotBe first.id
         second.uploadedBy shouldBe "other@example.org"
@@ -80,7 +85,7 @@ class FileServiceTest {
             StoreFileResult.UnsupportedType
         // nothing stays behind of the rejected ones
         Files.list(dir).use { it.toList() }.none { it.fileName.toString().startsWith("upload-") } shouldBe true
-        service.byId(4711) shouldBe null
+        service.byId("pelle@pelle.io", 4711) shouldBe null
     }
 
     private fun image(

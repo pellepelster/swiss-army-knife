@@ -9,7 +9,6 @@ import io.ktor.server.http.content.LocalPathContent
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
-import io.ktor.server.auth.principal
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.header
@@ -23,7 +22,7 @@ import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
-import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.auth.sessionEmail
 import io.pelle.sak.backend.API_PATH_PREFIX
 import io.pelle.sak.backend.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
@@ -66,8 +65,7 @@ fun Route.files(
     install(ApiErrors)
 
     post {
-        val uploadedBy = call.principal<SessionPrincipal>()!!.email
-        val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, uploadedBy) } }
+        val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.sessionEmail) } }
         when (result) {
             is StoreFileResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             StoreFileResult.TooLarge ->
@@ -102,12 +100,12 @@ fun Route.files(
     }
 
     post("/{id}/discover/text") {
-        if (!discoverTextLimiter.tryAcquire(call.principal<SessionPrincipal>()!!.email)) {
+        if (!discoverTextLimiter.tryAcquire(call.sessionEmail)) {
             call.respondErrors("Too many texts were discovered, please try again later.", status = HttpStatusCode.TooManyRequests)
             return@post
         }
         val id = call.idParameter() ?: return@post
-        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(id) }) {
+        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.sessionEmail, id) }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
@@ -131,7 +129,7 @@ fun Route.files(
                 schema = jsonSchema<DiscoverTextResponse>()
             }
             errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
-            HttpStatusCode.NotFound { description = "There is no such file" }
+            HttpStatusCode.NotFound { description = "The signed in user has no such file" }
             errors(HttpStatusCode.TooManyRequests, "The user discovered too many texts lately")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
             errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter token is configured")
@@ -142,13 +140,13 @@ fun Route.files(
 // only the browser of the signed in user keeps them, no shared cache
 private const val IMMUTABLE = "private, max-age=31536000, immutable"
 
-// the content of the stored files and of their thumbnails, which never change under the id; meant
-// to be mounted behind the authentication like the uploads
+// the content of the stored files and of their thumbnails, which never change under the id, only
+// to the user that uploaded them; meant to be mounted behind the authentication like the uploads
 @OptIn(ExperimentalKtorApi::class)
 fun Route.servedFiles(fileService: FileService) {
     get("/{id}") {
         val id = call.idParameter() ?: return@get
-        val file = withContext(Dispatchers.IO) { fileService.byId(id) }
+        val file = withContext(Dispatchers.IO) { fileService.byId(call.sessionEmail, id) }
         if (file == null) {
             call.respond(HttpStatusCode.NotFound)
             return@get
@@ -161,7 +159,7 @@ fun Route.servedFiles(fileService: FileService) {
         parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The content with its type" }
-            HttpStatusCode.NotFound { description = "There is no such file" }
+            HttpStatusCode.NotFound { description = "The signed in user has no such file" }
         }
     }
 
@@ -169,7 +167,7 @@ fun Route.servedFiles(fileService: FileService) {
         val id = call.idParameter() ?: return@get
         val thumbnail =
             withContext(Dispatchers.IO) {
-                fileService.byId(id)?.let { fileService.thumbnail(it) }
+                fileService.byId(call.sessionEmail, id)?.let { fileService.thumbnail(it) }
             }
         if (thumbnail == null) {
             call.respond(HttpStatusCode.NotFound)
@@ -186,7 +184,9 @@ fun Route.servedFiles(fileService: FileService) {
         parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The thumbnail" }
-            HttpStatusCode.NotFound { description = "There is no such file, or it is neither an image nor a recording that can be read" }
+            HttpStatusCode.NotFound {
+                description = "The signed in user has no such file, or it is neither an image nor a recording that can be read"
+            }
         }
     }
 }

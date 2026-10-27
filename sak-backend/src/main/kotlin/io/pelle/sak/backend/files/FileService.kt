@@ -64,10 +64,17 @@ class FileService(
         Files.createDirectories(dir)
     }
 
-    fun byId(id: Int): StoredFile? = repository.byId(id)
+    // a file of the owner, the address that uploaded it; another one's file is none
+    fun byId(
+        owner: String,
+        id: Int,
+    ): StoredFile? = repository.byId(owner, id)
 
-    // the stored files of the ids by their id
-    fun byIds(ids: Collection<Int>): Map<Int, StoredFile> = if (ids.isEmpty()) emptyMap() else repository.byIds(ids.toSet())
+    // the stored files of the owner among the ids by their id
+    fun byIds(
+        owner: String,
+        ids: Collection<Int>,
+    ): Map<Int, StoredFile> = if (ids.isEmpty()) emptyMap() else repository.byIds(owner, ids.toSet())
 
     fun setDiscovered(
         file: StoredFile,
