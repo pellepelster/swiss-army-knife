@@ -16,7 +16,7 @@ function clock(seconds: number): string {
   template: `
     @if (subject(); as subject) {
       <div
-        class="recording-overlay"
+        class="recording-overlay position-fixed top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center gap-3 p-3 bg-black bg-opacity-75 text-white"
         role="dialog"
         aria-modal="true"
         [attr.aria-label]="'Recording ' + subject"
@@ -24,21 +24,21 @@ function clock(seconds: number): string {
         <button
           #stopButton
           type="button"
-          class="recording-stop"
+          class="recording-stop btn btn-danger rounded-circle"
           [attr.aria-label]="'Stop the recording of ' + subject"
           title="Stop recording"
           (click)="stop()"
         >
           <i class="fa-solid fa-stop" aria-hidden="true"></i>
         </button>
-        <p class="recording-time" role="timer">
+        <p class="fs-4 font-monospace mb-0" role="timer">
           @if (recorder.starting()) {
             Starting…
           } @else {
             {{ elapsed() }} / {{ limit }}
           }
         </p>
-        <p class="recording-subject">{{ subject }}</p>
+        <p class="text-white-50 mb-0">{{ subject }}</p>
       </div>
     }
   `,

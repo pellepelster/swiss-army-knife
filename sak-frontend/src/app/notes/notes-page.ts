@@ -18,9 +18,9 @@ import { RecordingOverlay } from './recording-overlay';
 @Component({
   selector: 'app-notes-page',
   imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink],
-  styleUrl: './notes-page.scss',
+  host: { class: 'd-block container-xl pb-5' },
   template: `
-    <header class="toolbar ">
+    <header class="toolbar d-flex flex-wrap align-items-center gap-2 py-3 sticky-top bg-body">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
@@ -30,7 +30,7 @@ import { RecordingOverlay } from './recording-overlay';
       <h1 class="h3 mb-0 flex-grow-1 text-break">Notes</h1>
       <input
         #camera
-        class="photo-input"
+        class="d-none"
         type="file"
         accept="image/*"
         capture="environment"
@@ -40,7 +40,7 @@ import { RecordingOverlay } from './recording-overlay';
       />
       <button
         type="button"
-        class="button add-photo"
+        class="btn btn-primary"
         aria-label="New note with a photo"
         title="New note with a photo"
         [disabled]="addingPhoto()"
@@ -54,7 +54,7 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
       <button
         type="button"
-        class="button add-photo"
+        class="btn btn-primary"
         aria-label="New note with a recording"
         title="New note with a recording"
         [disabled]="store.recordingFor() !== null"
@@ -62,27 +62,31 @@ import { RecordingOverlay } from './recording-overlay';
       >
         <i class="fa-solid fa-microphone" aria-hidden="true"></i>
       </button>
-      <button type="button" class="button" (click)="add()">
+      <button type="button" class="btn btn-primary" (click)="add()">
         <i class="fa-solid fa-plus" aria-hidden="true"></i> New note
       </button>
     </header>
 
-    <nav class="filters" aria-label="Filter by label">
+    <nav class="d-flex gap-2 pb-3 overflow-x-auto" aria-label="Filter by label">
       <button
         type="button"
-        class="filter"
+        class="btn btn-sm flex-shrink-0"
+        [class.btn-primary]="filter() === null"
+        [class.btn-outline-secondary]="filter() !== null"
         [attr.aria-pressed]="filter() === null"
         (click)="select(null)"
       >
         All
         @if (filter() === null && store.pagination(); as page) {
-          <span class="count">{{ page.total }}</span>
+          <span class="opacity-75">{{ page.total }}</span>
         }
       </button>
       @for (label of store.knownLabels(); track label) {
         <button
           type="button"
-          class="filter"
+          class="btn btn-sm flex-shrink-0"
+          [class.btn-primary]="filter() === label"
+          [class.btn-outline-secondary]="filter() !== label"
           [attr.aria-pressed]="filter() === label"
           (click)="toggle(label)"
         >
@@ -92,7 +96,7 @@ import { RecordingOverlay } from './recording-overlay';
     </nav>
 
     @if (store.error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     <datalist id="known-labels">
@@ -101,11 +105,16 @@ import { RecordingOverlay } from './recording-overlay';
       }
     </datalist>
 
-    <main class="wall">
+    <main class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
       @for (note of shown(); track note.id) {
-        <app-note-card [note]="note" labelsList="known-labels" (labelSelected)="select($event)" />
+        <app-note-card
+          class="col"
+          [note]="note"
+          labelsList="known-labels"
+          (labelSelected)="select($event)"
+        />
       } @empty {
-        <p class="empty">
+        <p class="col-12 text-center text-body-secondary py-5">
           @if (store.loading()) {
             Loading…
           } @else if (filter(); as label) {

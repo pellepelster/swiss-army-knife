@@ -1,49 +1,22 @@
-// the whole page, the notes below can not be used while a recording runs
+// above the sticky toolbar of the notes (sticky-top), which bootstrap's z utilities do not reach
 .recording-overlay {
-  position: fixed;
-  inset: 0;
   z-index: 1050;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px;
-  background: rgb(0 0 0 / 70%);
-  color: #fff;
 }
 
+// a stop button large enough to hit in any hurry, it pulses while the recording runs
 .recording-stop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: min(40vw, 160px);
   min-width: 96px;
   aspect-ratio: 1;
   border: 6px solid rgb(255 255 255 / 85%);
-  border-radius: 50%;
-  background: #c62828;
-  color: #fff;
   font-size: clamp(2.5rem, 12vw, 4rem);
   box-shadow: 0 0 0 0 rgb(198 40 40 / 60%);
   animation: recording-pulse 1.6s ease-out infinite;
-  cursor: pointer;
-}
 
-.recording-stop:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 4px;
-}
-
-.recording-time {
-  margin: 8px 0 0;
-  font-size: 1.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.recording-subject {
-  margin: 0;
-  color: rgb(255 255 255 / 75%);
+  &:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 4px;
+  }
 }
 
 @keyframes recording-pulse {

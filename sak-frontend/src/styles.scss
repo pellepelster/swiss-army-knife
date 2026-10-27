@@ -2,6 +2,8 @@
 :root {
   color-scheme: light dark;
   --wall: #f4f1ea;
+  // the wall as rgb for bootstrap's bg-body
+  --wall-rgb: 244, 241, 234;
   --ink: #2b2a27;
   --muted: #7a766c;
   --line: #d6d1c4;
@@ -20,6 +22,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --wall: #1f1e1c;
+    --wall-rgb: 31, 30, 28;
     --ink: #f1eee6;
     --muted: #a19c90;
     --line: #45423c;
@@ -33,6 +36,7 @@
 :root,
 [data-bs-theme] {
   --bs-body-bg: var(--wall);
+  --bs-body-bg-rgb: var(--wall-rgb);
   --bs-body-color: var(--ink);
   --bs-emphasis-color: var(--ink);
   --bs-secondary-color: var(--muted);
