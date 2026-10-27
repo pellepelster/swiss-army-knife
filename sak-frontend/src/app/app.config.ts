@@ -1,9 +1,16 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, isDevMode, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  inject,
+  isDevMode,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { authInterceptor } from './auth/auth.interceptor';
+import { ServiceWorkerUpdates } from './service-worker-updates';
 import { apiUrlInterceptor } from './shared/api-url';
 
 export const appConfig: ApplicationConfig = {
@@ -17,5 +24,7 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),
+    // reloads with a worker that broke, takes new versions over, looks for them
+    provideAppInitializer(() => inject(ServiceWorkerUpdates).start()),
   ],
 };
