@@ -40,7 +40,7 @@ import { RecordingOverlay } from './recording-overlay';
       />
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-outline-secondary"
         aria-label="New note with a photo"
         title="New note with a photo"
         [disabled]="addingPhoto()"
@@ -54,7 +54,7 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-outline-secondary"
         aria-label="New note with a recording"
         title="New note with a recording"
         [disabled]="store.recordingFor() !== null"
