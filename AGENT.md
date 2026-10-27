@@ -1,36 +1,42 @@
 # Agent guidelines
 
-## Repositories and services
+## Model (`sak-model`)
 
-Every entity of the controller's database (`sak-model`) has an `<entity>Repository` and an
-`<entity>Service`, both in the entity's package, e.g. `io.pelle.sak.model.s3.S3BucketRepository`
-and `io.pelle.sak.model.s3.S3BucketService`.
+- Every entity has `created`, `updated` and `deleted` (soft delete) timestamps.
+- Database access only in `<entity>Repository` (the only class touching jOOQ and its generated
+  tables); it is `internal` and used only by its `<entity>Service`.
+- All business logic lives in `<entity>Service`, which talks only to other services and its own
+  repository. Everything outside `sak-model` uses services, never repositories or `SakDatabase.dsl`.
 
-- All database access happens in the `<entity>Repository`, nowhere else. It is the only class
-  that touches jOOQ and the generated tables of its entity.
-- The `<entity>Repository` is used by its `<entity>Service` only. It is `internal` to
-  `sak-model`, so the compiler rejects any other use from outside the module.
-- Everything outside `sak-model` (Ktor routes, S3 access callbacks, the controller's wiring)
-  talks to the `<entity>Service` only, never to a repository or to `SakDatabase.dsl`.
-- Business rules (validation, key generation, reserved names, results like
-  `CreateBucketResult`) live in the service. The repository only reads and writes rows.
-- The service is handed the `SakDatabase` and creates its repository; tests reach the internal
-  constructor to pass their own repository, clock or other collaborators.
+## API (`/api`)
 
-## API
+- Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation.
+- Errors (400 validation, 409 conflict, malformed body, …) answer
+  `{"errors": [{"message": "..."}]}` (`call.respondErrors`), one readable sentence per problem.
+- Lists are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`.
+- Bodies received are `<name>Request`, bodies answered `<name>Response`.
+- Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in
+  `io.pelle.sak.backend.<app>.model`, one class per file named like the class.
 
-Every route under `/api` answers alike; the types and helpers are in `sak-api`
-(`io.pelle.sak.api`), routes install its `ApiErrors` plugin next to content negotiation.
+## UI (`sak-frontend`)
 
-- Validation errors are answered with status 400 and always the same body:
-  `{"errors": [{"message": "..."}, ...]}` (`ErrorResponse`, `call.respondErrors(...)`), one
-  entry per problem, the message a sentence a user can read. A malformed or unreadable body
-  gets the same answer through `ApiErrors`. Conflicts (409) and other answers that tell what is
-  wrong with a request use the same body.
-- Every list endpoint is paginated alike: the query parameters `offset` (0 by default) and
-  `limit` (`DEFAULT_LIMIT` by default, at most `MAX_LIMIT`), parsed with
-  `call.pageRequest()`, and the answer
-  `{"items": [...], "pagination": {"offset": 0, "limit": 50, "total": 123}}` (`Page`), where
-  `total` counts the whole list. Invalid `offset` or `limit` are validation errors.
-- The openapi description documents both: `parameters { pagination() }` for the page and
-  `responses { errors(status, description) }` for every error answer.
+- Every entity has a paginated list view leading to a detail view; creating is started from the
+  list's toolbar, all actions on an entity sit in a toolbar at its top right.
+- Detail view: overview panel on top (name, created, updated, key facts), tabs below, one child
+  route each, the first and default one "Configuration".
+- No modals: create on `/<entities>/create`, edit on `/<entities>/<id>/edit`, all editable
+  attributes at once, saved or cancelled.
+- Bootstrap everywhere.
+- The apps follow the browser's `prefers-color-scheme` with no switch of their own (css custom
+  properties in `src/styles.scss`).
+- Dates and times in the browser's locale via the `localDateTime` pipe
+  (`shared/local-date-time.pipe.ts`), never angular's `DatePipe` or a fixed format.
+
+## Privacy
+
+- Nothing is loaded from outside `<root_domain>` (no cdn, font service, analytics or other third
+  party); everything is bundled (e.g. `@fontsource`, `swagger-ui-dist`) or served by the backend.
+  The content security policy (`contentSecurityPolicy`) allows only the page's own origin and
+  `api.<root_domain>`, it is never widened beyond `<root_domain>`.
+- User data leaves the backend only on the user's explicit request (e.g. text discovery) and only to
+  providers that do not collect it (openrouter `provider.data_collection: deny`).
