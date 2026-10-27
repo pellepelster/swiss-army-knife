@@ -157,6 +157,7 @@ fun Route.login(
         val claims = tokens.exchangeLoginToken(call.receive<ExchangeRequest>().token)
         // the roles are the address' ones now, an address without any can not use links sent before
         val roles = claims?.let { rolesOf(it.email) }.orEmpty()
+        if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of '${claims.email}': the address has no role" }
         if (claims == null || roles.isEmpty()) {
             call.respond(HttpStatusCode.Unauthorized)
             return@post

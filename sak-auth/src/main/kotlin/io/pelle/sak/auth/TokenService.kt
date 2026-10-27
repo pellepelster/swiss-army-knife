@@ -4,6 +4,9 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTVerificationException
+import com.auth0.jwt.exceptions.SignatureVerificationException
+import com.auth0.jwt.exceptions.TokenExpiredException
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -21,6 +24,8 @@ data class SessionToken(
     val expiresAt: Instant,
     val roles: Set<Role>,
 )
+
+private val logger = KotlinLogging.logger {}
 
 // login tokens travel in the e-mailed link and are only good for one exchange against a
 // session token, session tokens are what the apps send with every api request; both
@@ -54,12 +59,20 @@ class TokenService(
             .withClaim(REDIRECT, redirect)
             .sign(algorithm)
 
-    // null for invalid, expired and already used tokens
+    // null for invalid, expired and already used tokens; why is logged, never the token
     fun exchangeLoginToken(token: String): LoginClaims? {
         val jwt =
             try {
                 loginVerifier.verify(token)
-            } catch (_: JWTVerificationException) {
+            } catch (_: TokenExpiredException) {
+                logger.info { "rejected a login token: it expired" }
+                return null
+            } catch (_: SignatureVerificationException) {
+                // e.g. issued before the signing key was replaced
+                logger.warn { "rejected a login token: it is not signed with the current signing key" }
+                return null
+            } catch (e: JWTVerificationException) {
+                logger.warn { "rejected a login token: ${e.message}" }
                 return null
             }
         val id = jwt.id ?: return null
@@ -70,6 +83,7 @@ class TokenService(
         val now = clock.instant()
         usedLoginTokens.values.removeIf { it.isBefore(now) }
         if (usedLoginTokens.putIfAbsent(id, expiresAt) != null) {
+            logger.info { "rejected the login token of '$email': it was used already" }
             return null
         }
 
