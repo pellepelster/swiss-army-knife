@@ -4,3 +4,6 @@ databaseChangeLog:
   - include:
       file: 0001-s3-buckets.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0002-redirects.yaml
+      relativeToChangelogFile: true

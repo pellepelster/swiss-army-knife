@@ -1,0 +1,22 @@
+# the domains caddy redirects, each to an external domain or to the domain a bucket is served at;
+# exactly the column of the target type is set. Plain sql, sqlite only takes the check and the
+# foreign key when the table is created.
+databaseChangeLog:
+  - changeSet:
+      id: 0002-redirects
+      author: sak
+      changes:
+        - sql:
+            sql: >-
+              CREATE TABLE redirects (
+                source_domain VARCHAR(253) NOT NULL PRIMARY KEY,
+                target_type VARCHAR(16) NOT NULL,
+                target_domain VARCHAR(253),
+                target_bucket VARCHAR(63),
+                created_at TIMESTAMP NOT NULL,
+                CONSTRAINT redirects_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES s3_buckets (name),
+                CONSTRAINT redirects_target_check CHECK (
+                  (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
+                  OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)
+                )
+              )
