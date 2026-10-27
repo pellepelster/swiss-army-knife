@@ -11,8 +11,6 @@ const val SITE_LOG_FIELD = SiteMetricsService.SITE
 
 const val S3_SITE = "s3"
 
-const val CONSOLE_SITE = "console"
-
 // sak-frontend at apps.<root_domain>
 const val APPS_SITE = "apps"
 
@@ -23,7 +21,7 @@ const val REDIRECT_SITE = "redirect"
 const val UNMATCHED_SITE = "unmatched"
 
 // all stands for every site in the console's log views
-val RESERVED_SITES = setOf(S3_SITE, CONSOLE_SITE, APPS_SITE, REDIRECT_SITE, UNMATCHED_SITE, ALL_SITES)
+val RESERVED_SITES = setOf(S3_SITE, APPS_SITE, REDIRECT_SITE, UNMATCHED_SITE, ALL_SITES)
 
 // the buckets served at their domains are sites of their own, named like the bucket, whose names
 // are no reserved ones (S3BucketService); the redirected domains belong to the redirect site,
@@ -36,7 +34,6 @@ fun sites(
     bucketDomains.filterValues { it.isNotEmpty() }.map { (bucket, domains) -> Site(bucket, domains) } +
         listOfNotNull(
             Site(S3_SITE, listOf(s3Host(config))),
-            config.auth?.let { Site(CONSOLE_SITE, listOf(config.consoleHost)) },
             config.auth?.let { Site(APPS_SITE, listOf(config.appsHost)) },
             Site(
                 REDIRECT_SITE,

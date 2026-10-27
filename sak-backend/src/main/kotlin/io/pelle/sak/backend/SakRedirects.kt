@@ -35,7 +35,7 @@ import kotlinx.serialization.Serializable
 private val logger = KotlinLogging.logger {}
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
-fun reservedDomains(config: SakConfig): Set<String> = setOf(s3Host(config), config.consoleHost, config.appsHost)
+fun reservedDomains(config: SakConfig): Set<String> = setOf(s3Host(config), config.appsHost)
 
 // the domains every bucket is served at
 fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to it.domains }

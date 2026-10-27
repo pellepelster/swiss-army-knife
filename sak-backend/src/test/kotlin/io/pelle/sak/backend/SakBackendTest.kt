@@ -114,7 +114,7 @@ class SakBackendTest {
         try {
             val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, "../config/controller-config.yaml"))
 
-            config.consoleUrl shouldBe "https://console.pelle.io"
+            config.frontendUrl shouldBe "https://apps.pelle.io"
             config.auth!!.smtp shouldBe
                 SakConfig.SmtpConfig(
                     host = "smtp.example.org",

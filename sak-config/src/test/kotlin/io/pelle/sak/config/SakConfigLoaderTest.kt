@@ -30,7 +30,7 @@ class SakConfigLoaderTest {
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.s3DataDir shouldBe Path.of("/something/s3")
         config.authDataDir shouldBe Path.of("/something/auth")
-        config.consoleUrl shouldBe "https://console.example.org"
+        config.frontendUrl shouldBe "https://apps.example.org"
         config.auth shouldBe
             SakConfig.AuthConfig(
                 admins = listOf("Admin@example.org"),
@@ -59,13 +59,13 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `smtp defaults to starttls on port 587 and the console url can be overridden`() {
+    fun `smtp defaults to starttls on port 587 and the frontend url can be overridden`() {
         val config =
             load(
-                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  console_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
+                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  frontend_url: http://localhost:4300\n  smtp:\n    host: localhost\n    from: login@example.org\n",
             )
 
-        config.consoleUrl shouldBe "http://localhost:4200"
+        config.frontendUrl shouldBe "http://localhost:4300"
         config.auth!!.admins shouldBe emptyList()
         config.auth.smtp.port shouldBe 587
         config.auth.smtp.tls shouldBe false

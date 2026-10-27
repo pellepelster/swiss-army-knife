@@ -23,7 +23,7 @@ data class SessionToken(
 )
 
 // login tokens travel in the e-mailed link and are only good for one exchange against a
-// session token, session tokens are what the console sends with every api request; both
+// session token, session tokens are what the apps send with every api request; both
 // are ES256 jwts, the token_use claim keeps one from being accepted as the other
 class TokenService(
     private val key: SigningKey,

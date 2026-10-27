@@ -42,7 +42,7 @@ val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",
         bearerFormat = "JWT",
-        description = "The session token the console gets for a login link, see POST /api/v1/auth/exchange.",
+        description = "The session token the apps get for a login link, see POST /api/v1/auth/exchange.",
     )
 
 private const val AUTH_TAG = "auth"
@@ -53,18 +53,16 @@ data class SessionPrincipal(
     val roles: Set<Role>,
 )
 
-// app is the one the link leads to, the console when missing
+// app is the one the link leads to, the default app of the routes when missing
 @Serializable
 data class LoginRequest(
     val email: String,
     val redirect: String? = null,
-    val app: String = CONSOLE_APP,
+    val app: String? = null,
 )
 
-const val CONSOLE_APP = "console"
-
 // an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
-// goes into the mail's subject, e.g. "Sign in to the console"
+// goes into the mail's subject, e.g. "Sign in to example.org"
 data class LoginApp(
     val url: String,
     val name: String,
@@ -120,6 +118,8 @@ fun Route.auth(
     mailSender: MailSender,
     // by the name a login request gives, only these get links
     apps: Map<String, LoginApp>,
+    // the app of the login requests that name none
+    defaultApp: String,
     rolesOf: (email: String) -> Set<Role>,
     // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
@@ -134,7 +134,7 @@ fun Route.auth(
     post("/login") {
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
-        val app = apps[request.app]
+        val app = apps[request.app ?: defaultApp]
         val errors =
             listOfNotNull(
                 "No valid e-mail address.".takeIf { email == null },
@@ -268,8 +268,8 @@ fun normalizeEmail(email: String): String? {
     }
 }
 
-// only paths below the console are followed after the login, the session token is stored
-// for the console's origin only, anything else could redirect to a foreign site
+// only paths below the apps are followed after the login, the session token is stored
+// for the apps' origin only, anything else could redirect to a foreign site
 fun safeRedirect(redirect: String?): String {
     if (redirect == null || redirect.length > 2048 || !redirect.startsWith("/") || redirect.startsWith("//")) {
         return "/"

@@ -12,7 +12,6 @@ dependencies {
     implementation(project(":sak-auth"))
     implementation(project(":sak-logs"))
     implementation(project(":sak-openrouter"))
-    runtimeOnly(project(":sak-console"))
     runtimeOnly(project(":sak-frontend"))
     implementation(libs.caffeine)
     implementation(libs.ktor.server.content.negotiation)

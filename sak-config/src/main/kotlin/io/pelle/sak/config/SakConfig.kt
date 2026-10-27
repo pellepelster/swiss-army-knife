@@ -18,7 +18,7 @@ data class SakConfig(
     val rootDomain: String,
     @SerialName("caddy_admin_url")
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
-    // the console and its e-mail login are only served when configured
+    // sak-frontend and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
     // the text discovery in the photos and recordings of notes is only offered when configured
@@ -27,11 +27,6 @@ data class SakConfig(
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
     val authDataDir: Path get() = dataDir.resolve("auth")
-
-    val consoleHost: String get() = "console.$rootDomain"
-
-    // the login links in the e-mails point here
-    val consoleUrl: String get() = auth?.consoleUrl ?: "https://$consoleHost"
 
     // sak-frontend, its apps and their login
     val appsHost: String get() = "apps.$rootDomain"
@@ -49,12 +44,9 @@ data class SakConfig(
     @Serializable
     data class AuthConfig(
         // only these addresses get a login link, compared case-insensitively
-        // the addresses that may sign in to the console, as admins
+        // the addresses that may sign in to sak-frontend, as admins
         val admins: List<String> = emptyList(),
         val smtp: SmtpConfig,
-        // overrides https://console.<root_domain>, e.g. for local tests
-        @SerialName("console_url")
-        val consoleUrl: String? = null,
         // overrides https://apps.<root_domain>, e.g. for local tests
         @SerialName("frontend_url")
         val frontendUrl: String? = null,

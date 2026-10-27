@@ -1,6 +1,6 @@
-# the backend of `mise run backend:run`, its data lives below build/local/; the console
-# (`mise run console:run`) and the frontend (`mise run frontend:run`) proxy /api to it, the login
-# links go to the mailpit backend:run starts
+# the backend of `mise run backend:run`, its data lives below build/local/; the frontend
+# (`mise run frontend:run`) proxies /api to it, the login links go to the mailpit backend:run
+# starts
 ktor:
   deployment:
     port: 8080
@@ -10,9 +10,8 @@ sak:
   # nothing listens here, so a caddy on its default admin port is never reconfigured
   caddy_admin_url: http://localhost:12019
   auth:
-    # the login links lead to the dev servers of mise run run, the console the backend serves on
-    # 8080 sends its links to 4200 as well
-    console_url: http://localhost:4200
+    # the login links lead to the dev server of mise run run, also for the frontend the backend
+    # serves on 8080
     frontend_url: http://localhost:4300
     # every login link lands in mailpit, none leaves the machine
     admins:

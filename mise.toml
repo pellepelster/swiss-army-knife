@@ -1,6 +1,6 @@
 [tools]
 terraform = "1.17.0"
-# builds and tests sak-console, the gradle build calls npm
+# builds and tests sak-frontend, the gradle build calls npm
 node = "22.22.3"
 "pipx:ansible-core" = "2.18.19"
 # the backend the `pipx:` tool above installs with
@@ -14,7 +14,7 @@ env = {
     AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
     AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
     HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token | head -n1')) }}",
-    # the scaleway transactional email account the console's login links are sent with
+    # the scaleway transactional email account the login links of the apps are sent with
     TF_VAR_smtp_host = "{{ get_env(name='TF_VAR_smtp_host', default=exec(command='pass show scaleway/pelle.io/smtp_host | head -n1')) }}",
     TF_VAR_smtp_port = "{{ get_env(name='TF_VAR_smtp_port', default=exec(command='pass show scaleway/pelle.io/smtp_port | head -n1')) }}",
     TF_VAR_smtp_username = "{{ get_env(name='TF_VAR_smtp_username', default=exec(command='pass show scaleway/pelle.io/smtp_user | head -n1')) }}",
@@ -90,8 +90,8 @@ docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.ta
 docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
 """
 
-# the ports do not clash: backend 8080, console 4200 (proxies /api to the backend), frontend 4300,
-# the mailpit the login links of the backend go to 1025 (smtp) and 8025 (web ui)
+# the ports do not clash: backend 8080, frontend 4300 (proxies /api to the backend), the mailpit
+# the login links of the backend go to 1025 (smtp) and 8025 (web ui)
 [tasks."backend:run"]
 description = "Run sak-backend on http://localhost:8080 with a mailpit for its login links on http://localhost:8025"
 env = {
@@ -113,14 +113,6 @@ trap 'docker stop sak-local-mailpit >/dev/null' EXIT
 ./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
 """
 
-[tasks."console:run"]
-description = "Run sak-console on http://localhost:4200, its /api goes to backend:run"
-dir = "{{config_root}}/sak-console"
-run = """
-[ -d node_modules ] || npm ci
-npx ng serve --port 4200
-"""
-
 [tasks."frontend:run"]
 description = "Run sak-frontend, the apps, on http://localhost:4300, its /api goes to backend:run"
 dir = "{{config_root}}/sak-frontend"
@@ -130,10 +122,10 @@ npx ng serve --port 4300
 """
 
 # everything at once, each in its own process group with its log in build/local/logs; the backend
-# first, its build installs the npm dependencies of the frontend and the console, which must not
-# change under their dev servers. Ctrl-C stops everything.
+# first, its build installs the npm dependencies of the frontend, which must not change under its
+# dev server. Ctrl-C stops everything.
 [tasks."run"]
-description = "Run the backend, mailpit, the console and the frontend until Ctrl-C"
+description = "Run the backend, mailpit and the frontend until Ctrl-C"
 # the script keeps the process groups of the tasks in an array
 shell = "bash -c"
 run = '''
@@ -187,16 +179,13 @@ echo "starting the backend and mailpit…"
 start backend:run
 await backend:run "Responding at" 600 "${pids[0]}" || exit 1
 
-echo "starting the console and the frontend…"
-start console:run
+echo "starting the frontend…"
 start frontend:run
-await console:run "Local:" 180 "${pids[1]}" || exit 1
-await frontend:run "Local:" 180 "${pids[2]}" || exit 1
+await frontend:run "Local:" 180 "${pids[1]}" || exit 1
 
 cat <<ADDRESSES
 
-  frontend   http://localhost:4300   the apps
-  console    http://localhost:4200   the console
+  frontend   http://localhost:4300   the apps, the console at /console
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
   mailpit    http://localhost:8025   every login link arrives here
 

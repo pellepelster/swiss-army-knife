@@ -58,7 +58,9 @@ class AuthRoutesTest {
                     auth(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
-                        mapOf(CONSOLE_APP to LoginApp(CONSOLE_URL, "the console"), "frontend" to LoginApp(FRONTEND_URL, "the apps")),
+                        // two apps, the requests that name none get the links of the first
+                        mapOf("console" to LoginApp(CONSOLE_URL, "example.org"), "frontend" to LoginApp(FRONTEND_URL, "apps.example.org")),
+                        "console",
                         rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
@@ -101,7 +103,7 @@ class AuthRoutesTest {
 
             val mail = withTimeout(5_000) { mails.receive() }
             mail.to shouldBe "admin@example.org"
-            mail.subject shouldBe "Sign in to the console"
+            mail.subject shouldBe "Sign in to example.org"
             val link = Url(mail.text.lines().single { it.startsWith(CONSOLE_URL) })
             link.toString() shouldStartWith "$CONSOLE_URL/signin?token="
             link.parameters.names() shouldBe setOf("token")
@@ -148,7 +150,7 @@ class AuthRoutesTest {
         authTest {
             client.login("admin@example.org", "/notes", app = "frontend").status shouldBe HttpStatusCode.Accepted
             val mail = mails.receive()
-            mail.subject shouldBe "Sign in to the apps"
+            mail.subject shouldBe "Sign in to apps.example.org"
             val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
             link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
             client.exchange(link.parameters["token"]!!).bodyAsText().json()["redirect"]!!.jsonPrimitive.content shouldBe "/notes"

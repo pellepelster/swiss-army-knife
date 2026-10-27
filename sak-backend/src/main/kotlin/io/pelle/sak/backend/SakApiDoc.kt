@@ -18,20 +18,20 @@ import kotlinx.serialization.json.Json
 
 const val OPENAPI_PATH = "/doc/openapi.json"
 
-// swagger ui is part of the console build (sak-console/public/swagger) and reads the document here
+// swagger ui is part of the build of sak-frontend (sak-frontend/public/swagger) and reads the document here
 const val SWAGGER_PATH = "/swagger"
 
 private val openApiJson = Json { explicitNulls = false }
 
-// the openapi document of the console api, built from the descriptions of its routes
+// the openapi document of the api of the apps, built from the descriptions of its routes
 @OptIn(ExperimentalKtorApi::class)
 fun apiDoc(application: Application): OpenApiDoc =
     OpenApiDoc(
         info =
             OpenApiInfo(
-                title = "sak console api",
+                title = "sak api",
                 version = API_VERSION.removePrefix("/"),
-                description = "The api of the sak console, the e-mail login and the logs of the sites the ingress serves.",
+                description = "The api of the apps of sak: the e-mail login, the notes, the static hosting, the redirects and the logs of the sites the ingress serves.",
             ),
     ) +
         application.routingRoot.descendants().filter { it.toString().startsWith("$API_PATH_PREFIX$API_VERSION/") } +

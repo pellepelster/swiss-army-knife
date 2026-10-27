@@ -27,6 +27,22 @@ val npmTest by tasks.registering(Exec::class) {
     commandLine("npm", "test", "--", "--watch=false")
 }
 
+// drives the apps in a browser against the controller, mailpit (docker) receives the login links,
+// vector and victorialogs (docker) the access log; not part of check because it needs docker and
+// a playwright browser
+val playwrightInstall by tasks.registering(Exec::class) {
+    description = "Install the browser the end-to-end tests run in"
+    dependsOn(npmCi)
+    commandLine("npx", "playwright", "install", "chromium")
+}
+
+val e2eTest by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Run the end-to-end tests of the apps against the controller and a mailpit e-mail sink"
+    dependsOn(playwrightInstall, ":sak-backend:installDist", ":sak-backend:vectorTest")
+    commandLine("npx", "playwright", "test")
+}
+
 tasks.processResources {
     dependsOn(npmBuild)
     from(layout.projectDirectory.dir("dist/sak-frontend/browser")) {
