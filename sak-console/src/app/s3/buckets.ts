@@ -24,7 +24,7 @@ export const POLL_INTERVAL_MS = 3000;
             Counted in the background, recounted every few minutes and after every write.
           </div>
         </div>
-        <a class="btn btn-primary" routerLink="/s3/buckets/new">Add bucket</a>
+        <a class="btn btn-primary" routerLink="/s3/buckets/create">Add bucket</a>
       </div>
 
       @if (error()) {

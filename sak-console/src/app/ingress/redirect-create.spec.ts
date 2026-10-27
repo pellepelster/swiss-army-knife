@@ -24,7 +24,7 @@ describe('RedirectCreate', () => {
         provideHttpClientTesting(),
         provideRouter([
           { path: 'redirects', component: Elsewhere },
-          { path: 'redirects/new', component: RedirectCreate },
+          { path: 'redirects/create', component: RedirectCreate },
         ]),
       ],
     });
@@ -34,7 +34,7 @@ describe('RedirectCreate', () => {
   afterEach(() => http.verify());
 
   const open = async (buckets: object[] = []) => {
-    const harness = await RouterTestingHarness.create('/redirects/new');
+    const harness = await RouterTestingHarness.create('/redirects/create');
     const page = harness.routeNativeElement!;
     http.expectOne('/api/v1/buckets?limit=500').flush(pageOf(buckets));
     await harness.fixture.whenStable();
@@ -113,7 +113,7 @@ describe('RedirectCreate', () => {
     expect(page.querySelector('[data-testid=create-error]')?.textContent?.trim()).toBe(
       'The domain is redirected already.',
     );
-    expect(TestBed.inject(Router).url).toBe('/redirects/new');
+    expect(TestBed.inject(Router).url).toBe('/redirects/create');
   });
 
   it('goes back to the redirects on cancel', async () => {

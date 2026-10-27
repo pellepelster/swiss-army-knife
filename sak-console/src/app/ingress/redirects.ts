@@ -17,7 +17,7 @@ import { Redirect, RedirectsService } from './redirects.service';
           <h1 class="mb-1">Redirects</h1>
           <div class="page-subtitle">Every request for a redirected domain is answered with a permanent redirect.</div>
         </div>
-        <a class="btn btn-primary" routerLink="/redirects/new">Add redirect</a>
+        <a class="btn btn-primary" routerLink="/redirects/create">Add redirect</a>
       </div>
 
       @if (error()) {

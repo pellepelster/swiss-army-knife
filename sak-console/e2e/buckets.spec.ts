@@ -18,7 +18,7 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
 
   // e2e-other holds the object playwright.config.ts put where its data goes, before it exists
   await page.getByRole('link', { name: 'Add bucket' }).click();
-  await expect(page).toHaveURL('/s3/buckets/new');
+  await expect(page).toHaveURL('/s3/buckets/create');
   await page.getByLabel('Bucket name').fill('e2e-other');
   await page.getByLabel('Domain 1', { exact: true }).fill('other.example.org');
   await page.getByRole('button', { name: 'Add bucket' }).click();

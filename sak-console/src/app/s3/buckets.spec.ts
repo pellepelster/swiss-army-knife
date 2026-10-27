@@ -103,7 +103,7 @@ describe('Buckets', () => {
     await harness.fixture.whenStable();
 
     const add = [...page.querySelectorAll<HTMLAnchorElement>('a')].find((a) => a.textContent?.trim() === 'Add bucket');
-    expect(add?.getAttribute('href')).toBe('/s3/buckets/new');
+    expect(add?.getAttribute('href')).toBe('/s3/buckets/create');
     expect(page.querySelector('[role=dialog]')).toBeNull();
   });
 

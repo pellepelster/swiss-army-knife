@@ -64,7 +64,7 @@ describe('Redirects', () => {
     const { page } = await open();
 
     const add = [...page.querySelectorAll<HTMLAnchorElement>('a')].find((a) => a.textContent?.trim() === 'Add redirect');
-    expect(add?.getAttribute('href')).toBe('/redirects/new');
+    expect(add?.getAttribute('href')).toBe('/redirects/create');
     expect(page.querySelector('[role=dialog]')).toBeNull();
   });
 

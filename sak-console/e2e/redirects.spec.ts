@@ -14,7 +14,7 @@ test('redirects a domain from its own page and stops redirecting it', async ({ p
   await expect(page).toHaveURL('/redirects');
 
   await page.getByRole('link', { name: 'Add redirect' }).click();
-  await expect(page).toHaveURL('/redirects/new');
+  await expect(page).toHaveURL('/redirects/create');
   await page.getByLabel('Domain', { exact: true }).fill('redirected.example.com');
   await page.getByLabel('External domain').first().check();
   await page.getByRole('textbox', { name: 'External domain' }).fill('example.org');

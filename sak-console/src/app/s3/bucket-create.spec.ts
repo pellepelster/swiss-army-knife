@@ -21,7 +21,7 @@ describe('BucketCreate', () => {
         provideHttpClientTesting(),
         provideRouter([
           { path: 's3/buckets', component: Elsewhere },
-          { path: 's3/buckets/new', component: BucketCreate },
+          { path: 's3/buckets/create', component: BucketCreate },
           { path: 's3/buckets/:name', component: Elsewhere },
         ]),
       ],
@@ -32,7 +32,7 @@ describe('BucketCreate', () => {
   afterEach(() => http.verify());
 
   const open = async () => {
-    const harness = await RouterTestingHarness.create('/s3/buckets/new');
+    const harness = await RouterTestingHarness.create('/s3/buckets/create');
     const page = harness.routeNativeElement!;
     const type = async (selector: string, value: string) => {
       const input = page.querySelector<HTMLInputElement>(selector)!;
@@ -96,7 +96,7 @@ describe('BucketCreate', () => {
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[data-testid=create-error]')?.textContent?.trim()).toBe('A bucket of the name exists.');
-    expect(TestBed.inject(Router).url).toBe('/s3/buckets/new');
+    expect(TestBed.inject(Router).url).toBe('/s3/buckets/create');
   });
 
   it('goes back to the buckets on cancel', async () => {

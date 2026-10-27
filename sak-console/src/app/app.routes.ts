@@ -45,7 +45,7 @@ export const routes: Routes = [
     title: 'Buckets · sak console',
   },
   // before the bucket, which would take the paths as its name or its tabs
-  { path: 's3/buckets/new', component: BucketCreate, canActivate: [authGuard], title: 'Add bucket · sak console' },
+  { path: 's3/buckets/create', component: BucketCreate, canActivate: [authGuard], title: 'Add bucket · sak console' },
   {
     path: 's3/buckets/:name/edit',
     component: BucketEdit,
@@ -63,7 +63,7 @@ export const routes: Routes = [
       { path: 'credentials', component: BucketCredentials },
     ],
   },
-  { path: 'redirects/new', component: RedirectCreate, canActivate: [authGuard], title: 'Add redirect · sak console' },
+  { path: 'redirects/create', component: RedirectCreate, canActivate: [authGuard], title: 'Add redirect · sak console' },
   {
     path: 'redirects',
     component: Redirects,
