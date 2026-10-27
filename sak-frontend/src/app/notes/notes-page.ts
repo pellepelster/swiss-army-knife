@@ -20,11 +20,14 @@ import { RecordingOverlay } from './recording-overlay';
   imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink],
   styleUrl: './notes-page.scss',
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/" aria-label="All apps"
+    <header class="toolbar ">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/"
+        aria-label="All apps"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Notes</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Notes</h1>
       <input
         #camera
         class="photo-input"

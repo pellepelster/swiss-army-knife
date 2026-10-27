@@ -21,93 +21,55 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
 @Component({
   selector: 'app-bucket-list',
   imports: [PaginationControl, RouterLink],
-  styleUrl: '../shared/app-page.scss',
-  styles: `
-    .buckets {
-      display: grid;
-      gap: 10px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .bucket {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 4px 16px;
-      align-items: baseline;
-      color: var(--ink);
-      text-decoration: none;
-
-      &:hover,
-      &:focus-visible {
-        border-color: var(--ink);
-      }
-    }
-    .name {
-      font-weight: 600;
-      overflow-wrap: anywhere;
-    }
-    .numbers {
-      grid-row: 1 / 3;
-      grid-column: 2;
-      align-self: center;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    .domains {
-      min-width: 0;
-      color: var(--muted);
-      font-size: 0.9rem;
-      overflow-wrap: anywhere;
-    }
-    .empty {
-      text-align: center;
-      padding: 32px 16px;
-    }
-  `,
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/" aria-label="All apps"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/"
+        aria-label="All apps"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Static hosting</h1>
-      <a class="button" routerLink="/static-hosting/create">
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Static hosting</h1>
+      <a class="btn btn-primary" routerLink="/static-hosting/create">
         <i class="fa-solid fa-plus" aria-hidden="true"></i> Create bucket
       </a>
     </header>
 
     @if (error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (loaded()) {
-      <ul class="buckets" aria-label="Buckets">
+      <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Buckets">
         @for (bucket of buckets(); track bucket.name) {
           <li>
             <a
-              class="bucket sheet"
+              class="card card-body flex-row justify-content-between gap-3 link-body-emphasis text-decoration-none"
               [routerLink]="['/static-hosting', bucket.name]"
               [attr.data-testid]="'bucket-' + bucket.name"
             >
-              <span class="name mono">{{ bucket.name }}</span>
-              <span class="numbers">
+              <span class="vstack gap-1">
+                <span class="fw-semibold font-monospace text-break">{{ bucket.name }}</span>
+                <span class="small text-body-secondary font-monospace text-break">{{
+                  served(bucket).join(', ') || 'not served at a domain'
+                }}</span>
+              </span>
+              <span class="text-end text-nowrap align-self-center">
                 @if (bucket.statistics.failed) {
-                  <span class="muted">not counted</span>
+                  <span class="text-body-secondary">not counted</span>
                 } @else if (bucket.statistics.computing) {
-                  <span class="counting">counting…</span>
+                  <span class="text-body-secondary fst-italic">counting…</span>
                 } @else {
                   <span data-testid="objects">{{ formatCount(bucket.statistics.objects!) }}</span>
-                  <span class="muted"> objects · </span>
+                  <span class="text-body-secondary"> objects · </span>
                   <span data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</span>
                 }
               </span>
-              <span class="domains mono">{{
-                served(bucket).join(', ') || 'not served at a domain'
-              }}</span>
             </a>
           </li>
         } @empty {
-          <li class="empty sheet">
+          <li class="card card-body text-center py-4">
             No buckets yet. A bucket keeps the files of a website, served at its domains.
           </li>
         }

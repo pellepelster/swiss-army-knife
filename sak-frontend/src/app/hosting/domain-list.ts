@@ -4,50 +4,26 @@ import { DOMAIN_PATTERN } from '../shared/domains';
 // the domains a bucket is served at, one input each; blank inputs are left out by the caller
 @Component({
   selector: 'app-domain-list',
-  styles: `
-    .domain {
-      display: flex;
-      gap: 8px;
-    }
-    .remove {
-      flex: none;
-      width: 42px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--ink);
-      cursor: pointer;
-    }
-    fieldset {
-      display: grid;
-      gap: 8px;
-      margin: 0;
-      padding: 0;
-      border: 0;
-    }
-    .add-domain {
-      justify-self: start;
-    }
-  `,
   template: `
-    <fieldset>
-      <legend class="label">Domains</legend>
+    <fieldset class="vstack gap-2">
+      <legend class="form-label fs-6 mb-0">Domains</legend>
       @for (domain of domains(); track $index; let index = $index) {
-        <div class="domain">
+        <div class="input-group">
           <input
-            class="input mono"
+            class="form-control font-monospace text-break"
             [id]="'domain-' + index"
             placeholder="www.example.org"
             autocomplete="off"
             autocapitalize="off"
             [attr.aria-label]="'Domain ' + (index + 1)"
             [attr.aria-invalid]="invalid(domain)"
+            [class.is-invalid]="invalid(domain)"
             [value]="domain"
             (input)="set(index, $any($event.target).value)"
           />
           <button
             type="button"
-            class="remove"
+            class="btn btn-outline-secondary"
             [attr.aria-label]="'Remove domain ' + (index + 1)"
             title="Remove domain"
             (click)="remove(index)"
@@ -56,12 +32,16 @@ import { DOMAIN_PATTERN } from '../shared/domains';
           </button>
         </div>
       } @empty {
-        <p class="hint">Not served at a domain yet.</p>
+        <p class="form-text mb-0">Not served at a domain yet.</p>
       }
-      <button type="button" class="button button-quiet button-small add-domain" (click)="add()">
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm align-self-start"
+        (click)="add()"
+      >
         <i class="fa-solid fa-plus" aria-hidden="true"></i> Add domain
       </button>
-      <p class="hint">
+      <p class="form-text mb-0">
         The objects of the bucket are served at every domain, redirects to the bucket lead to the
         first one. Each domain needs a DNS record pointing at the server.
       </p>

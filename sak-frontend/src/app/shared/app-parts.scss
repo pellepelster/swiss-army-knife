@@ -174,9 +174,3 @@
 .counting {
   color: var(--muted);
 }
-
-a:not(.button):not(.back):not(.tab) {
-  color: inherit;
-  text-decoration-color: var(--muted);
-  text-underline-offset: 3px;
-}

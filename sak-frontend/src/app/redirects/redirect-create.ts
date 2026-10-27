@@ -15,29 +15,33 @@ import { RedirectsService } from './redirects.service';
 @Component({
   selector: 'app-redirect-create',
   imports: [RedirectTargetFields, RouterLink],
-  styleUrl: '../shared/app-page.scss',
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/redirects" aria-label="All redirects"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/redirects"
+        aria-label="All redirects"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Create redirect</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Create redirect</h1>
     </header>
 
-    <form class="form sheet" (submit)="$event.preventDefault(); create()">
-      <div class="field">
-        <label class="label" for="source-domain">Domain</label>
+    <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
+      <div>
+        <label class="form-label" for="source-domain">Domain</label>
         <input
-          class="input mono"
+          class="form-control font-monospace text-break"
           id="source-domain"
           placeholder="example.com"
           autocomplete="off"
           autocapitalize="off"
           [attr.aria-invalid]="sourceDomain() !== '' && !valid(sourceDomain())"
+          [class.is-invalid]="sourceDomain() !== '' && !valid(sourceDomain())"
           [value]="sourceDomain()"
           (input)="sourceDomain.set($any($event.target).value)"
         />
-        <span class="hint"
+        <span class="form-text"
           >Every request for it is redirected. It needs a DNS record pointing at the server.</span
         >
       </div>
@@ -45,12 +49,12 @@ import { RedirectsService } from './redirects.service';
       <app-redirect-target-fields [(type)]="type" [(domain)]="domain" [(bucket)]="bucket" />
 
       @if (createError(); as error) {
-        <p class="form-errors" role="alert" data-testid="create-error">{{ error }}</p>
+        <p class="alert alert-danger mb-0" role="alert" data-testid="create-error">{{ error }}</p>
       }
 
-      <div class="actions">
-        <a class="button button-quiet" routerLink="/redirects">Cancel</a>
-        <button class="button" type="submit" [disabled]="!complete() || creating()">
+      <div class="d-flex flex-wrap justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" routerLink="/redirects">Cancel</a>
+        <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           }

@@ -14,15 +14,6 @@ import { ChartInputs, TimeSeries, toChartData, toChartOptions } from './chart-co
     }),
   ],
   styles: `
-    .title,
-    .label {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-    .value {
-      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-      font-weight: 600;
-    }
     .swatch {
       display: inline-block;
       width: 0.75rem;
@@ -36,14 +27,14 @@ import { ChartInputs, TimeSeries, toChartData, toChartOptions } from './chart-co
   `,
   template: `
     <div class="mb-3">
-      <div class="title mb-2">{{ title() }}</div>
+      <div class="small text-body-secondary mb-2">{{ title() }}</div>
       @if (legend().length) {
         <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0">
           @for (item of legend(); track item.key) {
             <li class="d-flex align-items-center gap-2">
               <span class="swatch" [style.background-color]="item.color"></span>
-              <span class="label">{{ item.label }}</span>
-              <span class="value">{{ item.value }}</span>
+              <span class="small text-body-secondary">{{ item.label }}</span>
+              <span class="font-monospace fw-semibold">{{ item.value }}</span>
             </li>
           }
         </ul>

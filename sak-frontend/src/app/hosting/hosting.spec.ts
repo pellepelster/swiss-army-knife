@@ -196,7 +196,7 @@ describe('Hosting', () => {
     expect(page().querySelector('[data-testid=domains] a')?.getAttribute('href')).toBe(
       'https://example.org/',
     );
-    const tabs = [...page().querySelectorAll('.tabs a')];
+    const tabs = [...page().querySelectorAll('nav[aria-label="Details"] a')];
     expect(tabs.map((tab) => tab.textContent?.trim())).toEqual([
       'Configuration',
       'Credentials',

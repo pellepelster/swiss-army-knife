@@ -9,70 +9,50 @@ import { s3Endpoint } from './buckets.service';
 @Component({
   selector: 'app-bucket-credentials',
   imports: [CopyButton],
-  styles: `
-    .value {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px;
-    }
-    .icon-button {
-      display: inline-grid;
-      place-items: center;
-      width: 32px;
-      height: 32px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--ink);
-      cursor: pointer;
-    }
-    .intro {
-      margin: 0 0 14px;
-    }
-  `,
   template: `
     @if (store.secretError(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    <section class="sheet" aria-label="Credentials">
-      <p class="intro muted">
+    <section class="card card-body" aria-label="Credentials">
+      <p class="text-body-secondary">
         Upload the files of the website with any S3 client, e.g. the AWS CLI. The key pair may
         access this bucket only.
       </p>
-      <dl class="facts">
-        <dt>Endpoint</dt>
-        <dd class="value">
-          <code class="mono" data-testid="endpoint">{{ endpoint }}</code>
+      <dl class="row mb-0">
+        <dt class="col-sm-3 fw-normal text-body-secondary">Endpoint</dt>
+        <dd class="col-sm-9 d-flex flex-wrap align-items-center gap-2">
+          <code class="font-monospace text-break" data-testid="endpoint">{{ endpoint }}</code>
           <app-copy-button
             [text]="endpoint"
             label="Copy endpoint"
             (failed)="copyFailed.set($event)"
           />
         </dd>
-        <dt>Bucket</dt>
-        <dd>
-          <code class="mono">{{ store.name() }}</code>
+        <dt class="col-sm-3 fw-normal text-body-secondary">Bucket</dt>
+        <dd class="col-sm-9">
+          <code class="font-monospace text-break">{{ store.name() }}</code>
         </dd>
         @if (store.secret(); as secret) {
-          <dt>Access key</dt>
-          <dd class="value">
-            <code class="mono" data-testid="access-key">{{ secret.accessKeyId }}</code>
+          <dt class="col-sm-3 fw-normal text-body-secondary">Access key</dt>
+          <dd class="col-sm-9 d-flex flex-wrap align-items-center gap-2">
+            <code class="font-monospace text-break" data-testid="access-key">{{
+              secret.accessKeyId
+            }}</code>
             <app-copy-button
               [text]="secret.accessKeyId"
               label="Copy access key"
               (failed)="copyFailed.set($event)"
             />
           </dd>
-          <dt>Secret key</dt>
-          <dd class="value">
-            <code class="mono" data-testid="secret-key">{{
+          <dt class="col-sm-3 fw-normal text-body-secondary">Secret key</dt>
+          <dd class="col-sm-9 d-flex flex-wrap align-items-center gap-2">
+            <code class="font-monospace text-break" data-testid="secret-key">{{
               shown() ? secret.secretAccessKey : '••••••••••••••••••••'
             }}</code>
             <button
               type="button"
-              class="icon-button"
+              class="btn btn-outline-secondary btn-sm"
               [attr.aria-label]="shown() ? 'Hide secret key' : 'Show secret key'"
               [title]="shown() ? 'Hide secret key' : 'Show secret key'"
               [attr.aria-pressed]="shown()"
@@ -92,11 +72,11 @@ import { s3Endpoint } from './buckets.service';
             />
           </dd>
         } @else {
-          <dt>Keys</dt>
-          <dd>
+          <dt class="col-sm-3 fw-normal text-body-secondary">Keys</dt>
+          <dd class="col-sm-9">
             <button
               type="button"
-              class="button button-small"
+              class="btn btn-primary btn-sm"
               [disabled]="store.retrievingSecret()"
               (click)="store.retrieveSecret()"
             >
@@ -111,7 +91,7 @@ import { s3Endpoint } from './buckets.service';
         }
       </dl>
       @if (copyFailed()) {
-        <p class="error" role="alert">
+        <p class="alert alert-danger mb-0" role="alert">
           The browser did not allow to copy, please select the text instead.
         </p>
       }

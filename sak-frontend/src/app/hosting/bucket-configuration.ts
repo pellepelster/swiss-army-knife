@@ -6,42 +6,26 @@ import { servedDomains } from './buckets.service';
 // changed on its edit page
 @Component({
   selector: 'app-bucket-configuration',
-  styles: `
-    .configuration {
-      display: grid;
-      gap: 10px;
-    }
-    p {
-      margin: 0;
-    }
-    ul {
-      display: grid;
-      gap: 4px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-  `,
   template: `
     @if (store.bucket(); as bucket) {
-      <section class="sheet configuration" aria-label="Domains">
+      <section class="card card-body gap-2" aria-label="Domains">
         @if (served().length) {
-          <p>Files uploaded to this bucket are served at the following addresses:</p>
-          <ul data-testid="domains">
+          <p class="mb-0">Files uploaded to this bucket are served at the following addresses:</p>
+          <ul class="list-unstyled vstack gap-1 mb-0" data-testid="domains">
             @for (domain of served(); track domain) {
-              <li class="mono">
+              <li class="font-monospace text-break">
                 <a [href]="'https://' + domain + '/'" target="_blank" rel="noopener"
                   >https://{{ domain }}/</a
                 >
               </li>
             }
           </ul>
-          <p class="hint">
-            An <span class="mono">index.html</span> is served for a folder, e.g. at the address
-            itself.
+          <p class="form-text mb-0">
+            An <span class="font-monospace text-break">index.html</span> is served for a folder,
+            e.g. at the address itself.
           </p>
         } @else {
-          <p data-testid="domains">
+          <p class="mb-0" data-testid="domains">
             Files uploaded to this bucket are not served yet, add a domain on its edit page.
           </p>
         }

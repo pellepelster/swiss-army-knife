@@ -12,31 +12,28 @@ import { BucketsService } from './buckets.service';
   selector: 'app-bucket-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [BucketStore],
-  styleUrls: ['../shared/app-page.scss', '../shared/detail-view.scss'],
-  styles: `
-    .button-danger {
-      background: var(--danger);
-      color: var(--sheet);
-    }
-  `,
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/static-hosting" aria-label="All buckets"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/static-hosting"
+        aria-label="All buckets"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title mono">{{ name() }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ name() }}</h1>
       @if (store.bucket()) {
         @if (confirming()) {
-          <button class="button button-danger" type="button" (click)="delete()">Delete</button>
-          <button class="button button-quiet" type="button" (click)="confirming.set(false)">
+          <button class="btn btn-danger" type="button" (click)="delete()">Delete</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
             Keep
           </button>
         } @else {
-          <a class="button" [routerLink]="['/static-hosting', name(), 'edit']">
+          <a class="btn btn-primary" [routerLink]="['/static-hosting', name(), 'edit']">
             <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
           </a>
           <button
-            class="button button-quiet"
+            class="btn btn-outline-secondary"
             type="button"
             [attr.aria-label]="'Delete the bucket ' + name()"
             (click)="confirming.set(true)"
@@ -48,66 +45,74 @@ import { BucketsService } from './buckets.service';
     </header>
 
     @if (store.error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (store.bucket(); as bucket) {
-      <dl class="overview sheet" aria-label="Overview">
+      <dl class="card card-body flex-row flex-wrap gap-4 mb-3" aria-label="Overview">
         <div>
-          <dt>Created</dt>
-          <dd data-testid="created">{{ bucket.createdAt | localDateTime: 'medium' : 'short' }}</dd>
+          <dt class="small text-uppercase text-body-secondary fw-normal">Created</dt>
+          <dd class="mb-0 fw-semibold" data-testid="created">
+            {{ bucket.createdAt | localDateTime: 'medium' : 'short' }}
+          </dd>
         </div>
         @if (bucket.updatedAt; as updatedAt) {
           <div>
-            <dt>Updated</dt>
-            <dd data-testid="updated">{{ updatedAt | localDateTime: 'medium' : 'short' }}</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Updated</dt>
+            <dd class="mb-0 fw-semibold" data-testid="updated">
+              {{ updatedAt | localDateTime: 'medium' : 'short' }}
+            </dd>
           </div>
         }
         @if (bucket.statistics.failed) {
           <div>
-            <dt>Objects</dt>
-            <dd class="muted">not counted</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Objects</dt>
+            <dd class="mb-0 fw-semibold text-body-secondary">not counted</dd>
           </div>
         } @else if (bucket.statistics.computing) {
           <div>
-            <dt>Objects</dt>
-            <dd class="counting">counting…</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Objects</dt>
+            <dd class="mb-0 fw-semibold text-body-secondary fst-italic">counting…</dd>
           </div>
         } @else {
           <div>
-            <dt>Objects</dt>
-            <dd data-testid="objects">{{ formatCount(bucket.statistics.objects!) }}</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Objects</dt>
+            <dd class="mb-0 fw-semibold" data-testid="objects">
+              {{ formatCount(bucket.statistics.objects!) }}
+            </dd>
           </div>
           <div>
-            <dt>Size</dt>
-            <dd data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Size</dt>
+            <dd class="mb-0 fw-semibold" data-testid="bytes">
+              {{ formatBytes(bucket.statistics.bytes!) }}
+            </dd>
           </div>
         }
       </dl>
 
-      <nav class="tabs" aria-label="Details">
+      <nav class="nav nav-underline mb-3" aria-label="Details">
         <a
-          class="tab"
+          class="nav-link"
           routerLink="configuration"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
           >Configuration</a
         >
         <a
-          class="tab"
+          class="nav-link"
           routerLink="credentials"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
           >Credentials</a
         >
         <a
-          class="tab"
+          class="nav-link"
           routerLink="publishing"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
           >Publishing</a
         >
-        <a class="tab" routerLink="logs" routerLinkActive="active" ariaCurrentWhenActive="page"
+        <a class="nav-link" routerLink="logs" routerLinkActive="active" ariaCurrentWhenActive="page"
           >Logs</a
         >
       </nav>

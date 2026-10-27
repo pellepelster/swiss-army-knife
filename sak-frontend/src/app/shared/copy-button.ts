@@ -10,45 +10,12 @@ export const COPIED_MS = 2000;
 // refuse the clipboard) the place using it tells, failed says whether the last copy did
 @Component({
   selector: 'app-copy-button',
-  styles: `
-    :host {
-      display: contents;
-    }
-    button {
-      cursor: pointer;
-    }
-    .icon {
-      display: inline-grid;
-      place-items: center;
-      width: 32px;
-      height: 32px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--ink);
-    }
-    .terminal {
-      display: inline-flex;
-      flex: none;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border: 1px solid #4a4843;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--terminal-text);
-      font: inherit;
-
-      &:hover,
-      &:focus-visible {
-        border-color: var(--terminal-text);
-      }
-    }
-  `,
   template: `
     <button
       type="button"
-      [class]="look()"
+      [class]="
+        look() === 'icon' ? 'btn btn-outline-secondary btn-sm' : 'btn btn-outline-light btn-sm'
+      "
       [attr.aria-label]="label()"
       [title]="label()"
       (click)="copy()"

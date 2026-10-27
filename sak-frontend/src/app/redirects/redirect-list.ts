@@ -20,90 +20,58 @@ import { Redirect, RedirectsService } from './redirects.service';
 @Component({
   selector: 'app-redirect-list',
   imports: [PaginationControl, RouterLink],
-  styleUrl: '../shared/app-page.scss',
-  styles: `
-    .redirects {
-      display: grid;
-      gap: 10px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .redirect {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px 16px;
-    }
-    .route {
-      display: grid;
-      flex: 1;
-      gap: 4px;
-      min-width: 0;
-    }
-    .source {
-      font-weight: 600;
-    }
-    .target {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-    .kind {
-      margin-right: 6px;
-      padding: 1px 8px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .intro {
-      margin: 0 0 16px;
-    }
-    .empty {
-      padding: 32px 16px;
-      text-align: center;
-    }
-  `,
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/" aria-label="All apps"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/"
+        aria-label="All apps"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Redirects</h1>
-      <a class="button" routerLink="/redirects/create">
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Redirects</h1>
+      <a class="btn btn-primary" routerLink="/redirects/create">
         <i class="fa-solid fa-plus" aria-hidden="true"></i> Create redirect
       </a>
     </header>
 
-    <p class="intro muted">
+    <p class="text-body-secondary">
       Every request for a redirected domain is answered with a permanent redirect, the path stays.
     </p>
 
     @if (error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (loaded()) {
-      <ul class="redirects" aria-label="Redirects">
+      <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Redirects">
         @for (redirect of redirects(); track redirect.sourceDomain) {
-          <li class="redirect sheet" [attr.data-testid]="'redirect-' + redirect.sourceDomain">
-            <div class="route">
-              <a class="source mono" [routerLink]="['/redirects', redirect.sourceDomain]">{{
-                redirect.sourceDomain
-              }}</a>
-              <span class="target">
+          <li class="card card-body" [attr.data-testid]="'redirect-' + redirect.sourceDomain">
+            <div class="vstack gap-1">
+              <a
+                class="fw-semibold font-monospace text-break"
+                [routerLink]="['/redirects', redirect.sourceDomain]"
+                >{{ redirect.sourceDomain }}</a
+              >
+              <span class="target small text-body-secondary">
                 <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                <span class="kind">{{ redirect.target.type }}</span>
+                <span class="badge border text-body-secondary text-uppercase fw-normal mx-1">{{
+                  redirect.target.type
+                }}</span>
                 @if (redirect.target.type === 'bucket') {
-                  <a class="mono" [routerLink]="['/static-hosting', redirect.target.bucket]">{{
-                    redirect.target.bucket
-                  }}</a>
+                  <a
+                    class="font-monospace text-break"
+                    [routerLink]="['/static-hosting', redirect.target.bucket]"
+                    >{{ redirect.target.bucket }}</a
+                  >
                 } @else {
-                  <span class="mono">{{ redirect.target.domain }}</span>
+                  <span class="font-monospace text-break">{{ redirect.target.domain }}</span>
                 }
               </span>
-              <span class="target mono" data-testid="location">
+              <span
+                class="small text-body-secondary font-monospace text-break"
+                data-testid="location"
+              >
                 @if (redirect.location) {
                   https://{{ redirect.location }}
                 } @else {
@@ -113,7 +81,7 @@ import { Redirect, RedirectsService } from './redirects.service';
             </div>
           </li>
         } @empty {
-          <li class="empty sheet">No redirects yet.</li>
+          <li class="card card-body text-center py-4">No redirects yet.</li>
         }
       </ul>
       <app-pagination

@@ -11,31 +11,28 @@ import { RedirectsService } from './redirects.service';
   selector: 'app-redirect-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [RedirectStore],
-  styleUrls: ['../shared/app-page.scss', '../shared/detail-view.scss'],
-  styles: `
-    .button-danger {
-      background: var(--danger);
-      color: var(--sheet);
-    }
-  `,
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/redirects" aria-label="All redirects"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/redirects"
+        aria-label="All redirects"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title mono">{{ source() }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ source() }}</h1>
       @if (store.redirect()) {
         @if (confirming()) {
-          <button class="button button-danger" type="button" (click)="delete()">Delete</button>
-          <button class="button button-quiet" type="button" (click)="confirming.set(false)">
+          <button class="btn btn-danger" type="button" (click)="delete()">Delete</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
             Keep
           </button>
         } @else {
-          <a class="button" [routerLink]="['/redirects', source(), 'edit']">
+          <a class="btn btn-primary" [routerLink]="['/redirects', source(), 'edit']">
             <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
           </a>
           <button
-            class="button button-quiet"
+            class="btn btn-outline-secondary"
             type="button"
             [attr.aria-label]="'Delete the redirect of ' + source()"
             (click)="confirming.set(true)"
@@ -47,38 +44,40 @@ import { RedirectsService } from './redirects.service';
     </header>
 
     @if (store.error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (store.redirect(); as redirect) {
-      <dl class="overview sheet" aria-label="Overview">
+      <dl class="card card-body flex-row flex-wrap gap-4 mb-3" aria-label="Overview">
         <div>
-          <dt>Created</dt>
-          <dd data-testid="created">
+          <dt class="small text-uppercase text-body-secondary fw-normal">Created</dt>
+          <dd class="mb-0 fw-semibold" data-testid="created">
             {{ redirect.createdAt | localDateTime: 'medium' : 'short' }}
           </dd>
         </div>
         @if (redirect.updatedAt; as updatedAt) {
           <div>
-            <dt>Updated</dt>
-            <dd data-testid="updated">{{ updatedAt | localDateTime: 'medium' : 'short' }}</dd>
+            <dt class="small text-uppercase text-body-secondary fw-normal">Updated</dt>
+            <dd class="mb-0 fw-semibold" data-testid="updated">
+              {{ updatedAt | localDateTime: 'medium' : 'short' }}
+            </dd>
           </div>
         }
         <div>
-          <dt>Leads to</dt>
-          <dd class="mono" data-testid="location">
+          <dt class="small text-uppercase text-body-secondary fw-normal">Leads to</dt>
+          <dd class="mb-0 fw-semibold font-monospace text-break" data-testid="location">
             @if (redirect.location) {
               https://{{ redirect.location }}
             } @else {
-              <span class="muted">nowhere</span>
+              <span class="text-body-secondary">nowhere</span>
             }
           </dd>
         </div>
       </dl>
 
-      <nav class="tabs" aria-label="Details">
+      <nav class="nav nav-underline mb-3" aria-label="Details">
         <a
-          class="tab"
+          class="nav-link"
           routerLink="configuration"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"

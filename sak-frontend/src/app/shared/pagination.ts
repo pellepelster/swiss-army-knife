@@ -5,25 +5,15 @@ import { Pagination } from './api';
 // nothing while the list fits on one page
 @Component({
   selector: 'app-pagination',
-  styles: `
-    .pagination {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 8px 16px;
-      margin: 16px 0;
-    }
-    .range {
-      font-variant-numeric: tabular-nums;
-    }
-  `,
   template: `
     @if (pagination(); as page) {
       @if (page.total > page.limit || page.offset > 0) {
-        <nav class="pagination" [attr.aria-label]="label()">
+        <nav
+          class="pagination d-flex flex-wrap align-items-center justify-content-center gap-3 my-3"
+          [attr.aria-label]="label()"
+        >
           <button
-            class="button button-quiet button-small"
+            class="btn btn-outline-secondary btn-sm"
             type="button"
             aria-label="Previous page"
             [disabled]="page.offset === 0"
@@ -31,9 +21,9 @@ import { Pagination } from './api';
           >
             <i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Previous
           </button>
-          <span class="range muted" data-testid="range">{{ range() }}</span>
+          <span class="text-body-secondary" data-testid="range">{{ range() }}</span>
           <button
-            class="button button-quiet button-small"
+            class="btn btn-outline-secondary btn-sm"
             type="button"
             aria-label="Next page"
             [disabled]="page.offset + page.limit >= page.total"

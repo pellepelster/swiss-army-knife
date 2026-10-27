@@ -18,7 +18,7 @@ import { CopyButton } from '../shared/copy-button';
 
       display: block;
       overflow: hidden;
-      border-radius: 10px;
+      border-radius: var(--bs-border-radius-lg);
       background: var(--terminal);
       color: var(--terminal-text);
       box-shadow: 0 6px 16px -10px rgb(0 0 0 / 60%);

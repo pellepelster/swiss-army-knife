@@ -31,61 +31,31 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
 @Component({
   selector: 'app-bucket-logs',
   imports: [LocalDateTimePipe, TimeSeriesChart],
-  styles: `
-    .logs {
-      display: grid;
-      gap: 16px;
-    }
-
-    .range {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .range .input {
-      width: auto;
-    }
-
-    .requests {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-
-      th,
-      td {
-        padding: 6px 8px;
-        border-bottom: 1px solid var(--line);
-        text-align: left;
-        vertical-align: top;
-      }
-
-      th {
-        color: var(--muted);
-        font-weight: 600;
-      }
-
-      .path {
-        overflow-wrap: anywhere;
-      }
-    }
-  `,
   template: `
-    <section class="sheet logs" aria-label="Logs">
+    <section class="card card-body gap-3" aria-label="Logs">
       @if (failed() === 'unknown') {
-        <p data-testid="logs-state">The bucket is not served at a domain, it has no access logs.</p>
+        <p class="mb-0" data-testid="logs-state">
+          The bucket is not served at a domain, it has no access logs.
+        </p>
       } @else if (failed() === 'forbidden') {
-        <p class="error" role="alert">Your role does not allow to see the logs.</p>
+        <p class="alert alert-danger mb-0" role="alert">
+          Your role does not allow to see the logs.
+        </p>
       } @else {
         @if (domains().length) {
-          <p class="muted" data-testid="logs-domains">
-            The requests to <span class="mono">{{ domains().join(', ') }}</span>
+          <p class="text-body-secondary mb-0" data-testid="logs-domains">
+            The requests to
+            <span class="font-monospace text-break">{{ domains().join(', ') }}</span>
           </p>
         }
 
-        <div class="range">
-          <label class="label" for="logs-range">Range</label>
-          <select id="logs-range" class="input" (change)="range.set($any($event.target).value)">
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0" for="logs-range">Range</label>
+          <select
+            id="logs-range"
+            class="form-select w-auto"
+            (change)="range.set($any($event.target).value)"
+          >
             @for (choice of ranges(); track choice.key) {
               <option [value]="choice.key" [selected]="choice.key === selectedRange()">
                 {{ choice.label }}
@@ -95,20 +65,28 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
         </div>
 
         @if (failed()) {
-          <p class="error" role="alert">
+          <p class="alert alert-danger mb-0" role="alert">
             The logs could not be loaded, they may not be available right now.
           </p>
         } @else if (metrics(); as m) {
-          <dl class="facts">
-            <dt>Requests</dt>
-            <dd class="mono" data-testid="logs-requests">{{ formatCount(m.totalRequests) }}</dd>
-            <dt>Error rate</dt>
-            <dd class="mono" data-testid="logs-error-rate">{{ formatPercent(m.errorRate) }}</dd>
-            <dt>Transferred</dt>
-            <dd class="mono" data-testid="logs-bytes">{{ formatBytes(m.totalBytes) }}</dd>
+          <dl class="row mb-0">
+            <dt class="col-sm-3 fw-normal text-body-secondary">Requests</dt>
+            <dd class="col-sm-9 font-monospace text-break" data-testid="logs-requests">
+              {{ formatCount(m.totalRequests) }}
+            </dd>
+            <dt class="col-sm-3 fw-normal text-body-secondary">Error rate</dt>
+            <dd class="col-sm-9 font-monospace text-break" data-testid="logs-error-rate">
+              {{ formatPercent(m.errorRate) }}
+            </dd>
+            <dt class="col-sm-3 fw-normal text-body-secondary">Transferred</dt>
+            <dd class="col-sm-9 font-monospace text-break" data-testid="logs-bytes">
+              {{ formatBytes(m.totalBytes) }}
+            </dd>
           </dl>
           @if (m.totalRequests === 0) {
-            <p class="muted" data-testid="logs-state">No requests in this range.</p>
+            <p class="text-body-secondary mb-0" data-testid="logs-state">
+              No requests in this range.
+            </p>
           } @else {
             <app-time-series-chart
               title="Requests by status"
@@ -120,33 +98,35 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
             />
           }
         } @else {
-          <p class="muted">Loading…</p>
+          <p class="text-body-secondary mb-0">Loading…</p>
         }
 
-        <h2 class="label">Latest requests</h2>
+        <h2 class="h6 mb-0">Latest requests</h2>
         @if (followFailed()) {
-          <p class="error" role="alert" data-testid="requests-state">
+          <p class="alert alert-danger mb-0" role="alert" data-testid="requests-state">
             The requests can not be followed right now.
           </p>
         } @else if (requests().length === 0) {
-          <p class="muted" data-testid="requests-state">No requests in the last minutes yet.</p>
+          <p class="text-body-secondary mb-0" data-testid="requests-state">
+            No requests in the last minutes yet.
+          </p>
         } @else {
-          <table class="requests" aria-label="Latest requests">
+          <table class="table table-sm mb-0" aria-label="Latest requests">
             <thead>
               <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Domain</th>
-                <th scope="col">Path</th>
-                <th scope="col">Status</th>
+                <th scope="col" class="text-body-secondary">Time</th>
+                <th scope="col" class="text-body-secondary">Domain</th>
+                <th scope="col" class="text-body-secondary">Path</th>
+                <th scope="col" class="text-body-secondary">Status</th>
               </tr>
             </thead>
             <tbody>
               @for (request of requests(); track $index) {
                 <tr>
                   <td>{{ request.time | localDateTime: 'short' : 'medium' }}</td>
-                  <td class="mono">{{ request.host }}</td>
-                  <td class="mono path">{{ request.path }}</td>
-                  <td class="mono">{{ request.status || '–' }}</td>
+                  <td class="font-monospace text-break">{{ request.host }}</td>
+                  <td class="font-monospace text-break">{{ request.path }}</td>
+                  <td class="font-monospace text-break">{{ request.status || '–' }}</td>
                 </tr>
               }
             </tbody>

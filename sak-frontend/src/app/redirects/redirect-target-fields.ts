@@ -24,32 +24,13 @@ export function redirectTarget(
 // pages creating and editing a redirect
 @Component({
   selector: 'app-redirect-target-fields',
-  styles: `
-    :host {
-      display: contents;
-    }
-    fieldset {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 20px;
-      margin: 0;
-      padding: 0;
-      border: 0;
-    }
-    legend {
-      margin-bottom: 6px;
-    }
-    .choice {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-  `,
+  host: { class: 'vstack gap-3' },
   template: `
     <fieldset>
-      <legend class="label">Redirect to</legend>
-      <label class="choice">
+      <legend class="form-label fs-6">Redirect to</legend>
+      <div class="form-check form-check-inline">
         <input
+          class="form-check-input"
           type="radio"
           name="type"
           id="target-domain"
@@ -57,10 +38,11 @@ export function redirectTarget(
           [checked]="type() === 'domain'"
           (change)="type.set('domain')"
         />
-        An external domain
-      </label>
-      <label class="choice">
+        <label class="form-check-label" for="target-domain">An external domain</label>
+      </div>
+      <div class="form-check form-check-inline">
         <input
+          class="form-check-input"
           type="radio"
           name="type"
           id="target-bucket"
@@ -68,29 +50,30 @@ export function redirectTarget(
           [checked]="type() === 'bucket'"
           (change)="type.set('bucket')"
         />
-        A bucket
-      </label>
+        <label class="form-check-label" for="target-bucket">A bucket</label>
+      </div>
     </fieldset>
 
     @if (type() === 'domain') {
-      <div class="field">
-        <label class="label" for="target-domain-name">External domain</label>
+      <div>
+        <label class="form-label" for="target-domain-name">External domain</label>
         <input
-          class="input mono"
+          class="form-control font-monospace text-break"
           id="target-domain-name"
           placeholder="example.org"
           autocomplete="off"
           autocapitalize="off"
           [attr.aria-invalid]="domain() !== '' && !valid(domain())"
+          [class.is-invalid]="domain() !== '' && !valid(domain())"
           [value]="domain()"
           (input)="domain.set($any($event.target).value)"
         />
       </div>
     } @else {
-      <div class="field">
-        <label class="label" for="target-bucket-name">Bucket</label>
+      <div>
+        <label class="form-label" for="target-bucket-name">Bucket</label>
         <select
-          class="input mono"
+          class="form-select font-monospace text-break"
           id="target-bucket-name"
           [value]="bucket()"
           (change)="bucket.set($any($event.target).value)"
@@ -102,7 +85,7 @@ export function redirectTarget(
             </option>
           }
         </select>
-        <span class="hint"
+        <span class="form-text"
           >Only buckets served at a domain, the redirect leads to their first one.</span
         >
       </div>

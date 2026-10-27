@@ -12,40 +12,48 @@ import { DomainList } from './domain-list';
 @Component({
   selector: 'app-bucket-edit',
   imports: [DomainList, RouterLink],
-  styleUrl: '../shared/app-page.scss',
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" [routerLink]="['/static-hosting', name()]" aria-label="Back to the bucket"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        [routerLink]="['/static-hosting', name()]"
+        aria-label="Back to the bucket"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Edit bucket</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Edit bucket</h1>
     </header>
 
     @if (error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (loaded()) {
-      <form class="form sheet" (submit)="$event.preventDefault(); save()">
-        <div class="field">
-          <label class="label" for="edit-bucket-name">Name</label>
-          <input class="input mono" id="edit-bucket-name" [value]="name()" readonly />
-          <span class="hint">The name can not be changed.</span>
+      <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
+        <div>
+          <label class="form-label" for="edit-bucket-name">Name</label>
+          <input
+            class="form-control-plaintext font-monospace text-break"
+            id="edit-bucket-name"
+            [value]="name()"
+            readonly
+          />
+          <span class="form-text">The name can not be changed.</span>
         </div>
 
         <app-domain-list [(domains)]="domains" />
 
         @if (saveErrors().length) {
-          <ul class="form-errors" role="alert" data-testid="save-errors">
+          <ul class="alert alert-danger mb-0" role="alert" data-testid="save-errors">
             @for (message of saveErrors(); track $index) {
               <li>{{ message }}</li>
             }
           </ul>
         }
 
-        <div class="actions">
-          <a class="button button-quiet" [routerLink]="['/static-hosting', name()]">Cancel</a>
-          <button class="button" type="submit" [disabled]="!valid() || saving()">
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+          <a class="btn btn-outline-secondary" [routerLink]="['/static-hosting', name()]">Cancel</a>
+          <button class="btn btn-primary" type="submit" [disabled]="!valid() || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }

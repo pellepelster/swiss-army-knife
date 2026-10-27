@@ -10,30 +10,34 @@ import { DomainList } from './domain-list';
 @Component({
   selector: 'app-bucket-create',
   imports: [DomainList, RouterLink],
-  styleUrl: '../shared/app-page.scss',
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" routerLink="/static-hosting" aria-label="All buckets"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/static-hosting"
+        aria-label="All buckets"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Create bucket</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Create bucket</h1>
     </header>
 
-    <form class="form sheet" (submit)="$event.preventDefault(); create()">
-      <div class="field">
-        <label class="label" for="bucket-name">Name</label>
+    <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
+      <div>
+        <label class="form-label" for="bucket-name">Name</label>
         <input
-          class="input mono"
+          class="form-control font-monospace text-break"
           id="bucket-name"
           placeholder="my-website"
           autocomplete="off"
           autocapitalize="off"
           aria-describedby="bucket-name-hint"
           [attr.aria-invalid]="name() !== '' && !nameValid()"
+          [class.is-invalid]="name() !== '' && !nameValid()"
           [value]="name()"
           (input)="name.set($any($event.target).value)"
         />
-        <span class="hint" id="bucket-name-hint">
+        <span class="form-text" id="bucket-name-hint">
           3 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
           The bucket is also served at its name as subdomain. The name can not be changed later.
         </span>
@@ -42,16 +46,16 @@ import { DomainList } from './domain-list';
       <app-domain-list [(domains)]="domains" />
 
       @if (errors().length) {
-        <ul class="form-errors" role="alert" data-testid="create-errors">
+        <ul class="alert alert-danger mb-0" role="alert" data-testid="create-errors">
           @for (message of errors(); track $index) {
             <li>{{ message }}</li>
           }
         </ul>
       }
 
-      <div class="actions">
-        <a class="button button-quiet" routerLink="/static-hosting">Cancel</a>
-        <button class="button" type="submit" [disabled]="!valid() || creating()">
+      <div class="d-flex flex-wrap justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" routerLink="/static-hosting">Cancel</a>
+        <button class="btn btn-primary" type="submit" [disabled]="!valid() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           }

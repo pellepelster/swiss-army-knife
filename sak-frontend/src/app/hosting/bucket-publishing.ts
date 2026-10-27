@@ -12,37 +12,16 @@ const SECRET_MASK = '•••••••••••••••••••�
 @Component({
   selector: 'app-bucket-publishing',
   imports: [CodeBlock],
-  styles: `
-    .steps {
-      display: grid;
-      gap: 18px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .steps li {
-      display: grid;
-      gap: 8px;
-      min-width: 0;
-    }
-    .steps p {
-      margin: 0;
-    }
-    code.inline {
-      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-      font-size: 0.9em;
-    }
-  `,
   template: `
     @if (store.secretError(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (store.bucket(); as bucket) {
-      <section class="sheet" aria-label="Publishing with Hugo">
-        <ol class="steps">
-          <li>
-            <p>
+      <section class="card card-body" aria-label="Publishing with Hugo">
+        <ol class="list-unstyled vstack gap-4 mb-0">
+          <li class="vstack gap-2">
+            <p class="mb-0">
               Add the bucket as deployment target to the configuration of the
               <a
                 href="https://gohugo.io/host-and-deploy/deploy-with-hugo-deploy/"
@@ -50,7 +29,7 @@ const SECRET_MASK = '•••••••••••••••••••�
                 rel="noopener"
                 >Hugo</a
               >
-              site, <code class="inline">hugo.toml</code>.
+              site, <code>hugo.toml</code>.
               {{
                 bucket.domains.length
                   ? 'The base URL is the first domain the bucket is served at.'
@@ -64,12 +43,11 @@ const SECRET_MASK = '•••••••••••••••••••�
               testId="hugo-toml"
             />
           </li>
-          <li>
-            <p>
+          <li class="vstack gap-2">
+            <p class="mb-0">
               Build the site and deploy it with the key pair of the bucket, which may access this
-              bucket only. <code class="inline">hugo deploy</code> is only part of the
-              <em>withdeploy</em> builds of Hugo, e.g.
-              <code class="inline">mise use hugo-extended-withdeploy</code> or the withdeploy
+              bucket only. <code>hugo deploy</code> is only part of the <em>withdeploy</em> builds
+              of Hugo, e.g. <code>mise use hugo-extended-withdeploy</code> or the withdeploy
               archives of the
               <a href="https://github.com/gohugoio/hugo/releases" target="_blank" rel="noopener"
                 >Hugo releases</a
@@ -86,6 +64,7 @@ const SECRET_MASK = '•••••••••••••••••••�
               >
                 <button
                   type="button"
+                  class="btn btn-outline-light btn-sm"
                   [attr.aria-label]="shown() ? 'Hide the secret key' : 'Show the secret key'"
                   [attr.aria-pressed]="shown()"
                   (click)="shown.set(!shown())"
@@ -103,7 +82,7 @@ const SECRET_MASK = '•••••••••••••••••••�
               <div>
                 <button
                   type="button"
-                  class="button button-small"
+                  class="btn btn-primary btn-sm"
                   [disabled]="store.retrievingSecret()"
                   (click)="store.retrieveSecret()"
                 >
@@ -117,8 +96,8 @@ const SECRET_MASK = '•••••••••••••••••••�
               </div>
             }
           </li>
-          <li>
-            <p class="muted">
+          <li class="vstack gap-2">
+            <p class="text-body-secondary">
               It only uploads what changed and deletes what is gone. The site is served at the
               domains of the bucket once their DNS records point at the server.
             </p>

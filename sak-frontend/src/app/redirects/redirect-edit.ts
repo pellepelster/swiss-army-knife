@@ -11,36 +11,44 @@ import { RedirectsService } from './redirects.service';
 @Component({
   selector: 'app-redirect-edit',
   imports: [RedirectTargetFields, RouterLink],
-  styleUrl: '../shared/app-page.scss',
+  host: { class: 'd-block container pb-5' },
   template: `
-    <header class="toolbar">
-      <a class="back" [routerLink]="['/redirects', source()]" aria-label="Back to the redirect"
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        [routerLink]="['/redirects', source()]"
+        aria-label="Back to the redirect"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="title">Edit redirect</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Edit redirect</h1>
     </header>
 
     @if (error(); as error) {
-      <p class="error" role="alert">{{ error }}</p>
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (loaded()) {
-      <form class="form sheet" (submit)="$event.preventDefault(); save()">
-        <div class="field">
-          <label class="label" for="source-domain">Domain</label>
-          <input class="input mono" id="source-domain" [value]="source()" readonly />
-          <span class="hint">The redirected domain can not be changed.</span>
+      <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
+        <div>
+          <label class="form-label" for="source-domain">Domain</label>
+          <input
+            class="form-control-plaintext font-monospace text-break"
+            id="source-domain"
+            [value]="source()"
+            readonly
+          />
+          <span class="form-text">The redirected domain can not be changed.</span>
         </div>
 
         <app-redirect-target-fields [(type)]="type" [(domain)]="domain" [(bucket)]="bucket" />
 
         @if (saveError(); as error) {
-          <p class="form-errors" role="alert" data-testid="save-error">{{ error }}</p>
+          <p class="alert alert-danger mb-0" role="alert" data-testid="save-error">{{ error }}</p>
         }
 
-        <div class="actions">
-          <a class="button button-quiet" [routerLink]="['/redirects', source()]">Cancel</a>
-          <button class="button" type="submit" [disabled]="target() === null || saving()">
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+          <a class="btn btn-outline-secondary" [routerLink]="['/redirects', source()]">Cancel</a>
+          <button class="btn btn-primary" type="submit" [disabled]="target() === null || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }

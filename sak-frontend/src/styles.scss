@@ -28,22 +28,87 @@
   }
 }
 
-* {
-  box-sizing: border-box;
+// bootstrap in the colors of the apps, light and dark (ColorSchemeService sets data-bs-theme): its
+// pages, cards, alerts and links take the palette above, its primary buttons the ink
+:root,
+[data-bs-theme] {
+  --bs-body-bg: var(--wall);
+  --bs-body-color: var(--ink);
+  --bs-emphasis-color: var(--ink);
+  --bs-secondary-color: var(--muted);
+  --bs-tertiary-bg: var(--sheet);
+  --bs-border-color: var(--line);
+  --bs-link-color: var(--ink);
+  --bs-link-color-rgb: var(--bs-body-color-rgb);
+  --bs-link-hover-color: var(--ink);
+  --bs-link-decoration: underline;
+  --bs-danger-text-emphasis: var(--danger);
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--danger) 14%, transparent);
+  --bs-danger-border-subtle: color-mix(in srgb, var(--danger) 35%, transparent);
+  --bs-form-invalid-color: var(--danger);
+  --bs-form-invalid-border-color: var(--danger);
+  --bs-code-color: var(--ink);
 }
 
-html,
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: inherit;
+  --bs-table-border-color: var(--line);
+}
+
 body {
-  margin: 0;
-  background: var(--wall);
-  color: var(--ink);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
   -webkit-text-size-adjust: 100%;
+}
+
+a {
+  text-decoration-color: var(--muted);
+  text-underline-offset: 3px;
+}
+
+.card {
+  --bs-card-bg: var(--sheet);
+  --bs-card-border-color: var(--line);
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--ink);
+  --bs-btn-border-color: var(--ink);
+  --bs-btn-color: var(--wall);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--ink) 85%, var(--wall));
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--ink) 85%, var(--wall));
+  --bs-btn-hover-color: var(--wall);
+  --bs-btn-active-bg: color-mix(in srgb, var(--ink) 75%, var(--wall));
+  --bs-btn-active-border-color: color-mix(in srgb, var(--ink) 75%, var(--wall));
+  --bs-btn-active-color: var(--wall);
+  --bs-btn-disabled-bg: var(--ink);
+  --bs-btn-disabled-border-color: var(--ink);
+  --bs-btn-disabled-color: var(--wall);
+  --bs-btn-focus-shadow-rgb: 120, 118, 108;
+}
+
+// bootstrap compiles its blue into the checked and focused form controls, they take the ink
+.form-check-input:checked {
+  background-color: var(--ink);
+  border-color: var(--ink);
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus,
+.btn:focus-visible {
+  border-color: var(--muted);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--ink);
+  --bs-btn-border-color: var(--line);
+  --bs-btn-hover-bg: var(--line);
+  --bs-btn-hover-border-color: var(--line);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-active-bg: var(--line);
+  --bs-btn-active-border-color: var(--line);
+  --bs-btn-active-color: var(--ink);
 }
 
 // a post-it: a square-ish paper with a soft shadow
