@@ -26,6 +26,7 @@ sak:
       - live@example.org
       - logs@example.org
       - api@example.org
+      - buckets@example.org
     smtp:
       host: localhost
       port: 11025

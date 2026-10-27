@@ -52,6 +52,11 @@ import { AuthService } from '../auth/auth.service';
           <span class="nav-square"></span>
           <span class="nav-text">Live</span>
         </a>
+        <div class="label-mono nav-section-label">S3</div>
+        <a class="nav-item" routerLink="/s3" routerLinkActive="active">
+          <span class="nav-square"></span>
+          <span class="nav-text">Buckets</span>
+        </a>
         <div class="label-mono nav-section-label">API</div>
         <!-- swagger ui is no page of the console app, it is loaded on its own -->
         <a class="nav-item" href="/swagger/">
