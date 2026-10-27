@@ -147,7 +147,8 @@ private class S3Api(
                 bucket = bucket,
             )
 
-        return when (val result = verifier.verify(sigV4Request)) {
+        // the secret of the key is read from the database
+        return when (val result = io { verifier.verify(sigV4Request) }) {
             is SigV4Result.Rejected -> {
                 error(call, result.status, result.code, result.message)
                 null
