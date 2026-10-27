@@ -208,11 +208,11 @@ class NoteService(
         rows: List<NoteRow>,
     ): List<Note> {
         val byId = labels.byIds(rows.flatMap { it.labelIds }).associateBy { it.id }
-        val stored = files.byIds(owner, rows.flatMap { it.files })
+        val stored = files.byIds(owner, rows.flatMap { it.fileIds })
         fun of(
             row: NoteRow,
             type: String,
-        ) = row.files.filter { stored[it]?.contentType?.startsWith(type) == true }
+        ) = row.fileIds.filter { stored[it]?.contentType?.startsWith(type) == true }
         return rows.map { row -> row.toNote(row.labelIds.mapNotNull { byId[it] }.sortedBy { it.name }, of(row, "image/"), of(row, "audio/")) }
     }
 

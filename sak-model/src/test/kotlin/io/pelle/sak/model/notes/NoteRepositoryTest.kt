@@ -74,9 +74,9 @@ class NoteRepositoryTest {
         val note = repository.insert("pelle@pelle.io", "holidays", "blue", emptySet(), listOf(beach, sunset))
         val (beachLink, sunsetLink) = links(note.id)
 
-        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(dunes, sunset))!!.files shouldBe listOf(dunes, sunset)
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(dunes, sunset))!!.fileIds shouldBe listOf(dunes, sunset)
 
-        repository.byId("pelle@pelle.io", note.id)!!.files shouldBe listOf(dunes, sunset)
+        repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe listOf(dunes, sunset)
         val (dunesLink, movedSunsetLink, deletedBeachLink) = links(note.id)
         dunesLink.fileId shouldBe dunes
         movedSunsetLink shouldBe sunsetLink.copy(position = 1)
@@ -89,10 +89,10 @@ class NoteRepositoryTest {
         val note = repository.insert("pelle@pelle.io", "holidays", "blue", emptySet(), listOf(beach))
 
         repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), emptyList())
-        repository.byId("pelle@pelle.io", note.id)!!.files shouldBe emptyList()
+        repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe emptyList()
         repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(beach))
 
-        repository.byId("pelle@pelle.io", note.id)!!.files shouldBe listOf(beach)
+        repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe listOf(beach)
         links(note.id).map { it.fileId to it.deleted } shouldBe listOf(beach to false, beach to true)
     }
 

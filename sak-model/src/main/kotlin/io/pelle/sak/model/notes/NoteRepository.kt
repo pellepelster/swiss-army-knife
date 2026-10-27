@@ -19,15 +19,15 @@ data class NoteRow(
     val text: String,
     val color: String,
     val labelIds: Set<Int>,
-    val files: List<Int>,
+    val fileIds: List<Int>,
     val createdAt: Instant,
     val updatedAt: Instant?,
 )
 
-// the database access of the notes and the links to their labels and files, only NoteService
-// (sak-backend) uses it; it reads and changes the notes of one owner that are not deleted only. A
-// label or a file removed from a note, and the ones of a deleted note, stay as links with
-// deleted_at set
+// the database access of the notes and the links to their labels and files; only NoteService
+// (sak-backend) uses it. It reads and changes the notes of one owner that are not deleted only. A
+// label or a file removed from a note, and those of a deleted note, stay as links with deleted_at
+// set
 class NoteRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
@@ -50,8 +50,8 @@ class NoteRepository(
                 .fetch()
         val ids = notes.map { it.id!! }
         val labels = labelIds(database.dsl, ids)
-        val files = files(database.dsl, ids)
-        return notes.map { it.toRow(labels[it.id].orEmpty(), files[it.id].orEmpty()) }
+        val fileIds = fileIds(database.dsl, ids)
+        return notes.map { it.toRow(labels[it.id].orEmpty(), fileIds[it.id].orEmpty()) }
     }
 
     fun count(
@@ -67,14 +67,14 @@ class NoteRepository(
             .selectFrom(NOTES)
             .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
             .fetchOne()
-            ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty(), files(database.dsl, listOf(id))[id].orEmpty()) }
+            ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty(), fileIds(database.dsl, listOf(id))[id].orEmpty()) }
 
     fun insert(
         owner: String,
         text: String,
         color: String,
         labelIds: Set<Int>,
-        files: List<Int>,
+        fileIds: List<Int>,
     ): NoteRow =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
@@ -89,8 +89,8 @@ class NoteRepository(
                     .returning()
                     .fetchOne()!!
             labelIds.forEach { insertLabel(dsl, note.id!!, it, now) }
-            files.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now) }
-            note.toRow(labelIds, files)
+            fileIds.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now) }
+            note.toRow(labelIds, fileIds)
         }
 
     // the note as it is stored now, null when there is none
@@ -100,7 +100,7 @@ class NoteRepository(
         text: String,
         color: String,
         labelIds: Set<Int>,
-        files: List<Int>,
+        fileIds: List<Int>,
     ): NoteRow? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
@@ -116,8 +116,8 @@ class NoteRepository(
                     .fetchOne()
                     ?: return@transactionResult null
             updateLabels(dsl, id, labelIds, now)
-            updateFiles(dsl, id, files, now)
-            note.toRow(labelIds, files)
+            updateFiles(dsl, id, fileIds, now)
+            note.toRow(labelIds, fileIds)
         }
 
     // false when there was none; its links to its labels and files are deleted with it
@@ -208,7 +208,7 @@ class NoteRepository(
     private fun updateFiles(
         dsl: DSLContext,
         noteId: Int,
-        files: List<Int>,
+        fileIds: List<Int>,
         now: Instant,
     ) {
         val links =
@@ -217,8 +217,8 @@ class NoteRepository(
                 .where(NOTES_FILES.NOTE_ID.eq(noteId), NOTES_FILES.DELETED_AT.isNull)
                 .fetch()
                 .associateBy { it.fileId!! }
-        deleteFiles(dsl, NOTES_FILES.ID.`in`(links.filterKeys { it !in files }.values.map { it.id }), now)
-        files.forEachIndexed { position, fileId ->
+        deleteFiles(dsl, NOTES_FILES.ID.`in`(links.filterKeys { it !in fileIds }.values.map { it.id }), now)
+        fileIds.forEachIndexed { position, fileId ->
             val link = links[fileId]
             if (link == null) {
                 insertFile(dsl, noteId, fileId, position, now)
@@ -262,7 +262,7 @@ class NoteRepository(
             .execute()
     }
 
-    private fun files(
+    private fun fileIds(
         dsl: DSLContext,
         noteIds: Collection<Int>,
     ): Map<Int, List<Int>> =
@@ -286,7 +286,7 @@ class NoteRepository(
 
     private fun NotesRecord.toRow(
         labelIds: Set<Int>,
-        files: List<Int>,
+        fileIds: List<Int>,
     ) =
         NoteRow(
             id = id!!,
@@ -294,7 +294,7 @@ class NoteRepository(
             text = text!!,
             color = color!!,
             labelIds = labelIds,
-            files = files,
+            fileIds = fileIds,
             createdAt = createdAt!!,
             updatedAt = updatedAt,
         )
