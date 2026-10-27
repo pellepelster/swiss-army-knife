@@ -105,7 +105,7 @@ interface Media {
 
     <ul class="note-labels" aria-label="Labels">
       @for (label of note().labels; track label) {
-        <li class="label">
+        <li class="note-label">
           <button
             type="button"
             class="label-name"
