@@ -10,10 +10,14 @@ sak:
   # nothing listens here, so a caddy on its default admin port is never reconfigured
   caddy_admin_url: http://localhost:12019
   auth:
+    # the login links lead to the dev servers of mise run run, the console the backend serves on
+    # 8080 sends its links to 4200 as well
     console_url: http://localhost:4200
     frontend_url: http://localhost:4300
+    # every login link lands in mailpit, none leaves the machine
     admins:
       - admin@localhost
+      - pelle@pelle.io
     smtp:
       host: localhost
       port: 1025

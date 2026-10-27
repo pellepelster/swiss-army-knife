@@ -190,10 +190,13 @@ await frontend:run "Local:" 180 "${pids[2]}" || exit 1
 
 cat <<ADDRESSES
 
-  frontend   http://localhost:4300   sign in as admin@localhost
-  console    http://localhost:4200   sign in as admin@localhost
+  frontend   http://localhost:4300   the apps
+  console    http://localhost:4200   the console
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
-  mailpit    http://localhost:8025   the login links arrive here
+  mailpit    http://localhost:8025   every login link arrives here
+
+  sign in as admin@localhost or pelle@pelle.io (config/local-config.yaml), open the link
+  from mailpit in the same browser
 
   logs in $logs
   Ctrl-C stops everything
