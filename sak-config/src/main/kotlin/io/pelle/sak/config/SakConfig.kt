@@ -53,8 +53,8 @@ data class SakConfig(
 
     @Serializable
     data class AuthConfig(
-        // only these addresses get a login link, compared case-insensitively
-        // the addresses that may sign in to sak-frontend, as admins
+        // the addresses that may sign in to sak-frontend, as admins, compared case-insensitively; no
+        // other address gets a login link
         val admins: List<String> = emptyList(),
         val smtp: SmtpConfig,
         // overrides https://apps.<root_domain>, e.g. for local tests

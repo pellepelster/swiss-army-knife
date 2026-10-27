@@ -29,7 +29,7 @@
 		exclude http.log.access
 	}
 	# client addresses are masked to their network, presigned url credentials and the
-	# login tokens of the console's signin links never reach the log
+	# login tokens of the apps' signin links never reach the log
 	log access {
 		output file /data/log/access.log {
 			roll_size 100MiB

@@ -324,7 +324,7 @@ private class S3Api(
             val parts =
                 try {
                     S3Xml.fromXml(xml, CompleteMultipartUploadRequest::class.java).parts
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     throw S3Exception.invalidRequest("malformed CompleteMultipartUpload body")
                 }
 

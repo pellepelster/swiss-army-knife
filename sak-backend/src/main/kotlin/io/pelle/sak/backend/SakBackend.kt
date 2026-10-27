@@ -63,13 +63,14 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopping) { reconciler.stop() }
 }
 
-// what the controller keeps in its database
+// the services module() needs next to the routes, the caddy reconciler hears of their changes
 class SakServices(
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
 )
 
-// the controller's database, the buckets, their keys, the redirects, the labels and the notes are in it
+// the database of the backend: the buckets and their domains, the redirects, the labels, the
+// notes, the records of the files and the secrets
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
 // the content of the file storage, below the first two characters of its sha-256

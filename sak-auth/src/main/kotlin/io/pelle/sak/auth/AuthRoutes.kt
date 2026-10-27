@@ -136,7 +136,8 @@ fun Route.login(
         tag(AUTH_TAG)
         summary = "Request a login link"
         description =
-            "Sends a link with a login token, valid for 15 minutes, to the signin page of the apps if the address may sign in. " +
+            "Sends a link with a login token, valid for ${tokens.loginTokenTtl.toMinutes()} minutes, to the signin page of the apps " +
+            "if the address may sign in. " +
             "Answered the same way for every address."
         requestBody {
             required = true
@@ -167,7 +168,7 @@ fun Route.login(
     }.describe {
         tag(AUTH_TAG)
         summary = "Exchange a login token for a session token"
-        description = "Every login token can be exchanged once, the session token is valid for 30 days."
+        description = "Every login token can be exchanged once, the session token is valid for ${tokens.sessionTokenTtl.toDays()} days."
         requestBody {
             required = true
             schema = jsonSchema<ExchangeRequest>()
