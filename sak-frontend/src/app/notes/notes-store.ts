@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
@@ -66,6 +66,16 @@ export class NotesStore {
   private readonly shared = signal<readonly string[]>([]);
   private readonly pendingText = new Map<number, ReturnType<typeof setTimeout>>();
 
+  // the requests saving or deleting a note that are not answered yet, by note
+  private readonly inFlight = new Map<number, number>();
+
+  // while the notes are loaded: the notes changed here meanwhile and the ones whose change was
+  // not saved yet when the loading started; the backend's answer may not know of these changes,
+  // the notes are kept as they are here
+  private changedWhileLoading: Set<number> | null = null;
+
+  private loadingNotes?: Subscription;
+
   // the newest first
   readonly notes = this.all.asReadonly();
 
@@ -94,21 +104,38 @@ export class NotesStore {
   );
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.pendingText.forEach((timer) => clearTimeout(timer)));
+    inject(DestroyRef).onDestroy(() => {
+      this.pendingText.forEach((timer) => clearTimeout(timer));
+      this.loadingNotes?.unsubscribe();
+    });
   }
 
+  // a loading not answered yet is cancelled; the notes loaded take the place of the ones here,
+  // except the ones changed here that the backend may not know of yet
   load(): void {
+    this.loadingNotes?.unsubscribe();
     this.loading.set(true);
-    this.http.get<Page<NoteResponse>>('/api/v1/notes', { params: { limit: MAX_LIMIT } }).subscribe({
-      next: (page) => {
-        this.all.set(page.items.map(toNote));
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.error.set('The notes could not be loaded.');
-      },
-    });
+    this.changedWhileLoading = new Set([...this.pendingText.keys(), ...this.inFlight.keys()]);
+    this.loadingNotes = this.http
+      .get<Page<NoteResponse>>('/api/v1/notes', { params: { limit: MAX_LIMIT } })
+      .subscribe({
+        next: (page) => {
+          const changed = this.changedWhileLoading ?? new Set<number>();
+          this.changedWhileLoading = null;
+          this.all.update((notes) =>
+            [
+              ...page.items.map(toNote).filter((note) => !changed.has(note.id)),
+              ...notes.filter((note) => changed.has(note.id)),
+            ].sort(newestFirst),
+          );
+          this.loading.set(false);
+        },
+        error: () => {
+          this.changedWhileLoading = null;
+          this.loading.set(false);
+          this.error.set('The notes could not be loaded.');
+        },
+      });
     this.http
       .get<Page<{ name: string }>>('/api/v1/labels', { params: { limit: MAX_LIMIT } })
       .subscribe({
@@ -131,7 +158,9 @@ export class NotesStore {
         this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels, photos, recordings }),
       );
       const note = toNote(response);
-      this.all.update((notes) => [note, ...notes]);
+      this.changedWhileLoading?.add(note.id);
+      // the notes loaded meanwhile may have it already
+      this.all.update((notes) => [note, ...notes.filter((other) => other.id !== note.id)]);
       return note;
     } catch {
       this.error.set('The note could not be created.');
@@ -280,12 +309,16 @@ export class NotesStore {
     const notes = this.all();
     clearTimeout(this.pendingText.get(id));
     this.pendingText.delete(id);
+    this.changedWhileLoading?.add(id);
     this.all.set(notes.filter((note) => note.id !== id));
+    this.startRequest(id);
     this.http.delete(`/api/v1/notes/${id}`).subscribe({
       error: () => {
+        this.finishRequest(id);
         this.all.set(notes);
         this.error.set('The note could not be deleted.');
       },
+      complete: () => this.finishRequest(id),
     });
   }
 
@@ -296,6 +329,7 @@ export class NotesStore {
     this.pendingText.delete(id);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
+    this.startRequest(id);
     this.http
       .put<NoteResponse>(`/api/v1/notes/${id}`, {
         text: note.text,
@@ -311,8 +345,22 @@ export class NotesStore {
             notes.map((n) => (n.id === id ? { ...n, updated: new Date(response.updatedAt) } : n)),
           );
         },
-        error: () => this.error.set('The note could not be saved.'),
+        error: () => {
+          this.finishRequest(id);
+          this.error.set('The note could not be saved.');
+        },
+        complete: () => this.finishRequest(id),
       });
+  }
+
+  private startRequest(id: number): void {
+    this.inFlight.set(id, (this.inFlight.get(id) ?? 0) + 1);
+  }
+
+  private finishRequest(id: number): void {
+    const count = (this.inFlight.get(id) ?? 0) - 1;
+    if (count > 0) this.inFlight.set(id, count);
+    else this.inFlight.delete(id);
   }
 
   // the id of the scaled down photo in the file storage, null when it could not be stored
@@ -353,6 +401,7 @@ export class NotesStore {
         return result;
       }),
     );
+    if (changed) this.changedWhileLoading?.add(id);
     return changed;
   }
 }
@@ -363,6 +412,11 @@ function firstMessage(error: unknown): string | null {
   const message = (error.error as { errors?: { message?: unknown }[] } | null)?.errors?.[0]
     ?.message;
   return typeof message === 'string' ? message : null;
+}
+
+// as the backend sorts them
+function newestFirst(a: Note, b: Note): number {
+  return b.created.getTime() - a.created.getTime() || b.id - a.id;
 }
 
 function toNote(response: NoteResponse): Note {

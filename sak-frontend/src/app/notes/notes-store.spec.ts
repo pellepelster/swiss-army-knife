@@ -249,4 +249,100 @@ describe('NotesStore', () => {
     expect(store.notes().map((note) => note.id)).toEqual([2, 1]);
     expect(store.error()).toBe('The note could not be deleted.');
   });
+
+  describe('when the notes are loaded again', () => {
+    // the notes the backend answers, the labels are flushed too
+    const answer = (...notes: ReturnType<typeof noteResponse>[]) => {
+      http.expectOne('/api/v1/notes?limit=500').flush(pageOf(notes));
+      http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
+    };
+
+    it('takes the notes of the backend, the ones changed elsewhere and the new ones', () => {
+      store.load();
+      answer(
+        noteResponse(3, 'tickets', 'blue', []),
+        noteResponse(1, 'milk and eggs', 'yellow', []),
+      );
+
+      expect(store.notes().map((note) => [note.id, note.text])).toEqual([
+        [3, 'tickets'],
+        [1, 'milk and eggs'],
+      ]);
+    });
+
+    it('keeps a note changed while they are loaded', () => {
+      store.load();
+      store.setColor(1, 'blue');
+      http
+        .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+        .flush(noteResponse(1, 'milk', 'blue', ['shopping']));
+      answer(
+        noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
+        noteResponse(1, 'milk', 'yellow', ['shopping']),
+      );
+
+      expect(store.notes().map((note) => [note.id, note.color])).toEqual([
+        [2, 'pink'],
+        [1, 'blue'],
+      ]);
+    });
+
+    it('keeps a change whose saving is not answered yet when they are loaded', () => {
+      store.setColor(1, 'blue');
+      store.load();
+      answer(
+        noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
+        noteResponse(1, 'milk', 'yellow', ['shopping']),
+      );
+      http
+        .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+        .flush(noteResponse(1, 'milk', 'blue', ['shopping']));
+
+      expect(store.notes()[1].color).toBe('blue');
+    });
+
+    it('keeps the text typed and not saved yet, and saves it once typing pauses', async () => {
+      store.setText(1, 'milk and bread');
+      store.load();
+      answer(
+        noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
+        noteResponse(1, 'milk', 'yellow', ['shopping']),
+      );
+      expect(store.notes()[1].text).toBe('milk and bread');
+
+      await vi.advanceTimersByTimeAsync(SAVE_TEXT_AFTER_MS);
+      const saved = http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' });
+      expect(saved.request.body.text).toBe('milk and bread');
+      saved.flush(noteResponse(1, 'milk and bread', 'yellow', ['shopping']));
+    });
+
+    it('keeps a note deleted and one created while they are loaded, once each', async () => {
+      store.load();
+      store.remove(2);
+      const added = store.add('tickets', 'blue');
+      http
+        .expectOne({ method: 'POST', url: '/api/v1/notes' })
+        .flush(noteResponse(3, 'tickets', 'blue', []));
+      await added;
+      answer(
+        noteResponse(3, 'tickets', 'blue', []),
+        noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
+        noteResponse(1, 'milk', 'yellow', ['shopping']),
+      );
+      http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
+
+      expect(store.notes().map((note) => note.id)).toEqual([3, 1]);
+    });
+
+    it('cancels a loading not answered yet', () => {
+      store.load();
+      store.load();
+      const [first, second] = http.match('/api/v1/notes?limit=500');
+      expect(first.cancelled).toBe(true);
+      second.flush(pageOf([noteResponse(1, 'milk', 'yellow', ['shopping'])]));
+      http.match('/api/v1/labels?limit=500').forEach((labels) => labels.flush(pageOf([])));
+
+      expect(store.notes().map((note) => note.id)).toEqual([1]);
+    });
+  });
 });
