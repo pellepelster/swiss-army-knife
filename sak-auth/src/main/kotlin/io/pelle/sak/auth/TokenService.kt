@@ -19,6 +19,7 @@ data class SessionToken(
     val token: String,
     val email: String,
     val expiresAt: Instant,
+    val roles: Set<Role>,
 )
 
 // login tokens travel in the e-mailed link and are only good for one exchange against a
@@ -35,7 +36,10 @@ class TokenService(
 
     private val loginVerifier = verifier(LOGIN)
 
-    val sessionVerifier: JWTVerifier = verifier(SESSION)
+    // session tokens without roles are from before there were roles
+    val sessionVerifier: JWTVerifier =
+        (JWT.require(algorithm).withIssuer(issuer).withClaim(TOKEN_USE, SESSION).withClaimPresence(ROLES) as JWTVerifier.BaseVerification)
+            .build(clock)
 
     // ids of exchanged login tokens until they expire, the controller runs as one instance so
     // memory is enough; a restart only lets links that were valid anyway be used once more
@@ -72,9 +76,16 @@ class TokenService(
         return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/")
     }
 
-    fun issueSessionToken(email: String): SessionToken {
+    fun issueSessionToken(
+        email: String,
+        roles: Set<Role>,
+    ): SessionToken {
         val expiresAt = clock.instant().plus(sessionTokenTtl)
-        return SessionToken(sign(email, SESSION, sessionTokenTtl).sign(algorithm), email, expiresAt)
+        val token =
+            sign(email, SESSION, sessionTokenTtl)
+                .withArrayClaim(ROLES, roles.map { it.key }.toTypedArray())
+                .sign(algorithm)
+        return SessionToken(token, email, expiresAt, roles)
     }
 
     private fun sign(
@@ -106,5 +117,10 @@ class TokenService(
         private const val SESSION = "session"
 
         private const val REDIRECT = "redirect"
+
+        // the roles of a session token, unknown ones are ignored
+        const val ROLES = "roles"
+
+        fun roles(claim: List<String>?) = claim.orEmpty().mapNotNull { Role.of(it) }.toSet()
     }
 }

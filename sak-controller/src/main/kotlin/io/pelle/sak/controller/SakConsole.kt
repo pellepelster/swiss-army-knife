@@ -13,6 +13,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.pelle.sak.auth.RequireRole
+import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
@@ -68,9 +70,9 @@ fun Application.console(
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
     val admins = auth.admins.map { it.trim().lowercase() }.toSet()
-    val mayLogin = { email: String -> email in admins }
+    val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
 
-    install(Authentication) { session(tokens, mayLogin) }
+    install(Authentication) { session(tokens, rolesOf) }
 
     routing {
         route("/") {
@@ -81,10 +83,11 @@ fun Application.console(
 
                 route(API_VERSION) {
                     route("/auth") {
-                        auth(tokens, mailSender, config.consoleUrl, mayLogin)
+                        auth(tokens, mailSender, config.consoleUrl, rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
+                            install(RequireRole) { role = Role.ADMIN }
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                             sites(consoleSites, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }

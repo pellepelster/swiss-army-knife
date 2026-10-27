@@ -31,6 +31,8 @@ class MutableClock(
     }
 }
 
+private val ADMIN = setOf(Role.ADMIN)
+
 class TokenServiceTest {
     @TempDir
     lateinit var tempDir: Path
@@ -60,7 +62,7 @@ class TokenServiceTest {
 
     @Test
     fun `a session token is no login token and the other way around`() {
-        val session = tokens.issueSessionToken("admin@example.org")
+        val session = tokens.issueSessionToken("admin@example.org", ADMIN)
 
         tokens.exchangeLoginToken(session.token) shouldBe null
         shouldThrow<JWTVerificationException> { tokens.sessionVerifier.verify(tokens.issueLoginToken("admin@example.org", "/")) }
@@ -68,7 +70,7 @@ class TokenServiceTest {
 
     @Test
     fun `a session token is valid for 30 days`() {
-        val session = tokens.issueSessionToken("admin@example.org")
+        val session = tokens.issueSessionToken("admin@example.org", ADMIN)
 
         session.expiresAt shouldBe clock.now.plus(Duration.ofDays(30))
         tokens.sessionVerifier.verify(session.token).subject shouldBe "admin@example.org"
@@ -84,7 +86,31 @@ class TokenServiceTest {
 
         tokens.exchangeLoginToken(otherKey.issueLoginToken("admin@example.org", "/")) shouldBe null
         tokens.exchangeLoginToken(otherIssuer.issueLoginToken("admin@example.org", "/")) shouldBe null
-        shouldThrow<JWTVerificationException> { tokens.sessionVerifier.verify(otherKey.issueSessionToken("admin@example.org").token) }
+        shouldThrow<JWTVerificationException> { tokens.sessionVerifier.verify(otherKey.issueSessionToken("admin@example.org", ADMIN).token) }
+    }
+
+    @Test
+    fun `session tokens carry their roles, tokens without are rejected`() {
+        val session = tokens.issueSessionToken("admin@example.org", ADMIN)
+
+        session.roles shouldBe ADMIN
+        TokenService.roles(tokens.sessionVerifier.verify(session.token).getClaim("roles").asList(String::class.java)) shouldBe ADMIN
+
+        val withoutRoles =
+            JWT
+                .create()
+                .withIssuer("https://console.example.org")
+                .withSubject("admin@example.org")
+                .withClaim("token_use", "session")
+                .withExpiresAt(clock.now.plus(Duration.ofDays(1)))
+                .sign(Algorithm.ECDSA256(key.publicKey, key.privateKey))
+        shouldThrow<JWTVerificationException> { tokens.sessionVerifier.verify(withoutRoles) }
+    }
+
+    @Test
+    fun `unknown roles are ignored`() {
+        TokenService.roles(listOf("admin", "superuser")) shouldBe ADMIN
+        TokenService.roles(null) shouldBe emptySet()
     }
 
     @Test

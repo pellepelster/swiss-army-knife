@@ -16,6 +16,9 @@ import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.authenticate
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -24,6 +27,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
@@ -40,7 +44,7 @@ class AuthRoutesTest {
 
     private val tokens = TokenService(SigningKey.generate(), CONSOLE_URL)
 
-    private val mayLogin = { email: String -> email == "admin@example.org" }
+    private val rolesOf = { email: String -> if (email == "admin@example.org") setOf(Role.ADMIN) else emptySet() }
 
     private fun authTest(
         loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
@@ -48,14 +52,14 @@ class AuthRoutesTest {
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
-            install(Authentication) { session(tokens, mayLogin) }
+            install(Authentication) { session(tokens, rolesOf) }
             routing {
                 route("/api/v1/auth") {
                     auth(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
                         CONSOLE_URL,
-                        mayLogin,
+                        rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
                     )
@@ -107,11 +111,13 @@ class AuthRoutesTest {
             exchange.headers["Cache-Control"] shouldBe "no-store"
             val session = exchange.bodyAsText().json()
             session["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
+            session["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
             session["redirect"]!!.jsonPrimitive.content shouldBe "/buckets?tab=1"
 
             val me = client.get("/api/v1/auth/me") { bearerAuth(session["sessionToken"]!!.jsonPrimitive.content) }
             me.status shouldBe HttpStatusCode.OK
             me.bodyAsText().json()["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
+            me.bodyAsText().json()["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
 
             client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
         }
@@ -158,7 +164,7 @@ class AuthRoutesTest {
         authTest {
             client.exchange(tokens.issueLoginToken("removed@example.org", "/")).status shouldBe HttpStatusCode.Unauthorized
 
-            val session = tokens.issueSessionToken("removed@example.org").token
+            val session = tokens.issueSessionToken("removed@example.org", setOf(Role.ADMIN)).token
             client.get("/api/v1/auth/me") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
         }
 
@@ -201,6 +207,30 @@ class AuthRoutesTest {
         setBody("""{"email":"$email"}""")
         block()
     }
+
+    @Test
+    fun `routes that require a role answer 403 to sessions without it`() =
+        testApplication {
+            application {
+                install(Authentication) {
+                    provider(SESSION_AUTH) {
+                        authenticate { context ->
+                            context.principal(SessionPrincipal("admin@example.org", java.time.Instant.MAX, emptySet()))
+                        }
+                    }
+                }
+                routing {
+                    authenticate(SESSION_AUTH) {
+                        route("/admin") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            get { call.respond(HttpStatusCode.OK) }
+                        }
+                    }
+                }
+            }
+
+            client.get("/admin").status shouldBe HttpStatusCode.Forbidden
+        }
 
     companion object {
         private const val CONSOLE_URL = "https://console.example.org"

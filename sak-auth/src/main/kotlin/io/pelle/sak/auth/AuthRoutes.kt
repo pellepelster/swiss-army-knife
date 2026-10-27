@@ -47,6 +47,7 @@ private const val AUTH_TAG = "auth"
 data class SessionPrincipal(
     val email: String,
     val expiresAt: Instant,
+    val roles: Set<Role>,
 )
 
 @Serializable
@@ -65,6 +66,7 @@ data class ExchangeResponse(
     val sessionToken: String,
     val email: String,
     val expiresAt: String,
+    val roles: List<String>,
     val redirect: String,
 )
 
@@ -72,33 +74,38 @@ data class ExchangeResponse(
 data class MeResponse(
     val email: String,
     val expiresAt: String,
+    val roles: List<String>,
 )
 
-// routes below authenticate(SESSION_AUTH) accept the session tokens of the given service, as
-// long as the address may still log in: the allowed addresses double as the revocation list
+// routes below authenticate(SESSION_AUTH) accept the session tokens of the given service with
+// the roles of the token the address still has: the configured roles double as the revocation
+// list, a session left without any of them is rejected
 fun AuthenticationConfig.session(
     tokens: TokenService,
-    mayLogin: (email: String) -> Boolean,
+    rolesOf: (email: String) -> Set<Role>,
 ) {
     jwt(SESSION_AUTH) {
         verifier(tokens.sessionVerifier)
         validate { credential ->
             val email = credential.subject
             val expiresAt = credential.expiresAt
-            if (email != null && expiresAt != null && mayLogin(email)) SessionPrincipal(email, expiresAt.toInstant()) else null
+            val tokenRoles = TokenService.roles(credential.payload.getClaim(TokenService.ROLES).asList(String::class.java))
+            val roles = email?.let { tokenRoles intersect rolesOf(it) }.orEmpty()
+            if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles) else null
         }
         challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
     }
 }
 
 // the e-mail login: login sends a link with a login token to allowed addresses, the console's
-// signin page exchanges it for a session token; needs authentication { session(tokens, mayLogin) }
+// signin page exchanges it for a session token with the roles of the address; addresses without
+// roles may not log in; needs authentication { session(tokens, rolesOf) }
 @OptIn(ExperimentalKtorApi::class)
 fun Route.auth(
     tokens: TokenService,
     mailSender: MailSender,
     consoleUrl: String,
-    mayLogin: (email: String) -> Boolean,
+    rolesOf: (email: String) -> Set<Role>,
     // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
     loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
@@ -125,7 +132,7 @@ fun Route.auth(
         // nor its timing tells whether the address may log in
         val redirect = safeRedirect(request.redirect)
         call.application.launch(Dispatchers.IO) {
-            if (!mayLogin(email) || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
+            if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
                 return@launch
             }
             // the redirect travels in the token, the signin page takes it from the exchange
@@ -158,15 +165,18 @@ fun Route.auth(
 
     post("/exchange") {
         val claims = tokens.exchangeLoginToken(call.receive<ExchangeRequest>().token)
-        // addresses removed from the allowed ones can not use links sent before
-        if (claims == null || !mayLogin(claims.email)) {
+        // the roles are the address' ones now, an address without any can not use links sent before
+        val roles = claims?.let { rolesOf(it.email) }.orEmpty()
+        if (claims == null || roles.isEmpty()) {
             call.respond(HttpStatusCode.Unauthorized)
             return@post
         }
 
-        val session = tokens.issueSessionToken(claims.email)
+        val session = tokens.issueSessionToken(claims.email, roles)
         call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respond(ExchangeResponse(session.token, session.email, session.expiresAt.toString(), safeRedirect(claims.redirect)))
+        call.respond(
+            ExchangeResponse(session.token, session.email, session.expiresAt.toString(), roles.keys(), safeRedirect(claims.redirect)),
+        )
     }.describe {
         tag(AUTH_TAG)
         summary = "Exchange a login token for a session token"
@@ -188,13 +198,13 @@ fun Route.auth(
         get("/me") {
             val principal = call.principal<SessionPrincipal>()!!
             call.response.header(HttpHeaders.CacheControl, "no-store")
-            call.respond(MeResponse(principal.email, principal.expiresAt.toString()))
+            call.respond(MeResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
         }.describe {
             tag(AUTH_TAG)
             summary = "The signed in user"
             responses {
                 HttpStatusCode.OK {
-                    description = "The address and when the session expires"
+                    description = "The address, its roles and when the session expires"
                     schema = jsonSchema<MeResponse>()
                 }
                 HttpStatusCode.Unauthorized { description = "No valid session token" }
@@ -220,6 +230,8 @@ private fun mayHaveLink(
     }
     return true
 }
+
+private fun Set<Role>.keys() = map { it.key }.sorted()
 
 // the address the login links are sent to, lower cased so it matches the allowed addresses
 fun normalizeEmail(email: String): String? {
