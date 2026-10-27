@@ -74,7 +74,11 @@ fun Route.redirects(redirectService: RedirectService) {
     install(ContentNegotiation) { json() }
     install(ApiErrors)
 
-    fun Redirect.response() = RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString(), updatedAt.toString())
+    // the location of a bucket is read from the database, the response is made on the io dispatcher
+    suspend fun Redirect.response() =
+        withContext(Dispatchers.IO) {
+            RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString(), updatedAt.toString())
+        }
 
     get {
         val page = call.pageRequest() ?: return@get
