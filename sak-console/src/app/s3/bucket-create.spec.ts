@@ -50,12 +50,16 @@ describe('BucketCreate', () => {
   it('creates a bucket with its domains and opens it', async () => {
     const { harness, page, type, button } = await open();
     expect(page.querySelector('[role=dialog]')).toBeNull();
+    // it starts without a domain
+    expect(page.querySelector('#domain-0')).toBeNull();
 
     await type('#bucket-name', 'No_Bucket');
     expect(button('Add bucket').disabled).toBe(true);
     await type('#bucket-name', 'new-bucket');
     expect(button('Add bucket').disabled).toBe(false);
 
+    button('Add domain').click();
+    await harness.fixture.whenStable();
     await type('#domain-0', 'no domain');
     expect(button('Add bucket').disabled).toBe(true);
     await type('#domain-0', 'example.org');
@@ -87,8 +91,6 @@ describe('BucketCreate', () => {
   it('shows what the api rejected the bucket for and stays', async () => {
     const { harness, page, type, button } = await open();
     await type('#bucket-name', 'backups');
-    page.querySelector<HTMLButtonElement>('[aria-label="Remove domain 1"]')!.click();
-    await harness.fixture.whenStable();
     button('Add bucket').click();
     http
       .expectOne({ method: 'POST', url: '/api/v1/buckets' })

@@ -20,6 +20,7 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await page.getByRole('link', { name: 'Add bucket' }).click();
   await expect(page).toHaveURL('/s3/buckets/create');
   await page.getByLabel('Bucket name').fill('e2e-other');
+  await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByLabel('Domain 1', { exact: true }).fill('other.example.org');
   await page.getByRole('button', { name: 'Add bucket' }).click();
   await expect(page).toHaveURL('/s3/buckets/e2e-other/configuration');
@@ -55,7 +56,6 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await page.getByRole('link', { name: 'S3 · Buckets' }).click();
   await page.getByRole('link', { name: 'Add bucket' }).click();
   await page.getByLabel('Bucket name').fill('e2e-other');
-  await page.getByRole('button', { name: 'Remove domain 1' }).click();
   await page.getByRole('button', { name: 'Add bucket' }).click();
   await expect(page.getByTestId('create-error')).toHaveText('A bucket of the name exists.');
   await page.getByRole('link', { name: 'Cancel' }).click();

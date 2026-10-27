@@ -72,7 +72,7 @@ export class BucketCreate {
   });
   // the name's validity as a signal, the footer reads it
   protected readonly nameValid = signal(false);
-  protected readonly domains = signal<string[]>(['']);
+  protected readonly domains = signal<string[]>([]);
   protected readonly creating = signal(false);
   protected readonly createErrors = signal<string[]>([]);
   protected readonly validDomains = validDomains;
