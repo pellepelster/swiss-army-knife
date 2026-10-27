@@ -26,6 +26,10 @@ export const APPS: readonly AppEntry[] = [
     description: 'Domains that lead elsewhere',
     icon: 'icons/redirects.svg',
   },
+];
+
+// the administration of the frontend, the index page lists it below the apps
+export const ADMINISTRATION: readonly AppEntry[] = [
   {
     path: '/console',
     name: 'Console',

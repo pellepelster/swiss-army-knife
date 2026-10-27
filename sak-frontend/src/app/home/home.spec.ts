@@ -38,24 +38,23 @@ describe('Home', () => {
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
-  it('lists the apps, the notes and the static hosting, and opens the notes at /notes', async () => {
+  it('lists the apps and the administration, and opens the notes at /notes', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
     const page = harness.routeNativeElement!;
     expect(page.querySelector('[data-testid=email]')?.textContent).toBe('pelle@pelle.io');
+    const tiles = (section: string) =>
+      [...page.querySelectorAll<HTMLAnchorElement>(`nav[aria-label="${section}"] a`)].map(
+        (link) => [link.querySelector('.name')?.textContent, link.getAttribute('href')],
+      );
+    expect(tiles('Apps')).toEqual([
+      ['Notes', '/notes'],
+      ['Static hosting', '/static-hosting'],
+      ['Redirects', '/redirects'],
+    ]);
+    expect(page.querySelector('h2')?.textContent).toBe('Administration');
+    expect(tiles('Administration')).toEqual([['Console', '/console']]);
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];
-    expect(links.map((link) => link.querySelector('.name')?.textContent)).toEqual([
-      'Notes',
-      'Static hosting',
-      'Redirects',
-      'Console',
-    ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      '/notes',
-      '/static-hosting',
-      '/redirects',
-      '/console',
-    ]);
 
     links[0].click();
     await harness.fixture.whenStable();

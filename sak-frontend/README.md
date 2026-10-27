@@ -1,7 +1,7 @@
 # sak-frontend
 
 The apps, each under a path of its own, served by sak-backend at `apps.<root_domain>`; the index
-page lists them (`src/app/apps.ts`). Its build is packaged below `frontend/` in a jar the backend
+page lists them and, under Administration, the console (`src/app/apps.ts`). Its build is packaged below `frontend/` in a jar the backend
 serves, the api is on the same origin under `/api/v1`. The pages use Bootstrap, the console has
 its own theme on top of it (see Console).
 
