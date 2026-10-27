@@ -90,7 +90,7 @@ docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.ta
 docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
 """
 
-# the ports do not clash: backend 8080, frontend 4300 (proxies /api to the backend), the mailpit
+# the ports do not clash: backend 8080, frontend 4200 (proxies /api to the backend), the mailpit
 # the login links of the backend go to 1025 (smtp) and 8025 (web ui)
 [tasks."backend:run"]
 description = "Run sak-backend on http://localhost:8080 with a mailpit for its login links on http://localhost:8025"
@@ -114,11 +114,11 @@ trap 'docker stop sak-local-mailpit >/dev/null' EXIT
 """
 
 [tasks."frontend:run"]
-description = "Run sak-frontend, the apps, on http://localhost:4300, its /api goes to backend:run"
+description = "Run sak-frontend, the apps, on http://localhost:4200, its /api goes to backend:run"
 dir = "{{config_root}}/sak-frontend"
 run = """
 [ -d node_modules ] || npm ci
-npx ng serve --port 4300
+npx ng serve
 """
 
 # everything at once, each in its own process group with its log in build/local/logs; the backend
@@ -185,7 +185,7 @@ await frontend:run "Local:" 180 "${pids[1]}" || exit 1
 
 cat <<ADDRESSES
 
-  frontend   http://localhost:4300   the apps, the console at /console
+  frontend   http://localhost:4200   the apps, the console at /console
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
   mailpit    http://localhost:8025   every login link arrives here
 

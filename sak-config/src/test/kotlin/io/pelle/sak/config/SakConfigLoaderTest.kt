@@ -62,10 +62,10 @@ class SakConfigLoaderTest {
     fun `smtp defaults to starttls on port 587 and the frontend url can be overridden`() {
         val config =
             load(
-                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  frontend_url: http://localhost:4300\n  smtp:\n    host: localhost\n    from: login@example.org\n",
+                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  frontend_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
             )
 
-        config.frontendUrl shouldBe "http://localhost:4300"
+        config.frontendUrl shouldBe "http://localhost:4200"
         config.auth!!.admins shouldBe emptyList()
         config.auth.smtp.port shouldBe 587
         config.auth.smtp.tls shouldBe false
