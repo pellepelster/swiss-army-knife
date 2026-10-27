@@ -19,7 +19,7 @@ data class SakConfig(
     @SerialName("caddy_admin_url")
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
     val redirects: Map<String, String> = emptyMap(),
-    val s3: S3Config,
+    val s3: S3Config = S3Config(),
     // the console and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
@@ -64,12 +64,10 @@ data class SakConfig(
         val starttls: Boolean = true,
     )
 
+    // the buckets themselves and their keys are in the controller's database, the configuration
+    // names the domains caddy serves a bucket at
     @Serializable
     data class S3Config(
-        @SerialName("access_key_id")
-        val accessKeyId: String,
-        @SerialName("secret_access_key")
-        val secretAccessKey: String,
         val buckets: Map<String, S3BucketConfig> = emptyMap(),
     )
 

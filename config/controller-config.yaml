@@ -11,9 +11,8 @@ sak:
     krawallbude.de: pelle.io
     pellepelster.de: pelle.io
     sanne.li: pelle.io
+  # the domains buckets are served at, the buckets and their keys are created in the console
   s3:
-    access_key_id: $SAK_S3_ACCESS_KEY_ID
-    secret_access_key: $SAK_S3_SECRET_ACCESS_KEY
     buckets:
       pelle.io:
         domains:

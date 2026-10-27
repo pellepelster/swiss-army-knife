@@ -158,24 +158,10 @@ resource "local_file" "known_hosts" {
   directory_permission = "0700"
 }
 
-# credentials clients use to access the controller's s3 api
-resource "random_string" "s3_access_key_id" {
-  length  = 20
-  lower   = false
-  special = false
-}
-
-resource "random_password" "s3_secret_access_key" {
-  length  = 40
-  special = false
-}
-
-# the s3 and smtp credentials config/controller-config.yaml references, deployed as systemd
+# the smtp credentials config/controller-config.yaml references, deployed as systemd
 # EnvironmentFile of the controller unit
 resource "local_sensitive_file" "controller_env" {
   content              = <<-EOT
-    SAK_S3_ACCESS_KEY_ID=${random_string.s3_access_key_id.result}
-    SAK_S3_SECRET_ACCESS_KEY=${random_password.s3_secret_access_key.result}
     SAK_SMTP_HOST=${var.smtp_host}
     SAK_SMTP_PORT=${var.smtp_port}
     SAK_SMTP_USERNAME=${var.smtp_username}

@@ -22,8 +22,6 @@ class SakCaddyTest {
             redirects = mapOf("example.com" to "example.org"),
             s3 =
                 SakConfig.S3Config(
-                    "key",
-                    "secret",
                     buckets =
                         mapOf(
                             "private" to SakConfig.S3BucketConfig(),

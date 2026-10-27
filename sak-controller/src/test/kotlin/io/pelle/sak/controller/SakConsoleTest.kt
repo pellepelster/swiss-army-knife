@@ -13,6 +13,7 @@ import io.ktor.server.netty.Netty
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.s3.CreateBucketResult
 import io.pelle.sak.model.s3.S3BucketService
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -57,8 +58,6 @@ class SakConsoleTest {
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
               s3:
-                access_key_id: smoke-key
-                secret_access_key: smoke-secret
                 buckets:
                   bucket1: {}
             """.trimIndent() +
@@ -179,7 +178,7 @@ class SakConsoleTest {
     @Test
     fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
         val config = config()
-        S3BucketService(SakDatabase.open(databaseFile(config))).create("bucket1")
+        val bucket1 = (S3BucketService(SakDatabase.open(databaseFile(config))).create("bucket1") as CreateBucketResult.Created).bucket
 
         withServer(config) { port ->
             val session = signIn(port)
@@ -203,7 +202,7 @@ class SakConsoleTest {
                 .endpointOverride(URI.create("http://localhost:$port/s3"))
                 .region(Region.US_EAST_1)
                 .forcePathStyle(true)
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("smoke-key", "smoke-secret")))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(bucket1.accessKeyId, bucket1.secretAccessKey)))
                 .build()
                 .use { it.putObject({ request -> request.bucket("bucket1").key("a.txt") }, RequestBody.fromString("12345")) }
 

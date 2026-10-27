@@ -21,8 +21,7 @@ enum class S3AccessResult {
 }
 
 // the extension point for credentials and authorization: secrets can depend on the bucket,
-// access on the operation and the key; StaticCredentialsAccessCallback uses neither and
-// grants one key pair everything on the configured buckets
+// access on the operation and the key
 interface S3AccessCallback {
     fun resolveSecretKey(
         accessKeyId: String,

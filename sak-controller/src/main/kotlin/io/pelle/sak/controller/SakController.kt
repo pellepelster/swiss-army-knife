@@ -12,7 +12,6 @@ import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
-import io.pelle.sak.s3.StaticCredentialsAccessCallback
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.FilesystemBinaryStorage
@@ -52,9 +51,9 @@ fun Application.sak(config: SakConfig) {
     Files.createDirectories(config.s3DataDir)
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
-    val accessCallback = StaticCredentialsAccessCallback(config.s3.accessKeyId, config.s3.secretAccessKey, config.s3.buckets.keys)
     val database = SakDatabase.open(databaseFile(config))
     val bucketService = S3BucketService(database, reservedNames = RESERVED_SITES)
+    val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
 

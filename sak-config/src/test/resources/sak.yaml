@@ -6,8 +6,6 @@ sak:
   redirects:
     www.example.org: example.org
   s3:
-    access_key_id: sak
-    secret_access_key: changeme
     buckets:
       backups: {}
       media:

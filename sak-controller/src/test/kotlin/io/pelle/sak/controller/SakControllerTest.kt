@@ -8,6 +8,9 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
+import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.s3.CreateBucketResult
+import io.pelle.sak.model.s3.S3BucketService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -20,7 +23,7 @@ import software.amazon.awssdk.http.SdkHttpClient
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException
+import software.amazon.awssdk.services.s3.model.S3Exception
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
@@ -41,8 +44,6 @@ class SakControllerTest {
               data_dir: $dataDir
               root_domain: example.org
               s3:
-                access_key_id: smoke-key
-                secret_access_key: smoke-secret
                 buckets:
                   bucket1: {}
             """.trimIndent(),
@@ -52,7 +53,18 @@ class SakControllerTest {
 
     private fun sakConfig(): SakConfig = SakConfigLoader.load(config())
 
+    // bucket1 with its key pair, bucket2 with one that may not access bucket1
+    private val keys by lazy {
+        val buckets = S3BucketService(SakDatabase.open(databaseFile(sakConfig())))
+        listOf("bucket1", "bucket2").associateWith {
+            (buckets.create(it) as CreateBucketResult.Created).bucket.let { bucket ->
+                AwsBasicCredentials.create(bucket.accessKeyId, bucket.secretAccessKey)
+            }
+        }
+    }
+
     private fun withServer(block: (port: Int) -> Unit) {
+        keys
         val config = sakConfig()
         val server = embeddedServer(Netty, port = 0) { sak(config) }.start()
         try {
@@ -65,13 +77,14 @@ class SakControllerTest {
     private fun s3Client(
         endpoint: String,
         httpClient: SdkHttpClient = ApacheHttpClient.create(),
+        credentials: AwsBasicCredentials = keys.getValue("bucket1"),
     ) = S3Client
         .builder()
         .endpointOverride(URI.create(endpoint))
         .region(Region.US_EAST_1)
         .forcePathStyle(true)
         .httpClient(httpClient)
-        .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("smoke-key", "smoke-secret")))
+        .credentialsProvider(StaticCredentialsProvider.create(credentials))
         .build()
 
     private fun S3Client.putAndGet() {
@@ -94,8 +107,6 @@ class SakControllerTest {
     fun `the deployed configuration in config is valid`() {
         val environment =
             mapOf(
-                "SAK_S3_ACCESS_KEY_ID" to "key",
-                "SAK_S3_SECRET_ACCESS_KEY" to "secret",
                 "SAK_SMTP_HOST" to "smtp.example.org",
                 "SAK_SMTP_PORT" to "465",
                 "SAK_SMTP_USERNAME" to "smtp-user",
@@ -105,8 +116,7 @@ class SakControllerTest {
         try {
             val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, "../config/controller-config.yaml"))
 
-            config.s3.accessKeyId shouldBe "key"
-            config.s3.secretAccessKey shouldBe "secret"
+            config.s3.buckets.keys shouldBe setOf("pelle.io")
             config.consoleUrl shouldBe "https://console.pelle.io"
             config.auth!!.smtp shouldBe
                 SakConfig.SmtpConfig(
@@ -123,16 +133,21 @@ class SakControllerTest {
     }
 
     @Test
-    fun `serves the s3 api at s3 with the configured credentials and data dir`() {
+    fun `serves the s3 api at s3 with the key pair of the bucket and the data dir`() {
         withServer { port -> s3Client("http://localhost:$port/s3").putAndGet() }
     }
 
     @Test
-    fun `rejects buckets that are not configured`() {
+    fun `the key pair of a bucket may access that bucket only`() {
         withServer { port ->
-            shouldThrow<NoSuchBucketException> {
-                s3Client("http://localhost:$port/s3").putObject({ it.bucket("bucket2").key("hello.txt") }, RequestBody.fromString("hello"))
-            }
+            val bucket2 = s3Client("http://localhost:$port/s3", credentials = keys.getValue("bucket2"))
+            shouldThrow<S3Exception> {
+                bucket2.putObject({ it.bucket("bucket1").key("hello.txt") }, RequestBody.fromString("hello"))
+            }.statusCode() shouldBe 403
+            shouldThrow<S3Exception> {
+                s3Client("http://localhost:$port/s3", credentials = AwsBasicCredentials.create("UNKNOWN", "secret"))
+                    .putObject({ it.bucket("bucket1").key("hello.txt") }, RequestBody.fromString("hello"))
+            }.statusCode() shouldBe 403
         }
     }
 

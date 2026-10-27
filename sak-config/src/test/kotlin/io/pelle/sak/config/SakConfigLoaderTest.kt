@@ -29,8 +29,6 @@ class SakConfigLoaderTest {
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.redirects shouldBe mapOf("www.example.org" to "example.org")
-        config.s3.accessKeyId shouldBe "sak"
-        config.s3.secretAccessKey shouldBe "changeme"
         config.s3.buckets.keys shouldBe setOf("backups", "media")
         config.s3.buckets.getValue("backups").domains shouldBe emptyList()
         config.s3.buckets.getValue("media").domains shouldBe listOf("media.example.org")
@@ -89,24 +87,19 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `resolves the s3 credentials from environment variables`() {
-        System.setProperty("SAK_TEST_ACCESS_KEY_ID", "env-key")
-        System.setProperty("SAK_TEST_SECRET_ACCESS_KEY", "env-secret")
+    fun `resolves values from environment variables`() {
+        System.setProperty("SAK_TEST_ROOT_DOMAIN", "env.example.org")
         try {
-            val config = load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  access_key_id: \$SAK_TEST_ACCESS_KEY_ID\n  secret_access_key: \$SAK_TEST_SECRET_ACCESS_KEY\n")
-
-            config.s3.accessKeyId shouldBe "env-key"
-            config.s3.secretAccessKey shouldBe "env-secret"
+            load("data_dir: /data\nroot_domain: \$SAK_TEST_ROOT_DOMAIN\n").rootDomain shouldBe "env.example.org"
         } finally {
-            System.clearProperty("SAK_TEST_ACCESS_KEY_ID")
-            System.clearProperty("SAK_TEST_SECRET_ACCESS_KEY")
+            System.clearProperty("SAK_TEST_ROOT_DOMAIN")
         }
     }
 
     @Test
     fun `fails when a referenced environment variable is missing`() {
         shouldThrow<ApplicationConfigurationException> {
-            load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  access_key_id: \$SAK_TEST_MISSING\n  secret_access_key: secret\n")
+            load("data_dir: /data\nroot_domain: \$SAK_TEST_MISSING\n")
         }.message shouldContain "SAK_TEST_MISSING"
     }
 
@@ -121,7 +114,7 @@ class SakConfigLoaderTest {
 
         config.dataDir shouldBe Path.of("/var/lib/sak")
         config.caddyAdminUrl shouldBe "http://localhost:3019"
-        config.s3.accessKeyId shouldBe "key"
+        config.rootDomain shouldBe "example.org"
     }
 
     @Test
@@ -145,18 +138,18 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `fails when s3 is missing`() {
-        shouldThrow<RuntimeException> { load("data_dir: /data\n$ROOT_DOMAIN") }
+    fun `s3 defaults to no domains of buckets`() {
+        load("data_dir: /data\n$ROOT_DOMAIN").s3.buckets shouldBe emptyMap()
     }
 
     @Test
-    fun `fails when s3 credentials are incomplete`() {
-        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  access_key_id: key\n") }
+    fun `fails on the s3 key pair there was before every bucket got its own`() {
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  access_key_id: key\n  secret_access_key: secret\n") }
     }
 
     companion object {
         private const val ROOT_DOMAIN = "root_domain: example.org\n"
 
-        private const val S3 = "s3:\n  access_key_id: key\n  secret_access_key: secret\n"
+        private const val S3 = "s3:\n  buckets: {}\n"
     }
 }

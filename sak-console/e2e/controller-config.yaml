@@ -8,8 +8,6 @@ sak:
   # nothing listens here, the controller keeps retrying to configure caddy in the background
   caddy_admin_url: http://localhost:12019
   s3:
-    access_key_id: e2e
-    secret_access_key: e2e-secret
     # served at their domains, so they are sites; only the statistics test writes their requests
     buckets:
       e2e-stats:
