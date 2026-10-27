@@ -6,6 +6,7 @@ import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
+import io.pelle.sak.model.labels.LabelRename
 
 sealed interface CreateLabelResult {
     data class Created(
@@ -87,8 +88,12 @@ class LabelService(
         val label = repository.byId(id) ?: return RenameLabelResult.NotFound
         val normalized = normalize(name) ?: return RenameLabelResult.InvalidName
         if (normalized == label.name) return RenameLabelResult.Renamed(label)
-        val renamed = repository.rename(id, normalized) ?: return RenameLabelResult.Exists
-        return RenameLabelResult.Renamed(renamed)
+        // deleted meanwhile, or another label got the name
+        return when (val renamed = repository.rename(id, normalized)) {
+            is LabelRename.Renamed -> RenameLabelResult.Renamed(renamed.label)
+            LabelRename.NotFound -> RenameLabelResult.NotFound
+            LabelRename.NameTaken -> RenameLabelResult.Exists
+        }
     }
 
     // the label stays as deleted, the links to it are dropped by the applications

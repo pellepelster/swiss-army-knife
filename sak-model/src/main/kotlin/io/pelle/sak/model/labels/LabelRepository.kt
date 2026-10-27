@@ -70,11 +70,10 @@ class LabelRepository(
             null
         }
 
-    // the label renamed, null when another label has the name or there is none
     fun rename(
         id: Int,
         name: String,
-    ): Label? =
+    ): LabelRename =
         try {
             database.dsl
                 .update(LABELS)
@@ -83,9 +82,10 @@ class LabelRepository(
                 .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
                 .returning()
                 .fetchOne()
-                ?.toLabel()
+                ?.let { LabelRename.Renamed(it.toLabel()) }
+                ?: LabelRename.NotFound
         } catch (_: IntegrityConstraintViolationException) {
-            null
+            LabelRename.NameTaken
         }
 
     // false when there was none

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class LabelRepositoryTest {
     @TempDir
@@ -46,5 +47,17 @@ class LabelRepositoryTest {
         shouldThrow<DataAccessException> { insert(null) }
         insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
         insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
+    }
+
+    @Test
+    fun `tells why a label could not be renamed`() {
+        val home = repository.insert("home")!!
+        val work = repository.insert("work")!!
+
+        repository.rename(home.id, "house").shouldBeInstanceOf<LabelRename.Renamed>().label.name shouldBe "house"
+        repository.rename(home.id, "work") shouldBe LabelRename.NameTaken
+        repository.delete(work.id)
+        repository.rename(work.id, "office") shouldBe LabelRename.NotFound
+        repository.rename(4711, "office") shouldBe LabelRename.NotFound
     }
 }
