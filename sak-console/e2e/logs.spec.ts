@@ -23,8 +23,8 @@ test('shows the requests of a site from the ingress access log', async ({ page }
     { site: 'e2e-other', status: 200, size: 10, uri: '/', userAgent: browser },
   );
 
-  // the overview links the sites, so does the navigation
-  await expect(page.getByTestId('site-e2e-stats')).toBeVisible();
+  // the overview shows the requests of every site, the navigation leads to each one's
+  await expect(page.getByRole('img', { name: 'Requests, last 4 hours' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Statistics' }).click();
   // the first site, in the url like every selected one
   await expect(page).toHaveURL('/logs/statistics/e2e-stats');
