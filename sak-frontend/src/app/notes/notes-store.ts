@@ -90,7 +90,7 @@ export class NotesStore {
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
 
-  // what went wrong last, null when everything is saved
+  // what went wrong last, null when everything is saved; every action clears it when it starts
   readonly error = signal<string | null>(null);
 
   // every label of a note, sorted
@@ -114,6 +114,7 @@ export class NotesStore {
   // except the ones changed here that the backend may not know of yet
   load(): void {
     this.loadingNotes?.unsubscribe();
+    this.error.set(null);
     this.loading.set(true);
     this.changedWhileLoading = new Set([...this.pendingText.keys(), ...this.inFlight.keys()]);
     this.loadingNotes = this.http
@@ -153,6 +154,7 @@ export class NotesStore {
     photos: readonly number[] = [],
     recordings: readonly number[] = [],
   ): Promise<Note | null> {
+    this.error.set(null);
     try {
       const response = await firstValueFrom(
         this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels, photos, recordings }),
@@ -205,12 +207,14 @@ export class NotesStore {
 
   // a new note with the photo, null when the photo or the note could not be stored
   async addWithPhoto(photo: Blob, labels: readonly string[] = []): Promise<Note | null> {
+    this.error.set(null);
     const fileId = await this.uploadPhoto(photo);
     return fileId === null ? null : this.add('', 'yellow', labels, [fileId]);
   }
 
   // attached once it is uploaded
   async addPhoto(id: number, photo: Blob): Promise<void> {
+    this.error.set(null);
     this.uploading.update((ids) => new Set([...ids, id]));
     try {
       const fileId = await this.uploadPhoto(photo);
@@ -231,6 +235,7 @@ export class NotesStore {
       this.recorder.stop();
       return null;
     }
+    this.error.set(null);
     this.recordingFor.set(target);
     let recording: Blob | null;
     try {
@@ -280,6 +285,7 @@ export class NotesStore {
 
   // the text the backend discovers in the photo or the recording is added to the text of the note
   async discoverText(id: number, fileId: number): Promise<void> {
+    this.error.set(null);
     this.discovering.update((photos) => new Set([...photos, fileId]));
     try {
       const { text } = await firstValueFrom(
@@ -313,6 +319,7 @@ export class NotesStore {
 
   // gone at once, back when the backend could not delete it
   remove(id: number): void {
+    this.error.set(null);
     const notes = this.all();
     clearTimeout(this.pendingText.get(id));
     this.pendingText.delete(id);
@@ -397,7 +404,7 @@ export class NotesStore {
     }
   }
 
-  // false when the note is unknown or nothing changed
+  // false when the note is unknown or nothing changed; a change is an action, it clears the error
   private change(id: number, change: (note: Note) => Note): boolean {
     let changed = false;
     this.all.update((notes) =>
@@ -408,7 +415,10 @@ export class NotesStore {
         return result;
       }),
     );
-    if (changed) this.changedWhileLoading?.add(id);
+    if (changed) {
+      this.error.set(null);
+      this.changedWhileLoading?.add(id);
+    }
     return changed;
   }
 }

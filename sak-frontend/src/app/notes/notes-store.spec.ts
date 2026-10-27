@@ -251,6 +251,28 @@ describe('NotesStore', () => {
     http.expectNone({ method: 'POST' });
   });
 
+  it('clears what went wrong once the next action starts', async () => {
+    store.load();
+    http.expectOne('/api/v1/notes?limit=500').flush(null, { status: 500, statusText: 'Error' });
+    http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
+    expect(store.error()).toBe('The notes could not be loaded.');
+
+    store.setColor(1, 'blue');
+    expect(store.error()).toBeNull();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+      .flush(null, { status: 500, statusText: 'Error' });
+    expect(store.error()).toBe('The note could not be saved.');
+
+    const added = store.add();
+    expect(store.error()).toBeNull();
+    http
+      .expectOne({ method: 'POST', url: '/api/v1/notes' })
+      .flush(noteResponse(3, '', 'yellow', []));
+    await added;
+    expect(store.error()).toBeNull();
+  });
+
   it('deletes notes at once and brings them back when the backend can not', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);
