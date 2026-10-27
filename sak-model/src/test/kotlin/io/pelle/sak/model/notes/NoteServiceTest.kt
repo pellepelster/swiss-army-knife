@@ -38,7 +38,8 @@ class NoteServiceTest {
         text: String,
         color: String = "yellow",
         labelNames: List<String> = emptyList(),
-    ) = service.create(text, color, labelNames).shouldBeInstanceOf<SaveNoteResult.Saved>().note
+        owner: String = PELLE,
+    ) = service.create(owner, text, color, labelNames).shouldBeInstanceOf<SaveNoteResult.Saved>().note
 
     private fun later(minutes: Long = 1) {
         clock.now = clock.now.plusSeconds(minutes * 60)
@@ -53,15 +54,15 @@ class NoteServiceTest {
         note.labels.map { it.name } shouldBe listOf("home", "todo")
         note.createdAt shouldBe clock.now
         note.updatedAt shouldBe clock.now
-        service.byId(note.id) shouldBe note
+        service.byId(PELLE, note.id) shouldBe note
         labels.page(0, 10).items.map { it.name } shouldBe listOf("home", "todo")
     }
 
     @Test
     fun `rejects notes with every problem they have and creates no labels for them`() {
-        service.create("x".repeat(10_001), "purple", listOf("ok", " ")) shouldBe
+        service.create(PELLE, "x".repeat(10_001), "purple", listOf("ok", " ")) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.TEXT_TOO_LONG, NoteProblem.INVALID_COLOR, NoteProblem.INVALID_LABEL))
-        service.create("fine", "purple", listOf("ok")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_COLOR))
+        service.create(PELLE, "fine", "purple", listOf("ok")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_COLOR))
         labels.byName("ok") shouldBe null
         create("x".repeat(10_000))
     }
@@ -74,16 +75,16 @@ class NoteServiceTest {
         later()
         val app = create("app", labelNames = listOf("todo"))
 
-        service.page(0, 2).let {
+        service.page(PELLE, 0, 2).let {
             it.items.map { note -> note.id } shouldBe listOf(app.id, plumber.id)
             it.total shouldBe 3
         }
-        service.page(2, 2).items shouldBe listOf(milk)
-        service.page(0, 10, "TODO").let {
+        service.page(PELLE, 2, 2).items shouldBe listOf(milk)
+        service.page(PELLE, 0, 10, "TODO").let {
             it.items.map { note -> note.text } shouldBe listOf("app", "plumber")
             it.total shouldBe 2
         }
-        service.page(0, 10, "unknown") shouldBe io.pelle.sak.model.Slice(emptyList(), 0)
+        service.page(PELLE, 0, 10, "unknown") shouldBe io.pelle.sak.model.Slice(emptyList(), 0)
     }
 
     @Test
@@ -91,7 +92,7 @@ class NoteServiceTest {
         val note = create("milk", labelNames = listOf("shopping", "todo"))
         later()
 
-        val updated = service.update(note.id, "milk and bread", "green", listOf("shopping", "weekend"))
+        val updated = service.update(PELLE, note.id, "milk and bread", "green", listOf("shopping", "weekend"))
         updated.shouldBeInstanceOf<SaveNoteResult.Saved>().note.let {
             it.text shouldBe "milk and bread"
             it.color shouldBe NoteColor.GREEN
@@ -99,22 +100,36 @@ class NoteServiceTest {
             it.createdAt shouldBe note.createdAt
             it.updatedAt shouldBe clock.now
         }
-        service.byId(note.id) shouldBe updated.note
-        service.page(0, 10, "todo").total shouldBe 0
+        service.byId(PELLE, note.id) shouldBe updated.note
+        service.page(PELLE, 0, 10, "todo").total shouldBe 0
 
-        service.update(note.id, "", "blue", listOf("")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_LABEL))
-        service.update(4711, "", "blue") shouldBe SaveNoteResult.NotFound
+        service.update(PELLE, note.id, "", "blue", listOf("")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_LABEL))
+        service.update(PELLE, 4711, "", "blue") shouldBe SaveNoteResult.NotFound
+    }
+
+    @Test
+    fun `notes belong to the user that created them, nobody else sees or changes them`() {
+        val mine = create("mine", labelNames = listOf("todo"))
+        val theirs = create("theirs", labelNames = listOf("todo"), owner = OTHER)
+        mine.owner shouldBe PELLE
+
+        service.page(PELLE, 0, 10).items shouldBe listOf(mine)
+        service.page(OTHER, 0, 10, "todo").items shouldBe listOf(theirs)
+        service.byId(PELLE, theirs.id) shouldBe null
+        service.update(PELLE, theirs.id, "taken", "pink") shouldBe SaveNoteResult.NotFound
+        service.delete(PELLE, theirs.id) shouldBe DeleteNoteResult.NotFound
+        service.byId(OTHER, theirs.id) shouldBe theirs
     }
 
     @Test
     fun `deletes notes softly`() {
         val note = create("milk")
 
-        service.delete(note.id) shouldBe DeleteNoteResult.Deleted
-        service.delete(note.id) shouldBe DeleteNoteResult.NotFound
-        service.byId(note.id) shouldBe null
-        service.update(note.id, "again", "yellow") shouldBe SaveNoteResult.NotFound
-        service.page(0, 10).total shouldBe 0
+        service.delete(PELLE, note.id) shouldBe DeleteNoteResult.Deleted
+        service.delete(PELLE, note.id) shouldBe DeleteNoteResult.NotFound
+        service.byId(PELLE, note.id) shouldBe null
+        service.update(PELLE, note.id, "again", "yellow") shouldBe SaveNoteResult.NotFound
+        service.page(PELLE, 0, 10).total shouldBe 0
         database.dsl.fetchCount(NOTES) shouldBe 1
     }
 
@@ -124,9 +139,15 @@ class NoteServiceTest {
         val home = labels.byName("home")!!
 
         labels.delete(home.id)
-        service.byId(note.id)!!.labels.map { it.name } shouldBe listOf("todo")
+        service.byId(PELLE, note.id)!!.labels.map { it.name } shouldBe listOf("todo")
         labels.create("home")
-        service.byId(note.id)!!.labels.map { it.name } shouldBe listOf("todo")
-        service.page(0, 10, "home").total shouldBe 0
+        service.byId(PELLE, note.id)!!.labels.map { it.name } shouldBe listOf("todo")
+        service.page(PELLE, 0, 10, "home").total shouldBe 0
+    }
+
+    companion object {
+        private const val PELLE = "pelle@pelle.io"
+
+        private const val OTHER = "other@example.org"
     }
 }

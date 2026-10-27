@@ -24,9 +24,10 @@ enum class NoteColor {
     }
 }
 
-// labels are sorted by name
+// owner is the address of the user the note belongs to; labels are sorted by name
 data class Note(
     val id: Int,
+    val owner: String,
     val text: String,
     val color: NoteColor,
     val labels: List<Label>,
@@ -58,8 +59,9 @@ sealed interface DeleteNoteResult {
     data object NotFound : DeleteNoteResult
 }
 
-// the notes of the notes app, the only way to them; the labels are the shared ones, a label
-// unknown yet is created when a note gets it
+// the notes of the notes app, the only way to them; every note belongs to its owner, the address
+// of the user that created it, and is only seen and changed by them. The labels are the shared
+// ones, a label unknown yet is created when a note gets it
 class NoteService internal constructor(
     private val repository: NoteRepository,
     private val labels: LabelService,
@@ -77,6 +79,7 @@ class NoteService internal constructor(
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
     fun page(
+        owner: String,
         offset: Long,
         limit: Int,
         label: String? = null,
@@ -85,12 +88,16 @@ class NoteService internal constructor(
             label?.let { name ->
                 labels.byName(name)?.id ?: return Slice(emptyList(), 0)
             }
-        return Slice(notes(repository.page(offset, limit, labelId)), repository.count(labelId))
+        return Slice(notes(repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
     }
 
-    fun byId(id: Int): Note? = repository.byId(id)?.let { notes(listOf(it)).single() }
+    fun byId(
+        owner: String,
+        id: Int,
+    ): Note? = repository.byId(owner, id)?.let { notes(listOf(it)).single() }
 
     fun create(
+        owner: String,
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
@@ -98,32 +105,35 @@ class NoteService internal constructor(
         when (val checked = check(text, color, labelNames)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val row = repository.insert(text, checked.color.id, checked.labels.ids(), clock.instant())
+                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), clock.instant())
                 SaveNoteResult.Saved(row.toNote(checked.labels))
             }
         }
 
     // replaces the text, the color and the labels
     fun update(
+        owner: String,
         id: Int,
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
     ): SaveNoteResult {
-        val note = repository.byId(id) ?: return SaveNoteResult.NotFound
+        val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
         return when (val checked = check(text, color, labelNames)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
                 val now = clock.instant()
-                if (!repository.update(id, text, checked.color.id, checked.labels.ids(), now)) return SaveNoteResult.NotFound
+                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), now)) return SaveNoteResult.NotFound
                 SaveNoteResult.Saved(note.copy(text = text, color = checked.color.id, updatedAt = now).toNote(checked.labels))
             }
         }
     }
 
     // the note stays as deleted
-    fun delete(id: Int): DeleteNoteResult =
-        if (repository.delete(id, clock.instant())) DeleteNoteResult.Deleted else DeleteNoteResult.NotFound
+    fun delete(
+        owner: String,
+        id: Int,
+    ): DeleteNoteResult = if (repository.delete(owner, id, clock.instant())) DeleteNoteResult.Deleted else DeleteNoteResult.NotFound
 
     private sealed interface Checked {
         data class Valid(
@@ -164,7 +174,7 @@ class NoteService internal constructor(
     private fun List<Label>.ids() = map { it.id }.toSet()
 
     private fun NoteRow.toNote(labels: List<Label>) =
-        Note(id, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, createdAt, updatedAt)
+        Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, createdAt, updatedAt)
 
     companion object {
         const val MAX_TEXT_LENGTH = 10_000

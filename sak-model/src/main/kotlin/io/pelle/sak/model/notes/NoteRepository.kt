@@ -14,6 +14,7 @@ import java.time.ZoneOffset
 // a note as it is stored, with the ids of its labels
 internal data class NoteRow(
     val id: Int,
+    val owner: String,
     val text: String,
     val color: String,
     val labelIds: Set<Int>,
@@ -22,12 +23,13 @@ internal data class NoteRow(
 )
 
 // the database access of the notes and the links to their labels, only NoteService uses it; it
-// reads the notes that are not deleted only
+// reads and changes the notes of one owner that are not deleted only
 internal class NoteRepository(
     private val database: SakDatabase,
 ) {
     // the newest first, of one label or of all when labelId is null
     fun page(
+        owner: String,
         offset: Long,
         limit: Int,
         labelId: Int?,
@@ -35,7 +37,7 @@ internal class NoteRepository(
         val notes =
             database.dsl
                 .selectFrom(NOTES)
-                .where(visible(labelId))
+                .where(visible(owner, labelId))
                 .orderBy(NOTES.CREATED_AT.desc(), NOTES.ID.desc())
                 .limit(limit)
                 .offset(offset)
@@ -44,16 +46,23 @@ internal class NoteRepository(
         return notes.map { it.toRow(labels[it.id].orEmpty()) }
     }
 
-    fun count(labelId: Int?): Long = database.dsl.fetchCount(NOTES, visible(labelId)).toLong()
+    fun count(
+        owner: String,
+        labelId: Int?,
+    ): Long = database.dsl.fetchCount(NOTES, visible(owner, labelId)).toLong()
 
-    fun byId(id: Int): NoteRow? =
+    fun byId(
+        owner: String,
+        id: Int,
+    ): NoteRow? =
         database.dsl
             .selectFrom(NOTES)
-            .where(NOTES.ID.eq(id), NOTES.DELETED_AT.isNull)
+            .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
             .fetchOne()
             ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty()) }
 
     fun insert(
+        owner: String,
         text: String,
         color: String,
         labelIds: Set<Int>,
@@ -64,6 +73,7 @@ internal class NoteRepository(
             val note =
                 dsl
                     .insertInto(NOTES)
+                    .set(NOTES.OWNER, owner)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.CREATED_AT, now.utc())
@@ -76,6 +86,7 @@ internal class NoteRepository(
 
     // false when there is none
     fun update(
+        owner: String,
         id: Int,
         text: String,
         color: String,
@@ -90,7 +101,7 @@ internal class NoteRepository(
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.UPDATED_AT, now.utc())
-                    .where(NOTES.ID.eq(id), NOTES.DELETED_AT.isNull)
+                    .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
                     .execute() > 0
             if (updated) {
                 dsl.deleteFrom(NOTES_LABELS).where(NOTES_LABELS.NOTE_ID.eq(id)).execute()
@@ -101,6 +112,7 @@ internal class NoteRepository(
 
     // false when there was none
     fun delete(
+        owner: String,
         id: Int,
         now: Instant,
     ): Boolean =
@@ -108,7 +120,7 @@ internal class NoteRepository(
             .update(NOTES)
             .set(NOTES.UPDATED_AT, now.utc())
             .set(NOTES.DELETED_AT, now.utc())
-            .where(NOTES.ID.eq(id), NOTES.DELETED_AT.isNull)
+            .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
             .execute() > 0
 
     // drops the label from every note
@@ -116,8 +128,11 @@ internal class NoteRepository(
         database.dsl.deleteFrom(NOTES_LABELS).where(NOTES_LABELS.LABEL_ID.eq(labelId)).execute()
     }
 
-    private fun visible(labelId: Int?): Condition =
-        NOTES.DELETED_AT.isNull.and(
+    private fun visible(
+        owner: String,
+        labelId: Int?,
+    ): Condition =
+        NOTES.OWNER.eq(owner).and(NOTES.DELETED_AT.isNull).and(
             if (labelId == null) {
                 DSL.noCondition()
             } else {
@@ -153,6 +168,7 @@ internal class NoteRepository(
     private fun NotesRecord.toRow(labelIds: Set<Int>) =
         NoteRow(
             id = id!!,
+            owner = owner!!,
             text = text!!,
             color = color!!,
             labelIds = labelIds,

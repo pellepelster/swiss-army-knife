@@ -1,5 +1,5 @@
-# the notes of the notes app with the labels attached to them; a deleted note stays as a row with
-# deleted_at set. Plain sql, sqlite only takes the foreign keys when the table is created.
+# the notes of the notes app with the labels attached to them, each note belongs to the address
+# of the user that created it; a deleted note stays as a row with deleted_at set. Plain sql, sqlite only takes the foreign keys when the table is created.
 databaseChangeLog:
   - changeSet:
       id: 0005-notes
@@ -9,12 +9,16 @@ databaseChangeLog:
             sql: >-
               CREATE TABLE notes (
                 id INTEGER NOT NULL PRIMARY KEY,
+                owner VARCHAR(254) NOT NULL,
                 text VARCHAR(10000) NOT NULL,
                 color VARCHAR(16) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL,
                 deleted_at TIMESTAMP
               )
+        - sql:
+            sql: >-
+              CREATE INDEX notes_owner_idx ON notes (owner)
         - sql:
             sql: >-
               CREATE TABLE notes_labels (
