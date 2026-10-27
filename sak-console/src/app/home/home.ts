@@ -60,7 +60,7 @@ export const METRICS_REFRESH_MS = 60_000;
             <tbody>
               @for (bucket of buckets(); track bucket.name) {
                 <tr [attr.data-testid]="'overview-bucket-' + bucket.name">
-                  <td class="font-mono"><a [routerLink]="['/s3', bucket.name]">{{ bucket.name }}</a></td>
+                  <td class="font-mono"><a [routerLink]="['/s3/buckets', bucket.name]">{{ bucket.name }}</a></td>
                   <td class="font-mono text-end" data-testid="bytes">{{ size(bucket) }}</td>
                 </tr>
               } @empty {

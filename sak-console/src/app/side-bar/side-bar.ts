@@ -53,7 +53,7 @@ import { AuthService } from '../auth/auth.service';
           <span class="nav-text">Live</span>
         </a>
         <div class="label-mono nav-section-label">S3</div>
-        <a class="nav-item" routerLink="/s3" routerLinkActive="active">
+        <a class="nav-item" routerLink="/s3/buckets" routerLinkActive="active">
           <span class="nav-square"></span>
           <span class="nav-text">Buckets</span>
         </a>

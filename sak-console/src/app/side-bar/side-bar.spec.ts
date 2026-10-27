@@ -50,7 +50,7 @@ describe('SideBar', () => {
       ['Overview', '/'],
       ['Statistics', '/logs/statistics'],
       ['Live', '/logs/live'],
-      ['Buckets', '/s3'],
+      ['Buckets', '/s3/buckets'],
       ['Redirects', '/ingress/redirects'],
       ['Swagger', '/swagger/'],
     ]);

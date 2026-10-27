@@ -33,8 +33,8 @@ describe('Buckets', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([
-          { path: 's3', component: Buckets },
-          { path: 's3/:name', component: Detail },
+          { path: 's3/buckets', component: Buckets },
+          { path: 's3/buckets/:name', component: Detail },
         ])],
     });
     http = TestBed.inject(HttpTestingController);
@@ -46,7 +46,7 @@ describe('Buckets', () => {
   });
 
   const open = async () => {
-    const harness = await RouterTestingHarness.create('/s3');
+    const harness = await RouterTestingHarness.create('/s3/buckets');
     const page = harness.routeNativeElement!;
     const row = (name: string) => page.querySelector(`[data-testid="bucket-${name}"]`)!;
     return { harness, page, row };
@@ -149,7 +149,7 @@ describe('Buckets', () => {
     );
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toBe('/s3/new-bucket');
+    expect(TestBed.inject(Router).url).toBe('/s3/buckets/new-bucket');
   });
 
   it('shows what the api rejected the bucket for', async () => {
@@ -168,7 +168,7 @@ describe('Buckets', () => {
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[data-testid=create-error]')?.textContent?.trim()).toBe('A bucket of the name exists.');
-    expect(TestBed.inject(Router).url).toBe('/s3');
+    expect(TestBed.inject(Router).url).toBe('/s3/buckets');
   });
 
   it('links every bucket to its page and shows none of its keys', async () => {
@@ -176,7 +176,7 @@ describe('Buckets', () => {
     http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([{ name: 'backups', domains: [], createdAt: CREATED, statistics: counted(0, 0) }]));
     await harness.fixture.whenStable();
 
-    expect(row('backups').querySelector('a')?.getAttribute('href')).toBe('/s3/backups');
+    expect(row('backups').querySelector('a')?.getAttribute('href')).toBe('/s3/buckets/backups');
     expect(row('backups').textContent).not.toMatch(/key|secret/i);
   });
 });

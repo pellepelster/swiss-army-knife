@@ -36,7 +36,7 @@ type TargetType = RedirectTarget['type'];
             <tr>
               <th scope="col">Domain</th>
               <th scope="col">Target</th>
-              <th scope="col">Leads to</th>
+              <th scope="col">Redirects to</th>
               <th scope="col"><span class="visually-hidden">Actions</span></th>
             </tr>
           </thead>
@@ -47,7 +47,7 @@ type TargetType = RedirectTarget['type'];
                 <td>
                   @if (redirect.target.type === 'bucket') {
                     <span class="badge text-bg-secondary me-1">bucket</span>
-                    <a class="font-mono" [routerLink]="['/s3', redirect.target.bucket]">{{ redirect.target.bucket }}</a>
+                    <a class="font-mono" [routerLink]="['/s3/buckets', redirect.target.bucket]">{{ redirect.target.bucket }}</a>
                   } @else {
                     <span class="badge text-bg-secondary me-1">domain</span>
                     <span class="font-mono">{{ redirect.target.domain }}</span>

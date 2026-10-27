@@ -69,7 +69,7 @@ describe('Redirects', () => {
     expect(external.textContent).toContain('domain');
     expect(external.querySelector('[data-testid=location]')?.textContent?.trim()).toBe('https://example.org');
     const bucket = page.querySelector('[data-testid="redirect-example.de"]')!;
-    expect(bucket.querySelector('a')?.getAttribute('href')).toBe('/s3/site');
+    expect(bucket.querySelector('a')?.getAttribute('href')).toBe('/s3/buckets/site');
     expect(bucket.querySelector('[data-testid=location]')?.textContent?.trim()).toBe('https://site.example.org');
   });
 

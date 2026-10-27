@@ -51,7 +51,7 @@ export const POLL_INTERVAL_MS = 3000;
             @for (bucket of buckets(); track bucket.name) {
               <tr [attr.data-testid]="'bucket-' + bucket.name">
                 <td class="font-mono">
-                  <a [routerLink]="['/s3', bucket.name]">{{ bucket.name }}</a>
+                  <a [routerLink]="['/s3/buckets', bucket.name]">{{ bucket.name }}</a>
                 </td>
                 <td class="font-mono">{{ bucket.domains.join(', ') || '–' }}</td>
                 @if (bucket.statistics.failed) {
@@ -163,7 +163,7 @@ export class Buckets {
     this.createErrors.set([]);
     this.subscriptions.add(
       this.service.create(name, enteredDomains(this.domains())).subscribe({
-        next: (bucket) => void this.router.navigate(['/s3', bucket.name]),
+        next: (bucket) => void this.router.navigate(['/s3/buckets', bucket.name]),
         error: (error: unknown) => {
           this.creating.set(false);
           this.createErrors.set(createErrorMessages(error, name));
