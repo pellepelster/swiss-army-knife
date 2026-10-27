@@ -17,6 +17,8 @@ import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
+import io.pelle.sak.backend.secrets.SecretService
+import io.pelle.sak.backend.secrets.SecretType
 import io.pelle.sak.auth.RequireRole
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SESSION_AUTH
@@ -81,7 +83,6 @@ fun frontendOrigins(config: SakConfig): Set<URI> =
 // the apps the login links lead to, sak-frontend; the mails say "Sign in to <root_domain>"
 fun loginApp(config: SakConfig) = LoginApp(config.frontendUrl, config.rootDomain)
 
-fun signingKeyFile(config: SakConfig) = config.authDataDir.resolve("signing-key.pem")
 
 // the session token lives in the local storage of sak-frontend, scripts from anywhere else must
 // never run on its pages; no referrer keeps the login token of the signin url to itself
@@ -105,6 +106,7 @@ private val SecurityHeaders =
 fun Application.apps(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
+    secrets: SecretService,
     statistics: BucketStatisticsCache,
     bucketService: S3BucketService,
     redirectService: RedirectService,
@@ -113,7 +115,9 @@ fun Application.apps(
     fileService: FileService,
     fileTextService: FileTextService,
 ) {
-    val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.frontendUrl)
+    // generated once and kept with the secrets, so sessions survive restarts
+    val signingKey = secrets.getOrCreate(SecretType.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
+    val tokens = TokenService(SigningKey.fromPem(signingKey.value), config.frontendUrl)
     val mailSender =
         with(auth.smtp) {
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)

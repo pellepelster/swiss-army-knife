@@ -24,7 +24,7 @@ class S3BucketRepositoryTest {
 
     @Test
     fun `a new bucket is not updated, changing its domains keeps the ones that stay and frees the others`() {
-        val site = repository.insert("site", "AKIASITE", "secret", listOf("a.example.org", "b.example.org", "c.example.org"))!!
+        val site = repository.insert("site", "AKIASITE", listOf("a.example.org", "b.example.org", "c.example.org"))!!
         site.updatedAt shouldBe null
 
         repository.replaceDomains("site", listOf("c.example.org", "a.example.org", "d.example.org")) shouldBe true
@@ -36,13 +36,13 @@ class S3BucketRepositoryTest {
         // the removed one stays as deleted and is free for another bucket
         database.dsl.fetchCount(S3_BUCKETS_DOMAINS) shouldBe 4
         repository.bucketOfDomain("b.example.org") shouldBe null
-        repository.insert("other", "AKIAOTHER", "secret", listOf("b.example.org")) shouldNotBe null
+        repository.insert("other", "AKIAOTHER", listOf("b.example.org")) shouldNotBe null
         repository.replaceDomains("site", listOf("b.example.org")) shouldBe false
     }
 
     @Test
     fun `a deleted bucket keeps its name taken and frees its domains`() {
-        repository.insert("site", "AKIASITE", "secret", listOf("example.org"))
+        repository.insert("site", "AKIASITE", listOf("example.org"))
 
         repository.delete("site") shouldBe true
         repository.delete("site") shouldBe false
@@ -56,7 +56,7 @@ class S3BucketRepositoryTest {
             it.deletedAt shouldBe now
             it.updatedAt shouldBe null
         }
-        repository.insert("site", "AKIAAGAIN", "secret") shouldBe null
-        repository.insert("other", "AKIAOTHER", "secret", listOf("example.org")) shouldNotBe null
+        repository.insert("site", "AKIAAGAIN") shouldBe null
+        repository.insert("other", "AKIAOTHER", listOf("example.org")) shouldNotBe null
     }
 }

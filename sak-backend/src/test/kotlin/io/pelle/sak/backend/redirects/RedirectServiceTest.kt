@@ -2,6 +2,7 @@ package io.pelle.sak.backend.redirects
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.pelle.sak.backend.testSecrets
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.model.ingress.RedirectTarget
@@ -21,7 +22,7 @@ class RedirectServiceTest {
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
     private val buckets by lazy {
-        S3BucketService(database).apply {
+        S3BucketService(database, testSecrets(database)).apply {
             create("site", listOf("example.org", "www.example.org"))
             create("private")
         }
@@ -71,7 +72,7 @@ class RedirectServiceTest {
     @Test
     fun `leads to the subdomain of a bucket without domains and keeps it from being redirected`() {
         val database = SakDatabase.open(tempDir.resolve("root.db"))
-        val buckets = S3BucketService(database, rootDomain = "example.org").apply { create("private") }
+        val buckets = S3BucketService(database, testSecrets(database), rootDomain = "example.org").apply { create("private") }
         val redirects = RedirectService(database, buckets, clock)
 
         val created = redirects.create("example.de", RedirectTarget.Bucket("private"))

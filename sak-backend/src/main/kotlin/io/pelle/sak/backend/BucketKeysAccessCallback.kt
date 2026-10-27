@@ -12,7 +12,7 @@ class BucketKeysAccessCallback(
     override fun resolveSecretKey(
         accessKeyId: String,
         bucket: String?,
-    ) = buckets.byAccessKeyId(accessKeyId)?.secretAccessKey
+    ) = buckets.secretAccessKey(accessKeyId)?.value
 
     override fun checkAccess(
         accessKeyId: String,

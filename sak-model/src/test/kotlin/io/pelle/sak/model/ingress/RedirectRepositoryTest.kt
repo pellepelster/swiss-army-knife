@@ -22,7 +22,7 @@ class RedirectRepositoryTest {
 
     @Test
     fun `the schema holds exactly the target of the type and only known buckets`() {
-        S3BucketRepository(database).insert("site", "AKIASITE", "secret") shouldNotBe null
+        S3BucketRepository(database).insert("site", "AKIASITE") shouldNotBe null
         fun insert(
             type: String,
             domain: String?,

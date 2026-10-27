@@ -3,6 +3,9 @@ sak:
   data_dir: /something
   root_domain: example.org
   caddy_admin_url: http://localhost:3019
+  secret_keys:
+    1: c2VjcmV0LWtleS1vbmUtYXQtbGVhc3QtMzItYnl0ZXMtbG9uZw==
+    2: c2VjcmV0LWtleS10d28tYXQtbGVhc3QtMzItYnl0ZXMtbG9uZw==
   auth:
     admins:
       - Admin@example.org

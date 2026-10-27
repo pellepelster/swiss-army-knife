@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
+import io.pelle.sak.backend.secrets.SecretCipher
 
 class SakBackendTest {
     @TempDir
@@ -43,6 +44,8 @@ class SakBackendTest {
             sak:
               data_dir: $dataDir
               root_domain: example.org
+              secret_keys:
+                1: ${TEST_SECRET_KEYS.getValue(1)}
             """.trimIndent(),
         )
         return ConfigLoader.loadAll(BUNDLED_CONFIG, configFile.toString())
@@ -52,10 +55,11 @@ class SakBackendTest {
 
     // bucket1 with its key pair, bucket2 with one that may not access bucket1
     private val keys by lazy {
-        val buckets = S3BucketService(SakDatabase.open(databaseFile(sakConfig())))
+        val database = SakDatabase.open(databaseFile(sakConfig()))
+        val buckets = S3BucketService(database, testSecrets(database))
         listOf("bucket1", "bucket2").associateWith {
             (buckets.create(it) as CreateBucketResult.Created).bucket.let { bucket ->
-                AwsBasicCredentials.create(bucket.accessKeyId, bucket.secretAccessKey)
+                AwsBasicCredentials.create(bucket.accessKeyId, buckets.keyPair(bucket.name)!!.second.value)
             }
         }
     }
@@ -109,6 +113,7 @@ class SakBackendTest {
                 "SAK_SMTP_USERNAME" to "smtp-user",
                 "SAK_SMTP_PASSWORD" to "smtp-password",
                 "SAK_OPENROUTER_API_TOKEN" to "openrouter-token",
+                "SAK_SECRET_KEY_1" to TEST_SECRET_KEYS.getValue(1),
             )
         environment.forEach { (name, value) -> System.setProperty(name, value) }
         try {
@@ -125,6 +130,9 @@ class SakBackendTest {
                     tls = true,
                 )
             config.openrouter shouldBe SakConfig.OpenRouterConfig(apiToken = "openrouter-token")
+            config.secretKeys shouldBe TEST_SECRET_KEYS
+            // the keys terraform writes are taken for the domain of the deployment
+            SecretCipher(config.secretKeys, config.rootDomain).activeVersion shouldBe 1
         } finally {
             environment.keys.forEach { System.clearProperty(it) }
         }

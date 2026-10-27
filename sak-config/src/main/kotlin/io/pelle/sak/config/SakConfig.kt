@@ -23,10 +23,17 @@ data class SakConfig(
     val logs: LogsConfig = LogsConfig(),
     // the text discovery in the photos and recordings of notes is only offered when configured
     val openrouter: OpenRouterConfig? = null,
+    // the keys the secrets are encrypted with (the secrets table) by their version, the highest
+    // encrypts; each is at least 32 random bytes, base64. The backend refuses to start without one
+    @SerialName("secret_keys")
+    val secretKeys: Map<Int, String> = emptyMap(),
 ) {
-    val s3DataDir: Path get() = dataDir.resolve("s3")
+    // the secret keys never show, e.g. in a log line
+    override fun toString() =
+        "SakConfig(dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
+            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()})"
 
-    val authDataDir: Path get() = dataDir.resolve("auth")
+    val s3DataDir: Path get() = dataDir.resolve("s3")
 
     // sak-frontend, its apps and their login
     val appsHost: String get() = "apps.$rootDomain"
@@ -65,7 +72,10 @@ data class SakConfig(
         @SerialName("speech_model")
         val speechModel: String = DEFAULT_OPENROUTER_SPEECH_MODEL,
         val url: String = DEFAULT_OPENROUTER_URL,
-    )
+    ) {
+        // the token never shows, e.g. in a log line
+        override fun toString() = "OpenRouterConfig(model=$model, speechModel=$speechModel, url=$url)"
+    }
 
     @Serializable
     data class SmtpConfig(
@@ -78,7 +88,10 @@ data class SakConfig(
         val tls: Boolean = false,
         // plain smtp, only meant for local test sinks
         val starttls: Boolean = true,
-    )
+    ) {
+        // the password never shows, e.g. in a log line
+        override fun toString() = "SmtpConfig(host=$host, port=$port, username=$username, from=$from, tls=$tls, starttls=$starttls)"
+    }
 
     companion object {
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"

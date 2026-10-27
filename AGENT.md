@@ -13,6 +13,13 @@
 - The repository sets them, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
   fields and answer the row as it is stored.
+- Every secret (a bucket's secret key, the signing key of the login, …) lives in the `secrets`
+  table and nowhere else, no other table and no file holds one. `SecretService` (sak-backend) is
+  the only way to them: it encrypts with AES-256-GCM under the keys of `sak.secret_keys`
+  (versioned, the newest encrypts, older ones are encrypted anew on start; terraform creates them),
+  authenticates the type and scope with each value and hands them out as `Secret`, whose
+  `toString()` never shows the value. Configuration and value classes holding a secret override
+  `toString()` the same way.
 - `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
   only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
   `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.

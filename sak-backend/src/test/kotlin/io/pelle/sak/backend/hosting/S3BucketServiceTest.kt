@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import io.pelle.sak.api.testing.testClock
+import io.pelle.sak.backend.secrets.SecretType
+import io.pelle.sak.backend.testSecrets
 
 class S3BucketServiceTest {
     @TempDir
@@ -17,9 +19,14 @@ class S3BucketServiceTest {
 
     private val changes = mutableListOf<String>()
 
+    private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
+
+    private val secrets by lazy { testSecrets(database) }
+
     private val service by lazy {
         S3BucketService(
-            SakDatabase.open(tempDir.resolve("sak.db")),
+            database,
+            secrets,
             clock,
             reservedNames = setOf("console"),
             reservedDomains = { setOf("console.example.org", "redirected.example.org") },
@@ -34,9 +41,13 @@ class S3BucketServiceTest {
         first.name shouldBe "pelle-io"
         first.createdAt shouldBe clock.instant()
         first.accessKeyId.length shouldBe 20
-        first.secretAccessKey.length shouldBe 40
+        val firstSecret = service.keyPair("pelle-io")!!.second.value
+        firstSecret.length shouldBe 40
         first.accessKeyId shouldNotBe second.accessKeyId
-        first.secretAccessKey shouldNotBe second.secretAccessKey
+        firstSecret shouldNotBe service.keyPair("backups")!!.second.value
+        // kept encrypted with the secrets, sigv4 gets it from there
+        service.secretAccessKey(first.accessKeyId)!!.value shouldBe firstSecret
+        secrets.get(SecretType.S3_SECRET_ACCESS_KEY, "pelle-io")!!.value shouldBe firstSecret
 
         service.all().map { it.name } shouldBe listOf("backups", "pelle-io")
         service.byName("pelle-io") shouldBe first
@@ -58,13 +69,16 @@ class S3BucketServiceTest {
     @Test
     fun `serves every bucket at its subdomain of the root domain as well`() {
         val buckets =
-            S3BucketService(
-                SakDatabase.open(tempDir.resolve("root.db")),
+            SakDatabase.open(tempDir.resolve("root.db")).let { database ->
+                S3BucketService(
+                database,
+                testSecrets(database),
                 clock,
                 rootDomain = "example.org",
                 reservedNames = setOf("apps"),
                 reservedDomains = { setOf("apps.example.org", "redirected.example.org") },
             )
+            }
         val site = buckets.create("site", listOf("example.com")).shouldBeInstanceOf<CreateBucketResult.Created>().bucket
         val private = buckets.create("private").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
 

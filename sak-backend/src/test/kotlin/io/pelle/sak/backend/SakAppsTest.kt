@@ -46,6 +46,7 @@ import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
+import io.pelle.sak.backend.secrets.SecretType
 
 // the api of the apps and their e-mail login end to end: the controller sends the login links
 // through smtp to a greenmail sink, the test follows them like the signin page of the apps does
@@ -70,6 +71,8 @@ class SakAppsTest {
             sak:
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
+              secret_keys:
+                1: ${TEST_SECRET_KEYS.getValue(1)}
             """.trimIndent() +
                 if (auth) {
                     "\n" +
@@ -91,6 +94,12 @@ class SakAppsTest {
         )
         return SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, configFile.toString()))
     }
+
+    // the key the server signs the tokens with, kept with its secrets
+    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSecrets(it).get(SecretType.AUTH_SIGNING_KEY) }
+
+    // the buckets of the server's database, with the secrets it reads
+    private fun buckets(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { S3BucketService(it, testSecrets(it)) }
 
     private fun withServer(
         config: SakConfig = config(),
@@ -217,7 +226,7 @@ class SakAppsTest {
     @Test
     fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
         val config = config()
-        val bucket1 = (S3BucketService(SakDatabase.open(databaseFile(config))).create("bucket1") as CreateBucketResult.Created).bucket
+        val bucket1 = (buckets(config).create("bucket1") as CreateBucketResult.Created).bucket
 
         withServer(config) { port ->
             val session = signIn(port)
@@ -241,7 +250,7 @@ class SakAppsTest {
                 .endpointOverride(URI.create("http://localhost:$port/s3"))
                 .region(Region.US_EAST_1)
                 .forcePathStyle(true)
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(bucket1.accessKeyId, bucket1.secretAccessKey)))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(bucket1.accessKeyId, buckets(config).keyPair("bucket1")!!.second.value)))
                 .build()
                 .use { it.putObject({ request -> request.bucket("bucket1").key("a.txt") }, RequestBody.fromString("12345")) }
 
@@ -305,7 +314,7 @@ class SakAppsTest {
     @Test
     fun `redirects domains to external domains and to the domain of a bucket`() {
         val config = config()
-        S3BucketService(SakDatabase.open(databaseFile(config))).let { buckets ->
+        buckets(config).let { buckets ->
             buckets.create("bucket1")
             buckets.create("site", listOf("site.example.org"))
         }
@@ -669,7 +678,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sessions survive a restart because the signing key is kept in the data dir`() {
+    fun `sessions survive a restart because the signing key is kept with the secrets`() {
         val config = config()
         var sessionToken = ""
         withServer(config) { port ->
@@ -677,7 +686,8 @@ class SakAppsTest {
             sessionToken = post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
         }
 
-        Files.exists(signingKeyFile(config)) shouldBe true
+        signingKey(config) shouldNotBe null
+        Files.exists(config.dataDir.resolve("auth")) shouldBe false
         withServer(config) { port ->
             get(port, "/api/v1/auth/me", sessionToken).statusCode() shouldBe 200
         }
@@ -852,8 +862,8 @@ class SakAppsTest {
     @Test
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
-        Files.createDirectories(signingKeyFile(config).parent)
-        Files.writeString(signingKeyFile(config), "not a key")
+        Files.createDirectories(config.dataDir)
+        SakDatabase.open(databaseFile(config)).let { testSecrets(it).put(SecretType.AUTH_SIGNING_KEY, "", "not a key") }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -867,7 +877,7 @@ class SakAppsTest {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404
             post(port, "/api/v1/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
-            Files.exists(signingKeyFile(config(auth = false))) shouldNotBe true
+            signingKey(config(auth = false)) shouldBe null
         }
     }
 

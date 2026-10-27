@@ -158,10 +158,23 @@ resource "local_file" "known_hosts" {
   directory_permission = "0700"
 }
 
-# the smtp credentials and the openrouter token config/controller-config.yaml references, deployed as systemd
-# EnvironmentFile of the controller unit
+# the key the backend encrypts its secrets with (sak.secret_keys, the secrets table); it lives in the
+# terraform state only, without it no secret of the backend can be read any more, so it is never
+# destroyed. A new key is a new version next to it (SAK_SECRET_KEY_2), the backend encrypts every
+# secret under the newest version when it starts
+resource "random_bytes" "secret_key_1" {
+  length = 32
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# the smtp credentials, the openrouter token and the secret key config/controller-config.yaml
+# references, deployed as systemd EnvironmentFile of the controller unit
 resource "local_sensitive_file" "controller_env" {
   content              = <<-EOT
+    SAK_SECRET_KEY_1=${random_bytes.secret_key_1.base64}
     SAK_SMTP_HOST=${var.smtp_host}
     SAK_SMTP_PORT=${var.smtp_port}
     SAK_SMTP_USERNAME=${var.smtp_username}

@@ -221,13 +221,13 @@ fun Route.buckets(
     }
 
     get("/{bucket}/secret") {
-        val bucket = withContext(Dispatchers.IO) { bucketService.byName(call.parameters["bucket"].orEmpty()) }
-        if (bucket == null) {
+        val keyPair = withContext(Dispatchers.IO) { bucketService.keyPair(call.parameters["bucket"].orEmpty()) }
+        if (keyPair == null) {
             call.respond(HttpStatusCode.NotFound)
             return@get
         }
         call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respond(BucketSecretResponse(bucket.accessKeyId, bucket.secretAccessKey))
+        call.respond(BucketSecretResponse(keyPair.first, keyPair.second.value))
     }.describe {
         tag(S3_TAG)
         summary = "The key pair of a bucket"

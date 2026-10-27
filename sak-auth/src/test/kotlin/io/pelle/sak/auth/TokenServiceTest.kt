@@ -146,16 +146,13 @@ class TokenServiceTest {
     }
 
     @Test
-    fun `the signing key is generated once, kept readable by the owner only and survives a pem round trip`() {
-        val file = tempDir.resolve("auth/signing-key.pem")
+    fun `the signing key survives a pem round trip`() {
+        val generated = SigningKey.generate()
 
-        val generated = SigningKey.loadOrCreate(file)
-        val loaded = SigningKey.loadOrCreate(file)
-
-        loaded.privateKey shouldBe generated.privateKey
-        loaded.publicKey shouldBe generated.publicKey
-        PosixFilePermissions.toString(Files.getPosixFilePermissions(file)) shouldBe "rw-------"
-        SigningKey.fromPem(generated.toPem()).publicKey shouldBe generated.publicKey
+        SigningKey.fromPem(generated.toPem()).let {
+            it.privateKey shouldBe generated.privateKey
+            it.publicKey shouldBe generated.publicKey
+        }
         SigningKey.generate().publicKey shouldNotBe generated.publicKey
     }
 

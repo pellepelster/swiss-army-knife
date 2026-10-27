@@ -1,9 +1,5 @@
 package io.pelle.sak.auth
 
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.attribute.PosixFilePermissions
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.interfaces.ECPrivateKey
@@ -39,22 +35,6 @@ class SigningKey(
             )
         }
 
-        // the key is generated on first start and kept, so sessions survive restarts; it is
-        // written to a temporary file first, a crash never leaves half a key behind
-        fun loadOrCreate(file: Path): SigningKey {
-            if (Files.exists(file)) {
-                return fromPem(Files.readString(file))
-            }
-
-            Files.createDirectories(file.parent)
-            val key = generate()
-            val tmp = file.resolveSibling("${file.fileName}.tmp")
-            Files.deleteIfExists(tmp)
-            Files.createFile(tmp, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
-            Files.writeString(tmp, key.toPem())
-            Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE)
-            return key
-        }
 
         private fun pem(
             type: String,

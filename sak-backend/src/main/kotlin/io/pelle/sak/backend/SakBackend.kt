@@ -15,6 +15,7 @@ import io.pelle.sak.backend.redirects.reservedDomains
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.backend.secrets.SecretService
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
@@ -80,12 +81,16 @@ fun Application.sak(config: SakConfig): SakServices {
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
     val database = SakDatabase.open(databaseFile(config))
+    // every secret, encrypted under sak.secret_keys; the ones under an older key move to the newest
+    val secrets = SecretService(database, config.secretKeys, config.rootDomain)
+    secrets.reencryptUnderNewestKey()
     // a bucket is not served at a redirected domain and the other way round, each service checks
     // the other's domains
     lateinit var redirectService: RedirectService
     val bucketService =
         S3BucketService(
             database,
+            secrets,
             rootDomain = config.rootDomain,
             reservedNames = RESERVED_SITES,
             reservedDomains = { reservedDomains(config) + redirectService.sourceDomains() },
@@ -110,7 +115,7 @@ fun Application.sak(config: SakConfig): SakServices {
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them
     config.auth?.let {
         try {
-            apps(config, it, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
+            apps(config, it, secrets, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
         } catch (e: Exception) {
             logger.error(e) { "the apps could not be set up, they are not served" }
         }

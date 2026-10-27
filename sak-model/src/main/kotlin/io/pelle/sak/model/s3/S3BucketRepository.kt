@@ -49,22 +49,21 @@ class S3BucketRepository(
             .where(S3_BUCKETS_DOMAINS.DOMAIN.eq(domain), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
             .fetchOne(S3_BUCKETS_DOMAINS.BUCKET_NAME)
 
-    // null when the name, also the one of a deleted bucket, or one of the domains is taken
+    // null when the name, also the one of a deleted bucket, or one of the domains is taken; the
+    // secret of the key pair is kept with the secrets
     fun insert(
         name: String,
         accessKeyId: String,
-        secretAccessKey: String,
         domains: List<String> = emptyList(),
     ): S3Bucket? =
         try {
-            val bucket = S3Bucket(name, accessKeyId, secretAccessKey, clock.instant(), null, domains)
+            val bucket = S3Bucket(name, accessKeyId, clock.instant(), null, domains)
             database.dsl.transaction { configuration ->
                 val dsl = DSL.using(configuration)
                 dsl
                     .insertInto(S3_BUCKETS)
                     .set(S3_BUCKETS.NAME, bucket.name)
                     .set(S3_BUCKETS.ACCESS_KEY_ID, bucket.accessKeyId)
-                    .set(S3_BUCKETS.SECRET_ACCESS_KEY, bucket.secretAccessKey)
                     .set(S3_BUCKETS.CREATED_AT, bucket.createdAt)
                     .execute()
                 bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt) }
@@ -182,18 +181,17 @@ class S3BucketRepository(
         S3Bucket(
             name = name!!,
             accessKeyId = accessKeyId!!,
-            secretAccessKey = secretAccessKey!!,
             createdAt = createdAt!!,
             updatedAt = updatedAt,
             domains = domains,
         )
 }
 
-// domains are where caddy serves the bucket's objects, in their order
+// domains are where caddy serves the bucket's objects, in their order; the secret of the key pair
+// is one of the secrets
 data class S3Bucket(
     val name: String,
     val accessKeyId: String,
-    val secretAccessKey: String,
     val createdAt: Instant,
     // null until the bucket is changed
     val updatedAt: Instant? = null,

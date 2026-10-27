@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import io.kotest.matchers.string.shouldNotContain
 
 class SakConfigLoaderTest {
     @TempDir
@@ -29,7 +30,7 @@ class SakConfigLoaderTest {
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.s3DataDir shouldBe Path.of("/something/s3")
-        config.authDataDir shouldBe Path.of("/something/auth")
+        config.secretKeys.keys shouldBe setOf(1, 2)
         config.frontendUrl shouldBe "https://apps.example.org"
         config.auth shouldBe
             SakConfig.AuthConfig(
@@ -44,6 +45,37 @@ class SakConfigLoaderTest {
                         tls = true,
                     ),
             )
+    }
+
+    @Test
+    fun `tells no secret of the config when it is printed`() {
+        val config =
+            load(
+                """
+                data_dir: /data
+                root_domain: example.org
+                secret_keys:
+                  1: the-first-secret-key
+                  2: the-second-secret-key
+                auth:
+                  smtp:
+                    host: smtp.example.org
+                    username: login
+                    password: the-smtp-password
+                    from: login@example.org
+                openrouter:
+                  api_token: the-openrouter-token
+                """.trimIndent(),
+            )
+
+        // e.g. in a log line or a failing assertion
+        listOf(config.toString(), "$config", config.auth.toString(), config.openrouter.toString()).forEach { printed ->
+            listOf("the-first-secret-key", "the-second-secret-key", "the-smtp-password", "the-openrouter-token").forEach {
+                printed shouldNotContain it
+            }
+        }
+        config.toString() shouldContain "secretKeys=versions [1, 2]"
+        config.toString() shouldContain "smtp.example.org"
     }
 
     @Test
