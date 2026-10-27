@@ -1,5 +1,11 @@
 package io.pelle.sak.controller
 
+import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.Page
+import io.pelle.sak.api.errors
+import io.pelle.sak.api.pageRequest
+import io.pelle.sak.api.pagination
+import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
@@ -93,19 +99,24 @@ private fun RedirectTargetJson.target(): RedirectTarget =
 @OptIn(ExperimentalKtorApi::class)
 fun Route.redirects(redirectService: RedirectService) {
     install(ContentNegotiation) { json() }
+    install(ApiErrors)
 
     fun Redirect.response() = RedirectResponse(sourceDomain, target.json(), redirectService.location(target), createdAt.toString())
 
     get {
-        call.respond(withContext(Dispatchers.IO) { redirectService.all() }.map { it.response() })
+        val page = call.pageRequest() ?: return@get
+        val redirects = page.of(withContext(Dispatchers.IO) { redirectService.all() })
+        call.respond(page.of(redirects.items.map { it.response() }, redirects.pagination.total))
     }.describe {
         tag(INGRESS_TAG)
         summary = "The redirected domains"
+        parameters { pagination() }
         responses {
             HttpStatusCode.OK {
-                description = "The redirects, each with its target and the domain it leads to"
-                schema = jsonSchema<List<RedirectResponse>>()
+                description = "A page of the redirects, each with its target and the domain it leads to"
+                schema = jsonSchema<Page<RedirectResponse>>()
             }
+            errors(HttpStatusCode.BadRequest, "An invalid page")
         }
     }
 
@@ -113,9 +124,15 @@ fun Route.redirects(redirectService: RedirectService) {
         val request = call.receive<CreateRedirectRequest>()
         when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target()) }) {
             is CreateRedirectResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
-            CreateRedirectResult.InvalidDomain -> call.respond(HttpStatusCode.BadRequest)
-            CreateRedirectResult.Exists -> call.respond(HttpStatusCode.Conflict)
-            CreateRedirectResult.UnknownBucket, CreateRedirectResult.BucketNotServed -> call.respond(HttpStatusCode.UnprocessableEntity)
+            CreateRedirectResult.InvalidDomain ->
+                call.respondErrors(
+                    "Both domains must be valid and differ, and the redirected one must be neither served by the console nor by a bucket.",
+                )
+            CreateRedirectResult.Exists -> call.respondErrors("The domain is redirected already.", status = HttpStatusCode.Conflict)
+            CreateRedirectResult.UnknownBucket ->
+                call.respondErrors("There is no such bucket.", status = HttpStatusCode.UnprocessableEntity)
+            CreateRedirectResult.BucketNotServed ->
+                call.respondErrors("The bucket is not served at a domain.", status = HttpStatusCode.UnprocessableEntity)
         }
     }.describe {
         tag(INGRESS_TAG)
@@ -132,11 +149,12 @@ fun Route.redirects(redirectService: RedirectService) {
                 description = "The new redirect"
                 schema = jsonSchema<RedirectResponse>()
             }
-            HttpStatusCode.BadRequest {
-                description = "No valid domain, the source is the target, or a domain the controller serves itself"
-            }
-            HttpStatusCode.Conflict { description = "The domain is redirected already" }
-            HttpStatusCode.UnprocessableEntity { description = "The bucket is unknown or not served at a domain" }
+            errors(
+                HttpStatusCode.BadRequest,
+                "No valid domain, the source is the target, a domain the controller or a bucket serves, or a malformed request",
+            )
+            errors(HttpStatusCode.Conflict, "The domain is redirected already")
+            errors(HttpStatusCode.UnprocessableEntity, "The bucket is unknown or not served at a domain")
         }
     }
 

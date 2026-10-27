@@ -32,6 +32,9 @@ const metrics = (requests: number) => ({
 
 const bucket = (name: string, statistics: object) => ({ name, domains: [], createdAt: '2026-10-27T07:00:00Z', statistics });
 
+// what a list endpoint answers with the items
+const pageOf = <T>(items: T[]) => ({ items, pagination: { offset: 0, limit: 500, total: items.length } });
+
 describe('Home', () => {
   let http: HttpTestingController;
 
@@ -57,7 +60,7 @@ describe('Home', () => {
 
   it('shows the requests of every site over 4 hours by status class and asks again every minute', async () => {
     const { harness, page, text } = await open();
-    http.expectOne('/api/v1/buckets').flush([]);
+    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([]));
     http.expectOne(METRICS_URL).flush(metrics(10));
     await harness.fixture.whenStable();
 
@@ -76,19 +79,19 @@ describe('Home', () => {
   it('lists the buckets with their size and the total', async () => {
     const { harness, text } = await open();
     http.expectOne(METRICS_URL).flush(metrics(1));
-    http.expectOne('/api/v1/buckets').flush([
+    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
       bucket('a', { computing: false, failed: false, objects: 1, bytes: 1_500_000 }),
       bucket('b', { computing: true, failed: false }),
-    ]);
+    ]));
     await harness.fixture.whenStable();
 
     expect(text('overview-total-bytes')).toBe('counting…');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    http.expectOne('/api/v1/buckets').flush([
+    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([
       bucket('a', { computing: false, failed: false, objects: 1, bytes: 1_500_000 }),
       bucket('b', { computing: false, failed: false, objects: 2, bytes: 1_000_000 }),
-    ]);
+    ]));
     await harness.fixture.whenStable();
 
     expect(text('overview-bucket-b')).toContain('1 MB');
@@ -98,7 +101,7 @@ describe('Home', () => {
   it('keeps the buckets when the requests cannot be loaded', async () => {
     const { harness, page, text } = await open();
     http.expectOne(METRICS_URL).flush(null, { status: 503, statusText: 'Service Unavailable' });
-    http.expectOne('/api/v1/buckets').flush([bucket('a', { computing: false, failed: false, objects: 0, bytes: 0 })]);
+    http.expectOne('/api/v1/buckets?limit=500').flush(pageOf([bucket('a', { computing: false, failed: false, objects: 0, bytes: 0 })]));
     await harness.fixture.whenStable();
 
     expect(page.querySelector('[role=alert]')?.textContent).toContain('requests could not be loaded');

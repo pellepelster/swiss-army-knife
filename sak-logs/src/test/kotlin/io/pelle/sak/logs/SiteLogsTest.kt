@@ -44,11 +44,14 @@ class SiteLogsTest {
                 synchronized(queries) { queries.add(exchange.requestURI.path to form) }
                 when (exchange.requestURI.path) {
                     "/select/logsql/query" -> {
+                        // the count of a search, or the entries it finds
                         val body =
-                            (
+                            if ("stats count()" in form.getValue("query")) {
+                                """{"total":"42"}""" + "\n"
+                            } else {
                                 """{"_time":"2026-10-26T21:00:02Z","site":"pelle.io","request.uri":"/missing","status":"404"}""" + "\n" +
                                     """{"_time":"2026-10-26T21:00:01Z","site":"pelle.io","request.uri":"/","status":"200"}""" + "\n"
-                            ).toByteArray()
+                            }.toByteArray()
                         exchange.sendResponseHeaders(200, body.size.toLong())
                         exchange.responseBody.use { it.write(body) }
                     }
@@ -92,7 +95,20 @@ class SiteLogsTest {
 
         queries.single().second.getValue("query") shouldBe
             """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)Missing" OR user_agent:~"(?i)Missing") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 500"""
+            """| fields _time, site, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
+    }
+
+    @Test
+    fun `counts the entries a search finds and pages through them`() {
+        logs.count(site, "missing") shouldBe 42
+        logs.search(site, "missing", offset = 50, limit = 25)
+
+        queries.map { it.second.getValue("query") } shouldBe
+            listOf(
+                """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)missing" OR user_agent:~"(?i)missing") | stats count() total""",
+                """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)missing" OR user_agent:~"(?i)missing") """ +
+                    """| fields _time, site, request.uri, status | sort by (_time desc) | offset 50 | limit 25""",
+            )
     }
 
     @Test
@@ -101,7 +117,7 @@ class SiteLogsTest {
 
         queries.single().second.getValue("query") shouldBe
             """* _time:30d (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | limit 500"""
+            """| fields _time, site, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
     }
 
     @Test
@@ -178,9 +194,13 @@ class SiteLogsTest {
                 routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
-            val found = client.get("/api/v1/logs/pelle.io/search?q=missing")
+            val found = client.get("/api/v1/logs/pelle.io/search?q=missing&limit=10")
             found.status shouldBe HttpStatusCode.OK
-            Json.parseToJsonElement(found.bodyAsText()).jsonArray.first().jsonObject["status"]!!.jsonPrimitive.content shouldBe "404"
+            Json.parseToJsonElement(found.bodyAsText()).jsonObject.let {
+                it["items"]!!.jsonArray.first().jsonObject["status"]!!.jsonPrimitive.content shouldBe "404"
+                it["pagination"]!!.jsonObject.mapValues { (_, value) -> value.jsonPrimitive.content } shouldBe
+                    mapOf("offset" to "0", "limit" to "10", "total" to "42")
+            }
 
             client.get("/api/v1/logs/all/search?q=missing").status shouldBe HttpStatusCode.OK
             client.get("/api/v1/logs/unknown/search?q=missing").status shouldBe HttpStatusCode.NotFound
@@ -188,6 +208,10 @@ class SiteLogsTest {
             client.get("/api/v1/logs/pelle.io/search?q=%20").status shouldBe HttpStatusCode.BadRequest
             client.get("/api/v1/logs/pelle.io/search").status shouldBe HttpStatusCode.BadRequest
             client.get("/api/v1/logs/pelle.io/search?q=a%0Ab").status shouldBe HttpStatusCode.BadRequest
+            client.get("/api/v1/logs/pelle.io/search?q=x&limit=0").let {
+                it.status shouldBe HttpStatusCode.BadRequest
+                it.bodyAsText() shouldBe """{"errors":[{"message":"limit must be a number from 1 to 500."}]}"""
+            }
         }
 
     @Test

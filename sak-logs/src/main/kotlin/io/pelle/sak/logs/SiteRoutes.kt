@@ -1,5 +1,11 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.Page
+import io.pelle.sak.api.errors
+import io.pelle.sak.api.pageRequest
+import io.pelle.sak.api.pagination
+import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -70,6 +76,7 @@ fun Route.sites(
     keepaliveInterval: kotlin.time.Duration = KEEPALIVE_INTERVAL,
 ) {
     install(ContentNegotiation) { json() }
+    install(ApiErrors)
 
     val liveViews = Semaphore(maxLiveViews)
 
@@ -100,7 +107,7 @@ fun Route.sites(
         val site = call.logsSite(sites) ?: return@get
         val range = MetricsRange.from(call.request.queryParameters["range"])
         if (range == null) {
-            call.respond(HttpStatusCode.BadRequest)
+            call.respondErrors("range must be one of ${MetricsRange.entries.joinToString(", ") { it.key }}.")
             return@get
         }
 
@@ -129,7 +136,7 @@ fun Route.sites(
                 description = "The metrics of the range"
                 schema = jsonSchema<SiteMetrics>()
             }
-            HttpStatusCode.BadRequest { description = "Unknown range" }
+            errors(HttpStatusCode.BadRequest, "Unknown range")
             HttpStatusCode.NotFound { description = "Unknown site" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }
@@ -140,13 +147,24 @@ fun Route.sites(
         val site = call.logsSite(sites) ?: return@get
         val text = call.request.queryParameters["q"]?.trim().orEmpty()
         // victorialogs rejects control characters in a quoted string
-        if (text.isEmpty() || text.length > MAX_SEARCH_LENGTH || text.any { it.isISOControl() }) {
-            call.respond(HttpStatusCode.BadRequest)
+        val messages =
+            listOfNotNull(
+                "q must not be empty.".takeIf { text.isEmpty() },
+                "q must have at most $MAX_SEARCH_LENGTH characters.".takeIf { text.length > MAX_SEARCH_LENGTH },
+                "q must not contain control characters.".takeIf { text.any { it.isISOControl() } },
+            )
+        if (messages.isNotEmpty()) {
+            call.respondErrors(*messages.toTypedArray())
             return@get
         }
+        val page = call.pageRequest() ?: return@get
 
         try {
-            call.respond(withContext(Dispatchers.IO) { logs.search(site, text) })
+            call.respond(
+                withContext(Dispatchers.IO) {
+                    page.of(logs.search(site, text, page.offset, page.limit), logs.count(site, text))
+                },
+            )
         } catch (e: VictoriaLogsException) {
             logger.warn(e) { "could not search the logs" }
             call.respond(HttpStatusCode.ServiceUnavailable)
@@ -154,8 +172,8 @@ fun Route.sites(
     }.describe {
         common("Search the logs")
         description =
-            "The newest ${SiteLogs.SEARCH_LIMIT} requests whose request line (method, host, path, status) or user agent " +
-            "contains the text, case-insensitively."
+            "The requests of the last ${SiteLogs.SEARCH_WINDOW} whose request line (method, host, path, status) or user agent " +
+            "contains the text, case-insensitively, newest first."
         parameters {
             path("site") {
                 description = "The id of the site, or all for every site"
@@ -167,13 +185,14 @@ fun Route.sites(
                 required = true
                 schema = jsonSchema<String>()
             }
+            pagination()
         }
         responses {
             HttpStatusCode.OK {
-                description = "The matching requests, newest first"
-                schema = jsonSchema<List<LogEntry>>()
+                description = "A page of the matching requests, newest first"
+                schema = jsonSchema<Page<LogEntry>>()
             }
-            HttpStatusCode.BadRequest { description = "No, too long or control characters in the search text" }
+            errors(HttpStatusCode.BadRequest, "No, too long or control characters in the search text, or an invalid page")
             HttpStatusCode.NotFound { description = "Unknown site" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }

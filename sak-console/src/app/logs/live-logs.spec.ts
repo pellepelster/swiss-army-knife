@@ -14,6 +14,9 @@ const entry = (path: string, status = 200, site = 'pelle.io'): LogEntry => ({
   status,
 });
 
+// what a list endpoint answers with the items
+const pageOf = <T>(items: T[]) => ({ items, pagination: { offset: 0, limit: 500, total: items.length } });
+
 describe('parseEvents', () => {
   it('returns the data of complete events and keeps the incomplete rest', () => {
     expect(parseEvents(': following\n\ndata: {"a":1}\n\ndata: {"b"')).toEqual({
@@ -203,8 +206,8 @@ describe('LiveLogs', () => {
     const { harness, page, rows } = await open('/logs/live/all?q=missing');
 
     http
-      .expectOne('/api/v1/logs/all/search?q=missing')
-      .flush(Array.from({ length: 60 }, (_, i) => entry(`/missing/${i}`, 404)));
+      .expectOne('/api/v1/logs/all/search?q=missing&limit=500')
+      .flush(pageOf(Array.from({ length: 60 }, (_, i) => entry(`/missing/${i}`, 404))));
     await harness.fixture.whenStable();
     expect(rows().length).toBe(25);
     page.querySelector<HTMLButtonElement>('[aria-label="Last page"]')!.click();
@@ -213,8 +216,8 @@ describe('LiveLogs', () => {
 
     await TestBed.inject(Router).navigateByUrl('/logs/live/all?q=other');
     await harness.fixture.whenStable();
-    http.expectOne('/api/v1/logs/all/search?q=other').flush(
-      Array.from({ length: 60 }, (_, i) => entry(`/other/${i}`, 404)),
+    http.expectOne('/api/v1/logs/all/search?q=other&limit=500').flush(
+      pageOf(Array.from({ length: 60 }, (_, i) => entry(`/other/${i}`, 404))),
     );
     await harness.fixture.whenStable();
 
@@ -254,7 +257,7 @@ describe('LiveLogs', () => {
 
     expect(TestBed.inject(Router).url).toBe('/logs/live/all?q=missing');
     expect(streams[0].closed).toBe(true);
-    http.expectOne('/api/v1/logs/all/search?q=missing').flush([entry('/missing', 404)]);
+    http.expectOne('/api/v1/logs/all/search?q=missing&limit=500').flush(pageOf([entry('/missing', 404)]));
     await harness.fixture.whenStable();
 
     expect(state()).toBe('1 found');
@@ -287,7 +290,7 @@ describe('LiveLogs', () => {
   it('searches the search text of the url', async () => {
     const { harness, page, rows } = await open('/logs/live/s3?q=missing');
 
-    http.expectOne('/api/v1/logs/s3/search?q=missing').flush([]);
+    http.expectOne('/api/v1/logs/s3/search?q=missing&limit=500').flush(pageOf([]));
     await harness.fixture.whenStable();
 
     expect(streams).toEqual([]);

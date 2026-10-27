@@ -1,5 +1,11 @@
 package io.pelle.sak.controller
 
+import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.Page
+import io.pelle.sak.api.errors
+import io.pelle.sak.api.pageRequest
+import io.pelle.sak.api.pagination
+import io.pelle.sak.api.respondErrors
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
@@ -66,18 +72,13 @@ data class UpdateDomainsRequest(
     val domains: List<String>,
 )
 
-// why a bucket could not be created or changed
-@Serializable
-data class BucketErrorResponse(
-    val error: String,
-) {
-    companion object {
-        val INVALID_NAME = BucketErrorResponse("invalid-name")
-        val NAME_TAKEN = BucketErrorResponse("name-taken")
-        val INVALID_DOMAIN = BucketErrorResponse("invalid-domain")
-        val DOMAIN_TAKEN = BucketErrorResponse("domain-taken")
-    }
-}
+// why a bucket could not be created or its domains not changed
+private const val INVALID_NAME =
+    "The name must have 3 to 63 lower case letters, digits, dots and hyphens, start and end with a letter or digit, " +
+        "and must not be reserved for the console."
+private const val NAME_TAKEN = "A bucket of the name exists."
+private const val INVALID_DOMAIN = "Every domain must be valid and neither one the console serves nor a redirected one."
+private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
 
 @Serializable
 data class BucketSecretResponse(
@@ -198,6 +199,7 @@ fun Route.buckets(
     statistics: BucketStatisticsCache,
 ) {
     install(ContentNegotiation) { json() }
+    install(ApiErrors)
 
     suspend fun S3Bucket.response() =
         BucketResponse(
@@ -208,25 +210,24 @@ fun Route.buckets(
         )
 
     get {
-        // counted at once, a bucket not counted within a moment is still being counted
-        val responses =
-            coroutineScope {
-                withContext(Dispatchers.IO) { bucketService.all() }
-                    .map { bucket -> async { bucket.response() } }
-                    .awaitAll()
-            }
-        call.respond(responses)
+        val page = call.pageRequest() ?: return@get
+        // the buckets of the page are counted at once, one not counted within a moment is still being counted
+        val buckets = page.of(withContext(Dispatchers.IO) { bucketService.all() })
+        val responses = coroutineScope { buckets.items.map { bucket -> async { bucket.response() } }.awaitAll() }
+        call.respond(page.of(responses, buckets.pagination.total))
     }.describe {
         tag(S3_TAG)
         summary = "The buckets with the number of their objects and their size"
         description =
             "The numbers are counted in the background and kept, recounted after ${BucketStatisticsCache.REFRESH_AFTER.toMinutes()} minutes and after every write to a " +
             "bucket; a bucket not counted yet is still computing, ask again."
+        parameters { pagination() }
         responses {
             HttpStatusCode.OK {
-                description = "The buckets, the domains they are served at and their statistics"
-                schema = jsonSchema<List<BucketResponse>>()
+                description = "A page of the buckets with the domains they are served at and their statistics"
+                schema = jsonSchema<Page<BucketResponse>>()
             }
+            errors(HttpStatusCode.BadRequest, "An invalid page")
         }
     }
 
@@ -237,10 +238,10 @@ fun Route.buckets(
                 statistics.warm(listOf(result.bucket.name))
                 call.respond(HttpStatusCode.Created, result.bucket.response())
             }
-            CreateBucketResult.InvalidName -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_NAME)
-            CreateBucketResult.InvalidDomain -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_DOMAIN)
-            CreateBucketResult.NameTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.NAME_TAKEN)
-            CreateBucketResult.DomainTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.DOMAIN_TAKEN)
+            CreateBucketResult.InvalidName -> call.respondErrors(INVALID_NAME)
+            CreateBucketResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)
+            CreateBucketResult.NameTaken -> call.respondErrors(NAME_TAKEN, status = HttpStatusCode.Conflict)
+            CreateBucketResult.DomainTaken -> call.respondErrors(DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
@@ -257,16 +258,12 @@ fun Route.buckets(
                 description = "The new bucket"
                 schema = jsonSchema<BucketResponse>()
             }
-            HttpStatusCode.BadRequest {
-                description =
-                    "invalid-name: no valid bucket name, or one reserved for the controller's sites; invalid-domain: no valid " +
-                    "domain, or one the controller serves or redirects"
-                schema = jsonSchema<BucketErrorResponse>()
-            }
-            HttpStatusCode.Conflict {
-                description = "name-taken: a bucket of the name exists; domain-taken: another bucket is served at a domain"
-                schema = jsonSchema<BucketErrorResponse>()
-            }
+            errors(
+                HttpStatusCode.BadRequest,
+                "No valid bucket name or one reserved for the controller's sites, a domain that is not valid or one the " +
+                    "controller serves or redirects, or a malformed request",
+            )
+            errors(HttpStatusCode.Conflict, "A bucket of the name exists, or another bucket is served at one of the domains")
         }
     }
 
@@ -276,8 +273,8 @@ fun Route.buckets(
         when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains) }) {
             is UpdateDomainsResult.Updated -> call.respond(result.bucket.response())
             UpdateDomainsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            UpdateDomainsResult.InvalidDomain -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_DOMAIN)
-            UpdateDomainsResult.DomainTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.DOMAIN_TAKEN)
+            UpdateDomainsResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)
+            UpdateDomainsResult.DomainTaken -> call.respondErrors(DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
@@ -299,15 +296,9 @@ fun Route.buckets(
                 description = "The bucket with its new domains"
                 schema = jsonSchema<BucketResponse>()
             }
-            HttpStatusCode.BadRequest {
-                description = "invalid-domain: no valid domain, or one the controller serves or redirects"
-                schema = jsonSchema<BucketErrorResponse>()
-            }
+            errors(HttpStatusCode.BadRequest, "A domain that is not valid or one the controller serves or redirects, or a malformed request")
             HttpStatusCode.NotFound { description = "Unknown bucket" }
-            HttpStatusCode.Conflict {
-                description = "domain-taken: another bucket is served at a domain"
-                schema = jsonSchema<BucketErrorResponse>()
-            }
+            errors(HttpStatusCode.Conflict, "Another bucket is served at one of the domains")
         }
     }
 

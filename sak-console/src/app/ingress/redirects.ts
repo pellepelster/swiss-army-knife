@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Bucket, BucketsService } from '../s3/buckets.service';
+import { errorMessages } from '../shared/api';
 import { Modal } from '../shared/modal';
 import { DOMAIN_PATTERN, Redirect, RedirectTarget, RedirectsService } from './redirects.service';
 
@@ -250,7 +251,10 @@ export class Redirects {
   }
 }
 
+// what the api answered, or what its status tells
 function createErrorMessage(error: unknown, domain: string): string {
+  const messages = errorMessages(error);
+  if (messages.length) return messages.join(' ');
   if (!(error instanceof HttpErrorResponse)) return 'The redirect could not be created.';
   switch (error.status) {
     case 400:

@@ -1,5 +1,8 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.errors
+import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -113,13 +116,14 @@ fun Route.auth(
     linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
 ) {
     install(ContentNegotiation) { json() }
+    install(ApiErrors)
 
     // always accepted, whether a link is sent does not tell anything about the address
     post("/login") {
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
         if (email == null) {
-            call.respond(HttpStatusCode.BadRequest)
+            call.respondErrors("No valid e-mail address.")
             return@post
         }
         val client = call.clientAddress()
@@ -158,7 +162,7 @@ fun Route.auth(
         }
         responses {
             HttpStatusCode.Accepted { description = "The link is on its way if the address may sign in" }
-            HttpStatusCode.BadRequest { description = "No valid e-mail address" }
+            errors(HttpStatusCode.BadRequest, "No valid e-mail address, or a malformed request")
             HttpStatusCode.TooManyRequests { description = "Too many login requests from this client" }
         }
     }

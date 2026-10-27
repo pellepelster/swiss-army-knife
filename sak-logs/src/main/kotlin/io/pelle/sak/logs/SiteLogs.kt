@@ -17,16 +17,33 @@ data class LogEntry(
 class SiteLogs(
     private val client: VictoriaLogsClient,
 ) {
-    // the newest entries whose request line (method, host, path, status) or user agent contains
-    // the text, case-insensitively
+    // the entries whose request line (method, host, path, status) or user agent contains the
+    // text, case-insensitively, newest first, from offset on
     fun search(
         site: Site,
         text: String,
+        offset: Long = 0,
         limit: Int = SEARCH_LIMIT,
     ): List<LogEntry> =
         client
-            .query("${streamFilter(site)} _time:$SEARCH_WINDOW ${textFilter(text)} | $FIELDS | sort by (_time desc) | limit $limit")
+            .query("${searchFilter(site, text)} | $FIELDS | sort by (_time desc) | offset $offset | limit $limit")
             .map { it.toLogEntry() }
+
+    // how many entries the search finds altogether
+    fun count(
+        site: Site,
+        text: String,
+    ): Long =
+        client
+            .query("${searchFilter(site, text)} | stats count() $TOTAL")
+            .firstOrNull()
+            ?.get(TOTAL)
+            ?.toLongOrNull() ?: 0
+
+    private fun searchFilter(
+        site: Site,
+        text: String,
+    ) = "${streamFilter(site)} _time:$SEARCH_WINDOW ${textFilter(text)}"
 
     // the entries of the last minutes first, then every new one; the tail has to be closed
     fun follow(site: Site): LogEntries {
@@ -45,6 +62,8 @@ class SiteLogs(
         val FOLLOW_BACKLOG: Duration = Duration.ofMinutes(5)
 
         private const val FIELDS = "fields _time, site, request.uri, status"
+
+        private const val TOTAL = "total"
 
         // victorialogs evaluates regular expressions with go's re2, every metacharacter of the
         // text is escaped so it matches literally

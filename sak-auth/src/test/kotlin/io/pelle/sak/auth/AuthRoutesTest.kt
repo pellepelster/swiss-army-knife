@@ -133,7 +133,10 @@ class AuthRoutesTest {
     @Test
     fun `invalid addresses are rejected`() =
         authTest {
-            client.login("not-an-address").status shouldBe HttpStatusCode.BadRequest
+            client.login("not-an-address").let {
+                it.status shouldBe HttpStatusCode.BadRequest
+                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
+            }
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
             client.post("/api/v1/auth/login") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
                 HttpStatusCode.BadRequest

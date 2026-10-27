@@ -201,7 +201,7 @@ class SakConsoleTest {
             fun statistics(): JsonObject {
                 // counted in the background, asked again while it is
                 repeat(50) {
-                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/buckets", session).body()).jsonArray
+                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/buckets", session).body()).jsonObject.getValue("items").jsonArray
                     buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
                     val statistics = buckets.single().jsonObject.getValue("statistics").jsonObject
                     if (statistics.string("computing") == "false") return statistics
@@ -296,14 +296,22 @@ class SakConsoleTest {
                 it.json().string("location") shouldBe "site.example.org"
             }
 
-            create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 409
+            create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe """{"errors":[{"message":"The domain is redirected already."}]}"""
+            }
+            create("""{"sourceDomain":""").let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"The request is malformed."}]}"""
+            }
+            get(port, "/api/v1/redirects?offset=-1", session).statusCode() shouldBe 400
             create("""{"sourceDomain":"console.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"site.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"ftp","host":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"unknown"}}""").statusCode() shouldBe 422
             create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"bucket1"}}""").statusCode() shouldBe 422
 
-            val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonArray
+            val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
             redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.com", "example.de")
             // the redirected domains are the domains of the redirect site
             Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
@@ -312,7 +320,7 @@ class SakConsoleTest {
 
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
-            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonArray.size shouldBe 1
+            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("pagination").jsonObject.string("total") shouldBe "1"
         }
     }
 

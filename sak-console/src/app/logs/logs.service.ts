@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { MAX_LIMIT, Page } from '../shared/api';
 import { AuthService } from '../auth/auth.service';
 
 export interface LogEntry {
@@ -40,11 +41,14 @@ export class LogsService {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  // the newest entries containing the text
+  // the newest entries containing the text, as many as a page holds; the live view pages through
+  // them itself
   search(site: string, text: string): Observable<LogEntry[]> {
-    return this.http.get<LogEntry[]>(`/api/v1/logs/${encodeURIComponent(site)}/search`, {
-      params: { q: text },
-    });
+    return this.http
+      .get<Page<LogEntry>>(`/api/v1/logs/${encodeURIComponent(site)}/search`, {
+        params: { q: text, limit: MAX_LIMIT },
+      })
+      .pipe(map((page) => page.items));
   }
 
   // the entries of the last minutes, then every new one until unsubscribed, oldest first and in

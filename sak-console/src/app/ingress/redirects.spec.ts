@@ -20,6 +20,9 @@ const toBucket = {
   createdAt: CREATED,
 };
 
+// what a list endpoint answers with the items
+const pageOf = <T>(items: T[]) => ({ items, pagination: { offset: 0, limit: 500, total: items.length } });
+
 describe('Redirects', () => {
   let http: HttpTestingController;
 
@@ -39,7 +42,7 @@ describe('Redirects', () => {
   const open = async (redirects: object[] = [toExternal, toBucket]) => {
     const harness = await RouterTestingHarness.create('/ingress/redirects');
     const page = harness.routeNativeElement!;
-    http.expectOne('/api/v1/redirects').flush(redirects);
+    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf(redirects));
     await harness.fixture.whenStable();
     const button = (text: string, root: ParentNode = page) =>
       [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === text)!;
@@ -53,7 +56,7 @@ describe('Redirects', () => {
     const openDialog = async (buckets: object[] = []) => {
       button('Add redirect').click();
       await harness.fixture.whenStable();
-      http.expectOne('/api/v1/buckets').flush(buckets);
+      http.expectOne('/api/v1/buckets?limit=500').flush(pageOf(buckets));
       await harness.fixture.whenStable();
     };
     return { harness, page, button, type, dialog, openDialog };
@@ -87,7 +90,7 @@ describe('Redirects', () => {
     request.flush(toExternal, { status: 201, statusText: 'Created' });
     await harness.fixture.whenStable();
 
-    http.expectOne('/api/v1/redirects').flush([toExternal]);
+    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toExternal]));
     await harness.fixture.whenStable();
     expect(dialog()).toBeNull();
   });
@@ -110,10 +113,10 @@ describe('Redirects', () => {
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/redirects' });
     expect(request.request.body).toEqual({ sourceDomain: 'example.de', target: { type: 'bucket', bucket: 'site' } });
-    request.flush(null, { status: 409, statusText: 'Conflict' });
+    request.flush({ errors: [{ message: 'The domain is redirected already.' }] }, { status: 409, statusText: 'Conflict' });
     await harness.fixture.whenStable();
 
-    expect(page.querySelector('[data-testid=create-error]')?.textContent).toContain('redirected already');
+    expect(page.querySelector('[data-testid=create-error]')?.textContent?.trim()).toBe('The domain is redirected already.');
     expect(dialog()).not.toBeNull();
   });
 
@@ -126,7 +129,7 @@ describe('Redirects', () => {
     button('Delete', page.querySelector('[data-testid="redirect-example.com"]')!).click();
 
     http.expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' }).flush(null, { status: 204, statusText: 'No Content' });
-    http.expectOne('/api/v1/redirects').flush([toBucket]);
+    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toBucket]));
     await harness.fixture.whenStable();
     expect(page.querySelector('[data-testid="redirect-example.com"]')).toBeNull();
   });

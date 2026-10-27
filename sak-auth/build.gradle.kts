@@ -6,6 +6,8 @@ plugins {
 dependencies {
     api(platform(libs.ktor.bom))
     api(libs.ktor.server.core)
+    // the errors and pages every route answers alike
+    api(project(":sak-api"))
     // the routes describe themselves for the openapi document
     api(libs.ktor.server.routing.openapi)
     api(libs.ktor.server.auth)

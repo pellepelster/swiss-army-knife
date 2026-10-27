@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { MAX_LIMIT, Page } from '../shared/api';
 
 // where a redirect leads to, told apart by its type
 export type RedirectTarget = { type: 'domain'; domain: string } | { type: 'bucket'; bucket: string };
@@ -20,8 +21,11 @@ export const DOMAIN_PATTERN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?
 export class RedirectsService {
   private readonly http = inject(HttpClient);
 
+  // all of them, the console has far less than a page of them
   redirects(): Observable<Redirect[]> {
-    return this.http.get<Redirect[]>('/api/v1/redirects');
+    return this.http
+      .get<Page<Redirect>>('/api/v1/redirects', { params: { limit: MAX_LIMIT } })
+      .pipe(map((page) => page.items));
   }
 
   create(sourceDomain: string, target: RedirectTarget): Observable<Redirect> {
