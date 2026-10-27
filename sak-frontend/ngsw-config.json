@@ -21,13 +21,14 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/icons/**", "/media/**", "/console.css"]
+        "files": ["/icons/**", "/media/**"]
       }
     }
   ],
   "navigationUrls": [
     "/**",
     "!/api/**",
+    "!/swagger",
     "!/swagger/**",
     "!/doc/**",
     "!/**/*.*",

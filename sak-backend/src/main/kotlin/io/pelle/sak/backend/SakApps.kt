@@ -39,7 +39,7 @@ import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
-import io.pelle.sak.logs.sites
+import io.pelle.sak.logs.accessLogs
 import java.net.URI
 
 const val API_PATH_PREFIX = "/api"
@@ -139,14 +139,18 @@ fun Application.apps(
                         auth(tokens, mailSender, loginApps(config), FRONTEND_APP, rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
-                        route("/logs") {
-                            install(RequireRole) { role = Role.ADMIN }
-                            val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
-                            sites({ sites(config, bucketService.domains(), redirectService.all().map { it.sourceDomain }) }, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
-                        }
                         route("/static-hosting") {
                             install(RequireRole) { role = Role.ADMIN }
                             buckets(bucketService, statistics)
+                            // the access logs of all the domains a bucket is served at
+                            route("/{bucket}/access-logs") {
+                                val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
+                                accessLogs(
+                                    { call -> bucketSite(bucketService, call.parameters["bucket"].orEmpty()) },
+                                    SiteMetricsService(victoriaLogs),
+                                    SiteLogs(victoriaLogs),
+                                )
+                            }
                         }
                         route("/redirects") {
                             install(RequireRole) { role = Role.ADMIN }

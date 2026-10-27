@@ -47,7 +47,7 @@ suspend fun RoutingCall.idParameter(): Int? =
     }
 
 // the labels every application attaches to its entities, meant to be mounted behind the
-// console's authentication
+// authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.labels(labelService: LabelService) {
     install(ContentNegotiation) { json() }

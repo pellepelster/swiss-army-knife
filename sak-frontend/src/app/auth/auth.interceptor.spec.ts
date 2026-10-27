@@ -63,4 +63,15 @@ describe('authInterceptor', () => {
     expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { redirect: '/' } });
   });
+
+  it('leads to the login once when several requests are rejected', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    client.get('/api/v1/notes').subscribe({ error: () => undefined });
+    client.get('/api/v1/labels').subscribe({ error: () => undefined });
+    http.expectOne('/api/v1/notes').flush(null, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/v1/labels').flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
 });

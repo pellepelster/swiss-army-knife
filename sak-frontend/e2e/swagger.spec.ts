@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './console';
+import { signIn } from './apps';
 import { deleteAllMails } from './mailpit';
 
 const ADDRESS = 'api@example.org';
@@ -12,14 +12,15 @@ test('documents the api in swagger ui, which tries it out with the session of th
   await deleteAllMails(request);
   await signIn(page, request, ADDRESS);
 
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Swagger' }).click();
+  await page.goto('/swagger');
+  // the service worker leaves swagger ui to the backend, which adds the slash
   await expect(page).toHaveURL('/swagger/');
   await expect(page.getByRole('heading', { name: /sak api/ })).toBeVisible();
-  for (const path of ['/api/v1/auth/login', '/api/v1/logs/{site}/live', '/api/v1/logs/{site}/search']) {
+  for (const path of ['/api/v1/auth/login', '/api/v1/static-hosting/{bucket}/access-logs/live']) {
     await expect(page.getByText(path, { exact: true })).toBeVisible();
   }
 
-  // the session of the console authorizes the requests
+  // the session of the apps authorizes the requests
   await page.getByText('/api/v1/auth/me', { exact: true }).click();
   await page.getByRole('button', { name: 'Try it out' }).click();
   await page.getByRole('button', { name: 'Execute' }).click();

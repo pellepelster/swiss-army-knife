@@ -176,33 +176,33 @@ class SiteMetricsServiceTest {
             statusResponse = response(series("requests", mapOf("status" to "200"), Instant.now().epochSecond to 5))
             userAgentResponse = response()
             application {
-                routing { route("/api/v1/logs") { sites({ listOf(site) }, service, logs) } }
+                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, service, logs) } }
             }
 
-            val sites = Json.parseToJsonElement(client.get("/api/v1/logs").bodyAsText()).jsonObject
-            sites["sites"]!!.jsonArray.single().jsonObject["id"]!!.jsonPrimitive.content shouldBe "pelle.io"
-            sites["ranges"]!!.jsonArray.map { it.jsonObject["key"]!!.jsonPrimitive.content } shouldContain "30d"
-            sites["defaultRange"]!!.jsonPrimitive.content shouldBe "24h"
+            val accessLogs = Json.parseToJsonElement(client.get("/sites/pelle.io/access-logs").bodyAsText()).jsonObject
+            accessLogs["site"]!!.jsonObject["id"]!!.jsonPrimitive.content shouldBe "pelle.io"
+            accessLogs["ranges"]!!.jsonArray.map { it.jsonObject["key"]!!.jsonPrimitive.content } shouldContain "30d"
+            accessLogs["defaultRange"]!!.jsonPrimitive.content shouldBe "24h"
+            client.get("/sites/unknown/access-logs").status shouldBe HttpStatusCode.NotFound
 
-            val metrics = client.get("/api/v1/logs/pelle.io/metrics?range=7d")
+            val metrics = client.get("/sites/pelle.io/access-logs/metrics?range=7d")
             metrics.status shouldBe HttpStatusCode.OK
             val json = Json.parseToJsonElement(metrics.bodyAsText()).jsonObject
             json["range"]!!.jsonPrimitive.content shouldBe "7d"
             json["series"]!!.jsonArray.first().jsonObject["total"]!!.jsonPrimitive.long shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
-            // every site at once, over the 4 hours of the overview
-            val all = client.get("/api/v1/logs/all/metrics?range=4h")
-            all.status shouldBe HttpStatusCode.OK
-            Json.parseToJsonElement(all.bodyAsText()).jsonObject.let {
-                it["site"]!!.jsonPrimitive.content shouldBe "all"
+            // over the 4 hours of the shortest range
+            val short = client.get("/sites/pelle.io/access-logs/metrics?range=4h")
+            short.status shouldBe HttpStatusCode.OK
+            Json.parseToJsonElement(short.bodyAsText()).jsonObject.let {
+                it["site"]!!.jsonPrimitive.content shouldBe "pelle.io"
                 it["stepSeconds"]!!.jsonPrimitive.long shouldBe 600
                 it["buckets"]!!.jsonArray.size shouldBe 24
             }
-            queries.last().getValue("query") shouldContain "* |"
 
-            client.get("/api/v1/logs/unknown/metrics").status shouldBe HttpStatusCode.NotFound
-            client.get("/api/v1/logs/pelle.io/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
+            client.get("/sites/unknown/access-logs/metrics").status shouldBe HttpStatusCode.NotFound
+            client.get("/sites/pelle.io/access-logs/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
         }
 
     @Test
@@ -210,10 +210,10 @@ class SiteMetricsServiceTest {
         testApplication {
             application {
                 routing {
-                    route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
+                    route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
                 }
             }
 
-            client.get("/api/v1/logs/pelle.io/metrics").status shouldBe HttpStatusCode.ServiceUnavailable
+            client.get("/sites/pelle.io/access-logs/metrics").status shouldBe HttpStatusCode.ServiceUnavailable
         }
 }

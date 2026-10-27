@@ -3,6 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { Subject } from 'rxjs';
+import { AccessLogsService, LogEntry } from './access-logs/access-logs.service';
 import { COPIED_MS } from './bucket-credentials';
 import { POLL_INTERVAL_MS, s3Endpoint } from './buckets.service';
 import { hostingRoutes } from './hosting.routes';
@@ -64,6 +66,7 @@ describe('Hosting', () => {
   afterEach(() => {
     http.verify();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   const page = () => harness.routeNativeElement!;
@@ -327,11 +330,13 @@ describe('Hosting', () => {
   });
 
   it('shows the requests of all the domains of a bucket in its logs tab', async () => {
+    const followed = new Subject<LogEntry[]>();
+    vi.spyOn(AccessLogsService.prototype, 'follow').mockReturnValue(followed);
     await open('/static-hosting/site/logs');
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
     await harness.fixture.whenStable();
-    http.expectOne('/api/v1/logs').flush({
-      sites: [{ id: 'site', domains: ['example.org', 'site.pelle.io'] }],
+    http.expectOne('/api/v1/static-hosting/site/access-logs').flush({
+      site: { id: 'site', domains: ['example.org', 'site.pelle.io'] },
       ranges: [
         { key: '24h', label: 'Last 24 hours' },
         { key: '7d', label: 'Last 7 days' },
@@ -355,16 +360,38 @@ describe('Hosting', () => {
       totalBytes: 2048,
       userAgents: [],
     });
-    http.expectOne('/api/v1/logs/site/metrics?range=24h').flush(metrics('24h', 42));
+    http
+      .expectOne('/api/v1/static-hosting/site/access-logs/metrics?range=24h')
+      .flush(metrics('24h', 42));
     await harness.fixture.whenStable();
     expect(text('logs-requests')).toBe('42');
     expect(page().querySelector('app-time-series-chart')).not.toBeNull();
+    expect(text('logs-domains')).toContain('example.org, site.pelle.io');
+
+    // the requests to every domain, newest first, as they arrive
+    expect(AccessLogsService.prototype.follow).toHaveBeenCalledWith('site');
+    expect(text('requests-state')).toBe('No requests in the last minutes yet.');
+    followed.next([
+      { time: '2026-10-27T07:59:00Z', host: 'example.org', path: '/', status: 200 },
+      { time: '2026-10-27T07:59:30Z', host: 'site.pelle.io', path: '/missing', status: 404 },
+    ]);
+    await harness.fixture.whenStable();
+    const rows = () =>
+      [...page().querySelectorAll('table[aria-label="Latest requests"] tbody tr')].map((row) =>
+        [...row.querySelectorAll('td')].slice(1).map((cell) => cell.textContent?.trim()),
+      );
+    expect(rows()).toEqual([
+      ['site.pelle.io', '/missing', '404'],
+      ['example.org', '/', '200'],
+    ]);
 
     const select = page().querySelector<HTMLSelectElement>('#logs-range')!;
     select.value = '7d';
     select.dispatchEvent(new Event('change'));
     await harness.fixture.whenStable();
-    http.expectOne('/api/v1/logs/site/metrics?range=7d').flush(metrics('7d', 0));
+    http
+      .expectOne('/api/v1/static-hosting/site/access-logs/metrics?range=7d')
+      .flush(metrics('7d', 0));
     await harness.fixture.whenStable();
     expect(text('logs-state')).toBe('No requests in this range.');
   });

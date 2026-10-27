@@ -8,12 +8,7 @@ import java.time.Instant
 data class Site(
     val id: String,
     val domains: List<String>,
-) {
-    companion object {
-        // every site at once, in the search and the live view
-        val ALL = Site(ALL_SITES, emptyList())
-    }
-}
+)
 
 enum class StatusClass(
     val key: String,

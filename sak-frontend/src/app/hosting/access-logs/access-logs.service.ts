@@ -1,26 +1,82 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, map } from 'rxjs';
-import { MAX_LIMIT, Page } from '../../shared/api';
-import { apiUrl } from '../../shared/api-url';
+import { Observable } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
+import { apiUrl } from '../../shared/api-url';
 
+// a bucket served at its domains, the site its access logs are kept under
+export interface Site {
+  id: string;
+  domains: string[];
+}
+
+export interface MetricsRange {
+  key: string;
+  label: string;
+}
+
+// the access logs of a bucket: its site and the ranges of the metrics
+export interface AccessLogs {
+  site: Site;
+  ranges: MetricsRange[];
+  defaultRange: string;
+}
+
+export interface StatusClassSeries {
+  statusClass: string;
+  values: number[];
+  total: number;
+}
+
+export interface StatusCodeSeries {
+  status: string;
+  statusClass: string;
+  values: number[];
+  total: number;
+}
+
+export interface UserAgentSeries {
+  group: string;
+  values: number[];
+  requests: number;
+}
+
+export interface SiteMetrics {
+  site: string;
+  range: string;
+  start: string;
+  end: string;
+  stepSeconds: number;
+  buckets: string[];
+  series: StatusClassSeries[];
+  statusCodes: StatusCodeSeries[];
+  bytes: number[];
+  totalRequests: number;
+  errorRequests: number;
+  errorRate: number;
+  totalBytes: number;
+  userAgents: UserAgentSeries[];
+}
+
+// one request, with the domain it was made to
 export interface LogEntry {
   time: string;
-  site: string;
+  host: string;
   path: string;
   // 0 for requests caddy closed without an answer
   status: number | null;
 }
 
-// stands for every site
-export const ALL_SITES = 'all';
-
 export class LiveLogError extends Error {
   constructor(readonly status: number) {
     super(`the live log answered ${status}`);
   }
+}
+
+// the access logs of a bucket
+export function accessLogsUrl(bucket: string): string {
+  return `/api/v1/static-hosting/${encodeURIComponent(bucket)}/access-logs`;
 }
 
 // the data of the server-sent events in the text, and what is left of an incomplete event
@@ -36,31 +92,30 @@ export function parseEvents(text: string): { data: string[]; rest: string } {
   return { data, rest };
 }
 
+// the access logs of the buckets, of all the domains each one is served at
 @Injectable({ providedIn: 'root' })
-export class LogsService {
+export class AccessLogsService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  // the newest entries containing the text, as many as a page holds; the live view pages through
-  // them itself
-  search(site: string, text: string): Observable<LogEntry[]> {
-    return this.http
-      .get<Page<LogEntry>>(`/api/v1/logs/${encodeURIComponent(site)}/search`, {
-        params: { q: text, limit: MAX_LIMIT },
-      })
-      .pipe(map((page) => page.items));
+  accessLogs(bucket: string): Observable<AccessLogs> {
+    return this.http.get<AccessLogs>(accessLogsUrl(bucket));
+  }
+
+  metrics(bucket: string, range: string): Observable<SiteMetrics> {
+    return this.http.get<SiteMetrics>(`${accessLogsUrl(bucket)}/metrics`, { params: { range } });
   }
 
   // the entries of the last minutes, then every new one until unsubscribed, oldest first and in
   // the chunks they arrive in, the backlog comes in bursts; fetch instead of an EventSource, which
-  // can not send the session token; opened is called once the stream is open
-  follow(site: string, opened: () => void = () => undefined): Observable<LogEntry[]> {
+  // can not send the session token
+  follow(bucket: string): Observable<LogEntry[]> {
     return new Observable<LogEntry[]>((subscriber) => {
       const abort = new AbortController();
       const token = this.auth.token();
 
-      fetch(apiUrl(`/api/v1/logs/${encodeURIComponent(site)}/live`), {
+      fetch(apiUrl(`${accessLogsUrl(bucket)}/live`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         signal: abort.signal,
       })
@@ -73,7 +128,6 @@ export class LogsService {
             throw new LiveLogError(response.status);
           }
 
-          opened();
           const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
           let buffered = '';
           for (;;) {

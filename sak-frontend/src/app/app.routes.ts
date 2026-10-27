@@ -20,12 +20,6 @@ export const routes: Routes = [
   },
   hostingRoute,
   redirectsRoute,
-  {
-    path: 'console',
-    canActivate: [authGuard],
-    data: { favicon: { svg: 'icons/console.svg', png: 'icons/console-192.png' } },
-    loadChildren: () => import('./console/console.routes').then((m) => m.consoleRoutes),
-  },
   { path: 'login', component: Login, title: 'Sign in' },
   { path: 'signin', component: Signin, title: 'Signing in' },
   { path: '**', redirectTo: '' },

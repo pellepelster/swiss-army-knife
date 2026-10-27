@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './console';
+import { signIn } from './apps';
 import { deleteAllMails } from './mailpit';
 
 test('redirects a domain from its own page and stops redirecting it', async ({ page, request }) => {

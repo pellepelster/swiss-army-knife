@@ -1,5 +1,5 @@
-import { CATEGORICAL_COLORS, CHART_ACCENT } from '../charts/chart-config';
-import { SiteMetrics } from './sites.service';
+import { CATEGORICAL_COLORS, CHART_ACCENT } from './chart-config';
+import { SiteMetrics } from './access-logs.service';
 
 // the colors and groupings of the blcks page metrics
 

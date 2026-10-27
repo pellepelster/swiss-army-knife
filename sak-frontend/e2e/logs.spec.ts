@@ -1,73 +1,55 @@
 import { expect, test } from '@playwright/test';
-import { appendAccessLog, ensureBucket, signIn } from './console';
+import { appendAccessLog, ensureBucket, signIn } from './apps';
 import { deleteAllMails } from './mailpit';
+
+const BROWSER = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36';
+
+// paths no other test writes, so every run only sees its own entries
+const run = Date.now().toString(36);
 
 test.beforeEach(async ({ page, request }) => {
   await deleteAllMails(request);
   await signIn(page, request, 'logs@example.org');
-  // served at their domains, so they are sites
-  await ensureBucket(page, 'e2e-stats', ['stats.example.org']);
+  // served at its domain and at e2e-logs.example.org, its site is named like it
+  await ensureBucket(page, 'e2e-logs', ['logs.example.org']);
   await ensureBucket(page, 'e2e-other', ['other.example.org']);
-  // the sites are read once, with the buckets there now
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 });
 
-// the buckets e2e-stats and e2e-other are sites only this test writes
-test('shows the requests of a site from the ingress access log', async ({ page }) => {
+// the buckets e2e-logs and e2e-other are sites only this test writes
+test('shows the requests to all the domains of a bucket in its logs tab', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  const browser = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36';
+
+  await page.goto('/static-hosting/e2e-logs/logs');
+  await expect(page.getByTestId('logs-domains')).toContainText('logs.example.org, e2e-logs.example.org');
+  await expect(page.getByTestId('requests-state')).toHaveText('No requests in the last minutes yet.');
+
   appendAccessLog(
-    { site: 'e2e-stats', status: 200, size: 1000, uri: '/a', userAgent: browser },
-    { site: 'e2e-stats', status: 200, size: 1000, uri: '/b', userAgent: browser },
-    { site: 'e2e-stats', status: 200, size: 500, uri: '/c', userAgent: 'aws-sdk-java/2.30.0' },
-    { site: 'e2e-stats', status: 404, size: 0, uri: '/missing', userAgent: 'curl/8.5.0' },
-    // another site, not counted
-    { site: 'e2e-other', status: 200, size: 10, uri: '/', userAgent: browser },
+    { site: 'e2e-logs', host: 'logs.example.org', status: 200, size: 1000, uri: `/${run}/a`, userAgent: BROWSER },
+    { site: 'e2e-logs', host: 'e2e-logs.example.org', status: 404, size: 0, uri: `/${run}/missing`, userAgent: 'curl/8.5.0' },
+    // another bucket, not shown
+    { site: 'e2e-other', host: 'other.example.org', status: 200, size: 10, uri: `/${run}/elsewhere`, userAgent: BROWSER },
   );
 
-  // the overview shows the requests of every site, the navigation leads to each one's
-  await expect(page.getByRole('img', { name: 'Requests, last 4 hours' })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Statistics' }).click();
-  // the first site by name, in the url like every selected one
-  await expect(page).toHaveURL('/console/logs/statistics/e2e-other');
-  await page.getByLabel('Site', { exact: true }).selectOption('e2e-stats');
-  await expect(page).toHaveURL('/console/logs/statistics/e2e-stats');
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-stats');
-  await expect(page.getByTestId('site-title')).toHaveText('e2e-stats');
-  await expect(page.getByText('stats.example.org')).toBeVisible();
+  // the requests as they arrive, with the domain each one was made to; vector ships them within
+  // a few seconds
+  const requests = page.getByRole('table', { name: 'Latest requests' });
+  await expect(requests.getByRole('row').filter({ hasText: `/${run}/missing` })).toContainText('e2e-logs.example.org', {
+    timeout: 20_000,
+  });
+  await expect(requests.getByRole('row').filter({ hasText: `/${run}/a` })).toContainText('logs.example.org');
+  await expect(requests.getByRole('row').filter({ hasText: `/${run}/elsewhere` })).toHaveCount(0);
 
-  // vector ships the entries within a few seconds
+  // the totals of all its domains
   await expect(async () => {
     await page.reload();
     await page.getByLabel('Range').selectOption('15m');
-    await expect(page.getByTestId('kpi-requests')).toHaveText('4', { timeout: 2_000 });
+    await expect(page.getByTestId('logs-requests')).toHaveText('2', { timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
-
-  await expect(page.getByTestId('kpi-error-rate')).toHaveText('25%');
-  await expect(page.getByTestId('kpi-bytes')).toHaveText('2.5 kB');
+  await expect(page.getByTestId('logs-error-rate')).toHaveText('50%');
   await expect(page.getByRole('img', { name: 'Requests by status' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Transferred' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Clients' })).toBeVisible();
-  const agents = page.getByTestId('agent-shares');
-  await expect(agents).toContainText('Chrome');
-  await expect(agents).toContainText('Scripts and SDKs');
-
-  // every site has its own requests, the range stays when switching
-  await page.getByLabel('Site', { exact: true }).selectOption('e2e-other');
-  await expect(page).toHaveURL('/console/logs/statistics/e2e-other');
-  await expect(page.getByLabel('Range')).toHaveValue('15m');
-  await expect(page.getByTestId('kpi-requests')).toHaveText('1');
-
-  // the selection survives a reload and the back button returns to the previous site
-  await page.reload();
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-other');
-  await page.goBack();
-  await expect(page).toHaveURL('/console/logs/statistics/e2e-stats');
-  await expect(page.getByLabel('Site', { exact: true })).toHaveValue('e2e-stats');
 
   expect(errors).toEqual([]);
 });

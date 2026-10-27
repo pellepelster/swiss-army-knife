@@ -78,11 +78,11 @@ data class UpdateDomainsRequest(
 // why a bucket could not be created or its domains not changed
 private const val INVALID_NAME =
     "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, " +
-        "and must not be reserved for the console."
+        "and must not be reserved for the apps or the api."
 private const val NAME_TAKEN = "A bucket of the name exists."
 private const val SUBDOMAIN_TAKEN =
-    "The subdomain of the name is already a domain of another bucket, a redirect or the console."
-private const val INVALID_DOMAIN = "Every domain must be valid and neither one the console serves nor a redirected one."
+    "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
+private const val INVALID_DOMAIN = "Every domain must be valid and neither one of the apps or the api nor a redirected one."
 private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
 
 @Serializable
@@ -196,7 +196,7 @@ class InvalidatingS3StorageBackend(
 
 private const val S3_TAG = "s3"
 
-// the buckets with their domains and statistics, meant to be mounted behind the console's
+// the buckets with their domains and statistics, meant to be mounted behind the
 // authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(

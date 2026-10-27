@@ -13,7 +13,7 @@ export async function signIn(
   page: Page,
   request: APIRequestContext,
   address: string,
-  path = '/console',
+  path = '/',
 ): Promise<void> {
   await page.goto(path);
   await expect(page).toHaveURL(/\/login\?redirect=/);
@@ -24,13 +24,15 @@ export async function signIn(
   expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toContain(address);
 }
 
+// on the index page
 export async function signOut(page: Page): Promise<void> {
-  await page.getByTestId('personal-menu').click();
-  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign out' }).click();
 }
 
 export interface AccessLogEntry {
   site: string;
+  host?: string;
   status: number;
   size: number;
   uri: string;
@@ -49,7 +51,7 @@ export function appendAccessLog(...entries: AccessLogEntry[]): void {
         remote_ip: '192.0.2.0',
         proto: 'HTTP/2.0',
         method: 'GET',
-        host: 'example.org',
+        host: entry.host ?? 'example.org',
         uri: entry.uri,
         headers: { 'User-Agent': [entry.userAgent] },
       },

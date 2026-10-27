@@ -232,12 +232,6 @@ class SakAppsTest {
             me.statusCode() shouldBe 200
             me.json().string("email") shouldBe "admin@example.org"
 
-            get(port, "/api/v1/logs").statusCode() shouldBe 401
-            val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
-            sites.statusCode() shouldBe 200
-            sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
-                listOf("api", "apps", "redirect", "unmatched")
-
             // the link only works once
             post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
         }
@@ -382,11 +376,6 @@ class SakAppsTest {
 
             val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
             redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.at", "example.com", "example.de")
-            // the redirected domains are the domains of the redirect site, the root domain leads to sak-frontend
-            Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
-                .single { it.jsonObject.string("id") == "redirect" }
-                .jsonObject.getValue("domains").jsonArray.map { it.jsonPrimitive.content } shouldBe
-                listOf("example.at", "example.com", "example.de", "example.org")
 
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
@@ -691,9 +680,14 @@ class SakAppsTest {
             post(port, "/api/v1/static-hosting", """{"name":"other","domains":["example.com"]}""", session).statusCode() shouldBe 409
             post(port, "/api/v1/static-hosting", """{"name":"other","domains":["apps.example.org"]}""", session).statusCode() shouldBe 400
 
-            // the bucket is a site at its domains
-            Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
-                .first().jsonObject.string("id") shouldBe "site"
+            // the access logs of the bucket are the ones of all the domains it is served at
+            get(port, "/api/v1/static-hosting/site/access-logs").statusCode() shouldBe 401
+            get(port, "/api/v1/static-hosting/site/access-logs", session).json().getValue("site").jsonObject.let {
+                it.string("id") shouldBe "site"
+                it.getValue("domains").jsonArray.map { domain -> domain.jsonPrimitive.content } shouldBe
+                    listOf("example.com", "www.example.com", "site.example.org")
+            }
+            get(port, "/api/v1/static-hosting/unknown/access-logs", session).statusCode() shouldBe 404
 
             put("/api/v1/static-hosting/site/domains", """{"domains":["example.org"]}""").let {
                 it.statusCode() shouldBe 200
@@ -787,18 +781,16 @@ class SakAppsTest {
     }
 
     @Test
-    fun `serves sak-frontend at every host, the console is one of its apps`() {
+    fun `serves sak-frontend at every host`() {
         withServer { port ->
             listOf("apps.example.org", "localhost").forEach { host ->
-                listOf("/", "/notes", "/console", "/signin?token=abc").forEach { path ->
+                listOf("/", "/notes", "/static-hosting/site/logs", "/signin?token=abc").forEach { path ->
                     val page = getWithHost(port, host, path)
                     page shouldStartWith "HTTP/1.1 200"
                     page shouldContain "<title>Apps</title>"
                     page shouldContain "Content-Security-Policy: ${contentSecurityPolicy(config())}"
                 }
             }
-            // the console's themed bootstrap is a stylesheet of its own, loaded with its pages
-            getWithHost(port, "apps.example.org", "/console.css") shouldStartWith "HTTP/1.1 200"
             // installable as an app, with the service worker that keeps it on the phone
             getWithHost(port, "apps.example.org", "/notes.webmanifest") shouldContain "Content-Type: application/manifest+json"
             getWithHost(port, "apps.example.org", "/ngsw-worker.js") shouldStartWith "HTTP/1.1 200"
@@ -826,14 +818,14 @@ class SakAppsTest {
                         "/api/v1/auth/login",
                         "/api/v1/auth/exchange",
                         "/api/v1/auth/me",
-                        "/api/v1/logs",
-                        "/api/v1/logs/{site}/metrics",
-                        "/api/v1/logs/{site}/search",
-                        "/api/v1/logs/{site}/live",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
                         "/api/v1/static-hosting/{bucket}/domains",
                         "/api/v1/static-hosting/{bucket}/secret",
+                        "/api/v1/static-hosting/{bucket}/access-logs",
+                        "/api/v1/static-hosting/{bucket}/access-logs/metrics",
+                        "/api/v1/static-hosting/{bucket}/access-logs/search",
+                        "/api/v1/static-hosting/{bucket}/access-logs/live",
                         "/api/v1/redirects",
                         "/api/v1/redirects/{source}",
                         "/api/v1/labels",

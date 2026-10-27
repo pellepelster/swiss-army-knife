@@ -65,7 +65,7 @@ private fun RedirectTarget.target(): TargetOfRedirect =
         is RedirectTarget.Bucket -> TargetOfRedirect.Bucket(bucket)
     }
 
-// the redirects caddy answers, meant to be mounted behind the console's authentication
+// the redirects caddy answers, meant to be mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.redirects(redirectService: RedirectService) {
     install(ContentNegotiation) { json() }
@@ -96,7 +96,7 @@ fun Route.redirects(redirectService: RedirectService) {
             is CreateRedirectResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
             CreateRedirectResult.InvalidDomain ->
                 call.respondErrors(
-                    "Both domains must be valid and differ, and the redirected one must be neither served by the console nor by a bucket.",
+                    "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket.",
                 )
             CreateRedirectResult.Exists -> call.respondErrors("The domain is redirected already.", status = HttpStatusCode.Conflict)
             CreateRedirectResult.UnknownBucket ->

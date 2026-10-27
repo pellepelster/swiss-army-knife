@@ -68,7 +68,7 @@ fun discoverTextLimiter() = RateLimiter(30, Duration.ofHours(1))
 fun StoredFile.response() = FileResponse(id, contentType, size, fileUrl(id), thumbnailUrl(id), createdAt.toString())
 
 // uploads to the file storage and the discovery of the text in them, meant to be mounted behind
-// the console's authentication with a body limit that lets the files through
+// the authentication with a body limit that lets the files through
 @OptIn(ExperimentalKtorApi::class)
 fun Route.files(
     fileService: FileService,

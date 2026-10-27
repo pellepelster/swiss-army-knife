@@ -38,7 +38,7 @@ describe('Home', () => {
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
-  it('lists the apps and the administration, and opens the notes at /notes', async () => {
+  it('lists the apps, and opens the notes at /notes', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
     const page = harness.routeNativeElement!;
@@ -52,8 +52,8 @@ describe('Home', () => {
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);
-    expect(page.querySelector('h2')?.textContent).toBe('Administration');
-    expect(tiles('Administration')).toEqual([['Console', '/console']]);
+    // the console is gone
+    expect(page.querySelector('a[href="/console"]')).toBeNull();
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];
 
     links[0].click();

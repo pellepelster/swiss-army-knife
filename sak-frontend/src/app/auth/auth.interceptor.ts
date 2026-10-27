@@ -20,7 +20,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 401) {
+      // a page asks for several things at once, the first rejection leads to the login
+      if (error instanceof HttpErrorResponse && error.status === 401 && auth.token()) {
         auth.logout();
         void router.navigate(['/login'], { queryParams: { redirect: router.url } });
       }

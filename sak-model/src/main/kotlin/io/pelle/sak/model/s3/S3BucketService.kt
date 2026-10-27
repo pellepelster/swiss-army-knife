@@ -46,7 +46,7 @@ class S3BucketService internal constructor(
     private val rootDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
     private val reservedNames: Set<String>,
-    // domains no bucket can be served at, e.g. the console's or redirected ones
+    // domains no bucket can be served at, e.g. the ones of the apps or redirected ones
     private val reservedDomains: () -> Set<String>,
 ) {
     constructor(

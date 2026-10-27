@@ -1,6 +1,6 @@
 import { ChartConfiguration, TooltipItem } from 'chart.js';
 
-// the time series charts of the blcks console, without its deployment markers
+// time series charts in the style of the blcks console, without its deployment markers
 
 export interface TimeSeries {
   key: string;

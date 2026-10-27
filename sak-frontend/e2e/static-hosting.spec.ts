@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { FIXTURE_OBJECT } from '../playwright.config';
-import { signIn } from './console';
+import { signIn } from './apps';
 import { deleteAllMails } from './mailpit';
 
 test.use({ permissions: ['clipboard-read', 'clipboard-write'] });

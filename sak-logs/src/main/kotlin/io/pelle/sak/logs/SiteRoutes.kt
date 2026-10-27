@@ -44,15 +44,13 @@ data class MetricsRangeResponse(
     val label: String,
 )
 
+// the site whose access logs these are, with the domains it is served at
 @Serializable
-data class SitesResponse(
-    val sites: List<Site>,
+data class AccessLogsResponse(
+    val site: Site,
     val ranges: List<MetricsRangeResponse>,
     val defaultRange: String,
 )
-
-// stands for every site in the search and the live view
-const val ALL_SITES = "all"
 
 // keeps a quiet live view open and finds out when its client went away
 private val KEEPALIVE_INTERVAL = 15.seconds
@@ -62,14 +60,14 @@ private const val MAX_SEARCH_LENGTH = 200
 // every open live view blocks a thread of the io dispatcher on its tail
 const val MAX_LIVE_VIEWS = 8
 
-private const val LOGS_TAG = "logs"
+private const val LOGS_TAG = "access logs"
 
-// the sites, their metrics and their logs, meant to be mounted behind the console's authentication,
-// which the openapi document takes its security requirement from; the sites are asked for on
-// every request, they change with the redirects
+// the access logs of one site, its metrics, a search and a live view, meant to be mounted below
+// the path of the site behind the authentication, which the openapi document takes its security
+// requirement from; the site is asked for on every request, its domains change
 @OptIn(ExperimentalKtorApi::class)
-fun Route.sites(
-    sites: () -> List<Site>,
+fun Route.accessLogs(
+    site: (ApplicationCall) -> Site?,
     metrics: SiteMetricsService,
     logs: SiteLogs,
     maxLiveViews: Int = MAX_LIVE_VIEWS,
@@ -86,25 +84,27 @@ fun Route.sites(
     }
 
     get {
+        val site = call.logsSite(site) ?: return@get
         call.respond(
-            SitesResponse(
-                sites(),
+            AccessLogsResponse(
+                site,
                 MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label) },
                 MetricsRange.DEFAULT.key,
             ),
         )
     }.describe {
-        common("The sites and the ranges of their metrics")
+        common("The site of the access logs and the ranges of its metrics")
         responses {
             HttpStatusCode.OK {
-                description = "The sites, the ranges and the default range"
-                schema = jsonSchema<SitesResponse>()
+                description = "The site with its domains, the ranges and the default range"
+                schema = jsonSchema<AccessLogsResponse>()
             }
+            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
         }
     }
 
-    get("/{site}/metrics") {
-        val site = call.logsSite(sites) ?: return@get
+    get("/metrics") {
+        val site = call.logsSite(site) ?: return@get
         val range = MetricsRange.from(call.request.queryParameters["range"])
         if (range == null) {
             call.respondErrors("range must be one of ${MetricsRange.entries.joinToString(", ") { it.key }}.")
@@ -121,13 +121,8 @@ fun Route.sites(
         common("The request metrics of a site")
         description = "Requests per status class and code, transferred bytes and user agent groups over a range."
         parameters {
-            path("site") {
-                description = "The id of the site, or all for every site"
-                required = true
-                schema = jsonSchema<String>()
-            }
             query("range") {
-                description = "The range, one of the keys GET /api/v1/logs lists, 24h by default"
+                description = "The range, one of the keys the access logs list, 24h by default"
                 schema = jsonSchema<String>()
             }
         }
@@ -137,14 +132,14 @@ fun Route.sites(
                 schema = jsonSchema<SiteMetrics>()
             }
             errors(HttpStatusCode.BadRequest, "Unknown range")
-            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }
     }
 
     // the newest entries containing the text q
-    get("/{site}/search") {
-        val site = call.logsSite(sites) ?: return@get
+    get("/search") {
+        val site = call.logsSite(site) ?: return@get
         val text = call.request.queryParameters["q"]?.trim().orEmpty()
         // victorialogs rejects control characters in a quoted string
         val messages =
@@ -175,11 +170,6 @@ fun Route.sites(
             "The requests of the last ${SiteLogs.SEARCH_WINDOW} whose request line (method, host, path, status) or user agent " +
             "contains the text, case-insensitively, newest first."
         parameters {
-            path("site") {
-                description = "The id of the site, or all for every site"
-                required = true
-                schema = jsonSchema<String>()
-            }
             query("q") {
                 description = "The text to search for, at most $MAX_SEARCH_LENGTH characters"
                 required = true
@@ -193,15 +183,15 @@ fun Route.sites(
                 schema = jsonSchema<Page<LogEntry>>()
             }
             errors(HttpStatusCode.BadRequest, "No, too long or control characters in the search text, or an invalid page")
-            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
         }
     }
 
     // the entries of the last minutes and every new one as server-sent events, until the client
     // goes away
-    get("/{site}/live") {
-        val site = call.logsSite(sites) ?: return@get
+    get("/live") {
+        val site = call.logsSite(site) ?: return@get
         if (!liveViews.tryAcquire()) {
             logger.warn { "not following the logs, $maxLiveViews live views are open already" }
             call.respond(HttpStatusCode.ServiceUnavailable)
@@ -263,30 +253,16 @@ fun Route.sites(
         description =
             "The requests of the last minutes, then every new one as it arrives, as server-sent events whose data " +
             "is a log entry; comments keep the stream open."
-        parameters {
-            path("site") {
-                description = "The id of the site, or all for every site"
-                required = true
-                schema = jsonSchema<String>()
-            }
-        }
         responses {
             HttpStatusCode.OK {
                 description = "A stream of log entries"
                 ContentType.Text.EventStream { schema = jsonSchema<LogEntry>() }
             }
-            HttpStatusCode.NotFound { description = "Unknown site" }
+            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available, or too many live views are open" }
         }
     }
 }
 
-// the site in the path, all of them included; answers not found for unknown ones
-private suspend fun ApplicationCall.logsSite(sites: () -> List<Site>): Site? {
-    val id = parameters["site"]
-    val site = if (id == ALL_SITES) Site.ALL else sites().firstOrNull { it.id == id }
-    if (site == null) {
-        respond(HttpStatusCode.NotFound)
-    }
-    return site
-}
+// the site of the path; answers not found when there is none
+private suspend fun ApplicationCall.logsSite(site: (ApplicationCall) -> Site?): Site? = site(this) ?: null.also { respond(HttpStatusCode.NotFound) }

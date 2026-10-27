@@ -3,7 +3,7 @@ package io.pelle.sak.logs
 import java.time.Duration
 import java.time.Instant
 
-// the time ranges the console offers, the longest one has to fit into the logs retention
+// the time ranges the access logs offer, the longest one has to fit into the logs retention
 enum class MetricsRange(
     val key: String,
     val label: String,

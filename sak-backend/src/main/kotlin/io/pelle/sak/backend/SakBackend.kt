@@ -108,7 +108,7 @@ fun Application.sak(config: SakConfig): SakServices {
         try {
             apps(config, it, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
         } catch (e: Exception) {
-            logger.error(e) { "the console could not be set up, it is not served" }
+            logger.error(e) { "the apps could not be set up, they are not served" }
         }
     }
 

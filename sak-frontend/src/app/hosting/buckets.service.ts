@@ -41,7 +41,7 @@ export function servedDomains(bucket: Bucket): string[] {
 // how long to wait before asking again while a bucket is still being counted
 export const POLL_INTERVAL_MS = 3000;
 
-// the buckets of the backend's s3 api, the same the console shows
+// the buckets of the backend's s3 api
 @Injectable({ providedIn: 'root' })
 export class BucketsService {
   private readonly http = inject(HttpClient);

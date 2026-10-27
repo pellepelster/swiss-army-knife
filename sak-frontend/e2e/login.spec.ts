@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { APPS_URL } from '../playwright.config';
-import { ADMIN, signOut } from './console';
+import { ADMIN, signOut } from './apps';
 import { deleteAllMails, expectNoMailTo, loginLinkFor } from './mailpit';
 
 test.beforeEach(async ({ request }) => {
@@ -13,10 +13,8 @@ test('signs in with the e-mailed link and returns to the requested page', async 
     if (message.type() === 'error') errors.push(message.text());
   });
 
-  await page.goto('/console?tab=sites');
-  await expect(page).toHaveURL('/login?redirect=%2Fconsole%3Ftab%3Dsites');
-  // no navigation for signed out users
-  await expect(page.getByRole('navigation', { name: 'Navigation' })).toHaveCount(0);
+  await page.goto('/redirects?tab=sites');
+  await expect(page).toHaveURL('/login?redirect=%2Fredirects%3Ftab%3Dsites');
 
   await page.getByLabel('E-mail address').fill('Admin@example.org');
   await page.getByRole('button', { name: 'Send login link' }).click();
@@ -25,33 +23,23 @@ test('signs in with the e-mailed link and returns to the requested page', async 
   const link = await loginLinkFor(request, ADMIN);
   await page.goto(link);
 
-  await expect(page).toHaveURL('/console?tab=sites');
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  await expect(page.getByTestId('personal-menu')).toContainText(ADMIN);
+  await expect(page).toHaveURL('/redirects?tab=sites');
+  await expect(page.getByRole('heading', { name: 'Redirects' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toContain(ADMIN);
 
-  // the personal menu at the bottom of the navigation
-  await page.getByTestId('personal-menu').click();
-  await expect(page.getByTestId('signed-in-as')).toHaveText(ADMIN);
-  await expect(page.getByTestId('roles')).toHaveText('admin');
-  await expect(page.getByRole('menu')).toContainText('Session expires');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('menu')).toHaveCount(0);
-
-  // the session outlives the page
+  // the session outlives the page, the index page names the signed in address
+  await page.goto('/');
   await page.reload();
-  await expect(page.getByTestId('personal-menu')).toBeVisible();
+  await expect(page.getByTestId('email')).toHaveText(ADMIN);
 
   // the signin page with the token is not in the history anymore
   await page.goBack();
   await expect(page).not.toHaveURL(/token=/);
 
-  await page.goto('/console');
   await signOut(page);
   await expect(page).toHaveURL('/login');
-  await expect(page.getByTestId('personal-menu')).toHaveCount(0);
-  await page.goto('/console');
-  await expect(page).toHaveURL('/login?redirect=%2Fconsole');
+  await page.goto('/notes');
+  await expect(page).toHaveURL('/login?redirect=%2Fnotes');
 
   // the apps of the frontend take the same session
   await page.goto('/');
@@ -102,8 +90,8 @@ test('a rejected session token leads back to the login', async ({ page }) => {
     ),
   );
 
-  await page.goto('/console');
+  await page.goto('/notes');
 
-  await expect(page).toHaveURL('/login?redirect=%2Fconsole');
+  await expect(page).toHaveURL('/login?redirect=%2Fnotes');
   expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toBeNull();
 });

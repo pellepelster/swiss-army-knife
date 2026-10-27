@@ -6,7 +6,7 @@ import { AuthService } from '../auth/auth.service';
 
 type State = 'idle' | 'sending' | 'sent' | 'rate-limited' | 'failed';
 
-// the e-mail login of the console, the link leads to the frontend's signin page
+// the e-mail login of the apps, the link leads to the frontend's signin page
 @Component({
   selector: 'app-login',
   imports: [ReactiveFormsModule],

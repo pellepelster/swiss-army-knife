@@ -8,7 +8,6 @@ import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
-import io.pelle.sak.logs.Site
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
@@ -211,14 +210,6 @@ class SakCaddyTest {
             Json.parseToJsonElement("\"file_server\"")
         rootRoute(routes(emptyMap(), mapOf("example.org" to "example.net")))!!.toString() shouldContain "https://example.net"
         rootRoute(routes(emptyMap(), config = config)) shouldBe null
-    }
-
-    @Test
-    fun `buckets served at their domains are sites, the redirected domains belong to the redirect site`() {
-        val sites = sites(config, bucketDomains, listOf("example.com"))
-        sites.map { it.id } shouldBe listOf("site", "api", "redirect", "unmatched")
-        sites.first() shouldBe Site("site", listOf("example.org", "www.example.org"))
-        sites[2] shouldBe Site("redirect", listOf("example.com"))
     }
 
     @Test

@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ADMINISTRATION, APPS } from '../apps';
+import { APPS } from '../apps';
 import { AuthService } from '../auth/auth.service';
 import { InstallService } from '../install.service';
 
-// the index page, a tile for every app and, below them, for the administration
+// the index page, a tile for every app
 @Component({
   selector: 'app-home',
   imports: [RouterLink],
@@ -25,24 +25,19 @@ import { InstallService } from '../install.service';
       <span class="user" data-testid="email">{{ auth.email() }}</span>
       <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
     </header>
-    @for (section of sections; track section.name) {
-      <nav [attr.aria-label]="section.name">
-        @if (section.heading) {
-          <h2 class="section-title">{{ section.name }}</h2>
+    <nav aria-label="Apps">
+      <ul class="apps">
+        @for (app of apps; track app.path) {
+          <li>
+            <a class="app" [routerLink]="app.path">
+              <img class="icon" [src]="app.icon" alt="" width="48" height="48" />
+              <span class="name">{{ app.name }}</span>
+              <span class="description">{{ app.description }}</span>
+            </a>
+          </li>
         }
-        <ul class="apps">
-          @for (app of section.entries; track app.path) {
-            <li>
-              <a class="app" [routerLink]="app.path">
-                <img class="icon" [src]="app.icon" alt="" width="48" height="48" />
-                <span class="name">{{ app.name }}</span>
-                <span class="description">{{ app.description }}</span>
-              </a>
-            </li>
-          }
-        </ul>
-      </nav>
-    }
+      </ul>
+    </nav>
   `,
 })
 export class Home {
@@ -50,11 +45,7 @@ export class Home {
   protected readonly installer = inject(InstallService);
   private readonly router = inject(Router);
 
-  // the apps under the title of the page, the administration below them with its own heading
-  protected readonly sections = [
-    { name: 'Apps', heading: false, entries: APPS },
-    { name: 'Administration', heading: true, entries: ADMINISTRATION },
-  ];
+  protected readonly apps = APPS;
 
   protected signOut(): void {
     this.auth.logout();

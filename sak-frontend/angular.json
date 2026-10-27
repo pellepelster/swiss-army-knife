@@ -49,48 +49,11 @@
               "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
               "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
-              "src/styles.scss",
-              {
-                "input": "node_modules/@fontsource/ibm-plex-sans/latin-400.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "node_modules/@fontsource/ibm-plex-sans/latin-500.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "node_modules/@fontsource/ibm-plex-sans/latin-600.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "node_modules/@fontsource/ibm-plex-mono/latin-400.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "node_modules/@fontsource/ibm-plex-mono/latin-500.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "node_modules/@fontsource/ibm-plex-mono/latin-600.css",
-                "bundleName": "console",
-                "inject": false
-              },
-              {
-                "input": "src/console-theme/console.scss",
-                "bundleName": "console",
-                "inject": false
-              }
+              "src/styles.scss"
             ],
             "stylePreprocessorOptions": {
               "sass": {
-                "silenceDeprecations": [
-                  "import"
-                ]
+                "silenceDeprecations": ["import"]
               }
             }
           },

@@ -39,7 +39,7 @@ data class SakConfig(
 
     @Serializable
     data class LogsConfig(
-        // the ingress access logs end up here, the console shows the metrics of the sites from it
+        // the ingress access logs end up here, the access logs of the buckets are read from it
         @SerialName("victorialogs_url")
         val victorialogsUrl: String = DEFAULT_VICTORIALOGS_URL,
     )

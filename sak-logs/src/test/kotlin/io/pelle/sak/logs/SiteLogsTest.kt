@@ -49,8 +49,8 @@ class SiteLogsTest {
                             if ("stats count()" in form.getValue("query")) {
                                 """{"total":"42"}""" + "\n"
                             } else {
-                                """{"_time":"2026-10-26T21:00:02Z","site":"pelle.io","request.uri":"/missing","status":"404"}""" + "\n" +
-                                    """{"_time":"2026-10-26T21:00:01Z","site":"pelle.io","request.uri":"/","status":"200"}""" + "\n"
+                                """{"_time":"2026-10-26T21:00:02Z","request.host":"pelle.io","request.uri":"/missing","status":"404"}""" + "\n" +
+                                    """{"_time":"2026-10-26T21:00:01Z","request.host":"pelle.io","request.uri":"/","status":"200"}""" + "\n"
                             }.toByteArray()
                         exchange.sendResponseHeaders(200, body.size.toLong())
                         exchange.responseBody.use { it.write(body) }
@@ -58,10 +58,10 @@ class SiteLogsTest {
                     "/select/logsql/tail" -> {
                         exchange.sendResponseHeaders(200, 0)
                         exchange.responseBody.use {
-                            it.write("""{"_time":"2026-10-26T21:00:01Z","site":"pelle.io","request.uri":"/a","status":"200"}""".toByteArray())
+                            it.write("""{"_time":"2026-10-26T21:00:01Z","request.host":"pelle.io","request.uri":"/a","status":"200"}""".toByteArray())
                             it.write("\n".toByteArray())
                             it.flush()
-                            it.write("""{"_time":"2026-10-26T21:00:02Z","site":"s3","request.uri":"/b?x=1","status":"0"}""".toByteArray())
+                            it.write("""{"_time":"2026-10-26T21:00:02Z","request.host":"www.pelle.io","request.uri":"/b?x=1","status":"0"}""".toByteArray())
                             it.write("\n".toByteArray())
                             it.flush()
                             tailOpen.await(10, TimeUnit.SECONDS)
@@ -95,7 +95,7 @@ class SiteLogsTest {
 
         queries.single().second.getValue("query") shouldBe
             """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)Missing" OR user_agent:~"(?i)Missing") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
+            """| fields _time, request.host, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
     }
 
     @Test
@@ -107,38 +107,38 @@ class SiteLogsTest {
             listOf(
                 """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)missing" OR user_agent:~"(?i)missing") | stats count() total""",
                 """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)missing" OR user_agent:~"(?i)missing") """ +
-                    """| fields _time, site, request.uri, status | sort by (_time desc) | offset 50 | limit 25""",
+                    """| fields _time, request.host, request.uri, status | sort by (_time desc) | offset 50 | limit 25""",
             )
     }
 
     @Test
-    fun `searches all sites and matches the text literally`() {
-        logs.search(Site.ALL, """a.b "c" (d)\""")
+    fun `matches the text literally`() {
+        logs.search(site, """a.b "c" (d)\""")
 
         queries.single().second.getValue("query") shouldBe
-            """* _time:30d (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +
-            """| fields _time, site, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
+            """_stream:{site="pelle.io"} _time:30d (_msg:~"(?i)a\\.b \"c\" \\(d\\)\\\\" OR user_agent:~"(?i)a\\.b \"c\" \\(d\\)\\\\") """ +
+            """| fields _time, request.host, request.uri, status | sort by (_time desc) | offset 0 | limit 500"""
     }
 
     @Test
     fun `follows the entries of the last minutes and the new ones`() {
         logs.follow(site).use { entries ->
             entries.next() shouldBe LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/a", 200)
-            entries.next() shouldBe LogEntry("2026-10-26T21:00:02Z", "s3", "/b?x=1", 0)
+            entries.next() shouldBe LogEntry("2026-10-26T21:00:02Z", "www.pelle.io", "/b?x=1", 0)
         }
 
         queries.single() shouldBe
-            ("/select/logsql/tail" to mapOf("query" to """_stream:{site="pelle.io"} | fields _time, site, request.uri, status""", "start_offset" to "300s"))
+            ("/select/logsql/tail" to mapOf("query" to """_stream:{site="pelle.io"} | fields _time, request.host, request.uri, status""", "start_offset" to "300s"))
     }
 
     @Test
     fun `streams the followed entries as server-sent events`() =
         testApplication {
             application {
-                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs) } }
+                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
-            client.prepareGet("/api/v1/logs/all/live").execute { response ->
+            client.prepareGet("/sites/pelle.io/access-logs/live").execute { response ->
                 response.status shouldBe HttpStatusCode.OK
                 response.headers["Content-Type"] shouldContain "text/event-stream"
                 response.headers["Cache-Control"] shouldBe "no-store"
@@ -150,10 +150,11 @@ class SiteLogsTest {
                 val events = lines.filter { it.startsWith("data: ") }.map { Json.parseToJsonElement(it.removePrefix("data: ")).jsonObject }
 
                 events.map { it["path"]!!.jsonPrimitive.content } shouldBe listOf("/a", "/b?x=1")
-                events.last()["site"]!!.jsonPrimitive.content shouldBe "s3"
+                events.last()["host"]!!.jsonPrimitive.content shouldBe "www.pelle.io"
             }
 
-            synchronized(queries) { queries.single().second.getValue("query") } shouldBe "* | fields _time, site, request.uri, status"
+            synchronized(queries) { queries.single().second.getValue("query") } shouldBe
+                """_stream:{site="pelle.io"} | fields _time, request.host, request.uri, status"""
         }
 
     // against a real server, the test engine only hands out a streaming response once its handler ended
@@ -161,12 +162,12 @@ class SiteLogsTest {
     fun `follows at most the configured number of live views at once`() {
         val server =
             embeddedServer(Netty, port = 0) {
-                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs, maxLiveViews = 1, keepaliveInterval = 200.milliseconds) } }
+                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(victoriaLogsClient), logs, maxLiveViews = 1, keepaliveInterval = 200.milliseconds) } }
             }.start()
         try {
             val port = runBlocking { server.engine.resolvedConnectors().first().port }
             val http = java.net.http.HttpClient.newHttpClient()
-            fun live() = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:$port/api/v1/logs/all/live")).build()
+            fun live() = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:$port/sites/pelle.io/access-logs/live")).build()
 
             val first = http.send(live(), java.net.http.HttpResponse.BodyHandlers.ofInputStream())
             first.statusCode() shouldBe 200
@@ -191,10 +192,10 @@ class SiteLogsTest {
     fun `serves searches of known sites and all sites only`() =
         testApplication {
             application {
-                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(victoriaLogsClient), logs) } }
+                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
-            val found = client.get("/api/v1/logs/pelle.io/search?q=missing&limit=10")
+            val found = client.get("/sites/pelle.io/access-logs/search?q=missing&limit=10")
             found.status shouldBe HttpStatusCode.OK
             Json.parseToJsonElement(found.bodyAsText()).jsonObject.let {
                 it["items"]!!.jsonArray.first().jsonObject["status"]!!.jsonPrimitive.content shouldBe "404"
@@ -202,13 +203,13 @@ class SiteLogsTest {
                     mapOf("offset" to "0", "limit" to "10", "total" to "42")
             }
 
-            client.get("/api/v1/logs/all/search?q=missing").status shouldBe HttpStatusCode.OK
-            client.get("/api/v1/logs/unknown/search?q=missing").status shouldBe HttpStatusCode.NotFound
-            client.get("/api/v1/logs/unknown/live").status shouldBe HttpStatusCode.NotFound
-            client.get("/api/v1/logs/pelle.io/search?q=%20").status shouldBe HttpStatusCode.BadRequest
-            client.get("/api/v1/logs/pelle.io/search").status shouldBe HttpStatusCode.BadRequest
-            client.get("/api/v1/logs/pelle.io/search?q=a%0Ab").status shouldBe HttpStatusCode.BadRequest
-            client.get("/api/v1/logs/pelle.io/search?q=x&limit=0").let {
+            client.get("/sites/pelle.io/access-logs/search?q=missing").status shouldBe HttpStatusCode.OK
+            client.get("/sites/unknown/access-logs/search?q=missing").status shouldBe HttpStatusCode.NotFound
+            client.get("/sites/unknown/access-logs/live").status shouldBe HttpStatusCode.NotFound
+            client.get("/sites/pelle.io/access-logs/search?q=%20").status shouldBe HttpStatusCode.BadRequest
+            client.get("/sites/pelle.io/access-logs/search").status shouldBe HttpStatusCode.BadRequest
+            client.get("/sites/pelle.io/access-logs/search?q=a%0Ab").status shouldBe HttpStatusCode.BadRequest
+            client.get("/sites/pelle.io/access-logs/search?q=x&limit=0").let {
                 it.status shouldBe HttpStatusCode.BadRequest
                 it.bodyAsText() shouldBe """{"errors":[{"message":"limit must be a number from 1 to 500."}]}"""
             }
@@ -219,10 +220,10 @@ class SiteLogsTest {
         testApplication {
             val down = VictoriaLogsClient("http://127.0.0.1:1")
             application {
-                routing { route("/api/v1/logs") { sites({ listOf(site) }, SiteMetricsService(down), SiteLogs(down)) } }
+                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(down), SiteLogs(down)) } }
             }
 
-            client.get("/api/v1/logs/pelle.io/search?q=x").status shouldBe HttpStatusCode.ServiceUnavailable
-            client.get("/api/v1/logs/pelle.io/live").status shouldBe HttpStatusCode.ServiceUnavailable
+            client.get("/sites/pelle.io/access-logs/search?q=x").status shouldBe HttpStatusCode.ServiceUnavailable
+            client.get("/sites/pelle.io/access-logs/live").status shouldBe HttpStatusCode.ServiceUnavailable
         }
 }

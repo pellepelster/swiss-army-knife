@@ -1,5 +1,5 @@
-// swagger ui of the console api, served next to the console so it can use the console's session
-// for "try it out"; a file instead of an inline script, the content security policy forbids those.
+// swagger ui of the api of the apps, served next to them so it can use their session for
+// "try it out"; a file instead of an inline script, the content security policy forbids those.
 // At apps.<root_domain> the api is api.<root_domain>/v1, like the apps call it (shared/api-url.ts)
 function apiUrl(url) {
   const here = new URL(url, location.href);
