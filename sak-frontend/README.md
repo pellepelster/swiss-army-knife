@@ -30,7 +30,8 @@ app, the notes always come from the backend.
 
 The icons are drawn as svg in `public/` and rendered to png at the sizes the manifest names. The
 notes' icon is the `note-sticky` icon of [Font Awesome Free](https://fontawesome.com)
-([CC BY 4.0](https://fontawesome.com/license/free)), the favicon a swiss army knife of our own.
+([CC BY 4.0](https://fontawesome.com/license/free)), outlined in ink on paper white with the
+swiss army knife of the favicon, which is our own, in its corner.
 
 ## Development
 
