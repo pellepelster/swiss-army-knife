@@ -18,7 +18,6 @@ type TargetType = RedirectTarget['type'];
   template: `
     <div class="page">
       <div class="page-header">
-        <div class="label-mono"><a routerLink="/redirects">Ingress · Redirects</a></div>
         <h1 class="mb-1">Add redirect</h1>
       </div>
 

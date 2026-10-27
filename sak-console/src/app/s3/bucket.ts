@@ -20,7 +20,6 @@ const BUCKET_TABS: readonly TabEntry[] = [
     <div class="page">
       <div class="page-header d-flex flex-wrap align-items-end justify-content-between gap-2">
         <div>
-          <div class="label-mono"><a routerLink="/s3/buckets">S3 · Buckets</a></div>
           <h1 class="mb-1 font-mono">{{ name() }}</h1>
         </div>
         <a class="btn btn-outline-secondary" [routerLink]="['/s3/buckets', name(), 'edit']">Edit</a>

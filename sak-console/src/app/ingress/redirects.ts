@@ -13,7 +13,6 @@ import { Redirect, RedirectsService } from './redirects.service';
     <div class="page">
       <div class="page-header d-flex flex-wrap align-items-end justify-content-between gap-2">
         <div>
-          <div class="label-mono">Ingress</div>
           <h1 class="mb-1">Redirects</h1>
           <div class="page-subtitle">Every request for a redirected domain is answered with a permanent redirect.</div>
         </div>

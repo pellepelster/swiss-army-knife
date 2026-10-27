@@ -15,10 +15,6 @@ import { BucketsService } from './buckets.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <div class="label-mono">
-          <a routerLink="/s3/buckets">S3 · Buckets</a> ·
-          <a [routerLink]="['/s3/buckets', name()]">{{ name() }}</a>
-        </div>
         <h1 class="mb-1">Edit bucket</h1>
       </div>
 

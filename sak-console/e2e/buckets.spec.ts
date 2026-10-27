@@ -53,7 +53,7 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await expect(page.getByTestId('secret-key')).toHaveText(/^[A-Za-z0-9+/]{40}$/);
 
   // a taken name is reported
-  await page.getByRole('link', { name: 'S3 · Buckets' }).click();
+  await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Buckets' }).click();
   await page.getByRole('link', { name: 'Add bucket' }).click();
   await page.getByLabel('Bucket name').fill('e2e-other');
   await page.getByRole('button', { name: 'Add bucket' }).click();

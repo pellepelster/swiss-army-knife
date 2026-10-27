@@ -18,7 +18,6 @@ export const POLL_INTERVAL_MS = 3000;
     <div class="page">
       <div class="page-header d-flex flex-wrap align-items-end justify-content-between gap-2">
         <div>
-          <div class="label-mono">S3</div>
           <h1 class="mb-1">Buckets</h1>
           <div class="page-subtitle">
             Counted in the background, recounted every few minutes and after every write.

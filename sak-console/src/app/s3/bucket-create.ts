@@ -15,7 +15,6 @@ import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <div class="label-mono"><a routerLink="/s3/buckets">S3 · Buckets</a></div>
         <h1 class="mb-1">Add bucket</h1>
       </div>
 

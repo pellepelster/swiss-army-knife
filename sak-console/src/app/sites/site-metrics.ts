@@ -35,7 +35,6 @@ interface AgentShare {
     <div class="page">
       <div class="page-header d-flex align-items-end justify-content-between">
         <div>
-          <div class="label-mono">Site</div>
           <h1 class="mb-1 font-mono" data-testid="site-title">{{ shownSite() }}</h1>
           @if (domains().length) {
             <div class="page-subtitle font-mono">{{ domains().join(', ') }}</div>

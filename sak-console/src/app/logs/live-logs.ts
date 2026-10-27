@@ -82,7 +82,6 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
     <div class="page">
       <div class="page-header d-flex align-items-end justify-content-between">
         <div>
-          <div class="label-mono">Logs</div>
           <h1 class="mb-1">Live</h1>
         </div>
         <div class="live-controls">
