@@ -22,22 +22,17 @@ const val UNMATCHED_SITE = "unmatched"
 // all stands for every site in the console's log views
 val RESERVED_SITES = setOf(S3_SITE, CONSOLE_SITE, REDIRECT_SITE, UNMATCHED_SITE, ALL_SITES)
 
-// the buckets served at their domains are sites of their own, named like the bucket; the
-// redirected domains belong to the redirect site
+// the buckets served at their domains are sites of their own, named like the bucket, whose names
+// are no reserved ones (S3BucketService); the redirected domains belong to the redirect site
 fun sites(
     config: SakConfig,
+    bucketDomains: Map<String, List<String>>,
     redirectedDomains: List<String>,
-): List<Site> {
-    val buckets = config.s3.buckets.filterValues { it.domains.isNotEmpty() }
-    buckets.keys.firstOrNull { it in RESERVED_SITES }?.let {
-        throw IllegalArgumentException("bucket '$it' is served at its domains, its name is reserved for a site")
-    }
-
-    return buckets.map { (bucket, bucketConfig) -> Site(bucket, bucketConfig.domains) } +
+): List<Site> =
+    bucketDomains.filterValues { it.isNotEmpty() }.map { (bucket, domains) -> Site(bucket, domains) } +
         listOfNotNull(
             Site(S3_SITE, listOf(s3Host(config))),
             config.auth?.let { Site(CONSOLE_SITE, listOf(config.consoleHost)) },
             Site(REDIRECT_SITE, redirectedDomains),
             Site(UNMATCHED_SITE, emptyList()),
         )
-}

@@ -43,9 +43,6 @@ class SakControllerTest {
             sak:
               data_dir: $dataDir
               root_domain: example.org
-              s3:
-                buckets:
-                  bucket1: {}
             """.trimIndent(),
         )
         return ConfigLoader.loadAll(BUNDLED_CONFIG, configFile.toString())
@@ -116,7 +113,6 @@ class SakControllerTest {
         try {
             val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, "../config/controller-config.yaml"))
 
-            config.s3.buckets.keys shouldBe setOf("pelle.io")
             config.consoleUrl shouldBe "https://console.pelle.io"
             config.auth!!.smtp shouldBe
                 SakConfig.SmtpConfig(

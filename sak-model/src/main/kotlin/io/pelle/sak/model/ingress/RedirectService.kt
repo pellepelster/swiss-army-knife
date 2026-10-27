@@ -1,6 +1,7 @@
 package io.pelle.sak.model.ingress
 
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.isValidDomain
 import io.pelle.sak.model.s3.S3BucketService
 import java.time.Clock
 import java.time.Instant
@@ -29,7 +30,7 @@ sealed interface CreateRedirectResult {
         val redirect: Redirect,
     ) : CreateRedirectResult
 
-    // no valid domain, the source is the target, or a domain the controller serves itself
+    // no valid domain, the source is the target, or a domain the controller or a bucket serves
     data object InvalidDomain : CreateRedirectResult
 
     data object UnknownBucket : CreateRedirectResult
@@ -53,16 +54,13 @@ class RedirectService internal constructor(
     private val clock: Clock,
     // the domains the controller serves itself, which can not be redirected
     private val reservedDomains: () -> Set<String>,
-    // the domains a bucket is served at
-    private val bucketDomains: (bucket: String) -> List<String>,
 ) {
     constructor(
         database: SakDatabase,
         buckets: S3BucketService,
         clock: Clock = Clock.systemUTC(),
         reservedDomains: () -> Set<String> = { emptySet() },
-        bucketDomains: (bucket: String) -> List<String> = { emptyList() },
-    ) : this(RedirectRepository(database), buckets, clock, reservedDomains, bucketDomains)
+    ) : this(RedirectRepository(database), buckets, clock, reservedDomains)
 
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
 
@@ -72,11 +70,14 @@ class RedirectService internal constructor(
 
     fun all(): List<Redirect> = repository.all()
 
+    // the redirected domains, no bucket may be served at them
+    fun sourceDomains(): Set<String> = repository.all().map { it.sourceDomain }.toSet()
+
     // the domain the redirect leads to, null for a bucket no longer served at a domain
     fun location(target: RedirectTarget): String? =
         when (target) {
             is RedirectTarget.Domain -> target.domain
-            is RedirectTarget.Bucket -> bucketDomains(target.bucket).firstOrNull()
+            is RedirectTarget.Bucket -> buckets.byName(target.bucket)?.domains?.firstOrNull()
         }
 
     fun create(
@@ -84,7 +85,7 @@ class RedirectService internal constructor(
         target: RedirectTarget,
     ): CreateRedirectResult {
         val source = sourceDomain.lowercase()
-        if (!isValidDomain(source) || source in reservedDomains()) {
+        if (!isValidDomain(source) || source in reservedDomains() || buckets.bucketOfDomain(source) != null) {
             return CreateRedirectResult.InvalidDomain
         }
         val normalized =
@@ -95,8 +96,8 @@ class RedirectService internal constructor(
                     RedirectTarget.Domain(domain)
                 }
                 is RedirectTarget.Bucket -> {
-                    if (buckets.byName(target.bucket) == null) return CreateRedirectResult.UnknownBucket
-                    if (bucketDomains(target.bucket).isEmpty()) return CreateRedirectResult.BucketNotServed
+                    val bucket = buckets.byName(target.bucket) ?: return CreateRedirectResult.UnknownBucket
+                    if (bucket.domains.isEmpty()) return CreateRedirectResult.BucketNotServed
                     target
                 }
             }
@@ -118,14 +119,4 @@ class RedirectService internal constructor(
     }
 
     private fun changed() = listeners.forEach { it() }
-
-    companion object {
-        // labels of letters, digits and hyphens, not starting or ending with a hyphen, at least two
-        private val LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
-
-        fun isValidDomain(domain: String): Boolean {
-            val labels = domain.split('.')
-            return domain.length <= 253 && labels.size >= 2 && labels.all { LABEL.matches(it) } && !labels.last().all { it.isDigit() }
-        }
-    }
 }

@@ -7,3 +7,6 @@ databaseChangeLog:
   - include:
       file: 0002-redirects.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0003-s3-buckets-domains.yaml
+      relativeToChangelogFile: true

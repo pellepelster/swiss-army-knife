@@ -20,6 +20,7 @@ import io.pelle.sak.model.ingress.DeleteRedirectResult
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.model.ingress.RedirectService
 import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.s3.S3BucketService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -27,9 +28,11 @@ import kotlinx.serialization.Serializable
 
 private val logger = KotlinLogging.logger {}
 
-// the domains the controller serves itself, none of them can be redirected
-fun reservedDomains(config: SakConfig): Set<String> =
-    setOf(config.rootDomain, s3Host(config), config.consoleHost) + config.s3.buckets.values.flatMap { it.domains }
+// the domains the controller serves itself, no bucket is served at them and none is redirected
+fun reservedDomains(config: SakConfig): Set<String> = setOf(s3Host(config), config.consoleHost)
+
+// the domains every bucket is served at
+fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to it.domains }
 
 // every redirected domain with the domain it leads to; a bucket no longer served at a domain
 // leads nowhere, its redirect is left out

@@ -1,0 +1,17 @@
+# the domains a bucket is served at, in their order, the first is where redirects to the bucket
+# lead; a domain belongs to one bucket at most. Plain sql, sqlite only takes the foreign key
+# when the table is created.
+databaseChangeLog:
+  - changeSet:
+      id: 0003-s3-buckets-domains
+      author: sak
+      changes:
+        - sql:
+            sql: >-
+              CREATE TABLE s3_buckets_domains (
+                domain VARCHAR(253) NOT NULL PRIMARY KEY,
+                bucket_name VARCHAR(63) NOT NULL,
+                position INTEGER NOT NULL,
+                CONSTRAINT s3_buckets_domains_bucket_name_fkey FOREIGN KEY (bucket_name) REFERENCES s3_buckets (name) ON DELETE CASCADE,
+                CONSTRAINT s3_buckets_domains_position_key UNIQUE (bucket_name, position)
+              )

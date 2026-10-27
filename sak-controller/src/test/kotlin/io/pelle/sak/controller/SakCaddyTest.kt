@@ -21,15 +21,9 @@ class SakCaddyTest {
         SakConfig(
             dataDir = Path.of("/data"),
             rootDomain = "example.org",
-            s3 =
-                SakConfig.S3Config(
-                    buckets =
-                        mapOf(
-                            "private" to SakConfig.S3BucketConfig(),
-                            "site" to SakConfig.S3BucketConfig(listOf("example.org", "www.example.org")),
-                        ),
-                ),
         )
+
+    private val bucketDomains = mapOf("private" to emptyList(), "site" to listOf("example.org", "www.example.org"))
 
     @Test
     fun `proxies s3 at the root domain, serves buckets at their domains, redirects and closes every other connection`() {
@@ -102,7 +96,7 @@ class SakCaddyTest {
             }
             """.trimIndent()
 
-        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, mapOf("example.com" to "example.org"), 8080))) shouldBe Json.parseToJsonElement(expected)
+        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, mapOf("example.com" to "example.org"), 8080))) shouldBe Json.parseToJsonElement(expected)
     }
 
     @Test
@@ -110,7 +104,7 @@ class SakCaddyTest {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
-        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, emptyMap(), 8080))).jsonObject["apps"]!!
+        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080))).jsonObject["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -153,14 +147,11 @@ class SakCaddyTest {
     }
 
     @Test
-    fun `buckets served at their domains are sites, their names must not clash with the other sites`() {
-        sites(config, listOf("example.com")).map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
-        sites(config, listOf("example.com")).first() shouldBe Site("site", listOf("example.org", "www.example.org"))
-        sites(config, listOf("example.com"))[2] shouldBe Site("redirect", listOf("example.com"))
-
-        shouldThrow<IllegalArgumentException> {
-            sites(config.copy(s3 = config.s3.copy(buckets = mapOf("console" to SakConfig.S3BucketConfig(listOf("example.org"))))), emptyList())
-        }
+    fun `buckets served at their domains are sites, the redirected domains belong to the redirect site`() {
+        val sites = sites(config, bucketDomains, listOf("example.com"))
+        sites.map { it.id } shouldBe listOf("site", "s3", "redirect", "unmatched")
+        sites.first() shouldBe Site("site", listOf("example.org", "www.example.org"))
+        sites[2] shouldBe Site("redirect", listOf("example.com"))
     }
 
     @Test
@@ -178,7 +169,7 @@ class SakCaddyTest {
         val port = admin.address.port
 
         var redirects = emptyMap<String, String>()
-        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, redirects, 8080) })
+        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, redirects, 8080) })
         reconciler.reconcile()
         requests shouldBe listOf("POST" to "/config/apps")
         bodies.last() shouldNotContain "example.com"

@@ -24,9 +24,11 @@ fun bucketObjectsDir(
     bucket: String,
 ): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
 
-// redirects maps every redirected domain to the domain it leads to
+// bucketDomains are the domains each bucket is served at, redirects maps every redirected domain
+// to the domain it leads to
 fun caddyConfig(
     config: SakConfig,
+    bucketDomains: Map<String, List<String>>,
     redirects: Map<String, String>,
     port: Int,
 ): CaddyConfig =
@@ -70,11 +72,11 @@ fun caddyConfig(
                 }
             }
 
-            config.s3.buckets
-                .filterValues { it.domains.isNotEmpty() }
-                .forEach { (bucket, bucketConfig) ->
+            bucketDomains
+                .filterValues { it.isNotEmpty() }
+                .forEach { (bucket, domains) ->
                     route {
-                        host(*bucketConfig.domains.toTypedArray())
+                        host(*domains.toTypedArray())
                         logField(SITE_LOG_FIELD, bucket)
                         fileServer(root = bucketObjectsDir(config, bucket).toString(), indexNames = listOf("index.html"))
                         terminal()

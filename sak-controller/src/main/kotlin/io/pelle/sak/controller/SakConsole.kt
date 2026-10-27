@@ -93,11 +93,11 @@ fun Application.console(
                         route("/logs") {
                             install(RequireRole) { role = Role.ADMIN }
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
-                            sites({ sites(config, redirectService.all().map { it.sourceDomain }) }, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
+                            sites({ sites(config, bucketService.domains(), redirectService.all().map { it.sourceDomain }) }, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
                         route("/buckets") {
                             install(RequireRole) { role = Role.ADMIN }
-                            buckets(bucketService, { config.s3.buckets[it]?.domains.orEmpty() }, statistics)
+                            buckets(bucketService, statistics)
                         }
                         route("/redirects") {
                             install(RequireRole) { role = Role.ADMIN }

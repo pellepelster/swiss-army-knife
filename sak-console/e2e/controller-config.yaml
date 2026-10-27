@@ -7,15 +7,6 @@ sak:
   root_domain: example.org
   # nothing listens here, the controller keeps retrying to configure caddy in the background
   caddy_admin_url: http://localhost:12019
-  s3:
-    # served at their domains, so they are sites; only the statistics test writes their requests
-    buckets:
-      e2e-stats:
-        domains:
-          - stats.example.org
-      e2e-other:
-        domains:
-          - other.example.org
   auth:
     console_url: http://localhost:18080
     # one address per spec, each gets at most five login links an hour from one client

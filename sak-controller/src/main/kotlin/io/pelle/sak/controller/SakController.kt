@@ -40,7 +40,10 @@ fun Application.module() {
     val services = sak(config)
 
     val reconciler =
-        CaddyReconciler(CaddyManager(config.caddyAdminUrl), config = { caddyConfig(config, services.redirectService.locations(), port) })
+        CaddyReconciler(CaddyManager(config.caddyAdminUrl), config = {
+            caddyConfig(config, services.bucketService.domains(), services.redirectService.locations(), port)
+        })
+    services.bucketService.onChange(reconciler::reconcileNow)
     services.redirectService.onChange(reconciler::reconcileNow)
     monitor.subscribe(ApplicationStarted) { reconciler.start() }
     monitor.subscribe(ApplicationStopping) { reconciler.stop() }
@@ -61,14 +64,16 @@ fun Application.sak(config: SakConfig): SakServices {
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
     val database = SakDatabase.open(databaseFile(config))
-    val bucketService = S3BucketService(database, reservedNames = RESERVED_SITES)
-    val redirectService =
-        RedirectService(
+    // a bucket is not served at a redirected domain and the other way round, each service checks
+    // the other's domains
+    lateinit var redirectService: RedirectService
+    val bucketService =
+        S3BucketService(
             database,
-            bucketService,
-            reservedDomains = { reservedDomains(config) },
-            bucketDomains = { config.s3.buckets[it]?.domains.orEmpty() },
+            reservedNames = RESERVED_SITES,
+            reservedDomains = { reservedDomains(config) + redirectService.sourceDomains() },
         )
+    redirectService = RedirectService(database, bucketService, reservedDomains = { reservedDomains(config) })
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })

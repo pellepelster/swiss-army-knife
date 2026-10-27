@@ -58,12 +58,6 @@ class SakConsoleTest {
             sak:
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
-              s3:
-                buckets:
-                  bucket1: {}
-                  site:
-                    domains:
-                      - site.example.org
             """.trimIndent() +
                 if (auth) {
                     "\n" +
@@ -183,7 +177,7 @@ class SakConsoleTest {
             val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
-                listOf("site", "s3", "console", "redirect", "unmatched")
+                listOf("s3", "console", "redirect", "unmatched")
 
             // the link only works once
             post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
@@ -281,7 +275,10 @@ class SakConsoleTest {
     @Test
     fun `redirects domains to external domains and to the domain of a bucket`() {
         val config = config()
-        S3BucketService(SakDatabase.open(databaseFile(config))).let { buckets -> listOf("bucket1", "site").forEach { buckets.create(it) } }
+        S3BucketService(SakDatabase.open(databaseFile(config))).let { buckets ->
+            buckets.create("bucket1")
+            buckets.create("site", listOf("site.example.org"))
+        }
 
         withServer(config) { port ->
             val session = signIn(port)
@@ -316,6 +313,44 @@ class SakConsoleTest {
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
             Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonArray.size shouldBe 1
+        }
+    }
+
+    @Test
+    fun `serves buckets at the domains they are created with and changes them`() {
+        withServer { port ->
+            val session = signIn(port)
+            fun put(
+                path: String,
+                json: String,
+            ) = http.send(
+                HttpRequest
+                    .newBuilder(URI.create("http://localhost:$port$path"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer $session")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            fun domains(response: HttpResponse<String>) = response.json().getValue("domains").jsonArray.map { it.jsonPrimitive.content }
+
+            val site = post(port, "/api/v1/buckets", """{"name":"site","domains":["Example.com","www.example.com"]}""", session)
+            site.statusCode() shouldBe 201
+            domains(site) shouldBe listOf("example.com", "www.example.com")
+            post(port, "/api/v1/buckets", """{"name":"other","domains":["example.com"]}""", session).statusCode() shouldBe 409
+            post(port, "/api/v1/buckets", """{"name":"other","domains":["console.example.org"]}""", session).statusCode() shouldBe 400
+
+            // the bucket is a site at its domains
+            Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
+                .first().jsonObject.string("id") shouldBe "site"
+
+            put("/api/v1/buckets/site/domains", """{"domains":["example.org"]}""").let {
+                it.statusCode() shouldBe 200
+                domains(it) shouldBe listOf("example.org")
+            }
+            domains(get(port, "/api/v1/buckets/site", session)) shouldBe listOf("example.org")
+            put("/api/v1/buckets/site/domains", """{"domains":["no domain"]}""").statusCode() shouldBe 400
+            put("/api/v1/buckets/unknown/domains", """{"domains":[]}""").statusCode() shouldBe 404
         }
     }
 
@@ -395,6 +430,7 @@ class SakConsoleTest {
                         "/api/v1/logs/{site}/live",
                         "/api/v1/buckets",
                         "/api/v1/buckets/{bucket}",
+                        "/api/v1/buckets/{bucket}/domains",
                         "/api/v1/buckets/{bucket}/secret",
                         "/api/v1/redirects",
                         "/api/v1/redirects/{source}",

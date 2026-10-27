@@ -16,11 +16,13 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.model.s3.CreateBucketResult
 import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.model.s3.S3BucketService
+import io.pelle.sak.model.s3.UpdateDomainsResult
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
@@ -56,7 +58,26 @@ data class BucketResponse(
 @Serializable
 data class CreateBucketRequest(
     val name: String,
+    val domains: List<String> = emptyList(),
 )
+
+@Serializable
+data class UpdateDomainsRequest(
+    val domains: List<String>,
+)
+
+// why a bucket could not be created or changed
+@Serializable
+data class BucketErrorResponse(
+    val error: String,
+) {
+    companion object {
+        val INVALID_NAME = BucketErrorResponse("invalid-name")
+        val NAME_TAKEN = BucketErrorResponse("name-taken")
+        val INVALID_DOMAIN = BucketErrorResponse("invalid-domain")
+        val DOMAIN_TAKEN = BucketErrorResponse("domain-taken")
+    }
+}
 
 @Serializable
 data class BucketSecretResponse(
@@ -169,12 +190,11 @@ class InvalidatingS3StorageBackend(
 
 private const val S3_TAG = "s3"
 
-// the buckets with their statistics, meant to be mounted behind the console's authentication;
-// domainsOf names the domains a bucket is served at
+// the buckets with their domains and statistics, meant to be mounted behind the console's
+// authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(
     bucketService: S3BucketService,
-    domainsOf: (bucket: String) -> List<String>,
     statistics: BucketStatisticsCache,
 ) {
     install(ContentNegotiation) { json() }
@@ -182,7 +202,7 @@ fun Route.buckets(
     suspend fun S3Bucket.response() =
         BucketResponse(
             name,
-            domainsOf(name),
+            domains,
             createdAt.toString(),
             statistics.response(name),
         )
@@ -212,18 +232,22 @@ fun Route.buckets(
 
     post {
         val request = call.receive<CreateBucketRequest>()
-        when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name) }) {
+        when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name, request.domains) }) {
             is CreateBucketResult.Created -> {
                 statistics.warm(listOf(result.bucket.name))
                 call.respond(HttpStatusCode.Created, result.bucket.response())
             }
-            CreateBucketResult.InvalidName -> call.respond(HttpStatusCode.BadRequest)
-            CreateBucketResult.NameTaken -> call.respond(HttpStatusCode.Conflict)
+            CreateBucketResult.InvalidName -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_NAME)
+            CreateBucketResult.InvalidDomain -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_DOMAIN)
+            CreateBucketResult.NameTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.NAME_TAKEN)
+            CreateBucketResult.DomainTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.DOMAIN_TAKEN)
         }
     }.describe {
         tag(S3_TAG)
         summary = "Create a bucket"
-        description = "Creates the bucket with a key pair that may access this bucket only."
+        description =
+            "Creates the bucket with a key pair that may access this bucket only, served at the domains in their order. " +
+            "The name can not be changed later."
         requestBody {
             required = true
             schema = jsonSchema<CreateBucketRequest>()
@@ -233,8 +257,57 @@ fun Route.buckets(
                 description = "The new bucket"
                 schema = jsonSchema<BucketResponse>()
             }
-            HttpStatusCode.BadRequest { description = "No valid bucket name, or one reserved for the controller's sites" }
-            HttpStatusCode.Conflict { description = "A bucket of the name exists" }
+            HttpStatusCode.BadRequest {
+                description =
+                    "invalid-name: no valid bucket name, or one reserved for the controller's sites; invalid-domain: no valid " +
+                    "domain, or one the controller serves or redirects"
+                schema = jsonSchema<BucketErrorResponse>()
+            }
+            HttpStatusCode.Conflict {
+                description = "name-taken: a bucket of the name exists; domain-taken: another bucket is served at a domain"
+                schema = jsonSchema<BucketErrorResponse>()
+            }
+        }
+    }
+
+    put("/{bucket}/domains") {
+        val request = call.receive<UpdateDomainsRequest>()
+        val name = call.parameters["bucket"].orEmpty()
+        when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains) }) {
+            is UpdateDomainsResult.Updated -> call.respond(result.bucket.response())
+            UpdateDomainsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            UpdateDomainsResult.InvalidDomain -> call.respond(HttpStatusCode.BadRequest, BucketErrorResponse.INVALID_DOMAIN)
+            UpdateDomainsResult.DomainTaken -> call.respond(HttpStatusCode.Conflict, BucketErrorResponse.DOMAIN_TAKEN)
+        }
+    }.describe {
+        tag(S3_TAG)
+        summary = "Change the domains of a bucket"
+        description = "Serves the bucket at the domains in their order instead of its current ones, none for no domain."
+        parameters {
+            path("bucket") {
+                description = "The name of the bucket"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        requestBody {
+            required = true
+            schema = jsonSchema<UpdateDomainsRequest>()
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The bucket with its new domains"
+                schema = jsonSchema<BucketResponse>()
+            }
+            HttpStatusCode.BadRequest {
+                description = "invalid-domain: no valid domain, or one the controller serves or redirects"
+                schema = jsonSchema<BucketErrorResponse>()
+            }
+            HttpStatusCode.NotFound { description = "Unknown bucket" }
+            HttpStatusCode.Conflict {
+                description = "domain-taken: another bucket is served at a domain"
+                schema = jsonSchema<BucketErrorResponse>()
+            }
         }
     }
 

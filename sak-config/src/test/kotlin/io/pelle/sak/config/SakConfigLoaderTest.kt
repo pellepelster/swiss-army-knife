@@ -28,9 +28,6 @@ class SakConfigLoaderTest {
         config.dataDir shouldBe Path.of("/something")
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
-        config.s3.buckets.keys shouldBe setOf("backups", "media")
-        config.s3.buckets.getValue("backups").domains shouldBe emptyList()
-        config.s3.buckets.getValue("media").domains shouldBe listOf("media.example.org")
         config.s3DataDir shouldBe Path.of("/something/s3")
         config.authDataDir shouldBe Path.of("/something/auth")
         config.consoleUrl shouldBe "https://console.example.org"
@@ -52,20 +49,20 @@ class SakConfigLoaderTest {
     @Test
     fun `fails on the allowed_emails the admins were called before`() {
         shouldThrow<RuntimeException> {
-            load("data_dir: /data\n$ROOT_DOMAIN${S3}auth:\n  allowed_emails:\n    - admin@example.org\n  smtp:\n    host: localhost\n    from: login@example.org\n")
+            load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  allowed_emails:\n    - admin@example.org\n  smtp:\n    host: localhost\n    from: login@example.org\n")
         }.message shouldContain "allowed_emails"
     }
 
     @Test
     fun `auth is disabled by default`() {
-        load("data_dir: /data\n$ROOT_DOMAIN$S3").auth shouldBe null
+        load("data_dir: /data\n$ROOT_DOMAIN").auth shouldBe null
     }
 
     @Test
     fun `smtp defaults to starttls on port 587 and the console url can be overridden`() {
         val config =
             load(
-                "data_dir: /data\n$ROOT_DOMAIN${S3}auth:\n  console_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
+                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  console_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
             )
 
         config.consoleUrl shouldBe "http://localhost:4200"
@@ -77,12 +74,7 @@ class SakConfigLoaderTest {
 
     @Test
     fun `s3 data dir is s3 below the data dir`() {
-        load("data_dir: /data\n$ROOT_DOMAIN$S3").s3DataDir shouldBe Path.of("/data/s3")
-    }
-
-    @Test
-    fun `buckets default to none`() {
-        load("data_dir: /data\n$ROOT_DOMAIN$S3").s3.buckets shouldBe emptyMap()
+        load("data_dir: /data\n$ROOT_DOMAIN").s3DataDir shouldBe Path.of("/data/s3")
     }
 
     @Test
@@ -107,7 +99,7 @@ class SakConfigLoaderTest {
         val base = tempDir.resolve("base.yaml")
         Files.writeString(base, "sak:\n  data_dir: /data\n  caddy_admin_url: http://localhost:3019\n")
         val override = tempDir.resolve("override.yaml")
-        Files.writeString(override, "sak:\n  data_dir: /var/lib/sak\n" + "$ROOT_DOMAIN$S3".prependIndent("  "))
+        Files.writeString(override, "sak:\n  data_dir: /var/lib/sak\n" + "$ROOT_DOMAIN".prependIndent("  "))
 
         val config = SakConfigLoader.load(ConfigLoader.load(base.toString()).mergeWith(ConfigLoader.load(override.toString())))
 
@@ -118,37 +110,31 @@ class SakConfigLoaderTest {
 
     @Test
     fun `caddy admin url defaults to localhost 2019`() {
-        load("data_dir: /data\n$ROOT_DOMAIN$S3").caddyAdminUrl shouldBe SakConfig.DEFAULT_CADDY_ADMIN_URL
+        load("data_dir: /data\n$ROOT_DOMAIN").caddyAdminUrl shouldBe SakConfig.DEFAULT_CADDY_ADMIN_URL
     }
 
     @Test
     fun `fails on the redirects, they moved to the database`() {
-        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}redirects:\n  example.com: example.org\n$S3") }
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}redirects:\n  example.com: example.org\n") }
     }
 
     @Test
     fun `fails when data dir is missing`() {
-        shouldThrow<RuntimeException> { load("$ROOT_DOMAIN$S3") }
+        shouldThrow<RuntimeException> { load("$ROOT_DOMAIN") }
     }
 
     @Test
     fun `fails when root domain is missing`() {
-        shouldThrow<RuntimeException> { load("data_dir: /data\n$S3") }
+        shouldThrow<RuntimeException> { load("data_dir: /data\n") }
     }
 
     @Test
-    fun `s3 defaults to no domains of buckets`() {
-        load("data_dir: /data\n$ROOT_DOMAIN").s3.buckets shouldBe emptyMap()
-    }
-
-    @Test
-    fun `fails on the s3 key pair there was before every bucket got its own`() {
-        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  access_key_id: key\n  secret_access_key: secret\n") }
+    fun `fails on the s3 buckets, they moved to the database with their domains`() {
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}s3:\n  buckets:\n    site: {}\n") }
     }
 
     companion object {
         private const val ROOT_DOMAIN = "root_domain: example.org\n"
 
-        private const val S3 = "s3:\n  buckets: {}\n"
     }
 }

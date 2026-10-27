@@ -23,7 +23,12 @@ class RedirectServiceTest {
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
-    private val buckets by lazy { S3BucketService(database).apply { listOf("site", "private").forEach { create(it) } } }
+    private val buckets by lazy {
+        S3BucketService(database).apply {
+            create("site", listOf("example.org", "www.example.org"))
+            create("private")
+        }
+    }
 
     private val changes = mutableListOf<String>()
 
@@ -32,8 +37,7 @@ class RedirectServiceTest {
             database,
             buckets,
             clock,
-            reservedDomains = { setOf("console.example.org", "example.org") },
-            bucketDomains = { if (it == "site") listOf("example.org", "www.example.org") else emptyList() },
+            reservedDomains = { setOf("console.example.org") },
         ).apply { onChange { changes.add("changed") } }
     }
 

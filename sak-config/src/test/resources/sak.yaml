@@ -3,12 +3,6 @@ sak:
   data_dir: /something
   root_domain: example.org
   caddy_admin_url: http://localhost:3019
-  s3:
-    buckets:
-      backups: {}
-      media:
-        domains:
-          - media.example.org
   auth:
     admins:
       - Admin@example.org
