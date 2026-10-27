@@ -1,5 +1,5 @@
-import { DatePipe } from '@angular/common';
 import { Component, input } from '@angular/core';
+import { LocalDateTimePipe } from './local-date-time.pipe';
 
 // one labelled value of the overview panel
 @Component({
@@ -18,7 +18,7 @@ export class OverviewField {
 // and when it was created and updated
 @Component({
   selector: 'app-entity-overview-panel',
-  imports: [DatePipe, OverviewField],
+  imports: [LocalDateTimePipe, OverviewField],
   template: `
     <div class="card mb-3" aria-label="Overview" role="region">
       <div class="card-body">
@@ -30,12 +30,12 @@ export class OverviewField {
           <div class="d-flex align-items-center column-gap-5 row-gap-2 flex-wrap mt-3">
             @if (created(); as created) {
               <app-overview-field label="Created" data-testid="created">{{
-                created | date: 'medium'
+                created | localDateTime: 'medium' : 'medium'
               }}</app-overview-field>
             }
             @if (updated(); as updated) {
               <app-overview-field label="Updated" data-testid="updated">{{
-                updated | date: 'medium'
+                updated | localDateTime: 'medium' : 'medium'
               }}</app-overview-field>
             }
           </div>

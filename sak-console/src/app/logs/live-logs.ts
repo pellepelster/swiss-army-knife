@@ -1,10 +1,10 @@
-import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { SitesService } from '../sites/sites.service';
 import { ALL_SITES, LiveLogError, LogEntry, LogsService } from './logs.service';
+import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 
 // the most entries the live view keeps, the oldest ones are dropped
 export const MAX_ENTRIES = 500;
@@ -44,7 +44,7 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
 // searches the stored entries, follow drops the search and follows again
 @Component({
   selector: 'app-live-logs',
-  imports: [DatePipe],
+  imports: [LocalDateTimePipe],
   styles: `
     .live-controls {
       display: flex;
@@ -139,7 +139,7 @@ type State = 'connecting' | 'following' | 'reconnecting' | 'paused' | 'searching
           <tbody>
             @for (entry of visible(); track $index) {
               <tr>
-                <td class="font-mono" [title]="entry.time">{{ entry.time | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                <td class="font-mono" [title]="entry.time">{{ entry.time | localDateTime: 'short' : 'medium' }}</td>
                 <td class="font-mono">{{ entry.site }}</td>
                 <td class="font-mono live-path" [title]="entry.path">{{ entry.path }}</td>
                 <td class="font-mono {{ statusClass(entry.status) }}">{{ statusLabel(entry.status) }}</td>

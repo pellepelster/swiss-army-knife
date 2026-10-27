@@ -1,10 +1,10 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { formatBytes, formatCount } from '../shared/format';
 import { Bucket, BucketsService } from './buckets.service';
+import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 
 // how long to wait before asking again while a bucket is still being counted
 export const POLL_INTERVAL_MS = 3000;
@@ -13,7 +13,7 @@ export const POLL_INTERVAL_MS = 3000;
 // and can be a few minutes old. New buckets are added on their own page.
 @Component({
   selector: 'app-buckets',
-  imports: [DatePipe, RouterLink],
+  imports: [LocalDateTimePipe, RouterLink],
   template: `
     <div class="page">
       <div class="page-header d-flex flex-wrap align-items-end justify-content-between gap-2">
@@ -58,7 +58,7 @@ export const POLL_INTERVAL_MS = 3000;
                 } @else {
                   <td class="font-mono text-end" data-testid="objects">{{ formatCount(bucket.statistics.objects!) }}</td>
                   <td class="font-mono text-end" data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</td>
-                  <td class="text-secondary small">{{ bucket.statistics.computedAt | date: 'HH:mm:ss' }}</td>
+                  <td class="text-secondary small">{{ bucket.statistics.computedAt | localDateTime: null : 'medium' }}</td>
                 }
               </tr>
             } @empty {

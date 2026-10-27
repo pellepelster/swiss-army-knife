@@ -1,10 +1,10 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, input, OnInit } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { EntityOverviewPanel, OverviewField } from '../shared/entity-overview-panel';
 import { formatBytes, formatCount } from '../shared/format';
 import { TabEntry, TabNav } from '../shared/tab-nav';
 import { BucketStore } from './bucket-store';
+import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 
 const BUCKET_TABS: readonly TabEntry[] = [
   { path: 'configuration', label: 'Configuration' },
@@ -14,7 +14,7 @@ const BUCKET_TABS: readonly TabEntry[] = [
 // one bucket: its overview with the statistics on top, its details in the tabs below
 @Component({
   selector: 'app-bucket',
-  imports: [DatePipe, EntityOverviewPanel, OverviewField, RouterLink, RouterOutlet, TabNav],
+  imports: [EntityOverviewPanel, LocalDateTimePipe, OverviewField, RouterLink, RouterOutlet, TabNav],
   providers: [BucketStore],
   template: `
     <div class="page">
@@ -50,7 +50,7 @@ const BUCKET_TABS: readonly TabEntry[] = [
               ><span data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</span></app-overview-field
             >
             <app-overview-field label="Counted">{{
-              bucket.statistics.computedAt | date: 'HH:mm:ss'
+              bucket.statistics.computedAt | localDateTime: null : 'medium'
             }}</app-overview-field>
           }
         </app-entity-overview-panel>

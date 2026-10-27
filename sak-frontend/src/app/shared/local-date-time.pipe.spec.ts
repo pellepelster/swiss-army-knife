@@ -13,6 +13,15 @@ describe('LocalDateTimePipe', () => {
     );
   });
 
+  it('leaves the date or the time out', () => {
+    expect(pipe.transform(date, null, 'medium')).toBe(
+      new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' }).format(date),
+    );
+    expect(pipe.transform(date, 'long', null)).toBe(
+      new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(date),
+    );
+  });
+
   it('shows nothing for missing and invalid dates', () => {
     expect(pipe.transform(null)).toBe('');
     expect(pipe.transform('no date')).toBe('');

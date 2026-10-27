@@ -1,15 +1,15 @@
-import { DatePipe } from '@angular/common';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 
 // the navigation rail of the blcks console: the pages on top, the personal menu with the
 // sign out at the bottom; below 992px it slides in from a top bar
 @Component({
   selector: 'app-side-bar',
-  imports: [RouterLink, RouterLinkActive, DatePipe],
+  imports: [LocalDateTimePipe, RouterLink, RouterLinkActive],
   styleUrl: './side-bar.scss',
   host: {
     '(document:keydown.escape)': 'closeAll()',
@@ -94,7 +94,7 @@ import { AuthService } from '../auth/auth.service';
                   <div class="label-mono mt-1" data-testid="roles">{{ roles().join(', ') }}</div>
                 }
                 @if (expiresAt(); as expiresAt) {
-                  <div class="small mt-1">Session expires {{ expiresAt | date: 'medium' }}</div>
+                  <div class="small mt-1">Session expires {{ expiresAt | localDateTime: 'medium' : 'medium' }}</div>
                 }
               </div>
               <div class="dropdown-divider"></div>

@@ -37,7 +37,7 @@ test('follows the requests as they arrive, pauses and searches the stored ones',
   // a new request shows up with its time, site, path and status
   appendAccessLog(request('s3', 'first', 404));
   await expect(row(page, 'first')).toBeVisible({ timeout: 20_000 });
-  await expect(row(page, 'first').getByRole('cell')).toHaveText([/\d\d:\d\d:\d\d/, 's3', `/${run}/first`, '404']);
+  await expect(row(page, 'first').getByRole('cell')).toHaveText([/\d{1,2}:\d\d:\d\d/, 's3', `/${run}/first`, '404']);
 
   // paused, nothing new shows up until it follows again
   await page.getByTestId('follow-toggle').click();

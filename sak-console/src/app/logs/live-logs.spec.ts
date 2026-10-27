@@ -122,7 +122,12 @@ describe('LiveLogs', () => {
       ['s3', '/missing', '404'],
       ['pelle.io', '/a', '200'],
     ]);
-    expect(rows()[0][0]).toMatch(/^2026-10-2[67] \d\d:00:00$/);
+    // in the locale of the browser
+    expect(rows()[0][0]).toBe(
+      new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'medium' }).format(
+        new Date('2026-10-26T21:00:00Z'),
+      ),
+    );
   });
 
   it('adds a chunk of entries at once, newest first', async () => {
