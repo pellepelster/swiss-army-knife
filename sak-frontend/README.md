@@ -114,7 +114,8 @@ The icons are drawn as svg in `public/` and rendered to png at the sizes the man
 notes' icon is the `note-sticky` and the hosting's the `cloud` icon of
 [Font Awesome Free](https://fontawesome.com) ([CC BY 4.0](https://fontawesome.com/license/free)),
 outlined in ink on paper white with the swiss army knife of the favicon, which is our own, in its
-corner.
+corner. Only the icons of the apps carry the swiss army knife, the console is not an app, its
+`gauge-high` icon goes without.
 
 ## Development
 
