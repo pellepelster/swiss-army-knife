@@ -90,7 +90,8 @@
 
 .wall {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  // wide enough for the colors, the date and the buttons of a note on one line
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
 }
 
