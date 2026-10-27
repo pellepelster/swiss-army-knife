@@ -3,7 +3,8 @@ import { BarController, BarElement, CategoryScale, LinearScale, Tooltip } from '
 import { BaseChartDirective, provideCharts } from 'ng2-charts';
 import { ChartInputs, TimeSeries, toChartData, toChartOptions } from './chart-config';
 
-// a stacked bar chart over the buckets of a metrics range, with a legend that sums each series
+// a stacked bar chart over the buckets of a metrics range, with a legend that sums each series;
+// it is drawn on the sheet of the page it is part of
 @Component({
   selector: 'app-time-series-chart',
   imports: [BaseChartDirective],
@@ -12,34 +13,51 @@ import { ChartInputs, TimeSeries, toChartData, toChartOptions } from './chart-co
       registerables: [BarController, BarElement, CategoryScale, LinearScale, Tooltip],
     }),
   ],
+  styles: `
+    .title,
+    .label {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .value {
+      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      font-weight: 600;
+    }
+    .swatch {
+      display: inline-block;
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 2px;
+    }
+    .chart {
+      position: relative;
+      height: 280px;
+    }
+  `,
   template: `
-    <div class="card">
-      <div class="card-body">
-        <div class="mb-3">
-          <div class="label-mono mb-2">{{ title() }}</div>
-          @if (legend().length) {
-            <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0">
-              @for (item of legend(); track item.key) {
-                <li class="d-flex align-items-center gap-2">
-                  <span class="metrics-legend-swatch" [style.background-color]="item.color"></span>
-                  <span class="label-mono">{{ item.label }}</span>
-                  <span class="font-mono fw-semibold">{{ item.value }}</span>
-                </li>
-              }
-            </ul>
+    <div class="mb-3">
+      <div class="title mb-2">{{ title() }}</div>
+      @if (legend().length) {
+        <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0">
+          @for (item of legend(); track item.key) {
+            <li class="d-flex align-items-center gap-2">
+              <span class="swatch" [style.background-color]="item.color"></span>
+              <span class="label">{{ item.label }}</span>
+              <span class="value">{{ item.value }}</span>
+            </li>
           }
-        </div>
-        <div class="metrics-chart">
-          <canvas
-            baseChart
-            type="bar"
-            role="img"
-            [attr.aria-label]="title()"
-            [data]="chartData()"
-            [options]="chartOptions()"
-          ></canvas>
-        </div>
-      </div>
+        </ul>
+      }
+    </div>
+    <div class="chart">
+      <canvas
+        baseChart
+        type="bar"
+        role="img"
+        [attr.aria-label]="title()"
+        [data]="chartData()"
+        [options]="chartOptions()"
+      ></canvas>
     </div>
   `,
 })

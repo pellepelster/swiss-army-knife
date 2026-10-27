@@ -70,35 +70,6 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
         overflow-wrap: anywhere;
       }
     }
-
-    // the chart drawn on the sheet of the apps
-    :host ::ng-deep app-time-series-chart {
-      .card {
-        border: 0;
-        background: transparent;
-      }
-
-      .card-body {
-        padding: 0;
-      }
-
-      .label-mono {
-        color: var(--muted);
-        font-size: 0.85rem;
-      }
-
-      .metrics-chart {
-        position: relative;
-        height: 280px;
-      }
-
-      .metrics-legend-swatch {
-        display: inline-block;
-        width: 0.75rem;
-        height: 0.75rem;
-        border-radius: 2px;
-      }
-    }
   `,
   template: `
     <section class="sheet logs" aria-label="Logs">
