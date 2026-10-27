@@ -1,5 +1,7 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.labels
 
+import io.pelle.sak.backend.labels.model.LabelResponse
+import io.pelle.sak.backend.labels.model.LabelRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
@@ -29,25 +31,11 @@ import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.labels.RenameLabelResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 
 private const val LABELS_TAG = "labels"
 
 const val INVALID_LABEL_NAME = "A label name must have 1 to ${LabelService.MAX_NAME_LENGTH} characters and no control characters."
 private const val LABEL_EXISTS = "A label of the name exists."
-
-@Serializable
-data class LabelResponse(
-    val id: Int,
-    val name: String,
-    val createdAt: String,
-    val updatedAt: String,
-)
-
-@Serializable
-data class LabelRequest(
-    val name: String,
-)
 
 fun Label.response() = LabelResponse(id, name, createdAt.toString(), updatedAt.toString())
 

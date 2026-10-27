@@ -1,5 +1,13 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.notes
 
+import io.pelle.sak.backend.fileUrl
+import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
+import io.pelle.sak.backend.labels.idParameter
+import io.pelle.sak.backend.labels.response
+import io.pelle.sak.backend.notes.model.NoteResponse
+import io.pelle.sak.backend.notes.model.PhotoResponse
+import io.pelle.sak.backend.notes.model.RecordingResponse
+import io.pelle.sak.backend.notes.model.NoteRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
@@ -24,6 +32,7 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.backend.thumbnailUrl
 import io.pelle.sak.model.notes.DeleteNoteResult
 import io.pelle.sak.model.notes.Note
 import io.pelle.sak.model.notes.NoteColor
@@ -32,47 +41,8 @@ import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.notes.SaveNoteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 
 private const val NOTES_TAG = "notes"
-
-// labels are sorted by name, photos and recordings are files of the file storage in their order
-@Serializable
-data class NoteResponse(
-    val id: Int,
-    val text: String,
-    val color: String,
-    val labels: List<LabelResponse>,
-    val photos: List<PhotoResponse>,
-    val recordings: List<RecordingResponse>,
-    val createdAt: String,
-    val updatedAt: String,
-)
-
-@Serializable
-data class PhotoResponse(
-    val id: Int,
-    val url: String,
-    val thumbnailUrl: String,
-)
-
-@Serializable
-data class RecordingResponse(
-    val id: Int,
-    val url: String,
-    val thumbnailUrl: String,
-)
-
-// the labels by name, the unknown ones are created; the photos and recordings by the ids of images
-// and wav recordings uploaded to the file storage before
-@Serializable
-data class NoteRequest(
-    val text: String = "",
-    val color: String = NoteColor.YELLOW.id,
-    val labels: List<String> = emptyList(),
-    val photos: List<Int> = emptyList(),
-    val recordings: List<Int> = emptyList(),
-)
 
 private fun Note.response() =
     NoteResponse(

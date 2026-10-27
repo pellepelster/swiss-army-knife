@@ -1,5 +1,8 @@
-package io.pelle.sak.backend
+package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.backend.redirects.model.RedirectTarget
+import io.pelle.sak.backend.redirects.model.RedirectResponse
+import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
 import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.errors
@@ -20,17 +23,16 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
+import io.pelle.sak.backend.s3Host
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.CreateRedirectResult
 import io.pelle.sak.model.ingress.DeleteRedirectResult
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.model.ingress.RedirectService
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.ingress.RedirectTarget as TargetOfRedirect
 import io.pelle.sak.model.s3.S3BucketService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 private val logger = KotlinLogging.logger {}
 
@@ -52,47 +54,16 @@ fun RedirectService.locations(): Map<String, String> =
 
 private const val INGRESS_TAG = "ingress"
 
-// where a redirect leads to, told apart by its type; more types will follow
-@Serializable
-sealed interface RedirectTargetJson {
-    @Serializable
-    @SerialName("domain")
-    data class Domain(
-        val domain: String,
-    ) : RedirectTargetJson
-
-    @Serializable
-    @SerialName("bucket")
-    data class Bucket(
-        val bucket: String,
-    ) : RedirectTargetJson
-}
-
-// location is the domain the redirect leads to now, missing for a bucket no longer served at a domain
-@Serializable
-data class RedirectResponse(
-    val sourceDomain: String,
-    val target: RedirectTargetJson,
-    val location: String?,
-    val createdAt: String,
-)
-
-@Serializable
-data class CreateRedirectRequest(
-    val sourceDomain: String,
-    val target: RedirectTargetJson,
-)
-
-private fun RedirectTarget.json(): RedirectTargetJson =
+private fun TargetOfRedirect.response(): RedirectTarget =
     when (this) {
-        is RedirectTarget.Domain -> RedirectTargetJson.Domain(domain)
-        is RedirectTarget.Bucket -> RedirectTargetJson.Bucket(bucket)
+        is TargetOfRedirect.Domain -> RedirectTarget.Domain(domain)
+        is TargetOfRedirect.Bucket -> RedirectTarget.Bucket(bucket)
     }
 
-private fun RedirectTargetJson.target(): RedirectTarget =
+private fun RedirectTarget.target(): TargetOfRedirect =
     when (this) {
-        is RedirectTargetJson.Domain -> RedirectTarget.Domain(domain)
-        is RedirectTargetJson.Bucket -> RedirectTarget.Bucket(bucket)
+        is RedirectTarget.Domain -> TargetOfRedirect.Domain(domain)
+        is RedirectTarget.Bucket -> TargetOfRedirect.Bucket(bucket)
     }
 
 // the redirects caddy answers, meant to be mounted behind the console's authentication
@@ -101,7 +72,7 @@ fun Route.redirects(redirectService: RedirectService) {
     install(ContentNegotiation) { json() }
     install(ApiErrors)
 
-    fun Redirect.response() = RedirectResponse(sourceDomain, target.json(), redirectService.location(target), createdAt.toString())
+    fun Redirect.response() = RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString())
 
     get {
         val page = call.pageRequest() ?: return@get

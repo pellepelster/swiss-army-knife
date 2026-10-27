@@ -24,6 +24,7 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.backend.labels.idParameter
 import io.pelle.sak.model.files.DiscoverTextResult
 import io.pelle.sak.model.files.FileService
 import io.pelle.sak.model.files.FileTextService

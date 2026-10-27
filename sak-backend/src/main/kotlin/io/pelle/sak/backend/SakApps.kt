@@ -22,6 +22,10 @@ import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
+import io.pelle.sak.backend.labels.labels
+import io.pelle.sak.backend.notes.notes
+import io.pelle.sak.backend.redirects.domains
+import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.RedirectService
 import io.pelle.sak.model.files.FileService
