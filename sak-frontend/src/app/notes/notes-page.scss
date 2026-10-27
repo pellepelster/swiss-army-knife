@@ -17,7 +17,22 @@
   background: var(--wall);
 }
 
+.back {
+  margin-right: -4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 1.3rem;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--line);
+  }
+}
+
 .title {
+  flex: 1;
   margin: 0;
   font-size: 1.6rem;
   letter-spacing: -0.02em;

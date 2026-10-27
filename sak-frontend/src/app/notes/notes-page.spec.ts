@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { App } from './app';
+import { provideRouter } from '@angular/router';
+import { NotesPage } from './notes-page';
 
-describe('App', () => {
-  let fixture: ComponentFixture<App>;
+describe('NotesPage', () => {
+  let fixture: ComponentFixture<NotesPage>;
   let page: HTMLElement;
 
   const button = (name: string, root: ParentNode = page) =>
@@ -13,7 +14,8 @@ describe('App', () => {
   const texts = () => notes().map((note) => note.querySelector('textarea')!.value);
 
   beforeEach(async () => {
-    fixture = TestBed.createComponent(App);
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    fixture = TestBed.createComponent(NotesPage);
     page = fixture.nativeElement;
     document.body.appendChild(page);
     await fixture.whenStable();
