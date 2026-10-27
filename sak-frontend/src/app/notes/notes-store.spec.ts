@@ -181,6 +181,19 @@ describe('NotesStore', () => {
     );
   });
 
+  it('tells when a recording has no text', async () => {
+    store.load();
+    http
+      .expectOne('/api/v1/notes?offset=0&limit=50')
+      .flush(pageOf([noteResponse(1, 'milk', 'yellow', [], [], [FILE_ID])]));
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+
+    const discovered = store.discoverText(1, FILE_ID);
+    http.expectOne({ method: 'POST' }).flush({ text: '' });
+    await discovered;
+    expect(store.error()).toBe('There is no text in the recording.');
+  });
+
   it('tells when a photo has no text or its text can not be discovered', async () => {
     let discovered = store.discoverText(1, FILE_ID);
     http.expectOne({ method: 'POST' }).flush({ text: '' });

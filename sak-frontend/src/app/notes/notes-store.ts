@@ -313,13 +313,18 @@ export class NotesStore {
   // the text the backend discovers in the photo or the recording is added to the text of the note
   async discoverText(id: number, fileId: number): Promise<void> {
     this.error.set(null);
+    const recording = this.all()
+      .find((note) => note.id === id)
+      ?.recordings.includes(fileId);
     this.discovering.update((photos) => new Set([...photos, fileId]));
     try {
       const { text } = await firstValueFrom(
         this.http.post<{ text: string }>(`/api/v1/files/${fileId}/discover/text`, null),
       );
       if (!text) {
-        this.error.set('There is no text in the photo.');
+        this.error.set(
+          recording ? 'There is no text in the recording.' : 'There is no text in the photo.',
+        );
         return;
       }
       const changed = this.change(id, (note) => ({
