@@ -400,12 +400,10 @@ describe('Hosting', () => {
       buckets: ['2026-10-27T07:00:00Z'],
       series: [{ statusClass: '2xx', values: [requests], total: requests }],
       statusCodes: [{ status: '200', statusClass: '2xx', values: [requests], total: requests }],
-      bytes: [2048],
       totalRequests: requests,
       errorRequests: 0,
       errorRate: 0,
       totalBytes: 2048,
-      userAgents: [],
     });
     http
       .expectOne('/api/v1/static-hosting/site/access-logs/metrics?range=24h')

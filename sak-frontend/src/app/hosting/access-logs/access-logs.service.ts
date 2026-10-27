@@ -36,12 +36,6 @@ interface StatusCodeSeries {
   total: number;
 }
 
-interface UserAgentSeries {
-  group: string;
-  values: number[];
-  requests: number;
-}
-
 export interface SiteMetrics {
   site: string;
   range: string;
@@ -51,12 +45,10 @@ export interface SiteMetrics {
   buckets: string[];
   series: StatusClassSeries[];
   statusCodes: StatusCodeSeries[];
-  bytes: number[];
   totalRequests: number;
   errorRequests: number;
   errorRate: number;
   totalBytes: number;
-  userAgents: UserAgentSeries[];
 }
 
 // one request, with the domain it was made to

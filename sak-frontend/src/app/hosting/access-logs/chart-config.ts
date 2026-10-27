@@ -1,6 +1,6 @@
 import { ChartConfiguration, TooltipItem } from 'chart.js';
 
-// time series charts in the style of the blcks console, without its deployment markers
+// the time series charts of the access logs of a bucket
 
 export interface TimeSeries {
   key: string;
@@ -16,17 +16,6 @@ export interface ChartInputs {
   valueFormatter?: (value: number) => string;
   tooltipLines?: (index: number) => string[];
 }
-
-export const CATEGORICAL_COLORS = {
-  blue: '#2a78d6',
-  orange: '#eb6834',
-  green: '#1baf7a',
-  amber: '#eda100',
-  pink: '#e87ba4',
-  forest: '#008300',
-  indigo: '#4a3aa7',
-  red: '#e34948',
-};
 
 export const CHART_ACCENT = '#30c070';
 
