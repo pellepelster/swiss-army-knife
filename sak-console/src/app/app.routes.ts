@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
 import { Home } from './home/home';
+import { Redirects } from './ingress/redirects';
 import { LiveLogs } from './logs/live-logs';
 import { Login } from './login/login';
 import { Signin } from './signin/signin';
@@ -33,6 +34,7 @@ export const routes: Routes = [
   },
   { path: 's3', component: Buckets, canActivate: [authGuard], title: 'Buckets · sak console' },
   { path: 's3/:name', component: BucketDetail, canActivate: [authGuard], title: 'Bucket · sak console' },
+  { path: 'ingress/redirects', component: Redirects, canActivate: [authGuard], title: 'Redirects · sak console' },
   { path: 'login', component: Login, title: 'Sign in · sak console' },
   { path: 'signin', component: Signin, title: 'Signing in · sak console' },
   { path: '**', redirectTo: '' },
