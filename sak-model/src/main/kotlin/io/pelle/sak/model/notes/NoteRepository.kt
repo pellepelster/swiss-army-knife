@@ -12,15 +12,15 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-// a note as it is stored, with the ids of its labels and the sha-256 of its files (its photos and
-// its recordings) in their order
+// a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
+// recordings) in their order
 internal data class NoteRow(
     val id: Int,
     val owner: String,
     val text: String,
     val color: String,
     val labelIds: Set<Int>,
-    val files: List<String>,
+    val files: List<Int>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -72,7 +72,7 @@ internal class NoteRepository(
         text: String,
         color: String,
         labelIds: Set<Int>,
-        files: List<String>,
+        files: List<Int>,
         now: Instant,
     ): NoteRow =
         database.dsl.transactionResult { configuration ->
@@ -99,7 +99,7 @@ internal class NoteRepository(
         text: String,
         color: String,
         labelIds: Set<Int>,
-        files: List<String>,
+        files: List<Int>,
         now: Instant,
     ): Boolean =
         database.dsl.transactionResult { configuration ->
@@ -166,26 +166,26 @@ internal class NoteRepository(
     private fun insertFiles(
         dsl: DSLContext,
         noteId: Int,
-        files: List<String>,
-    ) = files.forEachIndexed { position, sha256 ->
+        files: List<Int>,
+    ) = files.forEachIndexed { position, fileId ->
         dsl
             .insertInto(NOTES_FILES)
             .set(NOTES_FILES.NOTE_ID, noteId)
             .set(NOTES_FILES.POSITION, position)
-            .set(NOTES_FILES.FILE_SHA256, sha256)
+            .set(NOTES_FILES.FILE_ID, fileId)
             .execute()
     }
 
     private fun files(
         dsl: DSLContext,
         noteIds: Collection<Int>,
-    ): Map<Int, List<String>> =
+    ): Map<Int, List<Int>> =
         dsl
             .selectFrom(NOTES_FILES)
             .where(NOTES_FILES.NOTE_ID.`in`(noteIds))
             .orderBy(NOTES_FILES.NOTE_ID, NOTES_FILES.POSITION)
             .fetch()
-            .groupBy({ it.noteId!! }, { it.fileSha256!! })
+            .groupBy({ it.noteId!! }, { it.fileId!! })
 
     private fun labelIds(
         dsl: DSLContext,
@@ -202,7 +202,7 @@ internal class NoteRepository(
 
     private fun NotesRecord.toRow(
         labelIds: Set<Int>,
-        files: List<String>,
+        files: List<Int>,
     ) =
         NoteRow(
             id = id!!,

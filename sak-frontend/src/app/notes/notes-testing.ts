@@ -8,22 +8,22 @@ export const noteResponse = (
   text: string,
   color: string,
   labels: string[],
-  photos: string[] = [],
-  recordings: string[] = [],
+  photos: number[] = [],
+  recordings: number[] = [],
 ) => ({
   id,
   text,
   color,
   labels: labels.map((name, index) => ({ id: index + 1, name })),
-  photos: photos.map((sha256) => ({
-    sha256,
-    url: `/api/v1/files/${sha256}`,
-    thumbnailUrl: `/api/v1/files/${sha256}/thumbnail`,
+  photos: photos.map((id) => ({
+    id,
+    url: `/api/v1/files/${id}`,
+    thumbnailUrl: `/api/v1/files/${id}/thumbnail`,
   })),
-  recordings: recordings.map((sha256) => ({
-    sha256,
-    url: `/api/v1/files/${sha256}`,
-    thumbnailUrl: `/api/v1/files/${sha256}/thumbnail`,
+  recordings: recordings.map((id) => ({
+    id,
+    url: `/api/v1/files/${id}`,
+    thumbnailUrl: `/api/v1/files/${id}/thumbnail`,
   })),
   createdAt: CREATED,
   updatedAt: CREATED,
@@ -39,7 +39,7 @@ export const pageOf = <T>(items: T[]) => ({
 export const SCALED = new Blob(['scaled'], { type: 'image/jpeg' });
 export const scaler = { scale: async () => SCALED };
 
-export const SHA256 = 'a'.repeat(64);
+export const FILE_ID = 7;
 
 // a recording as the browser would make it, recording needs a microphone; stop() ends it
 export const RECORDED = new Blob(['RIFF'], { type: 'audio/wav' });

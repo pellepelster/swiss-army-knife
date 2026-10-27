@@ -12,32 +12,23 @@ import java.time.ZoneOffset
 internal class FileRepository(
     private val database: SakDatabase,
 ) {
-    fun bySha256(sha256: String): StoredFile? =
+    fun byId(id: Int): StoredFile? =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.SHA256.eq(sha256), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.eq(id), FILES.DELETED_AT.isNull)
             .fetchOne()
             ?.toFile()
 
-    fun bySha256s(sha256s: Collection<String>): Map<String, StoredFile> =
+    fun byIds(ids: Collection<Int>): Map<Int, StoredFile> =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.SHA256.`in`(sha256s), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.`in`(ids), FILES.DELETED_AT.isNull)
             .fetch()
             .map { it.toFile() }
-            .associateBy { it.sha256 }
-
-    fun existing(sha256s: Collection<String>): Set<String> =
-        database.dsl
-            .select(FILES.SHA256)
-            .from(FILES)
-            .where(FILES.SHA256.`in`(sha256s), FILES.DELETED_AT.isNull)
-            .fetch(FILES.SHA256)
-            .filterNotNull()
-            .toSet()
+            .associateBy { it.id }
 
     fun updateDiscovered(
-        sha256: String,
+        id: Int,
         text: String,
         now: Instant,
     ) {
@@ -45,33 +36,34 @@ internal class FileRepository(
             .update(FILES)
             .set(FILES.DISCOVERED, text)
             .set(FILES.UPDATED_AT, now.utc())
-            .where(FILES.SHA256.eq(sha256))
+            .where(FILES.ID.eq(id))
             .execute()
     }
 
-    // the file as it is stored, the one uploaded first when the content is there already
-    fun insertIfMissing(file: StoredFile): StoredFile {
+    fun insert(
+        sha256: String,
+        contentType: String,
+        size: Long,
+        uploadedBy: String,
+        now: Instant,
+    ): StoredFile =
         database.dsl
             .insertInto(FILES)
-            .set(FILES.SHA256, file.sha256)
-            .set(FILES.CONTENT_TYPE, file.contentType)
-            .set(FILES.SIZE, file.size)
-            .set(FILES.UPLOADED_BY, file.uploadedBy)
-            .set(FILES.CREATED_AT, file.createdAt.utc())
-            .set(FILES.UPDATED_AT, file.updatedAt.utc())
-            .onConflictDoNothing()
-            .execute()
-        return database.dsl
-            .selectFrom(FILES)
-            .where(FILES.SHA256.eq(file.sha256))
+            .set(FILES.SHA256, sha256)
+            .set(FILES.CONTENT_TYPE, contentType)
+            .set(FILES.SIZE, size)
+            .set(FILES.UPLOADED_BY, uploadedBy)
+            .set(FILES.CREATED_AT, now.utc())
+            .set(FILES.UPDATED_AT, now.utc())
+            .returning()
             .fetchOne()!!
             .toFile()
-    }
 
     private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun FilesRecord.toFile() =
         StoredFile(
+            id = id!!,
             sha256 = sha256!!,
             contentType = contentType!!,
             size = size!!,

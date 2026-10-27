@@ -38,14 +38,13 @@ private val logger = KotlinLogging.logger {}
 
 private const val FILES_TAG = "files"
 
-// where the files of the file storage are uploaded and served, served without a session: the
-// sha-256 of a file is only known to whoever has its content or was given the url
+// where the files of the file storage are uploaded and served, both with a session only
 const val FILES_PATH = "$API_PATH_PREFIX$API_VERSION/files"
 
 // url is where the file is served, thumbnailUrl where a small jpeg of the image is
 @Serializable
 data class FileResponse(
-    val sha256: String,
+    val id: Int,
     val contentType: String,
     val size: Long,
     val url: String,
@@ -53,9 +52,9 @@ data class FileResponse(
     val createdAt: String,
 )
 
-fun fileUrl(sha256: String) = "$FILES_PATH/$sha256"
+fun fileUrl(id: Int) = "$FILES_PATH/$id"
 
-fun thumbnailUrl(sha256: String) = "${fileUrl(sha256)}/thumbnail"
+fun thumbnailUrl(id: Int) = "${fileUrl(id)}/thumbnail"
 
 @Serializable
 data class DiscoverTextResponse(
@@ -65,7 +64,7 @@ data class DiscoverTextResponse(
 // discovering text costs money at openrouter, so every user may only ask this often
 fun discoverTextLimiter() = RateLimiter(30, Duration.ofHours(1))
 
-fun StoredFile.response() = FileResponse(sha256, contentType, size, fileUrl(sha256), thumbnailUrl(sha256), createdAt.toString())
+fun StoredFile.response() = FileResponse(id, contentType, size, fileUrl(id), thumbnailUrl(id), createdAt.toString())
 
 // uploads to the file storage and the discovery of the text in them, meant to be mounted behind
 // the console's authentication with a body limit that lets the files through
@@ -91,8 +90,8 @@ fun Route.files(
         tag(FILES_TAG)
         summary = "Store a file"
         description =
-            "The body is the content of the file. It is stored under its sha-256 and served at $FILES_PATH/{sha256} " +
-            "to everyone that knows the hash; the same content is stored once. The type is told by the content."
+            "The body is the content of the file. Every upload is a file of its own, served at $FILES_PATH/{id}. " +
+            "The type is told by the content."
         responses {
             HttpStatusCode.Created {
                 description = "The stored file"
@@ -103,19 +102,20 @@ fun Route.files(
         }
     }
 
-    post("/{sha256}/discover/text") {
+    post("/{id}/discover/text") {
         if (!discoverTextLimiter.tryAcquire(call.principal<SessionPrincipal>()!!.email)) {
             call.respondErrors("Too many texts were discovered, please try again later.", status = HttpStatusCode.TooManyRequests)
             return@post
         }
-        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.parameters["sha256"].orEmpty()) }) {
+        val id = call.idParameter() ?: return@post
+        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(id) }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
             DiscoverTextResult.NotConfigured ->
                 call.respondErrors("Text discovery is not configured.", status = HttpStatusCode.ServiceUnavailable)
             is DiscoverTextResult.Failed -> {
-                logger.warn(result.cause) { "could not discover the text in file '${call.parameters["sha256"]}'" }
+                logger.warn(result.cause) { "could not discover the text in file $id" }
                 call.respondErrors("The text could not be discovered, please try again later.", status = HttpStatusCode.BadGateway)
             }
         }
@@ -125,7 +125,7 @@ fun Route.files(
         description =
             "Reads the text in an image with a vision model, writes down a recording with a speech to text model, both at " +
             "OpenRouter; providers that collect the data are not asked. The text is kept with the file, a file is only read once."
-        parameters { sha256() }
+        parameters { fileId() }
         responses {
             HttpStatusCode.OK {
                 description = "The text in the image or the recording, empty when there is none"
@@ -140,14 +140,16 @@ fun Route.files(
     }
 }
 
-private const val IMMUTABLE = "public, max-age=31536000, immutable"
+// only the browser of the signed in user keeps them, no shared cache
+private const val IMMUTABLE = "private, max-age=31536000, immutable"
 
-// the content of the stored files and of their thumbnails, which never change under the hash;
-// served without a session
+// the content of the stored files and of their thumbnails, which never change under the id; meant
+// to be mounted behind the authentication like the uploads
 @OptIn(ExperimentalKtorApi::class)
 fun Route.servedFiles(fileService: FileService) {
-    get("/{sha256}") {
-        val file = withContext(Dispatchers.IO) { fileService.bySha256(call.parameters["sha256"].orEmpty()) }
+    get("/{id}") {
+        val id = call.idParameter() ?: return@get
+        val file = withContext(Dispatchers.IO) { fileService.byId(id) }
         if (file == null) {
             call.respond(HttpStatusCode.NotFound)
             return@get
@@ -157,17 +159,18 @@ fun Route.servedFiles(fileService: FileService) {
     }.describe {
         tag(FILES_TAG)
         summary = "The content of a stored file"
-        parameters { sha256() }
+        parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The content with its type" }
             HttpStatusCode.NotFound { description = "There is no such file" }
         }
     }
 
-    get("/{sha256}/thumbnail") {
+    get("/{id}/thumbnail") {
+        val id = call.idParameter() ?: return@get
         val thumbnail =
             withContext(Dispatchers.IO) {
-                fileService.bySha256(call.parameters["sha256"].orEmpty())?.let { fileService.thumbnail(it) }
+                fileService.byId(id)?.let { fileService.thumbnail(it) }
             }
         if (thumbnail == null) {
             call.respond(HttpStatusCode.NotFound)
@@ -181,7 +184,7 @@ fun Route.servedFiles(fileService: FileService) {
         description =
             "A JPEG of at most ${FileService.THUMBNAIL_SIZE} pixels on the longer side, of a recording its waveform; " +
             "made when it is first asked for."
-        parameters { sha256() }
+        parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The thumbnail" }
             HttpStatusCode.NotFound { description = "There is no such file, or it is neither an image nor a recording that can be read" }
@@ -189,9 +192,9 @@ fun Route.servedFiles(fileService: FileService) {
     }
 }
 
-private fun Parameters.Builder.sha256() =
-    path("sha256") {
-        description = "The sha-256 of the content, lower case hex"
+private fun Parameters.Builder.fileId() =
+    path("id") {
+        description = "The id of the file"
         required = true
-        schema = jsonSchema<String>()
+        schema = jsonSchema<Int>()
     }

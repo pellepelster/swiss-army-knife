@@ -26,15 +26,15 @@ enum class NoteColor {
 }
 
 // owner is the address of the user the note belongs to; labels are sorted by name, photos (images)
-// and recordings (audio) are the sha-256 of files of the file storage in their order
+// and recordings (audio) are the ids of files of the file storage in their order
 data class Note(
     val id: Int,
     val owner: String,
     val text: String,
     val color: NoteColor,
     val labels: List<Label>,
-    val photos: List<String>,
-    val recordings: List<String>,
+    val photos: List<Int>,
+    val recordings: List<Int>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -113,8 +113,8 @@ class NoteService internal constructor(
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
-        photos: List<String> = emptyList(),
-        recordings: List<String> = emptyList(),
+        photos: List<Int> = emptyList(),
+        recordings: List<Int> = emptyList(),
     ): SaveNoteResult =
         when (val checked = check(text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
@@ -131,8 +131,8 @@ class NoteService internal constructor(
         text: String,
         color: String,
         labelNames: Collection<String> = emptyList(),
-        photos: List<String> = emptyList(),
-        recordings: List<String> = emptyList(),
+        photos: List<Int> = emptyList(),
+        recordings: List<Int> = emptyList(),
     ): SaveNoteResult {
         val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
         return when (val checked = check(text, color, labelNames, photos, recordings)) {
@@ -158,8 +158,8 @@ class NoteService internal constructor(
         data class Valid(
             val color: NoteColor,
             val labels: List<Label>,
-            val photos: List<String>,
-            val recordings: List<String>,
+            val photos: List<Int>,
+            val recordings: List<Int>,
         ) : Checked {
             // as they are stored, the photos first
             val files get() = photos + recordings
@@ -176,8 +176,8 @@ class NoteService internal constructor(
         text: String,
         color: String,
         labelNames: Collection<String>,
-        photos: List<String>,
-        recordings: List<String>,
+        photos: List<Int>,
+        recordings: List<Int>,
     ): Checked {
         val problems = mutableSetOf<NoteProblem>()
         if (text.length > MAX_TEXT_LENGTH) problems += NoteProblem.TEXT_TOO_LONG
@@ -190,7 +190,7 @@ class NoteService internal constructor(
         if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
         val distinctRecordings = recordings.distinct()
         if (distinctRecordings.size > MAX_RECORDINGS) problems += NoteProblem.TOO_MANY_RECORDINGS
-        val stored = files.bySha256s(distinctPhotos + distinctRecordings)
+        val stored = files.byIds(distinctPhotos + distinctRecordings)
         if (distinctPhotos.any { stored[it]?.contentType?.startsWith("image/") != true }) problems += NoteProblem.UNKNOWN_PHOTO
         if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
@@ -204,7 +204,7 @@ class NoteService internal constructor(
     // the labels and the files of all the notes are read at once, the files are told apart by their type
     private fun notes(rows: List<NoteRow>): List<Note> {
         val byId = labels.byIds(rows.flatMap { it.labelIds }).associateBy { it.id }
-        val stored = files.bySha256s(rows.flatMap { it.files })
+        val stored = files.byIds(rows.flatMap { it.files })
         fun of(
             row: NoteRow,
             type: String,
@@ -216,8 +216,8 @@ class NoteService internal constructor(
 
     private fun NoteRow.toNote(
         labels: List<Label>,
-        photos: List<String>,
-        recordings: List<String>,
+        photos: List<Int>,
+        recordings: List<Int>,
     ) = Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, photos, recordings, createdAt, updatedAt)
 
     companion object {

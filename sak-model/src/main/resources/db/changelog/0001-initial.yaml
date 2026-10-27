@@ -158,18 +158,23 @@ databaseChangeLog:
               - column:
                   name: active
 
-        # the files of the generic file storage, addressed by the sha-256 of their content (lower
-        # case hex); the content lives in the data dir, the table knows what it is, who uploaded it
-        # first and the text discovered in it, null until it is discovered. A deleted file stays
-        # as a row with deleted_at set.
+        # the files of the generic file storage, each upload is a file of its own; the content
+        # lives in the data dir under its sha-256 (lower case hex), the same content is stored
+        # once. The table knows what it is, who uploaded it and the text discovered in it, null
+        # until it is discovered. A deleted file stays as a row with deleted_at set.
         - createTable:
             tableName: files
             columns:
               - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
                   name: sha256
                   type: char(64)
                   constraints:
-                    primaryKey: true
                     nullable: false
               - column:
                   name: content_type
@@ -294,9 +299,9 @@ databaseChangeLog:
                     primaryKeyName: notes_files_pkey
                     nullable: false
               - column:
-                  name: file_sha256
-                  type: char(64)
+                  name: file_id
+                  type: int
                   constraints:
                     nullable: false
-                    foreignKeyName: notes_files_file_sha256_fkey
-                    references: files(sha256)
+                    foreignKeyName: notes_files_file_id_fkey
+                    references: files(id)

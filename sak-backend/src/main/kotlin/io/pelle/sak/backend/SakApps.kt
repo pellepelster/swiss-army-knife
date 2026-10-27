@@ -104,9 +104,6 @@ fun Application.apps(
                     route("/auth") {
                         auth(tokens, mailSender, loginApps(config), FRONTEND_APP, rolesOf)
                     }
-                    route("/files") {
-                        servedFiles(fileService)
-                    }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
                             install(RequireRole) { role = Role.ADMIN }
@@ -133,6 +130,7 @@ fun Application.apps(
                             install(RequireRole) { role = Role.ADMIN }
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
                             files(fileService, fileTextService)
+                            servedFiles(fileService)
                         }
                     }
                 }

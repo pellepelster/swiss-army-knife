@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { NotesStore, SAVE_TEXT_AFTER_MS } from './notes-store';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
-import { noteResponse, pageOf, scaler, SCALED, SHA256 } from './notes-testing';
+import { noteResponse, pageOf, scaler, SCALED, FILE_ID } from './notes-testing';
 import { FakeRecorder, RECORDED } from './notes-testing';
 
 describe('NotesStore', () => {
@@ -102,17 +102,17 @@ describe('NotesStore', () => {
         expect(upload.request.body).toBe(SCALED);
         expect(upload.request.headers.get('Content-Type')).toBe('image/jpeg');
         expect(store.uploading().has(1)).toBe(true);
-        upload.flush({ sha256: SHA256, url: `/api/v1/files/${SHA256}` });
+        upload.flush({ id: FILE_ID, url: `/api/v1/files/${FILE_ID}` });
       });
     await added;
 
-    expect(store.notes()[1].photos).toEqual([SHA256]);
+    expect(store.notes()[1].photos).toEqual([FILE_ID]);
     expect(store.uploading().size).toBe(0);
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual([
-      SHA256,
+      FILE_ID,
     ]);
 
-    store.removePhoto(1, SHA256);
+    store.removePhoto(1, FILE_ID);
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
       [],
     );
@@ -122,7 +122,7 @@ describe('NotesStore', () => {
     const added = store.addWithPhoto(new Blob(['original']), ['holidays']);
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) => upload.flush({ sha256: SHA256, url: `/api/v1/files/${SHA256}` }));
+      .then((upload) => upload.flush({ id: FILE_ID, url: `/api/v1/files/${FILE_ID}` }));
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
       .then((created) => {
@@ -130,13 +130,13 @@ describe('NotesStore', () => {
           text: '',
           color: 'yellow',
           labels: ['holidays'],
-          photos: [SHA256],
+          photos: [FILE_ID],
           recordings: [],
         });
-        created.flush(noteResponse(3, '', 'yellow', ['holidays'], [SHA256]));
+        created.flush(noteResponse(3, '', 'yellow', ['holidays'], [FILE_ID]));
       });
 
-    expect((await added)?.photos).toEqual([SHA256]);
+    expect((await added)?.photos).toEqual([FILE_ID]);
   });
 
   it('tells when a photo could not be stored', async () => {
@@ -165,10 +165,10 @@ describe('NotesStore', () => {
   });
 
   it('adds the text discovered in a photo to the text of the note', async () => {
-    const discovered = store.discoverText(1, SHA256);
-    expect(store.discovering().has(SHA256)).toBe(true);
+    const discovered = store.discoverText(1, FILE_ID);
+    expect(store.discovering().has(FILE_ID)).toBe(true);
     http
-      .expectOne({ method: 'POST', url: `/api/v1/files/${SHA256}/discover/text` })
+      .expectOne({ method: 'POST', url: `/api/v1/files/${FILE_ID}/discover/text` })
       .flush({ text: 'Total 12.50' });
     await discovered;
 
@@ -180,13 +180,13 @@ describe('NotesStore', () => {
   });
 
   it('tells when a photo has no text or its text can not be discovered', async () => {
-    let discovered = store.discoverText(1, SHA256);
+    let discovered = store.discoverText(1, FILE_ID);
     http.expectOne({ method: 'POST' }).flush({ text: '' });
     await discovered;
     expect(store.error()).toBe('There is no text in the photo.');
     expect(store.notes()[1].text).toBe('milk');
 
-    discovered = store.discoverText(1, SHA256);
+    discovered = store.discoverText(1, FILE_ID);
     http
       .expectOne({ method: 'POST' })
       .flush(
@@ -208,18 +208,18 @@ describe('NotesStore', () => {
       .then((upload) => {
         expect(upload.request.body).toBe(RECORDED);
         expect(upload.request.headers.get('Content-Type')).toBe('audio/wav');
-        upload.flush({ sha256: SHA256 });
+        upload.flush({ id: FILE_ID });
       });
     await recorded;
 
     expect(store.recordingFor()).toBeNull();
-    expect(store.notes()[1].recordings).toEqual([SHA256]);
+    expect(store.notes()[1].recordings).toEqual([FILE_ID]);
     expect(
       http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.recordings,
-    ).toEqual([SHA256]);
-    http.expectNone(`/api/v1/files/${SHA256}/discover/text`);
+    ).toEqual([FILE_ID]);
+    http.expectNone(`/api/v1/files/${FILE_ID}/discover/text`);
 
-    store.removeRecording(1, SHA256);
+    store.removeRecording(1, FILE_ID);
     expect(http.expectOne({ method: 'PUT' }).request.body.recordings).toEqual([]);
   });
 
@@ -228,15 +228,15 @@ describe('NotesStore', () => {
     void store.record('new');
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) => upload.flush({ sha256: SHA256 }));
+      .then((upload) => upload.flush({ id: FILE_ID }));
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
       .then((created) => {
-        expect(created.request.body.recordings).toEqual([SHA256]);
+        expect(created.request.body.recordings).toEqual([FILE_ID]);
         expect(created.request.body.labels).toEqual(['ideas']);
-        created.flush(noteResponse(3, '', 'yellow', ['ideas'], [], [SHA256]));
+        created.flush(noteResponse(3, '', 'yellow', ['ideas'], [], [FILE_ID]));
       });
-    expect((await recorded)?.recordings).toEqual([SHA256]);
+    expect((await recorded)?.recordings).toEqual([FILE_ID]);
   });
 
   it('deletes notes at once and brings them back when the backend can not', () => {

@@ -8,15 +8,15 @@ export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as cons
 
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
-// photos and recordings are the sha-256 of files of the backend's file storage, served at
-// /api/v1/files/<sha256>
+// photos and recordings are the ids of files of the backend's file storage, served with the
+// session at /api/v1/files/<id>
 export interface Note {
   readonly id: number;
   readonly text: string;
   readonly color: NoteColor;
   readonly labels: readonly string[];
-  readonly photos: readonly string[];
-  readonly recordings: readonly string[];
+  readonly photos: readonly number[];
+  readonly recordings: readonly number[];
   readonly created: Date;
   readonly updated: Date;
 }
@@ -27,8 +27,8 @@ interface NoteResponse {
   text: string;
   color: NoteColor;
   labels: { id: number; name: string }[];
-  photos: { sha256: string; url: string; thumbnailUrl: string }[];
-  recordings: { sha256: string; url: string; thumbnailUrl: string }[];
+  photos: { id: number; url: string; thumbnailUrl: string }[];
+  recordings: { id: number; url: string; thumbnailUrl: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -78,7 +78,7 @@ export class NotesStore {
   readonly recordingFor = signal<number | 'new' | null>(null);
 
   // the photos and recordings whose text is being discovered
-  readonly discovering = signal<ReadonlySet<string>>(new Set());
+  readonly discovering = signal<ReadonlySet<number>>(new Set());
 
   // what went wrong last, null when everything is saved
   readonly error = signal<string | null>(null);
@@ -123,8 +123,8 @@ export class NotesStore {
     text = '',
     color: NoteColor = 'yellow',
     labels: readonly string[] = [],
-    photos: readonly string[] = [],
-    recordings: readonly string[] = [],
+    photos: readonly number[] = [],
+    recordings: readonly number[] = [],
   ): Promise<Note | null> {
     try {
       const response = await firstValueFrom(
@@ -176,18 +176,18 @@ export class NotesStore {
 
   // a new note with the photo, null when the photo or the note could not be stored
   async addWithPhoto(photo: Blob, labels: readonly string[] = []): Promise<Note | null> {
-    const sha256 = await this.uploadPhoto(photo);
-    return sha256 === null ? null : this.add('', 'yellow', labels, [sha256]);
+    const fileId = await this.uploadPhoto(photo);
+    return fileId === null ? null : this.add('', 'yellow', labels, [fileId]);
   }
 
   // attached once it is uploaded
   async addPhoto(id: number, photo: Blob): Promise<void> {
     this.uploading.update((ids) => new Set([...ids, id]));
     try {
-      const sha256 = await this.uploadPhoto(photo);
-      if (sha256 === null) return;
+      const fileId = await this.uploadPhoto(photo);
+      if (fileId === null) return;
       const changed = this.change(id, (note) =>
-        note.photos.includes(sha256) ? note : { ...note, photos: [...note.photos, sha256] },
+        note.photos.includes(fileId) ? note : { ...note, photos: [...note.photos, fileId] },
       );
       if (changed) this.save(id);
     } finally {
@@ -216,13 +216,13 @@ export class NotesStore {
     const id = target === 'new' ? null : target;
     if (id !== null) this.uploading.update((ids) => new Set([...ids, id]));
     try {
-      const sha256 = await this.uploadFile(recording, 'The recording could not be stored.');
-      if (sha256 === null) return null;
-      if (id === null) return await this.add('', 'yellow', labels, [], [sha256]);
+      const fileId = await this.uploadFile(recording, 'The recording could not be stored.');
+      if (fileId === null) return null;
+      if (id === null) return await this.add('', 'yellow', labels, [], [fileId]);
       const changed = this.change(id, (current) =>
-        current.recordings.includes(sha256)
+        current.recordings.includes(fileId)
           ? current
-          : { ...current, recordings: [...current.recordings, sha256] },
+          : { ...current, recordings: [...current.recordings, fileId] },
       );
       if (changed) this.save(id);
       return this.all().find((current) => current.id === id) ?? null;
@@ -233,21 +233,21 @@ export class NotesStore {
   }
 
   // the file stays in the storage, other notes may play it too
-  removeRecording(id: number, sha256: string): void {
+  removeRecording(id: number, fileId: number): void {
     const changed = this.change(id, (note) =>
-      note.recordings.includes(sha256)
-        ? { ...note, recordings: note.recordings.filter((recording) => recording !== sha256) }
+      note.recordings.includes(fileId)
+        ? { ...note, recordings: note.recordings.filter((recording) => recording !== fileId) }
         : note,
     );
     if (changed) this.save(id);
   }
 
   // the text the backend discovers in the photo or the recording is added to the text of the note
-  async discoverText(id: number, sha256: string): Promise<void> {
-    this.discovering.update((photos) => new Set([...photos, sha256]));
+  async discoverText(id: number, fileId: number): Promise<void> {
+    this.discovering.update((photos) => new Set([...photos, fileId]));
     try {
       const { text } = await firstValueFrom(
-        this.http.post<{ text: string }>(`/api/v1/files/${sha256}/discover/text`, null),
+        this.http.post<{ text: string }>(`/api/v1/files/${fileId}/discover/text`, null),
       );
       if (!text) {
         this.error.set('There is no text in the photo.');
@@ -261,15 +261,15 @@ export class NotesStore {
     } catch (error: unknown) {
       this.error.set(firstMessage(error) ?? 'The text could not be discovered.');
     } finally {
-      this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== sha256)));
+      this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== fileId)));
     }
   }
 
   // the file stays in the storage, other notes may show it too
-  removePhoto(id: number, sha256: string): void {
+  removePhoto(id: number, fileId: number): void {
     const changed = this.change(id, (note) =>
-      note.photos.includes(sha256)
-        ? { ...note, photos: note.photos.filter((photo) => photo !== sha256) }
+      note.photos.includes(fileId)
+        ? { ...note, photos: note.photos.filter((photo) => photo !== fileId) }
         : note,
     );
     if (changed) this.save(id);
@@ -315,8 +315,8 @@ export class NotesStore {
       });
   }
 
-  // the sha-256 of the scaled down photo in the file storage, null when it could not be stored
-  private async uploadPhoto(photo: Blob): Promise<string | null> {
+  // the id of the scaled down photo in the file storage, null when it could not be stored
+  private async uploadPhoto(photo: Blob): Promise<number | null> {
     let scaled: Blob;
     try {
       scaled = await this.scaler.scale(photo);
@@ -327,15 +327,15 @@ export class NotesStore {
     return this.uploadFile(scaled, 'The photo could not be stored.');
   }
 
-  // the sha-256 of the file in the file storage, null when it could not be stored
-  private async uploadFile(file: Blob, failure: string): Promise<string | null> {
+  // the id of the file in the file storage, null when it could not be stored
+  private async uploadFile(file: Blob, failure: string): Promise<number | null> {
     try {
       const stored = await firstValueFrom(
-        this.http.post<{ sha256: string }>('/api/v1/files', file, {
+        this.http.post<{ id: number }>('/api/v1/files', file, {
           headers: { 'Content-Type': file.type || 'application/octet-stream' },
         }),
       );
-      return stored.sha256;
+      return stored.id;
     } catch {
       this.error.set(failure);
       return null;
@@ -371,8 +371,8 @@ function toNote(response: NoteResponse): Note {
     text: response.text,
     color: response.color,
     labels: response.labels.map((label) => label.name),
-    photos: response.photos.map((photo) => photo.sha256),
-    recordings: response.recordings.map((recording) => recording.sha256),
+    photos: response.photos.map((photo) => photo.id),
+    recordings: response.recordings.map((recording) => recording.id),
     created: new Date(response.createdAt),
     updated: new Date(response.updatedAt),
   };

@@ -51,27 +51,27 @@ data class NoteResponse(
 
 @Serializable
 data class PhotoResponse(
-    val sha256: String,
+    val id: Int,
     val url: String,
     val thumbnailUrl: String,
 )
 
 @Serializable
 data class RecordingResponse(
-    val sha256: String,
+    val id: Int,
     val url: String,
     val thumbnailUrl: String,
 )
 
-// the labels by name, the unknown ones are created; the photos and recordings by the sha-256 of
-// images and wav recordings uploaded to the file storage before
+// the labels by name, the unknown ones are created; the photos and recordings by the ids of images
+// and wav recordings uploaded to the file storage before
 @Serializable
 data class NoteRequest(
     val text: String = "",
     val color: String = NoteColor.YELLOW.id,
     val labels: List<String> = emptyList(),
-    val photos: List<String> = emptyList(),
-    val recordings: List<String> = emptyList(),
+    val photos: List<Int> = emptyList(),
+    val recordings: List<Int> = emptyList(),
 )
 
 private fun Note.response() =

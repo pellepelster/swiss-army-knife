@@ -20,9 +20,10 @@ import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.UnsupportedAudioFileException
 import kotlin.math.abs
 
-// a file of the file storage, addressed by the sha-256 of its content; uploadedBy is the address
-// of the user that uploaded it first, discovered the text discovered in it, null until then
+// a file of the file storage, one upload; sha256 is the hash of its content, uploadedBy the
+// address of the user that uploaded it, discovered the text discovered in it, null until then
 data class StoredFile(
+    val id: Int,
     val sha256: String,
     val contentType: String,
     val size: Long,
@@ -43,10 +44,11 @@ sealed interface StoreFileResult {
     data object UnsupportedType : StoreFileResult
 }
 
-// the generic file storage every application keeps its files in, the only way to them; the
-// content lives in dir below the first two characters of its sha-256, the same content is stored
-// once. The type is told by the first bytes, never taken from the uploader. The thumbnails of the
-// images are made when they are first asked for and kept next to them.
+// the generic file storage every application keeps its files in, the only way to them; every
+// upload is a file of its own with an id, its content lives in dir below the first two characters
+// of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
+// from the uploader. The thumbnails of the images are made when they are first asked for and kept
+// next to them.
 class FileService internal constructor(
     private val repository: FileRepository,
     private val dir: Path,
@@ -64,22 +66,17 @@ class FileService internal constructor(
         Files.createDirectories(dir)
     }
 
-    fun bySha256(sha256: String): StoredFile? = sha256.takeIf { SHA256.matches(it) }?.let { repository.bySha256(it) }
+    fun byId(id: Int): StoredFile? = repository.byId(id)
 
-    // the stored files of the hashes by their hash
-    fun bySha256s(sha256s: Collection<String>): Map<String, StoredFile> =
-        sha256s.filter { SHA256.matches(it) }.toSet().let { if (it.isEmpty()) emptyMap() else repository.bySha256s(it) }
-
-    // the ones of the hashes that are stored
-    fun existing(sha256s: Collection<String>): Set<String> =
-        sha256s.filter { SHA256.matches(it) }.toSet().let { if (it.isEmpty()) emptySet() else repository.existing(it) }
+    // the stored files of the ids by their id
+    fun byIds(ids: Collection<Int>): Map<Int, StoredFile> = if (ids.isEmpty()) emptyMap() else repository.byIds(ids.toSet())
 
     fun setDiscovered(
         file: StoredFile,
         text: String,
     ): StoredFile {
         val now = clock.instant()
-        repository.updateDiscovered(file.sha256, text, now)
+        repository.updateDiscovered(file.id, text, now)
         return file.copy(discovered = text, updatedAt = now)
     }
 
@@ -144,14 +141,13 @@ class FileService internal constructor(
             val contentType = contentType(head.copyOf(headLength)) ?: return StoreFileResult.UnsupportedType
 
             val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
-            val now = clock.instant()
-            val file = StoredFile(sha256, contentType, size, uploadedBy, now, now)
-            val target = path(file)
+            // the content is in place before the file refers to it
+            val target = dir.resolve(sha256.take(2)).resolve(sha256)
             if (!Files.exists(target)) {
                 Files.createDirectories(target.parent)
                 Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
             }
-            return StoreFileResult.Stored(repository.insertIfMissing(file))
+            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, uploadedBy, clock.instant()))
         } finally {
             Files.deleteIfExists(temp)
         }
@@ -164,7 +160,6 @@ class FileService internal constructor(
 
         private const val HEAD_SIZE = 12
 
-        private val SHA256 = Regex("^[0-9a-f]{64}$")
 
         const val THUMBNAIL_SIZE = 480
 

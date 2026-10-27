@@ -2,6 +2,7 @@ package io.pelle.sak.model.files
 
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
@@ -38,23 +39,26 @@ class FileServiceTest {
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     @Test
-    fun `stores a file under the sha-256 of its content with its type, size and uploader`() {
+    fun `stores a file with its type, size and uploader, its content under its sha-256`() {
         val content = JPEG + "a photo".toByteArray()
 
         val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>().file
-        file shouldBe StoredFile(sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), clock.instant())
+        file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), clock.instant())
         service.path(file) shouldBe dir.resolve(file.sha256.take(2)).resolve(file.sha256)
         Files.readAllBytes(service.path(file)) shouldBe content
-        service.bySha256(file.sha256) shouldBe file
-        service.existing(listOf(file.sha256, "0".repeat(64), "no hash")) shouldBe setOf(file.sha256)
+        service.byId(file.id) shouldBe file
+        service.byIds(listOf(file.id, 4711)) shouldBe mapOf(file.id to file)
     }
 
     @Test
-    fun `stores the same content once, it stays the file of the first uploader`() {
+    fun `every upload is a file of its own, the same content is stored once`() {
         val content = PNG + "same".toByteArray()
         val first = (service.store(content.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val second = (service.store(content.inputStream(), "other@example.org") as StoreFileResult.Stored).file
 
-        (service.store(content.inputStream(), "other@example.org") as StoreFileResult.Stored).file shouldBe first
+        second.id shouldNotBe first.id
+        second.uploadedBy shouldBe "other@example.org"
+        service.path(second) shouldBe service.path(first)
         Files.list(dir).use { it.toList() }.map { it.fileName.toString() } shouldBe listOf(first.sha256.take(2))
     }
 
@@ -69,7 +73,7 @@ class FileServiceTest {
             .shouldBeInstanceOf<StoreFileResult.Stored>().file.contentType shouldBe "image/webp"
         // nothing stays behind of the rejected ones
         Files.list(dir).use { it.toList() }.none { it.fileName.toString().startsWith("upload-") } shouldBe true
-        service.bySha256("../../sak.db") shouldBe null
+        service.byId(4711) shouldBe null
     }
 
     private fun image(

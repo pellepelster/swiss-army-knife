@@ -44,15 +44,15 @@ sealed interface DiscoverTextResult {
 }
 
 // discovers the text in the images and the recordings of the file storage; a file never changes
-// under its sha-256, so the text is kept with the file (StoredFile.discovered) and the file is
+// under its id, so the text is kept with the file (StoredFile.discovered) and the file is
 // not read again
 class FileTextService(
     private val files: FileService,
     private val recognizer: TextRecognizer?,
     private val transcriber: SpeechTranscriber? = null,
 ) {
-    fun discover(sha256: String): DiscoverTextResult {
-        val file = files.bySha256(sha256) ?: return DiscoverTextResult.NotFound
+    fun discover(id: Int): DiscoverTextResult {
+        val file = files.byId(id) ?: return DiscoverTextResult.NotFound
         val read: (ByteArray) -> String =
             when {
                 file.contentType.startsWith("image/") -> recognizer?.let { { bytes -> it.recognize(bytes, file.contentType) } }

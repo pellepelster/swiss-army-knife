@@ -40,15 +40,15 @@ class NoteServiceTest {
     private val service by lazy { NoteService(database, labels, files, clock) }
 
     private fun photo(content: String) =
-        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.sha256
+        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
     private fun create(
         text: String,
         color: String = "yellow",
         labelNames: List<String> = emptyList(),
         owner: String = PELLE,
-        photos: List<String> = emptyList(),
-        recordings: List<String> = emptyList(),
+        photos: List<Int> = emptyList(),
+        recordings: List<Int> = emptyList(),
     ) = service.create(owner, text, color, labelNames, photos, recordings).shouldBeInstanceOf<SaveNoteResult.Saved>().note
 
     private fun later(minutes: Long = 1) {
@@ -152,7 +152,7 @@ class NoteServiceTest {
         service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf(beach))
             .shouldBeInstanceOf<SaveNoteResult.Saved>().note.photos shouldBe listOf(beach)
         service.byId(PELLE, note.note.id)!!.photos shouldBe listOf(beach)
-        service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf("0".repeat(64))) shouldBe
+        service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf(4711)) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
         service.create(PELLE, "many", "blue", photos = (0..NoteService.MAX_PHOTOS).map { photo("photo $it") }) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_PHOTOS))
@@ -161,7 +161,7 @@ class NoteServiceTest {
     @Test
     fun `keeps the recordings of a note apart from its photos, each of its kind`() {
         val beach = photo("beach")
-        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.sha256
+        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
         val note = create("holidays", photos = listOf(beach), recordings = listOf(memo, memo))
         note.photos shouldBe listOf(beach)

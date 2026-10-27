@@ -40,7 +40,6 @@ import java.net.URLDecoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.security.MessageDigest
 import javax.imageio.ImageIO
 import javax.sound.sampled.AudioFileFormat
 import javax.sound.sampled.AudioFormat
@@ -469,7 +468,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `stores files under their sha-256, serves them to everyone and keeps them as photos of notes`() {
+    fun `stores files under ids, serves them with a session only and keeps them as photos of notes`() {
         withServer { port ->
             val session = signIn(port)
             val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a photo".toByteArray()
@@ -492,10 +491,11 @@ class SakAppsTest {
             large.statusCode() shouldBe 201
             val uploaded = upload(jpeg)
             uploaded.statusCode() shouldBe 201
-            val sha256 = uploaded.json().string("sha256")
-            sha256 shouldBe MessageDigest.getInstance("SHA-256").digest(jpeg).joinToString("") { "%02x".format(it) }
-            uploaded.json().string("url") shouldBe "/api/v1/files/$sha256"
-            uploaded.json().string("thumbnailUrl") shouldBe "/api/v1/files/$sha256/thumbnail"
+            val id = uploaded.json().string("id")
+            uploaded.json().string("url") shouldBe "/api/v1/files/$id"
+            uploaded.json().string("thumbnailUrl") shouldBe "/api/v1/files/$id/thumbnail"
+            // the same content again is a file of its own
+            upload(jpeg).json().string("id") shouldNotBe id
             uploaded.json().string("contentType") shouldBe "image/jpeg"
             upload("<script>".toByteArray()).let {
                 it.statusCode() shouldBe 400
@@ -503,37 +503,47 @@ class SakAppsTest {
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
 
-            // served without a session, it never changes under its hash
-            http.send(HttpRequest.newBuilder(URI.create("http://localhost:$port/api/v1/files/$sha256")).build(), HttpResponse.BodyHandlers.ofByteArray()).let {
+            fun download(
+                path: String,
+                sessionToken: String? = session,
+            ) = http.send(
+                HttpRequest
+                    .newBuilder(URI.create("http://localhost:$port$path"))
+                    .apply { sessionToken?.let { header("Authorization", "Bearer $it") } }
+                    .build(),
+                HttpResponse.BodyHandlers.ofByteArray(),
+            )
+
+            // served with a session only, it never changes under its id
+            download("/api/v1/files/$id", null).statusCode() shouldBe 401
+            download("/api/v1/files/$id/thumbnail", null).statusCode() shouldBe 401
+            download("/api/v1/files/$id").let {
                 it.statusCode() shouldBe 200
                 it.body() shouldBe jpeg
                 it.headers().firstValue("Content-Type").get() shouldBe "image/jpeg"
-                it.headers().firstValue("Cache-Control").get() shouldBe "public, max-age=31536000, immutable"
+                it.headers().firstValue("Cache-Control").get() shouldBe "private, max-age=31536000, immutable"
             }
-            get(port, "/api/v1/files/${"0".repeat(64)}").statusCode() shouldBe 404
-            get(port, "/api/v1/files/unknown").statusCode() shouldBe 404
+            download("/api/v1/files/4711").statusCode() shouldBe 404
+            download("/api/v1/files/unknown").statusCode() shouldBe 404
             // the bytes are no image that can be read
-            get(port, "/api/v1/files/$sha256/thumbnail").statusCode() shouldBe 404
+            download("/api/v1/files/$id/thumbnail").statusCode() shouldBe 404
 
-            // a real image has a thumbnail, served without a session
+            // a real image has a thumbnail
             val png =
                 ByteArrayOutputStream().also { ImageIO.write(BufferedImage(1200, 800, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
-            val image = upload(png).json().string("sha256")
-            http.send(
-                HttpRequest.newBuilder(URI.create("http://localhost:$port/api/v1/files/$image/thumbnail")).build(),
-                HttpResponse.BodyHandlers.ofByteArray(),
-            ).let {
+            val image = upload(png).json().string("id")
+            download("/api/v1/files/$image/thumbnail").let {
                 it.statusCode() shouldBe 200
                 it.headers().firstValue("Content-Type").get() shouldBe "image/jpeg"
-                it.headers().firstValue("Cache-Control").get() shouldBe "public, max-age=31536000, immutable"
+                it.headers().firstValue("Cache-Control").get() shouldBe "private, max-age=31536000, immutable"
                 ImageIO.read(it.body().inputStream()).width shouldBe 480
             }
 
-            post(port, "/api/v1/notes", """{"text":"holidays","photos":["$sha256"]}""", session).let {
+            post(port, "/api/v1/notes", """{"text":"holidays","photos":[$id]}""", session).let {
                 it.statusCode() shouldBe 201
-                it.json().getValue("photos").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$sha256"
+                it.json().getValue("photos").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$id"
             }
-            post(port, "/api/v1/notes", """{"text":"x","photos":["${"0".repeat(64)}"]}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/notes", """{"text":"x","photos":[4711]}""", session).statusCode() shouldBe 400
         }
     }
 
@@ -565,7 +575,7 @@ class SakAppsTest {
             withServer(config) { port ->
                 val session = signIn(port)
                 val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a receipt".toByteArray()
-                val sha256 =
+                val receipt =
                     http.send(
                         HttpRequest
                             .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
@@ -573,19 +583,19 @@ class SakAppsTest {
                             .POST(HttpRequest.BodyPublishers.ofByteArray(jpeg))
                             .build(),
                         HttpResponse.BodyHandlers.ofString(),
-                    ).json().string("sha256")
+                    ).json().string("id")
                 fun discover(
                     file: String,
                     sessionToken: String? = session,
                 ) = post(port, "/api/v1/files/$file/discover/text", "", sessionToken)
 
-                discover(sha256, null).statusCode() shouldBe 401
-                discover(sha256).let {
+                discover(receipt, null).statusCode() shouldBe 401
+                discover(receipt).let {
                     it.statusCode() shouldBe 200
                     it.json().string("text") shouldBe "Total 12.50"
                 }
                 // kept with the file, the image is not sent again
-                discover(sha256).json().string("text") shouldBe "Total 12.50"
+                discover(receipt).json().string("text") shouldBe "Total 12.50"
                 completions.size shouldBe 1
                 completions.single() shouldContain "data:image/jpeg;base64,"
                 discover("0".repeat(64)).statusCode() shouldBe 404
@@ -601,11 +611,14 @@ class SakAppsTest {
                         HttpResponse.BodyHandlers.ofString(),
                     ).json()
                 recording.string("contentType") shouldBe "audio/wav"
-                val memo = recording.string("sha256")
+                val memo = recording.string("id")
                 discover(memo).json().string("text") shouldBe "Buy milk on the way home."
                 completions.last() shouldContain "\"format\":\"wav\""
                 http.send(
-                    HttpRequest.newBuilder(URI.create("http://localhost:$port/api/v1/files/$memo/thumbnail")).build(),
+                    HttpRequest
+                        .newBuilder(URI.create("http://localhost:$port/api/v1/files/$memo/thumbnail"))
+                        .header("Authorization", "Bearer $session")
+                        .build(),
                     HttpResponse.BodyHandlers.ofByteArray(),
                 ).let {
                     it.statusCode() shouldBe 200
@@ -625,7 +638,7 @@ class SakAppsTest {
         withServer(config()) { port ->
             val session = signIn(port)
             val png = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
-            val sha256 =
+            val file =
                 http.send(
                     HttpRequest
                         .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
@@ -633,8 +646,8 @@ class SakAppsTest {
                         .POST(HttpRequest.BodyPublishers.ofByteArray(png))
                         .build(),
                     HttpResponse.BodyHandlers.ofString(),
-                ).json().string("sha256")
-            post(port, "/api/v1/files/$sha256/discover/text", "", session).let {
+                ).json().string("id")
+            post(port, "/api/v1/files/$file/discover/text", "", session).let {
                 it.statusCode() shouldBe 503
                 it.body() shouldBe """{"errors":[{"message":"Text discovery is not configured."}]}"""
             }
@@ -788,9 +801,9 @@ class SakAppsTest {
                         "/api/v1/notes",
                         "/api/v1/notes/{id}",
                         "/api/v1/files",
-                        "/api/v1/files/{sha256}",
-                        "/api/v1/files/{sha256}/thumbnail",
-                        "/api/v1/files/{sha256}/discover/text",
+                        "/api/v1/files/{id}",
+                        "/api/v1/files/{id}/thumbnail",
+                        "/api/v1/files/{id}/discover/text",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

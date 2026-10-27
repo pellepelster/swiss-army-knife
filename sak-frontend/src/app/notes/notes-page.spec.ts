@@ -6,7 +6,7 @@ import { NotesPage } from './notes-page';
 import { NotesStore } from './notes-store';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
-import { noteResponse, pageOf, scaler, SHA256 } from './notes-testing';
+import { noteResponse, pageOf, scaler, FILE_ID } from './notes-testing';
 import { FakeRecorder, RECORDED } from './notes-testing';
 
 describe('NotesPage', () => {
@@ -32,6 +32,9 @@ describe('NotesPage', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    let objectUrls = 0;
+    URL.createObjectURL = vi.fn(() => `blob:file-${++objectUrls}`);
+    URL.revokeObjectURL = vi.fn();
     fixture = TestBed.createComponent(NotesPage);
     page = fixture.nativeElement;
     document.body.appendChild(page);
@@ -42,14 +45,23 @@ describe('NotesPage', () => {
         pageOf([
           noteResponse(3, 'Prototype the note taking app', 'blue', ['todo', 'work']),
           noteResponse(2, 'Call the plumber', 'pink', ['home', 'todo']),
-          noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [SHA256], ['c'.repeat(64)]),
+          noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [FILE_ID], [8]),
         ]),
       );
     http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
     await fixture.whenStable();
   });
 
-  afterEach(() => {
+  // the thumbnails are fetched with the session and shown as object urls
+  const flushThumbnails = async () => {
+    http
+      .match((request) => request.url.endsWith('/thumbnail'))
+      .forEach((request) => request.flush(new Blob(['jpeg'], { type: 'image/jpeg' })));
+    await fixture.whenStable();
+  };
+
+  afterEach(async () => {
+    await flushThumbnails();
     http.verify();
     page.remove();
   });
@@ -118,11 +130,27 @@ describe('NotesPage', () => {
     expect(note.classList).toContain('note-green');
   });
 
-  it('shows the thumbnails of the photos of a note, each leads to the whole photo', () => {
+  it('shows the thumbnails of the photos of a note, each opens the whole photo', async () => {
     const photo = notes()[2].querySelector<HTMLImageElement>('.note-photos img')!;
-    expect(photo.getAttribute('src')).toBe(`/api/v1/files/${SHA256}/thumbnail`);
-    expect(photo.closest('a')?.getAttribute('href')).toBe(`/api/v1/files/${SHA256}`);
+    expect(photo.getAttribute('src') ?? '').not.toMatch(/^blob:/);
+    http
+      .expectOne(`/api/v1/files/${FILE_ID}/thumbnail`)
+      .flush(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    await vi.waitFor(
+      async () => {
+        await fixture.whenStable();
+        expect(photo.getAttribute('src')).toMatch(/^blob:/);
+      },
+      { timeout: 1000 },
+    );
     expect(notes()[0].querySelector('.note-photos')).toBeNull();
+
+    // the tab opens right away, the photo follows once it is fetched with the session
+    const tab = { location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    photo.closest('a')!.click();
+    http.expectOne(`/api/v1/files/${FILE_ID}`).flush(new Blob(['whole'], { type: 'image/jpeg' }));
+    await vi.waitFor(() => expect(tab.location.href).toMatch(/^blob:/), { timeout: 1000 });
   });
 
   it('offers no further label once a note has ten', async () => {
@@ -164,7 +192,7 @@ describe('NotesPage', () => {
   it('discovers the text in a photo into the note', async () => {
     button('Discover the text in photo 1', notes()[2]).click();
     http
-      .expectOne({ method: 'POST', url: `/api/v1/files/${SHA256}/discover/text` })
+      .expectOne({ method: 'POST', url: `/api/v1/files/${FILE_ID}/discover/text` })
       .flush({ text: 'Total 12.50' });
     await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }), {
       timeout: 1000,
@@ -179,13 +207,19 @@ describe('NotesPage', () => {
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     const note = notes()[2];
     const recording = note.querySelector<HTMLButtonElement>('.recording')!;
-    expect(recording.querySelector('img')?.getAttribute('src')).toBe(
-      '/api/v1/files/' + 'c'.repeat(64) + '/thumbnail',
+    await flushThumbnails();
+    await vi.waitFor(
+      async () => {
+        await fixture.whenStable();
+        expect(recording.querySelector('img')?.getAttribute('src')).toMatch(/^blob:/);
+      },
+      { timeout: 1000 },
     );
 
     button('Play Recording 1', note).click();
+    http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
+    await vi.waitFor(() => expect(play).toHaveBeenCalled(), { timeout: 1000 });
     await fixture.whenStable();
-    expect(play).toHaveBeenCalled();
     expect(recording.getAttribute('aria-pressed')).toBe('true');
     button('Pause Recording 1', note).click();
     await fixture.whenStable();
@@ -193,7 +227,7 @@ describe('NotesPage', () => {
 
     button('Discover the text in recording 1', note).click();
     http
-      .expectOne({ method: 'POST', url: '/api/v1/files/' + 'c'.repeat(64) + '/discover/text' })
+      .expectOne({ method: 'POST', url: '/api/v1/files/8/discover/text' })
       .flush({ text: 'on the way home' });
     await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }), {
       timeout: 1000,
@@ -211,7 +245,7 @@ describe('NotesPage', () => {
     button('Stop recording for note 3', note).click();
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) => upload.flush({ sha256: 'd'.repeat(64) }));
+      .then((upload) => upload.flush({ id: 9 }));
     await vi.waitFor(() => http.expectOne({ method: 'PUT', url: '/api/v1/notes/3' }), {
       timeout: 1000,
     });
@@ -227,16 +261,19 @@ describe('NotesPage', () => {
 
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) =>
-        upload.flush({ sha256: 'b'.repeat(64), url: '/api/v1/files/' + 'b'.repeat(64) }),
-      );
+      .then((upload) => upload.flush({ id: 10, url: '/api/v1/files/10' }));
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
-      .then((created) => created.flush(noteResponse(4, '', 'yellow', [], ['b'.repeat(64)])));
+      .then((created) => created.flush(noteResponse(4, '', 'yellow', [], [10])));
     await fixture.whenStable();
 
-    expect(notes()[0].querySelector('img')?.getAttribute('src')).toBe(
-      '/api/v1/files/' + 'b'.repeat(64) + '/thumbnail',
+    http.expectOne('/api/v1/files/10/thumbnail').flush(new Blob(['jpeg']));
+    await vi.waitFor(
+      async () => {
+        await fixture.whenStable();
+        expect(notes()[0].querySelector('img')?.getAttribute('src')).toMatch(/^blob:/);
+      },
+      { timeout: 1000 },
     );
     expect(document.activeElement).toBe(notes()[0].querySelector('textarea'));
   });

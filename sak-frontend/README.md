@@ -43,8 +43,10 @@ saved in the background, the text once typing pauses (`NotesStore`). A note can 
 with the camera of a phone or chosen from the files: they are scaled down to 2048 pixels and
 re-encoded as JPEG in the browser (`PhotoScaler`, which drops the exif data with the location),
 stored in the backend's file storage (`POST /api/v1/files`); the notes show their thumbnails
-(`/api/v1/files/<sha256>/thumbnail`), each leads to the whole photo (`/api/v1/files/<sha256>`). The robot on a photo discovers the text in
-it (`POST /api/v1/files/<sha256>/discover/text`, a vision model at OpenRouter) and appends it to
+(`/api/v1/files/<id>/thumbnail`), each leads to the whole photo (`/api/v1/files/<id>`). The files
+are only served with the session, which an img, a link or an audio element can not send: they are
+fetched with it and shown as object urls (`StoredFiles`). The robot on a photo discovers the text in
+it (`POST /api/v1/files/<id>/discover/text`, a vision model at OpenRouter) and appends it to
 the text of the note.
 
 A note can also have recordings, taken with the microphone in its footer or in the toolbar for a

@@ -64,7 +64,7 @@ class SakServices(
 // the controller's database, the buckets, their keys, the redirects, the labels and the notes are in it
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
-// the content of the file storage, below the first two characters of the sha-256
+// the content of the file storage, below the first two characters of its sha-256
 fun filesDir(config: SakConfig) = config.dataDir.resolve("files")
 
 fun Application.sak(config: SakConfig): SakServices {

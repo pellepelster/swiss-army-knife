@@ -1,11 +1,16 @@
+import { AsyncPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { AudioRecorder } from './audio-recorder';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
+import { StoredFiles, ThumbnailPipe } from './stored-files';
+
+// how long an opened photo keeps its object url, its tab has loaded it by then
+const OPENED_URL_LIFETIME_MS = 60_000;
 
 // a photo or a recording of a note, shown alike
 interface Media {
-  readonly sha256: string;
+  readonly id: number;
   readonly kind: 'photo' | 'recording';
   readonly label: string;
 }
@@ -16,7 +21,7 @@ interface Media {
 // camera of a phone or chosen from the files elsewhere, a recording with the microphone
 @Component({
   selector: 'app-note-card',
-  imports: [LocalDateTimePipe],
+  imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe],
   host: {
     '[class]': "'note note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
@@ -24,12 +29,12 @@ interface Media {
   template: `
     @if (media().length) {
       <ul class="note-photos" aria-label="Photos and recordings">
-        @for (item of media(); track item.sha256) {
+        @for (item of media(); track item.id) {
           <li class="photo">
             @if (item.kind === 'photo') {
-              <a [href]="fileUrl(item.sha256)" target="_blank" rel="noopener">
+              <a [href]="fileUrl(item.id)" (click)="$event.preventDefault(); open(item.id)">
                 <img
-                  [src]="fileUrl(item.sha256) + '/thumbnail'"
+                  [attr.src]="item.id | thumbnail | async"
                   [alt]="item.label + ' of note ' + note().id"
                   loading="lazy"
                 />
@@ -38,16 +43,16 @@ interface Media {
               <button
                 type="button"
                 class="recording"
-                [attr.aria-label]="(playing() === item.sha256 ? 'Pause ' : 'Play ') + item.label"
-                [attr.aria-pressed]="playing() === item.sha256"
-                (click)="play(item.sha256)"
+                [attr.aria-label]="(playing() === item.id ? 'Pause ' : 'Play ') + item.label"
+                [attr.aria-pressed]="playing() === item.id"
+                (click)="play(item.id)"
               >
-                <img [src]="fileUrl(item.sha256) + '/thumbnail'" alt="" loading="lazy" />
+                <img [attr.src]="item.id | thumbnail | async" alt="" loading="lazy" />
                 <span class="recording-play" aria-hidden="true">
                   <i
                     class="fa-solid"
-                    [class.fa-play]="playing() !== item.sha256"
-                    [class.fa-pause]="playing() === item.sha256"
+                    [class.fa-play]="playing() !== item.id"
+                    [class.fa-pause]="playing() === item.id"
                   ></i>
                 </span>
               </button>
@@ -57,16 +62,16 @@ interface Media {
               class="photo-discover"
               [attr.aria-label]="'Discover the text in ' + item.label.toLowerCase()"
               title="Discover the text"
-              [disabled]="store.discovering().has(item.sha256)"
-              (click)="store.discoverText(note().id, item.sha256)"
+              [disabled]="store.discovering().has(item.id)"
+              (click)="store.discoverText(note().id, item.id)"
             >
-              @if (store.discovering().has(item.sha256)) {
+              @if (store.discovering().has(item.id)) {
                 <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
               } @else {
                 <i class="fa-solid fa-robot" aria-hidden="true"></i>
               }
             </button>
-            @if (confirming() === item.sha256) {
+            @if (confirming() === item.id) {
               <div
                 class="photo-confirm"
                 role="group"
@@ -85,7 +90,7 @@ interface Media {
                 type="button"
                 class="photo-remove"
                 [attr.aria-label]="'Remove ' + item.label.toLowerCase()"
-                (click)="confirming.set(item.sha256)"
+                (click)="confirming.set(item.id)"
               >
                 <i class="fa-solid fa-trash" aria-hidden="true"></i>
               </button>
@@ -232,52 +237,84 @@ export class NoteCard {
 
   // the photos first, then the recordings, as the backend keeps them
   protected readonly media = computed<readonly Media[]>(() => [
-    ...this.note().photos.map((sha256, index) => ({
-      sha256,
+    ...this.note().photos.map((id, index) => ({
+      id,
       kind: 'photo' as const,
       label: `Photo ${index + 1}`,
     })),
-    ...this.note().recordings.map((sha256, index) => ({
-      sha256,
+    ...this.note().recordings.map((id, index) => ({
+      id,
       kind: 'recording' as const,
       label: `Recording ${index + 1}`,
     })),
   ]);
 
   // the photo or recording whose removal is asked for, removed only once it is confirmed
-  protected readonly confirming = signal<string | null>(null);
+  protected readonly confirming = signal<number | null>(null);
 
   // the recording that plays, one at a time
-  protected readonly playing = signal<string | null>(null);
+  protected readonly playing = signal<number | null>(null);
   private audio: HTMLAudioElement | null = null;
 
+  private readonly files = inject(StoredFiles);
+
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.audio?.pause());
+    inject(DestroyRef).onDestroy(() => this.stopAudio());
   }
 
   protected remove(item: Media): void {
     this.confirming.set(null);
-    if (item.kind === 'photo') this.store.removePhoto(this.note().id, item.sha256);
-    else this.store.removeRecording(this.note().id, item.sha256);
+    if (item.kind === 'photo') this.store.removePhoto(this.note().id, item.id);
+    else this.store.removeRecording(this.note().id, item.id);
   }
 
-  // plays the recording in the note, a second tap pauses it
-  protected play(sha256: string): void {
+  // plays the recording in the note, a second tap pauses it; it is fetched with the session first
+  protected async play(id: number): Promise<void> {
     const playing = this.playing();
-    this.audio?.pause();
+    this.stopAudio();
+    if (playing === id) return;
+    this.playing.set(id);
+    try {
+      const url = await this.files.file(id);
+      // tapped again or another one while it was fetched
+      if (this.playing() !== id) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      const audio = new Audio(url);
+      audio.addEventListener('ended', () => this.playing.set(null));
+      this.audio = audio;
+      await audio.play();
+    } catch {
+      if (this.playing() === id) this.playing.set(null);
+    }
+  }
+
+  private stopAudio(): void {
+    if (this.audio) {
+      this.audio.pause();
+      URL.revokeObjectURL(this.audio.src);
+    }
     this.audio = null;
     this.playing.set(null);
-    if (playing === sha256) return;
-    const audio = new Audio(this.fileUrl(sha256));
-    audio.addEventListener('ended', () => this.playing.set(null));
-    this.audio = audio;
-    this.playing.set(sha256);
-    void audio.play().catch(() => this.playing.set(null));
+  }
+
+  // the whole photo in a tab of its own; the tab is opened right away, a browser blocks it once
+  // the photo has been fetched
+  protected async open(id: number): Promise<void> {
+    const tab = window.open('', '_blank');
+    try {
+      const url = await this.files.file(id);
+      if (tab) tab.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), OPENED_URL_LIFETIME_MS);
+    } catch {
+      tab?.close();
+    }
   }
 
   // the whole photo or recording, its thumbnail or waveform is below it
-  protected fileUrl(sha256: string): string {
-    return `/api/v1/files/${sha256}`;
+  protected fileUrl(id: number): string {
+    return StoredFiles.url(id);
   }
 
   protected takePhoto(input: HTMLInputElement): void {

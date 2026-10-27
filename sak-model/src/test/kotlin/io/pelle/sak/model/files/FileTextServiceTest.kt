@@ -54,7 +54,7 @@ class FileTextServiceTest {
     private val service by lazy { FileTextService(files, recognizer, transcriber) }
 
     private fun photo(content: String) =
-        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
+        (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.id
 
     @Test
     fun `discovers the text in an image once and keeps it with the file`() {
@@ -63,8 +63,8 @@ class FileTextServiceTest {
         service.discover(receipt) shouldBe DiscoverTextResult.Discovered("Total 12.50")
         service.discover(receipt) shouldBe DiscoverTextResult.Discovered("Total 12.50")
         recognizer.images.size shouldBe 1
-        files.bySha256(receipt)!!.discovered shouldBe "Total 12.50"
-        service.discover("0".repeat(64)) shouldBe DiscoverTextResult.NotFound
+        files.byId(receipt)!!.discovered shouldBe "Total 12.50"
+        service.discover(4711) shouldBe DiscoverTextResult.NotFound
     }
 
     @Test
@@ -74,14 +74,14 @@ class FileTextServiceTest {
         service.discover(failing).shouldBeInstanceOf<DiscoverTextResult.Failed>()
         service.discover(failing).shouldBeInstanceOf<DiscoverTextResult.Failed>()
         recognizer.images.size shouldBe 2
-        files.bySha256(failing)!!.discovered shouldBe null
+        files.byId(failing)!!.discovered shouldBe null
 
         FileTextService(files, null).discover(failing) shouldBe DiscoverTextResult.NotConfigured
     }
 
     @Test
     fun `transcribes recordings once and keeps the text with the file`() {
-        val recording = (files.store(FileServiceTest.wav().inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
+        val recording = (files.store(FileServiceTest.wav().inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.id
 
         service.discover(recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
         service.discover(recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
@@ -89,14 +89,14 @@ class FileTextServiceTest {
         recognizer.images shouldBe emptyList()
 
         FileTextService(files, recognizer, null).discover(photo("another")).shouldBeInstanceOf<DiscoverTextResult.Discovered>()
-        val unheard = (files.store(FileServiceTest.wav(2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
+        val unheard = (files.store(FileServiceTest.wav(2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.id
         FileTextService(files, recognizer, null).discover(unheard) shouldBe DiscoverTextResult.NotConfigured
     }
 
     @Test
     fun `discovers text in images and recordings only`() {
         val file = photo("not an image after all")
-        database.dsl.update(FILES).set(FILES.CONTENT_TYPE, "application/pdf").where(FILES.SHA256.eq(file)).execute()
+        database.dsl.update(FILES).set(FILES.CONTENT_TYPE, "application/pdf").where(FILES.ID.eq(file)).execute()
 
         service.discover(file) shouldBe DiscoverTextResult.Unsupported
         recognizer.images shouldBe emptyList()
