@@ -58,7 +58,7 @@ import { AuthService } from '../auth/auth.service';
           <span class="nav-text">Buckets</span>
         </a>
         <div class="label-mono nav-section-label">Ingress</div>
-        <a class="nav-item" routerLink="/ingress/redirects" routerLinkActive="active">
+        <a class="nav-item" routerLink="/redirects" routerLinkActive="active">
           <span class="nav-square"></span>
           <span class="nav-text">Redirects</span>
         </a>

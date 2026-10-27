@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { signIn } from './console';
 import { deleteAllMails } from './mailpit';
 
-test('redirects a domain from the dialog and stops redirecting it', async ({ page, request }) => {
+test('redirects a domain from its own page and stops redirecting it', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -11,15 +11,15 @@ test('redirects a domain from the dialog and stops redirecting it', async ({ pag
   await signIn(page, request, 'redirects@example.org');
 
   await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Redirects' }).click();
-  await expect(page).toHaveURL('/ingress/redirects');
+  await expect(page).toHaveURL('/redirects');
 
+  await page.getByRole('link', { name: 'Add redirect' }).click();
+  await expect(page).toHaveURL('/redirects/new');
+  await page.getByLabel('Domain', { exact: true }).fill('redirected.example.com');
+  await page.getByLabel('External domain').first().check();
+  await page.getByRole('textbox', { name: 'External domain' }).fill('example.org');
   await page.getByRole('button', { name: 'Add redirect' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add redirect' });
-  await dialog.getByLabel('Domain', { exact: true }).fill('redirected.example.com');
-  await dialog.getByLabel('External domain').first().check();
-  await dialog.getByRole('textbox', { name: 'External domain' }).fill('example.org');
-  await dialog.getByRole('button', { name: 'Add redirect' }).click();
-  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL('/redirects');
 
   const row = page.getByTestId('redirect-redirected.example.com');
   await expect(row.getByTestId('location')).toHaveText('https://example.org');

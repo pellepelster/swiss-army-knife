@@ -17,11 +17,11 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
   await expect(page).toHaveURL('/s3/buckets');
 
   // e2e-other holds the object playwright.config.ts put where its data goes, before it exists
+  await page.getByRole('link', { name: 'Add bucket' }).click();
+  await expect(page).toHaveURL('/s3/buckets/new');
+  await page.getByLabel('Bucket name').fill('e2e-other');
+  await page.getByLabel('Domain 1', { exact: true }).fill('other.example.org');
   await page.getByRole('button', { name: 'Add bucket' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add bucket' });
-  await dialog.getByLabel('Bucket name').fill('e2e-other');
-  await dialog.getByLabel('Domain 1', { exact: true }).fill('other.example.org');
-  await dialog.getByRole('button', { name: 'Add bucket' }).click();
   await expect(page).toHaveURL('/s3/buckets/e2e-other/configuration');
   await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
   await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
@@ -53,12 +53,13 @@ test('creates a bucket, lists it with its objects and size and retrieves its cre
 
   // a taken name is reported
   await page.getByRole('link', { name: 'S3 · Buckets' }).click();
+  await page.getByRole('link', { name: 'Add bucket' }).click();
+  await page.getByLabel('Bucket name').fill('e2e-other');
+  await page.getByRole('button', { name: 'Remove domain 1' }).click();
   await page.getByRole('button', { name: 'Add bucket' }).click();
-  await dialog.getByLabel('Bucket name').fill('e2e-other');
-  await dialog.getByRole('button', { name: 'Remove domain 1' }).click();
-  await dialog.getByRole('button', { name: 'Add bucket' }).click();
-  await expect(dialog.getByTestId('create-error')).toHaveText('A bucket of the name exists.');
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('create-error')).toHaveText('A bucket of the name exists.');
+  await page.getByRole('link', { name: 'Cancel' }).click();
+  await expect(page).toHaveURL('/s3/buckets');
 
   const other = page.getByTestId('bucket-e2e-other');
   await expect(other.getByTestId('objects')).toHaveText('1');
