@@ -1,15 +1,13 @@
 package io.pelle.sak.backend.files
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.pelle.sak.api.installApi
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.server.http.content.LocalPathContent
 import io.ktor.openapi.jsonSchema
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.install
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -18,7 +16,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
@@ -61,8 +58,7 @@ fun Route.files(
     fileTextService: FileTextService,
     discoverTextLimiter: RateLimiter = discoverTextLimiter(),
 ) {
-    install(ContentNegotiation) { json() }
-    install(ApiErrors)
+    installApi()
 
     post {
         val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.sessionEmail) } }

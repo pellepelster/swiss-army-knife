@@ -1,6 +1,8 @@
 package io.pelle.sak.auth
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.install
+import io.ktor.server.routing.Route
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.auth.principal
@@ -34,3 +36,6 @@ val RequireRole =
             }
         }
     }
+
+// the routes below answer 403 to sessions without the role
+fun Route.requireRole(role: Role) = install(RequireRole) { this.role = role }

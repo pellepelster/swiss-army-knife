@@ -1,6 +1,7 @@
 package io.pelle.sak.backend
 
 import io.ktor.http.HttpHeaders
+import io.pelle.sak.auth.requireRole
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -19,7 +20,6 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.backend.secrets.SecretService
 import io.pelle.sak.backend.secrets.SecretType
-import io.pelle.sak.auth.RequireRole
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
@@ -155,7 +155,7 @@ fun Application.apps(
                             me()
                         }
                         route("/static-hosting") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            requireRole(Role.ADMIN)
                             buckets(bucketService, statistics)
                             // the access logs of all the domains a bucket is served at
                             route("/{bucket}/access-logs") {
@@ -168,19 +168,19 @@ fun Application.apps(
                             }
                         }
                         route("/redirects") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            requireRole(Role.ADMIN)
                             redirects(redirectService)
                         }
                         route("/labels") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            requireRole(Role.ADMIN)
                             labels(labelService)
                         }
                         route("/notes") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            requireRole(Role.ADMIN)
                             notes(noteService)
                         }
                         route("/files") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            requireRole(Role.ADMIN)
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
                             files(fileService, fileTextService)
                             servedFiles(fileService)

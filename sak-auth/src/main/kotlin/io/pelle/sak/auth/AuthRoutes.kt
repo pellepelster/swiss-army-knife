@@ -1,6 +1,6 @@
 package io.pelle.sak.auth
 
-import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -8,13 +8,10 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.HttpSecurityScheme
 import io.ktor.openapi.jsonSchema
-import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.install
 import io.ktor.server.auth.AuthenticationConfig
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -101,8 +98,7 @@ fun Route.login(
     // links altogether, the ceiling of what the smtp server is asked to send
     linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
 ) {
-    install(ContentNegotiation) { json() }
-    install(ApiErrors)
+    installApi()
 
     // always accepted, whether a link is sent does not tell anything about the address
     post("/link") {
@@ -191,7 +187,7 @@ fun Route.login(
 // authentication { session(tokens, rolesOf) }
 @OptIn(ExperimentalKtorApi::class)
 fun Route.me() {
-    install(ContentNegotiation) { json() }
+    installApi()
 
     get("/me") {
         val principal = call.principal<SessionPrincipal>()!!

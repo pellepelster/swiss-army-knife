@@ -7,6 +7,8 @@ import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.routing.Route
 import io.ktor.server.application.isHandled
 import io.ktor.server.application.log
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -19,6 +21,7 @@ import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.response.respond
 import io.pelle.sak.api.model.ErrorResponse
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 
 suspend fun ApplicationCall.respondErrors(
     vararg messages: String,
@@ -37,6 +40,12 @@ val ApiErrors =
     }
 
 const val MALFORMED_REQUEST = "The request is malformed."
+
+// what every route function of the api installs first: json bodies and the errors of ApiErrors
+fun Route.installApi() {
+    install(ContentNegotiation) { json() }
+    install(ApiErrors)
+}
 
 const val UNEXPECTED_ERROR = "Something went wrong, the request could not be answered."
 

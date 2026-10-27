@@ -1,10 +1,10 @@
 package io.pelle.sak.backend.redirects
 
 import io.pelle.sak.backend.redirects.model.RedirectTarget
+import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.redirects.model.RedirectResponse
 import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
 import io.pelle.sak.backend.redirects.model.UpdateRedirectRequest
-import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
@@ -13,9 +13,6 @@ import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.install
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -71,8 +68,7 @@ private fun RedirectTarget.target(): TargetOfRedirect =
 // the redirects caddy answers, meant to be mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.redirects(redirectService: RedirectService) {
-    install(ContentNegotiation) { json() }
-    install(ApiErrors)
+    installApi()
 
     // the location of a bucket is read from the database, the response is made on the io dispatcher
     suspend fun Redirect.response() =

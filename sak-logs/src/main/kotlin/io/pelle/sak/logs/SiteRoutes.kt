@@ -1,6 +1,6 @@
 package io.pelle.sak.logs
 
-import io.pelle.sak.api.ApiErrors
+import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
@@ -12,10 +12,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Operation
 import io.ktor.openapi.jsonSchema
-import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.install
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondTextWriter
@@ -65,8 +62,7 @@ fun Route.accessLogs(
     maxLiveViews: Int = MAX_LIVE_VIEWS,
     keepaliveInterval: kotlin.time.Duration = KEEPALIVE_INTERVAL,
 ) {
-    install(ContentNegotiation) { json() }
-    install(ApiErrors)
+    installApi()
 
     val liveViews = Semaphore(maxLiveViews)
 

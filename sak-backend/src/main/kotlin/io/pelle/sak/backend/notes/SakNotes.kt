@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.notes
 
 import io.pelle.sak.backend.files.fileUrl
+import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.files.thumbnailUrl
 import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.backend.labels.idParameter
@@ -12,9 +13,6 @@ import io.pelle.sak.backend.notes.model.NoteRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.install
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -25,7 +23,6 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
@@ -83,8 +80,7 @@ private suspend fun RoutingCall.respondSaved(
 // authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.notes(noteService: NoteService) {
-    install(ContentNegotiation) { json() }
-    install(ApiErrors)
+    installApi()
 
     get {
         val page = call.pageRequest() ?: return@get
