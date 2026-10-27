@@ -1,7 +1,7 @@
 {
   "name": "sak-e2e",
   "private": true,
-  "description": "End to end tests of the apps against the local environment (mise run env:run, backend:run, frontend:run)",
+  "description": "End to end tests of the apps against the local environment (mise run local:env:run, local:backend:run, local:frontend:run)",
   "scripts": {
     "test": "playwright test"
   },

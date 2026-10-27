@@ -10,7 +10,7 @@ interface MessageSummary {
 // every mail is dropped, so the next one found is the one a test asked for
 export async function clearInbox(request: APIRequestContext): Promise<void> {
   const deleted = await request.delete(`${MAILPIT_URL}/api/v1/messages`);
-  expect(deleted.ok(), 'mailpit of `mise run env:run` is reachable').toBe(true);
+  expect(deleted.ok(), 'mailpit of `mise run local:env:run` is reachable').toBe(true);
 }
 
 async function messagesTo(request: APIRequestContext, address: string): Promise<MessageSummary[]> {

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// the local environment the tests run against: the frontend of `mise run frontend:run` (the
-// login links of config/local-config.yaml lead there) and the mailpit of `mise run env:run`
+// the local environment the tests run against: the frontend of `mise run local:frontend:run` (the
+// login links of config/local-config.yaml lead there) and the mailpit of `mise run local:env:run`
 export const FRONTEND_URL = process.env.SAK_E2E_FRONTEND_URL ?? 'http://localhost:4200';
 export const MAILPIT_URL = process.env.SAK_E2E_MAILPIT_URL ?? 'http://localhost:8025';
 

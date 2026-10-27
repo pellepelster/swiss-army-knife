@@ -3,8 +3,8 @@
 End to end tests of the apps with Playwright, against the local environment:
 
 ```sh
-mise run run       # ingress, victorialogs, vector, mailpit, the backend and the frontend
-mise run e2e:run   # in another terminal, once `mise run run` lists the addresses
+mise run local:run       # ingress, victorialogs, vector, mailpit, the backend and the frontend
+mise run e2e:run   # in another terminal, once `mise run local:run` lists the addresses
 ```
 
 The login tests read the links from mailpit (http://localhost:8025) and sign in as

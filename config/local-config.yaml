@@ -1,5 +1,5 @@
-# the backend of `mise run backend:run`, its data lives below build/local/; the frontend
-# (`mise run frontend:run`) proxies /api to it, the login links go to the mailpit of
+# the backend of `mise run local:backend:run`, its data lives below build/local/; the frontend
+# (`mise run local:frontend:run`) proxies /api to it, the login links go to the mailpit of
 # config/local-compose.yaml
 ktor:
   deployment:
@@ -10,7 +10,7 @@ sak:
   # the ingress of config/local-compose.yaml
   caddy_admin_url: http://localhost:2019
   auth:
-    # the login links lead to the dev server of mise run run, also for the frontend the backend
+    # the login links lead to the dev server of mise run local:run, also for the frontend the backend
     # serves on 8080
     frontend_url: http://localhost:4200
     # every login link lands in mailpit, none leaves the machine
@@ -24,6 +24,6 @@ sak:
   # the victorialogs of config/local-compose.yaml, vector ships the access log of its ingress
   logs:
     victorialogs_url: http://127.0.0.1:9428
-  # mise run backend:run takes the token from pass (openrouter/pelle/api-key)
+  # mise run local:backend:run takes the token from pass (openrouter/pelle/api-key)
   openrouter:
     api_token: $SAK_OPENROUTER_API_TOKEN
