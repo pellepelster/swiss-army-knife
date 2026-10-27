@@ -233,30 +233,34 @@ databaseChangeLog:
                     references: labels(id)
 
         # the files of a note in their order, its photos and its recordings, told apart by the
-        # type of the file
-        - createTable:
+        # type of the file. A file removed from a note, or the files of a deleted note, stay as
+        # rows with deleted_at set; active is 1 for the rows that are not deleted and null for the
+        # deleted ones, so a file is attached to a note once among the rows that are not deleted
+        - sql:
+            sql: >-
+              CREATE TABLE notes_files (
+                id INTEGER NOT NULL PRIMARY KEY,
+                note_id INTEGER NOT NULL,
+                file_id INTEGER NOT NULL,
+                position INTEGER NOT NULL,
+                active INTEGER,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP,
+                CONSTRAINT notes_files_note_id_fkey FOREIGN KEY (note_id) REFERENCES notes (id),
+                CONSTRAINT notes_files_file_id_fkey FOREIGN KEY (file_id) REFERENCES files (id),
+                CONSTRAINT notes_files_active_check CHECK (
+                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
+                )
+              )
+        - createIndex:
             tableName: notes_files
+            indexName: notes_files_file_key
+            unique: true
             columns:
               - column:
                   name: note_id
-                  type: int
-                  constraints:
-                    primaryKey: true
-                    primaryKeyName: notes_files_pkey
-                    nullable: false
-                    foreignKeyName: notes_files_note_id_fkey
-                    references: notes(id)
-              - column:
-                  name: position
-                  type: int
-                  constraints:
-                    primaryKey: true
-                    primaryKeyName: notes_files_pkey
-                    nullable: false
               - column:
                   name: file_id
-                  type: int
-                  constraints:
-                    nullable: false
-                    foreignKeyName: notes_files_file_id_fkey
-                    references: files(id)
+              - column:
+                  name: active

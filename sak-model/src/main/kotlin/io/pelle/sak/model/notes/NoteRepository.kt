@@ -26,7 +26,8 @@ data class NoteRow(
 )
 
 // the database access of the notes and the links to their labels and files, only NoteService
-// (sak-backend) uses it; it reads and changes the notes of one owner that are not deleted only
+// (sak-backend) uses it; it reads and changes the notes of one owner that are not deleted only. A
+// file removed from a note, and the files of a deleted note, stay as links with deleted_at set
 class NoteRepository(
     private val database: SakDatabase,
 ) {
@@ -87,7 +88,7 @@ class NoteRepository(
                     .returning()
                     .fetchOne()!!
             insertLabels(dsl, note.id!!, labelIds)
-            insertFiles(dsl, note.id!!, files)
+            files.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now) }
             note.toRow(labelIds, files)
         }
 
@@ -114,24 +115,29 @@ class NoteRepository(
             if (updated) {
                 dsl.deleteFrom(NOTES_LABELS).where(NOTES_LABELS.NOTE_ID.eq(id)).execute()
                 insertLabels(dsl, id, labelIds)
-                dsl.deleteFrom(NOTES_FILES).where(NOTES_FILES.NOTE_ID.eq(id)).execute()
-                insertFiles(dsl, id, files)
+                updateFiles(dsl, id, files, now)
             }
             updated
         }
 
-    // false when there was none
+    // false when there was none; its links to its files are deleted with it
     fun delete(
         owner: String,
         id: Int,
         now: Instant,
     ): Boolean =
-        database.dsl
-            .update(NOTES)
-            .set(NOTES.UPDATED_AT, now.utc())
-            .set(NOTES.DELETED_AT, now.utc())
-            .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
-            .execute() > 0
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            val deleted =
+                dsl
+                    .update(NOTES)
+                    .set(NOTES.UPDATED_AT, now.utc())
+                    .set(NOTES.DELETED_AT, now.utc())
+                    .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
+                    .execute() > 0
+            if (deleted) deleteFiles(dsl, NOTES_FILES.NOTE_ID.eq(id), now)
+            deleted
+        }
 
     // drops the label from every note
     fun detachLabel(labelId: Int) {
@@ -162,16 +168,66 @@ class NoteRepository(
             .execute()
     }
 
-    private fun insertFiles(
+    // the links of the files that stay keep their row and take their new position, the ones of the
+    // files removed are deleted, the files added get a link of their own
+    private fun updateFiles(
         dsl: DSLContext,
         noteId: Int,
         files: List<Int>,
-    ) = files.forEachIndexed { position, fileId ->
+        now: Instant,
+    ) {
+        val links =
+            dsl
+                .selectFrom(NOTES_FILES)
+                .where(NOTES_FILES.NOTE_ID.eq(noteId), NOTES_FILES.DELETED_AT.isNull)
+                .fetch()
+                .associateBy { it.fileId!! }
+        deleteFiles(dsl, NOTES_FILES.ID.`in`(links.filterKeys { it !in files }.values.map { it.id }), now)
+        files.forEachIndexed { position, fileId ->
+            val link = links[fileId]
+            if (link == null) {
+                insertFile(dsl, noteId, fileId, position, now)
+            } else if (link.position != position) {
+                dsl
+                    .update(NOTES_FILES)
+                    .set(NOTES_FILES.POSITION, position)
+                    .set(NOTES_FILES.UPDATED_AT, now.utc())
+                    .where(NOTES_FILES.ID.eq(link.id))
+                    .execute()
+            }
+        }
+    }
+
+    private fun insertFile(
+        dsl: DSLContext,
+        noteId: Int,
+        fileId: Int,
+        position: Int,
+        now: Instant,
+    ) {
         dsl
             .insertInto(NOTES_FILES)
             .set(NOTES_FILES.NOTE_ID, noteId)
-            .set(NOTES_FILES.POSITION, position)
             .set(NOTES_FILES.FILE_ID, fileId)
+            .set(NOTES_FILES.POSITION, position)
+            .set(NOTES_FILES.ACTIVE, ACTIVE)
+            .set(NOTES_FILES.CREATED_AT, now.utc())
+            .set(NOTES_FILES.UPDATED_AT, now.utc())
+            .execute()
+    }
+
+    // the links that are not deleted yet among the ones of the condition
+    private fun deleteFiles(
+        dsl: DSLContext,
+        condition: Condition,
+        now: Instant,
+    ) {
+        dsl
+            .update(NOTES_FILES)
+            .set(NOTES_FILES.ACTIVE, null as Int?)
+            .set(NOTES_FILES.UPDATED_AT, now.utc())
+            .set(NOTES_FILES.DELETED_AT, now.utc())
+            .where(condition, NOTES_FILES.DELETED_AT.isNull)
             .execute()
     }
 
@@ -181,7 +237,7 @@ class NoteRepository(
     ): Map<Int, List<Int>> =
         dsl
             .selectFrom(NOTES_FILES)
-            .where(NOTES_FILES.NOTE_ID.`in`(noteIds))
+            .where(NOTES_FILES.NOTE_ID.`in`(noteIds), NOTES_FILES.DELETED_AT.isNull)
             .orderBy(NOTES_FILES.NOTE_ID, NOTES_FILES.POSITION)
             .fetch()
             .groupBy({ it.noteId!! }, { it.fileId!! })
@@ -213,4 +269,8 @@ class NoteRepository(
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
             updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
         )
+
+    companion object {
+        private const val ACTIVE = 1
+    }
 }
