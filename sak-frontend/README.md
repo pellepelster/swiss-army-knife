@@ -58,7 +58,9 @@ show their app icon), the other pages show the swiss army knife (`FaviconService
 
 ## Static hosting (`/static-hosting`)
 
-The buckets of the backend's s3 api, from which caddy serves websites at their domains: the list
+The buckets of the backend's s3 api, from which caddy serves websites at their domains and at
+`<bucket>.<root_domain>` (it needs a wildcard DNS record `*.<root_domain>` pointing at the server);
+bucket names are lower case letters, digits and hyphens, a valid label of a domain. The list
 of buckets with their objects and size, a page to create a bucket with its domains, a bucket's page
 with its overview and its configuration (the domains) and credentials (the s3 endpoint and the key
 pair that may access this bucket only, shown on request) and publishing (the deployment target of a

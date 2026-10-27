@@ -3,7 +3,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { formatBytes, formatCount } from '../shared/format';
-import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
+import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
 
 // the buckets with their domains, objects and size; the numbers are counted in the background,
 // the list asks again while a bucket is still being counted
@@ -91,7 +91,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
                 }
               </span>
               <span class="domains mono">{{
-                bucket.domains.join(', ') || 'not served at a domain'
+                served(bucket).join(', ') || 'not served at a domain'
               }}</span>
             </a>
           </li>
@@ -113,6 +113,7 @@ export class BucketList {
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
+  protected readonly served = servedDomains;
 
   private readonly subscriptions = new Subscription();
 

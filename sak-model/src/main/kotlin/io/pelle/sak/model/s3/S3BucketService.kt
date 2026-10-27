@@ -15,6 +15,9 @@ sealed interface CreateBucketResult {
 
     data object NameTaken : CreateBucketResult
 
+    // <name>.<root_domain> is a domain of another bucket, a redirect or the controller
+    data object SubdomainTaken : CreateBucketResult
+
     // no valid domain, or one the controller serves itself or redirects
     data object InvalidDomain : CreateBucketResult
 
@@ -35,10 +38,12 @@ sealed interface UpdateDomainsResult {
 }
 
 // the buckets of the s3 api, the key pair of each and the domains they are served at, the only
-// way to them; listeners hear of every change of the domains
+// way to them; listeners hear of every change of the domains. Every bucket is also served at
+// <name>.<root_domain> when the root domain is given
 class S3BucketService internal constructor(
     private val repository: S3BucketRepository,
     private val clock: Clock,
+    private val rootDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
     private val reservedNames: Set<String>,
     // domains no bucket can be served at, e.g. the console's or redirected ones
@@ -47,9 +52,10 @@ class S3BucketService internal constructor(
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
+        rootDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         reservedDomains: () -> Set<String> = { emptySet() },
-    ) : this(S3BucketRepository(database), clock, reservedNames, reservedDomains)
+    ) : this(S3BucketRepository(database), clock, rootDomain, reservedNames, reservedDomains)
 
     private val random = SecureRandom()
 
@@ -65,7 +71,21 @@ class S3BucketService internal constructor(
 
     fun byAccessKeyId(accessKeyId: String): S3Bucket? = repository.byAccessKeyId(accessKeyId)
 
-    fun bucketOfDomain(domain: String): String? = repository.bucketOfDomain(domain.lowercase())
+    // the bucket served at the domain, one of its own or its subdomain of the root domain
+    fun bucketOfDomain(domain: String): String? {
+        val normalized = domain.lowercase()
+        return repository.bucketOfDomain(normalized)
+            ?: rootDomain
+                ?.let { normalized.removeSuffix(".$it").takeIf { name -> name != normalized } }
+                ?.takeIf { isValidName(it) && repository.byName(it) != null }
+    }
+
+    // <name>.<root_domain>, none without a root domain or for a name from before only letters,
+    // digits and hyphens were allowed
+    fun subdomain(name: String): String? = rootDomain?.let { "$name.$it" }?.takeIf { isValidName(name) }
+
+    // the domains of the bucket, then its subdomain of the root domain
+    fun servedDomains(bucket: S3Bucket): List<String> = (bucket.domains + listOfNotNull(subdomain(bucket.name))).distinct()
 
     // a bucket with a new key pair for it alone, served at the domains
     fun create(
@@ -78,6 +98,9 @@ class S3BucketService internal constructor(
         if (repository.byName(name) != null) {
             return CreateBucketResult.NameTaken
         }
+        if (subdomain(name)?.let { it in reservedDomains() || repository.bucketOfDomain(it) != null } == true) {
+            return CreateBucketResult.SubdomainTaken
+        }
         val normalized =
             when (val checked = checkDomains(name, domains)) {
                 DomainCheck.Invalid -> return CreateBucketResult.InvalidDomain
@@ -88,7 +111,7 @@ class S3BucketService internal constructor(
         if (!repository.insert(bucket)) {
             return CreateBucketResult.NameTaken
         }
-        if (normalized.isNotEmpty()) changed()
+        if (servedDomains(bucket).isNotEmpty()) changed()
         return CreateBucketResult.Created(bucket)
     }
 
@@ -121,7 +144,8 @@ class S3BucketService internal constructor(
         data object Taken : DomainCheck
     }
 
-    // lower case, without duplicates, none reserved or served for another bucket
+    // lower case, without duplicates, none reserved or served for another bucket, its subdomain
+    // of the root domain included
     private fun checkDomains(
         name: String,
         domains: List<String>,
@@ -131,7 +155,7 @@ class S3BucketService internal constructor(
         if (normalized.any { !isValidDomain(it) || it in reserved }) {
             return DomainCheck.Invalid
         }
-        if (normalized.any { domain -> repository.bucketOfDomain(domain).let { it != null && it != name } }) {
+        if (normalized.any { domain -> bucketOfDomain(domain).let { it != null && it != name } }) {
             return DomainCheck.Taken
         }
         return DomainCheck.Valid(normalized)
@@ -149,12 +173,10 @@ class S3BucketService internal constructor(
 
         private const val SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
-        // the s3 bucket naming rules: 3 to 63 lower case letters, digits, dots and hyphens,
-        // starting and ending with a letter or digit, no ip address
-        private val NAME = Regex("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
+        // 3 to 63 lower case letters, digits and hyphens, starting and ending with a letter or
+        // digit: a valid s3 bucket name and a valid label of a domain, the bucket's subdomain
+        private val NAME = Regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
 
-        private val IP_ADDRESS = Regex("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
-
-        fun isValidName(name: String) = NAME.matches(name) && !name.contains("..") && !IP_ADDRESS.matches(name)
+        fun isValidName(name: String) = NAME.matches(name)
     }
 }

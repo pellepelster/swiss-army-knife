@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { Bucket, BucketsService } from '../hosting/buckets.service';
+import { Bucket, BucketsService, servedDomains } from '../hosting/buckets.service';
 import { errorMessages } from '../shared/api';
 import { DOMAIN_PATTERN } from '../shared/domains';
 import { RedirectsService, RedirectTarget } from './redirects.service';
@@ -110,7 +110,7 @@ type TargetType = RedirectTarget['type'];
           >
             <option value="" disabled [selected]="bucket() === ''">Choose a bucket</option>
             @for (served of servedBuckets(); track served.name) {
-              <option [value]="served.name">{{ served.name }} ({{ served.domains[0] }})</option>
+              <option [value]="served.name">{{ served.name }} ({{ domains(served)[0] }})</option>
             }
           </select>
           <span class="hint"
@@ -144,6 +144,7 @@ export class RedirectCreate {
   protected readonly domain = signal('');
   protected readonly bucket = signal('');
   protected readonly servedBuckets = signal<Bucket[]>([]);
+  protected readonly domains = servedDomains;
   protected readonly creating = signal(false);
   protected readonly createError = signal<string | null>(null);
 
@@ -163,7 +164,7 @@ export class RedirectCreate {
         .buckets()
         .subscribe({
           next: (buckets) =>
-            this.servedBuckets.set(buckets.filter((bucket) => bucket.domains.length > 0)),
+            this.servedBuckets.set(buckets.filter((bucket) => servedDomains(bucket).length > 0)),
           error: () => this.servedBuckets.set([]),
         }),
     );

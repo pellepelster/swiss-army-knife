@@ -77,7 +77,7 @@ class RedirectService internal constructor(
     fun location(target: RedirectTarget): String? =
         when (target) {
             is RedirectTarget.Domain -> target.domain
-            is RedirectTarget.Bucket -> buckets.byName(target.bucket)?.domains?.firstOrNull()
+            is RedirectTarget.Bucket -> buckets.byName(target.bucket)?.let { buckets.servedDomains(it).firstOrNull() }
         }
 
     fun create(
@@ -97,7 +97,7 @@ class RedirectService internal constructor(
                 }
                 is RedirectTarget.Bucket -> {
                     val bucket = buckets.byName(target.bucket) ?: return CreateRedirectResult.UnknownBucket
-                    if (bucket.domains.isEmpty()) return CreateRedirectResult.BucketNotServed
+                    if (buckets.servedDomains(bucket).isEmpty()) return CreateRedirectResult.BucketNotServed
                     target
                 }
             }

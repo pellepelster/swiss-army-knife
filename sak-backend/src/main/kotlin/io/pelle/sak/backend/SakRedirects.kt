@@ -38,7 +38,7 @@ private val logger = KotlinLogging.logger {}
 fun reservedDomains(config: SakConfig): Set<String> = setOf(s3Host(config), config.appsHost)
 
 // the domains every bucket is served at
-fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to it.domains }
+fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }
 
 // every redirected domain with the domain it leads to; a bucket no longer served at a domain
 // leads nowhere, its redirect is left out

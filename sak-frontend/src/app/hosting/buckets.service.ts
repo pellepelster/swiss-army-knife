@@ -17,6 +17,9 @@ export interface BucketStatistics {
 export interface Bucket {
   name: string;
   domains: string[];
+  // <name>.<root_domain>, the bucket is served there as well; missing for names with dots,
+  // which were allowed before
+  subdomain?: string;
   createdAt: string;
   statistics: BucketStatistics;
 }
@@ -26,8 +29,14 @@ export interface BucketSecret {
   secretAccessKey: string;
 }
 
-// the names the backend accepts, it also rejects ip addresses and the names of its own sites
-export const BUCKET_NAME_PATTERN = /^(?!.*\.\.)[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+// the names the backend accepts, each is the label of the bucket's subdomain; it also rejects
+// the names of its own sites and the ones whose subdomain is served already
+export const BUCKET_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+
+// the domains the bucket is served at, its own ones first, redirects lead to the first one
+export function servedDomains(bucket: Bucket): string[] {
+  return [...new Set([...bucket.domains, ...(bucket.subdomain ? [bucket.subdomain] : [])])];
+}
 
 // how long to wait before asking again while a bucket is still being counted
 export const POLL_INTERVAL_MS = 3000;

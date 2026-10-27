@@ -30,31 +30,63 @@ class S3BucketServiceTest {
 
     @Test
     fun `creates buckets with a key pair of their own`() {
-        val first = service.create("pelle.io").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val first = service.create("pelle-io").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
         val second = service.create("backups").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
 
-        first.name shouldBe "pelle.io"
+        first.name shouldBe "pelle-io"
         first.createdAt shouldBe clock.instant()
         first.accessKeyId.length shouldBe 20
         first.secretAccessKey.length shouldBe 40
         first.accessKeyId shouldNotBe second.accessKeyId
         first.secretAccessKey shouldNotBe second.secretAccessKey
 
-        service.all().map { it.name } shouldBe listOf("backups", "pelle.io")
-        service.byName("pelle.io") shouldBe first
+        service.all().map { it.name } shouldBe listOf("backups", "pelle-io")
+        service.byName("pelle-io") shouldBe first
         service.byAccessKeyId(second.accessKeyId) shouldBe second
         service.byName("unknown") shouldBe null
     }
 
     @Test
     fun `rejects taken, invalid and reserved names`() {
-        service.create("pelle.io").shouldBeInstanceOf<CreateBucketResult.Created>()
+        service.create("pelle-io").shouldBeInstanceOf<CreateBucketResult.Created>()
 
-        service.create("pelle.io") shouldBe CreateBucketResult.NameTaken
-        for (name in listOf("ab", "Upper", "-start", "end-", "a..b", "192.168.0.1", "a".repeat(64), "under_score", "console")) {
+        service.create("pelle-io") shouldBe CreateBucketResult.NameTaken
+        for (name in listOf("ab", "Upper", "-start", "end-", "dot.ted", "a..b", "192.168.0.1", "a".repeat(64), "under_score", "console")) {
             service.create(name) shouldBe CreateBucketResult.InvalidName
         }
-        service.all().map { it.name } shouldBe listOf("pelle.io")
+        service.all().map { it.name } shouldBe listOf("pelle-io")
+    }
+
+    @Test
+    fun `serves every bucket at its subdomain of the root domain as well`() {
+        val buckets =
+            S3BucketService(
+                SakDatabase.open(tempDir.resolve("root.db")),
+                clock,
+                rootDomain = "example.org",
+                reservedNames = setOf("apps"),
+                reservedDomains = { setOf("apps.example.org", "redirected.example.org") },
+            )
+        val site = buckets.create("site", listOf("example.com")).shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val private = buckets.create("private").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+
+        buckets.subdomain("site") shouldBe "site.example.org"
+        buckets.servedDomains(site) shouldBe listOf("example.com", "site.example.org")
+        buckets.servedDomains(private) shouldBe listOf("private.example.org")
+        buckets.bucketOfDomain("Private.Example.org") shouldBe "private"
+        buckets.bucketOfDomain("unknown.example.org") shouldBe null
+        buckets.bucketOfDomain("www.private.example.org") shouldBe null
+
+        // the subdomain of another bucket is taken, the own one is no other domain
+        buckets.updateDomains("site", listOf("private.example.org")) shouldBe UpdateDomainsResult.DomainTaken
+        buckets.updateDomains("site", listOf("site.example.org")).shouldBeInstanceOf<UpdateDomainsResult.Updated>()
+        buckets.servedDomains(buckets.byName("site")!!) shouldBe listOf("site.example.org")
+
+        // no name whose subdomain is served already, apps.<root_domain> is the frontend's
+        buckets.create("apps") shouldBe CreateBucketResult.InvalidName
+        buckets.create("redirected") shouldBe CreateBucketResult.SubdomainTaken
+        buckets.create("other", listOf("taken.example.org")).shouldBeInstanceOf<CreateBucketResult.Created>()
+        buckets.create("taken") shouldBe CreateBucketResult.SubdomainTaken
     }
 
     @Test

@@ -57,6 +57,9 @@ private val logger = KotlinLogging.logger {}
 data class BucketResponse(
     val name: String,
     val domains: List<String>,
+    // <name>.<root_domain>, the bucket is served there as well; missing for a name with dots,
+    // which were allowed before
+    val subdomain: String? = null,
     val createdAt: String,
     val statistics: BucketStatisticsResponse,
 )
@@ -74,9 +77,11 @@ data class UpdateDomainsRequest(
 
 // why a bucket could not be created or its domains not changed
 private const val INVALID_NAME =
-    "The name must have 3 to 63 lower case letters, digits, dots and hyphens, start and end with a letter or digit, " +
+    "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, " +
         "and must not be reserved for the console."
 private const val NAME_TAKEN = "A bucket of the name exists."
+private const val SUBDOMAIN_TAKEN =
+    "The subdomain of the name is already a domain of another bucket, a redirect or the console."
 private const val INVALID_DOMAIN = "Every domain must be valid and neither one the console serves nor a redirected one."
 private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
 
@@ -205,6 +210,7 @@ fun Route.buckets(
         BucketResponse(
             name,
             domains,
+            bucketService.subdomain(name),
             createdAt.toString(),
             statistics.response(name),
         )
@@ -241,13 +247,15 @@ fun Route.buckets(
             CreateBucketResult.InvalidName -> call.respondErrors(INVALID_NAME)
             CreateBucketResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)
             CreateBucketResult.NameTaken -> call.respondErrors(NAME_TAKEN, status = HttpStatusCode.Conflict)
+            CreateBucketResult.SubdomainTaken -> call.respondErrors(SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
             CreateBucketResult.DomainTaken -> call.respondErrors(DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
         summary = "Create a bucket"
         description =
-            "Creates the bucket with a key pair that may access this bucket only, served at the domains in their order. " +
+            "Creates the bucket with a key pair that may access this bucket only, served at the domains in their order " +
+            "and at <name>.<root_domain>. " +
             "The name can not be changed later."
         requestBody {
             required = true
@@ -263,7 +271,10 @@ fun Route.buckets(
                 "No valid bucket name or one reserved for the controller's sites, a domain that is not valid or one the " +
                     "controller serves or redirects, or a malformed request",
             )
-            errors(HttpStatusCode.Conflict, "A bucket of the name exists, or another bucket is served at one of the domains")
+            errors(
+                HttpStatusCode.Conflict,
+                "A bucket of the name exists, <name>.<root_domain> is already served, or another bucket is served at one of the domains",
+            )
         }
     }
 

@@ -17,9 +17,15 @@ const counted = (objects: number, bytes: number) => ({
   computedAt: '2026-10-27T08:00:00Z',
 });
 
-const bucket = (name: string, domains: string[], statistics: object = counted(12, 2_500_000)) => ({
+const bucket = (
+  name: string,
+  domains: string[],
+  statistics: object = counted(12, 2_500_000),
+  subdomain?: string,
+) => ({
   name,
   domains,
+  subdomain,
   createdAt: CREATED,
   statistics,
 });
@@ -117,9 +123,11 @@ describe('Hosting', () => {
     await open('/static-hosting/create');
     expect(page().querySelector('[role=dialog]')).toBeNull();
 
-    await type('#bucket-name', 'No_Bucket');
-    expect(button('Create bucket').disabled).toBe(true);
-    expect(page().querySelector('#bucket-name')?.getAttribute('aria-invalid')).toBe('true');
+    for (const name of ['No_Bucket', 'under_score', 'dot.ted']) {
+      await type('#bucket-name', name);
+      expect(button('Create bucket').disabled).toBe(true);
+      expect(page().querySelector('#bucket-name')?.getAttribute('aria-invalid')).toBe('true');
+    }
     await type('#bucket-name', 'my-site');
     expect(button('Create bucket').disabled).toBe(false);
 
@@ -303,6 +311,18 @@ describe('Hosting', () => {
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', []));
     await harness.fixture.whenStable();
     expect(text('domains')).toContain('not served yet');
+  });
+
+  it('lists the subdomain of a bucket after its domains', async () => {
+    await open('/static-hosting/site');
+    http
+      .expectOne('/api/v1/static-hosting/site')
+      .flush(bucket('site', ['example.org'], counted(1, 1), 'site.pelle.io'));
+    await harness.fixture.whenStable();
+    const addresses = [...page().querySelectorAll('[data-testid=domains] li')].map((item) =>
+      item.textContent?.trim(),
+    );
+    expect(addresses).toEqual(['https://example.org/', 'https://site.pelle.io/']);
   });
 
   it('takes the endpoint from the host of the apps', () => {

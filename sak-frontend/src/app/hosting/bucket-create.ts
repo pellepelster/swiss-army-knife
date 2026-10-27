@@ -35,8 +35,8 @@ import { DomainList } from './domain-list';
           (input)="name.set($any($event.target).value)"
         />
         <span class="hint" id="bucket-name-hint">
-          3 to 63 lowercase letters, digits, dots and hyphens, starting and ending with a letter or
-          digit. The name can not be changed later.
+          3 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+          The bucket is also served at its name as subdomain. The name can not be changed later.
         </span>
       </div>
 

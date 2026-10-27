@@ -79,6 +79,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val bucketService =
         S3BucketService(
             database,
+            rootDomain = config.rootDomain,
             reservedNames = RESERVED_SITES,
             reservedDomains = { reservedDomains(config) + redirectService.sourceDomains() },
         )

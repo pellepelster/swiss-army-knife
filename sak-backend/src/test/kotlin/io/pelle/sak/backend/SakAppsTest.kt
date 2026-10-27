@@ -290,13 +290,18 @@ class SakAppsTest {
             created.json().string("name") shouldBe "created"
             post(port, "/api/v1/static-hosting", """{"name":"created"}""", session).statusCode() shouldBe 409
             post(port, "/api/v1/static-hosting", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"under_score"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"dot.ted"}""", session).statusCode() shouldBe 400
+            // s3.<root_domain> and apps.<root_domain> are the controller's own
+            post(port, "/api/v1/static-hosting", """{"name":"s3"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"apps"}""", session).statusCode() shouldBe 400
 
             // neither the list nor the bucket carry its keys
             val list = get(port, "/api/v1/static-hosting", session).body()
             val bucket = get(port, "/api/v1/static-hosting/created", session)
             bucket.statusCode() shouldBe 200
-            bucket.json().keys shouldBe setOf("name", "domains", "createdAt", "statistics")
+            bucket.json().keys shouldBe setOf("name", "domains", "subdomain", "createdAt", "statistics")
+            bucket.json().string("subdomain") shouldBe "created.example.org"
             get(port, "/api/v1/static-hosting/unknown", session).statusCode() shouldBe 404
 
             get(port, "/api/v1/static-hosting/created/secret").statusCode() shouldBe 401
@@ -361,19 +366,24 @@ class SakAppsTest {
             create("""{"sourceDomain":"site.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"ftp","host":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"unknown"}}""").statusCode() shouldBe 422
-            create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"bucket1"}}""").statusCode() shouldBe 422
+            // a bucket without domains of its own leads to its subdomain, which is no source
+            create("""{"sourceDomain":"bucket1.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
+            create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"bucket1"}}""").let {
+                it.statusCode() shouldBe 201
+                it.json().string("location") shouldBe "bucket1.example.org"
+            }
 
             val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
-            redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.com", "example.de")
+            redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.at", "example.com", "example.de")
             // the redirected domains are the domains of the redirect site, the root domain leads to sak-frontend
             Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
                 .single { it.jsonObject.string("id") == "redirect" }
                 .jsonObject.getValue("domains").jsonArray.map { it.jsonPrimitive.content } shouldBe
-                listOf("example.com", "example.de", "example.org")
+                listOf("example.at", "example.com", "example.de", "example.org")
 
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
-            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("pagination").jsonObject.string("total") shouldBe "1"
+            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("pagination").jsonObject.string("total") shouldBe "2"
         }
     }
 
