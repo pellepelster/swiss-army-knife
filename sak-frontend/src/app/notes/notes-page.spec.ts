@@ -287,6 +287,27 @@ describe('NotesPage', () => {
     expect(texts()[2]).toBe('Buy milk\n\non the way home');
   });
 
+  it('lets a recording the browser did not play be played again', async () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockRejectedValueOnce(new DOMException('not allowed', 'NotAllowedError'))
+      .mockResolvedValue();
+    const note = notes()[2];
+    await flushThumbnails();
+
+    button('Play Recording 1', note).click();
+    http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
+    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalled(), { timeout: 1000 });
+    await fixture.whenStable();
+    expect(note.querySelector('.recording')?.getAttribute('aria-pressed')).toBe('false');
+
+    button('Play Recording 1', note).click();
+    http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
+    await vi.waitFor(() => expect(play).toHaveBeenCalledTimes(2), { timeout: 1000 });
+    await fixture.whenStable();
+    expect(note.querySelector('.recording')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   const overlay = () => page.querySelector<HTMLElement>('.recording-overlay');
 
   it('records for a note with the microphone in its footer until the overlay stops it', async () => {
