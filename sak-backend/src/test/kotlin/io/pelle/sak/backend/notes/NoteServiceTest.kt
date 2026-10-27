@@ -124,6 +124,9 @@ class NoteServiceTest {
 
         service.update(PELLE, note.id, "", "blue", listOf("")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_LABEL))
         service.update(PELLE, 4711, "", "blue") shouldBe SaveNoteResult.NotFound
+        // a note that is not there creates no label
+        service.update(PELLE, 4711, "", "blue", listOf("ghost")) shouldBe SaveNoteResult.NotFound
+        labels.byName("ghost") shouldBe null
     }
 
     @Test

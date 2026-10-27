@@ -136,6 +136,8 @@ class NoteService(
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
     ): SaveNoteResult {
+        // before the check, which creates the labels not known yet: a note that is not there, or
+        // another owner's, creates none
         repository.byId(owner, id) ?: return SaveNoteResult.NotFound
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
