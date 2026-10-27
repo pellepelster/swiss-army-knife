@@ -1,0 +1,22 @@
+// on a phone the buttons to start a note float at the bottom right, in reach of the thumb; above
+// the post-its and the sticky toolbar (sticky-top), below the recording overlay
+.note-fabs {
+  z-index: 1030;
+}
+
+.note-fab {
+  width: 3.5rem;
+  aspect-ratio: 1;
+}
+
+.note-fab-small {
+  width: 2.75rem;
+  aspect-ratio: 1;
+}
+
+// room below the last post-it, so the floating buttons cover none of it
+@media (max-width: 767.98px) {
+  :host {
+    padding-bottom: 11rem;
+  }
+}

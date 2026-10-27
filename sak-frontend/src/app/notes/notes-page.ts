@@ -18,7 +18,8 @@ import { RecordingOverlay } from './recording-overlay';
 @Component({
   selector: 'app-notes-page',
   imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink],
-  host: { class: 'd-block container-xl pb-5' },
+  styleUrl: './notes-page.scss',
+  host: { class: 'd-block container-xl pb-md-5' },
   template: `
     <header class="toolbar d-flex flex-wrap align-items-center gap-2 py-3 sticky-top bg-body">
       <a
@@ -40,7 +41,7 @@ import { RecordingOverlay } from './recording-overlay';
       />
       <button
         type="button"
-        class="btn btn-outline-secondary"
+        class="btn btn-outline-secondary d-none d-md-inline-block"
         aria-label="New note with a photo"
         title="New note with a photo"
         [disabled]="addingPhoto()"
@@ -54,7 +55,7 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
       <button
         type="button"
-        class="btn btn-outline-secondary"
+        class="btn btn-outline-secondary d-none d-md-inline-block"
         aria-label="New note with a recording"
         title="New note with a recording"
         [disabled]="store.recordingFor() !== null"
@@ -64,7 +65,7 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-primary d-none d-md-inline-block"
         aria-label="New note"
         title="New note"
         (click)="add()"
@@ -134,6 +135,44 @@ import { RecordingOverlay } from './recording-overlay';
       [pagination]="store.pagination()"
       (offsetChange)="goTo($event)"
     />
+
+    <div
+      class="note-fabs d-md-none position-fixed bottom-0 end-0 m-3 d-flex flex-column align-items-center gap-2"
+    >
+      <button
+        type="button"
+        class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
+        aria-label="New note with a photo"
+        title="New note with a photo"
+        [disabled]="addingPhoto()"
+        (click)="camera.click()"
+      >
+        @if (addingPhoto()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-camera" aria-hidden="true"></i>
+        }
+      </button>
+      <button
+        type="button"
+        class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
+        aria-label="New note with a recording"
+        title="New note with a recording"
+        [disabled]="store.recordingFor() !== null"
+        (click)="record()"
+      >
+        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="note-fab btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0 fs-4"
+        aria-label="New note"
+        title="New note"
+        (click)="add()"
+      >
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      </button>
+    </div>
 
     <app-recording-overlay />
   `,
