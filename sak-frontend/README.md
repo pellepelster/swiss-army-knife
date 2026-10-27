@@ -19,6 +19,9 @@ it (`POST /api/v1/files/<sha256>/discover/text`, a vision model at OpenRouter) a
 the text of the note. The page works on phones (one column,
 larger hit targets) and on desktops (a wall of post-its).
 
+Every app shows its own favicon: a route names it in its data (`data: { favicon }`, the notes
+show their app icon), the other pages show the swiss army knife (`FaviconService`).
+
 ## Installing the notes as an app
 
 The notes can be installed as an app, on Android e.g. into the app drawer: the app list offers

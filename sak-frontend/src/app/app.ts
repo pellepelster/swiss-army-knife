@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { FaviconService } from './favicon.service';
 import { InstallService } from './install.service';
 
 @Component({
@@ -10,4 +11,6 @@ import { InstallService } from './install.service';
 export class App {
   // listens from the start, the browser tells once whether the app can be installed
   private readonly install = inject(InstallService);
+  // follows the navigation from the start, every page shows its favicon
+  private readonly favicon = inject(FaviconService);
 }
