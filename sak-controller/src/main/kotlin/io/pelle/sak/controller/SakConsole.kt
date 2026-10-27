@@ -92,7 +92,7 @@ fun Application.console(
                             val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                             sites(consoleSites, SiteMetricsService(victoriaLogs), SiteLogs(victoriaLogs))
                         }
-                        route("/s3/buckets") {
+                        route("/buckets") {
                             install(RequireRole) { role = Role.ADMIN }
                             buckets({ buckets(config) }, statistics)
                         }

@@ -175,20 +175,18 @@ class SakConsoleTest {
     }
 
     @Test
-    fun `serves the buckets and their statistics, which writes through the s3 api renew`() {
+    fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
         withServer { port ->
             val session = signIn(port)
-            get(port, "/api/v1/s3/buckets").statusCode() shouldBe 401
-
-            val buckets = Json.parseToJsonElement(get(port, "/api/v1/s3/buckets", session).body()).jsonArray
-            buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
+            get(port, "/api/v1/buckets").statusCode() shouldBe 401
 
             fun statistics(): JsonObject {
                 // counted in the background, asked again while it is
                 repeat(50) {
-                    val response = get(port, "/api/v1/s3/buckets/bucket1/statistics", session)
-                    if (response.statusCode() == 200) return response.json()
-                    response.statusCode() shouldBe 202
+                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/buckets", session).body()).jsonArray
+                    buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
+                    val statistics = buckets.single().jsonObject.getValue("statistics").jsonObject
+                    if (statistics.string("computing") == "false") return statistics
                     Thread.sleep(100)
                 }
                 throw AssertionError("bucket1 was not counted")
@@ -208,7 +206,6 @@ class SakConsoleTest {
                 it.string("objects") shouldBe "1"
                 it.string("bytes") shouldBe "5"
             }
-            get(port, "/api/v1/s3/buckets/unknown/statistics", session).statusCode() shouldBe 404
         }
     }
 
@@ -286,8 +283,7 @@ class SakConsoleTest {
                         "/api/v1/logs/{site}/metrics",
                         "/api/v1/logs/{site}/search",
                         "/api/v1/logs/{site}/live",
-                        "/api/v1/s3/buckets",
-                        "/api/v1/s3/buckets/{bucket}/statistics",
+                        "/api/v1/buckets",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

@@ -4,13 +4,11 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -22,6 +20,9 @@ import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
 import io.pelle.sak.s3.storage.PutResult
 import io.pelle.sak.s3.storage.S3StorageBackend
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -35,17 +36,24 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class BucketResponse(
+data class Bucket(
     val name: String,
     val domains: List<String>,
 )
 
-// objects, bytes and computedAt are missing while the bucket is still being counted
+@Serializable
+data class BucketResponse(
+    val name: String,
+    val domains: List<String>,
+    val statistics: BucketStatisticsResponse,
+)
+
+// objects, bytes and computedAt are missing while the bucket is still being counted or when it
+// could not be counted
 @Serializable
 data class BucketStatisticsResponse(
-    val bucket: String,
     val computing: Boolean,
+    val failed: Boolean = false,
     val objects: Long? = null,
     val bytes: Long? = null,
     val computedAt: String? = null,
@@ -59,8 +67,7 @@ data class BucketStatistics(
 
 // the buckets of the controller; the one place they come from, so they can move from the
 // configuration to the database
-fun buckets(config: SakConfig): List<BucketResponse> =
-    config.s3.buckets.map { (name, bucket) -> BucketResponse(name, bucket.domains) }
+fun buckets(config: SakConfig): List<Bucket> = config.s3.buckets.map { (name, bucket) -> Bucket(name, bucket.domains) }
 
 // counting a bucket walks all of its objects, so the numbers are kept and recounted in the
 // background after a while, the old ones are served meanwhile; a write drops them
@@ -150,72 +157,45 @@ class InvalidatingS3StorageBackend(
 
 private const val S3_TAG = "s3"
 
-// the buckets and their statistics, meant to be mounted behind the console's authentication
+// the buckets with their statistics, meant to be mounted behind the console's authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(
-    buckets: () -> List<BucketResponse>,
+    buckets: () -> List<Bucket>,
     statistics: BucketStatisticsCache,
 ) {
     install(ContentNegotiation) { json() }
 
     get {
-        call.respond(buckets())
+        // counted at once, a bucket not counted within a moment is still being counted
+        val responses =
+            coroutineScope {
+                buckets()
+                    .map { bucket -> async { BucketResponse(bucket.name, bucket.domains, statistics.response(bucket.name)) } }
+                    .awaitAll()
+            }
+        call.respond(responses)
     }.describe {
         tag(S3_TAG)
-        summary = "The buckets"
+        summary = "The buckets with the number of their objects and their size"
+        description =
+            "The numbers are counted in the background and kept, recounted after " +
+            "${BucketStatisticsCache.REFRESH_AFTER.toMinutes()} minutes and after every write to a bucket; a bucket not " +
+            "counted yet is still computing, ask again."
         responses {
             HttpStatusCode.OK {
-                description = "The buckets and the domains they are served at"
+                description = "The buckets, the domains they are served at and their statistics"
                 schema = jsonSchema<List<BucketResponse>>()
             }
         }
     }
-
-    get("/{bucket}/statistics") {
-        val bucket = buckets().firstOrNull { it.name == call.parameters["bucket"] }
-        if (bucket == null) {
-            call.respond(HttpStatusCode.NotFound)
-            return@get
-        }
-
-        val counted =
-            try {
-                statistics.get(bucket.name)
-            } catch (e: Exception) {
-                logger.warn(e) { "could not count the objects of bucket '${bucket.name}'" }
-                call.respond(HttpStatusCode.ServiceUnavailable)
-                return@get
-            }
-        if (counted == null) {
-            call.response.header(HttpHeaders.RetryAfter, "3")
-            call.respond(HttpStatusCode.Accepted, BucketStatisticsResponse(bucket.name, computing = true))
-            return@get
-        }
-        call.respond(BucketStatisticsResponse(bucket.name, false, counted.objects, counted.bytes, counted.computedAt.toString()))
-    }.describe {
-        tag(S3_TAG)
-        summary = "The number of objects of a bucket and their size"
-        description =
-            "Counted in the background and kept, recounted after ${BucketStatisticsCache.REFRESH_AFTER.toMinutes()} minutes " +
-            "and after every write to the bucket."
-        parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
-        }
-        responses {
-            HttpStatusCode.OK {
-                description = "The statistics and when they were counted"
-                schema = jsonSchema<BucketStatisticsResponse>()
-            }
-            HttpStatusCode.Accepted {
-                description = "The bucket is still being counted, ask again"
-                schema = jsonSchema<BucketStatisticsResponse>()
-            }
-            HttpStatusCode.NotFound { description = "Unknown bucket" }
-            HttpStatusCode.ServiceUnavailable { description = "The bucket could not be counted" }
-        }
-    }
 }
+
+private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatisticsResponse =
+    try {
+        get(bucket)
+            ?.let { BucketStatisticsResponse(computing = false, objects = it.objects, bytes = it.bytes, computedAt = it.computedAt.toString()) }
+            ?: BucketStatisticsResponse(computing = true)
+    } catch (e: Exception) {
+        logger.warn(e) { "could not count the objects of bucket '$bucket'" }
+        BucketStatisticsResponse(computing = false, failed = true)
+    }
