@@ -88,10 +88,41 @@ describe('Hosting', () => {
   };
   const url = () => TestBed.inject(Router).url;
 
+  it('lists the buckets a page at a time, the page is kept in the address', async () => {
+    const pageAt = (offset: number, total: number, ...items: ReturnType<typeof bucket>[]) => ({
+      items,
+      pagination: { offset, limit: 50, total },
+    });
+    await open('/static-hosting');
+    http
+      .expectOne('/api/v1/static-hosting?offset=0&limit=50')
+      .flush(pageAt(0, 51, bucket('a', [])));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=range]')?.textContent?.trim()).toBe('1–50 of 51');
+
+    button('Next page').click();
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/static-hosting?offset=50');
+    http
+      .expectOne('/api/v1/static-hosting?offset=50&limit=50')
+      .flush(pageAt(50, 51, bucket('z', [])));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=bucket-z]')).not.toBeNull();
+
+    // a page that is gone leads to the last one with buckets
+    await open('/static-hosting?offset=100');
+    http.expectOne('/api/v1/static-hosting?offset=100&limit=50').flush(pageAt(100, 51));
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/static-hosting?offset=50');
+    http
+      .expectOne('/api/v1/static-hosting?offset=50&limit=50')
+      .flush(pageAt(50, 51, bucket('z', [])));
+  });
+
   it('lists the buckets and asks again while one is still being counted', async () => {
     await open('/static-hosting');
     http
-      .expectOne('/api/v1/static-hosting?limit=500')
+      .expectOne('/api/v1/static-hosting?offset=0&limit=50')
       .flush(
         pageOf([
           bucket('site', ['example.org', 'www.example.org']),
@@ -111,13 +142,13 @@ describe('Hosting', () => {
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
     http
-      .expectOne('/api/v1/static-hosting?limit=500')
+      .expectOne('/api/v1/static-hosting?offset=0&limit=50')
       .flush(pageOf([bucket('site', []), bucket('backups', [])]));
   });
 
   it('tells when there are no buckets yet', async () => {
     await open('/static-hosting');
-    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=50').flush(pageOf([]));
     await harness.fixture.whenStable();
     expect(page().textContent).toContain('No buckets yet.');
   });
@@ -167,7 +198,7 @@ describe('Hosting', () => {
     button('Cancel').click();
     await harness.fixture.whenStable();
     expect(url()).toBe('/static-hosting');
-    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=50').flush(pageOf([]));
   });
 
   it('shows a bucket with its overview, its configuration first and asks again while it is counted', async () => {

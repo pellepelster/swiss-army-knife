@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
-import { MAX_LIMIT, Page } from '../shared/api';
+import { Observable } from 'rxjs';
+import { Page, PAGE_SIZE } from '../shared/api';
 
 // where a redirect leads to, told apart by its type
 export type RedirectTarget =
@@ -22,11 +22,11 @@ export interface Redirect {
 export class RedirectsService {
   private readonly http = inject(HttpClient);
 
-  // all of them, there are far less than a page of them
-  redirects(): Observable<Redirect[]> {
-    return this.http
-      .get<Page<Redirect>>('/api/v1/redirects', { params: { limit: MAX_LIMIT } })
-      .pipe(map((page) => page.items));
+  // the page of the redirects starting at the offset
+  page(offset: number): Observable<Page<Redirect>> {
+    return this.http.get<Page<Redirect>>('/api/v1/redirects', {
+      params: { offset, limit: PAGE_SIZE },
+    });
   }
 
   redirect(sourceDomain: string): Observable<Redirect> {

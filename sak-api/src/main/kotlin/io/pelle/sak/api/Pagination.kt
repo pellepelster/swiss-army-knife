@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 const val DEFAULT_LIMIT = 50
 
-const val MAX_LIMIT = 500
+const val MAX_LIMIT = 100
 
 // where a page starts in the whole list, how many items it has at most and how many there are
 @Serializable

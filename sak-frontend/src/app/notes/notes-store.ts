@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
@@ -32,14 +33,6 @@ interface NoteResponse {
   createdAt: string;
   updatedAt: string;
 }
-
-interface Page<T> {
-  items: T[];
-  pagination: { offset: number; limit: number; total: number };
-}
-
-// the most a page has, the notes and labels are asked for in one
-const MAX_LIMIT = 500;
 
 // the most labels a note has, the backend takes no more
 export const MAX_LABELS = 10;
@@ -76,8 +69,14 @@ export class NotesStore {
 
   private loadingNotes?: Subscription;
 
-  // the newest first
+  // the page and label loaded last, e.g. `0|work`
+  private loadedQuery: string | null = null;
+
+  // the page of the notes loaded last, the newest first
   readonly notes = this.all.asReadonly();
+
+  // where the page is in all the notes (of the label), null until it is loaded
+  readonly pagination = signal<Pagination | null>(null);
 
   readonly loading = signal(false);
 
@@ -110,25 +109,35 @@ export class NotesStore {
     });
   }
 
-  // a loading not answered yet is cancelled; the notes loaded take the place of the ones here,
-  // except the ones changed here that the backend may not know of yet
-  load(): void {
+  // the page of the notes starting at the offset, of the label or of all; a loading not answered
+  // yet is cancelled. The notes loaded take the place of the ones here, except the ones changed
+  // here that the backend may not know of yet; one of them that is not on the page loaded stays
+  // only when the same page is loaded again
+  load(offset = 0, label: string | null = null): void {
     this.loadingNotes?.unsubscribe();
     this.error.set(null);
     this.loading.set(true);
     this.changedWhileLoading = new Set([...this.pendingText.keys(), ...this.inFlight.keys()]);
+    const query = `${offset}|${label ?? ''}`;
     this.loadingNotes = this.http
-      .get<Page<NoteResponse>>('/api/v1/notes', { params: { limit: MAX_LIMIT } })
+      .get<Page<NoteResponse>>('/api/v1/notes', {
+        params: { offset, limit: PAGE_SIZE, ...(label === null ? {} : { label }) },
+      })
       .subscribe({
         next: (page) => {
           const changed = this.changedWhileLoading ?? new Set<number>();
           this.changedWhileLoading = null;
+          const sameQuery = this.loadedQuery === query;
+          this.loadedQuery = query;
+          const loaded = page.items.map(toNote);
+          const onPage = new Set(loaded.map((note) => note.id));
           this.all.update((notes) =>
             [
-              ...page.items.map(toNote).filter((note) => !changed.has(note.id)),
-              ...notes.filter((note) => changed.has(note.id)),
+              ...loaded.filter((note) => !changed.has(note.id)),
+              ...notes.filter((note) => changed.has(note.id) && (sameQuery || onPage.has(note.id))),
             ].sort(newestFirst),
           );
+          this.pagination.set(page.pagination);
           this.loading.set(false);
         },
         error: () => {
@@ -137,13 +146,11 @@ export class NotesStore {
           this.error.set('The notes could not be loaded.');
         },
       });
-    this.http
-      .get<Page<{ name: string }>>('/api/v1/labels', { params: { limit: MAX_LIMIT } })
-      .subscribe({
-        next: (page) => this.shared.set(page.items.map((label) => label.name)),
-        // the labels are only suggestions
-        error: () => this.shared.set([]),
-      });
+    fetchAll<{ name: string }>(this.http, '/api/v1/labels').subscribe({
+      next: (labels) => this.shared.set(labels.map((label) => label.name)),
+      // the labels are only suggestions
+      error: () => this.shared.set([]),
+    });
   }
 
   // null when it could not be created
@@ -162,7 +169,9 @@ export class NotesStore {
       const note = toNote(response);
       this.changedWhileLoading?.add(note.id);
       // the notes loaded meanwhile may have it already
+      const known = this.all().some((other) => other.id === note.id);
       this.all.update((notes) => [note, ...notes.filter((other) => other.id !== note.id)]);
+      if (!known) this.countNotes(1);
       return note;
     } catch {
       this.error.set('The note could not be created.');
@@ -325,11 +334,13 @@ export class NotesStore {
     this.pendingText.delete(id);
     this.changedWhileLoading?.add(id);
     this.all.set(notes.filter((note) => note.id !== id));
+    this.countNotes(-1);
     this.startRequest(id);
     this.http.delete(`/api/v1/notes/${id}`).subscribe({
       error: () => {
         this.finishRequest(id);
         this.all.set(notes);
+        this.countNotes(1);
         this.error.set('The note could not be deleted.');
       },
       complete: () => this.finishRequest(id),
@@ -365,6 +376,13 @@ export class NotesStore {
         },
         complete: () => this.finishRequest(id),
       });
+  }
+
+  // the total of the pagination after notes were created or deleted here
+  private countNotes(change: number): void {
+    this.pagination.update((page) =>
+      page ? { ...page, total: Math.max(0, page.total + change) } : page,
+    );
   }
 
   private startRequest(id: number): void {

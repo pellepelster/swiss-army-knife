@@ -68,7 +68,7 @@ describe('Redirects', () => {
 
   it('lists the redirects with their targets and where they lead', async () => {
     await open('/redirects');
-    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toExternal, toBucket]));
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toExternal, toBucket]));
     await harness.fixture.whenStable();
 
     const external = page().querySelector('[data-testid="redirect-example.com"]')!;
@@ -81,6 +81,45 @@ describe('Redirects', () => {
     expect(button('Create redirect').getAttribute('href')).toBe('/redirects/create');
     expect(button('example.com').getAttribute('href')).toBe('/redirects/example.com');
     expect(button('Delete the redirect of example.com')).toBeUndefined();
+  });
+
+  it('lists the redirects a page at a time', async () => {
+    await open('/redirects?offset=50');
+    http
+      .expectOne('/api/v1/redirects?offset=50&limit=50')
+      .flush({ items: [toBucket], pagination: { offset: 50, limit: 50, total: 51 } });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=range]')?.textContent?.trim()).toBe('51–51 of 51');
+
+    button('Previous page').click();
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/redirects');
+    http
+      .expectOne('/api/v1/redirects?offset=0&limit=50')
+      .flush({ items: [toExternal], pagination: { offset: 0, limit: 50, total: 51 } });
+  });
+
+  it('offers every bucket served at a domain, asked for page by page', async () => {
+    await open('/redirects/create');
+    const served = (index: number) => ({
+      name: `site-${index}`,
+      domains: [`site-${index}.example.org`],
+      createdAt: CREATED,
+      statistics,
+    });
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=100').flush({
+      items: Array.from({ length: 100 }, (_, index) => served(index)),
+      pagination: { offset: 0, limit: 100, total: 101 },
+    });
+    http.expectOne('/api/v1/static-hosting?offset=100&limit=100').flush({
+      items: [served(100)],
+      pagination: { offset: 100, limit: 100, total: 101 },
+    });
+    await harness.fixture.whenStable();
+
+    page().querySelector<HTMLInputElement>('#target-bucket')!.click();
+    await harness.fixture.whenStable();
+    expect(page().querySelectorAll('#target-bucket-name option').length).toBe(102);
   });
 
   it('shows a redirect with its overview and its configuration', async () => {
@@ -118,7 +157,7 @@ describe('Redirects', () => {
       .flush(null, { status: 204, statusText: 'No Content' });
     await harness.fixture.whenStable();
     expect(url()).toBe('/redirects');
-    http.expectOne('/api/v1/redirects?limit=500').flush(pageOf([toBucket]));
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toBucket]));
   });
 
   it('changes where a redirect leads to on its edit page', async () => {
@@ -126,7 +165,7 @@ describe('Redirects', () => {
     http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
     await harness.fixture.whenStable();
     http
-      .expectOne('/api/v1/static-hosting?limit=500')
+      .expectOne('/api/v1/static-hosting?offset=0&limit=100')
       .flush(
         pageOf([{ name: 'site', domains: ['site.example.org'], createdAt: CREATED, statistics }]),
       );
@@ -164,7 +203,7 @@ describe('Redirects', () => {
 
   it('redirects a domain to an external domain on its own page', async () => {
     await open('/redirects/create');
-    http.expectOne('/api/v1/static-hosting?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=100').flush(pageOf([]));
     expect(page().querySelector('[role=dialog]')).toBeNull();
 
     await type('#source-domain', 'example.com');
@@ -186,7 +225,7 @@ describe('Redirects', () => {
 
   it('offers the buckets served at a domain and shows what the backend rejected', async () => {
     await open('/redirects/create');
-    http.expectOne('/api/v1/static-hosting?limit=500').flush(
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=100').flush(
       pageOf([
         { name: 'site', domains: ['site.example.org'], createdAt: CREATED, statistics },
         { name: 'private', domains: [], createdAt: CREATED, statistics },

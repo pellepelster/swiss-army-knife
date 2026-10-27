@@ -25,14 +25,16 @@ describe('NotesStore', () => {
     store = TestBed.inject(NotesStore);
     store.load();
     http
-      .expectOne('/api/v1/notes?limit=500')
+      .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(
         pageOf([
           noteResponse(2, 'plumber', 'pink', ['home', 'todo']),
           noteResponse(1, 'milk', 'yellow', ['shopping']),
         ]),
       );
-    http.expectOne('/api/v1/labels?limit=500').flush(pageOf([{ name: 'ideas' }, { name: 'home' }]));
+    http
+      .expectOne('/api/v1/labels?offset=0&limit=100')
+      .flush(pageOf([{ name: 'ideas' }, { name: 'home' }]));
   });
 
   afterEach(() => {
@@ -253,8 +255,10 @@ describe('NotesStore', () => {
 
   it('clears what went wrong once the next action starts', async () => {
     store.load();
-    http.expectOne('/api/v1/notes?limit=500').flush(null, { status: 500, statusText: 'Error' });
-    http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
+    http
+      .expectOne('/api/v1/notes?offset=0&limit=50')
+      .flush(null, { status: 500, statusText: 'Error' });
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
     expect(store.error()).toBe('The notes could not be loaded.');
 
     store.setColor(1, 'blue');
@@ -284,11 +288,33 @@ describe('NotesStore', () => {
     expect(store.error()).toBe('The note could not be deleted.');
   });
 
+  it('drops a note changed here once another page is loaded', () => {
+    store.setColor(1, 'blue');
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+      .flush(noteResponse(1, 'milk', 'blue', ['shopping']));
+    store.load(50);
+    store.setColor(2, 'green');
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/notes/2' })
+      .flush(noteResponse(2, 'plumber', 'green', []));
+    http
+      .expectOne('/api/v1/notes?offset=50&limit=50')
+      .flush({
+        items: [noteResponse(9, 'old', 'yellow', [])],
+        pagination: { offset: 50, limit: 50, total: 51 },
+      });
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+
+    expect(store.notes().map((note) => note.id)).toEqual([9]);
+    expect(store.pagination()).toEqual({ offset: 50, limit: 50, total: 51 });
+  });
+
   describe('when the notes are loaded again', () => {
     // the notes the backend answers, the labels are flushed too
     const answer = (...notes: ReturnType<typeof noteResponse>[]) => {
-      http.expectOne('/api/v1/notes?limit=500').flush(pageOf(notes));
-      http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
+      http.expectOne('/api/v1/notes?offset=0&limit=50').flush(pageOf(notes));
+      http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
     };
 
     it('takes the notes of the backend, the ones changed elsewhere and the new ones', () => {
@@ -371,10 +397,10 @@ describe('NotesStore', () => {
     it('cancels a loading not answered yet', () => {
       store.load();
       store.load();
-      const [first, second] = http.match('/api/v1/notes?limit=500');
+      const [first, second] = http.match('/api/v1/notes?offset=0&limit=50');
       expect(first.cancelled).toBe(true);
       second.flush(pageOf([noteResponse(1, 'milk', 'yellow', ['shopping'])]));
-      http.match('/api/v1/labels?limit=500').forEach((labels) => labels.flush(pageOf([])));
+      http.match('/api/v1/labels?offset=0&limit=100').forEach((labels) => labels.flush(pageOf([])));
 
       expect(store.notes().map((note) => note.id)).toEqual([1]);
     });

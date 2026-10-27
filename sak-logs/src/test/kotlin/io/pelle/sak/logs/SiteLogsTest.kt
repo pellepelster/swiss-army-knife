@@ -211,7 +211,7 @@ class SiteLogsTest {
             client.get("/sites/pelle.io/access-logs/search?q=a%0Ab").status shouldBe HttpStatusCode.BadRequest
             client.get("/sites/pelle.io/access-logs/search?q=x&limit=0").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"message":"limit must be a number from 1 to 500."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"message":"limit must be a number from 1 to 100."}]}"""
             }
         }
 

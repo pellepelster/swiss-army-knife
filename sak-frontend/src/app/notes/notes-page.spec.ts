@@ -20,6 +20,7 @@ describe('NotesPage', () => {
     )!;
   const notes = () => [...page.querySelectorAll<HTMLElement>('app-note-card')];
   const texts = () => notes().map((note) => note.querySelector('textarea')!.value);
+  const pagination = () => page.querySelector<HTMLElement>('.pagination');
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -40,7 +41,7 @@ describe('NotesPage', () => {
     document.body.appendChild(page);
     await fixture.whenStable();
     http
-      .expectOne('/api/v1/notes?limit=500')
+      .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(
         pageOf([
           noteResponse(3, 'Prototype the note taking app', 'blue', ['todo', 'work']),
@@ -48,7 +49,7 @@ describe('NotesPage', () => {
           noteResponse(1, 'Buy milk', 'yellow', ['shopping'], [FILE_ID], [8]),
         ]),
       );
-    http.expectOne('/api/v1/labels?limit=500').flush(pageOf([]));
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
     await fixture.whenStable();
   });
 
@@ -96,7 +97,13 @@ describe('NotesPage', () => {
     await fixture.whenStable();
     expect(input.value).toBe('');
 
+    // the notes of the label are asked for
     button('Show the notes labelled groceries').click();
+    await fixture.whenStable();
+    http
+      .expectOne('/api/v1/notes?offset=0&limit=50&label=groceries')
+      .flush(pageOf([noteResponse(1, 'Buy milk', 'yellow', ['shopping', 'groceries'])]));
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
     await fixture.whenStable();
     expect(texts()).toEqual(['Buy milk']);
 
@@ -110,7 +117,49 @@ describe('NotesPage', () => {
 
     button('All').click();
     await fixture.whenStable();
+    http
+      .expectOne('/api/v1/notes?offset=0&limit=50')
+      .flush(
+        pageOf([
+          noteResponse(4, '', 'yellow', ['groceries']),
+          noteResponse(3, 'Prototype the note taking app', 'blue', ['todo', 'work']),
+          noteResponse(2, 'Call the plumber', 'pink', ['home', 'todo']),
+          noteResponse(1, 'Buy milk', 'yellow', ['shopping', 'groceries']),
+        ]),
+      );
+    http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    await fixture.whenStable();
     expect(notes().length).toBe(4);
+    expect(button('All').textContent).toContain('4');
+  });
+
+  it('shows the notes a page at a time', async () => {
+    const page = (offset: number, ...items: ReturnType<typeof noteResponse>[]) => ({
+      items,
+      pagination: { offset, limit: 50, total: 51 },
+    });
+    const answer = async (offset: number, note: ReturnType<typeof noteResponse>) => {
+      http.expectOne(`/api/v1/notes?offset=${offset}&limit=50`).flush(page(offset, note));
+      http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+      await fixture.whenStable();
+    };
+    // the three notes fit on one page
+    expect(pagination()).toBeNull();
+
+    fixture.componentInstance['goTo'](50);
+    await fixture.whenStable();
+    await answer(50, noteResponse(1, 'last', 'yellow', []));
+    expect(texts()).toEqual(['last']);
+    expect(pagination()?.textContent).toContain('51–51 of 51');
+    expect(button('Next page').disabled).toBe(true);
+
+    button('Previous page').click();
+    await fixture.whenStable();
+    await answer(0, noteResponse(3, 'first', 'blue', []));
+    expect(texts()).toEqual(['first']);
+    expect(pagination()?.textContent).toContain('1–50 of 51');
+    expect(button('Previous page').disabled).toBe(true);
+    expect(button('All').textContent).toContain('51');
   });
 
   it('deletes a note and changes the color of another', async () => {

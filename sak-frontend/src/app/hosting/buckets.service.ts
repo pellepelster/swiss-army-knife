@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
-import { MAX_LIMIT, Page } from '../shared/api';
+import { Observable } from 'rxjs';
+import { fetchAll, Page, PAGE_SIZE } from '../shared/api';
 
 // objects, bytes and computedAt are missing while the bucket is still being counted or when it
 // could not be counted
@@ -46,11 +46,16 @@ export const POLL_INTERVAL_MS = 3000;
 export class BucketsService {
   private readonly http = inject(HttpClient);
 
-  // all of them, there are far less than a page of them
+  // the page of the buckets starting at the offset
+  page(offset: number): Observable<Page<Bucket>> {
+    return this.http.get<Page<Bucket>>('/api/v1/static-hosting', {
+      params: { offset, limit: PAGE_SIZE },
+    });
+  }
+
+  // all of them, to choose one
   buckets(): Observable<Bucket[]> {
-    return this.http
-      .get<Page<Bucket>>('/api/v1/static-hosting', { params: { limit: MAX_LIMIT } })
-      .pipe(map((page) => page.items));
+    return fetchAll<Bucket>(this.http, '/api/v1/static-hosting');
   }
 
   bucket(name: string): Observable<Bucket> {

@@ -2,20 +2,22 @@ import {
   afterNextRender,
   Component,
   computed,
+  effect,
   inject,
   Injector,
-  OnInit,
   signal,
+  untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { PaginationControl } from '../shared/pagination';
 import { NoteCard } from './note-card';
 import { Note, NotesStore } from './notes-store';
 import { RecordingOverlay } from './recording-overlay';
 
-// the notes as a wall of post-its, filtered by one label at a time
+// the notes as a wall of post-its, a page at a time, filtered by one label at a time
 @Component({
   selector: 'app-notes-page',
-  imports: [NoteCard, RecordingOverlay, RouterLink],
+  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink],
   styleUrl: './notes-page.scss',
   template: `
     <header class="toolbar">
@@ -67,11 +69,14 @@ import { RecordingOverlay } from './recording-overlay';
         type="button"
         class="filter"
         [attr.aria-pressed]="filter() === null"
-        (click)="filter.set(null)"
+        (click)="select(null)"
       >
-        All <span class="count">{{ store.notes().length }}</span>
+        All
+        @if (filter() === null && store.pagination(); as page) {
+          <span class="count">{{ page.total }}</span>
+        }
       </button>
-      @for (label of store.labels(); track label) {
+      @for (label of store.knownLabels(); track label) {
         <button
           type="button"
           class="filter"
@@ -95,11 +100,7 @@ import { RecordingOverlay } from './recording-overlay';
 
     <main class="wall">
       @for (note of shown(); track note.id) {
-        <app-note-card
-          [note]="note"
-          labelsList="known-labels"
-          (labelSelected)="filter.set($event)"
-        />
+        <app-note-card [note]="note" labelsList="known-labels" (labelSelected)="select($event)" />
       } @empty {
         <p class="empty">
           @if (store.loading()) {
@@ -113,14 +114,23 @@ import { RecordingOverlay } from './recording-overlay';
       }
     </main>
 
+    <app-pagination
+      label="Pages of the notes"
+      [pagination]="store.pagination()"
+      (offsetChange)="goTo($event)"
+    />
+
     <app-recording-overlay />
   `,
 })
-export class NotesPage implements OnInit {
+export class NotesPage {
   protected readonly store = inject(NotesStore);
   private readonly injector = inject(Injector);
 
   protected readonly filter = signal<string | null>(null);
+
+  // where the page shown starts
+  protected readonly offset = signal(0);
 
   protected readonly addingPhoto = signal(false);
 
@@ -130,12 +140,28 @@ export class NotesPage implements OnInit {
     return label === null ? notes : notes.filter((note) => note.labels.includes(label));
   });
 
-  ngOnInit(): void {
-    this.store.load();
+  constructor() {
+    effect(() => {
+      const offset = this.offset();
+      const label = this.filter();
+      untracked(() => this.store.load(offset, label));
+    });
+  }
+
+  // the notes of the label, or all of them, from their first page
+  protected select(label: string | null): void {
+    this.filter.set(label);
+    this.offset.set(0);
+  }
+
+  protected goTo(offset: number): void {
+    this.offset.set(offset);
+    document.querySelector('.toolbar')?.scrollIntoView?.();
   }
 
   // a new note gets the label shown, so it stays in sight; its text is focused right away
   protected async add(): Promise<void> {
+    this.offset.set(0);
     const label = this.filter();
     this.focus(await this.store.add('', 'yellow', label === null ? [] : [label]));
   }
@@ -145,6 +171,7 @@ export class NotesPage implements OnInit {
     const photo = input.files?.[0];
     input.value = '';
     if (!photo) return;
+    this.offset.set(0);
     const label = this.filter();
     this.addingPhoto.set(true);
     try {
@@ -156,6 +183,7 @@ export class NotesPage implements OnInit {
 
   // records a new note until the overlay stops it; the note gets the label shown
   protected async record(): Promise<void> {
+    this.offset.set(0);
     const label = this.filter();
     this.focus(await this.store.record('new', label === null ? [] : [label]));
   }
@@ -172,6 +200,6 @@ export class NotesPage implements OnInit {
   }
 
   protected toggle(label: string): void {
-    this.filter.update((current) => (current === label ? null : label));
+    this.select(this.filter() === label ? null : label);
   }
 }

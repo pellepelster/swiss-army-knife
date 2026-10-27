@@ -61,9 +61,9 @@ describe('Home', () => {
     expect(TestBed.inject(Router).url).toBe('/notes');
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe('Notes');
     const http = TestBed.inject(HttpTestingController);
-    expect(http.expectOne('/api/v1/notes?limit=500').request.headers.get('Authorization')).toBe(
-      'Bearer session-token',
-    );
+    expect(
+      http.expectOne('/api/v1/notes?offset=0&limit=50').request.headers.get('Authorization'),
+    ).toBe('Bearer session-token');
   });
 
   it('signs out', async () => {
