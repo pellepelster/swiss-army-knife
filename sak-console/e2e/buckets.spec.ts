@@ -3,7 +3,9 @@ import { FIXTURE_OBJECT } from '../playwright.config';
 import { signIn } from './console';
 import { deleteAllMails } from './mailpit';
 
-test('lists the buckets with their objects and size', async ({ page, request }) => {
+test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+test('creates a bucket, lists it with its objects and size and retrieves its credentials', async ({ page, request }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -14,12 +16,37 @@ test('lists the buckets with their objects and size', async ({ page, request }) 
   await page.getByRole('navigation', { name: 'Navigation' }).getByRole('link', { name: 'Buckets' }).click();
   await expect(page).toHaveURL('/s3');
 
-  // e2e-other holds the object playwright.config.ts put there, e2e-stats nothing
-  const other = page.getByTestId('bucket-e2e-other');
-  await expect(other.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
-  await expect(other.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
-  await expect(other).toContainText('other.example.org');
-  await expect(page.getByTestId('bucket-e2e-stats').getByTestId('objects')).toHaveText('0');
+  // e2e-other holds the object playwright.config.ts put where its data goes, before it exists
+  await page.getByLabel('Bucket name').fill('e2e-other');
+  await page.getByRole('button', { name: 'Add bucket' }).click();
+  await expect(page).toHaveURL('/s3/e2e-other');
+  await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
+  await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
+  await expect(page.getByTestId('domains')).toHaveText('other.example.org');
 
-  expect(errors).toEqual([]);
+  // the keys are fetched when asked for, the secret stays hidden until shown
+  await page.getByRole('button', { name: 'Retrieve credentials' }).click();
+  const accessKey = page.getByTestId('access-key');
+  await expect(accessKey).toHaveText(/^[A-Z2-7]{20}$/);
+  await expect(page.getByTestId('secret-key')).toHaveText(/^•+$/);
+  const credentials = page.getByRole('region', { name: 'Credentials' });
+  const accessKeyId = (await accessKey.textContent())!;
+  await credentials.getByRole('button', { name: 'Copy' }).first().click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(accessKeyId);
+  await credentials.getByRole('button', { name: 'Show' }).click();
+  await expect(page.getByTestId('secret-key')).toHaveText(/^[A-Za-z0-9+/]{40}$/);
+
+  // a taken name is reported
+  await page.getByRole('link', { name: 'S3 · Buckets' }).click();
+  await page.getByLabel('Bucket name').fill('e2e-other');
+  await page.getByRole('button', { name: 'Add bucket' }).click();
+  await expect(page.getByTestId('create-error')).toContainText('exists already');
+
+  const other = page.getByTestId('bucket-e2e-other');
+  await expect(other.getByTestId('objects')).toHaveText('1');
+  await expect(other).toContainText('other.example.org');
+  await expect(other).not.toContainText(accessKeyId);
+
+  // the 409 of the taken name is the only error the browser logs
+  expect(errors.filter((error) => !error.includes('409'))).toEqual([]);
 });

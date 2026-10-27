@@ -4,6 +4,7 @@ import { Home } from './home/home';
 import { LiveLogs } from './logs/live-logs';
 import { Login } from './login/login';
 import { Signin } from './signin/signin';
+import { BucketDetail } from './s3/bucket';
 import { Buckets } from './s3/buckets';
 import { SiteMetrics } from './sites/site-metrics';
 
@@ -31,6 +32,7 @@ export const routes: Routes = [
     title: 'Live log · sak console',
   },
   { path: 's3', component: Buckets, canActivate: [authGuard], title: 'Buckets · sak console' },
+  { path: 's3/:name', component: BucketDetail, canActivate: [authGuard], title: 'Bucket · sak console' },
   { path: 'login', component: Login, title: 'Sign in · sak console' },
   { path: 'signin', component: Signin, title: 'Signing in · sak console' },
   { path: '**', redirectTo: '' },

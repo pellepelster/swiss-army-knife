@@ -12,11 +12,21 @@ export interface BucketStatistics {
   computedAt?: string;
 }
 
+// without its keys, they are fetched on their own
 export interface Bucket {
   name: string;
   domains: string[];
+  createdAt: string;
   statistics: BucketStatistics;
 }
+
+export interface BucketSecret {
+  accessKeyId: string;
+  secretAccessKey: string;
+}
+
+// the names the controller accepts, it also rejects ip addresses and the names of its own sites
+export const BUCKET_NAME_PATTERN = /^(?!.*\.\.)[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
 
 @Injectable({ providedIn: 'root' })
 export class BucketsService {
@@ -24,5 +34,17 @@ export class BucketsService {
 
   buckets(): Observable<Bucket[]> {
     return this.http.get<Bucket[]>('/api/v1/buckets');
+  }
+
+  bucket(name: string): Observable<Bucket> {
+    return this.http.get<Bucket>(`/api/v1/buckets/${encodeURIComponent(name)}`);
+  }
+
+  create(name: string): Observable<Bucket> {
+    return this.http.post<Bucket>('/api/v1/buckets', { name });
+  }
+
+  secret(name: string): Observable<BucketSecret> {
+    return this.http.get<BucketSecret>(`/api/v1/buckets/${encodeURIComponent(name)}/secret`);
   }
 }
