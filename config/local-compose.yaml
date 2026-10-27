@@ -1,0 +1,47 @@
+# the services next to the backend of `mise run backend:run` (`mise run env:run`), as the
+# controller role deploys them:
+# the ingress (caddy) the backend configures through its admin api on localhost:2019, vector
+# ships its access log to victorialogs, and mailpit catches the login links. Everything is in
+# the host network like in production, the ingress proxies to the backend on localhost:8080 and
+# serves the buckets from their host paths. env:run sets the variables, the images are the ones
+# of ansible/roles/controller/defaults/main.yml, the data lives below build/local/
+name: sak-local
+
+services:
+  ingress:
+    build: ../sak-ingress
+    image: localhost/sak-ingress:latest
+    network_mode: host
+    user: ${SAK_LOCAL_UID}:${SAK_LOCAL_GID}
+    volumes:
+      - ${SAK_LOCAL_DIR}/ingress:/data
+      # at the same path, the backend configures the file servers with host paths
+      - ${SAK_LOCAL_DATA_DIR}/s3:${SAK_LOCAL_DATA_DIR}/s3:ro
+
+  victorialogs:
+    image: ${SAK_VICTORIALOGS_IMAGE}
+    network_mode: host
+    user: ${SAK_LOCAL_UID}:${SAK_LOCAL_GID}
+    volumes:
+      - ${SAK_LOCAL_DIR}/victorialogs:/victoria-logs-data
+    command:
+      - -storageDataPath=/victoria-logs-data
+      - -httpListenAddr=127.0.0.1:9428
+
+  vector:
+    image: ${SAK_VECTOR_IMAGE}
+    network_mode: host
+    user: ${SAK_LOCAL_UID}:${SAK_LOCAL_GID}
+    # the image has no shell for a health check, vector retries until victorialogs answers
+    depends_on:
+      - victorialogs
+    volumes:
+      - ${SAK_LOCAL_DIR}/ingress/log:/var/log/caddy:ro
+      - ${SAK_LOCAL_DIR}/vector:/var/lib/vector
+      - ../ansible/roles/controller/files/vector.yaml:/etc/vector/vector.yaml:ro
+    command: ["--config", "/etc/vector/vector.yaml"]
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    network_mode: host
+    command: ["--listen", "127.0.0.1:8025", "--smtp", "127.0.0.1:1025"]

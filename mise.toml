@@ -90,26 +90,44 @@ docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.ta
 docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
 """
 
-# the ports do not clash: backend 8080, frontend 4200 (proxies /api to the backend), the mailpit
-# the login links of the backend go to 1025 (smtp) and 8025 (web ui)
+# the services of config/local-compose.yaml next to the backend of backend:run: the ingress on 80
+# and 443 (admin api 2019), victorialogs 9428 and the mailpit the login links go to, 1025 (smtp)
+# and 8025 (web ui); in the foreground with their logs until Ctrl-C
+[tasks."env:run"]
+description = "Run the ingress on https://apps.localhost, victorialogs on http://localhost:9428 and mailpit on http://localhost:8025 until Ctrl-C"
+env = {
+    SAK_LOCAL_DIR = "{{config_root}}/build/local",
+    SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
+}
+run = """
+# created before docker would create them owned by root
+mkdir -p "$SAK_LOCAL_DATA_DIR/s3" "$SAK_LOCAL_DIR/ingress/log" "$SAK_LOCAL_DIR/victorialogs" "$SAK_LOCAL_DIR/vector"
+export SAK_LOCAL_UID=$(id -u) SAK_LOCAL_GID=$(id -g)
+export SAK_VICTORIALOGS_IMAGE=$(sed -n 's/^controller_victorialogs_image: //p' ansible/roles/controller/defaults/main.yml)
+export SAK_VECTOR_IMAGE=$(sed -n 's/^controller_vector_image: //p' ansible/roles/controller/defaults/main.yml)
+compose="docker compose -f {{config_root}}/config/local-compose.yaml"
+$compose up -d --build --wait --remove-orphans
+# sh skips the exit trap when a signal ends it, Ctrl-C takes the services down as well
+trap "docker compose -p sak-local down" EXIT
+trap "exit 130" INT TERM
+echo "the services are up"
+$compose logs -f
+"""
+
+# the ports do not clash: backend 8080, frontend 4200 (proxies /api to the backend), the services
+# of env:run
 [tasks."backend:run"]
-description = "Run sak-backend on http://localhost:8080 with a mailpit for its login links on http://localhost:8025"
+description = "Run sak-backend on http://localhost:8080, its ingress, victorialogs and mailpit come from env:run"
 env = {
     SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data",
     SAK_OPENROUTER_API_TOKEN = "{{ get_env(name='SAK_OPENROUTER_API_TOKEN', default=exec(command='pass show openrouter/pelle/api-key | head -n1')) }}"
 }
 run = """
-# a second run would take the mailpit of the first one away
 if curl -s -o /dev/null --max-time 2 http://localhost:8080/; then
   echo "a backend runs already on http://localhost:8080, stop it first" >&2
   exit 1
 fi
 mkdir -p "$SAK_LOCAL_DATA_DIR"
-# a mailpit of an earlier run may still be going away
-docker rm -f sak-local-mailpit >/dev/null 2>&1 || true
-while docker container inspect sak-local-mailpit >/dev/null 2>&1; do sleep 0.2; done
-docker run -d --rm --name sak-local-mailpit -p 127.0.0.1:8025:8025 -p 127.0.0.1:1025:1025 axllent/mailpit:v1.32.0 >/dev/null
-trap 'docker stop sak-local-mailpit >/dev/null' EXIT
 ./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
 """
 
@@ -125,7 +143,7 @@ npx ng serve
 # first, its build installs the npm dependencies of the frontend, which must not change under its
 # dev server. Ctrl-C stops everything.
 [tasks."run"]
-description = "Run the backend, mailpit and the frontend until Ctrl-C"
+description = "Run the services of env:run, the backend and the frontend until Ctrl-C"
 # the script keeps the process groups of the tasks in an array
 shell = "bash -c"
 run = '''
@@ -149,7 +167,7 @@ stop() {
   done
   for pid in "${pids[@]}"; do kill -KILL -- "-$pid" 2>/dev/null; done
   pkill -f 'io.pelle.sak.backend.SakBackendKt' 2>/dev/null
-  docker stop sak-local-mailpit >/dev/null 2>&1
+  docker compose -p sak-local down >/dev/null 2>&1
   echo "stopped"
 }
 trap stop INT TERM EXIT
@@ -175,19 +193,25 @@ await() {
   return 1
 }
 
-echo "starting the backend and mailpit…"
+echo "starting the ingress, victorialogs and mailpit…"
+start env:run
+await env:run "the services are up" 300 "${pids[0]}" || exit 1
+
+echo "starting the backend…"
 start backend:run
-await backend:run "Responding at" 600 "${pids[0]}" || exit 1
+await backend:run "Responding at" 600 "${pids[1]}" || exit 1
 
 echo "starting the frontend…"
 start frontend:run
-await frontend:run "Local:" 180 "${pids[1]}" || exit 1
+await frontend:run "Local:" 180 "${pids[2]}" || exit 1
 
 cat <<ADDRESSES
 
   frontend   http://localhost:4200   the apps, the console at /console
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
+  ingress    https://apps.localhost  the apps behind caddy, its certificate is caddy's own
   mailpit    http://localhost:8025   every login link arrives here
+  logs       http://localhost:9428   victorialogs, vector ships the access log of the ingress
 
   sign in as admin@localhost or pelle@pelle.io (config/local-config.yaml), open the link
   from mailpit in the same browser

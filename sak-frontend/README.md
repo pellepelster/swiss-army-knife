@@ -119,7 +119,8 @@ corner.
 ## Development
 
 ```shell
-mise run run                    # the backend, mailpit and the frontend until Ctrl-C
+mise run run                    # env:run, backend:run and frontend:run until Ctrl-C
+mise run env:run                # ingress, victorialogs, vector and mailpit (config/local-compose.yaml)
 mise run backend:run            # the backend on :8080, its login links go to mailpit on :8025
 mise run frontend:run           # ng serve on http://localhost:4200, proxies /api to the backend
 npm test -- --watch=false       # unit tests, also run by ./gradlew check
