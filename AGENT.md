@@ -58,7 +58,11 @@
   route each, the first and default one "Configuration".
 - No modals: create on `/<entities>/create`, edit on `/<entities>/<id>/edit`, all editable
   attributes at once, saved or cancelled.
-- Bootstrap everywhere.
+- Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
+  templates, its default spacing and corner radius included; a component sets its own layout with
+  `host: { class: '…' }`. `src/styles.scss` maps the palette onto bootstrap's variables. Custom
+  css only for what bootstrap has no class for (the post-its, the terminal look of `app-code-block`,
+  the charts, the recording overlay's stop button), in the component's own stylesheet.
 - Copying to the clipboard is `app-copy-button` (`shared/copy-button.ts`), never written anew.
 - The apps follow the browser's `prefers-color-scheme` with no switch of their own (css custom
   properties in `src/styles.scss`).

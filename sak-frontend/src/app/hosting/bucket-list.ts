@@ -31,8 +31,13 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">Static hosting</h1>
-      <a class="btn btn-primary" routerLink="/static-hosting/create">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i> Create bucket
+      <a
+        class="btn btn-primary"
+        routerLink="/static-hosting/create"
+        aria-label="Create bucket"
+        title="Create bucket"
+      >
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
       </a>
     </header>
 

@@ -62,8 +62,14 @@ import { RecordingOverlay } from './recording-overlay';
       >
         <i class="fa-solid fa-microphone" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn btn-primary" (click)="add()">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i> New note
+      <button
+        type="button"
+        class="btn btn-primary"
+        aria-label="New note"
+        title="New note"
+        (click)="add()"
+      >
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
       </button>
     </header>
 
@@ -107,12 +113,9 @@ import { RecordingOverlay } from './recording-overlay';
 
     <main class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
       @for (note of shown(); track note.id) {
-        <app-note-card
-          class="col"
-          [note]="note"
-          labelsList="known-labels"
-          (labelSelected)="select($event)"
-        />
+        <div class="col">
+          <app-note-card [note]="note" labelsList="known-labels" (labelSelected)="select($event)" />
+        </div>
       } @empty {
         <p class="col-12 text-center text-body-secondary py-5">
           @if (store.loading()) {

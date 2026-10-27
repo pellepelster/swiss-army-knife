@@ -22,7 +22,7 @@ interface Media {
   selector: 'app-note-card',
   imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe],
   host: {
-    '[class]': "'note note-' + note().color",
+    '[class]': "'note h-100 note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
   },
   template: `
@@ -162,52 +162,57 @@ interface Media {
           ></button>
         }
       </div>
-      <time class="note-time" [attr.datetime]="(note().updated ?? note().created).toISOString()">
+      <time
+        class="note-time flex-grow-1"
+        [attr.datetime]="(note().updated ?? note().created).toISOString()"
+      >
         {{ note().updated ?? note().created | localDateTime }}
       </time>
-      <input
-        #camera
-        class="photo-input"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        tabindex="-1"
-        aria-hidden="true"
-        (change)="takePhoto($any($event.target))"
-      />
-      <button
-        type="button"
-        class="note-photo"
-        [attr.aria-label]="'Add a photo to note ' + note().id"
-        title="Add a photo"
-        [disabled]="store.uploading().has(note().id)"
-        (click)="camera.click()"
-      >
-        @if (store.uploading().has(note().id)) {
-          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-        } @else {
-          <i class="fa-solid fa-camera" aria-hidden="true"></i>
-        }
-      </button>
-      <button
-        type="button"
-        class="note-photo"
-        [attr.aria-label]="'Record for note ' + note().id"
-        title="Record"
-        [disabled]="store.recordingFor() !== null"
-        (click)="store.record(note().id)"
-      >
-        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        class="note-delete"
-        [attr.aria-label]="'Delete note ' + note().id"
-        title="Delete"
-        (click)="store.remove(note().id)"
-      >
-        <i class="fa-solid fa-trash" aria-hidden="true"></i>
-      </button>
+      <div class="d-flex align-items-center">
+        <input
+          #camera
+          class="photo-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          tabindex="-1"
+          aria-hidden="true"
+          (change)="takePhoto($any($event.target))"
+        />
+        <button
+          type="button"
+          class="note-photo"
+          [attr.aria-label]="'Add a photo to note ' + note().id"
+          title="Add a photo"
+          [disabled]="store.uploading().has(note().id)"
+          (click)="camera.click()"
+        >
+          @if (store.uploading().has(note().id)) {
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
+          }
+        </button>
+        <button
+          type="button"
+          class="note-photo"
+          [attr.aria-label]="'Record for note ' + note().id"
+          title="Record"
+          [disabled]="store.recordingFor() !== null"
+          (click)="store.record(note().id)"
+        >
+          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="note-delete"
+          [attr.aria-label]="'Delete note ' + note().id"
+          title="Delete"
+          (click)="store.remove(note().id)"
+        >
+          <i class="fa-solid fa-trash" aria-hidden="true"></i>
+        </button>
+      </div>
     </footer>
   `,
 })
