@@ -21,6 +21,9 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import io.pelle.sak.api.model.ErrorResponse
+import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.model.PaginationResponse
 
 class ApiTest {
     @Serializable
@@ -52,15 +55,15 @@ class ApiTest {
     @Test
     fun `answers lists in pages`() =
         test {
-            Json.decodeFromString<Page<Int>>(client.get("/api/numbers").bodyAsText()).let {
+            Json.decodeFromString<PageResponse<Int>>(client.get("/api/numbers").bodyAsText()).let {
                 it.items shouldBe (1..50).toList()
-                it.pagination shouldBe Pagination(0, 50, 120)
+                it.pagination shouldBe PaginationResponse(0, 50, 120)
             }
-            Json.decodeFromString<Page<Int>>(client.get("/api/numbers?offset=100&limit=30").bodyAsText()).let {
+            Json.decodeFromString<PageResponse<Int>>(client.get("/api/numbers?offset=100&limit=30").bodyAsText()).let {
                 it.items shouldBe (101..120).toList()
-                it.pagination shouldBe Pagination(100, 30, 120)
+                it.pagination shouldBe PaginationResponse(100, 30, 120)
             }
-            Json.decodeFromString<Page<Int>>(client.get("/api/numbers?offset=200").bodyAsText()).items shouldBe emptyList()
+            Json.decodeFromString<PageResponse<Int>>(client.get("/api/numbers?offset=200").bodyAsText()).items shouldBe emptyList()
         }
 
     @Test

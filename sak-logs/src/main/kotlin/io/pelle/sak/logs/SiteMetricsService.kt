@@ -1,10 +1,12 @@
 package io.pelle.sak.logs
 
-import kotlinx.serialization.Serializable
 import java.time.Instant
+import io.pelle.sak.logs.model.StatusClassSeriesResponse
+import io.pelle.sak.logs.model.StatusCodeSeriesResponse
+import io.pelle.sak.logs.model.UserAgentSeriesResponse
+import io.pelle.sak.logs.model.SiteMetricsResponse
 
 // a host or group of hosts caddy serves, every access log entry names its site
-@Serializable
 data class Site(
     val id: String,
     val domains: List<String>,
@@ -33,47 +35,6 @@ enum class StatusClass(
     }
 }
 
-@Serializable
-data class StatusClassSeries(
-    val statusClass: String,
-    val values: List<Long>,
-    val total: Long = values.sum(),
-)
-
-@Serializable
-data class StatusCodeSeries(
-    val status: String,
-    val statusClass: String,
-    val values: List<Long>,
-    val total: Long = values.sum(),
-)
-
-@Serializable
-data class UserAgentSeries(
-    val group: String,
-    val values: List<Long>,
-    val requests: Long = values.sum(),
-)
-
-@Serializable
-data class SiteMetrics(
-    val site: String,
-    val range: String,
-    val start: String,
-    val end: String,
-    val stepSeconds: Long,
-    val buckets: List<String>,
-    // aborted requests (status 0) have no class and are only counted in the totals
-    val series: List<StatusClassSeries>,
-    val statusCodes: List<StatusCodeSeries>,
-    val bytes: List<Long>,
-    val totalRequests: Long,
-    val errorRequests: Long,
-    val errorRate: Double,
-    val totalBytes: Long,
-    val userAgents: List<UserAgentSeries>,
-)
-
 // requests per status class and code, bytes and clients of a site over a range, computed
 // from the caddy access logs with logsql stats queries
 class SiteMetricsService(
@@ -83,7 +44,7 @@ class SiteMetricsService(
         site: Site,
         range: MetricsRange,
         now: Instant = Instant.now(),
-    ): SiteMetrics {
+    ): SiteMetricsResponse {
         val grid = TimeSeriesGrid(range, now)
         val filter = streamFilter(site)
 
@@ -117,17 +78,17 @@ class SiteMetricsService(
 
         val totalRequests = requests.sum()
         val errorRequests = perClass.filterKeys { it.isError }.values.sumOf { it.sum() }
-        return SiteMetrics(
+        return SiteMetricsResponse(
             site = site.id,
             range = range.key,
             start = grid.start.toString(),
             end = grid.end.toString(),
             stepSeconds = range.step.seconds,
             buckets = grid.bucketStarts.map { it.toString() },
-            series = StatusClass.entries.map { StatusClassSeries(it.key, perClass.getValue(it).toList()) },
+            series = StatusClass.entries.map { StatusClassSeriesResponse(it.key, perClass.getValue(it).toList()) },
             statusCodes =
                 requestsByCode.map { (status, counts) ->
-                    StatusCodeSeries(status, StatusClass.of(status)!!.key, counts.toList())
+                    StatusCodeSeriesResponse(status, StatusClass.of(status)!!.key, counts.toList())
                 },
             bytes = bytes.toList(),
             totalRequests = totalRequests,
@@ -141,7 +102,7 @@ class SiteMetricsService(
     private fun userAgents(
         filter: String,
         grid: TimeSeriesGrid,
-    ): List<UserAgentSeries> {
+    ): List<UserAgentSeriesResponse> {
         val byGroup = sortedMapOf<UserAgentGroup, LongArray>(compareBy { it.ordinal })
         client
             .statsQueryRange("$filter | stats by ($USER_AGENT) count() $REQUESTS", grid.start, grid.end, grid.range.step)
@@ -153,7 +114,7 @@ class SiteMetricsService(
             }
 
         return byGroup
-            .map { (group, values) -> UserAgentSeries(group.key, values.toList()) }
+            .map { (group, values) -> UserAgentSeriesResponse(group.key, values.toList()) }
             .filter { it.requests > 0 }
             .sortedByDescending { it.requests }
     }

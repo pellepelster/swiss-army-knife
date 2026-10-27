@@ -3,26 +3,12 @@ package io.pelle.sak.api
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.ApplicationCall
-import kotlinx.serialization.Serializable
+import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.model.PaginationResponse
 
 const val DEFAULT_LIMIT = 50
 
 const val MAX_LIMIT = 100
-
-// where a page starts in the whole list, how many items it has at most and how many there are
-@Serializable
-data class Pagination(
-    val offset: Long,
-    val limit: Int,
-    val total: Long,
-)
-
-// what every list endpoint answers
-@Serializable
-data class Page<T>(
-    val items: List<T>,
-    val pagination: Pagination,
-)
 
 // the page asked for with the offset and limit query parameters
 data class PageRequest(
@@ -32,10 +18,10 @@ data class PageRequest(
     fun <T> of(
         items: List<T>,
         total: Long,
-    ) = Page(items, Pagination(offset, limit, total))
+    ) = PageResponse(items, PaginationResponse(offset, limit, total))
 
     // the page of a list that is there as a whole
-    fun <T> of(all: List<T>): Page<T> = of(all.asSequence().drop(offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(limit).toList(), all.size.toLong())
+    fun <T> of(all: List<T>): PageResponse<T> = of(all.asSequence().drop(offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(limit).toList(), all.size.toLong())
 }
 
 // the page asked for, or null after answering a bad request when offset or limit are no valid

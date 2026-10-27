@@ -27,6 +27,7 @@ import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import io.pelle.sak.logs.model.LogEntryResponse
 
 class SiteLogsTest {
     private val queries = mutableListOf<Pair<String, Map<String, String>>>()
@@ -89,8 +90,8 @@ class SiteLogsTest {
     fun `searches the request lines and user agents of a site case-insensitively, newest first`() {
         logs.search(site, " Missing ") shouldBe
             listOf(
-                LogEntry("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
-                LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
+                LogEntryResponse("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
+                LogEntryResponse("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
             )
 
         queries.single().second.getValue("query") shouldBe
@@ -123,8 +124,8 @@ class SiteLogsTest {
     @Test
     fun `follows the entries of the last minutes and the new ones`() {
         logs.follow(site).use { entries ->
-            entries.next() shouldBe LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/a", 200)
-            entries.next() shouldBe LogEntry("2026-10-26T21:00:02Z", "www.pelle.io", "/b?x=1", 0)
+            entries.next() shouldBe LogEntryResponse("2026-10-26T21:00:01Z", "pelle.io", "/a", 200)
+            entries.next() shouldBe LogEntryResponse("2026-10-26T21:00:02Z", "www.pelle.io", "/b?x=1", 0)
         }
 
         queries.single() shouldBe

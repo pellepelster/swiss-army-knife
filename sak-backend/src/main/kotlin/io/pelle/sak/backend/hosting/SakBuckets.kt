@@ -1,14 +1,11 @@
 package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.api.ApiErrors
-import io.pelle.sak.api.Page
+import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache
-import com.github.benmanes.caffeine.cache.Caffeine
-import com.github.benmanes.caffeine.cache.Ticker
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -34,25 +31,11 @@ import io.pelle.sak.backend.hosting.CreateBucketResult
 import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.backend.hosting.UpdateDomainsResult
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
-import io.pelle.sak.s3.storage.ObjectMetadata
-import io.pelle.sak.s3.storage.PartRef
-import io.pelle.sak.s3.storage.PutResult
-import io.pelle.sak.s3.storage.S3StorageBackend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import java.io.InputStream
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
-import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -65,98 +48,6 @@ private const val SUBDOMAIN_TAKEN =
     "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
 private const val INVALID_DOMAIN = "Every domain must be valid and neither one of the apps or the api nor a redirected one."
 private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
-
-data class BucketStatistics(
-    val objects: Long,
-    val bytes: Long,
-    val computedAt: Instant,
-)
-
-// counting a bucket walks all of its objects, so the numbers are kept and recounted in the
-// background after a while, the old ones are served meanwhile; a write drops them
-class BucketStatisticsCache(
-    private val storage: BinaryStorageS3Backend,
-    clock: Clock = Clock.systemUTC(),
-    ticker: Ticker = Ticker.systemTicker(),
-    // the counting is blocking io
-    executor: Executor = Executors.newFixedThreadPool(2) { Thread(it, "bucket-statistics").apply { isDaemon = true } },
-) {
-    private val cache: AsyncLoadingCache<String, BucketStatistics> =
-        Caffeine
-            .newBuilder()
-            .ticker(ticker)
-            .executor(executor)
-            .refreshAfterWrite(REFRESH_AFTER)
-            .expireAfterWrite(EXPIRE_AFTER)
-            .buildAsync { bucket ->
-                val usage = storage.usage(bucket)
-                BucketStatistics(usage.blobs, usage.bytes, clock.instant())
-            }
-
-    // waits a moment for a bucket not counted yet, null when it takes longer; the copy is awaited,
-    // giving up on it must not cancel the count itself
-    suspend fun get(bucket: String): BucketStatistics? =
-        withTimeoutOrNull(WAIT_FOR_COUNT) { cache.get(bucket).copy().await() }
-
-    fun invalidate(bucket: String) = cache.synchronous().invalidate(bucket)
-
-    // counts the buckets in the background, so the first look at them does not wait
-    fun warm(buckets: Collection<String>) {
-        buckets.forEach { bucket ->
-            cache.get(bucket).exceptionally { e ->
-                logger.warn(e) { "could not count the objects of bucket '$bucket'" }
-                null
-            }
-        }
-    }
-
-    companion object {
-        val REFRESH_AFTER: Duration = Duration.ofMinutes(5)
-
-        val EXPIRE_AFTER: Duration = Duration.ofHours(1)
-
-        private val WAIT_FOR_COUNT = 500.milliseconds
-    }
-}
-
-// the s3 backend that drops the statistics of a bucket on every write to it
-class InvalidatingS3StorageBackend(
-    private val delegate: S3StorageBackend,
-    private val changed: (bucket: String) -> Unit,
-) : S3StorageBackend by delegate {
-    override fun putObject(
-        bucket: String,
-        key: String,
-        content: InputStream,
-        metadata: ObjectMetadata,
-    ): PutResult =
-        try {
-            delegate.putObject(bucket, key, content, metadata)
-        } finally {
-            changed(bucket)
-        }
-
-    override fun deleteObject(
-        bucket: String,
-        key: String,
-    ) = try {
-        delegate.deleteObject(bucket, key)
-    } finally {
-        changed(bucket)
-    }
-
-    override fun completeMultipartUpload(
-        bucket: String,
-        key: String,
-        uploadId: String,
-        parts: List<PartRef>,
-    ): PutResult =
-        try {
-            delegate.completeMultipartUpload(bucket, key, uploadId, parts)
-        } finally {
-            changed(bucket)
-        }
-}
 
 private const val S3_TAG = "s3"
 
@@ -195,7 +86,7 @@ fun Route.buckets(
         responses {
             HttpStatusCode.OK {
                 description = "A page of the buckets with the domains they are served at and their statistics"
-                schema = jsonSchema<Page<BucketResponse>>()
+                schema = jsonSchema<PageResponse<BucketResponse>>()
             }
             errors(HttpStatusCode.BadRequest, "An invalid page")
         }

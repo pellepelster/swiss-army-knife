@@ -27,9 +27,12 @@ import jakarta.mail.internet.AddressException
 import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import java.time.Duration
 import java.time.Instant
+import io.pelle.sak.auth.model.ExchangeRequest
+import io.pelle.sak.auth.model.ExchangeResponse
+import io.pelle.sak.auth.model.LoginRequest
+import io.pelle.sak.auth.model.MeResponse
 
 private val logger = KotlinLogging.logger {}
 
@@ -55,40 +58,11 @@ data class SessionPrincipal(
 // the address of the signed in user, for routes behind authenticate(SESSION_AUTH)
 val ApplicationCall.sessionEmail: String get() = principal<SessionPrincipal>()!!.email
 
-// app is the one the link leads to, the default app of the routes when missing
-@Serializable
-data class LoginRequest(
-    val email: String,
-    val redirect: String? = null,
-    val app: String? = null,
-)
-
 // an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
 // goes into the mail's subject, e.g. "Sign in to example.org"
 data class LoginApp(
     val url: String,
     val name: String,
-)
-
-@Serializable
-data class ExchangeRequest(
-    val token: String,
-)
-
-@Serializable
-data class ExchangeResponse(
-    val sessionToken: String,
-    val email: String,
-    val expiresAt: String,
-    val roles: List<String>,
-    val redirect: String,
-)
-
-@Serializable
-data class MeResponse(
-    val email: String,
-    val expiresAt: String,
-    val roles: List<String>,
 )
 
 // routes below authenticate(SESSION_AUTH) accept the session tokens of the given service with

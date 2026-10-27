@@ -5,7 +5,7 @@ import io.pelle.sak.backend.redirects.model.RedirectResponse
 import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
 import io.pelle.sak.backend.redirects.model.UpdateRedirectRequest
 import io.pelle.sak.api.ApiErrors
-import io.pelle.sak.api.Page
+import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -87,7 +87,7 @@ fun Route.redirects(redirectService: RedirectService) {
         responses {
             HttpStatusCode.OK {
                 description = "A page of the redirects, each with its target and the domain it leads to"
-                schema = jsonSchema<Page<RedirectResponse>>()
+                schema = jsonSchema<PageResponse<RedirectResponse>>()
             }
             errors(HttpStatusCode.BadRequest, "An invalid page")
         }

@@ -1,7 +1,7 @@
 package io.pelle.sak.logs
 
 import io.pelle.sak.api.ApiErrors
-import io.pelle.sak.api.Page
+import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -32,25 +32,15 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
+import io.pelle.sak.logs.model.SiteMetricsResponse
+import io.pelle.sak.logs.model.LogEntryResponse
+import io.pelle.sak.logs.model.MetricsRangeResponse
+import io.pelle.sak.logs.model.AccessLogsResponse
+import io.pelle.sak.logs.model.SiteResponse
 
 private val logger = KotlinLogging.logger {}
-
-@Serializable
-data class MetricsRangeResponse(
-    val key: String,
-    val label: String,
-)
-
-// the site whose access logs these are, with the domains it is served at
-@Serializable
-data class AccessLogsResponse(
-    val site: Site,
-    val ranges: List<MetricsRangeResponse>,
-    val defaultRange: String,
-)
 
 // keeps a quiet live view open and finds out when its client went away
 private val KEEPALIVE_INTERVAL = 15.seconds
@@ -87,7 +77,7 @@ fun Route.accessLogs(
         val site = call.logsSite(site) ?: return@get
         call.respond(
             AccessLogsResponse(
-                site,
+                SiteResponse(site.id, site.domains),
                 MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label) },
                 MetricsRange.DEFAULT.key,
             ),
@@ -129,7 +119,7 @@ fun Route.accessLogs(
         responses {
             HttpStatusCode.OK {
                 description = "The metrics of the range"
-                schema = jsonSchema<SiteMetrics>()
+                schema = jsonSchema<SiteMetricsResponse>()
             }
             errors(HttpStatusCode.BadRequest, "Unknown range")
             HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
@@ -180,7 +170,7 @@ fun Route.accessLogs(
         responses {
             HttpStatusCode.OK {
                 description = "A page of the matching requests, newest first"
-                schema = jsonSchema<Page<LogEntry>>()
+                schema = jsonSchema<PageResponse<LogEntryResponse>>()
             }
             errors(HttpStatusCode.BadRequest, "No, too long or control characters in the search text, or an invalid page")
             HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
@@ -210,7 +200,7 @@ fun Route.accessLogs(
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respondTextWriter(ContentType.Text.EventStream) {
                 coroutineScope {
-                    val received = Channel<LogEntry>(Channel.BUFFERED)
+                    val received = Channel<LogEntryResponse>(Channel.BUFFERED)
                     val reader =
                         launch(Dispatchers.IO) {
                             try {
@@ -227,14 +217,14 @@ fun Route.accessLogs(
                         while (true) {
                             // a select never loses an entry, a cancelled receive could
                             val next =
-                                select<ChannelResult<LogEntry>?> {
+                                select<ChannelResult<LogEntryResponse>?> {
                                     received.onReceiveCatching { it }
                                     onTimeout(keepaliveInterval) { null }
                                 }
                             when {
                                 next == null -> write(": keepalive\n\n")
                                 next.isClosed -> break
-                                else -> write("data: ${Json.encodeToString(LogEntry.serializer(), next.getOrThrow())}\n\n")
+                                else -> write("data: ${Json.encodeToString(LogEntryResponse.serializer(), next.getOrThrow())}\n\n")
                             }
                             flush()
                         }
@@ -256,7 +246,7 @@ fun Route.accessLogs(
         responses {
             HttpStatusCode.OK {
                 description = "A stream of log entries"
-                ContentType.Text.EventStream { schema = jsonSchema<LogEntry>() }
+                ContentType.Text.EventStream { schema = jsonSchema<LogEntryResponse>() }
             }
             HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available, or too many live views are open" }

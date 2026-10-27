@@ -8,20 +8,7 @@ import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.response.respond
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class ApiError(
-    val message: String,
-)
-
-// the body of every 400, and of the other answers that tell what is wrong with a request
-@Serializable
-data class ErrorResponse(
-    val errors: List<ApiError>,
-) {
-    constructor(vararg messages: String) : this(messages.map { ApiError(it) })
-}
+import io.pelle.sak.api.model.ErrorResponse
 
 suspend fun ApplicationCall.respondErrors(
     vararg messages: String,

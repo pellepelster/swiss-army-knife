@@ -26,7 +26,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.ApiErrors
-import io.pelle.sak.api.Page
+import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -104,7 +104,7 @@ fun Route.notes(noteService: NoteService) {
         responses {
             HttpStatusCode.OK {
                 description = "A page of the notes, the newest first"
-                schema = jsonSchema<Page<NoteResponse>>()
+                schema = jsonSchema<PageResponse<NoteResponse>>()
             }
             errors(HttpStatusCode.BadRequest, "An invalid page")
         }

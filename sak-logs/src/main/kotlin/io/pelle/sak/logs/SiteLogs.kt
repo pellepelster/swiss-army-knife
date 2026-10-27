@@ -1,17 +1,7 @@
 package io.pelle.sak.logs
 
-import kotlinx.serialization.Serializable
 import java.time.Duration
-
-// one request of the ingress access log with the domain it was made to, as the access logs of a
-// bucket list it
-@Serializable
-data class LogEntry(
-    val time: String,
-    val host: String,
-    val path: String,
-    val status: Int?,
-)
+import io.pelle.sak.logs.model.LogEntryResponse
 
 // the access log entries of one site: searched in the stored entries, or followed as they arrive
 class SiteLogs(
@@ -24,7 +14,7 @@ class SiteLogs(
         text: String,
         offset: Long = 0,
         limit: Int = SEARCH_LIMIT,
-    ): List<LogEntry> =
+    ): List<LogEntryResponse> =
         client
             .query("${searchFilter(site, text)} | $FIELDS | sort by (_time desc) | offset $offset | limit $limit")
             .map { it.toLogEntry() }
@@ -74,7 +64,7 @@ class SiteLogs(
         }
 
         fun Map<String, String>.toLogEntry() =
-            LogEntry(
+            LogEntryResponse(
                 time = this["_time"].orEmpty(),
                 host = this["request.host"].orEmpty(),
                 path = this["request.uri"].orEmpty(),
@@ -87,7 +77,7 @@ class LogEntries(
     private val tail: LogTail,
 ) : java.io.Closeable {
     // blocks until the next entry arrives, null once the tail ended
-    fun next(): LogEntry? = with(SiteLogs) { tail.next()?.toLogEntry() }
+    fun next(): LogEntryResponse? = with(SiteLogs) { tail.next()?.toLogEntry() }
 
     override fun close() = tail.close()
 }

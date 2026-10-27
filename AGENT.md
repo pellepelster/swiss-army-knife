@@ -21,9 +21,13 @@
 - Lists are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for
   with the `offset` and `limit` query parameters; `limit` is 50 by default and at most 100
   (`MAX_LIMIT`, `sak-api`).
-- Bodies received are `<name>Request`, bodies answered `<name>Response`.
+- Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
+  in them (e.g. `PageResponse`, `SiteMetricsResponse`); a domain class is mapped to its response
+  class, it never crosses the api itself.
 - Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in
-  `io.pelle.sak.backend.<app>.model`, one class per file named like the class.
+  `io.pelle.sak.backend.<app>.model`, one class per file named like the class. The other modules
+  answering on `/api` keep theirs the same way in `io.pelle.sak.<module>.model` (`sak-api`,
+  `sak-auth`, `sak-logs`).
 
 ## UI (`sak-frontend`)
 
