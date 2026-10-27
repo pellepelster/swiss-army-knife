@@ -298,12 +298,10 @@ describe('NotesStore', () => {
     http
       .expectOne({ method: 'PUT', url: '/api/v1/notes/2' })
       .flush(noteResponse(2, 'plumber', 'green', []));
-    http
-      .expectOne('/api/v1/notes?offset=50&limit=50')
-      .flush({
-        items: [noteResponse(9, 'old', 'yellow', [])],
-        pagination: { offset: 50, limit: 50, total: 51 },
-      });
+    http.expectOne('/api/v1/notes?offset=50&limit=50').flush({
+      items: [noteResponse(9, 'old', 'yellow', [])],
+      pagination: { offset: 50, limit: 50, total: 51 },
+    });
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
 
     expect(store.notes().map((note) => note.id)).toEqual([9]);

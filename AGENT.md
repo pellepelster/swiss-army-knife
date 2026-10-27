@@ -49,6 +49,18 @@
   properties in `src/styles.scss`).
 - Dates and times in the browser's locale via the `localDateTime` pipe
   (`shared/local-date-time.pipe.ts`), never angular's `DatePipe` or a fixed format.
+- Async code, the same everywhere:
+  - State lives in signals, the templates read them; a store holds what a page shares with its
+    tabs (`@Injectable()` provided by the page, e.g. `BucketStore`) or what the whole app shares
+    (`providedIn: 'root'`, e.g. `NotesStore`).
+  - Observables (`HttpClient`, `timer`) are subscribed with
+    `.pipe(takeUntilDestroyed(this.destroyRef))`, `destroyRef = inject(DestroyRef)` the first
+    field; no `Subscription` collections, no `DestroyRef.onDestroy(() => ….unsubscribe())`.
+  - A load that replaces the one before (another page, polling) keeps its `Subscription` in one
+    field and unsubscribes it before starting the next.
+  - A load following inputs or signals runs in an `effect`, the load itself `untracked`.
+  - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
+    with `firstValueFrom`; everything else subscribes.
 
 ## Privacy
 

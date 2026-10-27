@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject, model, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Bucket, BucketsService, servedDomains } from '../hosting/buckets.service';
 import { DOMAIN_PATTERN } from '../shared/domains';
 import { RedirectTarget } from './redirects.service';
@@ -111,6 +111,7 @@ export function redirectTarget(
   `,
 })
 export class RedirectTargetFields {
+  private readonly destroyRef = inject(DestroyRef);
   readonly type = model<TargetType>('domain');
   readonly domain = model('');
   readonly bucket = model('');
@@ -119,18 +120,14 @@ export class RedirectTargetFields {
   protected readonly domains = servedDomains;
   protected readonly valid = validDomain;
 
-  private readonly subscriptions = new Subscription();
-
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-    this.subscriptions.add(
-      inject(BucketsService)
-        .buckets()
-        .subscribe({
-          next: (buckets) =>
-            this.servedBuckets.set(buckets.filter((bucket) => servedDomains(bucket).length > 0)),
-          error: () => this.servedBuckets.set([]),
-        }),
-    );
+    inject(BucketsService)
+      .buckets()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (buckets) =>
+          this.servedBuckets.set(buckets.filter((bucket) => servedDomains(bucket).length > 0)),
+        error: () => this.servedBuckets.set([]),
+      });
   }
 }

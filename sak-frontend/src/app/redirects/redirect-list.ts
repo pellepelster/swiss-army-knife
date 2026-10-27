@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { lastPageOffset, Pagination } from '../shared/api';
@@ -125,6 +126,7 @@ import { Redirect, RedirectsService } from './redirects.service';
   `,
 })
 export class RedirectList {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
 
@@ -142,7 +144,6 @@ export class RedirectList {
   private loading?: Subscription;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.loading?.unsubscribe());
     effect(() => {
       const offset = this.offset();
       untracked(() => this.load(offset));
@@ -157,24 +158,27 @@ export class RedirectList {
 
   private load(offset: number): void {
     this.loading?.unsubscribe();
-    this.loading = this.service.page(offset).subscribe({
-      next: (page) => {
-        // the page is gone, e.g. its last redirect
-        if (page.items.length === 0 && offset > 0) {
-          this.goTo(lastPageOffset(page.pagination));
-          return;
-        }
-        this.error.set(null);
-        this.redirects.set(page.items);
-        this.pagination.set(page.pagination);
-        this.loaded.set(true);
-      },
-      error: (error: unknown) =>
-        this.error.set(
-          error instanceof HttpErrorResponse && error.status === 403
-            ? 'Your role does not allow to see the redirects.'
-            : 'The redirects could not be loaded.',
-        ),
-    });
+    this.loading = this.service
+      .page(offset)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (page) => {
+          // the page is gone, e.g. its last redirect
+          if (page.items.length === 0 && offset > 0) {
+            this.goTo(lastPageOffset(page.pagination));
+            return;
+          }
+          this.error.set(null);
+          this.redirects.set(page.items);
+          this.pagination.set(page.pagination);
+          this.loaded.set(true);
+        },
+        error: (error: unknown) =>
+          this.error.set(
+            error instanceof HttpErrorResponse && error.status === 403
+              ? 'Your role does not allow to see the redirects.'
+              : 'The redirects could not be loaded.',
+          ),
+      });
   }
 }

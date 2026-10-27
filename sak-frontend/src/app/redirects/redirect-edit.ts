@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { errorMessages } from '../shared/api';
 import { redirectErrorMessage } from './redirect-store';
 import { RedirectTargetFields, redirectTarget, TargetType } from './redirect-target-fields';
@@ -53,6 +53,7 @@ import { RedirectsService } from './redirects.service';
   `,
 })
 export class RedirectEdit implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
 
@@ -71,15 +72,11 @@ export class RedirectEdit implements OnInit {
     redirectTarget(this.type(), this.domain(), this.bucket()),
   );
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   ngOnInit(): void {
-    this.subscriptions.add(
-      this.service.redirect(this.source()).subscribe({
+    this.service
+      .redirect(this.source())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (redirect) => {
           this.type.set(redirect.target.type);
           if (redirect.target.type === 'domain') this.domain.set(redirect.target.domain);
@@ -88,8 +85,7 @@ export class RedirectEdit implements OnInit {
         },
         error: (error: unknown) =>
           this.error.set(redirectErrorMessage(error, 'The redirect could not be loaded.')),
-      }),
-    );
+      });
   }
 
   protected save(): void {
@@ -97,15 +93,16 @@ export class RedirectEdit implements OnInit {
     if (target === null) return;
     this.saving.set(true);
     this.saveError.set(null);
-    this.subscriptions.add(
-      this.service.update(this.source(), target).subscribe({
+    this.service
+      .update(this.source(), target)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: () => void this.router.navigate(['/redirects', this.source()]),
         error: (error: unknown) => {
           this.saving.set(false);
           this.saveError.set(saveErrorMessage(error));
         },
-      }),
-    );
+      });
   }
 }
 

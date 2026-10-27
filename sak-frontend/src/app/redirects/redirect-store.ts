@@ -1,30 +1,26 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Redirect, RedirectsService } from './redirects.service';
 
 // the redirect of a redirect's page, shared by the page and its tabs; provided by the page
 @Injectable()
 export class RedirectStore {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
 
   readonly redirect = signal<Redirect | null>(null);
   readonly error = signal<string | null>(null);
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   load(sourceDomain: string): void {
-    this.subscriptions.add(
-      this.service.redirect(sourceDomain).subscribe({
+    this.service
+      .redirect(sourceDomain)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (redirect) => this.redirect.set(redirect),
         error: (error: unknown) =>
           this.error.set(redirectErrorMessage(error, 'The redirect could not be loaded.')),
-      }),
-    );
+      });
   }
 }
 

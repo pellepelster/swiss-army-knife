@@ -1,6 +1,6 @@
 import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { RedirectStore } from './redirect-store';
 import { RedirectsService } from './redirects.service';
@@ -90,6 +90,7 @@ import { RedirectsService } from './redirects.service';
   `,
 })
 export class RedirectView implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly store = inject(RedirectStore);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
@@ -99,23 +100,18 @@ export class RedirectView implements OnInit {
 
   protected readonly confirming = signal(false);
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   ngOnInit(): void {
     this.store.load(this.source());
   }
 
   protected delete(): void {
     this.confirming.set(false);
-    this.subscriptions.add(
-      this.service.delete(this.source()).subscribe({
+    this.service
+      .delete(this.source())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: () => void this.router.navigate(['/redirects']),
         error: () => this.store.error.set(`The redirect of ${this.source()} could not be deleted.`),
-      }),
-    );
+      });
   }
 }

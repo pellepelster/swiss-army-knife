@@ -1,5 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { bucketErrorMessage, BucketStore } from './bucket-store';
 import { BucketSecret, BucketsService, s3Endpoint } from './buckets.service';
 import { CodeBlock } from './code-block';
@@ -131,6 +131,7 @@ export const SECRET_MASK = '•••••••••••••••••�
   `,
 })
 export class BucketPublishing {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   protected readonly store = inject(BucketStore);
 
@@ -152,12 +153,6 @@ export class BucketPublishing {
     ].join('\n');
   });
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   protected command(secret: BucketSecret, masked: boolean): string {
     return [
       'hugo',
@@ -169,8 +164,10 @@ export class BucketPublishing {
 
   protected retrieve(): void {
     this.retrieving.set(true);
-    this.subscriptions.add(
-      this.service.secret(this.store.name()).subscribe({
+    this.service
+      .secret(this.store.name())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (secret) => {
           this.retrieving.set(false);
           this.secret.set(secret);
@@ -179,7 +176,6 @@ export class BucketPublishing {
           this.retrieving.set(false);
           this.error.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
         },
-      }),
-    );
+      });
   }
 }

@@ -1,6 +1,6 @@
 import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { errorMessages } from '../shared/api';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { bucketErrorMessage } from './bucket-store';
@@ -57,6 +57,7 @@ import { DomainList } from './domain-list';
   `,
 })
 export class BucketEdit implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
 
@@ -70,38 +71,34 @@ export class BucketEdit implements OnInit {
   protected readonly saveErrors = signal<string[]>([]);
   protected readonly valid = computed(() => validDomains(this.domains()));
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   ngOnInit(): void {
-    this.subscriptions.add(
-      this.service.bucket(this.name()).subscribe({
+    this.service
+      .bucket(this.name())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (bucket) => {
           this.domains.set([...bucket.domains]);
           this.loaded.set(true);
         },
         error: (error: unknown) =>
           this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
-      }),
-    );
+      });
   }
 
   protected save(): void {
     if (!this.valid()) return;
     this.saving.set(true);
     this.saveErrors.set([]);
-    this.subscriptions.add(
-      this.service.updateDomains(this.name(), enteredDomains(this.domains())).subscribe({
+    this.service
+      .updateDomains(this.name(), enteredDomains(this.domains()))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: () => void this.router.navigate(['/static-hosting', this.name()]),
         error: (error: unknown) => {
           this.saving.set(false);
           const messages = errorMessages(error);
           this.saveErrors.set(messages.length ? messages : ['The bucket could not be saved.']);
         },
-      }),
-    );
+      });
   }
 }

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, timer } from 'rxjs';
 import { bucketErrorMessage, BucketStore } from './bucket-store';
 import { BucketSecret, BucketsService, s3Endpoint } from './buckets.service';
@@ -151,6 +152,7 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
   `,
 })
 export class BucketCredentials {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   protected readonly store = inject(BucketStore);
 
@@ -162,17 +164,14 @@ export class BucketCredentials {
   protected readonly copied = signal<Copied | null>(null);
   protected readonly copyFailed = signal(false);
 
-  private readonly subscriptions = new Subscription();
   private copiedTimer?: Subscription;
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
 
   protected retrieve(): void {
     this.retrieving.set(true);
-    this.subscriptions.add(
-      this.service.secret(this.store.name()).subscribe({
+    this.service
+      .secret(this.store.name())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (secret) => {
           this.retrieving.set(false);
           this.secret.set(secret);
@@ -181,8 +180,7 @@ export class BucketCredentials {
           this.retrieving.set(false);
           this.error.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
         },
-      }),
-    );
+      });
   }
 
   protected async copy(what: Copied, value: string): Promise<void> {
@@ -191,8 +189,9 @@ export class BucketCredentials {
       this.copyFailed.set(false);
       this.copied.set(what);
       this.copiedTimer?.unsubscribe();
-      this.copiedTimer = timer(COPIED_MS).subscribe(() => this.copied.set(null));
-      this.subscriptions.add(this.copiedTimer);
+      this.copiedTimer = timer(COPIED_MS)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => this.copied.set(null));
     } catch {
       this.copyFailed.set(true);
     }

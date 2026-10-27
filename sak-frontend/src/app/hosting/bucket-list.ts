@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { lastPageOffset, Pagination } from '../shared/api';
@@ -121,6 +122,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
   `,
 })
 export class BucketList {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
 
@@ -142,7 +144,6 @@ export class BucketList {
   private loading?: Subscription;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.loading?.unsubscribe());
     effect(() => {
       const offset = this.offset();
       untracked(() => this.load(offset));
@@ -157,26 +158,31 @@ export class BucketList {
 
   private load(offset: number): void {
     this.loading?.unsubscribe();
-    this.loading = this.service.page(offset).subscribe({
-      next: (page) => {
-        // the page is gone, e.g. its last bucket
-        if (page.items.length === 0 && offset > 0) {
-          this.goTo(lastPageOffset(page.pagination));
-          return;
-        }
-        this.buckets.set(page.items);
-        this.pagination.set(page.pagination);
-        this.loaded.set(true);
-        if (page.items.some((bucket) => bucket.statistics.computing)) {
-          this.loading = timer(POLL_INTERVAL_MS).subscribe(() => this.load(offset));
-        }
-      },
-      error: (error: unknown) =>
-        this.error.set(
-          error instanceof HttpErrorResponse && error.status === 403
-            ? 'Your role does not allow to see the buckets.'
-            : 'The buckets could not be loaded.',
-        ),
-    });
+    this.loading = this.service
+      .page(offset)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (page) => {
+          // the page is gone, e.g. its last bucket
+          if (page.items.length === 0 && offset > 0) {
+            this.goTo(lastPageOffset(page.pagination));
+            return;
+          }
+          this.buckets.set(page.items);
+          this.pagination.set(page.pagination);
+          this.loaded.set(true);
+          if (page.items.some((bucket) => bucket.statistics.computing)) {
+            this.loading = timer(POLL_INTERVAL_MS)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe(() => this.load(offset));
+          }
+        },
+        error: (error: unknown) =>
+          this.error.set(
+            error instanceof HttpErrorResponse && error.status === 403
+              ? 'Your role does not allow to see the buckets.'
+              : 'The buckets could not be loaded.',
+          ),
+      });
   }
 }

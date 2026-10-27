@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { errorMessages } from '../shared/api';
 import {
   RedirectTargetFields,
@@ -62,6 +62,7 @@ import { RedirectsService } from './redirects.service';
   `,
 })
 export class RedirectCreate {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
 
@@ -81,27 +82,22 @@ export class RedirectCreate {
   );
   protected readonly valid = validDomain;
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   protected create(): void {
     const target = this.target();
     if (!this.complete() || target === null) return;
     const sourceDomain = this.sourceDomain().trim();
     this.creating.set(true);
     this.createError.set(null);
-    this.subscriptions.add(
-      this.service.create(sourceDomain, target).subscribe({
+    this.service
+      .create(sourceDomain, target)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: () => void this.router.navigate(['/redirects', sourceDomain.toLowerCase()]),
         error: (error: unknown) => {
           this.creating.set(false);
           this.createError.set(createErrorMessage(error, sourceDomain));
         },
-      }),
-    );
+      });
   }
 }
 

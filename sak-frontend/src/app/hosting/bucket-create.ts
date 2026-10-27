@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { errorMessages } from '../shared/api';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
@@ -63,6 +63,7 @@ import { DomainList } from './domain-list';
   `,
 })
 export class BucketCreate {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
 
@@ -74,19 +75,15 @@ export class BucketCreate {
   protected readonly nameValid = computed(() => BUCKET_NAME_PATTERN.test(this.name()));
   protected readonly valid = computed(() => this.nameValid() && validDomains(this.domains()));
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   protected create(): void {
     if (!this.valid()) return;
     const name = this.name();
     this.creating.set(true);
     this.errors.set([]);
-    this.subscriptions.add(
-      this.service.create(name, enteredDomains(this.domains())).subscribe({
+    this.service
+      .create(name, enteredDomains(this.domains()))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (bucket) => void this.router.navigate(['/static-hosting', bucket.name]),
         error: (error: unknown) => {
           this.creating.set(false);
@@ -99,7 +96,6 @@ export class BucketCreate {
                 : [`The bucket ${name} could not be created.`],
           );
         },
-      }),
-    );
+      });
   }
 }

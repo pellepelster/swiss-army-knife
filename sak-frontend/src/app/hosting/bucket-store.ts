@@ -1,38 +1,37 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { Subscription, timer } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timer } from 'rxjs';
 import { Bucket, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
 
 // the bucket of a bucket's page, shared by the page and its tabs; provided by the page
 @Injectable()
 export class BucketStore {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
 
   readonly name = signal('');
   readonly bucket = signal<Bucket | null>(null);
   readonly error = signal<string | null>(null);
 
-  private readonly subscriptions = new Subscription();
-
-  constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscriptions.unsubscribe());
-  }
-
   // asks again after a while as long as the bucket is still being counted
   load(name: string): void {
     this.name.set(name);
-    this.subscriptions.add(
-      this.service.bucket(name).subscribe({
+    this.service
+      .bucket(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
         next: (bucket) => {
           this.bucket.set(bucket);
           if (bucket.statistics.computing) {
-            this.subscriptions.add(timer(POLL_INTERVAL_MS).subscribe(() => this.load(name)));
+            timer(POLL_INTERVAL_MS)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe(() => this.load(name));
           }
         },
         error: (error: unknown) =>
           this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
-      }),
-    );
+      });
   }
 }
 
