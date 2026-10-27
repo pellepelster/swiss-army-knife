@@ -5,12 +5,16 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.awt.Color
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import javax.imageio.ImageIO
 
 class FileServiceTest {
     @TempDir
@@ -60,6 +64,53 @@ class FileServiceTest {
         Files.list(dir).use { it.toList() }.none { it.fileName.toString().startsWith("upload-") } shouldBe true
         service.bySha256("../../sak.db") shouldBe null
     }
+
+    private fun image(
+        width: Int,
+        height: Int,
+        format: String,
+    ): ByteArray {
+        val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        image.createGraphics().apply {
+            color = Color.ORANGE
+            fillRect(0, 0, width, height)
+            dispose()
+        }
+        return ByteArrayOutputStream().also { ImageIO.write(image, format, it) }.toByteArray()
+    }
+
+    @Test
+    fun `makes a thumbnail of an image when it is first asked for and keeps it`() {
+        val file = (service(maxSize = 10_000_000).store(image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+
+        val thumbnail = service(maxSize = 10_000_000).thumbnail(file)!!
+        thumbnail.parent shouldBe service.path(file).parent
+        ImageIO.read(thumbnail.toFile()).let {
+            it.width shouldBe 480
+            it.height shouldBe 319
+            Color(it.getRGB(240, 160)).let { pixel -> (pixel.red > 200 && pixel.blue < 80) shouldBe true }
+        }
+        val modified = Files.getLastModifiedTime(thumbnail)
+        service.thumbnail(file) shouldBe thumbnail
+        Files.getLastModifiedTime(thumbnail) shouldBe modified
+    }
+
+    @Test
+    fun `small images keep their size, transparent ones get a white background`() {
+        val file = (service(maxSize = 10_000_000).store(image(200, 100, "png").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        ImageIO.read(service.thumbnail(file)!!.toFile()).let {
+            it.width shouldBe 200
+            it.height shouldBe 100
+        }
+    }
+
+    @Test
+    fun `an image that can not be read has no thumbnail`() {
+        val file = (service.store((JPEG + "broken".toByteArray()).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        service.thumbnail(file) shouldBe null
+    }
+
+    private fun service(maxSize: Long) = FileService(database, dir, clock, maxSize)
 
     companion object {
         val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())

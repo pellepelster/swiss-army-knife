@@ -97,7 +97,7 @@ describe('NotesStore', () => {
         expect(upload.request.body).toBe(SCALED);
         expect(upload.request.headers.get('Content-Type')).toBe('image/jpeg');
         expect(store.uploading().has(1)).toBe(true);
-        upload.flush({ sha256: SHA256, url: `/files/${SHA256}` });
+        upload.flush({ sha256: SHA256, url: `/api/v1/files/${SHA256}` });
       });
     await added;
 
@@ -117,7 +117,7 @@ describe('NotesStore', () => {
     const added = store.addWithPhoto(new Blob(['original']), ['holidays']);
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) => upload.flush({ sha256: SHA256, url: `/files/${SHA256}` }));
+      .then((upload) => upload.flush({ sha256: SHA256, url: `/api/v1/files/${SHA256}` }));
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
       .then((created) => {

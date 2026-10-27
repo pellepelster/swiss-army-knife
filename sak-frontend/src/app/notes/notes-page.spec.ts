@@ -114,10 +114,10 @@ describe('NotesPage', () => {
     expect(note.classList).toContain('note-green');
   });
 
-  it('shows the photos of a note, each leads to the whole photo', () => {
+  it('shows the thumbnails of the photos of a note, each leads to the whole photo', () => {
     const photo = notes()[2].querySelector<HTMLImageElement>('.note-photos img')!;
-    expect(photo.getAttribute('src')).toBe(`/files/${SHA256}`);
-    expect(photo.closest('a')?.getAttribute('href')).toBe(`/files/${SHA256}`);
+    expect(photo.getAttribute('src')).toBe(`/api/v1/files/${SHA256}/thumbnail`);
+    expect(photo.closest('a')?.getAttribute('href')).toBe(`/api/v1/files/${SHA256}`);
     expect(notes()[0].querySelector('.note-photos')).toBeNull();
   });
 
@@ -129,13 +129,17 @@ describe('NotesPage', () => {
 
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
-      .then((upload) => upload.flush({ sha256: 'b'.repeat(64), url: '/files/' + 'b'.repeat(64) }));
+      .then((upload) =>
+        upload.flush({ sha256: 'b'.repeat(64), url: '/api/v1/files/' + 'b'.repeat(64) }),
+      );
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
       .then((created) => created.flush(noteResponse(4, '', 'yellow', [], ['b'.repeat(64)])));
     await fixture.whenStable();
 
-    expect(notes()[0].querySelector('img')?.getAttribute('src')).toBe('/files/' + 'b'.repeat(64));
+    expect(notes()[0].querySelector('img')?.getAttribute('src')).toBe(
+      '/api/v1/files/' + 'b'.repeat(64) + '/thumbnail',
+    );
     expect(document.activeElement).toBe(notes()[0].querySelector('textarea'));
   });
 

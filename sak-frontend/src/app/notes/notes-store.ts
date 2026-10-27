@@ -7,7 +7,7 @@ export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as cons
 
 export type NoteColor = (typeof NOTE_COLORS)[number];
 
-// photos are the sha-256 of files of the backend's file storage, served at /files/<sha256>
+// photos are the sha-256 of files of the backend's file storage, served at /api/v1/files/<sha256>
 export interface Note {
   readonly id: number;
   readonly text: string;
@@ -24,7 +24,7 @@ interface NoteResponse {
   text: string;
   color: NoteColor;
   labels: { id: number; name: string }[];
-  photos: { sha256: string; url: string }[];
+  photos: { sha256: string; url: string; thumbnailUrl: string }[];
   createdAt: string;
   updatedAt: string;
 }

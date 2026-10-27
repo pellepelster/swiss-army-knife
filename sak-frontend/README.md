@@ -13,7 +13,8 @@ their own; the labels are the ones all apps share (`/api/v1/labels`). Changes sh
 saved in the background, the text once typing pauses (`NotesStore`). A note can have photos, taken
 with the camera of a phone or chosen from the files: they are scaled down to 2048 pixels and
 re-encoded as JPEG in the browser (`PhotoScaler`, which drops the exif data with the location),
-stored in the backend's file storage (`POST /api/v1/files`) and shown from `/files/<sha256>`. The page works on phones (one column,
+stored in the backend's file storage (`POST /api/v1/files`); the notes show their thumbnails
+(`/api/v1/files/<sha256>/thumbnail`), each leads to the whole photo (`/api/v1/files/<sha256>`). The page works on phones (one column,
 larger hit targets) and on desktops (a wall of slightly turned post-its).
 
 ## Development

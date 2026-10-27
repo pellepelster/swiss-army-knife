@@ -12,7 +12,11 @@ export const noteResponse = (
   text,
   color,
   labels: labels.map((name, index) => ({ id: index + 1, name })),
-  photos: photos.map((sha256) => ({ sha256, url: `/files/${sha256}` })),
+  photos: photos.map((sha256) => ({
+    sha256,
+    url: `/api/v1/files/${sha256}`,
+    thumbnailUrl: `/api/v1/files/${sha256}/thumbnail`,
+  })),
   createdAt: CREATED,
   updatedAt: CREATED,
 });

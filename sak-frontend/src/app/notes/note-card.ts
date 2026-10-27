@@ -2,7 +2,7 @@ import { Component, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { Note, NOTE_COLORS, NotesStore } from './notes-store';
 
-// one note as a post-it: its photos on top, its text is edited in place, labels are added below
+// one note as a post-it: the thumbnails of its photos on top, each leads to the whole photo, its text is edited in place, labels are added below
 // it; a photo is taken with the camera of a phone or chosen from the files elsewhere
 @Component({
   selector: 'app-note-card',
@@ -16,9 +16,9 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
       <ul class="note-photos" aria-label="Photos">
         @for (photo of note().photos; track photo; let index = $index) {
           <li class="photo">
-            <a [href]="'/files/' + photo" target="_blank" rel="noopener">
+            <a [href]="photoUrl(photo)" target="_blank" rel="noopener">
               <img
-                [src]="'/files/' + photo"
+                [src]="photoUrl(photo) + '/thumbnail'"
                 [alt]="'Photo ' + (index + 1) + ' of note ' + note().id"
                 loading="lazy"
               />
@@ -139,6 +139,11 @@ export class NoteCard {
 
   protected readonly colors = NOTE_COLORS;
   protected readonly newLabel = signal('');
+
+  // the whole photo, its thumbnail is below it
+  protected photoUrl(sha256: string): string {
+    return `/api/v1/files/${sha256}`;
+  }
 
   protected takePhoto(input: HTMLInputElement): void {
     const photo = input.files?.[0];

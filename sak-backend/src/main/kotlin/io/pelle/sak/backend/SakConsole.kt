@@ -112,6 +112,9 @@ fun Application.console(
                     route("/auth") {
                         auth(tokens, mailSender, loginApps(config), rolesOf)
                     }
+                    route("/files") {
+                        servedFiles(fileService)
+                    }
                     authenticate(SESSION_AUTH) {
                         route("/logs") {
                             install(RequireRole) { role = Role.ADMIN }
@@ -145,10 +148,6 @@ fun Application.console(
                 route("{...}") {
                     handle { call.respond(HttpStatusCode.NotFound) }
                 }.hide()
-            }
-
-            route(FILES_PATH) {
-                servedFiles(fileService)
             }
 
             apiDoc()

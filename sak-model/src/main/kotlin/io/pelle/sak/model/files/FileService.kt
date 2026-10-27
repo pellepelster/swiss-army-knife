@@ -1,6 +1,10 @@
 package io.pelle.sak.model.files
 
 import io.pelle.sak.model.SakDatabase
+import java.awt.Color
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
+import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -8,6 +12,7 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
+import javax.imageio.ImageIO
 
 // a file of the file storage, addressed by the sha-256 of its content; uploadedBy is the address
 // of the user that uploaded it first
@@ -33,7 +38,8 @@ sealed interface StoreFileResult {
 
 // the generic file storage every application keeps its files in, the only way to them; the
 // content lives in dir below the first two characters of its sha-256, the same content is stored
-// once. The type is told by the first bytes, never taken from the uploader.
+// once. The type is told by the first bytes, never taken from the uploader. The thumbnails of the
+// images are made when they are first asked for and kept next to them.
 class FileService internal constructor(
     private val repository: FileRepository,
     private val dir: Path,
@@ -59,6 +65,28 @@ class FileService internal constructor(
 
     // where the content of a stored file is
     fun path(file: StoredFile): Path = dir.resolve(file.sha256.take(2)).resolve(file.sha256)
+
+    // a jpeg of at most THUMBNAIL_SIZE pixels on the longer side, the image itself when it is
+    // smaller; null when the image can not be read
+    @Synchronized
+    fun thumbnail(file: StoredFile): Path? {
+        val thumbnail = path(file).resolveSibling("${file.sha256}$THUMBNAIL_SUFFIX")
+        if (Files.exists(thumbnail)) return thumbnail
+        val image =
+            try {
+                ImageIO.read(path(file).toFile())
+            } catch (_: IOException) {
+                null
+            } ?: return null
+        val temp = Files.createTempFile(dir, "thumbnail-", ".tmp")
+        try {
+            ImageIO.write(scaled(image, THUMBNAIL_SIZE), "jpg", temp.toFile())
+            Files.move(temp, thumbnail, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            Files.deleteIfExists(temp)
+        }
+        return thumbnail
+    }
 
     // reads the content to its end, at most maxSize bytes are taken
     fun store(
@@ -111,6 +139,35 @@ class FileService internal constructor(
         private const val HEAD_SIZE = 12
 
         private val SHA256 = Regex("^[0-9a-f]{64}$")
+
+        const val THUMBNAIL_SIZE = 480
+
+        private const val THUMBNAIL_SUFFIX = ".thumbnail.jpg"
+
+        // halved step by step, a single step from a large image leaves it jagged; jpeg has no
+        // transparency, it is drawn on white
+        fun scaled(
+            image: BufferedImage,
+            size: Int,
+        ): BufferedImage {
+            val factor = minOf(1.0, size.toDouble() / maxOf(image.width, image.height))
+            val width = maxOf(1, (image.width * factor).toInt())
+            val height = maxOf(1, (image.height * factor).toInt())
+            var current = image
+            do {
+                val stepWidth = maxOf(width, current.width / 2)
+                val stepHeight = maxOf(height, current.height / 2)
+                val step = BufferedImage(stepWidth, stepHeight, BufferedImage.TYPE_INT_RGB)
+                step.createGraphics().apply {
+                    setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+                    setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+                    drawImage(current, 0, 0, stepWidth, stepHeight, Color.WHITE, null)
+                    dispose()
+                }
+                current = step
+            } while (current.width != width || current.height != height)
+            return current
+        }
 
         // the types the storage takes, told by their first bytes
         fun contentType(head: ByteArray): String? {

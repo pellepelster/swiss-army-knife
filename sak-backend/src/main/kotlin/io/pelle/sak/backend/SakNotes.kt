@@ -52,6 +52,7 @@ data class NoteResponse(
 data class PhotoResponse(
     val sha256: String,
     val url: String,
+    val thumbnailUrl: String,
 )
 
 // the labels by name, the unknown ones are created; the photos by the sha-256 of files uploaded
@@ -70,7 +71,7 @@ private fun Note.response() =
         text,
         color.id,
         labels.map { it.response() },
-        photos.map { PhotoResponse(it, fileUrl(it)) },
+        photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
         createdAt.toString(),
         updatedAt.toString(),
     )
