@@ -40,8 +40,17 @@ sealed interface StoreFileResult {
 
     data object TooLarge : StoreFileResult
 
-    // only the types the storage knows by their first bytes are taken
+    // only the types the storage knows by their first bytes are taken, and only when they can be read
     data object UnsupportedType : StoreFileResult
+
+    // an image larger than MAX_IMAGE_SIZE pixels on its longer side
+    data object ImageTooLarge : StoreFileResult
+
+    // an image with exif or xmp metadata, which can tell where it was taken
+    data object ImageWithMetadata : StoreFileResult
+
+    // a recording longer than MAX_RECORDING_SECONDS
+    data object RecordingTooLong : StoreFileResult
 }
 
 // the generic file storage every application keeps its files in, the only way to them; every
@@ -139,6 +148,7 @@ class FileService internal constructor(
                 }
             }
             val contentType = contentType(head.copyOf(headLength)) ?: return StoreFileResult.UnsupportedType
+            check(temp, contentType)?.let { return it }
 
             val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
             // the content is in place before the file refers to it
@@ -155,6 +165,36 @@ class FileService internal constructor(
 
     companion object {
         const val DEFAULT_MAX_SIZE = 10L * 1024 * 1024
+
+        // the apps scale the photos down to this many pixels on the longer side and re-encode
+        // them without their metadata, they record at most this long; the storage takes no more
+        const val MAX_IMAGE_SIZE = 2048
+
+        const val MAX_RECORDING_SECONDS = 300
+
+        // why the content can not be stored, null when it can
+        fun check(
+            content: Path,
+            contentType: String,
+        ): StoreFileResult? =
+            if (contentType.startsWith("audio/")) {
+                val seconds =
+                    try {
+                        AudioSystem.getAudioFileFormat(content.toFile()).let { it.frameLength / it.format.frameRate }
+                    } catch (_: UnsupportedAudioFileException) {
+                        return StoreFileResult.UnsupportedType
+                    } catch (_: IOException) {
+                        return StoreFileResult.UnsupportedType
+                    }
+                if (seconds > MAX_RECORDING_SECONDS) StoreFileResult.RecordingTooLong else null
+            } else {
+                val (width, height) = ImageMetadata.size(content, contentType) ?: return StoreFileResult.UnsupportedType
+                when {
+                    maxOf(width, height) > MAX_IMAGE_SIZE -> StoreFileResult.ImageTooLarge
+                    ImageMetadata.hasMetadata(content, contentType) -> StoreFileResult.ImageWithMetadata
+                    else -> null
+                }
+            }
 
         private const val BUFFER_SIZE = 64 * 1024
 

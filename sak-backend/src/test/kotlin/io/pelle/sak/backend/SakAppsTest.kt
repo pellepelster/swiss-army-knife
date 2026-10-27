@@ -174,6 +174,11 @@ class SakAppsTest {
             socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
         }
 
+    private fun jpeg(
+        width: Int,
+        height: Int,
+    ) = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(width, height, BufferedImage.TYPE_INT_RGB), "jpg", it) }.toByteArray()
+
     // a second of a quiet 16 kHz mono wav, what the notes record
     private fun wav(): ByteArray {
         val frames = 16_000
@@ -474,7 +479,7 @@ class SakAppsTest {
     fun `stores files under ids, serves them with a session only and keeps them as photos of notes`() {
         withServer { port ->
             val session = signIn(port)
-            val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a photo".toByteArray()
+            val jpeg = jpeg(4, 3)
             fun upload(
                 bytes: ByteArray,
                 sessionToken: String? = session,
@@ -505,6 +510,12 @@ class SakAppsTest {
                 it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
+            // the apps scale photos down and drop their metadata, the storage takes nothing else
+            upload(jpeg(2049, 1)).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"An image must have at most 2048 pixels on its longer side."}]}"""
+            }
+            upload(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())).statusCode() shouldBe 400
 
             fun download(
                 path: String,
@@ -528,8 +539,7 @@ class SakAppsTest {
             }
             download("/api/v1/files/4711").statusCode() shouldBe 404
             download("/api/v1/files/unknown").statusCode() shouldBe 404
-            // the bytes are no image that can be read
-            download("/api/v1/files/$id/thumbnail").statusCode() shouldBe 404
+            download("/api/v1/files/$id/thumbnail").statusCode() shouldBe 200
 
             // a real image has a thumbnail
             val png =
@@ -577,7 +587,7 @@ class SakAppsTest {
         try {
             withServer(config) { port ->
                 val session = signIn(port)
-                val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a receipt".toByteArray()
+                val jpeg = jpeg(4, 3)
                 val receipt =
                     http.send(
                         HttpRequest

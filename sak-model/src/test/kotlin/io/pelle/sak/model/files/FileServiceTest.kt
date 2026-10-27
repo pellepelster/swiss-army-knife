@@ -10,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -67,10 +68,15 @@ class FileServiceTest {
         service.store("<html>".toByteArray().inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
         service.store(ByteArray(0).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
         service.store((JPEG + ByteArray(1024)).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.TooLarge
-        service.store(("GIF89a" + "x").toByteArray().inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        service.store(image(4, 3, "gif").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
             .file.contentType shouldBe "image/gif"
-        service.store("RIFF\u0000\u0000\u0000\u0000WEBPVP8 ".toByteArray().inputStream(), "pelle@pelle.io")
+        service.store(webp(4, 3).inputStream(), "pelle@pelle.io")
             .shouldBeInstanceOf<StoreFileResult.Stored>().file.contentType shouldBe "image/webp"
+        // the first bytes of an image are not enough, it has to be one
+        service.store(("GIF89a" + "x").toByteArray().inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        service.store(JPEG.copyOf(4).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        service.store("RIFF\u0000\u0000\u0000\u0000WAVEfmt ".toByteArray().inputStream(), "pelle@pelle.io") shouldBe
+            StoreFileResult.UnsupportedType
         // nothing stays behind of the rejected ones
         Files.list(dir).use { it.toList() }.none { it.fileName.toString().startsWith("upload-") } shouldBe true
         service.byId(4711) shouldBe null
@@ -117,8 +123,48 @@ class FileServiceTest {
 
     @Test
     fun `an image that can not be read has no thumbnail`() {
-        val file = (service.store((JPEG + "broken".toByteArray()).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service.store(JPEG.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        Files.write(service.path(file), JPEG.copyOf(4))
         service.thumbnail(file) shouldBe null
+    }
+
+    @Test
+    fun `takes images of at most 2048 pixels on their longer side, as the apps scale them`() {
+        val large = service(maxSize = 10_000_000)
+        large.store(image(2048, 10, "png").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        large.store(image(10, 2049, "png").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
+        large.store(image(2049, 10, "jpg").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
+        large.store(webp(2049, 10).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
+    }
+
+    @Test
+    fun `takes no image with exif or xmp metadata, the apps drop it as it can tell where a photo was taken`() {
+        val exif = "Exif\u0000\u0000".toByteArray()
+        // an app1 segment right after the start of the image
+        val jpeg = JPEG.copyOf(2) + byteArrayOf(0xFF.toByte(), 0xE1.toByte(), 0, (exif.size + 2).toByte()) + exif + JPEG.copyOfRange(2, JPEG.size)
+        service.store(jpeg.inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
+
+        // an exif chunk and an xmp text chunk right after the header chunk
+        fun png(
+            type: String,
+            data: ByteArray,
+        ) = PNG.copyOf(33) + ByteBuffer.allocate(4).putInt(data.size).array() + type.toByteArray() + data + ByteArray(4) +
+            PNG.copyOfRange(33, PNG.size)
+        service.store(png("eXIf", exif).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
+        service.store(png("iTXt", "XML:com.adobe.xmp\u0000".toByteArray()).inputStream(), "pelle@pelle.io") shouldBe
+            StoreFileResult.ImageWithMetadata
+        service.store(png("tEXt", "Comment\u0000hello".toByteArray()).inputStream(), "pelle@pelle.io")
+            .shouldBeInstanceOf<StoreFileResult.Stored>()
+
+        service.store((webp(4, 3) + "EXIF".toByteArray() + ByteArray(4)).inputStream(), "pelle@pelle.io") shouldBe
+            StoreFileResult.ImageWithMetadata
+    }
+
+    @Test
+    fun `takes recordings of at most five minutes, as the apps record them`() {
+        val recordings = service(maxSize = 10_000_000)
+        recordings.store(wav(seconds = 300, rate = 100f).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        recordings.store(wav(seconds = 301, rate = 100f).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.RecordingTooLong
     }
 
     @Test
@@ -139,9 +185,11 @@ class FileServiceTest {
     private fun service(maxSize: Long) = FileService(database, dir, clock, maxSize)
 
     companion object {
-        // a 16 kHz mono 16 bit wav of a tone, quiet in the first half and loud in the second
-        fun wav(seconds: Int = 1): ByteArray {
-            val rate = 16_000f
+        // a mono 16 bit wav of a tone, quiet in the first half and loud in the second
+        fun wav(
+            seconds: Int = 1,
+            rate: Float = 16_000f,
+        ): ByteArray {
             val frames = (rate * seconds).toInt()
             val pcm =
                 ByteArray(frames * 2).also { bytes ->
@@ -158,8 +206,22 @@ class FileServiceTest {
                 .toByteArray()
         }
 
-        val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+        private fun encoded(format: String) =
+            ByteArrayOutputStream().also { ImageIO.write(BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), format, it) }.toByteArray()
 
-        val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        // small images as the apps upload them, without metadata
+        val JPEG = encoded("jpg")
+
+        val PNG = encoded("png")
+
+        // the header of an extended webp of the size, which is all the storage reads of it
+        fun webp(
+            width: Int,
+            height: Int,
+        ): ByteArray {
+            fun uint24(value: Int) = byteArrayOf(value.toByte(), (value shr 8).toByte(), (value shr 16).toByte())
+            return "RIFF".toByteArray() + ByteArray(4) + "WEBPVP8X".toByteArray() + byteArrayOf(10, 0, 0, 0) + ByteArray(4) +
+                uint24(width - 1) + uint24(height - 1)
+        }
     }
 }
