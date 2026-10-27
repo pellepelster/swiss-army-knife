@@ -1,0 +1,10 @@
+# the files of a note in their order, its photos and its recordings, told apart by the type of
+# the file; the table of the photos takes them all
+databaseChangeLog:
+  - changeSet:
+      id: 0009-notes-files
+      author: sak
+      changes:
+        - sql:
+            sql: >-
+              ALTER TABLE notes_photos RENAME TO notes_files

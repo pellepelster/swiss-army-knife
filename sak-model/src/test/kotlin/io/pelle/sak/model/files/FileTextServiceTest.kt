@@ -37,7 +37,21 @@ class FileTextServiceTest {
             }
         }
 
-    private val service by lazy { FileTextService(files, recognizer) }
+    // writes down every recording as the same sentence
+    private val transcriber =
+        object : SpeechTranscriber {
+            val recordings = mutableListOf<String>()
+
+            override fun transcribe(
+                audio: ByteArray,
+                contentType: String,
+            ): String {
+                recordings.add(contentType)
+                return "Buy milk on the way home."
+            }
+        }
+
+    private val service by lazy { FileTextService(files, recognizer, transcriber) }
 
     private fun photo(content: String) =
         (files.store((FileServiceTest.JPEG + content.toByteArray()).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
@@ -66,11 +80,25 @@ class FileTextServiceTest {
     }
 
     @Test
-    fun `discovers text in images only`() {
+    fun `transcribes recordings once and keeps the text with the file`() {
+        val recording = (files.store(FileServiceTest.wav().inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
+
+        service.discover(recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
+        service.discover(recording) shouldBe DiscoverTextResult.Discovered("Buy milk on the way home.")
+        transcriber.recordings shouldBe listOf("audio/wav")
+        recognizer.images shouldBe emptyList()
+
+        FileTextService(files, recognizer, null).discover(photo("another")).shouldBeInstanceOf<DiscoverTextResult.Discovered>()
+        val unheard = (files.store(FileServiceTest.wav(2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file.sha256
+        FileTextService(files, recognizer, null).discover(unheard) shouldBe DiscoverTextResult.NotConfigured
+    }
+
+    @Test
+    fun `discovers text in images and recordings only`() {
         val file = photo("not an image after all")
         database.dsl.update(FILES).set(FILES.CONTENT_TYPE, "application/pdf").where(FILES.SHA256.eq(file)).execute()
 
-        service.discover(file) shouldBe DiscoverTextResult.NotAnImage
+        service.discover(file) shouldBe DiscoverTextResult.Unsupported
         recognizer.images shouldBe emptyList()
     }
 }

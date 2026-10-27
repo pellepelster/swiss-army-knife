@@ -1,5 +1,6 @@
 package io.pelle.sak.model.files
 
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
@@ -15,6 +16,12 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import javax.imageio.ImageIO
+import javax.sound.sampled.AudioFileFormat
+import javax.sound.sampled.AudioFormat
+import javax.sound.sampled.AudioInputStream
+import javax.sound.sampled.AudioSystem
+import kotlin.math.PI
+import kotlin.math.sin
 
 class FileServiceTest {
     @TempDir
@@ -110,9 +117,43 @@ class FileServiceTest {
         service.thumbnail(file) shouldBe null
     }
 
+    @Test
+    fun `stores wav recordings, their thumbnail is their waveform`() {
+        val file =
+            (service(maxSize = 10_000_000).store(wav(seconds = 2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        file.contentType shouldBe "audio/wav"
+
+        ImageIO.read(service.thumbnail(file)!!.toFile()).let {
+            it.width shouldBe 480
+            it.height shouldBe 360
+            // the loud second half has higher bars than the quiet first half
+            fun inked(x: Int) = (0 until it.height).count { y -> Color(it.getRGB(x, y)).red < 128 }
+            inked(it.width * 3 / 4) shouldBeGreaterThan inked(it.width / 4)
+        }
+    }
+
     private fun service(maxSize: Long) = FileService(database, dir, clock, maxSize)
 
     companion object {
+        // a 16 kHz mono 16 bit wav of a tone, quiet in the first half and loud in the second
+        fun wav(seconds: Int = 1): ByteArray {
+            val rate = 16_000f
+            val frames = (rate * seconds).toInt()
+            val pcm =
+                ByteArray(frames * 2).also { bytes ->
+                    for (frame in 0 until frames) {
+                        val loudness = if (frame < frames / 2) 0.1 else 0.9
+                        val sample = (sin(2 * PI * 440 * frame / rate) * loudness * Short.MAX_VALUE).toInt()
+                        bytes[frame * 2] = (sample and 0xFF).toByte()
+                        bytes[frame * 2 + 1] = (sample shr 8).toByte()
+                    }
+                }
+            val format = AudioFormat(rate, 16, 1, true, false)
+            return ByteArrayOutputStream()
+                .also { AudioSystem.write(AudioInputStream(pcm.inputStream(), format, frames.toLong()), AudioFileFormat.Type.WAVE, it) }
+                .toByteArray()
+        }
+
         val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
         val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)

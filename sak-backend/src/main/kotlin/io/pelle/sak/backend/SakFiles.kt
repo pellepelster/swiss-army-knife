@@ -85,7 +85,7 @@ fun Route.files(
             is StoreFileResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             StoreFileResult.TooLarge ->
                 call.respondErrors("A file must have at most ${fileService.maxSize / (1024 * 1024)} MB.", status = HttpStatusCode.PayloadTooLarge)
-            StoreFileResult.UnsupportedType -> call.respondErrors("Only JPEG, PNG, GIF and WebP images can be stored.")
+            StoreFileResult.UnsupportedType -> call.respondErrors("Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored.")
         }
     }.describe {
         tag(FILES_TAG)
@@ -111,7 +111,7 @@ fun Route.files(
         when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.parameters["sha256"].orEmpty()) }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            DiscoverTextResult.NotAnImage -> call.respondErrors("Text is only discovered in images.")
+            DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
             DiscoverTextResult.NotConfigured ->
                 call.respondErrors("Text discovery is not configured.", status = HttpStatusCode.ServiceUnavailable)
             is DiscoverTextResult.Failed -> {
@@ -121,20 +121,20 @@ fun Route.files(
         }
     }.describe {
         tag(FILES_TAG)
-        summary = "Discover the text in an image"
+        summary = "Discover the text in an image or a recording"
         description =
-            "Reads the text in the image with a vision model at OpenRouter, providers that collect the data are not asked. " +
-            "The text is kept with the file, an image is only read once."
+            "Reads the text in an image with a vision model, writes down a recording with a speech to text model, both at " +
+            "OpenRouter; providers that collect the data are not asked. The text is kept with the file, a file is only read once."
         parameters { sha256() }
         responses {
             HttpStatusCode.OK {
-                description = "The text in the image, empty when there is none"
+                description = "The text in the image or the recording, empty when there is none"
                 schema = jsonSchema<DiscoverTextResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "The file is no image")
+            errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
             HttpStatusCode.NotFound { description = "There is no such file" }
             errors(HttpStatusCode.TooManyRequests, "The user discovered too many texts lately")
-            errors(HttpStatusCode.BadGateway, "OpenRouter could not read the image")
+            errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
             errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter token is configured")
         }
     }
@@ -177,12 +177,14 @@ fun Route.servedFiles(fileService: FileService) {
         call.respond(LocalPathContent(thumbnail, ContentType.Image.JPEG))
     }.describe {
         tag(FILES_TAG)
-        summary = "The thumbnail of a stored image"
-        description = "A JPEG of at most ${FileService.THUMBNAIL_SIZE} pixels on the longer side, made when it is first asked for."
+        summary = "The thumbnail of a stored image or recording"
+        description =
+            "A JPEG of at most ${FileService.THUMBNAIL_SIZE} pixels on the longer side, of a recording its waveform; " +
+            "made when it is first asked for."
         parameters { sha256() }
         responses {
             HttpStatusCode.OK { description = "The thumbnail" }
-            HttpStatusCode.NotFound { description = "There is no such file, or it is no image that can be read" }
+            HttpStatusCode.NotFound { description = "There is no such file, or it is neither an image nor a recording that can be read" }
         }
     }
 }

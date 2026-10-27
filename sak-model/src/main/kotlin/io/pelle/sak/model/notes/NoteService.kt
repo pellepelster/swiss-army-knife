@@ -25,8 +25,8 @@ enum class NoteColor {
     }
 }
 
-// owner is the address of the user the note belongs to; labels are sorted by name, photos are the
-// sha-256 of files of the file storage in their order
+// owner is the address of the user the note belongs to; labels are sorted by name, photos (images)
+// and recordings (audio) are the sha-256 of files of the file storage in their order
 data class Note(
     val id: Int,
     val owner: String,
@@ -34,6 +34,7 @@ data class Note(
     val color: NoteColor,
     val labels: List<Label>,
     val photos: List<String>,
+    val recordings: List<String>,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -45,6 +46,8 @@ enum class NoteProblem {
     TOO_MANY_LABELS,
     UNKNOWN_PHOTO,
     TOO_MANY_PHOTOS,
+    UNKNOWN_RECORDING,
+    TOO_MANY_RECORDINGS,
 }
 
 sealed interface SaveNoteResult {
@@ -111,16 +114,17 @@ class NoteService internal constructor(
         color: String,
         labelNames: Collection<String> = emptyList(),
         photos: List<String> = emptyList(),
+        recordings: List<String> = emptyList(),
     ): SaveNoteResult =
-        when (val checked = check(text, color, labelNames, photos)) {
+        when (val checked = check(text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.photos, clock.instant())
-                SaveNoteResult.Saved(row.toNote(checked.labels))
+                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.files, clock.instant())
+                SaveNoteResult.Saved(row.toNote(checked.labels, checked.photos, checked.recordings))
             }
         }
 
-    // replaces the text, the color, the labels and the photos
+    // replaces the text, the color, the labels, the photos and the recordings
     fun update(
         owner: String,
         id: Int,
@@ -128,17 +132,18 @@ class NoteService internal constructor(
         color: String,
         labelNames: Collection<String> = emptyList(),
         photos: List<String> = emptyList(),
+        recordings: List<String> = emptyList(),
     ): SaveNoteResult {
         val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
-        return when (val checked = check(text, color, labelNames, photos)) {
+        return when (val checked = check(text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
                 val now = clock.instant()
-                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.photos, now)) {
+                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files, now)) {
                     return SaveNoteResult.NotFound
                 }
-                val updated = note.copy(text = text, color = checked.color.id, photos = checked.photos, updatedAt = now)
-                SaveNoteResult.Saved(updated.toNote(checked.labels))
+                val updated = note.copy(text = text, color = checked.color.id, files = checked.files, updatedAt = now)
+                SaveNoteResult.Saved(updated.toNote(checked.labels, checked.photos, checked.recordings))
             }
         }
     }
@@ -154,19 +159,25 @@ class NoteService internal constructor(
             val color: NoteColor,
             val labels: List<Label>,
             val photos: List<String>,
-        ) : Checked
+            val recordings: List<String>,
+        ) : Checked {
+            // as they are stored, the photos first
+            val files get() = photos + recordings
+        }
 
         data class Invalid(
             val problems: Set<NoteProblem>,
         ) : Checked
     }
 
-    // the labels are only created when the note is valid otherwise; a photo twice is kept once
+    // the labels are only created when the note is valid otherwise; a photo or a recording twice is
+    // kept once, a photo must be an image and a recording audio of the file storage
     private fun check(
         text: String,
         color: String,
         labelNames: Collection<String>,
         photos: List<String>,
+        recordings: List<String>,
     ): Checked {
         val problems = mutableSetOf<NoteProblem>()
         if (text.length > MAX_TEXT_LENGTH) problems += NoteProblem.TEXT_TOO_LONG
@@ -177,25 +188,37 @@ class NoteService internal constructor(
         if (labelNames.mapNotNull { LabelService.normalize(it) }.distinct().size > MAX_LABELS) problems += NoteProblem.TOO_MANY_LABELS
         val distinctPhotos = photos.distinct()
         if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
-        if (files.existing(distinctPhotos).size < distinctPhotos.size) problems += NoteProblem.UNKNOWN_PHOTO
+        val distinctRecordings = recordings.distinct()
+        if (distinctRecordings.size > MAX_RECORDINGS) problems += NoteProblem.TOO_MANY_RECORDINGS
+        val stored = files.bySha256s(distinctPhotos + distinctRecordings)
+        if (distinctPhotos.any { stored[it]?.contentType?.startsWith("image/") != true }) problems += NoteProblem.UNKNOWN_PHOTO
+        if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
 
         return when (val resolved = labels.resolve(labelNames)) {
             is ResolveLabelsResult.InvalidNames -> Checked.Invalid(setOf(NoteProblem.INVALID_LABEL))
-            is ResolveLabelsResult.Resolved -> Checked.Valid(noteColor!!, resolved.labels, distinctPhotos)
+            is ResolveLabelsResult.Resolved -> Checked.Valid(noteColor!!, resolved.labels, distinctPhotos, distinctRecordings)
         }
     }
 
-    // the labels of all the notes are read at once
+    // the labels and the files of all the notes are read at once, the files are told apart by their type
     private fun notes(rows: List<NoteRow>): List<Note> {
         val byId = labels.byIds(rows.flatMap { it.labelIds }).associateBy { it.id }
-        return rows.map { row -> row.toNote(row.labelIds.mapNotNull { byId[it] }.sortedBy { it.name }) }
+        val stored = files.bySha256s(rows.flatMap { it.files })
+        fun of(
+            row: NoteRow,
+            type: String,
+        ) = row.files.filter { stored[it]?.contentType?.startsWith(type) == true }
+        return rows.map { row -> row.toNote(row.labelIds.mapNotNull { byId[it] }.sortedBy { it.name }, of(row, "image/"), of(row, "audio/")) }
     }
 
     private fun List<Label>.ids() = map { it.id }.toSet()
 
-    private fun NoteRow.toNote(labels: List<Label>) =
-        Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, photos, createdAt, updatedAt)
+    private fun NoteRow.toNote(
+        labels: List<Label>,
+        photos: List<String>,
+        recordings: List<String>,
+    ) = Note(id, owner, text, NoteColor.of(color) ?: error("note $id has the unknown color '$color'"), labels, photos, recordings, createdAt, updatedAt)
 
     companion object {
         const val MAX_TEXT_LENGTH = 10_000
@@ -203,5 +226,7 @@ class NoteService internal constructor(
         const val MAX_LABELS = 10
 
         const val MAX_PHOTOS = 20
+
+        const val MAX_RECORDINGS = 20
     }
 }

@@ -11,6 +11,15 @@ interface TextRecognizer {
     ): String
 }
 
+// writes down what is said in a recording, e.g. a speech to text model
+interface SpeechTranscriber {
+    // the text of the recording, empty when nothing is said; throws TextRecognitionException
+    fun transcribe(
+        audio: ByteArray,
+        contentType: String,
+    ): String
+}
+
 class TextRecognitionException(
     message: String,
     cause: Throwable? = null,
@@ -23,10 +32,10 @@ sealed interface DiscoverTextResult {
 
     data object NotFound : DiscoverTextResult
 
-    // only the text in images is discovered
-    data object NotAnImage : DiscoverTextResult
+    // only the text in images and recordings is discovered
+    data object Unsupported : DiscoverTextResult
 
-    // no recognizer is configured
+    // nothing is configured to discover the text in files of the type
     data object NotConfigured : DiscoverTextResult
 
     data class Failed(
@@ -34,22 +43,26 @@ sealed interface DiscoverTextResult {
     ) : DiscoverTextResult
 }
 
-// discovers the text in the images of the file storage; a file never changes under its sha-256,
-// so the text is kept with the file (StoredFile.discovered) and the file is not read again
+// discovers the text in the images and the recordings of the file storage; a file never changes
+// under its sha-256, so the text is kept with the file (StoredFile.discovered) and the file is
+// not read again
 class FileTextService(
     private val files: FileService,
     private val recognizer: TextRecognizer?,
+    private val transcriber: SpeechTranscriber? = null,
 ) {
-    val configured: Boolean get() = recognizer != null
-
     fun discover(sha256: String): DiscoverTextResult {
         val file = files.bySha256(sha256) ?: return DiscoverTextResult.NotFound
-        if (!file.contentType.startsWith("image/")) return DiscoverTextResult.NotAnImage
-        val recognizer = recognizer ?: return DiscoverTextResult.NotConfigured
+        val read: (ByteArray) -> String =
+            when {
+                file.contentType.startsWith("image/") -> recognizer?.let { { bytes -> it.recognize(bytes, file.contentType) } }
+                file.contentType.startsWith("audio/") -> transcriber?.let { { bytes -> it.transcribe(bytes, file.contentType) } }
+                else -> return DiscoverTextResult.Unsupported
+            } ?: return DiscoverTextResult.NotConfigured
         file.discovered?.let { return DiscoverTextResult.Discovered(it) }
         val text =
             try {
-                recognizer.recognize(Files.readAllBytes(files.path(file)), file.contentType).trim()
+                read(Files.readAllBytes(files.path(file))).trim()
             } catch (e: TextRecognitionException) {
                 return DiscoverTextResult.Failed(e)
             }

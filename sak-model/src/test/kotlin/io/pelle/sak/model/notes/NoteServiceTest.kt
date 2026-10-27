@@ -48,7 +48,8 @@ class NoteServiceTest {
         labelNames: List<String> = emptyList(),
         owner: String = PELLE,
         photos: List<String> = emptyList(),
-    ) = service.create(owner, text, color, labelNames, photos).shouldBeInstanceOf<SaveNoteResult.Saved>().note
+        recordings: List<String> = emptyList(),
+    ) = service.create(owner, text, color, labelNames, photos, recordings).shouldBeInstanceOf<SaveNoteResult.Saved>().note
 
     private fun later(minutes: Long = 1) {
         clock.now = clock.now.plusSeconds(minutes * 60)
@@ -155,6 +156,27 @@ class NoteServiceTest {
             SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
         service.create(PELLE, "many", "blue", photos = (0..NoteService.MAX_PHOTOS).map { photo("photo $it") }) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_PHOTOS))
+    }
+
+    @Test
+    fun `keeps the recordings of a note apart from its photos, each of its kind`() {
+        val beach = photo("beach")
+        val memo = (files.store(FileServiceTest.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.sha256
+
+        val note = create("holidays", photos = listOf(beach), recordings = listOf(memo, memo))
+        note.photos shouldBe listOf(beach)
+        note.recordings shouldBe listOf(memo)
+        service.byId(PELLE, note.id)!!.let {
+            it.photos shouldBe listOf(beach)
+            it.recordings shouldBe listOf(memo)
+        }
+        service.page(PELLE, 0, 10).items.single().recordings shouldBe listOf(memo)
+
+        service.update(PELLE, note.id, "holidays", "blue", photos = listOf(beach))
+            .shouldBeInstanceOf<SaveNoteResult.Saved>().note.recordings shouldBe emptyList()
+        // a recording is no photo and a photo no recording
+        service.update(PELLE, note.id, "holidays", "blue", photos = listOf(memo), recordings = listOf(beach)) shouldBe
+            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
     }
 
     @Test

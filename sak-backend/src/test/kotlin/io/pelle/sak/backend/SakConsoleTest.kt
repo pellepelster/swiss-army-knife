@@ -42,6 +42,10 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.security.MessageDigest
 import javax.imageio.ImageIO
+import javax.sound.sampled.AudioFileFormat
+import javax.sound.sampled.AudioFormat
+import javax.sound.sampled.AudioInputStream
+import javax.sound.sampled.AudioSystem
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -167,6 +171,20 @@ class SakConsoleTest {
             socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray())
             socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
         }
+
+    // a second of a quiet 16 kHz mono wav, what the notes record
+    private fun wav(): ByteArray {
+        val frames = 16_000
+        val pcm = ByteArray(frames * 2) { index -> if (index % 2 == 1) (index / 64 % 8).toByte() else 0 }
+        return ByteArrayOutputStream()
+            .also {
+                AudioSystem.write(
+                    AudioInputStream(pcm.inputStream(), AudioFormat(16_000f, 16, 1, true, false), frames.toLong()),
+                    AudioFileFormat.Type.WAVE,
+                    it,
+                )
+            }.toByteArray()
+    }
 
     private fun HttpResponse<String>.json(): JsonObject = Json.parseToJsonElement(body()).jsonObject
 
@@ -471,7 +489,7 @@ class SakConsoleTest {
             uploaded.json().string("contentType") shouldBe "image/jpeg"
             upload("<script>".toByteArray()).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images can be stored."}]}"""
+                it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
 
@@ -521,6 +539,12 @@ class SakConsoleTest {
                     exchange.sendResponseHeaders(200, body.size.toLong())
                     exchange.responseBody.use { it.write(body) }
                 }
+                createContext("/api/v1/audio/transcriptions") { exchange ->
+                    completions.add(exchange.requestBody.readAllBytes().decodeToString())
+                    val body = """{"text":"Buy milk on the way home."}""".toByteArray()
+                    exchange.sendResponseHeaders(200, body.size.toLong())
+                    exchange.responseBody.use { it.write(body) }
+                }
                 start()
             }
         val config =
@@ -555,6 +579,33 @@ class SakConsoleTest {
                 completions.size shouldBe 1
                 completions.single() shouldContain "data:image/jpeg;base64,"
                 discover("0".repeat(64)).statusCode() shouldBe 404
+
+                // a recording is written down, its thumbnail is its waveform, a note keeps it
+                val recording =
+                    http.send(
+                        HttpRequest
+                            .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
+                            .header("Authorization", "Bearer $session")
+                            .POST(HttpRequest.BodyPublishers.ofByteArray(wav()))
+                            .build(),
+                        HttpResponse.BodyHandlers.ofString(),
+                    ).json()
+                recording.string("contentType") shouldBe "audio/wav"
+                val memo = recording.string("sha256")
+                discover(memo).json().string("text") shouldBe "Buy milk on the way home."
+                completions.last() shouldContain "\"format\":\"wav\""
+                http.send(
+                    HttpRequest.newBuilder(URI.create("http://localhost:$port/api/v1/files/$memo/thumbnail")).build(),
+                    HttpResponse.BodyHandlers.ofByteArray(),
+                ).let {
+                    it.statusCode() shouldBe 200
+                    ImageIO.read(it.body().inputStream()).let { waveform -> waveform.width to waveform.height } shouldBe (480 to 360)
+                }
+                post(port, "/api/v1/notes", """{"text":"memo","recordings":["$memo"]}""", session).json().let {
+                    it.getValue("recordings").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$memo"
+                    it.getValue("photos").jsonArray.size shouldBe 0
+                }
+                post(port, "/api/v1/notes", """{"text":"memo","photos":["$memo"]}""", session).statusCode() shouldBe 400
             }
         } finally {
             openrouter.stop(0)

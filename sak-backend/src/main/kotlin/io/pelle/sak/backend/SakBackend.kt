@@ -15,6 +15,7 @@ import io.pelle.sak.model.files.FileService
 import io.pelle.sak.model.files.FileTextService
 import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.notes.NoteService
+import io.pelle.sak.openrouter.OpenRouterSpeechTranscriber
 import io.pelle.sak.openrouter.OpenRouterTextRecognizer
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
@@ -85,7 +86,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
     val recognizer = config.openrouter?.let { OpenRouterTextRecognizer(it.url, it.apiToken, it.model) }
-    val fileTextService = FileTextService(fileService, recognizer)
+    val transcriber = config.openrouter?.let { OpenRouterSpeechTranscriber(it.url, it.apiToken, it.speechModel) }
+    val fileTextService = FileTextService(fileService, recognizer, transcriber)
     val noteService = NoteService(database, labelService, fileService)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)

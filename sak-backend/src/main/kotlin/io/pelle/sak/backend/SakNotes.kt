@@ -36,7 +36,7 @@ import kotlinx.serialization.Serializable
 
 private const val NOTES_TAG = "notes"
 
-// labels are sorted by name, photos are files of the file storage in their order
+// labels are sorted by name, photos and recordings are files of the file storage in their order
 @Serializable
 data class NoteResponse(
     val id: Int,
@@ -44,6 +44,7 @@ data class NoteResponse(
     val color: String,
     val labels: List<LabelResponse>,
     val photos: List<PhotoResponse>,
+    val recordings: List<RecordingResponse>,
     val createdAt: String,
     val updatedAt: String,
 )
@@ -55,14 +56,22 @@ data class PhotoResponse(
     val thumbnailUrl: String,
 )
 
-// the labels by name, the unknown ones are created; the photos by the sha-256 of files uploaded
-// to the file storage before
+@Serializable
+data class RecordingResponse(
+    val sha256: String,
+    val url: String,
+    val thumbnailUrl: String,
+)
+
+// the labels by name, the unknown ones are created; the photos and recordings by the sha-256 of
+// images and wav recordings uploaded to the file storage before
 @Serializable
 data class NoteRequest(
     val text: String = "",
     val color: String = NoteColor.YELLOW.id,
     val labels: List<String> = emptyList(),
     val photos: List<String> = emptyList(),
+    val recordings: List<String> = emptyList(),
 )
 
 private fun Note.response() =
@@ -72,6 +81,7 @@ private fun Note.response() =
         color.id,
         labels.map { it.response() },
         photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
+        recordings.map { RecordingResponse(it, fileUrl(it), thumbnailUrl(it)) },
         createdAt.toString(),
         updatedAt.toString(),
     )
@@ -82,8 +92,10 @@ private fun NoteProblem.message() =
         NoteProblem.INVALID_COLOR -> "The color must be one of ${NoteColor.entries.joinToString(", ") { it.id }}."
         NoteProblem.INVALID_LABEL -> INVALID_LABEL_NAME
         NoteProblem.TOO_MANY_LABELS -> "A note can have at most ${NoteService.MAX_LABELS} labels."
-        NoteProblem.UNKNOWN_PHOTO -> "Every photo must be a file of the file storage."
+        NoteProblem.UNKNOWN_PHOTO -> "Every photo must be an image of the file storage."
         NoteProblem.TOO_MANY_PHOTOS -> "A note can have at most ${NoteService.MAX_PHOTOS} photos."
+        NoteProblem.UNKNOWN_RECORDING -> "Every recording must be a recording of the file storage."
+        NoteProblem.TOO_MANY_RECORDINGS -> "A note can have at most ${NoteService.MAX_RECORDINGS} recordings."
     }
 
 private suspend fun RoutingCall.respondSaved(
@@ -132,7 +144,7 @@ fun Route.notes(noteService: NoteService) {
 
     post {
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.owner, request.text, request.color, request.labels, request.photos) }, created = true)
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.create(call.owner, request.text, request.color, request.labels, request.photos, request.recordings) }, created = true)
     }.describe {
         tag(NOTES_TAG)
         summary = "Create a note"
@@ -170,7 +182,7 @@ fun Route.notes(noteService: NoteService) {
     put("/{id}") {
         val id = call.idParameter() ?: return@put
         val request = call.receive<NoteRequest>()
-        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.owner, id, request.text, request.color, request.labels, request.photos) })
+        call.respondSaved(withContext(Dispatchers.IO) { noteService.update(call.owner, id, request.text, request.color, request.labels, request.photos, request.recordings) })
     }.describe {
         tag(NOTES_TAG)
         summary = "Change a note"

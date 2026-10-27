@@ -21,7 +21,7 @@ data class SakConfig(
     // the console and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
-    // the text discovery in the photos of notes is only offered when configured
+    // the text discovery in the photos and recordings of notes is only offered when configured
     val openrouter: OpenRouterConfig? = null,
 ) {
     val s3DataDir: Path get() = dataDir.resolve("s3")
@@ -66,6 +66,9 @@ data class SakConfig(
         val apiToken: String,
         // a vision model that reads the text in photos, its id at openrouter
         val model: String = DEFAULT_OPENROUTER_MODEL,
+        // a speech to text model that writes down recordings, its id at openrouter
+        @SerialName("speech_model")
+        val speechModel: String = DEFAULT_OPENROUTER_SPEECH_MODEL,
         val url: String = DEFAULT_OPENROUTER_URL,
     )
 
@@ -88,6 +91,8 @@ data class SakConfig(
         const val DEFAULT_VICTORIALOGS_URL = "http://127.0.0.1:9428"
 
         const val DEFAULT_OPENROUTER_MODEL = "anthropic/claude-haiku-5.5"
+
+        const val DEFAULT_OPENROUTER_SPEECH_MODEL = "openai/whisper-large-v3-turbo"
 
         const val DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
     }

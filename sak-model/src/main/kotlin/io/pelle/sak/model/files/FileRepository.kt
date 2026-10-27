@@ -19,6 +19,14 @@ internal class FileRepository(
             .fetchOne()
             ?.toFile()
 
+    fun bySha256s(sha256s: Collection<String>): Map<String, StoredFile> =
+        database.dsl
+            .selectFrom(FILES)
+            .where(FILES.SHA256.`in`(sha256s), FILES.DELETED_AT.isNull)
+            .fetch()
+            .map { it.toFile() }
+            .associateBy { it.sha256 }
+
     fun existing(sha256s: Collection<String>): Set<String> =
         database.dsl
             .select(FILES.SHA256)
