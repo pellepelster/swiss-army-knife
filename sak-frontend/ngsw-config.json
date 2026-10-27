@@ -14,7 +14,7 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/icons/**", "/media/**"]
+        "files": ["/icons/**", "/media/**", "/console.css"]
       }
     }
   ],
@@ -29,5 +29,5 @@
       }
     }
   ],
-  "navigationUrls": ["/**", "!/api/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**"]
+  "navigationUrls": ["/**", "!/api/**", "!/swagger/**", "!/doc/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**"]
 }

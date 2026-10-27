@@ -1,0 +1,266 @@
+// Load AFTER 'theme'; references Bootstrap only through --bs-* custom properties, so it works
+// with any themed Bootstrap 5.3 build.
+
+@use 'tokens' as *;
+
+// The navigation rail sits a shade darker than the canvas, so the content area reads as the
+// lighter working surface. The accent variables expose the brand green to component
+// stylesheets, which cannot read the scss variables.
+:root {
+  --app-sidebar-bg: #{$paper-sidebar};
+  --app-accent: #{$term-green};
+  --app-accent-ink: #{$accent-ink};
+  --app-accent-ring: #{rgba($term-green, 0.13)};
+  --app-accent-glow: #{rgba($term-green, 0.6)};
+}
+
+// A menu opened by the app itself rather than by bootstrap's javascript, which is what every
+// dropdown here is: no popper runs, so nothing sets the `[data-bs-popper]` attribute the
+// stock placement rules are written against, and a shown menu would sit at its static
+// position. These place it the way popper would - under its toggle, aligned to the near edge
+// of the button it belongs to.
+.dropdown-menu.show {
+  top: 100%;
+  left: 0;
+  margin-top: 0.125rem;
+}
+
+// A button that sits at the right of its row - a tab's action, a view's action bar - opens its
+// menu against its right edge, so the menu stays inside the page.
+.dropdown-menu.show.dropdown-menu-end {
+  right: 0;
+  left: auto;
+}
+
+// Mono everywhere data lives: identifiers, metrics, regions, endpoints.
+.font-mono {
+  font-family: $font-mono !important;
+}
+
+.label-mono {
+  font-family: $font-mono;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+// Brand dot - the rack-LED square logo
+.brand-dot {
+  display: inline-block;
+  width: 0.95rem;
+  height: 0.95rem;
+  background: $term-green;
+  border-radius: 0.2rem;
+  box-shadow: 0 0 8px rgba($term-green, 0.55);
+}
+
+// Status pill with LED square, replacing Bootstrap's rounded badges for state.
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: $font-mono;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.18rem 0.55rem 0.18rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+
+  &::before {
+    content: '';
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 1px;
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor;
+  }
+}
+
+$status-colors: (
+  'running': $term-green,
+  'provisioning': $term-amber,
+  'degraded': $term-yellow,
+  'failed': $term-red,
+);
+@each $name, $c in $status-colors {
+  .status-#{$name} {
+    color: $c;
+    background: rgba($c, 0.13);
+    border-color: rgba($c, 0.34);
+  }
+  // Plain colored text variant (see the statusColor/healthColor pipes).
+  // !important like bootstrap's own text utilities, so the color also wins
+  // inside table cells against `.table > :not(caption) > * > *`.
+  .status-text-#{$name} {
+    color: $c !important;
+  }
+}
+.status-text-stopped {
+  color: $term-gray !important;
+}
+.status-stopped {
+  color: $term-gray;
+  background: rgba($term-gray, 0.13);
+  border-color: rgba($term-gray, 0.34);
+  &::before {
+    box-shadow: none;
+  }
+}
+// One-shot attention pulse, fired when a status value changes
+.status-pulse {
+  animation: status-pulse 0.9s ease-out;
+}
+@keyframes status-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  100% {
+    box-shadow: 0 0 0 0.7rem transparent;
+  }
+}
+
+// Log levels, as the deployment log view colours them: the six the API's LogLevel
+// names, on the same choices the terminal panel below already makes for the three it
+// shows - info green, warn yellow, error red. A level is not a status, so it gets its
+// own scale rather than borrowing the status one, but it is drawn from the same palette.
+$log-level-colors: (
+  'trace': $term-gray,
+  'debug': $term-gray,
+  'info': $term-green,
+  'warn': $term-yellow,
+  'error': $term-red,
+  'fatal': $term-red,
+);
+@each $name, $c in $log-level-colors {
+  // !important like the status text utilities above, so the colour also wins inside a
+  // table cell against `.table > :not(caption) > * > *`
+  .log-level-#{$name} {
+    color: $c !important;
+  }
+}
+// fatal shares error's colour - there is no redder red - so the weight is what tells
+// the two apart, and it is the only level that gets one
+.log-level-fatal {
+  font-weight: 700;
+}
+// the two a reader turns on to look closer, dimmed so they stay out of the way when a
+// line beside them matters more
+.log-level-trace,
+.log-level-debug {
+  opacity: 0.75;
+}
+
+// Terminal / log panel - always dark, regardless of theme
+.terminal {
+  background: #0a0c0b;
+  color: #cdd6d0;
+  font-family: $font-mono;
+  font-size: 0.78rem;
+  line-height: 1.9;
+  border: 1px solid var(--bs-border-color);
+  border-radius: $radius-lg;
+  overflow: hidden;
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid #1c2320;
+    color: #7d8881;
+    font-size: 0.72rem;
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 1px;
+    }
+    .dot--g {
+      background: $term-green;
+    }
+    .dot--y {
+      background: $term-yellow;
+    }
+    .dot--a {
+      background: $term-amber;
+    }
+  }
+  &__body {
+    padding: 0.9rem;
+  }
+
+  .log-time {
+    color: #5c655f;
+  }
+  .log-info {
+    color: $term-green;
+  }
+  .log-warn {
+    color: $term-yellow;
+  }
+  .log-error {
+    color: $term-red;
+  }
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 0.85em;
+    background: $term-green;
+    vertical-align: -2px;
+    animation: term-blink 1s steps(1) infinite;
+  }
+}
+@keyframes term-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+// Primary buttons: keep dark ink on the bright green
+.btn-primary,
+.btn-success {
+  --bs-btn-color: #{$accent-ink};
+  --bs-btn-hover-color: #{$accent-ink};
+  --bs-btn-active-color: #{$accent-ink};
+}
+
+h1,
+h2,
+h3,
+.h1,
+.h2,
+.h3 {
+  letter-spacing: -0.01em;
+}
+
+// The tabs below the overview panel of a detail view, each one a child route.
+.tab-nav {
+  gap: 0;
+  border-bottom: 1px solid var(--bs-border-color);
+
+  .nav-link {
+    padding: 0.45rem 1.1rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    margin-bottom: -1px;
+  }
+
+  .nav-link + .nav-link {
+    border-left: 1px solid var(--bs-border-color);
+  }
+
+  .nav-link.active {
+    color: var(--bs-emphasis-color);
+  }
+}

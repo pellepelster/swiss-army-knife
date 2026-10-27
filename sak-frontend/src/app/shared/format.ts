@@ -19,3 +19,8 @@ export function formatBytes(value: number): string {
   }
   return `${unit === 0 ? value : value.toFixed(1).replace(/\.0$/, '')} ${BYTE_UNITS[unit]}`;
 }
+
+// a share as percent with at most one decimal, e.g. 12.3%
+export function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`;
+}

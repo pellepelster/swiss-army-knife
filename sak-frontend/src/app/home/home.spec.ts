@@ -48,11 +48,13 @@ describe('Home', () => {
       'Notes',
       'Static hosting',
       'Redirects',
+      'Console',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/notes',
       '/static-hosting',
       '/redirects',
+      '/console',
     ]);
 
     links[0].click();

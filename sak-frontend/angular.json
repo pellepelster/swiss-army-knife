@@ -28,21 +28,79 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "{swagger-ui-bundle.js,swagger-ui.css}",
+                "input": "node_modules/swagger-ui-dist",
+                "output": "swagger"
+              },
+              {
+                "glob": "ibm-plex-sans-latin-{400,600}-normal.woff2",
+                "input": "node_modules/@fontsource/ibm-plex-sans/files",
+                "output": "swagger/fonts"
+              },
+              {
+                "glob": "ibm-plex-mono-latin-{400,600}-normal.woff2",
+                "input": "node_modules/@fontsource/ibm-plex-mono/files",
+                "output": "swagger/fonts"
               }
             ],
             "styles": [
               "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
               "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
-              "src/styles.scss"
-            ]
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "src/styles.scss",
+              {
+                "input": "node_modules/@fontsource/ibm-plex-sans/latin-400.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "node_modules/@fontsource/ibm-plex-sans/latin-500.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "node_modules/@fontsource/ibm-plex-sans/latin-600.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "node_modules/@fontsource/ibm-plex-mono/latin-400.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "node_modules/@fontsource/ibm-plex-mono/latin-500.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "node_modules/@fontsource/ibm-plex-mono/latin-600.css",
+                "bundleName": "console",
+                "inject": false
+              },
+              {
+                "input": "src/console-theme/console.scss",
+                "bundleName": "console",
+                "inject": false
+              }
+            ],
+            "stylePreprocessorOptions": {
+              "sass": {
+                "silenceDeprecations": [
+                  "import"
+                ]
+              }
+            }
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "800kB",
+                  "maximumError": "1.5MB"
                 },
                 {
                   "type": "anyComponentStyle",

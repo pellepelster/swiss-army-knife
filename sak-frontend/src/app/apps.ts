@@ -26,4 +26,10 @@ export const APPS: readonly AppEntry[] = [
     description: 'Domains that lead elsewhere',
     icon: 'icons/redirects.svg',
   },
+  {
+    path: '/console',
+    name: 'Console',
+    description: 'Requests and logs of every site',
+    icon: 'icons/console.svg',
+  },
 ];
