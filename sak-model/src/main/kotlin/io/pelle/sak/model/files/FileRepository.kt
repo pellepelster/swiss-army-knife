@@ -4,8 +4,6 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.FilesRecord
 import io.pelle.sak.model.jooq.tables.references.FILES
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 // the database access of the files, only FileService (sak-backend) uses it; it reads the files that are not
 // deleted only, and only the ones of the address that uploaded them
@@ -41,7 +39,7 @@ class FileRepository(
         database.dsl
             .update(FILES)
             .set(FILES.DISCOVERED, text)
-            .set(FILES.UPDATED_AT, now.utc())
+            .set(FILES.UPDATED_AT, now)
             .where(FILES.ID.eq(id))
             .execute()
     }
@@ -59,13 +57,11 @@ class FileRepository(
             .set(FILES.CONTENT_TYPE, contentType)
             .set(FILES.SIZE, size)
             .set(FILES.UPLOADED_BY, uploadedBy)
-            .set(FILES.CREATED_AT, now.utc())
-            .set(FILES.UPDATED_AT, now.utc())
+            .set(FILES.CREATED_AT, now)
+            .set(FILES.UPDATED_AT, now)
             .returning()
             .fetchOne()!!
             .toFile()
-
-    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun FilesRecord.toFile() =
         StoredFile(
@@ -74,8 +70,8 @@ class FileRepository(
             contentType = contentType!!,
             size = size!!,
             uploadedBy = uploadedBy!!,
-            createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
-            updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
+            createdAt = createdAt!!,
+            updatedAt = updatedAt!!,
             discovered = discovered,
         )
 }

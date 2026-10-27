@@ -5,8 +5,6 @@ import io.pelle.sak.model.jooq.tables.records.LabelsRecord
 import io.pelle.sak.model.jooq.tables.references.LABELS
 import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 // the database access of the labels, only LabelService (sak-backend) uses it; it reads the labels that are not
 // deleted only
@@ -63,8 +61,8 @@ class LabelRepository(
             database.dsl
                 .insertInto(LABELS)
                 .set(LABELS.NAME, name)
-                .set(LABELS.CREATED_AT, now.utc())
-                .set(LABELS.UPDATED_AT, now.utc())
+                .set(LABELS.CREATED_AT, now)
+                .set(LABELS.UPDATED_AT, now)
                 .returning()
                 .fetchOne()
                 ?.toLabel()
@@ -82,7 +80,7 @@ class LabelRepository(
             database.dsl
                 .update(LABELS)
                 .set(LABELS.NAME, name)
-                .set(LABELS.UPDATED_AT, now.utc())
+                .set(LABELS.UPDATED_AT, now)
                 .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
                 .execute()
             true
@@ -97,18 +95,16 @@ class LabelRepository(
     ): Boolean =
         database.dsl
             .update(LABELS)
-            .set(LABELS.UPDATED_AT, now.utc())
-            .set(LABELS.DELETED_AT, now.utc())
+            .set(LABELS.UPDATED_AT, now)
+            .set(LABELS.DELETED_AT, now)
             .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
             .execute() > 0
-
-    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun LabelsRecord.toLabel() =
         Label(
             id = id!!,
             name = name!!,
-            createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
-            updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
+            createdAt = createdAt!!,
+            updatedAt = updatedAt!!,
         )
 }

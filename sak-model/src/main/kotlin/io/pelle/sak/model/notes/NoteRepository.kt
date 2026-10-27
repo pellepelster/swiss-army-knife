@@ -9,8 +9,6 @@ import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 // a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
 // recordings) in their order
@@ -84,8 +82,8 @@ class NoteRepository(
                     .set(NOTES.OWNER, owner)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
-                    .set(NOTES.CREATED_AT, now.utc())
-                    .set(NOTES.UPDATED_AT, now.utc())
+                    .set(NOTES.CREATED_AT, now)
+                    .set(NOTES.UPDATED_AT, now)
                     .returning()
                     .fetchOne()!!
             labelIds.forEach { insertLabel(dsl, note.id!!, it, now) }
@@ -110,7 +108,7 @@ class NoteRepository(
                     .update(NOTES)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
-                    .set(NOTES.UPDATED_AT, now.utc())
+                    .set(NOTES.UPDATED_AT, now)
                     .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
                     .execute() > 0
             if (updated) {
@@ -131,8 +129,8 @@ class NoteRepository(
             val deleted =
                 dsl
                     .update(NOTES)
-                    .set(NOTES.UPDATED_AT, now.utc())
-                    .set(NOTES.DELETED_AT, now.utc())
+                    .set(NOTES.UPDATED_AT, now)
+                    .set(NOTES.DELETED_AT, now)
                     .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
                     .execute() > 0
             if (deleted) {
@@ -190,8 +188,8 @@ class NoteRepository(
             .insertInto(NOTES_LABELS)
             .set(NOTES_LABELS.NOTE_ID, noteId)
             .set(NOTES_LABELS.LABEL_ID, labelId)
-            .set(NOTES_LABELS.CREATED_AT, now.utc())
-            .set(NOTES_LABELS.UPDATED_AT, now.utc())
+            .set(NOTES_LABELS.CREATED_AT, now)
+            .set(NOTES_LABELS.UPDATED_AT, now)
             .execute()
     }
 
@@ -203,8 +201,8 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_LABELS)
-            .set(NOTES_LABELS.UPDATED_AT, now.utc())
-            .set(NOTES_LABELS.DELETED_AT, now.utc())
+            .set(NOTES_LABELS.UPDATED_AT, now)
+            .set(NOTES_LABELS.DELETED_AT, now)
             .where(condition, NOTES_LABELS.DELETED_AT.isNull)
             .execute()
     }
@@ -232,7 +230,7 @@ class NoteRepository(
                 dsl
                     .update(NOTES_FILES)
                     .set(NOTES_FILES.POSITION, position)
-                    .set(NOTES_FILES.UPDATED_AT, now.utc())
+                    .set(NOTES_FILES.UPDATED_AT, now)
                     .where(NOTES_FILES.ID.eq(link.id))
                     .execute()
             }
@@ -251,8 +249,8 @@ class NoteRepository(
             .set(NOTES_FILES.NOTE_ID, noteId)
             .set(NOTES_FILES.FILE_ID, fileId)
             .set(NOTES_FILES.POSITION, position)
-            .set(NOTES_FILES.CREATED_AT, now.utc())
-            .set(NOTES_FILES.UPDATED_AT, now.utc())
+            .set(NOTES_FILES.CREATED_AT, now)
+            .set(NOTES_FILES.UPDATED_AT, now)
             .execute()
     }
 
@@ -264,8 +262,8 @@ class NoteRepository(
     ) {
         dsl
             .update(NOTES_FILES)
-            .set(NOTES_FILES.UPDATED_AT, now.utc())
-            .set(NOTES_FILES.DELETED_AT, now.utc())
+            .set(NOTES_FILES.UPDATED_AT, now)
+            .set(NOTES_FILES.DELETED_AT, now)
             .where(condition, NOTES_FILES.DELETED_AT.isNull)
             .execute()
     }
@@ -292,8 +290,6 @@ class NoteRepository(
             .groupBy({ it.noteId!! }, { it.labelId!! })
             .mapValues { it.value.toSet() }
 
-    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
-
     private fun NotesRecord.toRow(
         labelIds: Set<Int>,
         files: List<Int>,
@@ -305,7 +301,7 @@ class NoteRepository(
             color = color!!,
             labelIds = labelIds,
             files = files,
-            createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
-            updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
+            createdAt = createdAt!!,
+            updatedAt = updatedAt!!,
         )
 }

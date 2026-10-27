@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
-import java.time.LocalDateTime
 
 class NoteRepositoryTest {
     @TempDir
@@ -142,20 +141,20 @@ class NoteRepositoryTest {
     fun `the schema attaches a file to a note once among the links that are not deleted only`() {
         val beach = file("beach")
         val note = repository.insert("pelle@pelle.io", "holidays", "blue", emptySet(), emptyList(), now)
-        fun insert(deletedAt: LocalDateTime?) =
+        fun insert(deletedAt: Instant?) =
             database.dsl
                 .insertInto(NOTES_FILES)
                 .set(NOTES_FILES.NOTE_ID, note.id)
                 .set(NOTES_FILES.FILE_ID, beach)
                 .set(NOTES_FILES.POSITION, 0)
-                .set(NOTES_FILES.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-                .set(NOTES_FILES.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(NOTES_FILES.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
+                .set(NOTES_FILES.UPDATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
                 .set(NOTES_FILES.DELETED_AT, deletedAt)
                 .execute()
 
         insert(null) shouldBe 1
         shouldThrow<DataAccessException> { insert(null) }
-        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
-        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
+        insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
+        insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
     }
 }

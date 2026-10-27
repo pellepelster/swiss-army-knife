@@ -8,8 +8,6 @@ import org.jooq.DSLContext
 import org.jooq.exception.IntegrityConstraintViolationException
 import org.jooq.impl.DSL
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 // the database access of the buckets and their domains, only S3BucketService (sak-backend) uses
 // it
@@ -57,7 +55,7 @@ class S3BucketRepository(
                     .set(S3_BUCKETS.NAME, bucket.name)
                     .set(S3_BUCKETS.ACCESS_KEY_ID, bucket.accessKeyId)
                     .set(S3_BUCKETS.SECRET_ACCESS_KEY, bucket.secretAccessKey)
-                    .set(S3_BUCKETS.CREATED_AT, LocalDateTime.ofInstant(bucket.createdAt, ZoneOffset.UTC))
+                    .set(S3_BUCKETS.CREATED_AT, bucket.createdAt)
                     .execute()
                 insertDomains(dsl, bucket.name, bucket.domains)
             }
@@ -112,7 +110,7 @@ class S3BucketRepository(
             name = name!!,
             accessKeyId = accessKeyId!!,
             secretAccessKey = secretAccessKey!!,
-            createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
+            createdAt = createdAt!!,
             domains = domains,
         )
 }

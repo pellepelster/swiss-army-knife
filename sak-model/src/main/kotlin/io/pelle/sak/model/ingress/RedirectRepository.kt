@@ -5,8 +5,6 @@ import io.pelle.sak.model.jooq.tables.records.RedirectsRecord
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
 import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 // the database access of the redirects, only RedirectService (sak-backend) uses it
 class RedirectRepository(
@@ -35,8 +33,8 @@ class RedirectRepository(
                 .set(REDIRECTS.TARGET_TYPE, redirect.target.type())
                 .set(REDIRECTS.TARGET_DOMAIN, (redirect.target as? RedirectTarget.Domain)?.domain)
                 .set(REDIRECTS.TARGET_BUCKET, (redirect.target as? RedirectTarget.Bucket)?.bucket)
-                .set(REDIRECTS.CREATED_AT, redirect.createdAt.utc())
-                .set(REDIRECTS.UPDATED_AT, redirect.updatedAt.utc())
+                .set(REDIRECTS.CREATED_AT, redirect.createdAt)
+                .set(REDIRECTS.UPDATED_AT, redirect.updatedAt)
                 .execute()
             true
         } catch (_: IntegrityConstraintViolationException) {
@@ -54,7 +52,7 @@ class RedirectRepository(
             .set(REDIRECTS.TARGET_TYPE, target.type())
             .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
             .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
-            .set(REDIRECTS.UPDATED_AT, now.utc())
+            .set(REDIRECTS.UPDATED_AT, now)
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
             .execute() > 0
 
@@ -64,8 +62,6 @@ class RedirectRepository(
             .deleteFrom(REDIRECTS)
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
             .execute() > 0
-
-    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun RedirectTarget.type() =
         when (this) {
@@ -82,8 +78,8 @@ class RedirectRepository(
                     BUCKET -> RedirectTarget.Bucket(targetBucket!!)
                     else -> error("redirect of '$sourceDomain' has the unknown target type '$targetType'")
                 },
-            createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
-            updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
+            createdAt = createdAt!!,
+            updatedAt = updatedAt!!,
         )
 
     companion object {

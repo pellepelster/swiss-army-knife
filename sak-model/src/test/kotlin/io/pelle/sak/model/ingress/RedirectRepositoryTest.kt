@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
-import java.time.LocalDateTime
 
 class RedirectRepositoryTest {
     @TempDir
@@ -32,8 +31,8 @@ class RedirectRepositoryTest {
             .set(REDIRECTS.TARGET_TYPE, type)
             .set(REDIRECTS.TARGET_DOMAIN, domain)
             .set(REDIRECTS.TARGET_BUCKET, bucket)
-            .set(REDIRECTS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-            .set(REDIRECTS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+            .set(REDIRECTS.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
+            .set(REDIRECTS.UPDATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
             .execute()
 
         shouldThrow<DataAccessException> { insert("DOMAIN", null, "site") }

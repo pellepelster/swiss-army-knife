@@ -23,6 +23,15 @@ jooq {
             name = "org.jooq.codegen.KotlinGenerator"
             database {
                 name = "org.jooq.meta.extensions.liquibase.LiquibaseDatabase"
+                // the timestamps are instants, InstantConverter turns them into the utc they are
+                // stored in
+                forcedTypes {
+                    forcedType {
+                        userType = "java.time.Instant"
+                        converter = "io.pelle.sak.model.InstantConverter"
+                        includeTypes = "TIMESTAMP.*"
+                    }
+                }
                 properties {
                     property {
                         key = "rootPath"

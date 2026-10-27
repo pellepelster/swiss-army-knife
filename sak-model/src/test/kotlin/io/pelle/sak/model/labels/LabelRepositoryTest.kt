@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
-import java.time.LocalDateTime
 
 class LabelRepositoryTest {
     @TempDir
@@ -34,18 +33,18 @@ class LabelRepositoryTest {
 
     @Test
     fun `the schema keeps the name unique among the labels that are not deleted only`() {
-        fun insert(deletedAt: LocalDateTime?) =
+        fun insert(deletedAt: Instant?) =
             database.dsl
                 .insertInto(LABELS)
                 .set(LABELS.NAME, "home")
-                .set(LABELS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
-                .set(LABELS.UPDATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+                .set(LABELS.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
+                .set(LABELS.UPDATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
                 .set(LABELS.DELETED_AT, deletedAt)
                 .execute()
 
         insert(null) shouldBe 1
         shouldThrow<DataAccessException> { insert(null) }
-        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
-        insert(LocalDateTime.of(2026, 10, 27, 9, 0)) shouldBe 1
+        insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
+        insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
     }
 }

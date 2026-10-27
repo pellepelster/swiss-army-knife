@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.nio.file.attribute.PosixFilePermissions
-import java.time.LocalDateTime
 
 class SakDatabaseTest {
     @TempDir
@@ -26,7 +26,7 @@ class SakDatabaseTest {
         .set(S3_BUCKETS.NAME, name)
         .set(S3_BUCKETS.ACCESS_KEY_ID, accessKeyId)
         .set(S3_BUCKETS.SECRET_ACCESS_KEY, "secret of $name")
-        .set(S3_BUCKETS.CREATED_AT, LocalDateTime.of(2026, 10, 27, 8, 0))
+        .set(S3_BUCKETS.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
         .execute()
 
     @Test
@@ -38,7 +38,7 @@ class SakDatabaseTest {
         val bucket = database.dsl.selectFrom(S3_BUCKETS).where(S3_BUCKETS.NAME.eq("bucket1")).fetchSingle()
         bucket.accessKeyId shouldBe "AKbucket1"
         bucket.secretAccessKey shouldBe "secret of bucket1"
-        bucket.createdAt shouldBe LocalDateTime.of(2026, 10, 27, 8, 0)
+        bucket.createdAt shouldBe Instant.parse("2026-10-27T08:00:00Z")
         PosixFilePermissions.toString(Files.getPosixFilePermissions(file)) shouldBe "rw-------"
     }
 
