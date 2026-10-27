@@ -6,7 +6,6 @@ import { servedDomains } from './buckets.service';
 // changed on its edit page
 @Component({
   selector: 'app-bucket-configuration',
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .configuration {
       display: grid;

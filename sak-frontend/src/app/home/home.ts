@@ -15,7 +15,7 @@ import { InstallService } from '../install.service';
       @if (installer.canInstall()) {
         <button
           type="button"
-          class="install"
+          class="button install"
           aria-label="Install the notes as an app"
           (click)="installer.install()"
         >
@@ -23,7 +23,7 @@ import { InstallService } from '../install.service';
         </button>
       }
       <span class="user" data-testid="email">{{ auth.email() }}</span>
-      <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
+      <button type="button" class="button sign-out" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
       <ul class="apps">

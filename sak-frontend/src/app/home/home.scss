@@ -12,14 +12,6 @@
   padding: 16px 0 20px;
 }
 
-.title {
-  font-weight: 700;
-  flex: 1;
-  margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: -0.02em;
-}
-
 .apps {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -78,18 +70,4 @@
   font-size: 0.9rem;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-// the buttons of the notes (.add)
-.install,
-.sign-out {
-  flex: none;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--wall);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
 }

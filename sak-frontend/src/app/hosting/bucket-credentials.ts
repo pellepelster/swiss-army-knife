@@ -9,7 +9,6 @@ import { s3Endpoint } from './buckets.service';
 @Component({
   selector: 'app-bucket-credentials',
   imports: [CopyButton],
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .value {
       display: flex;

@@ -21,7 +21,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
 @Component({
   selector: 'app-bucket-list',
   imports: [PaginationControl, RouterLink],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
+  styleUrl: '../shared/app-page.scss',
   styles: `
     .buckets {
       display: grid;

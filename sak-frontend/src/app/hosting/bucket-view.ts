@@ -12,7 +12,7 @@ import { BucketsService } from './buckets.service';
   selector: 'app-bucket-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [BucketStore],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss', '../shared/detail-view.scss'],
+  styleUrls: ['../shared/app-page.scss', '../shared/detail-view.scss'],
   styles: `
     .button-danger {
       background: var(--danger);

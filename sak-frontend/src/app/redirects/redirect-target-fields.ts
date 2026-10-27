@@ -24,7 +24,6 @@ export function redirectTarget(
 // pages creating and editing a redirect
 @Component({
   selector: 'app-redirect-target-fields',
-  styleUrls: ['../shared/app-parts.scss'],
   styles: `
     :host {
       display: contents;

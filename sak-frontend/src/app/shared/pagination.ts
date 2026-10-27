@@ -5,7 +5,6 @@ import { Pagination } from './api';
 // nothing while the list fits on one page
 @Component({
   selector: 'app-pagination',
-  styleUrl: './app-parts.scss',
   styles: `
     .pagination {
       display: flex;

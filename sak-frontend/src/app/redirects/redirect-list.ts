@@ -20,7 +20,7 @@ import { Redirect, RedirectsService } from './redirects.service';
 @Component({
   selector: 'app-redirect-list',
   imports: [PaginationControl, RouterLink],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
+  styleUrl: '../shared/app-page.scss',
   styles: `
     .redirects {
       display: grid;

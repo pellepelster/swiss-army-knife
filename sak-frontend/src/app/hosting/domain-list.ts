@@ -4,7 +4,6 @@ import { DOMAIN_PATTERN } from '../shared/domains';
 // the domains a bucket is served at, one input each; blank inputs are left out by the caller
 @Component({
   selector: 'app-domain-list',
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .domain {
       display: flex;

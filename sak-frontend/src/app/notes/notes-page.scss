@@ -5,57 +5,17 @@
   padding: 0 16px 48px;
 }
 
+// the toolbar of the apps (app-parts.scss), it stays on top while the wall scrolls
 .toolbar {
   position: sticky;
   top: 0;
   z-index: 1;
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 0 12px;
   background: var(--wall);
 }
 
 .add-photo {
   padding: 10px 14px;
-}
-
-.add:disabled {
-  opacity: 0.6;
-}
-
-.back {
-  margin-right: -4px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: var(--ink);
-  font-size: 1.3rem;
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--line);
-  }
-}
-
-.title {
-  font-weight: 700;
-  flex: 1;
-  margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: -0.02em;
-}
-
-.add {
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--wall);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 // one row that scrolls sideways on a phone instead of wrapping into many

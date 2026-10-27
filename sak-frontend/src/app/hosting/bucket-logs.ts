@@ -31,7 +31,6 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
 @Component({
   selector: 'app-bucket-logs',
   imports: [LocalDateTimePipe, TimeSeriesChart],
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .logs {
       display: grid;

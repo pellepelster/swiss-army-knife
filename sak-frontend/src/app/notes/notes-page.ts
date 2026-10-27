@@ -37,7 +37,7 @@ import { RecordingOverlay } from './recording-overlay';
       />
       <button
         type="button"
-        class="add add-photo"
+        class="button add-photo"
         aria-label="New note with a photo"
         title="New note with a photo"
         [disabled]="addingPhoto()"
@@ -51,7 +51,7 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
       <button
         type="button"
-        class="add add-photo"
+        class="button add-photo"
         aria-label="New note with a recording"
         title="New note with a recording"
         [disabled]="store.recordingFor() !== null"
@@ -59,7 +59,7 @@ import { RecordingOverlay } from './recording-overlay';
       >
         <i class="fa-solid fa-microphone" aria-hidden="true"></i>
       </button>
-      <button type="button" class="add" (click)="add()">
+      <button type="button" class="button" (click)="add()">
         <i class="fa-solid fa-plus" aria-hidden="true"></i> New note
       </button>
     </header>

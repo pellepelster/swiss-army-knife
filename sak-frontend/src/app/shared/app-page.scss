@@ -1,4 +1,4 @@
-// a page of an app, its parts (the tabs, the domain list) take app-parts.scss only
+// a page of an app; the parts every page and component uses are global (app-parts.scss)
 :host {
   display: block;
   max-width: 960px;

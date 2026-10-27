@@ -6,7 +6,6 @@ import { RedirectStore } from './redirect-store';
 @Component({
   selector: 'app-redirect-configuration',
   imports: [RouterLink],
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .configuration {
       display: grid;

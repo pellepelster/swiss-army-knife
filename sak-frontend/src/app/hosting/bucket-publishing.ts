@@ -12,7 +12,6 @@ const SECRET_MASK = '•••••••••••••••••••�
 @Component({
   selector: 'app-bucket-publishing',
   imports: [CodeBlock],
-  styleUrl: '../shared/app-parts.scss',
   styles: `
     .steps {
       display: grid;

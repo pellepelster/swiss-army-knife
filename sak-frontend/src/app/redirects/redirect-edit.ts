@@ -11,7 +11,7 @@ import { RedirectsService } from './redirects.service';
 @Component({
   selector: 'app-redirect-edit',
   imports: [RedirectTargetFields, RouterLink],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss'],
+  styleUrl: '../shared/app-page.scss',
   template: `
     <header class="toolbar">
       <a class="back" [routerLink]="['/redirects', source()]" aria-label="Back to the redirect"

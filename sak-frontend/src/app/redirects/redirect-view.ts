@@ -11,7 +11,7 @@ import { RedirectsService } from './redirects.service';
   selector: 'app-redirect-view',
   imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
   providers: [RedirectStore],
-  styleUrls: ['../shared/app-parts.scss', '../shared/app-page.scss', '../shared/detail-view.scss'],
+  styleUrls: ['../shared/app-page.scss', '../shared/detail-view.scss'],
   styles: `
     .button-danger {
       background: var(--danger);
