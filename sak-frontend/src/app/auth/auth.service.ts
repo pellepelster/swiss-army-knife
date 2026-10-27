@@ -29,8 +29,8 @@ export const SESSION_STORAGE_KEY = 'sak.session';
 // the app the backend sends the login links to, the signin page of the frontend
 export const LOGIN_APP = 'frontend';
 
-// the api answers login and exchange without a session, every other /api/v1 request needs one
-export const PUBLIC_API_URLS = ['/api/v1/auth/login', '/api/v1/auth/exchange'];
+// the api answers the login below this without a session, every other /api/v1 request needs one
+export const PUBLIC_API_PREFIX = '/api/v1/login/';
 
 // only paths below the frontend are followed after the login, the backend enforces the same
 export function safeRedirect(redirect: string | null | undefined): string {
@@ -76,13 +76,13 @@ export class AuthService {
   // answered the same way for every address, a link is only sent to allowed ones
   requestLogin(email: string, redirect: string | null): Observable<void> {
     return this.http
-      .post('/api/v1/auth/login', { email, redirect: safeRedirect(redirect), app: LOGIN_APP })
+      .post('/api/v1/login/link', { email, redirect: safeRedirect(redirect), app: LOGIN_APP })
       .pipe(map(() => undefined));
   }
 
   // trades the login token from the e-mailed link for a session, emits where to go next
   signIn(loginToken: string): Observable<string> {
-    return this.http.post<ExchangeResponse>('/api/v1/auth/exchange', { token: loginToken }).pipe(
+    return this.http.post<ExchangeResponse>('/api/v1/login/exchange', { token: loginToken }).pipe(
       tap((response) =>
         this.store({
           token: response.sessionToken,

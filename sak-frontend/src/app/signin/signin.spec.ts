@@ -36,7 +36,7 @@ describe('Signin', () => {
       '/signin?token=login-token&redirect=%2Fignored',
     );
 
-    const request = http.expectOne('/api/v1/auth/exchange');
+    const request = http.expectOne('/api/v1/login/exchange');
     expect(request.request.body).toEqual({ token: 'login-token' });
     request.flush({
       sessionToken: 'session-token',
@@ -55,7 +55,7 @@ describe('Signin', () => {
 
     expect(TestBed.inject(Location).path()).toBe('/signin');
     http
-      .expectOne('/api/v1/auth/exchange')
+      .expectOne('/api/v1/login/exchange')
       .flush(null, { status: 401, statusText: 'Unauthorized' });
     await harness.fixture.whenStable();
 

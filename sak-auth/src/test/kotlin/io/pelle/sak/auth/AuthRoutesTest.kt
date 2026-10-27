@@ -55,7 +55,10 @@ class AuthRoutesTest {
             install(Authentication) { session(tokens, rolesOf) }
             routing {
                 route("/api/v1/auth") {
-                    auth(
+                    authenticate(SESSION_AUTH) { me() }
+                }
+                route("/api/v1/login") {
+                    login(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
                         // two apps, the requests that name none get the links of the first
@@ -75,7 +78,7 @@ class AuthRoutesTest {
         email: String,
         redirect: String? = null,
         app: String? = null,
-    ) = post("/api/v1/auth/login") {
+    ) = post("/api/v1/login/link") {
         contentType(ContentType.Application.Json)
         setBody(
             """{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}${app?.let { ",\"app\":\"$it\"" } ?: ""}}""",
@@ -83,7 +86,7 @@ class AuthRoutesTest {
     }
 
     private suspend fun HttpClient.exchange(token: String) =
-        post("/api/v1/auth/exchange") {
+        post("/api/v1/login/exchange") {
             contentType(ContentType.Application.Json)
             setBody("""{"token":"$token"}""")
         }
@@ -141,7 +144,7 @@ class AuthRoutesTest {
                 it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
             }
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
-            client.post("/api/v1/auth/login") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
+            client.post("/api/v1/login/link") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
                 HttpStatusCode.BadRequest
         }
 
@@ -225,7 +228,7 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         block: HttpRequestBuilder.() -> Unit,
-    ) = post("/api/v1/auth/login") {
+    ) = post("/api/v1/login/link") {
         contentType(ContentType.Application.Json)
         setBody("""{"email":"$email"}""")
         block()

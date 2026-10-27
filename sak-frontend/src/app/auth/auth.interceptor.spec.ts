@@ -44,8 +44,8 @@ describe('authInterceptor', () => {
 
   it('keeps the session token from the public api and other origins', () => {
     for (const url of [
-      '/api/v1/auth/login',
-      '/api/v1/auth/exchange',
+      '/api/v1/login/link',
+      '/api/v1/login/exchange',
       'https://evil.example.com/api/x',
       '/assets/x',
     ]) {

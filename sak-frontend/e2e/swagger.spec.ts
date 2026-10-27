@@ -16,7 +16,7 @@ test('documents the api in swagger ui, which tries it out with the session of th
   // the service worker leaves swagger ui to the backend, which adds the slash
   await expect(page).toHaveURL('/swagger/');
   await expect(page.getByRole('heading', { name: /sak api/ })).toBeVisible();
-  for (const path of ['/api/v1/auth/login', '/api/v1/static-hosting/{bucket}/access-logs/live']) {
+  for (const path of ['/api/v1/login/link', '/api/v1/static-hosting/{bucket}/access-logs/live']) {
     await expect(page.getByText(path, { exact: true })).toBeVisible();
   }
 

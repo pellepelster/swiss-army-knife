@@ -23,7 +23,8 @@ import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
-import io.pelle.sak.auth.auth
+import io.pelle.sak.auth.login
+import io.pelle.sak.auth.me
 import io.pelle.sak.auth.session
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
@@ -135,10 +136,14 @@ fun Application.apps(
                 install(RequestBodyLimit) { bodyLimit { API_MAX_BODY_SIZE } }
 
                 route(API_VERSION) {
-                    route("/auth") {
-                        auth(tokens, mailSender, loginApps(config), FRONTEND_APP, rolesOf)
+                    // the only routes without a session, the rest of the api needs one
+                    route("/login") {
+                        login(tokens, mailSender, loginApps(config), FRONTEND_APP, rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
+                        route("/auth") {
+                            me()
+                        }
                         route("/static-hosting") {
                             install(RequireRole) { role = Role.ADMIN }
                             buckets(bucketService, statistics)

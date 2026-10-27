@@ -12,7 +12,6 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.auth.AuthenticationConfig
-import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -42,7 +41,7 @@ val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",
         bearerFormat = "JWT",
-        description = "The session token the apps get for a login link, see POST /api/v1/auth/exchange.",
+        description = "The session token the apps get for a login link, see POST /api/v1/login/exchange.",
     )
 
 private const val AUTH_TAG = "auth"
@@ -109,11 +108,11 @@ fun AuthenticationConfig.session(
     }
 }
 
-// the e-mail login: login sends a link with a login token to allowed addresses, the signin page
-// of the app the login started from exchanges it for a session token with the roles of the
-// address; addresses without roles may not log in; needs authentication { session(tokens, rolesOf) }
+// the e-mail login, the only routes of the api without a session: link sends a link with a login
+// token to allowed addresses, the signin page of the app the login started from exchanges it for a
+// session token with the roles of the address; addresses without roles may not log in
 @OptIn(ExperimentalKtorApi::class)
-fun Route.auth(
+fun Route.login(
     tokens: TokenService,
     mailSender: MailSender,
     // by the name a login request gives, only these get links
@@ -131,7 +130,7 @@ fun Route.auth(
     install(ApiErrors)
 
     // always accepted, whether a link is sent does not tell anything about the address
-    post("/login") {
+    post("/link") {
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
         val app = apps[request.app ?: defaultApp]
@@ -216,21 +215,27 @@ fun Route.auth(
         }
     }
 
-    authenticate(SESSION_AUTH) {
-        get("/me") {
-            val principal = call.principal<SessionPrincipal>()!!
-            call.response.header(HttpHeaders.CacheControl, "no-store")
-            call.respond(MeResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
-        }.describe {
-            tag(AUTH_TAG)
-            summary = "The signed in user"
-            responses {
-                HttpStatusCode.OK {
-                    description = "The address, its roles and when the session expires"
-                    schema = jsonSchema<MeResponse>()
-                }
-                HttpStatusCode.Unauthorized { description = "No valid session token" }
+}
+
+// the signed in user, meant to be mounted behind authenticate(SESSION_AUTH) with
+// authentication { session(tokens, rolesOf) }
+@OptIn(ExperimentalKtorApi::class)
+fun Route.me() {
+    install(ContentNegotiation) { json() }
+
+    get("/me") {
+        val principal = call.principal<SessionPrincipal>()!!
+        call.response.header(HttpHeaders.CacheControl, "no-store")
+        call.respond(MeResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
+    }.describe {
+        tag(AUTH_TAG)
+        summary = "The signed in user"
+        responses {
+            HttpStatusCode.OK {
+                description = "The address, its roles and when the session expires"
+                schema = jsonSchema<MeResponse>()
             }
+            HttpStatusCode.Unauthorized { description = "No valid session token" }
         }
     }
 }

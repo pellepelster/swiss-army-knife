@@ -3,6 +3,7 @@ package io.pelle.sak.backend
 import com.icegreen.greenmail.junit5.GreenMailExtension
 import com.icegreen.greenmail.util.GreenMailUtil
 import com.icegreen.greenmail.util.ServerSetupTest
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -202,7 +203,7 @@ class SakAppsTest {
         port: Int,
         mails: Int = 1,
     ): Map<String, String> {
-        post(port, "/api/v1/auth/login", """{"email":"admin@example.org","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
+        post(port, "/api/v1/login/link", """{"email":"admin@example.org","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
         greenMail.waitForIncomingEmail(5_000, mails) shouldBe true
 
         val mail = greenMail.receivedMessages.last()
@@ -222,7 +223,7 @@ class SakAppsTest {
             val link = requestLoginLink(port)
             link.keys shouldBe setOf("token")
 
-            val exchange = post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""")
+            val exchange = post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""")
             exchange.statusCode() shouldBe 200
             val session = exchange.json()
             session.string("email") shouldBe "admin@example.org"
@@ -233,13 +234,13 @@ class SakAppsTest {
             me.json().string("email") shouldBe "admin@example.org"
 
             // the link only works once
-            post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
+            post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
         }
     }
 
     private fun signIn(port: Int): String {
         val link = requestLoginLink(port)
-        return post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+        return post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
     }
 
     @Test
@@ -704,7 +705,7 @@ class SakAppsTest {
         withServer { port ->
             val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
 
-            post(port, "/api/v1/auth/login", """{"email":"$email"}""").statusCode() shouldBe 413
+            post(port, "/api/v1/login/link", """{"email":"$email"}""").statusCode() shouldBe 413
             greenMail.waitForIncomingEmail(500, 1) shouldBe false
         }
     }
@@ -712,7 +713,7 @@ class SakAppsTest {
     @Test
     fun `addresses that are not allowed get no link`() {
         withServer { port ->
-            post(port, "/api/v1/auth/login", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
+            post(port, "/api/v1/login/link", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
 
             greenMail.waitForIncomingEmail(1_000, 1) shouldBe false
         }
@@ -724,7 +725,7 @@ class SakAppsTest {
         var sessionToken = ""
         withServer(config) { port ->
             val link = requestLoginLink(port)
-            sessionToken = post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+            sessionToken = post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
         }
 
         Files.exists(signingKeyFile(config)) shouldBe true
@@ -781,6 +782,35 @@ class SakAppsTest {
     }
 
     @Test
+    fun `answers every endpoint of the api without a session with 401, only the login is public`() {
+        withServer { port ->
+            val paths = get(port, "/doc/openapi.json").json().getValue("paths").jsonObject
+            val methods = setOf("get", "put", "post", "delete", "patch", "head")
+            // every endpoint the api documents, the path parameters filled with anything
+            val endpoints =
+                paths.flatMap { (path, operations) ->
+                    operations.jsonObject.keys.filter { it in methods }.map { method -> method to path }
+                }
+            endpoints.size shouldBeGreaterThan 20
+
+            val public =
+                endpoints.filter { (method, path) ->
+                    val url = path.replace(Regex("""\{[^}]+}"""), "e2e-anything")
+                    val status =
+                        http.send(
+                            HttpRequest
+                                .newBuilder(URI.create("http://localhost:$port$url"))
+                                .method(method.uppercase(), HttpRequest.BodyPublishers.noBody())
+                                .build(),
+                            HttpResponse.BodyHandlers.discarding(),
+                        ).statusCode()
+                    status != 401
+                }
+            public shouldBe listOf("post" to "/api/v1/login/link", "post" to "/api/v1/login/exchange")
+        }
+    }
+
+    @Test
     fun `serves sak-frontend at every host`() {
         withServer { port ->
             listOf("apps.example.org", "localhost").forEach { host ->
@@ -815,8 +845,8 @@ class SakAppsTest {
                 val paths = doc.getValue("paths").jsonObject
                 paths.keys shouldBe
                     setOf(
-                        "/api/v1/auth/login",
-                        "/api/v1/auth/exchange",
+                        "/api/v1/login/link",
+                        "/api/v1/login/exchange",
                         "/api/v1/auth/me",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
@@ -840,7 +870,7 @@ class SakAppsTest {
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject
                 me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"))
-                paths.getValue("/api/v1/auth/login").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
+                paths.getValue("/api/v1/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
                 doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue("session").jsonObject.let {
                     it.string("type") shouldBe "http"
                     it.string("scheme") shouldBe "bearer"
@@ -891,7 +921,7 @@ class SakAppsTest {
     fun `without auth configuration there are neither apps nor login`() {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404
-            post(port, "/api/v1/auth/login", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
+            post(port, "/api/v1/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
             Files.exists(signingKeyFile(config(auth = false))) shouldNotBe true
         }
     }

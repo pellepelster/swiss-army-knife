@@ -2,12 +2,12 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-import { AuthService, PUBLIC_API_URLS } from './auth.service';
+import { AuthService, PUBLIC_API_PREFIX } from './auth.service';
 
 // sends the session token with requests to the backend's api only, a rejected token
 // ends the session and leads back to the login
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  if (!request.url.startsWith('/api/v1/') || PUBLIC_API_URLS.includes(request.url)) {
+  if (!request.url.startsWith('/api/v1/') || request.url.startsWith(PUBLIC_API_PREFIX)) {
     return next(request);
   }
 
