@@ -28,6 +28,19 @@ internal class FileRepository(
             .filterNotNull()
             .toSet()
 
+    fun updateDiscovered(
+        sha256: String,
+        text: String,
+        now: Instant,
+    ) {
+        database.dsl
+            .update(FILES)
+            .set(FILES.DISCOVERED, text)
+            .set(FILES.UPDATED_AT, now.utc())
+            .where(FILES.SHA256.eq(sha256))
+            .execute()
+    }
+
     // the file as it is stored, the one uploaded first when the content is there already
     fun insertIfMissing(file: StoredFile): StoredFile {
         database.dsl
@@ -57,5 +70,6 @@ internal class FileRepository(
             uploadedBy = uploadedBy!!,
             createdAt = createdAt!!.toInstant(ZoneOffset.UTC),
             updatedAt = updatedAt!!.toInstant(ZoneOffset.UTC),
+            discovered = discovered,
         )
 }

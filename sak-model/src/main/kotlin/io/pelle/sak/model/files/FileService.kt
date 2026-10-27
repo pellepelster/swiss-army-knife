@@ -15,7 +15,7 @@ import java.time.Instant
 import javax.imageio.ImageIO
 
 // a file of the file storage, addressed by the sha-256 of its content; uploadedBy is the address
-// of the user that uploaded it first
+// of the user that uploaded it first, discovered the text discovered in it, null until then
 data class StoredFile(
     val sha256: String,
     val contentType: String,
@@ -23,6 +23,7 @@ data class StoredFile(
     val uploadedBy: String,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val discovered: String? = null,
 )
 
 sealed interface StoreFileResult {
@@ -62,6 +63,15 @@ class FileService internal constructor(
     // the ones of the hashes that are stored
     fun existing(sha256s: Collection<String>): Set<String> =
         sha256s.filter { SHA256.matches(it) }.toSet().let { if (it.isEmpty()) emptySet() else repository.existing(it) }
+
+    fun setDiscovered(
+        file: StoredFile,
+        text: String,
+    ): StoredFile {
+        val now = clock.instant()
+        repository.updateDiscovered(file.sha256, text, now)
+        return file.copy(discovered = text, updatedAt = now)
+    }
 
     // where the content of a stored file is
     fun path(file: StoredFile): Path = dir.resolve(file.sha256.take(2)).resolve(file.sha256)

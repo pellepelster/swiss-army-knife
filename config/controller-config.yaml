@@ -16,3 +16,6 @@ sak:
       from: noreply@mail.pelle.io
       # implicit tls on port 465
       tls: true
+  # reads the text in the photos of notes, the token comes from pass (openrouter/pelle/api-key)
+  openrouter:
+    api_token: $SAK_OPENROUTER_API_TOKEN

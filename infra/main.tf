@@ -158,7 +158,7 @@ resource "local_file" "known_hosts" {
   directory_permission = "0700"
 }
 
-# the smtp credentials config/controller-config.yaml references, deployed as systemd
+# the smtp credentials and the openrouter token config/controller-config.yaml references, deployed as systemd
 # EnvironmentFile of the controller unit
 resource "local_sensitive_file" "controller_env" {
   content              = <<-EOT
@@ -166,6 +166,7 @@ resource "local_sensitive_file" "controller_env" {
     SAK_SMTP_PORT=${var.smtp_port}
     SAK_SMTP_USERNAME=${var.smtp_username}
     SAK_SMTP_PASSWORD=${var.smtp_password}
+    SAK_OPENROUTER_API_TOKEN=${var.openrouter_api_token}
   EOT
   filename             = "${path.module}/.ansible/controller.env"
   file_permission      = "0600"

@@ -108,6 +108,7 @@ class SakBackendTest {
                 "SAK_SMTP_PORT" to "465",
                 "SAK_SMTP_USERNAME" to "smtp-user",
                 "SAK_SMTP_PASSWORD" to "smtp-password",
+                "SAK_OPENROUTER_API_TOKEN" to "openrouter-token",
             )
         environment.forEach { (name, value) -> System.setProperty(name, value) }
         try {
@@ -123,6 +124,7 @@ class SakBackendTest {
                     from = "noreply@mail.pelle.io",
                     tls = true,
                 )
+            config.openrouter shouldBe SakConfig.OpenRouterConfig(apiToken = "openrouter-token")
         } finally {
             environment.keys.forEach { System.clearProperty(it) }
         }

@@ -27,6 +27,7 @@ import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.RedirectService
 import io.pelle.sak.model.files.FileService
+import io.pelle.sak.model.files.FileTextService
 import io.pelle.sak.model.labels.LabelService
 import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.s3.S3BucketService
@@ -90,6 +91,7 @@ fun Application.console(
     labelService: LabelService,
     noteService: NoteService,
     fileService: FileService,
+    fileTextService: FileTextService,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
     val mailSender =
@@ -140,7 +142,7 @@ fun Application.console(
                         route("/files") {
                             install(RequireRole) { role = Role.ADMIN }
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
-                            files(fileService)
+                            files(fileService, fileTextService)
                         }
                     }
                 }

@@ -19,3 +19,6 @@ sak:
       port: 1025
       from: login@localhost
       starttls: false
+  # mise run backend:run takes the token from pass (openrouter/pelle/api-key)
+  openrouter:
+    api_token: $SAK_OPENROUTER_API_TOKEN

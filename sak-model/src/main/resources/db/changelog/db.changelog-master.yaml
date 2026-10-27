@@ -22,3 +22,6 @@ databaseChangeLog:
   - include:
       file: 0007-notes-photos.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0008-files-discovered.yaml
+      relativeToChangelogFile: true

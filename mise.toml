@@ -9,7 +9,7 @@ pipx = "1.17.2"
 # the only terraform call, every tf:* task runs through it; the credentials are read from
 # pass when a task runs (not when mise loads this file) unless already set in the environment
 [tasks."tf"]
-description = "Run terraform in infra/ with the Hetzner Cloud, AWS and SMTP credentials from pass"
+description = "Run terraform in infra/ with the Hetzner Cloud, AWS, SMTP and OpenRouter credentials from pass"
 env = {
     AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
     AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
@@ -18,7 +18,8 @@ env = {
     TF_VAR_smtp_host = "{{ get_env(name='TF_VAR_smtp_host', default=exec(command='pass show scaleway/pelle.io/smtp_host | head -n1')) }}",
     TF_VAR_smtp_port = "{{ get_env(name='TF_VAR_smtp_port', default=exec(command='pass show scaleway/pelle.io/smtp_port | head -n1')) }}",
     TF_VAR_smtp_username = "{{ get_env(name='TF_VAR_smtp_username', default=exec(command='pass show scaleway/pelle.io/smtp_user | head -n1')) }}",
-    TF_VAR_smtp_password = "{{ get_env(name='TF_VAR_smtp_password', default=exec(command='pass show scaleway/pelle.io/smtp_password | head -n1')) }}"
+    TF_VAR_smtp_password = "{{ get_env(name='TF_VAR_smtp_password', default=exec(command='pass show scaleway/pelle.io/smtp_password | head -n1')) }}",
+    TF_VAR_openrouter_api_token = "{{ get_env(name='TF_VAR_openrouter_api_token', default=exec(command='pass show openrouter/pelle/api-key | head -n1')) }}"
 }
 usage = '''
 arg "<args>" var=#true help="arguments passed to terraform"
@@ -93,7 +94,10 @@ docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.ta
 # the mailpit the login links of the backend go to 1025 (smtp) and 8025 (web ui)
 [tasks."backend:run"]
 description = "Run sak-backend on http://localhost:8080 with a mailpit for its login links on http://localhost:8025"
-env = { SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data" }
+env = {
+    SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data",
+    SAK_OPENROUTER_API_TOKEN = "{{ get_env(name='SAK_OPENROUTER_API_TOKEN', default=exec(command='pass show openrouter/pelle/api-key | head -n1')) }}"
+}
 run = """
 mkdir -p "$SAK_LOCAL_DATA_DIR"
 docker run -d --rm --name sak-local-mailpit -p 127.0.0.1:8025:8025 -p 127.0.0.1:1025:1025 axllent/mailpit:v1.32.0 >/dev/null \

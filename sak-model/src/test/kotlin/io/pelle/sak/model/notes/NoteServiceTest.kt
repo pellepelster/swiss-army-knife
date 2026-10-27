@@ -47,7 +47,8 @@ class NoteServiceTest {
         color: String = "yellow",
         labelNames: List<String> = emptyList(),
         owner: String = PELLE,
-    ) = service.create(owner, text, color, labelNames).shouldBeInstanceOf<SaveNoteResult.Saved>().note
+        photos: List<String> = emptyList(),
+    ) = service.create(owner, text, color, labelNames, photos).shouldBeInstanceOf<SaveNoteResult.Saved>().note
 
     private fun later(minutes: Long = 1) {
         clock.now = clock.now.plusSeconds(minutes * 60)

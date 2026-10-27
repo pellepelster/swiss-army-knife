@@ -21,6 +21,8 @@ data class SakConfig(
     // the console and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
+    // the text discovery in the photos of notes is only offered when configured
+    val openrouter: OpenRouterConfig? = null,
 ) {
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
@@ -59,6 +61,15 @@ data class SakConfig(
     )
 
     @Serializable
+    data class OpenRouterConfig(
+        @SerialName("api_token")
+        val apiToken: String,
+        // a vision model that reads the text in photos, its id at openrouter
+        val model: String = DEFAULT_OPENROUTER_MODEL,
+        val url: String = DEFAULT_OPENROUTER_URL,
+    )
+
+    @Serializable
     data class SmtpConfig(
         val host: String,
         val port: Int = 587,
@@ -75,6 +86,10 @@ data class SakConfig(
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
 
         const val DEFAULT_VICTORIALOGS_URL = "http://127.0.0.1:9428"
+
+        const val DEFAULT_OPENROUTER_MODEL = "anthropic/claude-haiku-5.5"
+
+        const val DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
     }
 }
 

@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -21,13 +22,19 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.ApiErrors
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
+import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.SessionPrincipal
+import io.pelle.sak.model.files.DiscoverTextResult
 import io.pelle.sak.model.files.FileService
+import io.pelle.sak.model.files.FileTextService
 import io.pelle.sak.model.files.StoreFileResult
 import io.pelle.sak.model.files.StoredFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.time.Duration
+
+private val logger = KotlinLogging.logger {}
 
 private const val FILES_TAG = "files"
 
@@ -50,12 +57,24 @@ fun fileUrl(sha256: String) = "$FILES_PATH/$sha256"
 
 fun thumbnailUrl(sha256: String) = "${fileUrl(sha256)}/thumbnail"
 
+@Serializable
+data class DiscoverTextResponse(
+    val text: String,
+)
+
+// discovering text costs money at openrouter, so every user may only ask this often
+fun discoverTextLimiter() = RateLimiter(30, Duration.ofHours(1))
+
 fun StoredFile.response() = FileResponse(sha256, contentType, size, fileUrl(sha256), thumbnailUrl(sha256), createdAt.toString())
 
-// uploads to the file storage, meant to be mounted behind the console's authentication with a
-// body limit that lets the files through
+// uploads to the file storage and the discovery of the text in them, meant to be mounted behind
+// the console's authentication with a body limit that lets the files through
 @OptIn(ExperimentalKtorApi::class)
-fun Route.files(fileService: FileService) {
+fun Route.files(
+    fileService: FileService,
+    fileTextService: FileTextService,
+    discoverTextLimiter: RateLimiter = discoverTextLimiter(),
+) {
     install(ContentNegotiation) { json() }
     install(ApiErrors)
 
@@ -81,6 +100,42 @@ fun Route.files(fileService: FileService) {
             }
             errors(HttpStatusCode.BadRequest, "A type the storage does not take")
             errors(HttpStatusCode.PayloadTooLarge, "A file larger than the storage takes")
+        }
+    }
+
+    post("/{sha256}/discover/text") {
+        if (!discoverTextLimiter.tryAcquire(call.principal<SessionPrincipal>()!!.email)) {
+            call.respondErrors("Too many texts were discovered, please try again later.", status = HttpStatusCode.TooManyRequests)
+            return@post
+        }
+        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.parameters["sha256"].orEmpty()) }) {
+            is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
+            DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            DiscoverTextResult.NotAnImage -> call.respondErrors("Text is only discovered in images.")
+            DiscoverTextResult.NotConfigured ->
+                call.respondErrors("Text discovery is not configured.", status = HttpStatusCode.ServiceUnavailable)
+            is DiscoverTextResult.Failed -> {
+                logger.warn(result.cause) { "could not discover the text in file '${call.parameters["sha256"]}'" }
+                call.respondErrors("The text could not be discovered, please try again later.", status = HttpStatusCode.BadGateway)
+            }
+        }
+    }.describe {
+        tag(FILES_TAG)
+        summary = "Discover the text in an image"
+        description =
+            "Reads the text in the image with a vision model at OpenRouter, providers that collect the data are not asked. " +
+            "The text is kept with the file, an image is only read once."
+        parameters { sha256() }
+        responses {
+            HttpStatusCode.OK {
+                description = "The text in the image, empty when there is none"
+                schema = jsonSchema<DiscoverTextResponse>()
+            }
+            errors(HttpStatusCode.BadRequest, "The file is no image")
+            HttpStatusCode.NotFound { description = "There is no such file" }
+            errors(HttpStatusCode.TooManyRequests, "The user discovered too many texts lately")
+            errors(HttpStatusCode.BadGateway, "OpenRouter could not read the image")
+            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter token is configured")
         }
     }
 }

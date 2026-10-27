@@ -33,6 +33,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.net.URI
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URLDecoder
 import java.net.http.HttpClient
@@ -508,6 +510,77 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `discovers the text in an image with openrouter once and only with a session`() {
+        // a fake of openrouter's chat completions that reads every image as a receipt
+        val completions = mutableListOf<String>()
+        val openrouter =
+            HttpServer.create(InetSocketAddress("localhost", 0), 0).apply {
+                createContext("/api/v1/chat/completions") { exchange ->
+                    completions.add(exchange.requestBody.readAllBytes().decodeToString())
+                    val body = """{"choices":[{"message":{"role":"assistant","content":"Total 12.50"}}]}""".toByteArray()
+                    exchange.sendResponseHeaders(200, body.size.toLong())
+                    exchange.responseBody.use { it.write(body) }
+                }
+                start()
+            }
+        val config =
+            config().copy(
+                openrouter = SakConfig.OpenRouterConfig(apiToken = "token", url = "http://localhost:${openrouter.address.port}/api/v1"),
+            )
+        try {
+            withServer(config) { port ->
+                val session = signIn(port)
+                val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + "a receipt".toByteArray()
+                val sha256 =
+                    http.send(
+                        HttpRequest
+                            .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
+                            .header("Authorization", "Bearer $session")
+                            .POST(HttpRequest.BodyPublishers.ofByteArray(jpeg))
+                            .build(),
+                        HttpResponse.BodyHandlers.ofString(),
+                    ).json().string("sha256")
+                fun discover(
+                    file: String,
+                    sessionToken: String? = session,
+                ) = post(port, "/api/v1/files/$file/discover/text", "", sessionToken)
+
+                discover(sha256, null).statusCode() shouldBe 401
+                discover(sha256).let {
+                    it.statusCode() shouldBe 200
+                    it.json().string("text") shouldBe "Total 12.50"
+                }
+                // kept with the file, the image is not sent again
+                discover(sha256).json().string("text") shouldBe "Total 12.50"
+                completions.size shouldBe 1
+                completions.single() shouldContain "data:image/jpeg;base64,"
+                discover("0".repeat(64)).statusCode() shouldBe 404
+            }
+        } finally {
+            openrouter.stop(0)
+        }
+
+        // without openrouter there is no discovery
+        withServer(config()) { port ->
+            val session = signIn(port)
+            val png = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
+            val sha256 =
+                http.send(
+                    HttpRequest
+                        .newBuilder(URI.create("http://localhost:$port/api/v1/files"))
+                        .header("Authorization", "Bearer $session")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(png))
+                        .build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                ).json().string("sha256")
+            post(port, "/api/v1/files/$sha256/discover/text", "", session).let {
+                it.statusCode() shouldBe 503
+                it.body() shouldBe """{"errors":[{"message":"Text discovery is not configured."}]}"""
+            }
+        }
+    }
+
+    @Test
     fun `serves buckets at the domains they are created with and changes them`() {
         withServer { port ->
             val session = signIn(port)
@@ -652,6 +725,7 @@ class SakConsoleTest {
                         "/api/v1/files",
                         "/api/v1/files/{sha256}",
                         "/api/v1/files/{sha256}/thumbnail",
+                        "/api/v1/files/{sha256}/discover/text",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

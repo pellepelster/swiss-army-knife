@@ -44,3 +44,10 @@ variable "smtp_password" {
   type        = string
   sensitive   = true
 }
+
+# set by `mise run tf` from pass (openrouter/pelle/api-key)
+variable "openrouter_api_token" {
+  description = "API key of OpenRouter, the controller reads the text in the photos of notes with it."
+  type        = string
+  sensitive   = true
+}
