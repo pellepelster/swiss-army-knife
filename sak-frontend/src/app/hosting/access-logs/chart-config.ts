@@ -30,8 +30,15 @@ export const CATEGORICAL_COLORS = {
 
 export const CHART_ACCENT = '#30c070';
 
-// the card background, the gap between stacked segments
-const CHART_SURFACE = '#faf8f2';
+// the gap between stacked segments: the sheet the chart is drawn on, light or dark, read when
+// the chart is drawn; the light one where there is no page to read it from
+function chartSurface(): string {
+  const sheet =
+    typeof document === 'undefined'
+      ? ''
+      : getComputedStyle(document.documentElement).getPropertyValue('--sheet').trim();
+  return sheet || '#fbfaf6';
+}
 
 const SEGMENT_GAP = 2;
 
@@ -56,7 +63,7 @@ export function toChartData(inputs: ChartInputs): ChartConfiguration<'bar'>['dat
       label: series.label,
       data: series.values,
       backgroundColor: series.color,
-      borderColor: CHART_SURFACE,
+      borderColor: chartSurface(),
       borderWidth: { top: SEGMENT_GAP, right: 0, bottom: 0, left: 0 },
       borderSkipped: false,
     })),
