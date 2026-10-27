@@ -1,7 +1,9 @@
 # expects the distribution expanded by `./gradlew :sak-backend:installDist`
 FROM alpine:3.24
 
-RUN apk add --no-cache openjdk25-jre-headless \
+# the full jre, the headless one has no native jpeg library (libjavajpeg), which the
+# thumbnails of the file storage need to read and write jpegs
+RUN apk add --no-cache openjdk25-jre \
     && addgroup -S -g 10000 sak \
     && adduser -S -u 10000 -G sak -H -h /data -s /sbin/nologin sak \
     && mkdir -p /data \
