@@ -533,6 +533,11 @@ class SakConsoleTest {
                 page shouldContain "Content-Security-Policy: $CONSOLE_CONTENT_SECURITY_POLICY"
             }
             getWithHost(port, "console.example.org", "/") shouldContain "<title>sak console</title>"
+            // an inlined critical css loads the rest of the styles with an inline onload, which the
+            // content security policy blocks
+            listOf("apps.example.org", "console.example.org").forEach { host ->
+                getWithHost(port, host, "/") shouldNotContain "media=\"print\""
+            }
             // the api is the same at both
             getWithHost(port, "apps.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
         }
