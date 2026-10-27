@@ -17,5 +17,6 @@ dependencies {
     implementation(libs.angus.mail)
 
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(testFixtures(project(":sak-api")))
     testImplementation(libs.greenmail.junit5)
 }

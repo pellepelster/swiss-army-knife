@@ -9,12 +9,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 // against a fake of openrouter's chat completions on localhost
 class OpenRouterTextRecognizerTest {
@@ -29,7 +30,7 @@ class OpenRouterTextRecognizerTest {
             createContext("/api/v1/chat/completions") { exchange ->
                 requests.add(
                     exchange.requestHeaders.mapValues { it.value.single() } to
-                        Json.parseToJsonElement(exchange.requestBody.readAllBytes().decodeToString()).jsonObject,
+                        exchange.requestBody.readAllBytes().decodeToString().json(),
                 )
                 val body = answer.toByteArray()
                 exchange.responseHeaders.add("Content-Type", "application/json")
@@ -56,11 +57,11 @@ class OpenRouterTextRecognizerTest {
 
         val (headers, body) = requests.single()
         headers["Authorization"] shouldBe "Bearer token"
-        body["model"]!!.jsonPrimitive.content shouldBe "vendor/vision-model"
-        body["provider"]!!.jsonObject["data_collection"]!!.jsonPrimitive.content shouldBe "deny"
+        body.string("model") shouldBe "vendor/vision-model"
+        body["provider"]!!.jsonObject.string("data_collection") shouldBe "deny"
         val content = body["messages"]!!.jsonArray.single().jsonObject["content"]!!.jsonArray
-        content[0].jsonObject["text"]!!.jsonPrimitive.content shouldBe OpenRouterTextRecognizer.PROMPT
-        content[1].jsonObject["image_url"]!!.jsonObject["url"]!!.jsonPrimitive.content shouldBe
+        content[0].jsonObject.string("text") shouldBe OpenRouterTextRecognizer.PROMPT
+        content[1].jsonObject["image_url"]!!.jsonObject.string("url") shouldBe
             "data:image/jpeg;base64,${Base64.getEncoder().encodeToString(image)}"
     }
 

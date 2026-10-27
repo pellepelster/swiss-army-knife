@@ -17,7 +17,6 @@ import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -28,6 +27,8 @@ import java.net.URLDecoder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import io.pelle.sak.logs.model.LogEntryResponse
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 class SiteLogsTest {
     private val queries = mutableListOf<Pair<String, Map<String, String>>>()
@@ -148,10 +149,10 @@ class SiteLogsTest {
                 withTimeout(10_000) {
                     while (lines.count { it.startsWith("data: ") } < 2) lines.add(channel.readUTF8Line() ?: break)
                 }
-                val events = lines.filter { it.startsWith("data: ") }.map { Json.parseToJsonElement(it.removePrefix("data: ")).jsonObject }
+                val events = lines.filter { it.startsWith("data: ") }.map { (it.removePrefix("data: ")).json() }
 
-                events.map { it["path"]!!.jsonPrimitive.content } shouldBe listOf("/a", "/b?x=1")
-                events.last()["host"]!!.jsonPrimitive.content shouldBe "www.pelle.io"
+                events.map { it.string("path") } shouldBe listOf("/a", "/b?x=1")
+                events.last().string("host") shouldBe "www.pelle.io"
             }
 
             synchronized(queries) { queries.single().second.getValue("query") } shouldBe
@@ -198,8 +199,8 @@ class SiteLogsTest {
 
             val found = client.get("/sites/pelle.io/access-logs/search?q=missing&limit=10")
             found.status shouldBe HttpStatusCode.OK
-            Json.parseToJsonElement(found.bodyAsText()).jsonObject.let {
-                it["items"]!!.jsonArray.first().jsonObject["status"]!!.jsonPrimitive.content shouldBe "404"
+            found.bodyAsText().json().let {
+                it["items"]!!.jsonArray.first().jsonObject.string("status") shouldBe "404"
                 it["pagination"]!!.jsonObject.mapValues { (_, value) -> value.jsonPrimitive.content } shouldBe
                     mapOf("offset" to "0", "limit" to "10", "total" to "42")
             }

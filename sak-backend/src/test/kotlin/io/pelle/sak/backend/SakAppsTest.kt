@@ -18,7 +18,6 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.hosting.CreateBucketResult
 import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -48,6 +47,8 @@ import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 import java.nio.file.Files
 import java.nio.file.Path
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 // the api of the apps and their e-mail login end to end: the controller sends the login links
 // through smtp to a greenmail sink, the test follows them like the signin page of the apps does
@@ -182,9 +183,7 @@ class SakAppsTest {
             }.toByteArray()
     }
 
-    private fun HttpResponse<String>.json(): JsonObject = Json.parseToJsonElement(body()).jsonObject
-
-    private fun JsonObject.string(name: String) = getValue(name).jsonPrimitive.content
+    private fun HttpResponse<String>.json(): JsonObject = body().json()
 
     // requests a login link and returns the query parameters of the link in the e-mail
     private fun requestLoginLink(
@@ -249,7 +248,7 @@ class SakAppsTest {
             fun statistics(): JsonObject {
                 // counted in the background, asked again while it is
                 repeat(50) {
-                    val buckets = Json.parseToJsonElement(get(port, "/api/v1/static-hosting", session).body()).jsonObject.getValue("items").jsonArray
+                    val buckets = (get(port, "/api/v1/static-hosting", session).body()).json().getValue("items").jsonArray
                     buckets.map { it.jsonObject.string("name") } shouldBe listOf("bucket1")
                     val statistics = buckets.single().jsonObject.getValue("statistics").jsonObject
                     if (statistics.string("computing") == "false") return statistics
@@ -369,7 +368,7 @@ class SakAppsTest {
                 it.json().string("location") shouldBe "bucket1.example.org"
             }
 
-            val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("items").jsonArray
+            val redirects = (get(port, "/api/v1/redirects", session).body()).json().getValue("items").jsonArray
             redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.at", "example.com", "example.de")
 
             get(port, "/api/v1/redirects/Example.com", session).let {
@@ -387,7 +386,7 @@ class SakAppsTest {
 
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
-            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonObject.getValue("pagination").jsonObject.string("total") shouldBe "2"
+            (get(port, "/api/v1/redirects", session).body()).json().getValue("pagination").jsonObject.string("total") shouldBe "2"
         }
     }
 

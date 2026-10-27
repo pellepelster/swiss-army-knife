@@ -28,10 +28,11 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 class AuthRoutesTest {
     private data class Mail(
@@ -97,8 +98,6 @@ class AuthRoutesTest {
         return Url(link)
     }
 
-    private fun String.json() = Json.parseToJsonElement(this).jsonObject
-
     @Test
     fun `an allowed address gets a link whose token is exchanged once for a session token`() =
         authTest {
@@ -116,13 +115,13 @@ class AuthRoutesTest {
             exchange.status shouldBe HttpStatusCode.OK
             exchange.headers["Cache-Control"] shouldBe "no-store"
             val session = exchange.bodyAsText().json()
-            session["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
+            session.string("email") shouldBe "admin@example.org"
             session["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
-            session["redirect"]!!.jsonPrimitive.content shouldBe "/buckets?tab=1"
+            session.string("redirect") shouldBe "/buckets?tab=1"
 
-            val me = client.get("/api/v1/auth/me") { bearerAuth(session["sessionToken"]!!.jsonPrimitive.content) }
+            val me = client.get("/api/v1/auth/me") { bearerAuth(session.string("sessionToken")) }
             me.status shouldBe HttpStatusCode.OK
-            me.bodyAsText().json()["email"]!!.jsonPrimitive.content shouldBe "admin@example.org"
+            me.bodyAsText().json().string("email") shouldBe "admin@example.org"
             me.bodyAsText().json()["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
 
             client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
@@ -156,7 +155,7 @@ class AuthRoutesTest {
             mail.subject shouldBe "Sign in to apps.example.org"
             val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
             link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
-            client.exchange(link.parameters["token"]!!).bodyAsText().json()["redirect"]!!.jsonPrimitive.content shouldBe "/notes"
+            client.exchange(link.parameters["token"]!!).bodyAsText().json().string("redirect") shouldBe "/notes"
 
             client.login("not-an-address", app = "unknown").let {
                 it.status shouldBe HttpStatusCode.BadRequest
@@ -171,7 +170,7 @@ class AuthRoutesTest {
             for (redirect in listOf("https://evil.example.com/", "//evil.example.com/")) {
                 client.login("admin@example.org", redirect)
                 val session = client.exchange(receiveLink().parameters["token"]!!).bodyAsText().json()
-                session["redirect"]!!.jsonPrimitive.content shouldBe "/"
+                session.string("redirect") shouldBe "/"
             }
         }
 

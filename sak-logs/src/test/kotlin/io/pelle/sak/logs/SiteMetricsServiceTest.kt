@@ -12,7 +12,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -22,6 +21,8 @@ import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.time.Instant
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 class SiteMetricsServiceTest {
     // answers stats_query_range like victorialogs, by whether the query groups by user agent
@@ -179,24 +180,24 @@ class SiteMetricsServiceTest {
                 routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, service, logs) } }
             }
 
-            val accessLogs = Json.parseToJsonElement(client.get("/sites/pelle.io/access-logs").bodyAsText()).jsonObject
-            accessLogs["site"]!!.jsonObject["id"]!!.jsonPrimitive.content shouldBe "pelle.io"
-            accessLogs["ranges"]!!.jsonArray.map { it.jsonObject["key"]!!.jsonPrimitive.content } shouldContain "30d"
-            accessLogs["defaultRange"]!!.jsonPrimitive.content shouldBe "24h"
+            val accessLogs = (client.get("/sites/pelle.io/access-logs").bodyAsText()).json()
+            accessLogs["site"]!!.jsonObject.string("id") shouldBe "pelle.io"
+            accessLogs["ranges"]!!.jsonArray.map { it.jsonObject.string("key") } shouldContain "30d"
+            accessLogs.string("defaultRange") shouldBe "24h"
             client.get("/sites/unknown/access-logs").status shouldBe HttpStatusCode.NotFound
 
             val metrics = client.get("/sites/pelle.io/access-logs/metrics?range=7d")
             metrics.status shouldBe HttpStatusCode.OK
-            val json = Json.parseToJsonElement(metrics.bodyAsText()).jsonObject
-            json["range"]!!.jsonPrimitive.content shouldBe "7d"
+            val json = metrics.bodyAsText().json()
+            json.string("range") shouldBe "7d"
             json["series"]!!.jsonArray.first().jsonObject["total"]!!.jsonPrimitive.long shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
             // over the 4 hours of the shortest range
             val short = client.get("/sites/pelle.io/access-logs/metrics?range=4h")
             short.status shouldBe HttpStatusCode.OK
-            Json.parseToJsonElement(short.bodyAsText()).jsonObject.let {
-                it["site"]!!.jsonPrimitive.content shouldBe "pelle.io"
+            short.bodyAsText().json().let {
+                it.string("site") shouldBe "pelle.io"
                 it["stepSeconds"]!!.jsonPrimitive.long shouldBe 600
                 it["buckets"]!!.jsonArray.size shouldBe 24
             }

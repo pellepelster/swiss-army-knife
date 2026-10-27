@@ -20,6 +20,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import org.slf4j.LoggerFactory
 import java.net.ServerSocket
+import io.pelle.sak.api.testing.json
 
 class SakCaddyTest {
     private val config =
@@ -109,7 +110,7 @@ class SakCaddyTest {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
-        val routes = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080))).jsonObject["apps"]!!
+        val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -180,7 +181,7 @@ class SakCaddyTest {
             bucketDomains: Map<String, List<String>>,
             redirects: Map<String, String> = emptyMap(),
             config: SakConfig = withAuth,
-        ) = Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080))).jsonObject["apps"]!!
+        ) = (CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!

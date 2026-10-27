@@ -5,15 +5,15 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.pelle.sak.openrouter.TextRecognitionException
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64
+import io.pelle.sak.api.testing.json
+import io.pelle.sak.api.testing.string
 
 // against a fake of openrouter's transcriptions on localhost
 class OpenRouterSpeechTranscriberTest {
@@ -26,7 +26,7 @@ class OpenRouterSpeechTranscriberTest {
     private val server =
         HttpServer.create(InetSocketAddress("localhost", 0), 0).apply {
             createContext("/api/v1/audio/transcriptions") { exchange ->
-                requests.add(Json.parseToJsonElement(exchange.requestBody.readAllBytes().decodeToString()).jsonObject)
+                requests.add(exchange.requestBody.readAllBytes().decodeToString().json())
                 val body = answer.toByteArray()
                 exchange.sendResponseHeaders(status, body.size.toLong())
                 exchange.responseBody.use { it.write(body) }
@@ -48,10 +48,10 @@ class OpenRouterSpeechTranscriberTest {
         transcriber.transcribe(audio, "audio/wav") shouldBe "Buy milk on the way home."
 
         val request = requests.single()
-        request["model"]!!.jsonPrimitive.content shouldBe "vendor/speech-model"
-        request["input_audio"]!!.jsonObject["data"]!!.jsonPrimitive.content shouldBe Base64.getEncoder().encodeToString(audio)
-        request["input_audio"]!!.jsonObject["format"]!!.jsonPrimitive.content shouldBe "wav"
-        request["provider"]!!.jsonObject["data_collection"]!!.jsonPrimitive.content shouldBe "deny"
+        request.string("model") shouldBe "vendor/speech-model"
+        request["input_audio"]!!.jsonObject.string("data") shouldBe Base64.getEncoder().encodeToString(audio)
+        request["input_audio"]!!.jsonObject.string("format") shouldBe "wav"
+        request["provider"]!!.jsonObject.string("data_collection") shouldBe "deny"
     }
 
     @Test

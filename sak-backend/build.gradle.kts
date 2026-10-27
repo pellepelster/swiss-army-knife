@@ -24,6 +24,7 @@ dependencies {
     runtimeOnly(libs.logback.classic)
     // to look at what is logged
     testImplementation(libs.logback.classic)
+    testImplementation(testFixtures(project(":sak-api")))
 
     testImplementation(libs.greenmail.junit5)
 
