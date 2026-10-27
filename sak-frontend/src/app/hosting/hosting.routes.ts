@@ -26,6 +26,8 @@ export const hostingRoutes: Routes = [
       { path: 'configuration', component: BucketConfiguration },
       { path: 'credentials', component: BucketCredentials },
       { path: 'publishing', component: BucketPublishing },
+      // with the charts, which only this tab needs
+      { path: 'logs', loadComponent: () => import('./bucket-logs').then((m) => m.BucketLogs) },
     ],
   },
 ];

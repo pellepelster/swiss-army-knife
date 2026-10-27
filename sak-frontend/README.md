@@ -64,7 +64,8 @@ bucket names are lower case letters, digits and hyphens, a valid label of a doma
 of buckets with their objects and size, a page to create a bucket with its domains, a bucket's page
 with its overview and its configuration (the domains) and credentials (the s3 endpoint and the key
 pair that may access this bucket only, shown on request) and publishing (the deployment target of a
-Hugo site and the `hugo deploy` command with the key pair) in tabs, and a page
+Hugo site and the `hugo deploy` command with the key pair) and logs (its requests over a range, of
+all its domains, the console's chart of its site) in tabs, and a page
 to edit its domains.
 It takes `/api/v1/static-hosting`, the same buckets the console shows.
 

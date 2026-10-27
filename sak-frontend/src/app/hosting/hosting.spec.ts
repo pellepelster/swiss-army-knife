@@ -189,6 +189,7 @@ describe('Hosting', () => {
       'Configuration',
       'Credentials',
       'Publishing',
+      'Logs',
     ]);
     expect(tabs[0].classList).toContain('active');
     expect(button('Edit').getAttribute('href')).toBe('/static-hosting/site/edit');
@@ -323,6 +324,49 @@ describe('Hosting', () => {
       item.textContent?.trim(),
     );
     expect(addresses).toEqual(['https://example.org/', 'https://site.pelle.io/']);
+  });
+
+  it('shows the requests of all the domains of a bucket in its logs tab', async () => {
+    await open('/static-hosting/site/logs');
+    http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/logs').flush({
+      sites: [{ id: 'site', domains: ['example.org', 'site.pelle.io'] }],
+      ranges: [
+        { key: '24h', label: 'Last 24 hours' },
+        { key: '7d', label: 'Last 7 days' },
+      ],
+      defaultRange: '24h',
+    });
+    await harness.fixture.whenStable();
+    const metrics = (range: string, requests: number) => ({
+      site: 'site',
+      range,
+      start: '2026-10-26T08:00:00Z',
+      end: '2026-10-27T08:00:00Z',
+      stepSeconds: 3600,
+      buckets: ['2026-10-27T07:00:00Z'],
+      series: [{ statusClass: '2xx', values: [requests], total: requests }],
+      statusCodes: [{ status: '200', statusClass: '2xx', values: [requests], total: requests }],
+      bytes: [2048],
+      totalRequests: requests,
+      errorRequests: 0,
+      errorRate: 0,
+      totalBytes: 2048,
+      userAgents: [],
+    });
+    http.expectOne('/api/v1/logs/site/metrics?range=24h').flush(metrics('24h', 42));
+    await harness.fixture.whenStable();
+    expect(text('logs-requests')).toBe('42');
+    expect(page().querySelector('app-time-series-chart')).not.toBeNull();
+
+    const select = page().querySelector<HTMLSelectElement>('#logs-range')!;
+    select.value = '7d';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/logs/site/metrics?range=7d').flush(metrics('7d', 0));
+    await harness.fixture.whenStable();
+    expect(text('logs-state')).toBe('No requests in this range.');
   });
 
   it('takes the endpoint from the host of the apps', () => {

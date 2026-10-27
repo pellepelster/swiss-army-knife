@@ -119,6 +119,9 @@ import { BucketStore } from './bucket-store';
           ariaCurrentWhenActive="page"
           >Publishing</a
         >
+        <a class="tab" routerLink="logs" routerLinkActive="active" ariaCurrentWhenActive="page"
+          >Logs</a
+        >
       </nav>
       <router-outlet />
     }
