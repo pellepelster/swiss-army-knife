@@ -148,7 +148,9 @@ describe('NotesPage', () => {
     // the tab opens right away, the photo follows once it is fetched with the session
     const tab = { location: { href: '' }, close: vi.fn() };
     vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
-    photo.closest('a')!.click();
+    // a button, a link to the file would be opened without the session
+    expect(page.querySelector('.note-photos a')).toBeNull();
+    photo.closest('button')!.click();
     http.expectOne(`/api/v1/files/${FILE_ID}`).flush(new Blob(['whole'], { type: 'image/jpeg' }));
     await vi.waitFor(() => expect(tab.location.href).toMatch(/^blob:/), { timeout: 1000 });
   });

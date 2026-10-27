@@ -31,13 +31,14 @@ interface Media {
         @for (item of media(); track item.id) {
           <li class="photo">
             @if (item.kind === 'photo') {
-              <a [href]="fileUrl(item.id)" (click)="$event.preventDefault(); open(item.id)">
+              <!-- no link, the file is only served with the session; it is opened as an object url -->
+              <button type="button" class="photo-open" (click)="open(item.id)">
                 <img
                   [attr.src]="item.id | thumbnail | async"
                   [alt]="item.label + ' of note ' + note().id"
                   loading="lazy"
                 />
-              </a>
+              </button>
             } @else {
               <button
                 type="button"
@@ -299,11 +300,6 @@ export class NoteCard {
     } catch {
       tab?.close();
     }
-  }
-
-  // the whole photo or recording, its thumbnail or waveform is below it
-  protected fileUrl(id: number): string {
-    return StoredFiles.url(id);
   }
 
   protected takePhoto(input: HTMLInputElement): void {
