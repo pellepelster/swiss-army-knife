@@ -1,8 +1,8 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, timer } from 'rxjs';
-import { bucketErrorMessage, BucketStore } from './bucket-store';
-import { BucketSecret, BucketsService, s3Endpoint } from './buckets.service';
+import { BucketStore } from './bucket-store';
+import { s3Endpoint } from './buckets.service';
 
 // how long a copy button says it copied
 export const COPIED_MS = 2000;
@@ -38,7 +38,7 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
     }
   `,
   template: `
-    @if (error(); as error) {
+    @if (store.secretError(); as error) {
       <p class="error" role="alert">{{ error }}</p>
     }
 
@@ -70,7 +70,7 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
         <dd>
           <code class="mono">{{ store.name() }}</code>
         </dd>
-        @if (secret(); as secret) {
+        @if (store.secret(); as secret) {
           <dt>Access key</dt>
           <dd class="value">
             <code class="mono" data-testid="access-key">{{ secret.accessKeyId }}</code>
@@ -130,10 +130,10 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
             <button
               type="button"
               class="button button-small"
-              [disabled]="retrieving()"
-              (click)="retrieve()"
+              [disabled]="store.retrievingSecret()"
+              (click)="store.retrieveSecret()"
             >
-              @if (retrieving()) {
+              @if (store.retrievingSecret()) {
                 <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
               } @else {
                 <i class="fa-solid fa-key" aria-hidden="true"></i>
@@ -153,35 +153,14 @@ type Copied = 'endpoint' | 'accessKeyId' | 'secretAccessKey';
 })
 export class BucketCredentials {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly service = inject(BucketsService);
   protected readonly store = inject(BucketStore);
 
   protected readonly endpoint = s3Endpoint();
-  protected readonly error = signal<string | null>(null);
-  protected readonly secret = signal<BucketSecret | null>(null);
-  protected readonly retrieving = signal(false);
   protected readonly shown = signal(false);
   protected readonly copied = signal<Copied | null>(null);
   protected readonly copyFailed = signal(false);
 
   private copiedTimer?: Subscription;
-
-  protected retrieve(): void {
-    this.retrieving.set(true);
-    this.service
-      .secret(this.store.name())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (secret) => {
-          this.retrieving.set(false);
-          this.secret.set(secret);
-        },
-        error: (error: unknown) => {
-          this.retrieving.set(false);
-          this.error.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
-        },
-      });
-  }
 
   protected async copy(what: Copied, value: string): Promise<void> {
     try {

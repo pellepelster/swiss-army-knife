@@ -244,6 +244,21 @@ describe('Hosting', () => {
     expect(page().querySelector('[role=alert]')?.textContent).toContain('There is no such bucket.');
   });
 
+  it('fetches the key pair once for the credentials and the publishing tab', async () => {
+    await open('/static-hosting/site/credentials');
+    http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
+    await harness.fixture.whenStable();
+    button('Show the key pair').click();
+    http.expectOne('/api/v1/static-hosting/site/secret').flush(SECRET);
+    await harness.fixture.whenStable();
+
+    button('Publishing').click();
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/static-hosting/site/publishing');
+    http.expectNone('/api/v1/static-hosting/site/secret');
+    expect(text('hugo-deploy')).toContain(`AWS_ACCESS_KEY_ID=${SECRET.accessKeyId}`);
+  });
+
   it('shows the endpoint and the key pair only when asked for, the secret hidden until shown', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

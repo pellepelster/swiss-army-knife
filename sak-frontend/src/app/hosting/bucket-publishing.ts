@@ -1,7 +1,6 @@
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { bucketErrorMessage, BucketStore } from './bucket-store';
-import { BucketSecret, BucketsService, s3Endpoint } from './buckets.service';
+import { Component, computed, inject, signal } from '@angular/core';
+import { BucketStore } from './bucket-store';
+import { BucketSecret, s3Endpoint } from './buckets.service';
 import { CodeBlock } from './code-block';
 
 // how the secret key is shown until it is asked for
@@ -36,7 +35,7 @@ const SECRET_MASK = '•••••••••••••••••••�
     }
   `,
   template: `
-    @if (error(); as error) {
+    @if (store.secretError(); as error) {
       <p class="error" role="alert">{{ error }}</p>
     }
 
@@ -77,7 +76,7 @@ const SECRET_MASK = '•••••••••••••••••••�
                 >Hugo releases</a
               >.
             </p>
-            @if (secret(); as secret) {
+            @if (store.secret(); as secret) {
               <app-code-block
                 name="hugo deploy"
                 [code]="command(secret, !shown())"
@@ -106,10 +105,10 @@ const SECRET_MASK = '•••••••••••••••••••�
                 <button
                   type="button"
                   class="button button-small"
-                  [disabled]="retrieving()"
-                  (click)="retrieve()"
+                  [disabled]="store.retrievingSecret()"
+                  (click)="store.retrieveSecret()"
                 >
-                  @if (retrieving()) {
+                  @if (store.retrievingSecret()) {
                     <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
                   } @else {
                     <i class="fa-solid fa-key" aria-hidden="true"></i>
@@ -131,13 +130,8 @@ const SECRET_MASK = '•••••••••••••••••••�
   `,
 })
 export class BucketPublishing {
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly service = inject(BucketsService);
   protected readonly store = inject(BucketStore);
 
-  protected readonly error = signal<string | null>(null);
-  protected readonly secret = signal<BucketSecret | null>(null);
-  protected readonly retrieving = signal(false);
   protected readonly shown = signal(false);
 
   // the deployment target of hugo (gocloud's s3 url), the region is only part of the signature
@@ -160,22 +154,5 @@ export class BucketPublishing {
       `AWS_SECRET_ACCESS_KEY=${masked ? SECRET_MASK : secret.secretAccessKey} \\`,
       `hugo deploy --target ${this.store.name()}`,
     ].join('\n');
-  }
-
-  protected retrieve(): void {
-    this.retrieving.set(true);
-    this.service
-      .secret(this.store.name())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (secret) => {
-          this.retrieving.set(false);
-          this.secret.set(secret);
-        },
-        error: (error: unknown) => {
-          this.retrieving.set(false);
-          this.error.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
-        },
-      });
   }
 }
