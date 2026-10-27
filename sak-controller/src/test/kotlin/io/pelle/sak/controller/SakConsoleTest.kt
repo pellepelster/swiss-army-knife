@@ -61,6 +61,9 @@ class SakConsoleTest {
               s3:
                 buckets:
                   bucket1: {}
+                  site:
+                    domains:
+                      - site.example.org
             """.trimIndent() +
                 if (auth) {
                     "\n" +
@@ -123,6 +126,20 @@ class SakConsoleTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
+    private fun delete(
+        port: Int,
+        path: String,
+        sessionToken: String,
+    ): HttpResponse<String> =
+        http.send(
+            HttpRequest
+                .newBuilder(URI.create("http://localhost:$port$path"))
+                .header("Authorization", "Bearer $sessionToken")
+                .DELETE()
+                .build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
     private fun HttpResponse<String>.json(): JsonObject = Json.parseToJsonElement(body()).jsonObject
 
     private fun JsonObject.string(name: String) = getValue(name).jsonPrimitive.content
@@ -166,7 +183,7 @@ class SakConsoleTest {
             val sites = get(port, "/api/v1/logs", session.string("sessionToken"))
             sites.statusCode() shouldBe 200
             sites.json().getValue("sites").jsonArray.map { it.jsonObject.string("id") } shouldBe
-                listOf("s3", "console", "redirect", "unmatched")
+                listOf("site", "s3", "console", "redirect", "unmatched")
 
             // the link only works once
             post(port, "/api/v1/auth/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
@@ -262,6 +279,47 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `redirects domains to external domains and to the domain of a bucket`() {
+        val config = config()
+        S3BucketService(SakDatabase.open(databaseFile(config))).let { buckets -> listOf("bucket1", "site").forEach { buckets.create(it) } }
+
+        withServer(config) { port ->
+            val session = signIn(port)
+            fun create(json: String) = post(port, "/api/v1/redirects", json, session)
+
+            get(port, "/api/v1/redirects").statusCode() shouldBe 401
+            create("""{"sourceDomain":"Example.com","target":{"type":"domain","domain":"example.net"}}""").let {
+                it.statusCode() shouldBe 201
+                it.json().string("sourceDomain") shouldBe "example.com"
+                it.json().string("location") shouldBe "example.net"
+            }
+            create("""{"sourceDomain":"example.de","target":{"type":"bucket","bucket":"site"}}""").let {
+                it.statusCode() shouldBe 201
+                it.json().getValue("target").jsonObject.string("type") shouldBe "bucket"
+                it.json().string("location") shouldBe "site.example.org"
+            }
+
+            create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 409
+            create("""{"sourceDomain":"console.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
+            create("""{"sourceDomain":"site.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
+            create("""{"sourceDomain":"example.at","target":{"type":"ftp","host":"example.net"}}""").statusCode() shouldBe 400
+            create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"unknown"}}""").statusCode() shouldBe 422
+            create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"bucket1"}}""").statusCode() shouldBe 422
+
+            val redirects = Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonArray
+            redirects.map { it.jsonObject.string("sourceDomain") } shouldBe listOf("example.com", "example.de")
+            // the redirected domains are the domains of the redirect site
+            Json.parseToJsonElement(get(port, "/api/v1/logs", session).body()).jsonObject.getValue("sites").jsonArray
+                .single { it.jsonObject.string("id") == "redirect" }
+                .jsonObject.getValue("domains").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("example.com", "example.de")
+
+            delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
+            Json.parseToJsonElement(get(port, "/api/v1/redirects", session).body()).jsonArray.size shouldBe 1
+        }
+    }
+
+    @Test
     fun `rejects api requests with large bodies`() {
         withServer { port ->
             val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
@@ -338,6 +396,8 @@ class SakConsoleTest {
                         "/api/v1/buckets",
                         "/api/v1/buckets/{bucket}",
                         "/api/v1/buckets/{bucket}/secret",
+                        "/api/v1/redirects",
+                        "/api/v1/redirects/{source}",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

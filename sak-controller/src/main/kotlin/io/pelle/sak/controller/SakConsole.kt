@@ -99,6 +99,10 @@ fun Application.console(
                             install(RequireRole) { role = Role.ADMIN }
                             buckets(bucketService, { config.s3.buckets[it]?.domains.orEmpty() }, statistics)
                         }
+                        route("/redirects") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            redirects(redirectService)
+                        }
                     }
                 }
                 // unknown api paths and versions are no console pages
