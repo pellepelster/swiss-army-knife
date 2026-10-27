@@ -1,6 +1,6 @@
 # pelle.sak
 
-Ansible collection that provisions the `sak-controller` server.
+Ansible collection that provisions the `sak-backend` server.
 
 | Role                | Purpose                                                                           |
 |---------------------|-----------------------------------------------------------------------------------|

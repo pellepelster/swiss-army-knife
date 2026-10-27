@@ -22,14 +22,14 @@ resource "tls_private_key" "host" {
 }
 
 resource "hcloud_ssh_key" "controller" {
-  name       = "sak-controller"
+  name       = "sak-backend"
   public_key = tls_private_key.client.public_key_openssh
   labels     = local.labels
 }
 
 # only ssh, http, https and ping are reachable from the internet, outbound is unrestricted
 resource "hcloud_firewall" "controller" {
-  name   = "sak-controller"
+  name   = "sak-backend"
   labels = local.labels
 
   rule {
@@ -78,7 +78,7 @@ resource "hcloud_volume" "data" {
 # or replaced server releases the ips instead of deleting them, and the next server
 # comes up under the same addresses.
 resource "hcloud_primary_ip" "controller_ipv4" {
-  name        = "sak-controller-ipv4"
+  name        = "sak-backend-ipv4"
   location    = var.location
   type        = "ipv4"
   auto_delete = false
@@ -91,7 +91,7 @@ moved {
 }
 
 resource "hcloud_primary_ip" "controller_ipv6" {
-  name        = "sak-controller-ipv6"
+  name        = "sak-backend-ipv6"
   location    = var.location
   type        = "ipv6"
   auto_delete = false
@@ -99,7 +99,7 @@ resource "hcloud_primary_ip" "controller_ipv6" {
 }
 
 resource "hcloud_server" "controller" {
-  name         = "sak-controller"
+  name         = "sak-backend"
   server_type  = var.server_type
   location     = var.location
   image        = var.image

@@ -38,20 +38,20 @@ description = "Show the changes Terraform would make to the Hetzner Cloud infras
 run = "mise run tf -- plan"
 
 [tasks."tf:apply"]
-description = "Create or update sak-controller and its sak-data volume in Hetzner Cloud"
+description = "Create or update sak-backend and its sak-data volume in Hetzner Cloud"
 run = "mise run tf -- apply"
 
 # uses the client key and the pinned host key that tf:apply writes to infra/.ssh/,
 # extra arguments are passed to ssh (e.g. `mise run ssh -- uptime`)
 [tasks."ssh"]
-description = "Log in to sak-controller as root with the generated ssh client key"
+description = "Log in to sak-backend as root with the generated ssh client key"
 run = "ssh -i infra/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=infra/.ssh/known_hosts -o StrictHostKeyChecking=yes root@\"$(mise run tf -- output -raw controller_ipv4)\""
 
 # the collection is linked (not copied) into .ansible/collections, so changes below
 # ansible/ take effect without reinstalling it; the inventory is written by tf:apply,
 # the images are built and exported before every run and only deployed when they changed
 [tasks."ansible:run"]
-description = "Provision sak-controller with the pelle.sak collection"
+description = "Provision sak-backend with the pelle.sak collection"
 env = { ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/.ansible/collections" }
 run = """
 if [ ! -f infra/.ansible/inventory.yml ]; then

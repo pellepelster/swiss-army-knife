@@ -1,5 +1,5 @@
 ---
-- name: Provision sak-controller
+- name: Provision sak-backend
   hosts: controller
   become: true
   roles:
