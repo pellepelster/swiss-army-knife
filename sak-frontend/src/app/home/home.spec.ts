@@ -38,14 +38,17 @@ describe('Home', () => {
     expect(harness.routeNativeElement!.querySelector('h1')?.textContent).toBe('Sign in');
   });
 
-  it('lists the apps and opens the notes at /notes', async () => {
+  it('lists the apps, the notes and the hosting, and opens the notes at /notes', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
     const page = harness.routeNativeElement!;
     expect(page.querySelector('[data-testid=email]')?.textContent).toBe('pelle@pelle.io');
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];
-    expect(links.map((link) => link.querySelector('.name')?.textContent)).toEqual(['Notes']);
-    expect(links[0].getAttribute('href')).toBe('/notes');
+    expect(links.map((link) => link.querySelector('.name')?.textContent)).toEqual([
+      'Notes',
+      'Hosting',
+    ]);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/notes', '/hosting']);
 
     links[0].click();
     await harness.fixture.whenStable();

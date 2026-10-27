@@ -14,4 +14,10 @@ export const APPS: readonly AppEntry[] = [
     description: 'Post-Its from text, images or audio',
     icon: 'icons/notes.svg',
   },
+  {
+    path: '/hosting',
+    name: 'Hosting',
+    description: 'Websites from S3 buckets',
+    icon: 'icons/hosting.svg',
+  },
 ];

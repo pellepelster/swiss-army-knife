@@ -27,6 +27,14 @@ larger hit targets) and on desktops (a wall of post-its).
 Every app shows its own favicon: a route names it in its data (`data: { favicon }`, the notes
 show their app icon), the other pages show the swiss army knife (`FaviconService`).
 
+## Hosting (`/hosting`)
+
+The buckets of the backend's s3 api, from which caddy serves websites at their domains: the list
+of buckets with their objects and size, a page to create a bucket with its domains, a bucket's page
+with its overview and its configuration (the domains) and credentials (the s3 endpoint and the key
+pair that may access this bucket only, shown on request) in tabs, and a page to edit its domains.
+It takes `/api/v1/buckets`, the same buckets the console shows.
+
 ## Installing the notes as an app
 
 The notes can be installed as an app, on Android e.g. into the app drawer: the app list offers
@@ -37,9 +45,10 @@ only) keeps the app and the thumbnails on the device, it never answers below `/a
 app, the notes always come from the backend.
 
 The icons are drawn as svg in `public/` and rendered to png at the sizes the manifest names. The
-notes' icon is the `note-sticky` icon of [Font Awesome Free](https://fontawesome.com)
-([CC BY 4.0](https://fontawesome.com/license/free)), outlined in ink on paper white with the
-swiss army knife of the favicon, which is our own, in its corner.
+notes' icon is the `note-sticky` and the hosting's the `cloud` icon of
+[Font Awesome Free](https://fontawesome.com) ([CC BY 4.0](https://fontawesome.com/license/free)),
+outlined in ink on paper white with the swiss army knife of the favicon, which is our own, in its
+corner.
 
 ## Development
 
