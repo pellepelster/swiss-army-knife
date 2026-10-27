@@ -111,7 +111,7 @@ class FileTextServiceTest {
     @Test
     fun `discovers text in images and recordings only`() {
         // the storage takes no such file, the row is there anyway
-        val file = FileRepository(database).insert("0".repeat(64), "application/pdf", 3, PELLE, Instant.now()).id
+        val file = FileRepository(database).insert("0".repeat(64), "application/pdf", 3, PELLE).id
 
         service.discover(PELLE, file) shouldBe DiscoverTextResult.Unsupported
         recognizer.images shouldBe emptyList()

@@ -4,11 +4,13 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.RedirectsRecord
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
 import org.jooq.exception.IntegrityConstraintViolationException
-import java.time.Instant
+import java.time.Clock
 
 // the database access of the redirects, only RedirectService (sak-backend) uses it
 class RedirectRepository(
     private val database: SakDatabase,
+    // the created, updated and deleted times are taken from it, never from the callers
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     fun all(): List<Redirect> =
         database.dsl
@@ -24,37 +26,43 @@ class RedirectRepository(
             .fetchOne()
             ?.toRedirect()
 
-    // false when the source has a redirect already
-    fun insert(redirect: Redirect): Boolean =
+    // null when the source has a redirect already
+    fun insert(
+        sourceDomain: String,
+        target: RedirectTarget,
+    ): Redirect? =
         try {
+            val now = clock.instant()
             database.dsl
                 .insertInto(REDIRECTS)
-                .set(REDIRECTS.SOURCE_DOMAIN, redirect.sourceDomain)
-                .set(REDIRECTS.TARGET_TYPE, redirect.target.type())
-                .set(REDIRECTS.TARGET_DOMAIN, (redirect.target as? RedirectTarget.Domain)?.domain)
-                .set(REDIRECTS.TARGET_BUCKET, (redirect.target as? RedirectTarget.Bucket)?.bucket)
-                .set(REDIRECTS.CREATED_AT, redirect.createdAt)
-                .set(REDIRECTS.UPDATED_AT, redirect.updatedAt)
-                .execute()
-            true
+                .set(REDIRECTS.SOURCE_DOMAIN, sourceDomain)
+                .set(REDIRECTS.TARGET_TYPE, target.type())
+                .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
+                .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
+                .set(REDIRECTS.CREATED_AT, now)
+                .set(REDIRECTS.UPDATED_AT, now)
+                .returning()
+                .fetchOne()
+                ?.toRedirect()
         } catch (_: IntegrityConstraintViolationException) {
-            false
+            null
         }
 
-    // the target of the redirect of the source, false when there is none
+    // the redirect of the source with the target, null when there is none
     fun update(
         sourceDomain: String,
         target: RedirectTarget,
-        now: Instant,
-    ): Boolean =
+    ): Redirect? =
         database.dsl
             .update(REDIRECTS)
             .set(REDIRECTS.TARGET_TYPE, target.type())
             .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
             .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
-            .set(REDIRECTS.UPDATED_AT, now)
+            .set(REDIRECTS.UPDATED_AT, clock.instant())
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain))
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toRedirect()
 
     // false when there was none
     fun delete(sourceDomain: String): Boolean =

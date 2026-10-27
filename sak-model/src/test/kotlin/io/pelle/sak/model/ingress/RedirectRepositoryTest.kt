@@ -4,13 +4,13 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
-import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.model.s3.S3BucketRepository
 import org.jooq.exception.DataAccessException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
+import io.kotest.matchers.shouldNotBe
 
 class RedirectRepositoryTest {
     @TempDir
@@ -20,7 +20,7 @@ class RedirectRepositoryTest {
 
     @Test
     fun `the schema holds exactly the target of the type and only known buckets`() {
-        S3BucketRepository(database).insert(S3Bucket("site", "AKIASITE", "secret", Instant.parse("2026-10-27T08:00:00Z"))) shouldBe true
+        S3BucketRepository(database).insert("site", "AKIASITE", "secret") shouldNotBe null
         fun insert(
             type: String,
             domain: String?,

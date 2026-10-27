@@ -5,7 +5,6 @@ import io.pelle.sak.backend.Slice
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
-import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 sealed interface CreateLabelResult {
@@ -51,12 +50,11 @@ sealed interface ResolveLabelsResult {
 // labels hear of every deleted one to drop their links to it
 class LabelService(
     private val repository: LabelRepository,
-    private val clock: Clock,
 ) {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
-    ) : this(LabelRepository(database), clock)
+    ) : this(LabelRepository(database, clock))
 
     private val deleteListeners = CopyOnWriteArrayList<(Int) -> Unit>()
 
@@ -78,7 +76,7 @@ class LabelService(
 
     fun create(name: String): CreateLabelResult {
         val normalized = normalize(name) ?: return CreateLabelResult.InvalidName
-        val label = repository.insert(normalized, clock.instant()) ?: return CreateLabelResult.Exists
+        val label = repository.insert(normalized) ?: return CreateLabelResult.Exists
         return CreateLabelResult.Created(label)
     }
 
@@ -89,14 +87,13 @@ class LabelService(
         val label = repository.byId(id) ?: return RenameLabelResult.NotFound
         val normalized = normalize(name) ?: return RenameLabelResult.InvalidName
         if (normalized == label.name) return RenameLabelResult.Renamed(label)
-        val now = clock.instant()
-        if (!repository.rename(id, normalized, now)) return RenameLabelResult.Exists
-        return RenameLabelResult.Renamed(label.copy(name = normalized, updatedAt = now))
+        val renamed = repository.rename(id, normalized) ?: return RenameLabelResult.Exists
+        return RenameLabelResult.Renamed(renamed)
     }
 
     // the label stays as deleted, the links to it are dropped by the applications
     fun delete(id: Int): DeleteLabelResult {
-        if (!repository.delete(id, clock.instant())) return DeleteLabelResult.NotFound
+        if (!repository.delete(id)) return DeleteLabelResult.NotFound
         deleteListeners.forEach { it(id) }
         return DeleteLabelResult.Deleted
     }
@@ -110,7 +107,7 @@ class LabelService(
 
         val existing = repository.byNames(normalized).map { it.name }.toSet()
         // one created by someone else meanwhile is there all the same
-        (normalized - existing).forEach { repository.insert(it, clock.instant()) }
+        (normalized - existing).forEach { repository.insert(it) }
         return ResolveLabelsResult.Resolved(repository.byNames(normalized))
     }
 

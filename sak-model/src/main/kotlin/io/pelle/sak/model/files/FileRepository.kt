@@ -3,12 +3,14 @@ package io.pelle.sak.model.files
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.FilesRecord
 import io.pelle.sak.model.jooq.tables.references.FILES
-import java.time.Instant
+import java.time.Clock
 
 // the database access of the files, only FileService (sak-backend) uses it; it reads the files that are not
 // deleted only, and only the ones of the address that uploaded them
 class FileRepository(
     private val database: SakDatabase,
+    // the created, updated and deleted times are taken from it, never from the callers
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     fun byId(
         owner: String,
@@ -31,27 +33,28 @@ class FileRepository(
             .map { it.toFile() }
             .associateBy { it.id }
 
+    // the file with the text, null when there is none
     fun updateDiscovered(
         id: Int,
         text: String,
-        now: Instant,
-    ) {
+    ): StoredFile? =
         database.dsl
             .update(FILES)
             .set(FILES.DISCOVERED, text)
-            .set(FILES.UPDATED_AT, now)
+            .set(FILES.UPDATED_AT, clock.instant())
             .where(FILES.ID.eq(id))
-            .execute()
-    }
+            .returning()
+            .fetchOne()
+            ?.toFile()
 
     fun insert(
         sha256: String,
         contentType: String,
         size: Long,
         uploadedBy: String,
-        now: Instant,
-    ): StoredFile =
-        database.dsl
+    ): StoredFile {
+        val now = clock.instant()
+        return database.dsl
             .insertInto(FILES)
             .set(FILES.SHA256, sha256)
             .set(FILES.CONTENT_TYPE, contentType)
@@ -62,6 +65,7 @@ class FileRepository(
             .returning()
             .fetchOne()!!
             .toFile()
+    }
 
     private fun FilesRecord.toFile() =
         StoredFile(

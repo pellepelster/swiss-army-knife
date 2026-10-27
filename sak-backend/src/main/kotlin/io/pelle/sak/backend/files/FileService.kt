@@ -14,7 +14,6 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Clock
-import java.time.Instant
 import javax.imageio.ImageIO
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
@@ -50,7 +49,6 @@ sealed interface StoreFileResult {
 class FileService(
     private val repository: FileRepository,
     private val dir: Path,
-    private val clock: Clock,
     val maxSize: Long,
 ) {
     constructor(
@@ -58,7 +56,7 @@ class FileService(
         dir: Path,
         clock: Clock = Clock.systemUTC(),
         maxSize: Long = DEFAULT_MAX_SIZE,
-    ) : this(FileRepository(database), dir, clock, maxSize)
+    ) : this(FileRepository(database, clock), dir, maxSize)
 
     init {
         Files.createDirectories(dir)
@@ -80,9 +78,7 @@ class FileService(
         file: StoredFile,
         text: String,
     ): StoredFile {
-        val now = clock.instant()
-        repository.updateDiscovered(file.id, text, now)
-        return file.copy(discovered = text, updatedAt = now)
+        return repository.updateDiscovered(file.id, text) ?: file.copy(discovered = text)
     }
 
     // where the content of a stored file is
@@ -153,7 +149,7 @@ class FileService(
                 Files.createDirectories(target.parent)
                 Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
             }
-            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, uploadedBy, clock.instant()))
+            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, uploadedBy))
         } finally {
             Files.deleteIfExists(temp)
         }

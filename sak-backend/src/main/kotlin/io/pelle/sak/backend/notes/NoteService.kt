@@ -78,17 +78,16 @@ class NoteService(
     private val repository: NoteRepository,
     private val labels: LabelService,
     private val files: FileService,
-    private val clock: Clock,
 ) {
     constructor(
         database: SakDatabase,
         labels: LabelService,
         files: FileService,
         clock: Clock = Clock.systemUTC(),
-    ) : this(NoteRepository(database), labels, files, clock)
+    ) : this(NoteRepository(database, clock), labels, files)
 
     init {
-        labels.onDelete { repository.detachLabel(it, clock.instant()) }
+        labels.onDelete(repository::detachLabel)
     }
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
@@ -121,7 +120,7 @@ class NoteService(
         when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.files, clock.instant())
+                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.files)
                 SaveNoteResult.Saved(row.toNote(checked.labels, checked.photos, checked.recordings))
             }
         }
@@ -136,15 +135,13 @@ class NoteService(
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
     ): SaveNoteResult {
-        val note = repository.byId(owner, id) ?: return SaveNoteResult.NotFound
+        repository.byId(owner, id) ?: return SaveNoteResult.NotFound
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val now = clock.instant()
-                if (!repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files, now)) {
-                    return SaveNoteResult.NotFound
-                }
-                val updated = note.copy(text = text, color = checked.color.id, files = checked.files, updatedAt = now)
+                val updated =
+                    repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files)
+                        ?: return SaveNoteResult.NotFound
                 SaveNoteResult.Saved(updated.toNote(checked.labels, checked.photos, checked.recordings))
             }
         }
@@ -154,7 +151,7 @@ class NoteService(
     fun delete(
         owner: String,
         id: Int,
-    ): DeleteNoteResult = if (repository.delete(owner, id, clock.instant())) DeleteNoteResult.Deleted else DeleteNoteResult.NotFound
+    ): DeleteNoteResult = if (repository.delete(owner, id)) DeleteNoteResult.Deleted else DeleteNoteResult.NotFound
 
     private sealed interface Checked {
         data class Valid(

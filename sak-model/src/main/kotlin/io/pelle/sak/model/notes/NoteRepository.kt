@@ -8,6 +8,7 @@ import io.pelle.sak.model.jooq.tables.references.NOTES_FILES
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
+import java.time.Clock
 import java.time.Instant
 
 // a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
@@ -29,6 +30,8 @@ data class NoteRow(
 // deleted_at set
 class NoteRepository(
     private val database: SakDatabase,
+    // the created, updated and deleted times are taken from it, never from the callers
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     // the newest first, of one label or of all when labelId is null
     fun page(
@@ -72,10 +75,10 @@ class NoteRepository(
         color: String,
         labelIds: Set<Int>,
         files: List<Int>,
-        now: Instant,
     ): NoteRow =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
+            val now = clock.instant()
             val note =
                 dsl
                     .insertInto(NOTES)
@@ -91,7 +94,7 @@ class NoteRepository(
             note.toRow(labelIds, files)
         }
 
-    // false when there is none
+    // the note as it is stored now, null when there is none
     fun update(
         owner: String,
         id: Int,
@@ -99,33 +102,33 @@ class NoteRepository(
         color: String,
         labelIds: Set<Int>,
         files: List<Int>,
-        now: Instant,
-    ): Boolean =
+    ): NoteRow? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            val updated =
+            val now = clock.instant()
+            val note =
                 dsl
                     .update(NOTES)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.UPDATED_AT, now)
                     .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
-                    .execute() > 0
-            if (updated) {
-                updateLabels(dsl, id, labelIds, now)
-                updateFiles(dsl, id, files, now)
-            }
-            updated
+                    .returning()
+                    .fetchOne()
+                    ?: return@transactionResult null
+            updateLabels(dsl, id, labelIds, now)
+            updateFiles(dsl, id, files, now)
+            note.toRow(labelIds, files)
         }
 
     // false when there was none; its links to its labels and files are deleted with it
     fun delete(
         owner: String,
         id: Int,
-        now: Instant,
     ): Boolean =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
+            val now = clock.instant()
             val deleted =
                 dsl
                     .update(NOTES)
@@ -141,10 +144,7 @@ class NoteRepository(
         }
 
     // drops the label from every note
-    fun detachLabel(
-        labelId: Int,
-        now: Instant,
-    ) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId), now)
+    fun detachLabel(labelId: Int) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId), clock.instant())
 
     private fun visible(
         owner: String,

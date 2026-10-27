@@ -3,6 +3,9 @@
 ## Persistence (`sak-model`)
 
 - Every entity has `created`, `updated` and `deleted` (soft delete) timestamps.
+- The repository sets them, from the `Clock` it is constructed with (the service hands its own on);
+  no repository method takes a time or an entity built outside, inserts and updates take the
+  fields and answer the row as it is stored.
 - `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
   only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
   `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.

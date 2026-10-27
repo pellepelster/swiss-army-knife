@@ -44,7 +44,6 @@ sealed interface UpdateDomainsResult {
 // <name>.<root_domain> when the root domain is given
 class S3BucketService(
     private val repository: S3BucketRepository,
-    private val clock: Clock,
     private val rootDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
     private val reservedNames: Set<String>,
@@ -57,7 +56,7 @@ class S3BucketService(
         rootDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         reservedDomains: () -> Set<String> = { emptySet() },
-    ) : this(S3BucketRepository(database), clock, rootDomain, reservedNames, reservedDomains)
+    ) : this(S3BucketRepository(database, clock), rootDomain, reservedNames, reservedDomains)
 
     private val random = SecureRandom()
 
@@ -109,10 +108,9 @@ class S3BucketService(
                 DomainCheck.Taken -> return CreateBucketResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
-        val bucket = S3Bucket(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), clock.instant(), normalized)
-        if (!repository.insert(bucket)) {
-            return CreateBucketResult.NameTaken
-        }
+        val bucket =
+            repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized)
+                ?: return CreateBucketResult.NameTaken
         if (servedDomains(bucket).isNotEmpty()) changed()
         return CreateBucketResult.Created(bucket)
     }

@@ -8,11 +8,14 @@ import org.jooq.DSLContext
 import org.jooq.exception.IntegrityConstraintViolationException
 import org.jooq.impl.DSL
 import java.time.Instant
+import java.time.Clock
 
 // the database access of the buckets and their domains, only S3BucketService (sak-backend) uses
 // it
 class S3BucketRepository(
     private val database: SakDatabase,
+    // the created, updated and deleted times are taken from it, never from the callers
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     fun all(): List<S3Bucket> {
         val domains = domainsByBucket(database.dsl, null)
@@ -45,9 +48,15 @@ class S3BucketRepository(
             .where(S3_BUCKETS_DOMAINS.DOMAIN.eq(domain))
             .fetchOne(S3_BUCKETS_DOMAINS.BUCKET_NAME)
 
-    // false when the name or one of the domains is taken
-    fun insert(bucket: S3Bucket): Boolean =
+    // null when the name or one of the domains is taken
+    fun insert(
+        name: String,
+        accessKeyId: String,
+        secretAccessKey: String,
+        domains: List<String> = emptyList(),
+    ): S3Bucket? =
         try {
+            val bucket = S3Bucket(name, accessKeyId, secretAccessKey, clock.instant(), domains)
             database.dsl.transaction { configuration ->
                 val dsl = DSL.using(configuration)
                 dsl
@@ -59,9 +68,9 @@ class S3BucketRepository(
                     .execute()
                 insertDomains(dsl, bucket.name, bucket.domains)
             }
-            true
+            bucket
         } catch (_: IntegrityConstraintViolationException) {
-            false
+            null
         }
 
     // false when one of the domains belongs to another bucket

@@ -7,7 +7,6 @@ import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.model.ingress.RedirectRepository
 import io.pelle.sak.model.ingress.RedirectTarget
 import java.time.Clock
-import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 sealed interface CreateRedirectResult {
@@ -52,7 +51,6 @@ sealed interface DeleteRedirectResult {
 class RedirectService(
     private val repository: RedirectRepository,
     private val buckets: S3BucketService,
-    private val clock: Clock,
     // the domains the controller serves itself, which can not be redirected
     private val reservedDomains: () -> Set<String>,
 ) {
@@ -61,7 +59,7 @@ class RedirectService(
         buckets: S3BucketService,
         clock: Clock = Clock.systemUTC(),
         reservedDomains: () -> Set<String> = { emptySet() },
-    ) : this(RedirectRepository(database), buckets, clock, reservedDomains)
+    ) : this(RedirectRepository(database, clock), buckets, reservedDomains)
 
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
 
@@ -99,10 +97,7 @@ class RedirectService(
                 CheckedTarget.BucketNotServed -> return CreateRedirectResult.BucketNotServed
             }
 
-        val redirect = Redirect(source, normalized, clock.instant())
-        if (!repository.insert(redirect)) {
-            return CreateRedirectResult.Exists
-        }
+        val redirect = repository.insert(source, normalized) ?: return CreateRedirectResult.Exists
         changed()
         return CreateRedirectResult.Created(redirect)
     }
@@ -113,7 +108,7 @@ class RedirectService(
         target: RedirectTarget,
     ): UpdateRedirectResult {
         val source = sourceDomain.lowercase()
-        val redirect = repository.byId(source) ?: return UpdateRedirectResult.NotFound
+        repository.byId(source) ?: return UpdateRedirectResult.NotFound
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target
@@ -121,10 +116,9 @@ class RedirectService(
                 CheckedTarget.UnknownBucket -> return UpdateRedirectResult.UnknownBucket
                 CheckedTarget.BucketNotServed -> return UpdateRedirectResult.BucketNotServed
             }
-        val now = clock.instant()
-        if (!repository.update(source, normalized, now)) return UpdateRedirectResult.NotFound
+        val updated = repository.update(source, normalized) ?: return UpdateRedirectResult.NotFound
         changed()
-        return UpdateRedirectResult.Updated(redirect.copy(target = normalized, updatedAt = now))
+        return UpdateRedirectResult.Updated(updated)
     }
 
     fun delete(sourceDomain: String): DeleteRedirectResult {

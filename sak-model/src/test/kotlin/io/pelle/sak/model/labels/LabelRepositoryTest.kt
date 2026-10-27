@@ -22,13 +22,13 @@ class LabelRepositoryTest {
 
     @Test
     fun `deletes labels softly, the row stays and its name is free again`() {
-        val home = repository.insert("home", now)!!
+        val home = repository.insert("home")!!
 
-        repository.delete(home.id, now) shouldBe true
-        repository.delete(home.id, now) shouldBe false
+        repository.delete(home.id) shouldBe true
+        repository.delete(home.id) shouldBe false
         repository.byId(home.id) shouldBe null
         database.dsl.fetchCount(LABELS) shouldBe 1
-        repository.insert("home", now)!!.id shouldBe home.id + 1
+        repository.insert("home")!!.id shouldBe home.id + 1
     }
 
     @Test
