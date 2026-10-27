@@ -43,7 +43,6 @@ describe('Login', () => {
     expect(request.request.body).toEqual({
       email: 'admin@example.org',
       redirect: '/notes',
-      app: 'frontend',
     });
     request.flush(null, { status: 202, statusText: 'Accepted' });
     await harness.fixture.whenStable();

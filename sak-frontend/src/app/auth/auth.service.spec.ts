@@ -52,7 +52,6 @@ describe('AuthService', () => {
     expect(request.request.body).toEqual({
       email: 'admin@example.org',
       redirect: '/',
-      app: 'frontend',
     });
     request.flush(null, { status: 202, statusText: 'Accepted' });
     expect(done).toBe(true);

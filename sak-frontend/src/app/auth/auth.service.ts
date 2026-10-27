@@ -26,9 +26,6 @@ interface Me {
 
 export const SESSION_STORAGE_KEY = 'sak.session';
 
-// the app the backend sends the login links to, the signin page of the frontend
-const LOGIN_APP = 'frontend';
-
 // the api answers the login below this without a session, every other /api/v1 request needs one
 export const PUBLIC_API_PREFIX = '/api/v1/login/';
 
@@ -76,7 +73,7 @@ export class AuthService {
   // answered the same way for every address, a link is only sent to allowed ones
   requestLogin(email: string, redirect: string | null): Observable<void> {
     return this.http
-      .post('/api/v1/login/link', { email, redirect: safeRedirect(redirect), app: LOGIN_APP })
+      .post('/api/v1/login/link', { email, redirect: safeRedirect(redirect) })
       .pipe(map(() => undefined));
   }
 

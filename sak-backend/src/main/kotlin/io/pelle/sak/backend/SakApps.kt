@@ -79,9 +79,7 @@ fun frontendOrigins(config: SakConfig): Set<URI> =
     setOf(URI("https://${config.appsHost}"), URI(config.frontendUrl).let { URI(it.scheme, null, it.host, it.port, null, null, null) })
 
 // the apps the login links lead to, sak-frontend; the mails say "Sign in to <root_domain>"
-fun loginApps(config: SakConfig): Map<String, LoginApp> = mapOf(FRONTEND_APP to LoginApp(config.frontendUrl, config.rootDomain))
-
-const val FRONTEND_APP = "frontend"
+fun loginApp(config: SakConfig) = LoginApp(config.frontendUrl, config.rootDomain)
 
 fun signingKeyFile(config: SakConfig) = config.authDataDir.resolve("signing-key.pem")
 
@@ -144,7 +142,7 @@ fun Application.apps(
                 route(API_VERSION) {
                     // the only routes without a session, the rest of the api needs one
                     route("/login") {
-                        login(tokens, mailSender, loginApps(config), FRONTEND_APP, rolesOf)
+                        login(tokens, mailSender, loginApp(config), rolesOf)
                     }
                     authenticate(SESSION_AUTH) {
                         route("/auth") {

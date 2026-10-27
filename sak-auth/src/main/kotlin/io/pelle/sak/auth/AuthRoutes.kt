@@ -92,10 +92,8 @@ fun AuthenticationConfig.session(
 fun Route.login(
     tokens: TokenService,
     mailSender: MailSender,
-    // by the name a login request gives, only these get links
-    apps: Map<String, LoginApp>,
-    // the app of the login requests that name none
-    defaultApp: String,
+    // where the links lead
+    app: LoginApp,
     rolesOf: (email: String) -> Set<Role>,
     // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
@@ -110,14 +108,8 @@ fun Route.login(
     post("/link") {
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
-        val app = apps[request.app ?: defaultApp]
-        val errors =
-            listOfNotNull(
-                "No valid e-mail address.".takeIf { email == null },
-                "Unknown app.".takeIf { app == null },
-            )
-        if (email == null || app == null) {
-            call.respondErrors(*errors.toTypedArray())
+        if (email == null) {
+            call.respondErrors("No valid e-mail address.")
             return@post
         }
         val client = call.clientAddress()
@@ -148,7 +140,7 @@ fun Route.login(
         tag(AUTH_TAG)
         summary = "Request a login link"
         description =
-            "Sends a link with a login token, valid for 15 minutes, to the signin page of the app if the address may sign in. " +
+            "Sends a link with a login token, valid for 15 minutes, to the signin page of the apps if the address may sign in. " +
             "Answered the same way for every address."
         requestBody {
             required = true
@@ -156,7 +148,7 @@ fun Route.login(
         }
         responses {
             HttpStatusCode.Accepted { description = "The link is on its way if the address may sign in" }
-            errors(HttpStatusCode.BadRequest, "No valid e-mail address, an unknown app, or a malformed request")
+            errors(HttpStatusCode.BadRequest, "No valid e-mail address or a malformed request")
             HttpStatusCode.TooManyRequests { description = "Too many login requests from this client" }
         }
     }

@@ -43,7 +43,7 @@ class AuthRoutesTest {
 
     private val mails = Channel<Mail>(Channel.UNLIMITED)
 
-    private val tokens = TokenService(SigningKey.generate(), CONSOLE_URL)
+    private val tokens = TokenService(SigningKey.generate(), APPS_URL)
 
     private val rolesOf = { email: String -> if (email == "admin@example.org") setOf(Role.ADMIN) else emptySet() }
 
@@ -62,9 +62,7 @@ class AuthRoutesTest {
                     login(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
-                        // two apps, the requests that name none get the links of the first
-                        mapOf("console" to LoginApp(CONSOLE_URL, "example.org"), "frontend" to LoginApp(FRONTEND_URL, "apps.example.org")),
-                        "console",
+                        LoginApp(APPS_URL, "apps.example.org"),
                         rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
@@ -78,12 +76,9 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         redirect: String? = null,
-        app: String? = null,
     ) = post("/api/v1/login/link") {
         contentType(ContentType.Application.Json)
-        setBody(
-            """{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}${app?.let { ",\"app\":\"$it\"" } ?: ""}}""",
-        )
+        setBody("""{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}}""")
     }
 
     private suspend fun HttpClient.exchange(token: String) =
@@ -94,7 +89,7 @@ class AuthRoutesTest {
 
     private suspend fun receiveLink(): Url {
         val mail = withTimeout(5_000) { mails.receive() }
-        val link = mail.text.lines().single { it.startsWith(CONSOLE_URL) }
+        val link = mail.text.lines().single { it.startsWith(APPS_URL) }
         return Url(link)
     }
 
@@ -105,9 +100,9 @@ class AuthRoutesTest {
 
             val mail = withTimeout(5_000) { mails.receive() }
             mail.to shouldBe "admin@example.org"
-            mail.subject shouldBe "Sign in to example.org"
-            val link = Url(mail.text.lines().single { it.startsWith(CONSOLE_URL) })
-            link.toString() shouldStartWith "$CONSOLE_URL/signin?token="
+            mail.subject shouldBe "Sign in to apps.example.org"
+            val link = Url(mail.text.lines().single { it.startsWith(APPS_URL) })
+            link.toString() shouldStartWith "$APPS_URL/signin?token="
             link.parameters.names() shouldBe setOf("token")
             val token = link.parameters["token"]!!
 
@@ -148,24 +143,24 @@ class AuthRoutesTest {
         }
 
     @Test
-    fun `the link leads to the signin page of the app the login started from`() =
+    fun `the link leads to the signin page of the apps`() =
         authTest {
-            client.login("admin@example.org", "/notes", app = "frontend").status shouldBe HttpStatusCode.Accepted
+            client.login("admin@example.org", "/notes").status shouldBe HttpStatusCode.Accepted
             val mail = mails.receive()
             mail.subject shouldBe "Sign in to apps.example.org"
-            val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
-            link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
+            val link = Url(mail.text.lines().single { it.startsWith(APPS_URL) })
+            link.toString() shouldStartWith "$APPS_URL/signin?token="
             client.exchange(link.parameters["token"]!!).bodyAsText().json().string("redirect") shouldBe "/notes"
 
-            client.login("not-an-address", app = "unknown").let {
+            client.login("not-an-address").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."},{"message":"Unknown app."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
             }
             withTimeoutOrNull(500) { mails.receive() } shouldBe null
         }
 
     @Test
-    fun `redirects outside of the console fall back to the console root`() =
+    fun `redirects outside of the apps fall back to their root`() =
         authTest {
             for (redirect in listOf("https://evil.example.com/", "//evil.example.com/")) {
                 client.login("admin@example.org", redirect)
@@ -258,8 +253,6 @@ class AuthRoutesTest {
         }
 
     companion object {
-        private const val CONSOLE_URL = "https://console.example.org"
-
-        private const val FRONTEND_URL = "https://apps.example.org"
+        private const val APPS_URL = "https://apps.example.org"
     }
 }
