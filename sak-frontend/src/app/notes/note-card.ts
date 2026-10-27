@@ -23,14 +23,34 @@ import { Note, NOTE_COLORS, NotesStore } from './notes-store';
                 loading="lazy"
               />
             </a>
-            <button
-              type="button"
-              class="photo-remove"
-              [attr.aria-label]="'Remove photo ' + (index + 1)"
-              (click)="store.removePhoto(note().id, photo)"
-            >
-              ×
-            </button>
+            @if (confirmingPhoto() === photo) {
+              <div
+                class="photo-confirm"
+                role="group"
+                [attr.aria-label]="'Remove photo ' + (index + 1) + '?'"
+              >
+                <span>Remove photo?</span>
+                <button type="button" class="photo-confirm-remove" (click)="removePhoto(photo)">
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  class="photo-confirm-keep"
+                  (click)="confirmingPhoto.set(null)"
+                >
+                  Keep
+                </button>
+              </div>
+            } @else {
+              <button
+                type="button"
+                class="photo-remove"
+                [attr.aria-label]="'Remove photo ' + (index + 1)"
+                (click)="confirmingPhoto.set(photo)"
+              >
+                ×
+              </button>
+            }
           </li>
         }
       </ul>
@@ -139,6 +159,14 @@ export class NoteCard {
 
   protected readonly colors = NOTE_COLORS;
   protected readonly newLabel = signal('');
+
+  // the photo whose removal is asked for, removed only once it is confirmed
+  protected readonly confirmingPhoto = signal<string | null>(null);
+
+  protected removePhoto(sha256: string): void {
+    this.confirmingPhoto.set(null);
+    this.store.removePhoto(this.note().id, sha256);
+  }
 
   // the whole photo, its thumbnail is below it
   protected photoUrl(sha256: string): string {

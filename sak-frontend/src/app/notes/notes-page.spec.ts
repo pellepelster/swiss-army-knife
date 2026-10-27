@@ -121,6 +121,28 @@ describe('NotesPage', () => {
     expect(notes()[0].querySelector('.note-photos')).toBeNull();
   });
 
+  it('removes a photo only once the removal is confirmed', async () => {
+    const note = notes()[2];
+    button('Remove photo 1', note).click();
+    await fixture.whenStable();
+    http.expectNone({ method: 'PUT' });
+    expect(note.querySelector('[role=group]')?.textContent).toContain('Remove photo?');
+
+    button('Keep', note).click();
+    await fixture.whenStable();
+    expect(note.querySelector('[role=group]')).toBeNull();
+    expect(note.querySelector('.note-photos img')).not.toBeNull();
+
+    button('Remove photo 1', note).click();
+    await fixture.whenStable();
+    button('Remove', note).click();
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
+      [],
+    );
+    await fixture.whenStable();
+    expect(note.querySelector('.note-photos')).toBeNull();
+  });
+
   it('creates a note from the photo taken in the toolbar', async () => {
     const input = page.querySelector<HTMLInputElement>('.toolbar input[type=file]')!;
     expect(input.getAttribute('capture')).toBe('environment');
