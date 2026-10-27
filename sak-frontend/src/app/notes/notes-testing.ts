@@ -30,10 +30,7 @@ export const noteResponse = (
 });
 
 // what a list endpoint answers with the items
-export const pageOf = <T>(items: T[]) => ({
-  items,
-  pagination: { offset: 0, limit: 500, total: items.length },
-});
+export { pageOf } from '../testing/page';
 
 // the photo as the browser would scale it, scaling needs a real canvas
 export const SCALED = new Blob(['scaled'], { type: 'image/jpeg' });

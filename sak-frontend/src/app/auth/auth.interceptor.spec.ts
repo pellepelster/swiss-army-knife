@@ -2,22 +2,16 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { signedIn } from '../testing/page';
 import { authInterceptor } from './auth.interceptor';
-import { AuthService, SESSION_STORAGE_KEY } from './auth.service';
+import { AuthService } from './auth.service';
 
 describe('authInterceptor', () => {
   let http: HttpTestingController;
   let client: HttpClient;
 
   beforeEach(() => {
-    localStorage.setItem(
-      SESSION_STORAGE_KEY,
-      JSON.stringify({
-        token: 'session-token',
-        email: 'admin@example.org',
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      }),
-    );
+    signedIn();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),

@@ -3,8 +3,8 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { signedIn } from '../testing/page';
 import { authGuard } from './auth.guard';
-import { SESSION_STORAGE_KEY } from './auth.service';
 
 @Component({ template: 'protected' })
 class Protected {}
@@ -36,14 +36,7 @@ describe('authGuard', () => {
   });
 
   it('lets signed in users pass', async () => {
-    localStorage.setItem(
-      SESSION_STORAGE_KEY,
-      JSON.stringify({
-        token: 'session-token',
-        email: 'admin@example.org',
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      }),
-    );
+    signedIn();
     const harness = await RouterTestingHarness.create();
 
     await harness.navigateByUrl('/protected');

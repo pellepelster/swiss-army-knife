@@ -1,8 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { pageHelpers, pageOf } from '../testing/page';
 import { Subject } from 'rxjs';
 import { AccessLogsService, LogEntry } from './access-logs/access-logs.service';
 import { COPIED_MS } from '../shared/copy-button';
@@ -30,12 +31,6 @@ const bucket = (
   subdomain,
   createdAt: CREATED,
   statistics,
-});
-
-// what a list endpoint answers with the items
-const pageOf = <T>(items: T[]) => ({
-  items,
-  pagination: { offset: 0, limit: 500, total: items.length },
 });
 
 const SECRET = {
@@ -69,24 +64,7 @@ describe('Hosting', () => {
     vi.restoreAllMocks();
   });
 
-  const page = () => harness.routeNativeElement!;
-  const text = (testId: string) =>
-    page().querySelector(`[data-testid="${testId}"]`)?.textContent?.trim();
-  const button = (name: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('button, a')].find(
-      (b) => b.textContent?.trim() === name || b.getAttribute('aria-label') === name,
-    ) as HTMLButtonElement;
-  const type = async (selector: string, value: string) => {
-    const input = page().querySelector<HTMLInputElement>(selector)!;
-    input.value = value;
-    input.dispatchEvent(new Event('input'));
-    await harness.fixture.whenStable();
-  };
-  const open = async (url: string) => {
-    await harness.navigateByUrl(url);
-    await harness.fixture.whenStable();
-  };
-  const url = () => TestBed.inject(Router).url;
+  const { page, text, button, type, open, url } = pageHelpers(() => harness);
 
   it('lists the buckets a page at a time, the page is kept in the address', async () => {
     const pageAt = (offset: number, total: number, ...items: ReturnType<typeof bucket>[]) => ({

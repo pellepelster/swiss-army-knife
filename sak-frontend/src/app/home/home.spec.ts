@@ -3,20 +3,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { signedIn } from '../testing/page';
 import { routes } from '../app.routes';
 import { authInterceptor } from '../auth/auth.interceptor';
 import { SESSION_STORAGE_KEY } from '../auth/auth.service';
 
-const signIn = () =>
-  localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({
-      token: 'session-token',
-      email: 'pelle@pelle.io',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      roles: ['admin'],
-    }),
-  );
+const signIn = () => signedIn('pelle@pelle.io');
 
 describe('Home', () => {
   beforeEach(() => {
