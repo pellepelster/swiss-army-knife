@@ -22,6 +22,7 @@ import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
@@ -63,6 +64,7 @@ fun Application.console(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
     statistics: BucketStatisticsCache,
+    bucketService: S3BucketService,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
     val consoleSites = sites(config)
@@ -94,7 +96,7 @@ fun Application.console(
                         }
                         route("/buckets") {
                             install(RequireRole) { role = Role.ADMIN }
-                            buckets({ buckets(config) }, statistics)
+                            buckets({ buckets(config, bucketService) }, statistics)
                         }
                     }
                 }

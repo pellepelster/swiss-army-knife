@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":sak-config"))
+    implementation(project(":sak-model"))
     implementation(project(":sak-s3"))
     implementation(project(":sak-ingress"))
     implementation(project(":sak-auth"))

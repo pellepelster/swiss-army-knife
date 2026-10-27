@@ -9,6 +9,8 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
+import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.s3.StaticCredentialsAccessCallback
 import io.pelle.sak.s3.api.s3
@@ -42,14 +44,19 @@ fun Application.module() {
     sak(config)
 }
 
+// the controller's database, the buckets and their keys are in it
+fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
+
 fun Application.sak(config: SakConfig) {
     Files.createDirectories(config.dataDir)
     Files.createDirectories(config.s3DataDir)
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
     val accessCallback = StaticCredentialsAccessCallback(config.s3.accessKeyId, config.s3.secretAccessKey, config.s3.buckets.keys)
+    val database = SakDatabase.open(databaseFile(config))
+    val bucketService = S3BucketService(database, reservedNames = RESERVED_SITES)
     val statistics = BucketStatisticsCache(storage)
-    statistics.warm(buckets(config).map { it.name })
+    statistics.warm(bucketService.all().map { it.name })
 
     routing {
         route(S3_PATH_PREFIX) {
@@ -60,7 +67,7 @@ fun Application.sak(config: SakConfig) {
     // a broken console, e.g. an unreadable signing key, must not take the s3 api down with it
     config.auth?.let {
         try {
-            console(config, it, statistics)
+            console(config, it, statistics, bucketService)
         } catch (e: Exception) {
             logger.error(e) { "the console could not be set up, it is not served" }
         }

@@ -15,6 +15,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
@@ -65,9 +66,11 @@ data class BucketStatistics(
     val computedAt: Instant,
 )
 
-// the buckets of the controller; the one place they come from, so they can move from the
-// configuration to the database
-fun buckets(config: SakConfig): List<Bucket> = config.s3.buckets.map { (name, bucket) -> Bucket(name, bucket.domains) }
+// the buckets of the controller, with the domains the configuration serves them at
+fun buckets(
+    config: SakConfig,
+    bucketService: S3BucketService,
+): List<Bucket> = bucketService.all().map { Bucket(it.name, config.s3.buckets[it.name]?.domains.orEmpty()) }
 
 // counting a bucket walks all of its objects, so the numbers are kept and recounted in the
 // background after a while, the old ones are served meanwhile; a write drops them

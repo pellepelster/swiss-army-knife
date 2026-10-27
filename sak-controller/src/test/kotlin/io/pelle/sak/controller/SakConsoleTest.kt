@@ -12,6 +12,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
+import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.s3.S3BucketService
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -176,7 +178,10 @@ class SakConsoleTest {
 
     @Test
     fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
-        withServer { port ->
+        val config = config()
+        S3BucketService(SakDatabase.open(databaseFile(config))).create("bucket1")
+
+        withServer(config) { port ->
             val session = signIn(port)
             get(port, "/api/v1/buckets").statusCode() shouldBe 401
 
