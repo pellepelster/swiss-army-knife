@@ -134,6 +134,22 @@ class SakConsoleTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
+    private fun put(
+        port: Int,
+        path: String,
+        json: String,
+        sessionToken: String,
+    ): HttpResponse<String> =
+        http.send(
+            HttpRequest
+                .newBuilder(URI.create("http://localhost:$port$path"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer $sessionToken")
+                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
     private fun HttpResponse<String>.json(): JsonObject = Json.parseToJsonElement(body()).jsonObject
 
     private fun JsonObject.string(name: String) = getValue(name).jsonPrimitive.content
@@ -325,6 +341,84 @@ class SakConsoleTest {
     }
 
     @Test
+    fun `keeps labels that every application can use`() {
+        withServer { port ->
+            val session = signIn(port)
+            fun names(response: HttpResponse<String>) =
+                response.json().getValue("items").jsonArray.map { it.jsonObject.string("name") }
+
+            get(port, "/api/v1/labels").statusCode() shouldBe 401
+            val home =
+                post(port, "/api/v1/labels", """{"name":"  Home  Office "}""", session).let {
+                    it.statusCode() shouldBe 201
+                    it.json().string("name") shouldBe "home office"
+                    it.json().string("id")
+                }
+            post(port, "/api/v1/labels", """{"name":"work"}""", session).statusCode() shouldBe 201
+            post(port, "/api/v1/labels", """{"name":"HOME office"}""", session).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe """{"errors":[{"message":"A label of the name exists."}]}"""
+            }
+            post(port, "/api/v1/labels", """{"name":" "}""", session).statusCode() shouldBe 400
+            names(get(port, "/api/v1/labels?limit=1", session)) shouldBe listOf("home office")
+
+            put(port, "/api/v1/labels/$home", """{"name":"house"}""", session).json().string("name") shouldBe "house"
+            put(port, "/api/v1/labels/$home", """{"name":"work"}""", session).statusCode() shouldBe 409
+            get(port, "/api/v1/labels/$home", session).json().string("name") shouldBe "house"
+            get(port, "/api/v1/labels/x", session).statusCode() shouldBe 404
+
+            delete(port, "/api/v1/labels/$home", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/labels/$home", session).statusCode() shouldBe 404
+            names(get(port, "/api/v1/labels", session)) shouldBe listOf("work")
+        }
+    }
+
+    @Test
+    fun `keeps notes with their labels`() {
+        withServer { port ->
+            val session = signIn(port)
+            fun labels(note: JsonObject) = note.getValue("labels").jsonArray.map { it.jsonObject.string("name") }
+            fun texts(response: HttpResponse<String>) =
+                response.json().getValue("items").jsonArray.map { it.jsonObject.string("text") }
+
+            get(port, "/api/v1/notes").statusCode() shouldBe 401
+            val milk =
+                post(port, "/api/v1/notes", """{"text":"Buy milk","color":"yellow","labels":["Shopping","todo"]}""", session).let {
+                    it.statusCode() shouldBe 201
+                    labels(it.json()) shouldBe listOf("shopping", "todo")
+                    it.json().string("color") shouldBe "yellow"
+                    it.json().string("id")
+                }
+            post(port, "/api/v1/notes", """{"text":"Call the plumber","color":"pink","labels":["home"]}""", session).statusCode() shouldBe 201
+            // the labels of the notes are the shared ones
+            get(port, "/api/v1/labels", session).json().getValue("pagination").jsonObject.string("total") shouldBe "3"
+
+            texts(get(port, "/api/v1/notes", session)) shouldBe listOf("Call the plumber", "Buy milk")
+            texts(get(port, "/api/v1/notes?label=Shopping", session)) shouldBe listOf("Buy milk")
+
+            put(port, "/api/v1/notes/$milk", """{"text":"Buy milk and bread","color":"green","labels":["shopping"]}""", session).let {
+                it.statusCode() shouldBe 200
+                it.json().string("text") shouldBe "Buy milk and bread"
+                labels(it.json()) shouldBe listOf("shopping")
+            }
+            texts(get(port, "/api/v1/notes?label=todo", session)) shouldBe emptyList()
+            post(port, "/api/v1/notes", """{"text":"x","color":"purple","labels":[" "]}""", session).let {
+                it.statusCode() shouldBe 400
+                it.json().getValue("errors").jsonArray.map { error -> error.jsonObject.string("message") } shouldBe
+                    listOf(
+                        "The color must be one of yellow, pink, blue, green, orange.",
+                        "A label name must have 1 to 64 characters and no control characters.",
+                    )
+            }
+            put(port, "/api/v1/notes/4711", """{"text":"x"}""", session).statusCode() shouldBe 404
+
+            delete(port, "/api/v1/notes/$milk", session).statusCode() shouldBe 204
+            get(port, "/api/v1/notes/$milk", session).statusCode() shouldBe 404
+            texts(get(port, "/api/v1/notes", session)) shouldBe listOf("Call the plumber")
+        }
+    }
+
+    @Test
     fun `serves buckets at the domains they are created with and changes them`() {
         withServer { port ->
             val session = signIn(port)
@@ -442,6 +536,10 @@ class SakConsoleTest {
                         "/api/v1/buckets/{bucket}/secret",
                         "/api/v1/redirects",
                         "/api/v1/redirects/{source}",
+                        "/api/v1/labels",
+                        "/api/v1/labels/{id}",
+                        "/api/v1/notes",
+                        "/api/v1/notes/{id}",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

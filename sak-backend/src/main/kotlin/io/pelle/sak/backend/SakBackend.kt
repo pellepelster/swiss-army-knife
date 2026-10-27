@@ -11,6 +11,8 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.ingress.RedirectService
+import io.pelle.sak.model.labels.LabelService
+import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.s3.api.s3
@@ -55,7 +57,7 @@ class SakServices(
     val redirectService: RedirectService,
 )
 
-// the controller's database, the buckets, their keys and the redirects are in it
+// the controller's database, the buckets, their keys, the redirects, the labels and the notes are in it
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
 fun Application.sak(config: SakConfig): SakServices {
@@ -74,6 +76,8 @@ fun Application.sak(config: SakConfig): SakServices {
             reservedDomains = { reservedDomains(config) + redirectService.sourceDomains() },
         )
     redirectService = RedirectService(database, bucketService, reservedDomains = { reservedDomains(config) })
+    val labelService = LabelService(database)
+    val noteService = NoteService(database, labelService)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
@@ -87,7 +91,7 @@ fun Application.sak(config: SakConfig): SakServices {
     // a broken console, e.g. an unreadable signing key, must not take the s3 api down with it
     config.auth?.let {
         try {
-            console(config, it, statistics, bucketService, redirectService)
+            console(config, it, statistics, bucketService, redirectService, labelService, noteService)
         } catch (e: Exception) {
             logger.error(e) { "the console could not be set up, it is not served" }
         }

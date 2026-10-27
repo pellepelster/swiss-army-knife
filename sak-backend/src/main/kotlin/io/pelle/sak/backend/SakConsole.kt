@@ -23,6 +23,8 @@ import io.pelle.sak.auth.auth
 import io.pelle.sak.auth.session
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.ingress.RedirectService
+import io.pelle.sak.model.labels.LabelService
+import io.pelle.sak.model.notes.NoteService
 import io.pelle.sak.model.s3.S3BucketService
 import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
@@ -67,6 +69,8 @@ fun Application.console(
     statistics: BucketStatisticsCache,
     bucketService: S3BucketService,
     redirectService: RedirectService,
+    labelService: LabelService,
+    noteService: NoteService,
 ) {
     val tokens = TokenService(SigningKey.loadOrCreate(signingKeyFile(config)), config.consoleUrl)
     val mailSender =
@@ -102,6 +106,14 @@ fun Application.console(
                         route("/redirects") {
                             install(RequireRole) { role = Role.ADMIN }
                             redirects(redirectService)
+                        }
+                        route("/labels") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            labels(labelService)
+                        }
+                        route("/notes") {
+                            install(RequireRole) { role = Role.ADMIN }
+                            notes(noteService)
                         }
                     }
                 }

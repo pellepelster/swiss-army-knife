@@ -10,3 +10,9 @@ databaseChangeLog:
   - include:
       file: 0003-s3-buckets-domains.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0004-labels.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 0005-notes.yaml
+      relativeToChangelogFile: true
