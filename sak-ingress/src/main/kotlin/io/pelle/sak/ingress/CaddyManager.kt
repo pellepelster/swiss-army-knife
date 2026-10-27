@@ -6,6 +6,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 class CaddyException(
     val status: Int,
@@ -20,9 +21,17 @@ val CaddyJson =
         classDiscriminator = "handler"
     }
 
+// a caddy that does not answer must not block the one thread reconciling it, every request
+// gives up after REQUEST_TIMEOUT
 class CaddyManager(
     adminUrl: String,
-    private val httpClient: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build(),
+    private val httpClient: HttpClient =
+        HttpClient
+            .newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(CONNECT_TIMEOUT)
+            .build(),
+    private val requestTimeout: Duration = REQUEST_TIMEOUT,
 ) {
     val adminUrl: String = adminUrl.trimEnd('/')
 
@@ -53,12 +62,18 @@ class CaddyManager(
             HttpRequest
                 .newBuilder(URI.create("$adminUrl$path"))
                 .header("Content-Type", "application/json")
+                .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build(),
         )
     }
 
-    private fun get(path: String): HttpRequest = HttpRequest.newBuilder(URI.create("$adminUrl$path")).GET().build()
+    private fun get(path: String): HttpRequest =
+        HttpRequest
+            .newBuilder(URI.create("$adminUrl$path"))
+            .timeout(requestTimeout)
+            .GET()
+            .build()
 
     private fun execute(request: HttpRequest): String {
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -66,5 +81,11 @@ class CaddyManager(
             throw CaddyException(response.statusCode(), response.body())
         }
         return response.body()
+    }
+
+    companion object {
+        val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(5)
+
+        val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(10)
     }
 }

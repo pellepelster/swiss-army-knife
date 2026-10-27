@@ -10,6 +10,9 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.http.HttpTimeoutException
+import java.time.Duration
 
 class CaddyManagerTest {
     private lateinit var server: HttpServer
@@ -160,5 +163,16 @@ class CaddyManagerTest {
 
         exception.status shouldBe 400
         exception.message shouldContain "unknown handler"
+    }
+
+    @Test
+    fun `gives up on a caddy that takes the request and never answers`() {
+        // accepts the connection, reads nothing and answers nothing
+        ServerSocket(0).use { silent ->
+            val hanging = CaddyManager("http://localhost:${silent.localPort}", requestTimeout = Duration.ofMillis(200))
+            val started = System.nanoTime()
+            shouldThrow<HttpTimeoutException> { hanging.config() }
+            (Duration.ofNanos(System.nanoTime() - started) < Duration.ofSeconds(5)) shouldBe true
+        }
     }
 }
