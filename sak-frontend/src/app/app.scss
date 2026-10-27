@@ -1,0 +1,86 @@
+:host {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0 12px;
+  background: var(--wall);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.add {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--wall);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+// one row that scrolls sideways on a phone instead of wrapping into many
+.filters {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--wall);
+  }
+}
+
+.count {
+  opacity: 0.6;
+}
+
+.wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  text-align: center;
+  padding: 48px 0;
+}
+
+@media (max-width: 540px) {
+  .wall {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}

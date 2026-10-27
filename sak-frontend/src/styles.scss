@@ -1,0 +1,241 @@
+// the colors of the wall and of the post-its; the post-its keep their paper colors in dark mode
+:root {
+  color-scheme: light dark;
+  --wall: #f4f1ea;
+  --ink: #2b2a27;
+  --muted: #7a766c;
+  --line: #d6d1c4;
+
+  --note-yellow: #fff59d;
+  --note-pink: #f8bbd0;
+  --note-blue: #b3e5fc;
+  --note-green: #c5e1a5;
+  --note-orange: #ffcc80;
+  --note-ink: #2b2a27;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --wall: #1f1e1c;
+    --ink: #f1eee6;
+    --muted: #a19c90;
+    --line: #45423c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+// a post-it: a square-ish paper with a soft shadow, slightly turned on wide screens
+.note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 220px;
+  padding: 18px 16px 10px;
+  background: var(--note-color);
+  color: var(--note-ink);
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 8%),
+    0 8px 18px -6px rgb(0 0 0 / 30%);
+  border-radius: 2px 2px 18px 2px;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:focus-within {
+    transform: none;
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 8%),
+      0 14px 26px -8px rgb(0 0 0 / 35%);
+  }
+}
+
+@media (min-width: 541px) and (hover: hover) {
+  .note:nth-child(3n + 1) {
+    transform: rotate(-1.2deg);
+  }
+  .note:nth-child(3n + 2) {
+    transform: rotate(0.8deg);
+  }
+  .note:hover {
+    transform: none;
+  }
+}
+
+.note-yellow {
+  --note-color: var(--note-yellow);
+}
+.note-pink {
+  --note-color: var(--note-pink);
+}
+.note-blue {
+  --note-color: var(--note-blue);
+}
+.note-green {
+  --note-color: var(--note-green);
+}
+.note-orange {
+  --note-color: var(--note-orange);
+}
+
+.note-text {
+  flex: 1;
+  min-height: 110px;
+  field-sizing: content;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+
+  &::placeholder {
+    color: rgb(0 0 0 / 40%);
+  }
+}
+
+.note-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 9%);
+  font-size: 0.82rem;
+
+  button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+}
+
+.label-name {
+  padding: 3px 4px 3px 10px;
+}
+
+.label-remove {
+  padding: 3px 9px 3px 4px;
+  opacity: 0.55;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+}
+
+.note-label-input {
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px dashed rgb(0 0 0 / 22%);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  outline: none;
+
+  &:focus {
+    border-bottom-style: solid;
+    border-bottom-color: rgb(0 0 0 / 45%);
+  }
+
+  &::placeholder {
+    color: rgb(0 0 0 / 40%);
+  }
+}
+
+.note-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.note-colors {
+  display: flex;
+  gap: 4px;
+}
+
+// big enough to hit with a finger
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 25%);
+  border-radius: 50%;
+  background: var(--note-color);
+  cursor: pointer;
+
+  &[aria-checked='true'] {
+    box-shadow: 0 0 0 2px var(--note-ink) inset;
+  }
+}
+
+.note-time {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.55;
+}
+
+.note-delete {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.55;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: rgb(0 0 0 / 8%);
+  }
+}
+
+@media (max-width: 540px) {
+  .note {
+    min-height: 0;
+  }
+
+  // larger hit targets on a phone
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+  }
+}

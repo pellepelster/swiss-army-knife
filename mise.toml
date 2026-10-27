@@ -88,3 +88,32 @@ mkdir -p build/images
 docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.tar.gz
 docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
 """
+
+# the ports do not clash: backend 8080, console 4200 (proxies /api to the backend), frontend 4300,
+# the mailpit the login links of the backend go to 1025 (smtp) and 8025 (web ui)
+[tasks."backend:run"]
+description = "Run sak-backend on http://localhost:8080 with a mailpit for its login links on http://localhost:8025"
+env = { SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data" }
+run = """
+mkdir -p "$SAK_LOCAL_DATA_DIR"
+docker run -d --rm --name sak-local-mailpit -p 127.0.0.1:8025:8025 -p 127.0.0.1:1025:1025 axllent/mailpit:v1.32.0 >/dev/null \
+  || docker start sak-local-mailpit >/dev/null
+trap 'docker stop sak-local-mailpit >/dev/null' EXIT
+./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
+"""
+
+[tasks."console:run"]
+description = "Run sak-console on http://localhost:4200, its /api goes to backend:run"
+dir = "{{config_root}}/sak-console"
+run = """
+[ -d node_modules ] || npm ci
+npx ng serve --port 4200
+"""
+
+[tasks."frontend:run"]
+description = "Run the sak-frontend notes prototype on http://localhost:4300"
+dir = "{{config_root}}/sak-frontend"
+run = """
+[ -d node_modules ] || npm ci
+npx ng serve --port 4300
+"""

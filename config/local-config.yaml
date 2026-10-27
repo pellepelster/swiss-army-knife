@@ -1,0 +1,19 @@
+# the backend of `mise run backend:run`, its data lives below build/local/; the console of
+# `mise run console:run` proxies /api to it, the login links go to the mailpit backend:run starts
+ktor:
+  deployment:
+    port: 8080
+sak:
+  data_dir: $SAK_LOCAL_DATA_DIR
+  root_domain: localhost
+  # nothing listens here, so a caddy on its default admin port is never reconfigured
+  caddy_admin_url: http://localhost:12019
+  auth:
+    console_url: http://localhost:4200
+    admins:
+      - admin@localhost
+    smtp:
+      host: localhost
+      port: 1025
+      from: login@localhost
+      starttls: false
