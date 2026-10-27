@@ -682,6 +682,9 @@ class SakConsoleTest {
                 page shouldContain "Content-Security-Policy: $CONSOLE_CONTENT_SECURITY_POLICY"
             }
             getWithHost(port, "console.example.org", "/") shouldContain "<title>sak console</title>"
+            // installable as an app, with the service worker that keeps it on the phone
+            getWithHost(port, "apps.example.org", "/notes.webmanifest") shouldContain "Content-Type: application/manifest+json"
+            getWithHost(port, "apps.example.org", "/ngsw-worker.js") shouldStartWith "HTTP/1.1 200"
             // an inlined critical css loads the rest of the styles with an inline onload, which the
             // content security policy blocks
             listOf("apps.example.org", "console.example.org").forEach { host ->

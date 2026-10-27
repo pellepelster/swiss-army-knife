@@ -5,7 +5,14 @@
     <title>Apps</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- the colors of the wall, the status bar of the installed app takes them -->
+    <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f1e1c" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="apple-touch-icon" href="icons/notes-apple-touch-180.png" />
+    <!-- the notes are the app that is installed, it opens at /notes -->
+    <link rel="manifest" href="notes.webmanifest" />
   </head>
   <body>
     <app-root></app-root>

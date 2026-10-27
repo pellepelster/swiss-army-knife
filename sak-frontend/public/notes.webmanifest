@@ -1,0 +1,16 @@
+{
+  "id": "/notes",
+  "name": "Notes",
+  "short_name": "Notes",
+  "description": "Post-its with photos and labels",
+  "start_url": "/notes",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#f4f1ea",
+  "icons": [
+    { "src": "/icons/notes-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/notes-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/notes-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

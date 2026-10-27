@@ -19,6 +19,19 @@ it (`POST /api/v1/files/<sha256>/discover/text`, a vision model at OpenRouter) a
 the text of the note. The page works on phones (one column,
 larger hit targets) and on desktops (a wall of post-its).
 
+## Installing the notes as an app
+
+The notes can be installed as an app, on Android e.g. into the app drawer: the app list offers
+an Install button when the browser allows it, Chrome's menu has "Install app" as well. The
+manifest (`public/notes.webmanifest`) opens the app at `/notes`, its scope is the whole frontend
+so the login stays in the app. Angular's service worker (`ngsw-config.json`, production builds
+only) keeps the app and the thumbnails on the device, it never answers below `/api` with the
+app, the notes always come from the backend.
+
+The icons are drawn as svg in `public/` and rendered to png at the sizes the manifest names. The
+notes' icon is the `note-sticky` icon of [Font Awesome Free](https://fontawesome.com)
+([CC BY 4.0](https://fontawesome.com/license/free)), the favicon a swiss army knife of our own.
+
 ## Development
 
 ```shell
