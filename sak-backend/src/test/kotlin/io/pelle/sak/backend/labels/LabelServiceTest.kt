@@ -92,12 +92,10 @@ class LabelServiceTest {
     fun `resolves names to labels and creates the missing ones`() {
         val home = create("home")
 
-        val resolved = service.resolve(listOf("Work", "home", "work ")).shouldBeInstanceOf<ResolveLabelsResult.Resolved>()
-        resolved.labels.map { it.name } shouldBe listOf("home", "work")
-        resolved.labels.first() shouldBe home
-        service.resolve(emptyList()) shouldBe ResolveLabelsResult.Resolved(emptyList())
-        service.resolve(listOf("ok", "")) shouldBe ResolveLabelsResult.InvalidNames(listOf(""))
-        service.byName("ok") shouldBe null
+        val resolved = service.resolve(setOf("work", "home"))
+        resolved.map { it.name } shouldBe listOf("home", "work")
+        resolved.first() shouldBe home
+        service.resolve(emptySet()) shouldBe emptyList()
     }
 
 }

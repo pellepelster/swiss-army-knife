@@ -36,17 +36,6 @@ sealed interface DeleteLabelResult {
     data object NotFound : DeleteLabelResult
 }
 
-sealed interface ResolveLabelsResult {
-    data class Resolved(
-        val labels: List<Label>,
-    ) : ResolveLabelsResult
-
-    // the names that are no valid label names
-    data class InvalidNames(
-        val names: List<String>,
-    ) : ResolveLabelsResult
-}
-
 // the labels, shared by every application, the only way to them; the applications that link
 // labels hear of every deleted one to drop their links to it
 class LabelService(
@@ -103,17 +92,14 @@ class LabelService(
         return DeleteLabelResult.Deleted
     }
 
-    // the labels of the names, the missing ones are created; sorted by name
-    fun resolve(names: Collection<String>): ResolveLabelsResult {
-        val invalid = names.filter { normalize(it) == null }
-        if (invalid.isNotEmpty()) return ResolveLabelsResult.InvalidNames(invalid)
-        val normalized = names.mapNotNull { normalize(it) }.toSet()
-        if (normalized.isEmpty()) return ResolveLabelsResult.Resolved(emptyList())
-
-        val existing = repository.byNames(normalized).map { it.name }.toSet()
+    // the labels of the names, normalized (normalize) by the caller, the missing ones are created;
+    // sorted by name
+    fun resolve(names: Set<String>): List<Label> {
+        if (names.isEmpty()) return emptyList()
+        val existing = repository.byNames(names).map { it.name }.toSet()
         // one created by someone else meanwhile is there all the same
-        (normalized - existing).forEach { repository.insert(it) }
-        return ResolveLabelsResult.Resolved(repository.byNames(normalized))
+        (names - existing).forEach { repository.insert(it) }
+        return repository.byNames(names)
     }
 
     companion object {

@@ -5,7 +5,6 @@ import io.pelle.sak.backend.Slice
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
-import io.pelle.sak.backend.labels.ResolveLabelsResult
 import io.pelle.sak.model.notes.NoteRepository
 import io.pelle.sak.model.notes.NoteRow
 import java.time.Clock
@@ -186,9 +185,11 @@ class NoteService(
         if (text.length > MAX_TEXT_LENGTH) problems += NoteProblem.TEXT_TOO_LONG
         val noteColor = NoteColor.of(color)
         if (noteColor == null) problems += NoteProblem.INVALID_COLOR
-        if (labelNames.any { LabelService.normalize(it) == null }) problems += NoteProblem.INVALID_LABEL
+        val normalized = labelNames.map { LabelService.normalize(it) }
+        if (null in normalized) problems += NoteProblem.INVALID_LABEL
         // the same label in another case or with other blanks is one
-        if (labelNames.mapNotNull { LabelService.normalize(it) }.distinct().size > MAX_LABELS) problems += NoteProblem.TOO_MANY_LABELS
+        val names = normalized.filterNotNull().toSet()
+        if (names.size > MAX_LABELS) problems += NoteProblem.TOO_MANY_LABELS
         val distinctPhotos = photos.distinct()
         if (distinctPhotos.size > MAX_PHOTOS) problems += NoteProblem.TOO_MANY_PHOTOS
         val distinctRecordings = recordings.distinct()
@@ -198,10 +199,7 @@ class NoteService(
         if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
 
-        return when (val resolved = labels.resolve(labelNames)) {
-            is ResolveLabelsResult.InvalidNames -> Checked.Invalid(setOf(NoteProblem.INVALID_LABEL))
-            is ResolveLabelsResult.Resolved -> Checked.Valid(noteColor!!, resolved.labels, distinctPhotos, distinctRecordings)
-        }
+        return Checked.Valid(noteColor!!, labels.resolve(names), distinctPhotos, distinctRecordings)
     }
 
     // the labels and the files of all the notes are read at once, the files are told apart by their type
