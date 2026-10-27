@@ -41,23 +41,34 @@ export const scaler = { scale: async () => SCALED };
 
 export const FILE_ID = 7;
 
-// a recording as the browser would make it, recording needs a microphone; stop() ends it
+// a recording as the browser would make it, recording needs a microphone; stop() ends it. With
+// slowStart the microphone is set up until started() is called, a stop before records nothing
 export const RECORDED = new Blob(['RIFF'], { type: 'audio/wav' });
 export class FakeRecorder {
   readonly seconds = signal<number | null>(null);
-  private finish: (() => void) | null = null;
+  readonly starting = signal(false);
+  slowStart = false;
+  private finish: ((recording: Blob | null) => void) | null = null;
 
-  record(): Promise<Blob> {
-    this.seconds.set(0);
+  record(): Promise<Blob | null> {
+    this.starting.set(this.slowStart);
+    if (!this.slowStart) this.seconds.set(0);
     return new Promise((resolve) => {
-      this.finish = () => {
+      this.finish = (recording) => {
+        this.starting.set(false);
         this.seconds.set(null);
-        resolve(RECORDED);
+        this.finish = null;
+        resolve(recording);
       };
     });
   }
 
+  started(): void {
+    this.starting.set(false);
+    this.seconds.set(0);
+  }
+
   stop(): void {
-    this.finish?.();
+    this.finish?.(this.starting() ? null : RECORDED);
   }
 }

@@ -335,23 +335,6 @@ body {
   transform: translate(-50%, -50%);
 }
 
-// a button while it records, it stops the recording and shows how long it runs
-.recording-now {
-  color: #c62828;
-  opacity: 1;
-}
-
-.note-photo.recording-now {
-  width: auto;
-  padding: 0 6px;
-}
-
-.recording-seconds {
-  margin-left: 4px;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .photo-input {
   display: none;
 }

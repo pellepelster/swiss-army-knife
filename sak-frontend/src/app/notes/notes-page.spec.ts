@@ -236,13 +236,18 @@ describe('NotesPage', () => {
     expect(texts()[2]).toBe('Buy milk\n\non the way home');
   });
 
-  it('records for a note with the microphone in its footer', async () => {
+  const overlay = () => page.querySelector<HTMLElement>('.recording-overlay');
+
+  it('records for a note with the microphone in its footer until the overlay stops it', async () => {
     const note = notes()[0];
     button('Record for note 3', note).click();
     await fixture.whenStable();
-    expect(note.textContent).toContain('0s');
+    expect(overlay()?.textContent).toContain('0:00 / 5:00');
+    expect(overlay()?.textContent).toContain('note 3');
+    expect(document.activeElement).toBe(button('Stop the recording of note 3'));
+    expect(button('Record for note 3', note).disabled).toBe(true);
 
-    button('Stop recording for note 3', note).click();
+    button('Stop the recording of note 3').click();
     await vi
       .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
       .then((upload) => upload.flush({ id: 9 }));
@@ -250,7 +255,39 @@ describe('NotesPage', () => {
       timeout: 1000,
     });
     await fixture.whenStable();
+    expect(overlay()).toBeNull();
     expect(note.querySelectorAll('.recording').length).toBe(1);
+  });
+
+  it('records a new note until escape stops it', async () => {
+    button('New note with a recording').click();
+    await fixture.whenStable();
+    expect(overlay()?.textContent).toContain('the new note');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/files' }), { timeout: 1000 })
+      .then((upload) => upload.flush({ id: 9 }));
+    await vi
+      .waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/notes' }), { timeout: 1000 })
+      .then((created) => created.flush(noteResponse(4, '', 'yellow', [], [], [9])));
+    await fixture.whenStable();
+    expect(overlay()).toBeNull();
+    expect(notes().length).toBe(4);
+  });
+
+  it('stops a recording while the microphone is set up, nothing is kept', async () => {
+    const recorder = TestBed.inject(AudioRecorder) as unknown as FakeRecorder;
+    recorder.slowStart = true;
+    button('New note with a recording').click();
+    await fixture.whenStable();
+    expect(overlay()?.textContent).toContain('Starting…');
+
+    button('Stop the recording of the new note').click();
+    await fixture.whenStable();
+    expect(overlay()).toBeNull();
+    http.expectNone({ method: 'POST' });
+    expect(notes().length).toBe(3);
   });
 
   it('creates a note from the photo taken in the toolbar', async () => {

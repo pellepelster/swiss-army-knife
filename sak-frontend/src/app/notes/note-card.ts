@@ -1,7 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
-import { AudioRecorder } from './audio-recorder';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 import { StoredFiles, ThumbnailPipe } from './stored-files';
 
@@ -192,21 +191,12 @@ interface Media {
       <button
         type="button"
         class="note-photo"
-        [class.recording-now]="store.recordingFor() === note().id"
-        [attr.aria-label]="
-          (store.recordingFor() === note().id ? 'Stop recording for note ' : 'Record for note ') +
-          note().id
-        "
-        [title]="store.recordingFor() === note().id ? 'Stop recording' : 'Record'"
-        [disabled]="store.recordingFor() !== null && store.recordingFor() !== note().id"
+        [attr.aria-label]="'Record for note ' + note().id"
+        title="Record"
+        [disabled]="store.recordingFor() !== null"
         (click)="store.record(note().id)"
       >
-        @if (store.recordingFor() === note().id) {
-          <i class="fa-solid fa-stop" aria-hidden="true"></i>
-          <span class="recording-seconds">{{ recorder.seconds() ?? 0 }}s</span>
-        } @else {
-          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
-        }
+        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
       </button>
       <button
         type="button"
@@ -233,7 +223,6 @@ export class NoteCard {
   protected readonly newLabel = signal('');
 
   // the photo whose removal is asked for, removed only once it is confirmed
-  protected readonly recorder = inject(AudioRecorder);
 
   // the photos first, then the recordings, as the backend keeps them
   protected readonly media = computed<readonly Media[]>(() => [

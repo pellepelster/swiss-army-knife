@@ -239,6 +239,18 @@ describe('NotesStore', () => {
     expect((await recorded)?.recordings).toEqual([FILE_ID]);
   });
 
+  it('records nothing when it is stopped while the microphone is set up', async () => {
+    const recorder = TestBed.inject(AudioRecorder) as unknown as FakeRecorder;
+    recorder.slowStart = true;
+    const recorded = store.record('new');
+    store.stopRecording();
+
+    expect(await recorded).toBeNull();
+    expect(store.recordingFor()).toBeNull();
+    expect(store.error()).toBeNull();
+    http.expectNone({ method: 'POST' });
+  });
+
   it('deletes notes at once and brings them back when the backend can not', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);

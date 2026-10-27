@@ -232,7 +232,7 @@ export class NotesStore {
       return null;
     }
     this.recordingFor.set(target);
-    let recording: Blob;
+    let recording: Blob | null;
     try {
       recording = await this.recorder.record();
     } catch {
@@ -241,6 +241,8 @@ export class NotesStore {
     } finally {
       this.recordingFor.set(null);
     }
+    // stopped before it ran, there is nothing to keep
+    if (recording === null) return null;
 
     const id = target === 'new' ? null : target;
     if (id !== null) this.uploading.update((ids) => new Set([...ids, id]));
@@ -259,6 +261,11 @@ export class NotesStore {
       if (id !== null)
         this.uploading.update((ids) => new Set([...ids].filter((other) => other !== id)));
     }
+  }
+
+  // ends the recording, record() keeps it; while the microphone is set up, nothing is recorded
+  stopRecording(): void {
+    this.recorder.stop();
   }
 
   // the file stays in the storage, other notes may play it too

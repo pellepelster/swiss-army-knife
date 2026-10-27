@@ -10,28 +10,46 @@ export const MAX_RECORDING_SECONDS = 300;
 // the samples come from an audio worklet, the browser's own recorder only writes compressed formats
 @Injectable({ providedIn: 'root' })
 export class AudioRecorder {
-  // how long the recording runs, null when there is none
+  // how long the recording runs, null when there is none or it is not started yet
   readonly seconds = signal<number | null>(null);
+
+  // while the microphone and the worklet are set up, before the recording runs
+  readonly starting = signal(false);
 
   private finish: (() => void) | null = null;
 
-  // the recording once it is stopped, rejects when the microphone can not be used
-  async record(): Promise<Blob> {
-    if (this.finish) throw new Error('a recording runs already');
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-    });
+  // stop() was called before the recording ran
+  private stopped = false;
+
+  // the recording once it is stopped, null when it is stopped before it runs; rejects when the
+  // microphone can not be used
+  async record(): Promise<Blob | null> {
+    if (this.starting() || this.finish) throw new Error('a recording runs already');
+    this.stopped = false;
+    this.starting.set(true);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+    } catch (error) {
+      this.starting.set(false);
+      throw error;
+    }
     const context = new AudioContext();
     const chunks: Float32Array[] = [];
     let timer: ReturnType<typeof setInterval> | undefined;
     try {
+      if (this.stopped) return null;
       await context.audioWorklet.addModule('recorder-worklet.js');
+      if (this.stopped) return null;
       const source = context.createMediaStreamSource(stream);
       const recorder = new AudioWorkletNode(context, 'recorder');
       recorder.port.onmessage = (event: MessageEvent<Float32Array>) => chunks.push(event.data);
       source.connect(recorder);
 
       const started = Date.now();
+      this.starting.set(false);
       this.seconds.set(0);
       await new Promise<void>((resolve) => {
         this.finish = resolve;
@@ -47,14 +65,16 @@ export class AudioRecorder {
     } finally {
       clearInterval(timer);
       this.finish = null;
+      this.starting.set(false);
       this.seconds.set(null);
       stream.getTracks().forEach((track) => track.stop());
       void context.close();
     }
   }
 
-  // ends the recording, record() hands it over
+  // ends the recording, record() hands it over; while it is set up, it does not start
   stop(): void {
+    if (this.starting()) this.stopped = true;
     this.finish?.();
   }
 }
