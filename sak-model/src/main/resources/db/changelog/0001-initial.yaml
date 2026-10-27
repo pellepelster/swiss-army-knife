@@ -1,24 +1,10 @@
 # the initial schema of the controller's database; sqlite only takes checks and foreign keys when
-# a table is created, they are part of createTable, the unique constraints over several columns
-# are unique indexes. Liquibase leaves out check constraints, modifySql appends them to the
-# statements that create their tables.
+# a table is created, the unique constraints over several columns are unique indexes. Liquibase
+# has no element for check constraints, the two tables with one are created with plain sql.
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
       author: sak
-      modifySql:
-        - regExpReplace:
-            replace: (?s)^(CREATE TABLE (?:\S+\.)?redirects \(.*)\)$
-            with: >-
-              $1, CONSTRAINT redirects_target_check CHECK (
-              (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
-              OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)))
-        - regExpReplace:
-            replace: (?s)^(CREATE TABLE (?:\S+\.)?labels \(.*)\)$
-            with: >-
-              $1, CONSTRAINT labels_active_check CHECK (
-              (deleted_at IS NULL AND active IS NOT NULL AND active = 1)
-              OR (deleted_at IS NOT NULL AND active IS NULL)))
       changes:
         # the buckets of the s3 api, each with the key pair that may access it; the secret is
         # stored as is, sigv4 needs it to verify the requests
@@ -85,69 +71,38 @@ databaseChangeLog:
 
         # the domains caddy redirects, each to an external domain or to the domain a bucket is
         # served at; exactly the column of the target type is set
-        - createTable:
-            tableName: redirects
-            columns:
-              - column:
-                  name: source_domain
-                  type: varchar(253)
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: target_type
-                  type: varchar(16)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: target_domain
-                  type: varchar(253)
-              - column:
-                  name: target_bucket
-                  type: varchar(63)
-                  constraints:
-                    foreignKeyName: redirects_target_bucket_fkey
-                    references: s3_buckets(name)
-              - column:
-                  name: created_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
+        - sql:
+            sql: >-
+              CREATE TABLE redirects (
+                source_domain VARCHAR(253) NOT NULL PRIMARY KEY,
+                target_type VARCHAR(16) NOT NULL,
+                target_domain VARCHAR(253),
+                target_bucket VARCHAR(63),
+                created_at TIMESTAMP NOT NULL,
+                CONSTRAINT redirects_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES s3_buckets (name),
+                CONSTRAINT redirects_target_check CHECK (
+                  (target_type = 'DOMAIN' AND target_domain IS NOT NULL AND target_bucket IS NULL)
+                  OR (target_type = 'BUCKET' AND target_bucket IS NOT NULL AND target_domain IS NULL)
+                )
+              )
 
         # the labels every application can attach to its entities, each application links them in
         # a table of its own. A deleted label stays as a row with deleted_at set; active is 1 for
         # the labels that are not deleted and null for the deleted ones, so the name is unique
         # among the labels that are not deleted only (sqlite takes nulls as distinct)
-        - createTable:
-            tableName: labels
-            columns:
-              - column:
-                  name: id
-                  type: int
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              - column:
-                  name: name
-                  type: varchar(64)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: active
-                  type: int
-              - column:
-                  name: created_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: updated_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: deleted_at
-                  type: timestamp
+        - sql:
+            sql: >-
+              CREATE TABLE labels (
+                id INTEGER NOT NULL PRIMARY KEY,
+                name VARCHAR(64) NOT NULL,
+                active INTEGER,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                deleted_at TIMESTAMP,
+                CONSTRAINT labels_active_check CHECK (
+                  (deleted_at IS NULL AND active IS NOT NULL AND active = 1) OR (deleted_at IS NOT NULL AND active IS NULL)
+                )
+              )
         - createIndex:
             tableName: labels
             indexName: labels_name_key
