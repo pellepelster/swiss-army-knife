@@ -75,17 +75,18 @@ cargo run -q -- "$@"
 # each image built, tested and pushed on its own (the github workflow runs them in parallel); the
 # layers are cached in the registry next to the image, tag buildcache: every build reads it, the
 # push writes it. A build is for the platform it runs on, into the local images; --load keeps it
-# there when buildx builds in a container of its own (the github workflow)
+# there when buildx builds in a container of its own (the github workflow). The context is the
+# repository, the image takes the ansible collection of ../ansible
 [tasks."wizard:image:build"]
-description = "Build the image of the tools of sak-wizard, terraform and ansible"
+description = "Build the image of the tools of sak-wizard, terraform, ansible and the pelle_io.sak collection"
 dir = "{{config_root}}"
 run = """
-docker buildx build --load --tag {{vars.image}}:latest \
-  --cache-from type=registry,ref={{vars.image}}:buildcache .
+docker buildx build --load --file Dockerfile --tag {{vars.image}}:latest \
+  --cache-from type=registry,ref={{vars.image}}:buildcache ..
 """
 
 [tasks."wizard:image:test"]
-description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000)"
+description = "Check that the image of the tools runs terraform, ansible and the pelle_io.sak collection as sak (1000:1000)"
 depends = ["wizard:image:build"]
 run = """
 set -e
@@ -95,6 +96,8 @@ image={{vars.image}}:latest
 docker run --rm "$image" terraform version
 docker run --rm "$image" ansible --version
 docker run --rm "$image" ansible-galaxy collection list community.general
+docker run --rm "$image" ansible-galaxy collection list pelle_io.sak | grep -q "^pelle_io.sak "
+docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.controller | grep -q "pelle_io.sak.controller :"
 docker run --rm "$image" ansible localhost -m ping
 echo "the image of the tools works"
 """
@@ -105,11 +108,11 @@ echo "the image of the tools works"
 description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
 dir = "{{config_root}}"
 run = """
-docker buildx build --platform linux/amd64,linux/arm64 \
+docker buildx build --platform linux/amd64,linux/arm64 --file Dockerfile \
   --tag {{vars.image}}:latest --tag {{vars.image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.image}}:buildcache \
   --cache-to type=registry,ref={{vars.image}}:buildcache,mode=max,image-manifest=true \
-  --push .
+  --push ..
 """
 
 [tasks."wizard:canary:build"]

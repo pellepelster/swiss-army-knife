@@ -3,6 +3,6 @@
   hosts: controller
   become: true
   roles:
-    - pelle.sak.common
-    - pelle.sak.storage
-    - pelle.sak.controller
+    - pelle_io.sak.common
+    - pelle_io.sak.storage
+    - pelle_io.sak.controller

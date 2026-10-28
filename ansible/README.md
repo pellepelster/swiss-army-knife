@@ -1,12 +1,12 @@
-# pelle.sak
+# pelle_io.sak
 
 Ansible collection that provisions the `sak-backend` server.
 
 | Role                | Purpose                                                                           |
 |---------------------|-----------------------------------------------------------------------------------|
-| `pelle.sak.common`  | Base setup, enables automatic unattended upgrades, key based ssh login only, blocks the cloud metadata service (it serves the ssh host key) for everything but root |
-| `pelle.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` |
-| `pelle.sak.controller` | Loads the `sak-backend` and `sak-ingress` (caddy, denies everything until the controller configures it, storage in `/storage/data/ingress`, json logs in `/storage/data/ingress/log`) images into podman and runs them as quadlets; the s3 buckets live in `/storage/data/backend/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000) |
+| `pelle_io.sak.common`  | Base setup, enables automatic unattended upgrades, key based ssh login only, blocks the cloud metadata service (it serves the ssh host key) for everything but root |
+| `pelle_io.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` |
+| `pelle_io.sak.controller` | Loads the `sak-backend` and `sak-ingress` (caddy, denies everything until the controller configures it, storage in `/storage/data/ingress`, json logs in `/storage/data/ingress/log`) images into podman and runs them as quadlets; the s3 buckets live in `/storage/data/backend/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000) |
 
 The `storage` role needs `storage_device`, the data volume's device (`terraform -chdir=terraform/modules/hcloud/backend output -raw data_device`).
 The `controller` role needs `controller_image_archive` and `controller_ingress_image_archive` (exported by `mise run docker:save`
@@ -18,8 +18,8 @@ the environment file with the s3 credentials the configuration references (`$SAK
 ```yaml
 - hosts: controller
   roles:
-    - pelle.sak.common
-    - role: pelle.sak.storage
+    - pelle_io.sak.common
+    - role: pelle_io.sak.storage
       vars:
         storage_device: /dev/disk/by-id/scsi-0HC_Volume_12345678
 ```

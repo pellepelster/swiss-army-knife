@@ -1,0 +1,4 @@
+# the build context is the repository, only the ansible collection goes into the image
+*
+!ansible/**
+ansible/**/*.tar.gz
