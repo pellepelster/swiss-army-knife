@@ -117,6 +117,8 @@ import { BucketsService } from './buckets.service';
         >
       </nav>
       <router-outlet />
+    } @else if (!store.error()) {
+      <p class="text-body-secondary">Loading…</p>
     }
   `,
 })

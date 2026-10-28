@@ -97,6 +97,16 @@ describe('Hosting', () => {
       .flush(pageAt(50, 51, bucket('z', [])));
   });
 
+  it('tells it is loading until the buckets are there', async () => {
+    await open('/static-hosting');
+    expect(page().textContent).toContain('Loading…');
+    http
+      .expectOne('/api/v1/static-hosting?offset=0&limit=50')
+      .flush({ items: [bucket('a', [])], pagination: { offset: 0, limit: 50, total: 1 } });
+    await harness.fixture.whenStable();
+    expect(page().textContent).not.toContain('Loading…');
+  });
+
   it('lists the buckets and asks again while one is still being counted', async () => {
     await open('/static-hosting');
     http

@@ -61,6 +61,8 @@ import { DomainList } from './domain-list';
           </button>
         </div>
       </form>
+    } @else if (!error()) {
+      <p class="text-body-secondary">Loading…</p>
     }
   `,
 })

@@ -84,6 +84,8 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
         [pagination]="pagination()"
         (offsetChange)="goTo($event)"
       />
+    } @else if (!error()) {
+      <p class="text-body-secondary">Loading…</p>
     }
   `,
 })

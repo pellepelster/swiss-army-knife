@@ -89,6 +89,8 @@ import { Redirect, RedirectsService } from './redirects.service';
         [pagination]="pagination()"
         (offsetChange)="goTo($event)"
       />
+    } @else if (!error()) {
+      <p class="text-body-secondary">Loading…</p>
     }
   `,
 })
