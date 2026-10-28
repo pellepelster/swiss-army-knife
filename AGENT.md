@@ -83,10 +83,11 @@
 
 ## Resource labeling (cloud resources)
 
-- Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, bucket,
-  …) carries the label `sak.pelle.io/name=<name>`, `<name>` being the name the resource is
-  declared with; whatever creates resources (`sak-wizard/cloud`, `terraform`) sets it on
-  creation, and a resource without it is not managed by sak.
+- Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, …)
+  carries the label `sak.pelle.io/name=<sak name>`, `<sak name>` being the unique name of the
+  swiss army knife deployment the resource belongs to (see the glossary). Whatever creates
+  resources (`sak-wizard/cloud`, `terraform`) sets it on creation; the label tells the resources
+  of one deployment from those of another and from everything else in the cloud project.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does.
 
@@ -98,6 +99,14 @@
   `api.<root_domain>`, it is never widened beyond `<root_domain>`.
 - User data leaves the backend only on the user's explicit request (e.g. text discovery) and only to
   providers that do not collect it (openrouter `provider.data_collection: deny`).
+
+## Glossary
+
+- **sak name**: the unique name of a swiss army knife deployment, one per deployment and never
+  shared by two; every cloud resource of the deployment carries it in the label
+  `sak.pelle.io/name=<sak name>` (see "Resource labeling").
+- **root domain** (`root_domain`): the domain a deployment serves its apps under, `pelle.io` for
+  the production deployment, `localhost` locally.
 
 ## Accepted risks
 
