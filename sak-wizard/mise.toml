@@ -11,10 +11,22 @@ node = "22.22.3"
 image = "ghcr.io/pellepelster/sak-wizard"
 canary = "ghcr.io/pellepelster/sak-docker-canary"
 
+# the theme of ../sak-theme, copied into ui/theme/ (not committed): tauri bundles ui/ alone
+[tasks."wizard:theme"]
+description = "Copy sak-theme into ui/theme/ for the page of sak-wizard"
+dir = "{{config_root}}"
+run = """
+rm -rf ui/theme
+mkdir -p ui/theme
+cp ../sak-theme/tokens.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
+cp -r ../sak-theme/fonts ui/theme/fonts
+"""
+
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 [tasks."wizard:run"]
 description = "Run sak-wizard, reloading it when its rust code or ui changes"
+depends = ["wizard:theme"]
 dir = "{{config_root}}"
 run = "tauri dev"
 
@@ -22,13 +34,14 @@ run = "tauri dev"
 # msi and nsis on windows) land in src-tauri/target/release/bundle/
 [tasks."wizard:build"]
 description = "Build the sak-wizard installers for the current platform, the image of its tools and the canary"
-depends = ["wizard:image:build", "wizard:canary:build"]
+depends = ["wizard:theme", "wizard:image:build", "wizard:canary:build"]
 dir = "{{config_root}}"
 run = "tauri build"
 
 # the checks run real containers with the docker or podman installed, skipped without one
 [tasks."wizard:test"]
 description = "Run the tests of sak-wizard"
+depends = ["wizard:theme"]
 dir = "{{config_root}}/src-tauri"
 run = "cargo test"
 

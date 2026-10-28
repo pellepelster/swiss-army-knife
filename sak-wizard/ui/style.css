@@ -1,29 +1,6 @@
-/* follows the system's color scheme like sak-frontend, no switch of its own */
-:root {
-  --background: #ffffff;
-  --text: #1f2430;
-  --muted: #5b6170;
-  --failed: #c0281b;
-  --ok: #1e7e34;
-  --surface: #f4f5f7;
-  --border: #d5d8de;
-  --primary: #d52b1e;
-  --primary-text: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1b1e24;
-    --text: #e6e8ec;
-    --muted: #9aa1ad;
-    --failed: #ff6b5e;
-    --ok: #4cc26a;
-    --surface: #252930;
-    --border: #3a3f48;
-    --primary: #e0443a;
-    --primary-text: #ffffff;
-  }
-}
+/* the look of the wizard on the tokens of sak-theme (theme/, copied there by mise run
+   wizard:theme): every color is a var(--sak-…), no literal in here. Light and dark follow the
+   system through the tokens, the app has no switch of its own */
 
 html, body {
   height: 100%;
@@ -31,9 +8,10 @@ html, body {
 }
 
 body {
-  background: var(--background);
-  color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--sak-bg);
+  color: var(--sak-ink);
+  font-family: var(--sak-font-sans);
+  font-size: var(--sak-text);
   /* an app, not a document: only what is typed in is meant to be selected */
   user-select: none;
   cursor: default;
@@ -43,13 +21,18 @@ body {
   display: none !important;
 }
 
+code {
+  font-family: var(--sak-font-mono);
+  font-size: 0.85em;
+}
+
 .splash {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
+  gap: var(--sak-space-5);
 }
 
 .splash-icon {
@@ -61,6 +44,7 @@ body {
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .checks {
@@ -73,7 +57,7 @@ body {
   gap: 0.6rem;
 }
 
-/* the state, the name and beneath it the progress bar and the detail */
+/* the led of the theme, the name and beneath it the progress bar and the detail */
 .check {
   display: grid;
   grid-template-columns: 1.25rem 1fr;
@@ -84,43 +68,7 @@ body {
 
 .check-state {
   grid-row: 1;
-  width: 1rem;
-  height: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.check[data-state="pending"] .check-state {
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  box-sizing: border-box;
-}
-
-.check[data-state="running"] .check-state {
-  border: 2px solid var(--border);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  box-sizing: border-box;
-  animation: spin 0.8s linear infinite;
-}
-
-.check[data-state="ok"] .check-state::before {
-  content: "✓";
-  color: var(--ok);
-}
-
-.check[data-state="failed"] .check-state::before {
-  content: "✗";
-  color: var(--failed);
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  justify-self: center;
 }
 
 .check-name {
@@ -128,7 +76,7 @@ body {
 }
 
 .check[data-state="pending"] .check-name {
-  color: var(--muted);
+  color: var(--sak-muted);
 }
 
 .check-progress,
@@ -139,12 +87,12 @@ body {
 .check-progress {
   width: 100%;
   height: 0.4rem;
-  accent-color: var(--primary);
+  accent-color: var(--sak-accent);
 }
 
 .check-detail {
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
   overflow-wrap: anywhere;
 }
 
@@ -153,20 +101,20 @@ body {
 }
 
 .check[data-state="failed"] .check-detail {
-  color: var(--failed);
+  color: var(--sak-danger);
 }
 
 .status-failed {
-  color: var(--failed) !important;
+  color: var(--sak-danger) !important;
 }
 
 .page {
   box-sizing: border-box;
   height: 100%;
-  padding: 1.5rem;
+  padding: var(--sak-space-5);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--sak-space-4);
   overflow-y: auto;
 }
 
@@ -174,36 +122,49 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--sak-space-4);
 }
 
 .page-header h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: var(--sak-text-h1);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .hint,
 .status {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
 }
 
+/* flat and technical: depth comes from the 1px line, not from shadows */
 .button {
   font: inherit;
-  padding: 0.45rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--surface);
-  color: var(--text);
+  font-size: var(--sak-text-button);
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius);
+  background: var(--sak-raised);
+  color: var(--sak-ink);
   cursor: pointer;
 }
 
+.button:hover:not(:disabled) {
+  border-color: var(--sak-accent);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
+}
+
 .button-primary {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-text);
+  border-color: var(--sak-accent);
+  background: var(--sak-accent);
+  color: var(--sak-accent-ink);
 }
 
 .button:disabled {
@@ -217,22 +178,23 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--sak-space-2);
 }
 
 .provider {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sak-space-3);
 }
 
+/* a card on the canvas */
 .providers .provider {
   box-sizing: border-box;
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--surface);
+  padding: var(--sak-space-3) var(--sak-space-4);
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius-lg);
+  background: var(--sak-surface);
 }
 
 .provider-choice {
@@ -244,7 +206,8 @@ body {
 
 .provider-choice:hover,
 .provider-choice:focus-visible {
-  border-color: var(--primary);
+  border-color: var(--sak-accent);
+  outline: none;
 }
 
 .provider-logo {
@@ -257,9 +220,11 @@ body {
   font-weight: 600;
 }
 
+/* data in mono: the masked token */
 .provider-token {
   margin-left: auto;
-  color: var(--muted);
+  font-family: var(--sak-font-mono);
+  color: var(--sak-muted);
 }
 
 .page-footer {
@@ -272,48 +237,35 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--sak-space-3);
 }
 
+/* a card with its header on the raised cap */
 .deployment {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius-lg);
+  background: var(--sak-surface);
+  overflow: hidden;
 }
 
 .deployment-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sak-space-3);
+  padding: 0.6rem var(--sak-space-4);
+  background: var(--sak-raised);
+  border-bottom: 1px solid var(--sak-line);
 }
 
 .deployment-name {
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-family: var(--sak-font-mono);
+  font-weight: 500;
+  font-size: 1rem;
 }
 
-/* the state of the deployment, a badge at the right end of its header */
+/* the state of the deployment, the led pill at the right end of its header */
 .deployment-status {
   margin-left: auto;
-  padding: 0.15rem 0.6rem;
-  border-radius: 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--primary-text);
-  background: var(--muted);
-}
-
-.deployment[data-status="ok"] .deployment-status {
-  background: var(--ok);
-}
-
-.deployment[data-status="changed"] .deployment-status,
-.deployment[data-status="incomplete"] .deployment-status {
-  background: var(--failed);
 }
 
 .resources {
@@ -322,10 +274,14 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--sak-space-1);
 }
 
-/* the state mark, the kind and name, the detail; the changes beneath */
+.deployment .resources {
+  padding: var(--sak-space-3) var(--sak-space-4);
+}
+
+/* the led, the kind and name, the detail; the changes beneath */
 .resource {
   display: grid;
   grid-template-columns: 1.25rem auto 1fr;
@@ -334,21 +290,38 @@ body {
 }
 
 .resource-state {
-  font-weight: 700;
-  text-align: center;
-}
-
-.resource[data-status="up_to_date"] .resource-state {
-  color: var(--ok);
-}
-
-.resource[data-status="missing"] .resource-state,
-.resource[data-status="has_changes"] .resource-state {
-  color: var(--failed);
+  justify-self: center;
+  align-self: center;
 }
 
 .resource-kind {
-  color: var(--muted);
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sak-muted);
+}
+
+.resource-name {
+  font-family: var(--sak-font-mono);
+  font-weight: 500;
+}
+
+.resource-detail,
+.resource-change {
+  grid-column: 3;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.resource[data-status="missing"] .resource-detail {
+  color: var(--sak-info);
+}
+
+.resource-change {
+  color: var(--sak-warn);
 }
 
 .plan-key {
@@ -356,46 +329,41 @@ body {
   user-select: text;
 }
 
-.resource-name {
-  font-weight: 600;
-}
-
-.resource-detail,
-.resource-change {
-  grid-column: 3;
-  color: var(--muted);
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
-}
-
-.resource[data-status="missing"] .resource-detail,
-.resource-change {
-  color: var(--failed);
-}
-
 .token-form {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--sak-space-2);
 }
 
+/* a label over its input, small uppercase mono */
 .token-form label {
-  font-weight: 600;
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sak-muted);
 }
 
 .token-form input {
   font: inherit;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--background);
-  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius);
+  background: var(--sak-raised);
+  color: var(--sak-ink);
   user-select: text;
+}
+
+.token-form input:focus {
+  outline: none;
+  border-color: var(--sak-accent);
+  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: var(--sak-space-2);
 }

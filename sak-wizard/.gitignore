@@ -1,3 +1,4 @@
 src-tauri/target/
+ui/theme/
 src-tauri/gen/
 cloud/target/

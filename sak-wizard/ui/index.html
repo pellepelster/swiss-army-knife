@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SwissArmyKnife</title>
+    <!-- the theme comes from ../../sak-theme, copied to theme/ by mise run wizard:theme -->
+    <link rel="stylesheet" href="theme/fonts.css">
+    <link rel="stylesheet" href="theme/tokens.css">
+    <link rel="stylesheet" href="theme/components.css">
     <link rel="stylesheet" href="style.css">
     <script type="module" src="app.js"></script>
   </head>
@@ -95,7 +99,7 @@
         <h1 data-text="ui.plan.title"></h1>
       </header>
       <p class="hint"><span data-text="ui.plan.intro"></span> <strong id="plan-name"></strong></p>
-      <p class="hint"><span data-text="ui.plan.key"></span> <code class="plan-key" id="plan-key"></code></p>
+      <p class="hint"><span data-text="ui.plan.key"></span> <code class="plan-key sak-mono" id="plan-key"></code></p>
       <ul class="resources" id="plan-resources"></ul>
       <div class="actions page-footer">
         <button type="button" class="button" id="plan-cancel" data-text="ui.cancel"></button>

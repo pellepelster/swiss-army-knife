@@ -9,17 +9,19 @@ const { invoke } = window.__TAURI__.core;
 const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
-// the mark in front of a resource by its diff status
-const MARKS = { up_to_date: '✓', missing: '✗', has_changes: '~', parent_missing: '✗', duplicate: '~' };
+// the state of a deployment as the led pill shows it, the diff status of a resource as its led
+const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
+// the led of the theme for the diff status of a resource
+const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
 function resource(state) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state.status;
   const mark = document.createElement('span');
-  mark.className = 'resource-state';
+  mark.className = 'resource-state sak-led';
+  mark.dataset.sakState = LEDS[state.status] ?? 'neutral';
   mark.setAttribute('aria-hidden', 'true');
-  mark.textContent = MARKS[state.status] ?? '?';
   const kind = document.createElement('span');
   kind.className = 'resource-kind';
   kind.textContent = text(`ui.deployments.resource.${state.kind}`);
@@ -54,7 +56,8 @@ function deployment({ provider, name, status: state, resources }) {
   title.className = 'deployment-name';
   title.textContent = name;
   const badge = document.createElement('span');
-  badge.className = 'deployment-status';
+  badge.className = 'deployment-status sak-status';
+  badge.dataset.sakState = STATES[state] ?? 'neutral';
   badge.textContent = text(`ui.deployments.status.${state}`);
   header.append(logo, title, badge);
   const group = document.createElement('ul');

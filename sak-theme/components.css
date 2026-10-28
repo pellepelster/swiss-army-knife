@@ -1,0 +1,109 @@
+/* the components every consumer draws the same way, on the tokens: the state of a thing as
+   an led square, the led pill with a word, the mono label over data */
+
+/* a state as a small square led that glows in its color, `data-sak-state` names the state */
+.sak-led {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+  vertical-align: middle;
+}
+
+.sak-led[data-sak-state='ok'] { color: var(--sak-ok); }
+.sak-led[data-sak-state='info'] { color: var(--sak-info); }
+.sak-led[data-sak-state='warn'] { color: var(--sak-warn); }
+.sak-led[data-sak-state='danger'] { color: var(--sak-danger); }
+.sak-led[data-sak-state='neutral'] {
+  color: var(--sak-neutral);
+  box-shadow: none;
+}
+
+/* a state still changing: the led pulses */
+.sak-led[data-sak-state='busy'] {
+  color: var(--sak-info);
+  animation: sak-led-pulse 0.9s ease-out infinite;
+}
+
+@keyframes sak-led-pulse {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  100% { box-shadow: 0 0 0 0.5rem transparent; }
+}
+
+/* the led with a word, uppercase mono, tinted with the state */
+.sak-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--sak-font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.18rem 0.55rem 0.18rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--sak-radius-sm);
+}
+
+.sak-status::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.sak-status[data-sak-state='ok'] {
+  color: var(--sak-ok);
+  background: color-mix(in srgb, var(--sak-ok) 13%, transparent);
+  border-color: color-mix(in srgb, var(--sak-ok) 34%, transparent);
+}
+
+.sak-status[data-sak-state='info'] {
+  color: var(--sak-info);
+  background: color-mix(in srgb, var(--sak-info) 13%, transparent);
+  border-color: color-mix(in srgb, var(--sak-info) 34%, transparent);
+}
+
+.sak-status[data-sak-state='warn'] {
+  color: var(--sak-warn);
+  background: color-mix(in srgb, var(--sak-warn) 13%, transparent);
+  border-color: color-mix(in srgb, var(--sak-warn) 34%, transparent);
+}
+
+.sak-status[data-sak-state='danger'] {
+  color: var(--sak-danger);
+  background: color-mix(in srgb, var(--sak-danger) 13%, transparent);
+  border-color: color-mix(in srgb, var(--sak-danger) 34%, transparent);
+}
+
+.sak-status[data-sak-state='neutral'] {
+  color: var(--sak-neutral);
+  background: color-mix(in srgb, var(--sak-neutral) 13%, transparent);
+  border-color: color-mix(in srgb, var(--sak-neutral) 34%, transparent);
+}
+
+.sak-status[data-sak-state='neutral']::before {
+  box-shadow: none;
+}
+
+/* a label over data, small uppercase mono */
+.sak-label {
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sak-muted);
+}
+
+/* data: identifiers, addresses, keys */
+.sak-mono {
+  font-family: var(--sak-font-mono);
+}

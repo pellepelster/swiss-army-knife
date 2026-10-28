@@ -31,3 +31,20 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("sak-wizard failed to start");
 }
+
+#[cfg(test)]
+mod tests {
+    /// every color of the page is a token of sak-theme, the stylesheet names none itself
+    #[test]
+    fn the_stylesheet_has_no_color_of_its_own() {
+        let css = include_str!("../../ui/style.css");
+        let literal = css
+            .lines()
+            .find(|line| line.contains('#') || line.contains("rgb(") || line.contains("rgba("));
+        assert_eq!(
+            literal, None,
+            "a color literal in ui/style.css, use a var(--sak-…) of sak-theme"
+        );
+        assert!(css.contains("var(--sak-accent)"));
+    }
+}

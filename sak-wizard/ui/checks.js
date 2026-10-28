@@ -9,12 +9,15 @@ const SHOWN_DONE_MS = 600;
 const list = document.getElementById('checks');
 const rows = new Map();
 
+// the led of the theme for the state of a check
+const LEDS = { pending: 'neutral', running: 'busy', ok: 'ok', failed: 'danger' };
+
 function row(check) {
   const item = document.createElement('li');
   item.className = 'check';
   item.dataset.state = 'pending';
   item.innerHTML = `
-    <span class="check-state" aria-hidden="true"></span>
+    <span class="check-state sak-led" data-sak-state="neutral" aria-hidden="true"></span>
     <span class="check-name"></span>
     <progress class="check-progress" max="1" hidden></progress>
     <span class="check-detail"></span>`;
@@ -26,6 +29,7 @@ function update(id, state, detail) {
   const item = rows.get(id);
   if (state) {
     item.dataset.state = state;
+    item.querySelector('.check-state').dataset.sakState = LEDS[state];
     item.querySelector('.check-progress').hidden = state !== 'running';
   }
   if (detail !== undefined) {

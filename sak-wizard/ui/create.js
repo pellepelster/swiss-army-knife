@@ -10,16 +10,17 @@ const passwordInput = document.getElementById('create-password');
 const status = document.getElementById('create-status');
 const planList = document.getElementById('plan-resources');
 
-const MARKS = { missing: '+', parent_missing: '+', up_to_date: '✓', has_changes: '~', duplicate: '✗' };
+// the led of the theme for the diff status of a resource
+const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
 function planned({ resource, status: state, recreate, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state;
   const mark = document.createElement('span');
-  mark.className = 'resource-state';
+  mark.className = 'resource-state sak-led';
+  mark.dataset.sakState = LEDS[state] ?? 'neutral';
   mark.setAttribute('aria-hidden', 'true');
-  mark.textContent = MARKS[state] ?? '?';
   const name = document.createElement('span');
   name.className = 'resource-name';
   name.textContent = resource;
