@@ -50,7 +50,7 @@ cli:
     destroyed: "destroyed %{resource}"
     gone: "%{resource} is gone already"
   destroyed: "The deployment %{name} is destroyed, its data volume stays."
-  done: "The deployment %{name} is as planned."
+  done: "The deployment %{name} is up-to-date."
 provision:
   no_runtime: "No container runtime to run ansible in, docker or podman is needed."
   running: "Provisioning server %{name} (%{host})…"
@@ -143,7 +143,7 @@ ui:
       recreated: "created anew"
       unchanged: "exists"
       destroyed: "destroyed"
-    provisioned: "The deployment is as planned and its server provisioned."
+    provisioned: "The deployment is up-to-date and its server provisioned."
     apply: "Create"
     missing: "will be created"
     parent_missing: "will be created"
