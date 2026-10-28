@@ -63,13 +63,60 @@ pub enum CreateEvent {
     Applied { resource: String, applied: Applied },
 }
 
-/// what the environment proposes for a new deployment: SAK_NAME and SAK_PASSWORD, so a
-/// scripted run types nothing; no Debug, the password never shows up in a log
+/// what the environment proposes for a new deployment: SAK_NAME, SAK_PASSWORD and
+/// SAK_LOCATION, so a scripted run types nothing; no Debug, the password never shows up
+/// in a log
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentDefaults {
     name: Option<String>,
     password: Option<String>,
+    location: Option<String>,
+}
+
+/// a location to create a deployment in, as the page offers it
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocationResponse {
+    id: Location,
+    name: &'static str,
+}
+
+/// hetzner's locations; the first is the one proposed
+const LOCATIONS: &[LocationResponse] = &[
+    LocationResponse {
+        id: Location::hel1,
+        name: "Helsinki, Finland",
+    },
+    LocationResponse {
+        id: Location::nbg1,
+        name: "Nuremberg, Germany",
+    },
+    LocationResponse {
+        id: Location::fsn1,
+        name: "Falkenstein, Germany",
+    },
+    LocationResponse {
+        id: Location::ash,
+        name: "Ashburn, USA",
+    },
+    LocationResponse {
+        id: Location::hil,
+        name: "Hillsboro, USA",
+    },
+    LocationResponse {
+        id: Location::sin,
+        name: "Singapore",
+    },
+];
+
+/// the server type of a deployment: cx23 where hetzner offers it, the european
+/// locations, cpx21 elsewhere
+fn server_type_for(location: Location) -> ServerType {
+    match location {
+        Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,
+        Location::ash | Location::hil | Location::sin => ServerType::cpx21,
+    }
 }
 
 fn variable(name: &str) -> Option<String> {
@@ -90,12 +137,12 @@ struct Prepared {
 }
 
 fn failed(provider: ProviderType, error: impl ToString) -> String {
-    t!(
-        "deployments.failed",
-        provider = provider.name(),
-        error = error.to_string()
-    )
-    .to_string()
+    message("deployments.failed", provider, error)
+}
+
+/// a message about the provider: `key` names what failed, listing, planning or creating
+fn message(key: &str, provider: ProviderType, error: impl ToString) -> String {
+    t!(key, provider = provider.name(), error = error.to_string()).to_string()
 }
 
 /// manages the sak deployments at the providers: finds them by the name label and diffs
@@ -145,6 +192,7 @@ impl DeploymentManager {
         name: &str,
         password: &str,
         password_repeat: &str,
+        location: Location,
     ) -> Result<Prepared, String> {
         let name = name.trim();
         check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
@@ -171,7 +219,7 @@ impl DeploymentManager {
         let public_key = crate::keys::derive_public_key(name, password)?;
         let password_hash = crate::keys::password_hash(name, password)?;
         let runtime =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+            HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
         let spec = DeploymentSpec::new(
             name,
             &public_key,
@@ -194,9 +242,10 @@ impl DeploymentManager {
         name: &str,
         password: &str,
         password_repeat: &str,
+        location: Location,
     ) -> Result<PlanResponse, String> {
         let prepared = self
-            .prepare(tokens, name, password, password_repeat)
+            .prepare(tokens, name, password, password_repeat, location)
             .await?;
         let mut registry = prepared
             .spec
@@ -205,7 +254,7 @@ impl DeploymentManager {
         let diffs = registry
             .diff_all()
             .await
-            .map_err(|error| failed(prepared.provider, error))?;
+            .map_err(|error| message("deployments.plan_failed", prepared.provider, error))?;
         Ok(PlanResponse {
             name: prepared.spec.name.clone(),
             public_key: prepared.spec.public_key.clone(),
@@ -234,10 +283,11 @@ impl DeploymentManager {
         name: &str,
         password: &str,
         password_repeat: &str,
+        location: Location,
         on_event: Channel<CreateEvent>,
     ) -> Result<(), String> {
         let prepared = self
-            .prepare(tokens, name, password, password_repeat)
+            .prepare(tokens, name, password, password_repeat, location)
             .await?;
         let mut registry = prepared
             .spec
@@ -259,7 +309,7 @@ impl DeploymentManager {
         registry
             .apply_all_with(false, &mut report)
             .await
-            .map_err(|error| failed(prepared.provider, error))?;
+            .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
         Ok(())
     }
 }
@@ -269,7 +319,13 @@ pub fn deployment_defaults() -> DeploymentDefaults {
     DeploymentDefaults {
         name: variable("SAK_NAME"),
         password: variable("SAK_PASSWORD"),
+        location: variable("SAK_LOCATION"),
     }
+}
+
+#[tauri::command]
+pub fn locations() -> Vec<LocationResponse> {
+    LOCATIONS.to_vec()
 }
 
 #[tauri::command]
@@ -279,10 +335,11 @@ pub async fn plan_deployment(
     name: String,
     password: String,
     password_repeat: String,
+    location: Location,
 ) -> Result<PlanResponse, String> {
     let tokens = tokens.tokens();
     manager
-        .plan(tokens, &name, &password, &password_repeat)
+        .plan(tokens, &name, &password, &password_repeat, location)
         .await
 }
 
@@ -293,12 +350,32 @@ pub async fn create_deployment(
     name: String,
     password: String,
     password_repeat: String,
+    location: Location,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), String> {
     let tokens = tokens.tokens();
     manager
-        .create(tokens, &name, &password, &password_repeat, on_event)
+        .create(
+            tokens,
+            &name,
+            &password,
+            &password_repeat,
+            location,
+            on_event,
+        )
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_server_type_follows_the_location() {
+        assert_eq!(server_type_for(Location::hel1), ServerType::cx23);
+        assert_eq!(server_type_for(Location::sin), ServerType::cpx21);
+        assert_eq!(LOCATIONS[0].id, Location::hel1);
+    }
 }
 
 #[tauri::command]

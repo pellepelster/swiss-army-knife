@@ -27,6 +27,7 @@ fn main() {
             providers::add_provider_token,
             deployments::list_deployments,
             deployments::deployment_defaults,
+            deployments::locations,
             deployments::plan_deployment,
             deployments::create_deployment
         ])

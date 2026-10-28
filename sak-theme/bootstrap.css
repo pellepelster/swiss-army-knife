@@ -109,6 +109,13 @@ code {
   color: var(--sak-ink);
 }
 
+.form-select {
+  background-color: var(--sak-raised);
+  border-color: var(--sak-line);
+  color: var(--sak-ink);
+}
+
+.form-select:focus,
 .form-control:focus {
   background-color: var(--sak-raised);
   border-color: var(--sak-accent);

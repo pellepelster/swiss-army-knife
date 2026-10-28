@@ -34,6 +34,8 @@ deployments:
   invalid_name: "Ein Name besteht aus 1 bis 63 Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
   short_password: "Das Passwort braucht mindestens %{min} Zeichen."
   password_mismatch: "Die Passwörter stimmen nicht überein."
+  plan_failed: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"
+  create_failed: "Das Deployment konnte bei %{provider} nicht erstellt werden: %{error}"
   no_provider: "Kein Provider-Token, bei dem das Deployment erstellt werden kann."
   name_taken: "Ein Deployment namens %{name} gibt es schon."
   failed: "Die Deployments bei %{provider} konnten nicht aufgelistet werden: %{error}"
@@ -73,6 +75,8 @@ ui:
     password_hint: "Mindestens 16 Zeichen. Der SSH-Key des Deployments wird aus Name und Passwort abgeleitet, derselbe Name und dasselbe Passwort ergeben wieder denselben Key."
     password_repeat: "Passwort wiederholen"
     password_mismatch: "Die Passwörter stimmen nicht überein."
+    location: "Standort"
+    location_hint: "Wo der Server, sein Datenvolume und seine Adressen erstellt werden."
     plan: "Planen"
     planning: "Plane, die Ressourcen werden mit dem Projekt verglichen…"
   plan:

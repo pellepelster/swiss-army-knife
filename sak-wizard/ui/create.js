@@ -9,6 +9,7 @@ const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
 const passwordInput = document.getElementById('create-password');
 const repeatInput = document.getElementById('create-password-repeat');
+const locationInput = document.getElementById('create-location');
 const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 const planList = document.getElementById('plan-resources');
@@ -66,9 +67,29 @@ for (const input of [passwordInput, repeatInput]) {
   input.addEventListener('input', () => repeatInput.classList.remove('is-invalid'));
 }
 
-// the fields still empty take what the environment proposes, SAK_NAME and SAK_PASSWORD
+// the locations rust offers, the first one chosen unless the environment says otherwise
+async function loadLocations(chosen) {
+  if (locationInput.options.length === 0) {
+    const locations = await invoke('locations');
+    locationInput.replaceChildren(
+      ...locations.map(({ id, name }) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = `${name} (${id})`;
+        return option;
+      }),
+    );
+  }
+  if (chosen && [...locationInput.options].some((option) => option.value === chosen)) {
+    locationInput.value = chosen;
+  }
+}
+
+// the fields still empty take what the environment proposes, SAK_NAME, SAK_PASSWORD and
+// SAK_LOCATION
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
+  await loadLocations(defaults.location);
   if (!nameInput.value && defaults.name) {
     nameInput.value = defaults.name;
   }
@@ -134,6 +155,7 @@ document.getElementById('plan-apply').addEventListener('click', async () => {
       name: nameInput.value,
       password: passwordInput.value,
       passwordRepeat: repeatInput.value,
+      location: locationInput.value,
       onEvent,
     });
     await backToDeployments();
@@ -160,6 +182,7 @@ form.addEventListener('submit', async (event) => {
       name: nameInput.value,
       password: passwordInput.value,
       passwordRepeat: repeatInput.value,
+      location: locationInput.value,
     });
     setStatus('');
     showPlan(plan);
