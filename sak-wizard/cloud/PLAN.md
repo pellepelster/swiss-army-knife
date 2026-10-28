@@ -193,7 +193,7 @@ it after `wizard:test`, without a token.
 2. `hetzner::api`: client, models, the five resource apis, actions, wiremock tests. (~900 lines) — done
 3. ssh key resource + provisioner, the first integration test; this sets the pattern. (~250) — done
 4. volume and primary ip. (~400) — done
-5. firewall. (~250)
+5. firewall. (~250) — done
 6. server with cloud-init and ssh key hash labels, volumes, primary ips in `public_net`
    and the power-off/assign/power-on path for an existing server. (~500)
 7. `providers::hetzner`, `registry` (dependency order, `diff_all` report, `apply_all`),

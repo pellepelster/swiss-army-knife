@@ -2,6 +2,7 @@ use crate::api::Labels;
 use crate::hetzner::api::model::{Action, ActionsResponse, ListQuery, list_page};
 use crate::hetzner::api::{HetznerApi, Result};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
@@ -18,6 +19,20 @@ pub enum RuleProtocol {
     Icmp,
     Esp,
     Gre,
+}
+
+impl fmt::Display for RuleProtocol {
+    /// `TCP`, as the rules read in a diff
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            RuleProtocol::Tcp => "TCP",
+            RuleProtocol::Udp => "UDP",
+            RuleProtocol::Icmp => "ICMP",
+            RuleProtocol::Esp => "ESP",
+            RuleProtocol::Gre => "GRE",
+        };
+        f.write_str(name)
+    }
 }
 
 /// one rule of a firewall; equal rules compare equal whatever order the api returns them
@@ -50,7 +65,7 @@ impl FirewallRule {
         };
         let target = match self.protocol {
             RuleProtocol::Icmp => "ICMP".to_string(),
-            protocol => format!("{protocol:?}/{}", self.port.as_deref().unwrap_or("<none>")),
+            protocol => format!("{protocol}/{}", self.port.as_deref().unwrap_or("<none>")),
         };
         match self.direction {
             RuleDirection::In => format!("{} -> {target}", quoted(&self.source_ips)),
@@ -307,7 +322,7 @@ mod tests {
 
     #[test]
     fn rules_log_text() {
-        assert_eq!(rule().log_text(), "'0.0.0.0/0', '::/0' -> Tcp/80");
+        assert_eq!(rule().log_text(), "'0.0.0.0/0', '::/0' -> TCP/80");
         let icmp = FirewallRule {
             protocol: RuleProtocol::Icmp,
             port: None,
