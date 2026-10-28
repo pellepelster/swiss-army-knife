@@ -1,10 +1,6 @@
 package io.pelle.sak.logs
 
 import java.time.Instant
-import io.pelle.sak.logs.model.StatusClassSeriesResponse
-import io.pelle.sak.logs.model.StatusCodeSeriesResponse
-import io.pelle.sak.logs.model.UserAgentSeriesResponse
-import io.pelle.sak.logs.model.SiteMetricsResponse
 
 // a host or group of hosts caddy serves, every access log entry names its site
 data class Site(
@@ -44,7 +40,7 @@ class SiteMetricsService(
         site: Site,
         range: MetricsRange,
         now: Instant = Instant.now(),
-    ): SiteMetricsResponse {
+    ): SiteMetrics {
         val grid = TimeSeriesGrid(range, now)
         val filter = streamFilter(site)
 
@@ -76,25 +72,16 @@ class SiteMetricsService(
             counts.forEachIndexed { index, value -> target[index] += value }
         }
 
-        val totalRequests = requests.sum()
-        val errorRequests = perClass.filterKeys { it.isError }.values.sumOf { it.sum() }
-        return SiteMetricsResponse(
-            site = site.id,
-            range = range.key,
-            start = grid.start.toString(),
-            end = grid.end.toString(),
-            stepSeconds = range.step.seconds,
-            buckets = grid.bucketStarts.map { it.toString() },
-            series = StatusClass.entries.map { StatusClassSeriesResponse(it.key, perClass.getValue(it).toList()) },
-            statusCodes =
-                requestsByCode.map { (status, counts) ->
-                    StatusCodeSeriesResponse(status, StatusClass.of(status)!!.key, counts.toList())
-                },
+        return SiteMetrics(
+            site = site,
+            range = range,
+            start = grid.start,
+            end = grid.end,
+            buckets = grid.bucketStarts,
+            series = StatusClass.entries.map { StatusClassSeries(it, perClass.getValue(it).toList()) },
+            statusCodes = requestsByCode.map { (status, counts) -> StatusCodeSeries(status, StatusClass.of(status)!!, counts.toList()) },
             bytes = bytes.toList(),
-            totalRequests = totalRequests,
-            errorRequests = errorRequests,
-            errorRate = if (totalRequests == 0L) 0.0 else errorRequests.toDouble() / totalRequests,
-            totalBytes = bytes.sum(),
+            totalRequests = requests.sum(),
             userAgents = userAgents(filter, grid),
         )
     }
@@ -102,7 +89,7 @@ class SiteMetricsService(
     private fun userAgents(
         filter: String,
         grid: TimeSeriesGrid,
-    ): List<UserAgentSeriesResponse> {
+    ): List<UserAgentSeries> {
         val byGroup = sortedMapOf<UserAgentGroup, LongArray>(compareBy { it.ordinal })
         client
             .statsQueryRange("$filter | stats by ($USER_AGENT) count() $REQUESTS", grid.start, grid.end, grid.range.step)
@@ -114,7 +101,7 @@ class SiteMetricsService(
             }
 
         return byGroup
-            .map { (group, values) -> UserAgentSeriesResponse(group.key, values.toList()) }
+            .map { (group, values) -> UserAgentSeries(group, values.toList()) }
             .filter { it.requests > 0 }
             .sortedByDescending { it.requests }
     }

@@ -22,6 +22,9 @@ import io.pelle.sak.logs.model.LogEntryResponse
 import io.pelle.sak.logs.model.MetricsRangeResponse
 import io.pelle.sak.logs.model.AccessLogsResponse
 import io.pelle.sak.logs.model.SiteResponse
+import io.pelle.sak.logs.model.StatusClassSeriesResponse
+import io.pelle.sak.logs.model.StatusCodeSeriesResponse
+import io.pelle.sak.logs.model.UserAgentSeriesResponse
 
 private val logger = KotlinLogging.logger {}
 
@@ -50,7 +53,7 @@ fun Route.accessLogs(
         val site = call.logsSite(site) ?: return@get
         call.respond(
             AccessLogsResponse(
-                SiteResponse(site.id, site.domains),
+                site.response(),
                 MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label) },
                 MetricsRange.DEFAULT.key,
             ),
@@ -75,7 +78,7 @@ fun Route.accessLogs(
         }
 
         try {
-            call.respond(withContext(Dispatchers.IO) { metrics.metrics(site, range) })
+            call.respond(withContext(Dispatchers.IO) { metrics.metrics(site, range) }.response())
         } catch (e: VictoriaLogsException) {
             logger.warn(e) { "could not query the metrics of site '${site.id}'" }
             call.respond(HttpStatusCode.ServiceUnavailable)
@@ -120,7 +123,7 @@ fun Route.accessLogs(
         try {
             call.respond(
                 withContext(Dispatchers.IO) {
-                    page.of(logs.search(site, text, page.offset, page.limit), logs.count(site, text))
+                    page.of(logs.search(site, text, page.offset, page.limit).map { it.response() }, logs.count(site, text))
                 },
             )
         } catch (e: VictoriaLogsException) {
@@ -154,3 +157,27 @@ fun Route.accessLogs(
 
 // the site of the path; answers not found when there is none
 private suspend fun ApplicationCall.logsSite(site: suspend (ApplicationCall) -> Site?): Site? = site(this) ?: null.also { respond(HttpStatusCode.NotFound) }
+
+// what the api answers, the services know nothing of it
+
+fun Site.response() = SiteResponse(id, domains)
+
+fun LogEntry.response() = LogEntryResponse(time, host, path, status)
+
+fun SiteMetrics.response() =
+    SiteMetricsResponse(
+        site = site.id,
+        range = range.key,
+        start = start.toString(),
+        end = end.toString(),
+        stepSeconds = range.step.seconds,
+        buckets = buckets.map { it.toString() },
+        series = series.map { StatusClassSeriesResponse(it.statusClass.key, it.values) },
+        statusCodes = statusCodes.map { StatusCodeSeriesResponse(it.status, it.statusClass.key, it.values) },
+        bytes = bytes,
+        totalRequests = totalRequests,
+        errorRequests = errorRequests,
+        errorRate = errorRate,
+        totalBytes = totalBytes,
+        userAgents = userAgents.map { UserAgentSeriesResponse(it.group.key, it.values) },
+    )

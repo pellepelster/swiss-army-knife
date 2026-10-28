@@ -1,6 +1,5 @@
 package io.pelle.sak.logs
 
-import io.pelle.sak.logs.model.LogEntryResponse
 
 // the access log entries of one site, searched in the stored entries
 class SiteLogs(
@@ -13,7 +12,7 @@ class SiteLogs(
         text: String,
         offset: Long = 0,
         limit: Int = SEARCH_LIMIT,
-    ): List<LogEntryResponse> =
+    ): List<LogEntry> =
         client
             .query("${searchFilter(site, text)} | $FIELDS | sort by (_time desc) | offset $offset | limit $limit")
             .map { it.toLogEntry() }
@@ -54,7 +53,7 @@ class SiteLogs(
         }
 
         fun Map<String, String>.toLogEntry() =
-            LogEntryResponse(
+            LogEntry(
                 time = this["_time"].orEmpty(),
                 host = this["request.host"].orEmpty(),
                 path = this["request.uri"].orEmpty(),
@@ -63,3 +62,11 @@ class SiteLogs(
     }
 }
 
+// one request of the ingress access log with the domain it was made to; time as victorialogs tells
+// it, an rfc 3339 timestamp, status 0 for a request caddy closed without an answer
+data class LogEntry(
+    val time: String,
+    val host: String,
+    val path: String,
+    val status: Int?,
+)

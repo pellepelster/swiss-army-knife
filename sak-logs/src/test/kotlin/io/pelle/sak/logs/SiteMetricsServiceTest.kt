@@ -23,6 +23,10 @@ import java.net.URLDecoder
 import java.time.Instant
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
+import io.pelle.sak.logs.model.SiteMetricsResponse
+import io.pelle.sak.logs.model.StatusClassSeriesResponse
+import io.pelle.sak.logs.model.StatusCodeSeriesResponse
+import io.pelle.sak.logs.model.UserAgentSeriesResponse
 
 class SiteMetricsServiceTest {
     // answers stats_query_range like victorialogs, by whether the query groups by user agent
@@ -99,25 +103,24 @@ class SiteMetricsServiceTest {
 
         val metrics = service.metrics(site, MetricsRange.LAST_HOUR, now)
 
-        metrics.site shouldBe "pelle.io"
-        metrics.range shouldBe "1h"
-        metrics.stepSeconds shouldBe 120
+        metrics.site shouldBe site
+        metrics.range shouldBe MetricsRange.LAST_HOUR
         metrics.buckets.size shouldBe 30
-        metrics.buckets.first() shouldBe Instant.ofEpochSecond(firstBucket).toString()
-        metrics.buckets.last() shouldBe Instant.ofEpochSecond(lastBucket).toString()
-        metrics.end shouldBe Instant.ofEpochSecond(lastBucket + 120).toString()
+        metrics.buckets.first() shouldBe Instant.ofEpochSecond(firstBucket)
+        metrics.buckets.last() shouldBe Instant.ofEpochSecond(lastBucket)
+        metrics.end shouldBe Instant.ofEpochSecond(lastBucket + 120)
 
-        metrics.series.associate { it.statusClass to it.total } shouldBe mapOf("2xx" to 6L, "3xx" to 0L, "4xx" to 2L, "5xx" to 1L)
-        metrics.series.first { it.statusClass == "2xx" }.values.let {
+        metrics.series.associate { it.statusClass.key to it.total } shouldBe mapOf("2xx" to 6L, "3xx" to 0L, "4xx" to 2L, "5xx" to 1L)
+        metrics.series.first { it.statusClass == StatusClass.SUCCESS }.values.let {
             it.first() shouldBe 1
             it.last() shouldBe 5
         }
-        metrics.statusCodes.map { it.status to it.statusClass } shouldBe listOf("200" to "2xx", "404" to "4xx", "502" to "5xx")
+        metrics.statusCodes.map { it.status to it.statusClass.key } shouldBe listOf("200" to "2xx", "404" to "4xx", "502" to "5xx")
         metrics.totalRequests shouldBe 12
         metrics.errorRequests shouldBe 3
         metrics.errorRate shouldBe 0.25
         metrics.totalBytes shouldBe 1024
-        metrics.userAgents.map { it.group to it.requests } shouldBe listOf("other" to 5L, "chrome" to 4L, "openai" to 2L)
+        metrics.userAgents.map { it.group.key to it.requests } shouldBe listOf("other" to 5L, "chrome" to 4L, "openai" to 2L)
 
         queries.map { it.getValue("query") } shouldBe
             listOf(
@@ -205,6 +208,42 @@ class SiteMetricsServiceTest {
             client.get("/sites/unknown/access-logs/metrics").status shouldBe HttpStatusCode.NotFound
             client.get("/sites/pelle.io/access-logs/metrics?range=2y").status shouldBe HttpStatusCode.BadRequest
         }
+
+    @Test
+    fun `answers the metrics in the wire format of the api`() {
+        val start = Instant.parse("2026-10-27T08:00:00Z")
+        val metrics =
+            SiteMetrics(
+                site = site,
+                range = MetricsRange.LAST_HOUR,
+                start = start,
+                end = start.plusSeconds(240),
+                buckets = listOf(start, start.plusSeconds(120)),
+                series = listOf(StatusClassSeries(StatusClass.SUCCESS, listOf(1, 2)), StatusClassSeries(StatusClass.CLIENT_ERROR, listOf(0, 1))),
+                statusCodes = listOf(StatusCodeSeries("404", StatusClass.CLIENT_ERROR, listOf(0, 1))),
+                bytes = listOf(10, 20),
+                totalRequests = 5,
+                userAgents = listOf(UserAgentSeries(UserAgentGroup.OTHER, listOf(2, 3))),
+            )
+
+        metrics.response() shouldBe
+            SiteMetricsResponse(
+                site = "pelle.io",
+                range = "1h",
+                start = "2026-10-27T08:00:00Z",
+                end = "2026-10-27T08:04:00Z",
+                stepSeconds = 120,
+                buckets = listOf("2026-10-27T08:00:00Z", "2026-10-27T08:02:00Z"),
+                series = listOf(StatusClassSeriesResponse("2xx", listOf(1, 2)), StatusClassSeriesResponse("4xx", listOf(0, 1))),
+                statusCodes = listOf(StatusCodeSeriesResponse("404", "4xx", listOf(0, 1))),
+                bytes = listOf(10, 20),
+                totalRequests = 5,
+                errorRequests = 1,
+                errorRate = 0.2,
+                totalBytes = 30,
+                userAgents = listOf(UserAgentSeriesResponse("other", listOf(2, 3))),
+            )
+    }
 
     @Test
     fun `answers service unavailable when victorialogs is down`() =

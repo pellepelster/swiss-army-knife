@@ -15,7 +15,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.net.URLDecoder
-import io.pelle.sak.logs.model.LogEntryResponse
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 
@@ -64,8 +63,8 @@ class SiteLogsTest {
     fun `searches the request lines and user agents of a site case-insensitively, newest first`() {
         logs.search(site, " Missing ") shouldBe
             listOf(
-                LogEntryResponse("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
-                LogEntryResponse("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
+                LogEntry("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
+                LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
             )
 
         queries.single().second.getValue("query") shouldBe
