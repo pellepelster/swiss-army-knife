@@ -11,14 +11,17 @@ node = "22.22.3"
 image = "ghcr.io/pellepelster/sak-wizard"
 canary = "ghcr.io/pellepelster/sak-docker-canary"
 
-# the theme of ../sak-theme, copied into ui/theme/ (not committed): tauri bundles ui/ alone
+# the theme of ../sak-theme with its bootstrap, copied into ui/theme/ (not committed): tauri
+# bundles ui/ alone
 [tasks."wizard:theme"]
 description = "Copy sak-theme into ui/theme/ for the page of sak-wizard"
 dir = "{{config_root}}"
 run = """
+(cd ../sak-theme && npm ci --no-audit --no-fund)
 rm -rf ui/theme
 mkdir -p ui/theme
-cp ../sak-theme/tokens.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
+cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
+cp ../sak-theme/tokens.css ../sak-theme/bootstrap.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
 cp -r ../sak-theme/fonts ui/theme/fonts
 """
 

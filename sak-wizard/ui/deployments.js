@@ -44,10 +44,10 @@ function resource(state) {
 
 function deployment({ provider, name, status: state, resources }) {
   const item = document.createElement('li');
-  item.className = 'deployment';
+  item.className = 'card deployment';
   item.dataset.status = state;
   const header = document.createElement('div');
-  header.className = 'deployment-header';
+  header.className = 'card-header deployment-header provider';
   const logo = document.createElement('img');
   logo.className = 'provider-logo';
   logo.src = provider.logo;
@@ -61,7 +61,7 @@ function deployment({ provider, name, status: state, resources }) {
   badge.textContent = text(`ui.deployments.status.${state}`);
   header.append(logo, title, badge);
   const group = document.createElement('ul');
-  group.className = 'resources';
+  group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));
   item.append(header, group);
   return item;

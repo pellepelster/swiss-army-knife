@@ -1,17 +1,11 @@
-/* the look of the wizard on the tokens of sak-theme (theme/, copied there by mise run
-   wizard:theme): every color is a var(--sak-…), no literal in here. Light and dark follow the
-   system through the tokens, the app has no switch of its own */
+/* the layout of the wizard; the look is bootstrap on the tokens of sak-theme (theme/, copied
+   there by mise run wizard:theme). Every color is a var(--sak-…), no literal in here */
 
 html, body {
   height: 100%;
-  margin: 0;
 }
 
 body {
-  background: var(--sak-bg);
-  color: var(--sak-ink);
-  font-family: var(--sak-font-sans);
-  font-size: var(--sak-text);
   /* an app, not a document: only what is typed in is meant to be selected */
   user-select: none;
   cursor: default;
@@ -19,11 +13,6 @@ body {
 
 [hidden] {
   display: none !important;
-}
-
-code {
-  font-family: var(--sak-font-mono);
-  font-size: 0.85em;
 }
 
 .splash {
@@ -44,7 +33,6 @@ code {
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .checks {
@@ -108,6 +96,7 @@ code {
   color: var(--sak-danger) !important;
 }
 
+/* a page: the header, its content, the footer with the button group at the bottom right */
 .page {
   box-sizing: border-box;
   height: 100%;
@@ -127,87 +116,36 @@ code {
 
 .page-header h1 {
   margin: 0;
-  font-size: var(--sak-text-h1);
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
-.hint,
-.status {
+.page-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-3);
+}
+
+.page-form input {
+  user-select: text;
+}
+
+.page-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hint {
   margin: 0;
   color: var(--sak-muted);
   font-size: var(--sak-text-sm);
-}
-
-/* flat and technical: depth comes from the 1px line, not from shadows */
-.button {
-  font: inherit;
-  font-size: var(--sak-text-button);
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius);
-  background: var(--sak-raised);
-  color: var(--sak-ink);
-  cursor: pointer;
-}
-
-.button:hover:not(:disabled) {
-  border-color: var(--sak-accent);
-}
-
-.button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
-}
-
-.button-primary {
-  border-color: var(--sak-accent);
-  background: var(--sak-accent);
-  color: var(--sak-accent-ink);
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.providers {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sak-space-2);
 }
 
 .provider {
   display: flex;
   align-items: center;
   gap: var(--sak-space-3);
-}
-
-/* a card on the canvas */
-.providers .provider {
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--sak-space-3) var(--sak-space-4);
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius-lg);
-  background: var(--sak-surface);
-}
-
-.provider-choice {
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.provider-choice:hover,
-.provider-choice:focus-visible {
-  border-color: var(--sak-accent);
-  outline: none;
 }
 
 .provider-logo {
@@ -227,10 +165,6 @@ code {
   color: var(--sak-muted);
 }
 
-.page-footer {
-  margin-top: auto;
-}
-
 .deployments {
   list-style: none;
   margin: 0;
@@ -240,30 +174,13 @@ code {
   gap: var(--sak-space-3);
 }
 
-/* a card with its header on the raised cap */
-.deployment {
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius-lg);
-  background: var(--sak-surface);
-  overflow: hidden;
-}
-
-.deployment-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sak-space-3);
-  padding: 0.6rem var(--sak-space-4);
-  background: var(--sak-raised);
-  border-bottom: 1px solid var(--sak-line);
-}
-
 .deployment-name {
   font-family: var(--sak-font-mono);
   font-weight: 500;
   font-size: 1rem;
 }
 
-/* the state of the deployment, the led pill at the right end of its header */
+/* the state of the deployment, the led pill at the right end of the card header */
 .deployment-status {
   margin-left: auto;
 }
@@ -275,10 +192,6 @@ code {
   display: flex;
   flex-direction: column;
   gap: var(--sak-space-1);
-}
-
-.deployment .resources {
-  padding: var(--sak-space-3) var(--sak-space-4);
 }
 
 /* the led, the kind and name, the detail; the changes beneath */
@@ -327,43 +240,4 @@ code {
 .plan-key {
   overflow-wrap: anywhere;
   user-select: text;
-}
-
-.token-form {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sak-space-2);
-}
-
-/* a label over its input, small uppercase mono */
-.token-form label {
-  font-family: var(--sak-font-mono);
-  font-size: var(--sak-text-label);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--sak-muted);
-}
-
-.token-form input {
-  font: inherit;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius);
-  background: var(--sak-raised);
-  color: var(--sak-ink);
-  user-select: text;
-}
-
-.token-form input:focus {
-  outline: none;
-  border-color: var(--sak-accent);
-  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sak-space-2);
 }

@@ -4,18 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SwissArmyKnife</title>
-    <!-- the theme comes from ../../sak-theme, copied to theme/ by mise run wizard:theme -->
+    <!-- the theme comes from ../../sak-theme, copied to theme/ by mise run wizard:theme: bootstrap,
+         then the tokens, bootstrap mapped onto them, the components; style.css holds the layout -->
+    <link rel="stylesheet" href="theme/bootstrap.min.css">
     <link rel="stylesheet" href="theme/fonts.css">
     <link rel="stylesheet" href="theme/tokens.css">
+    <link rel="stylesheet" href="theme/bootstrap.css">
     <link rel="stylesheet" href="theme/components.css">
     <link rel="stylesheet" href="style.css">
     <script type="module" src="app.js"></script>
   </head>
   <body>
     <!-- one view at a time, app.js switches between them; data-text names the text of locales/.
-         Buttons moving through the wizard (next, back, cancel, plan, create) sit at the bottom
-         right, buttons acting on the data of the view (add a provider, create a deployment)
-         at the top right -->
+         Buttons moving through the wizard (next, back, cancel, plan, create) sit in the button
+         group at the bottom right, buttons acting on the data of the view (add a provider,
+         create a deployment) in the one at the top right of the page header -->
     <main class="view splash" id="view-splash">
       <img class="splash-icon" src="icon.svg" alt="">
       <h1 class="splash-title">SwissArmyKnife</h1>
@@ -25,12 +28,16 @@
     <main class="view page" id="view-providers" hidden>
       <header class="page-header">
         <h1 data-text="ui.providers.title"></h1>
-        <button type="button" class="button" id="providers-add" data-text="ui.providers.add"></button>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="providers-add" data-text="ui.providers.add"></button>
+        </div>
       </header>
       <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
-      <ul class="providers" id="provider-tokens"></ul>
-      <div class="actions page-footer">
-        <button type="button" class="button button-primary" id="providers-next" data-text="ui.next" disabled></button>
+      <ul class="list-group" id="provider-tokens"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-primary" id="providers-next" data-text="ui.next" disabled></button>
+        </div>
       </div>
     </main>
 
@@ -38,9 +45,11 @@
       <header class="page-header">
         <h1 data-text="ui.select.title"></h1>
       </header>
-      <ul class="providers" id="provider-types"></ul>
-      <div class="actions page-footer">
-        <button type="button" class="button" id="select-cancel" data-text="ui.cancel"></button>
+      <ul class="list-group" id="provider-types"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="select-cancel" data-text="ui.cancel"></button>
+        </div>
       </div>
     </main>
 
@@ -51,14 +60,18 @@
           <span id="token-provider"></span>
         </h1>
       </header>
-      <form class="token-form" id="token-form">
-        <label for="token-input" data-text="ui.token.label"></label>
-        <input id="token-input" type="password" autocomplete="off" spellcheck="false">
-        <p class="hint" id="token-hint"></p>
-        <p class="status" id="token-status" aria-live="polite"></p>
-        <div class="actions page-footer">
-          <button type="button" class="button" id="token-cancel" data-text="ui.cancel"></button>
-          <button type="submit" class="button button-primary" id="token-add" data-text="ui.token.add"></button>
+      <form class="page-form" id="token-form">
+        <div>
+          <label class="form-label" for="token-input" data-text="ui.token.label"></label>
+          <input class="form-control" id="token-input" type="password" autocomplete="off" spellcheck="false">
+          <div class="form-text" id="token-hint"></div>
+        </div>
+        <p class="hint" id="token-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="token-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="token-add" data-text="ui.token.add"></button>
+          </div>
         </div>
       </form>
     </main>
@@ -66,12 +79,16 @@
     <main class="view page" id="view-deployments" hidden>
       <header class="page-header">
         <h1 data-text="ui.deployments.title"></h1>
-        <button type="button" class="button" id="deployments-create" data-text="ui.deployments.create"></button>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-create" data-text="ui.deployments.create"></button>
+        </div>
       </header>
-      <p class="status" id="deployments-status" aria-live="polite"></p>
+      <p class="hint" id="deployments-status" aria-live="polite"></p>
       <ul class="deployments" id="deployments"></ul>
-      <div class="actions page-footer">
-        <button type="button" class="button" id="deployments-back" data-text="ui.back"></button>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-back" data-text="ui.back"></button>
+        </div>
       </div>
     </main>
 
@@ -79,17 +96,23 @@
       <header class="page-header">
         <h1 data-text="ui.create.title"></h1>
       </header>
-      <form class="token-form" id="create-form">
-        <label for="create-name" data-text="ui.create.name"></label>
-        <input id="create-name" type="text" autocomplete="off" spellcheck="false" required>
-        <p class="hint" data-text="ui.create.name_hint"></p>
-        <label for="create-password" data-text="ui.create.password"></label>
-        <input id="create-password" type="password" autocomplete="new-password" minlength="16" required>
-        <p class="hint" data-text="ui.create.password_hint"></p>
-        <p class="status" id="create-status" aria-live="polite"></p>
-        <div class="actions page-footer">
-          <button type="button" class="button" id="create-cancel" data-text="ui.cancel"></button>
-          <button type="submit" class="button button-primary" id="create-plan" data-text="ui.create.plan"></button>
+      <form class="page-form" id="create-form">
+        <div>
+          <label class="form-label" for="create-name" data-text="ui.create.name"></label>
+          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required>
+          <div class="form-text" data-text="ui.create.name_hint"></div>
+        </div>
+        <div>
+          <label class="form-label" for="create-password" data-text="ui.create.password"></label>
+          <input class="form-control" id="create-password" type="password" autocomplete="new-password" minlength="16" required>
+          <div class="form-text" data-text="ui.create.password_hint"></div>
+        </div>
+        <p class="hint" id="create-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="create-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="create-plan" data-text="ui.create.plan"></button>
+          </div>
         </div>
       </form>
     </main>
@@ -98,13 +121,15 @@
       <header class="page-header">
         <h1 data-text="ui.plan.title"></h1>
       </header>
-      <p class="hint"><span data-text="ui.plan.intro"></span> <strong id="plan-name"></strong></p>
-      <p class="hint"><span data-text="ui.plan.key"></span> <code class="plan-key sak-mono" id="plan-key"></code></p>
+      <p class="hint"><span data-text="ui.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
+      <p class="hint"><span data-text="ui.plan.key"></span> <code class="plan-key" id="plan-key"></code></p>
       <ul class="resources" id="plan-resources"></ul>
-      <div class="actions page-footer">
-        <button type="button" class="button" id="plan-cancel" data-text="ui.cancel"></button>
-        <button type="button" class="button" id="plan-back" data-text="ui.back"></button>
-        <button type="button" class="button button-primary" id="plan-apply" data-text="ui.plan.apply"></button>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-outline-secondary" id="plan-back" data-text="ui.back"></button>
+          <button type="button" class="btn btn-primary" id="plan-apply" data-text="ui.plan.apply"></button>
+        </div>
       </div>
     </main>
   </body>

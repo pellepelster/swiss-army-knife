@@ -84,13 +84,14 @@
 ## UI (`sak-wizard`)
 
 - One view at a time, a page with a header and, when a page has them, actions at the bottom.
-  Buttons moving through the wizard (next, back, cancel, plan, the final create) sit at the bottom
-  right (`.actions.page-footer`), buttons acting on the data of the view (add a provider, create a
-  deployment) at the top right in the page header.
-- The look comes from `sak-theme` (`tokens.css`, `components.css`, the fonts), copied into
-  `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the layout and names no color of
-  its own, every color is a `var(--sak-…)` (a test checks it). States are the theme's leds
-  (`.sak-led`, `.sak-status`), not glyphs.
+  Buttons moving through the wizard (next, back, cancel, plan, the final create) sit in the button
+  group at the bottom right (`.page-footer`), buttons acting on the data of the view (add a
+  provider, create a deployment) in the one at the top right of the page header.
+- The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
+  `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
+  layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The
+  toolbars are `btn-group`s, `btn-primary` the one action of a page, `btn-outline-secondary` every
+  other button; states are the theme's leds (`.sak-led`, `.sak-status`), not glyphs.
 
 ## Naming
 

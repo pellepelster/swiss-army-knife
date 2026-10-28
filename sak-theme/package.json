@@ -1,0 +1,10 @@
+{
+  "name": "sak-theme",
+  "version": "0.1.0",
+  "description": "The design tokens, fonts and components of sak as plain css, bootstrap as their dependency",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "bootstrap": "5.3.8"
+  }
+}

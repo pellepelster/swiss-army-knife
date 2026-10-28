@@ -1,0 +1,150 @@
+/* bootstrap in the colors, fonts and radii of the tokens: bootstrap 5.3 reads its --bs-*
+   custom properties at runtime, so this maps them and nothing of bootstrap is built. Load
+   after bootstrap.min.css and tokens.css. Buttons: btn-primary is the accent, the one action
+   of a page; btn-outline-secondary every other, on the raised fill with the line */
+:root,
+[data-bs-theme] {
+  --bs-body-bg: var(--sak-bg);
+  --bs-body-color: var(--sak-ink);
+  --bs-emphasis-color: var(--sak-ink);
+  --bs-heading-color: var(--sak-ink);
+  --bs-secondary-color: var(--sak-muted);
+  --bs-secondary-bg: var(--sak-raised);
+  --bs-tertiary-color: var(--sak-muted);
+  --bs-tertiary-bg: var(--sak-raised);
+  --bs-border-color: var(--sak-line);
+  --bs-link-color: var(--sak-ink);
+  --bs-link-hover-color: var(--sak-ink);
+  --bs-code-color: var(--sak-ink);
+  --bs-success-text-emphasis: var(--sak-ok);
+  --bs-info-text-emphasis: var(--sak-info);
+  --bs-warning-text-emphasis: var(--sak-warn);
+  --bs-danger-text-emphasis: var(--sak-danger);
+  --bs-form-invalid-color: var(--sak-danger);
+  --bs-form-invalid-border-color: var(--sak-danger);
+  --bs-focus-ring-color: var(--sak-accent-ring);
+}
+
+:root {
+  --bs-body-font-family: var(--sak-font-sans);
+  --bs-font-monospace: var(--sak-font-mono);
+  --bs-body-font-size: var(--sak-text);
+  --bs-border-radius-sm: var(--sak-radius-sm);
+  --bs-border-radius: var(--sak-radius);
+  --bs-border-radius-lg: var(--sak-radius-lg);
+  --bs-border-radius-xl: var(--sak-radius-xl);
+}
+
+/* the text colors are rgb triplets in bootstrap, the tokens are not: set outright */
+.text-success { color: var(--sak-ok) !important; }
+.text-info { color: var(--sak-info) !important; }
+.text-warning { color: var(--sak-warn) !important; }
+.text-danger { color: var(--sak-danger) !important; }
+
+h1, h2, h3, .h1, .h2, .h3 {
+  letter-spacing: -0.01em;
+}
+
+h1, .h1 { font-size: var(--sak-text-h1); }
+h2, .h2 { font-size: var(--sak-text-h2); }
+
+code {
+  font-size: 0.85em;
+}
+
+/* flat, technical: depth comes from the line, not from shadows */
+.btn {
+  --bs-btn-font-weight: 600;
+  --bs-btn-font-size: var(--sak-text-button);
+  --bs-btn-focus-box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
+}
+
+.btn-primary {
+  --bs-btn-color: var(--sak-accent-ink);
+  --bs-btn-bg: var(--sak-accent);
+  --bs-btn-border-color: var(--sak-accent);
+  --bs-btn-hover-color: var(--sak-accent-ink);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--sak-accent) 88%, var(--sak-ink));
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--sak-accent) 88%, var(--sak-ink));
+  --bs-btn-active-color: var(--sak-accent-ink);
+  --bs-btn-active-bg: color-mix(in srgb, var(--sak-accent) 80%, var(--sak-ink));
+  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-accent) 80%, var(--sak-ink));
+  --bs-btn-disabled-color: var(--sak-accent-ink);
+  --bs-btn-disabled-bg: var(--sak-accent);
+  --bs-btn-disabled-border-color: var(--sak-accent);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--sak-ink);
+  --bs-btn-bg: var(--sak-raised);
+  --bs-btn-border-color: var(--sak-line);
+  --bs-btn-hover-color: var(--sak-ink);
+  --bs-btn-hover-bg: var(--sak-raised);
+  --bs-btn-hover-border-color: var(--sak-accent);
+  --bs-btn-active-color: var(--sak-ink);
+  --bs-btn-active-bg: var(--sak-line);
+  --bs-btn-active-border-color: var(--sak-line);
+  --bs-btn-disabled-color: var(--sak-muted);
+  --bs-btn-disabled-bg: var(--sak-raised);
+  --bs-btn-disabled-border-color: var(--sak-line);
+}
+
+/* a label over its input, small uppercase mono; the input on the raised fill */
+.form-label {
+  margin-bottom: 0.3rem;
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sak-muted);
+}
+
+.form-control {
+  background-color: var(--sak-raised);
+  border-color: var(--sak-line);
+  color: var(--sak-ink);
+}
+
+.form-control:focus {
+  background-color: var(--sak-raised);
+  border-color: var(--sak-accent);
+  color: var(--sak-ink);
+  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
+}
+
+.form-control:disabled {
+  background-color: var(--sak-raised);
+  color: var(--sak-muted);
+}
+
+.form-text {
+  color: var(--sak-muted);
+}
+
+.card {
+  --bs-card-bg: var(--sak-surface);
+  --bs-card-color: var(--sak-ink);
+  --bs-card-border-color: var(--sak-line);
+  --bs-card-cap-bg: var(--sak-raised);
+  --bs-card-cap-color: var(--sak-ink);
+  --bs-card-border-radius: var(--sak-radius-lg);
+  --bs-card-inner-border-radius: calc(var(--sak-radius-lg) - 1px);
+}
+
+.list-group {
+  --bs-list-group-bg: var(--sak-surface);
+  --bs-list-group-color: var(--sak-ink);
+  --bs-list-group-border-color: var(--sak-line);
+  --bs-list-group-border-radius: var(--sak-radius-lg);
+  --bs-list-group-action-color: var(--sak-ink);
+  --bs-list-group-action-hover-color: var(--sak-ink);
+  --bs-list-group-action-hover-bg: var(--sak-raised);
+  --bs-list-group-action-active-color: var(--sak-ink);
+  --bs-list-group-action-active-bg: var(--sak-raised);
+}
+
+.list-group-item-action:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--sak-accent);
+}

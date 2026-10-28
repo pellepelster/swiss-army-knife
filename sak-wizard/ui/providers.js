@@ -34,7 +34,7 @@ export async function showProviders() {
   list.replaceChildren(
     ...tokens.map((token) => {
       const item = document.createElement('li');
-      item.className = 'provider';
+      item.className = 'list-group-item provider';
       return provider(item, token.provider, token.token);
     }),
   );
@@ -51,11 +51,9 @@ async function showSelection() {
     ...types.map((type) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'provider provider-choice';
+      button.className = 'list-group-item list-group-item-action provider';
       button.addEventListener('click', () => showEntry(type));
-      const item = document.createElement('li');
-      item.append(provider(button, type));
-      return item;
+      return provider(button, type);
     }),
   );
   show('view-select');
