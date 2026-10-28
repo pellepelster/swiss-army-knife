@@ -36,8 +36,9 @@ sealed interface DeleteLabelResult {
     data object NotFound : DeleteLabelResult
 }
 
-// the labels, shared by every application, the only way to them; the applications that link
-// labels hear of every deleted one to drop their links to it
+// the labels of a user, the owner (the e-mail address of the signed in user), shared by every
+// application and seen by nobody else, the only way to them; the applications that link labels
+// hear of every deleted one to drop their links to it
 class LabelService(
     private val repository: LabelRepository,
 ) {
@@ -54,31 +55,45 @@ class LabelService(
 
     // sorted by name
     fun page(
+        owner: String,
         offset: Long,
         limit: Int,
-    ): Slice<Label> = Slice(repository.page(offset, limit), repository.count())
+    ): Slice<Label> = Slice(repository.page(owner, offset, limit), repository.count(owner))
 
-    fun byId(id: Int): Label? = repository.byId(id)
+    fun byId(
+        owner: String,
+        id: Int,
+    ): Label? = repository.byId(owner, id)
 
-    fun byIds(ids: Collection<Int>): List<Label> = if (ids.isEmpty()) emptyList() else repository.byIds(ids.toSet())
+    fun byIds(
+        owner: String,
+        ids: Collection<Int>,
+    ): List<Label> = if (ids.isEmpty()) emptyList() else repository.byIds(owner, ids.toSet())
 
-    fun byName(name: String): Label? = normalize(name)?.let { repository.byNames(listOf(it)).singleOrNull() }
+    fun byName(
+        owner: String,
+        name: String,
+    ): Label? = normalize(name)?.let { repository.byNames(owner, listOf(it)).singleOrNull() }
 
-    fun create(name: String): CreateLabelResult {
+    fun create(
+        owner: String,
+        name: String,
+    ): CreateLabelResult {
         val normalized = normalize(name) ?: return CreateLabelResult.InvalidName
-        val label = repository.insert(normalized) ?: return CreateLabelResult.Exists
+        val label = repository.insert(owner, normalized) ?: return CreateLabelResult.Exists
         return CreateLabelResult.Created(label)
     }
 
     fun rename(
+        owner: String,
         id: Int,
         name: String,
     ): RenameLabelResult {
-        val label = repository.byId(id) ?: return RenameLabelResult.NotFound
+        val label = repository.byId(owner, id) ?: return RenameLabelResult.NotFound
         val normalized = normalize(name) ?: return RenameLabelResult.InvalidName
         if (normalized == label.name) return RenameLabelResult.Renamed(label)
         // deleted meanwhile, or another label got the name
-        return when (val renamed = repository.rename(id, normalized)) {
+        return when (val renamed = repository.rename(owner, id, normalized)) {
             is LabelRename.Renamed -> RenameLabelResult.Renamed(renamed.label)
             LabelRename.NotFound -> RenameLabelResult.NotFound
             LabelRename.NameTaken -> RenameLabelResult.Exists
@@ -86,20 +101,26 @@ class LabelService(
     }
 
     // the label stays as deleted, the links to it are dropped by the applications
-    fun delete(id: Int): DeleteLabelResult {
-        if (!repository.delete(id)) return DeleteLabelResult.NotFound
+    fun delete(
+        owner: String,
+        id: Int,
+    ): DeleteLabelResult {
+        if (!repository.delete(owner, id)) return DeleteLabelResult.NotFound
         deleteListeners.forEach { it(id) }
         return DeleteLabelResult.Deleted
     }
 
-    // the labels of the names, normalized (normalize) by the caller, the missing ones are created;
-    // sorted by name
-    fun resolve(names: Set<String>): List<Label> {
+    // the owner's labels of the names, normalized (normalize) by the caller, the missing ones are
+    // created; sorted by name
+    fun resolve(
+        owner: String,
+        names: Set<String>,
+    ): List<Label> {
         if (names.isEmpty()) return emptyList()
-        val existing = repository.byNames(names).map { it.name }.toSet()
-        // one created by someone else meanwhile is there all the same
-        (names - existing).forEach { repository.insert(it) }
-        return repository.byNames(names)
+        val existing = repository.byNames(owner, names).map { it.name }.toSet()
+        // one created meanwhile, e.g. on another device, is there all the same
+        (names - existing).forEach { repository.insert(owner, it) }
+        return repository.byNames(owner, names)
     }
 
     companion object {

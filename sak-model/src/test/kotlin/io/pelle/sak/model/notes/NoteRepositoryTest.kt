@@ -37,7 +37,7 @@ class NoteRepositoryTest {
             .fetch()
             .map { Link(it.id!!, it.fileId!!, it.position!!, it.deletedAt != null) }
 
-    private fun label(name: String) = LabelRepository(database).insert(name)!!.id
+    private fun label(name: String) = LabelRepository(database).insert("pelle@pelle.io", name)!!.id
 
     // the labels of the note with whether their link is deleted, by the order they were attached in
     private fun labelLinks(noteId: Int) =

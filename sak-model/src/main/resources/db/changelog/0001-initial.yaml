@@ -114,9 +114,10 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX redirects_source_domain_key ON redirects (source_domain) WHERE deleted_at IS NULL
 
-        # the labels every application can attach to its entities, each application links them in
-        # a table of its own. A deleted label stays as a row with deleted_at set; the name is
-        # unique among the labels that are not deleted only
+        # the labels every application can attach to the entities of the user who created them,
+        # each application links them in a table of its own; owner is the e-mail address of the
+        # signed in user, nobody else sees them. A deleted label stays as a row with deleted_at
+        # set; the name is unique among the labels of an owner that are not deleted only
         - createTable:
             tableName: labels
             columns:
@@ -125,6 +126,11 @@ databaseChangeLog:
                   type: int
                   constraints:
                     primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
                     nullable: false
               - column:
                   name: name
@@ -144,7 +150,7 @@ databaseChangeLog:
                   type: timestamp
         - sql:
             dbms: sqlite
-            sql: CREATE UNIQUE INDEX labels_name_key ON labels (name) WHERE deleted_at IS NULL
+            sql: CREATE UNIQUE INDEX labels_owner_name_key ON labels (owner, name) WHERE deleted_at IS NULL
 
         # the files of the generic file storage, each upload is a file of its own; the content
         # lives in the data dir under its sha-256 (lower case hex), the same content is stored

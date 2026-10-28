@@ -7,59 +7,73 @@ import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Clock
 
 // the database access of the labels, only LabelService (sak-backend) uses it; it reads the labels that are not
-// deleted only
+// deleted only, and only those of the owner, the e-mail address of the signed in user
 class LabelRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
     private val clock: Clock = Clock.systemUTC(),
 ) {
     fun page(
+        owner: String,
         offset: Long,
         limit: Int,
     ): List<Label> =
         database.dsl
             .selectFrom(LABELS)
-            .where(LABELS.DELETED_AT.isNull)
+            .where(LABELS.OWNER.eq(owner), LABELS.DELETED_AT.isNull)
             .orderBy(LABELS.NAME)
             .limit(limit)
             .offset(offset)
             .fetch()
             .map { it.toLabel() }
 
-    fun count(): Long =
+    fun count(owner: String): Long =
         database.dsl
-            .fetchCount(LABELS, LABELS.DELETED_AT.isNull)
+            .fetchCount(LABELS, LABELS.OWNER.eq(owner), LABELS.DELETED_AT.isNull)
             .toLong()
 
-    fun byId(id: Int): Label? =
+    fun byId(
+        owner: String,
+        id: Int,
+    ): Label? =
         database.dsl
             .selectFrom(LABELS)
-            .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
+            .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
             .fetchOne()
             ?.toLabel()
 
     // in no particular order, the notes sort the labels of each note themselves
-    fun byIds(ids: Collection<Int>): List<Label> =
+    fun byIds(
+        owner: String,
+        ids: Collection<Int>,
+    ): List<Label> =
         database.dsl
             .selectFrom(LABELS)
-            .where(LABELS.ID.`in`(ids), LABELS.DELETED_AT.isNull)
+            .where(LABELS.OWNER.eq(owner), LABELS.ID.`in`(ids), LABELS.DELETED_AT.isNull)
             .fetch()
             .map { it.toLabel() }
 
-    fun byNames(names: Collection<String>): List<Label> =
+    fun byNames(
+        owner: String,
+        names: Collection<String>,
+    ): List<Label> =
         database.dsl
             .selectFrom(LABELS)
-            .where(LABELS.NAME.`in`(names), LABELS.DELETED_AT.isNull)
+            .where(LABELS.OWNER.eq(owner), LABELS.NAME.`in`(names), LABELS.DELETED_AT.isNull)
             .orderBy(LABELS.NAME)
             .fetch()
             .map { it.toLabel() }
 
-    // null when a label of the name exists
-    fun insert(name: String): Label? =
+    // null when the owner has a label of the name
+    fun insert(
+        owner: String,
+        name: String,
+    ): Label? =
         try {
             val now = clock.instant()
             database.dsl
                 .insertInto(LABELS)
+                .set(LABELS.OWNER, owner)
                 .set(LABELS.NAME, name)
                 .set(LABELS.CREATED_AT, now)
                 .returning()
@@ -70,6 +84,7 @@ class LabelRepository(
         }
 
     fun rename(
+        owner: String,
         id: Int,
         name: String,
     ): LabelRename =
@@ -78,7 +93,7 @@ class LabelRepository(
                 .update(LABELS)
                 .set(LABELS.NAME, name)
                 .set(LABELS.UPDATED_AT, clock.instant())
-                .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
+                .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
                 .returning()
                 .fetchOne()
                 ?.let { LabelRename.Renamed(it.toLabel()) }
@@ -87,13 +102,16 @@ class LabelRepository(
             LabelRename.NameTaken
         }
 
-    // false when there was none
-    fun delete(id: Int): Boolean {
+    // false when the owner had none
+    fun delete(
+        owner: String,
+        id: Int,
+    ): Boolean {
         val now = clock.instant()
         return database.dsl
             .update(LABELS)
             .set(LABELS.DELETED_AT, now)
-            .where(LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
+            .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
             .execute() > 0
     }
 

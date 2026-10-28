@@ -4,6 +4,7 @@ import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.labels.model.LabelRequest
 import io.ktor.http.HttpStatusCode
+import io.pelle.sak.auth.sessionEmail
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.request.receive
@@ -43,19 +44,19 @@ suspend fun RoutingCall.idParameter(): Int? =
         null
     }
 
-// the labels every application attaches to its entities, meant to be mounted behind the
-// authentication
+// the labels of the signed in user, which every application attaches to its entities, meant to
+// be mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.labels(labelService: LabelService) {
     installApi()
 
     get {
         val page = call.pageRequest() ?: return@get
-        val labels = withContext(Dispatchers.IO) { labelService.page(page.offset, page.limit) }
+        val labels = withContext(Dispatchers.IO) { labelService.page(call.sessionEmail, page.offset, page.limit) }
         call.respond(page.of(labels.items.map { it.response() }, labels.total))
     }.describe {
         tag(LABELS_TAG)
-        summary = "The labels"
+        summary = "The labels of the signed in user"
         parameters { pagination() }
         responses {
             HttpStatusCode.OK {
@@ -68,7 +69,7 @@ fun Route.labels(labelService: LabelService) {
 
     post {
         val request = call.receive<LabelRequest>()
-        when (val result = withContext(Dispatchers.IO) { labelService.create(request.name) }) {
+        when (val result = withContext(Dispatchers.IO) { labelService.create(call.sessionEmail, request.name) }) {
             is CreateLabelResult.Created -> call.respond(HttpStatusCode.Created, result.label.response())
             CreateLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
             CreateLabelResult.Exists -> call.respondErrors(LABEL_EXISTS, status = HttpStatusCode.Conflict)
@@ -93,7 +94,7 @@ fun Route.labels(labelService: LabelService) {
 
     get("/{id}") {
         val id = call.idParameter() ?: return@get
-        val label = withContext(Dispatchers.IO) { labelService.byId(id) }
+        val label = withContext(Dispatchers.IO) { labelService.byId(call.sessionEmail, id) }
         if (label == null) call.respond(HttpStatusCode.NotFound) else call.respond(label.response())
     }.describe {
         tag(LABELS_TAG)
@@ -104,14 +105,14 @@ fun Route.labels(labelService: LabelService) {
                 description = "The label"
                 schema = jsonSchema<LabelResponse>()
             }
-            HttpStatusCode.NotFound { description = "There is no such label" }
+            HttpStatusCode.NotFound { description = "There is no such label of the signed in user" }
         }
     }
 
     put("/{id}") {
         val id = call.idParameter() ?: return@put
         val request = call.receive<LabelRequest>()
-        when (val result = withContext(Dispatchers.IO) { labelService.rename(id, request.name) }) {
+        when (val result = withContext(Dispatchers.IO) { labelService.rename(call.sessionEmail, id, request.name) }) {
             is RenameLabelResult.Renamed -> call.respond(result.label.response())
             RenameLabelResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             RenameLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
@@ -139,7 +140,7 @@ fun Route.labels(labelService: LabelService) {
 
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        when (withContext(Dispatchers.IO) { labelService.delete(id) }) {
+        when (withContext(Dispatchers.IO) { labelService.delete(call.sessionEmail, id) }) {
             DeleteLabelResult.Deleted -> call.respond(HttpStatusCode.NoContent)
             DeleteLabelResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }

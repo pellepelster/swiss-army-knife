@@ -57,7 +57,7 @@ class NoteServiceTest {
 
     @Test
     fun `creates notes with their labels, the unknown ones are created`() {
-        labels.create("home")
+        labels.create(PELLE, "home")
 
         val note = create("Call the plumber", "PINK", listOf("Todo", "home", "todo"))
         note.color shouldBe NoteColor.PINK
@@ -66,7 +66,7 @@ class NoteServiceTest {
         // a new note is not changed yet
         note.updatedAt shouldBe null
         service.byId(PELLE, note.id) shouldBe note
-        labels.page(0, 10).items.map { it.name } shouldBe listOf("home", "todo")
+        labels.page(PELLE, 0, 10).items.map { it.name } shouldBe listOf("home", "todo")
     }
 
     @Test
@@ -74,7 +74,7 @@ class NoteServiceTest {
         service.create(PELLE, "x".repeat(10_001), "purple", listOf("ok", " ")) shouldBe
             SaveNoteResult.Invalid(setOf(NoteProblem.TEXT_TOO_LONG, NoteProblem.INVALID_COLOR, NoteProblem.INVALID_LABEL))
         service.create(PELLE, "fine", "purple", listOf("ok")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_COLOR))
-        labels.byName("ok") shouldBe null
+        labels.byName(PELLE, "ok") shouldBe null
         create("x".repeat(10_000))
     }
 
@@ -83,7 +83,7 @@ class NoteServiceTest {
         val ten = (1..10).map { "label $it" }
         create("ten", labelNames = ten + "LABEL 1").labels.size shouldBe 10
         service.create(PELLE, "eleven", "yellow", ten + "label 11") shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_LABELS))
-        labels.byName("label 11") shouldBe null
+        labels.byName(PELLE, "label 11") shouldBe null
     }
 
     @Test
@@ -126,7 +126,7 @@ class NoteServiceTest {
         service.update(PELLE, 4711, "", "blue") shouldBe SaveNoteResult.NotFound
         // a note that is not there creates no label
         service.update(PELLE, 4711, "", "blue", listOf("ghost")) shouldBe SaveNoteResult.NotFound
-        labels.byName("ghost") shouldBe null
+        labels.byName(PELLE, "ghost") shouldBe null
     }
 
     @Test
@@ -209,13 +209,24 @@ class NoteServiceTest {
     @Test
     fun `a deleted label is dropped from the notes, a new one of its name is not attached`() {
         val note = create("plumber", labelNames = listOf("home", "todo"))
-        val home = labels.byName("home")!!
+        val home = labels.byName(PELLE, "home")!!
 
-        labels.delete(home.id)
+        labels.delete(PELLE, home.id)
         service.byId(PELLE, note.id)!!.labels.map { it.name } shouldBe listOf("todo")
-        labels.create("home")
+        labels.create(PELLE, "home")
         service.byId(PELLE, note.id)!!.labels.map { it.name } shouldBe listOf("todo")
         service.page(PELLE, 0, 10, "home").total shouldBe 0
+    }
+
+    @Test
+    fun `the labels of a note are the ones of its owner`() {
+        val mine = create("plumber", labelNames = listOf("home")).labels.single()
+        val others = create("tickets", labelNames = listOf("home"), owner = OTHER).labels.single()
+
+        others.id shouldBe mine.id + 1
+        labels.page(OTHER, 0, 10).items shouldBe listOf(others)
+        service.page(OTHER, 0, 10, "home").items.map { it.text } shouldBe listOf("tickets")
+        service.page(PELLE, 0, 10, "home").items.map { it.text } shouldBe listOf("plumber")
     }
 
     companion object {

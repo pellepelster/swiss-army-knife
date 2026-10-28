@@ -99,7 +99,7 @@ class NoteService(
     ): Slice<Note> {
         val labelId =
             label?.let { name ->
-                labels.byName(name)?.id ?: return Slice(emptyList(), 0)
+                labels.byName(owner, name)?.id ?: return Slice(emptyList(), 0)
             }
         return Slice(notes(owner, repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
     }
@@ -199,7 +199,7 @@ class NoteService(
         if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
         if (problems.isNotEmpty()) return Checked.Invalid(problems)
 
-        return Checked.Valid(noteColor!!, labels.resolve(names), distinctPhotos, distinctRecordings)
+        return Checked.Valid(noteColor!!, labels.resolve(owner, names), distinctPhotos, distinctRecordings)
     }
 
     // the labels and the files of all the notes are read at once, the files are told apart by their type
@@ -207,7 +207,7 @@ class NoteService(
         owner: String,
         rows: List<NoteRow>,
     ): List<Note> {
-        val byId = labels.byIds(rows.flatMap { it.labelIds }).associateBy { it.id }
+        val byId = labels.byIds(owner, rows.flatMap { it.labelIds }).associateBy { it.id }
         val stored = files.byIds(owner, rows.flatMap { it.fileIds })
         fun of(
             row: NoteRow,
