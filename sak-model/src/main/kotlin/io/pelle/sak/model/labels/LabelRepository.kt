@@ -38,11 +38,11 @@ class LabelRepository(
             .fetchOne()
             ?.toLabel()
 
+    // in no particular order, the notes sort the labels of each note themselves
     fun byIds(ids: Collection<Int>): List<Label> =
         database.dsl
             .selectFrom(LABELS)
             .where(LABELS.ID.`in`(ids), LABELS.DELETED_AT.isNull)
-            .orderBy(LABELS.NAME)
             .fetch()
             .map { it.toLabel() }
 
