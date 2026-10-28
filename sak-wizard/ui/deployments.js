@@ -1,6 +1,7 @@
 // the sak deployments found at the providers, each with the state of its resource group: the
-// ssh key, the firewall and the server, what is missing and what changed. Install is not
-// wired yet, back leads to the provider tokens
+// ssh key, the firewall and the server, what is missing and what changed. Create leads to a
+// new deployment, back to the provider tokens
+import { showCreate } from './create.js';
 import { show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -81,6 +82,7 @@ export async function showDeployments() {
   }
 }
 
+document.getElementById('deployments-create').addEventListener('click', showCreate);
 document.getElementById('deployments-back').addEventListener('click', async () => {
   const { showProviders } = await import('./providers.js');
   await showProviders();

@@ -23,6 +23,7 @@ base64 = "0.23.1"
 bollard = "0.21.1"
 futures-util = "0.3"
 sak-cloud = { path = "../cloud" }
+argon2 = "0.5.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

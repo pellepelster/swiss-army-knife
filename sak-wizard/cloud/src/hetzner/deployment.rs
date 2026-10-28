@@ -1,14 +1,21 @@
 //! the sak deployments of a cloud project: everything carrying the name label, grouped by
 //! its value, and the state of each against the resource group a deployment consists of
 
-use crate::api::{DiffStatus, Labels, LookupProviders, Provisioner, ResourceDiff, Result};
-use crate::hetzner::api::{HetznerApi, ListQuery};
-use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallRuntime};
+use crate::api::{
+    DiffStatus, Error, Labels, LookupProviders, Provisioner, Registry, Resource, ResourceDiff,
+    Result,
+};
+use crate::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
+use crate::hetzner::firewall::{
+    HetznerFirewall, HetznerFirewallRuntime, inbound_icmp, inbound_tcp,
+};
 use crate::hetzner::labels::HetznerLabels;
-use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
+use crate::hetzner::primary_ip::{
+    HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime,
+};
 use crate::hetzner::server::{HetznerServer, HetznerServerRuntime, UserData};
 use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyRuntime};
-use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
+use crate::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeRuntime};
 use crate::hetzner::{NAME_LABEL, USER_DATA_LABEL, is_managed_label};
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::Serialize;
@@ -293,6 +300,123 @@ fn missing(kind: ResourceKind, name: &str) -> ResourceState {
     }
 }
 
+/// the cloud-init a deployment's server is created with, until the install of sak is there
+pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
+
+/// a sak name: 1 to 63 lower case letters, digits and dashes, a letter or digit at both
+/// ends, what hetzner takes as a name and dns as a label
+pub fn check_name(name: &str) -> Result<()> {
+    let valid = !name.is_empty()
+        && name.len() <= 63
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && !name.starts_with('-')
+        && !name.ends_with('-');
+    if valid {
+        Ok(())
+    } else {
+        Err(Error::message(format!(
+            "'{name}' is no sak name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+        )))
+    }
+}
+
+/// what a deployment consists of, as the wizard creates it: an ssh key, a data volume, a
+/// primary ipv4 and ipv6, a firewall and the server made of them, every one labeled with
+/// the sak name
+#[derive(Clone, Debug)]
+pub struct DeploymentSpec {
+    pub name: String,
+    /// the public key the server is created with, `ssh-ed25519 ...`
+    pub public_key: String,
+    pub location: Location,
+    pub server_type: ServerType,
+    pub image: String,
+    pub data_volume_gb: u64,
+    pub user_data: String,
+}
+
+impl DeploymentSpec {
+    pub fn new(
+        name: &str,
+        public_key: &str,
+        location: Location,
+        server_type: ServerType,
+    ) -> Result<Self> {
+        check_name(name)?;
+        Ok(DeploymentSpec {
+            name: name.to_string(),
+            public_key: public_key.to_string(),
+            location,
+            server_type,
+            image: "debian-13".to_string(),
+            data_volume_gb: 16,
+            user_data: USER_DATA.to_string(),
+        })
+    }
+
+    /// the name label every resource carries
+    pub fn labels(&self) -> Labels {
+        Labels::from([(NAME_LABEL.to_string(), self.name.clone())])
+    }
+
+    pub fn ssh_key(&self) -> HetznerSshKey {
+        HetznerSshKey::new(&self.name, &self.public_key).with_labels(self.labels())
+    }
+
+    pub fn data_volume(&self) -> HetznerVolume {
+        HetznerVolume::new(
+            &format!("{}-data", self.name),
+            self.location,
+            self.data_volume_gb,
+        )
+        .with_labels(self.labels())
+    }
+
+    pub fn ipv4(&self) -> HetznerPrimaryIp {
+        HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.name), self.location)
+            .with_labels(self.labels())
+    }
+
+    pub fn ipv6(&self) -> HetznerPrimaryIp {
+        HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.name), self.location)
+            .with_labels(self.labels())
+    }
+
+    /// ssh, https and icmp from anywhere, applied to the servers of the deployment
+    pub fn firewall(&self) -> HetznerFirewall {
+        HetznerFirewall::new(
+            &self.name,
+            vec![inbound_tcp("22"), inbound_tcp("443"), inbound_icmp()],
+        )
+        .applied_to(self.labels())
+        .with_labels(self.labels())
+    }
+
+    pub fn server(&self) -> HetznerServer {
+        HetznerServer::new(&self.name, self.location, self.server_type, &self.user_data)
+            .with_image(&self.image)
+            .with_ssh_keys(vec![self.ssh_key().as_lookup()])
+            .with_volumes(vec![self.data_volume().as_lookup()])
+            .with_ipv4(self.ipv4().as_lookup())
+            .with_ipv6(self.ipv6().as_lookup())
+            .with_labels(self.labels())
+    }
+
+    /// the resource group in a registry of the provider, ready to diff and apply
+    pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
+        provider
+            .registry()
+            .with(self.ssh_key())?
+            .with(self.data_volume())?
+            .with(self.ipv4())?
+            .with(self.ipv6())?
+            .with(self.firewall())?
+            .with(self.server())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,5 +567,62 @@ mod tests {
             json!("changed")
         );
         let _ = sha256_hex;
+    }
+
+    #[test]
+    fn a_sak_name_is_a_lower_case_hostname_label() {
+        assert!(check_name("alpha-1").is_ok());
+        for name in [
+            "",
+            "Alpha",
+            "-alpha",
+            "alpha-",
+            "al pha",
+            "a_b",
+            &"a".repeat(64),
+        ] {
+            assert!(check_name(name).is_err(), "{name}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_spec_plans_six_labeled_resources_in_dependency_order() {
+        let (_server, api) = mock_api_all(&[
+            ("servers", vec![]),
+            ("ssh_keys", vec![]),
+            ("firewalls", vec![]),
+            ("volumes", vec![]),
+            ("primary_ips", vec![]),
+        ])
+        .await;
+        let provider =
+            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let spec = DeploymentSpec::new(
+            "alpha",
+            "ssh-ed25519 AAAA",
+            Location::hel1,
+            ServerType::cx23,
+        )
+        .unwrap();
+        assert_eq!(spec.server().labels[NAME_LABEL], "alpha");
+        assert_eq!(spec.data_volume().name, "alpha-data");
+
+        let diffs = spec.registry(&provider).unwrap().diff_all().await.unwrap();
+
+        let planned: Vec<(String, DiffStatus)> = diffs
+            .iter()
+            .map(|diff| (diff.resource.log_text.clone(), diff.status))
+            .collect();
+        assert_eq!(
+            planned,
+            vec![
+                ("ssh key 'alpha'".to_string(), DiffStatus::Missing),
+                ("volume 'alpha-data'".to_string(), DiffStatus::Missing),
+                ("primary ip 'alpha-ipv4'".to_string(), DiffStatus::Missing),
+                ("primary ip 'alpha-ipv6'".to_string(), DiffStatus::Missing),
+                ("firewall 'alpha'".to_string(), DiffStatus::Missing),
+                ("server 'alpha'".to_string(), DiffStatus::ParentMissing),
+            ]
+        );
     }
 }

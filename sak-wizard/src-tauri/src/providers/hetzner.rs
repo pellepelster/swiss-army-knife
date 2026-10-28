@@ -1,5 +1,3 @@
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::SigningKey;
 use reqwest::{Client, Response, StatusCode};
 use rust_i18n::t;
@@ -113,12 +111,7 @@ async fn error_message(response: Response) -> String {
 // a fresh key every time, its private half is thrown away
 fn public_key() -> Result<String, String> {
     let key = SigningKey::from_bytes(&random::<32>()?).verifying_key();
-    let mut blob = Vec::new();
-    for part in [b"ssh-ed25519".as_slice(), key.as_bytes()] {
-        blob.extend_from_slice(&(part.len() as u32).to_be_bytes());
-        blob.extend_from_slice(part);
-    }
-    Ok(format!("ssh-ed25519 {} sak-wizard", STANDARD.encode(blob)))
+    Ok(crate::keys::encode_public_key(&key, "sak-wizard"))
 }
 
 fn random<const N: usize>() -> Result<[u8; N], String> {
@@ -134,6 +127,8 @@ fn hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 

@@ -8,6 +8,7 @@ mod checks;
 mod container;
 mod deployments;
 mod i18n;
+mod keys;
 mod providers;
 
 fn main() {
@@ -24,7 +25,8 @@ fn main() {
             providers::list_provider_types,
             providers::list_provider_tokens,
             providers::add_provider_token,
-            deployments::list_deployments
+            deployments::list_deployments,
+            deployments::plan_deployment
         ])
         .run(tauri::generate_context!())
         .expect("sak-wizard failed to start");

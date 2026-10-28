@@ -31,6 +31,10 @@ providers:
     refused: "The Hetzner Cloud API refused the token: %{error}"
     not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
 deployments:
+  invalid_name: "A name is 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit."
+  short_password: "The password needs at least %{min} characters."
+  no_provider: "No provider token to create the deployment at."
+  name_taken: "A deployment named %{name} exists already."
   failed: "The deployments at %{provider} could not be listed: %{error}"
 ui:
   providers:
@@ -48,7 +52,7 @@ ui:
   back: "Back"
   deployments:
     title: "Deployments"
-    install: "Install"
+    create: "Create"
     loading: "Looking for deployments at the providers…"
     empty: "No deployment found. Install one with the button at the top."
     status:
@@ -60,3 +64,22 @@ ui:
       firewall: "firewall"
       server: "server"
     missing: "missing"
+  create:
+    title: "New deployment"
+    name: "Name"
+    name_hint: "Lower case letters, digits and dashes; the name of every resource of the deployment."
+    password: "Password"
+    password_hint: "At least 16 characters. The ssh key of the deployment is derived from the name and the password, the same name and password give the same key again."
+    plan: "Plan"
+    planning: "Planning, the resources are compared with the project…"
+  plan:
+    title: "Plan"
+    intro: "Creating the deployment"
+    key: "ssh key"
+    apply: "Create"
+    missing: "will be created"
+    parent_missing: "will be created"
+    up_to_date: "exists as planned"
+    has_changes: "will be changed"
+    recreate: "will be created anew"
+    duplicate: "exists under another name"

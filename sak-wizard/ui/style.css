@@ -351,6 +351,11 @@ body {
   color: var(--muted);
 }
 
+.plan-key {
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .resource-name {
   font-weight: 600;
 }

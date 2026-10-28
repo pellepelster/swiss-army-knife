@@ -1,0 +1,85 @@
+// a new deployment: its name and password, from which rust derives the ssh key and plans the
+// resources; the plan lists what creating it would do. Apply is not wired yet
+import { show, text } from './views.js';
+
+const { invoke } = window.__TAURI__.core;
+
+const form = document.getElementById('create-form');
+const nameInput = document.getElementById('create-name');
+const passwordInput = document.getElementById('create-password');
+const status = document.getElementById('create-status');
+const planList = document.getElementById('plan-resources');
+
+const MARKS = { missing: '+', parent_missing: '+', up_to_date: '✓', has_changes: '~', duplicate: '✗' };
+
+function planned({ resource, status: state, recreate, changes }) {
+  const item = document.createElement('li');
+  item.className = 'resource';
+  item.dataset.status = state;
+  const mark = document.createElement('span');
+  mark.className = 'resource-state';
+  mark.setAttribute('aria-hidden', 'true');
+  mark.textContent = MARKS[state] ?? '?';
+  const name = document.createElement('span');
+  name.className = 'resource-name';
+  name.textContent = resource;
+  const detail = document.createElement('span');
+  detail.className = 'resource-detail';
+  detail.textContent = text(`ui.plan.${recreate ? 'recreate' : state}`);
+  item.append(mark, name, detail);
+  for (const change of changes) {
+    const line = document.createElement('span');
+    line.className = 'resource-change';
+    line.textContent = change;
+    item.append(line);
+  }
+  return item;
+}
+
+function setStatus(message, failed = false) {
+  status.textContent = message;
+  status.classList.toggle('status-failed', failed);
+}
+
+function setBusy(busy) {
+  for (const element of form.elements) {
+    element.disabled = busy;
+  }
+}
+
+export function showCreate() {
+  setStatus('');
+  show('view-create');
+  nameInput.focus();
+}
+
+function showPlan(plan) {
+  document.getElementById('plan-name').textContent = plan.name;
+  document.getElementById('plan-key').textContent = plan.publicKey;
+  planList.replaceChildren(...plan.resources.map(planned));
+  show('view-plan');
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setBusy(true);
+  setStatus(text('ui.create.planning'));
+  try {
+    const plan = await invoke('plan_deployment', { name: nameInput.value, password: passwordInput.value });
+    setStatus('');
+    showPlan(plan);
+  } catch (error) {
+    setStatus(String(error), true);
+  } finally {
+    setBusy(false);
+  }
+});
+
+async function backToDeployments() {
+  const { showDeployments } = await import('./deployments.js');
+  await showDeployments();
+}
+
+document.getElementById('create-cancel').addEventListener('click', backToDeployments);
+document.getElementById('plan-back').addEventListener('click', showCreate);
+document.getElementById('plan-cancel').addEventListener('click', backToDeployments);
