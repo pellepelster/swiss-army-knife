@@ -285,8 +285,14 @@ async fn deploy(
             _ if resource.recreate => "recreate".to_string(),
             _ => key(&resource.status),
         };
+        // what a destroy takes away is worth a second look
+        let level = if what == "will_destroy" {
+            Level::Warn
+        } else {
+            Level::Info
+        };
         log(
-            Level::Info,
+            level,
             format!("{} {}", resource.resource, t!(format!("ui.plan.{what}"))),
         );
         for change in &resource.changes {
