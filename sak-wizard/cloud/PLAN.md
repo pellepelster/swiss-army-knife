@@ -141,16 +141,16 @@ Design decisions that differ from Kotlin, and why:
 
 * ssh key: fingerprint (recreate), labels; `Duplicate` when another key has the fingerprint
 * volume: delete protection, labels (size and location are immutable; a difference is an error, not a diff item, as in blcks)
-* primary ip: type ipv4/ipv6 (recreate), datacenter (recreate), delete protection,
+* primary ip: type ipv4/ipv6 (recreate), location (recreate), delete protection,
   `auto_delete` (always false, so the address outlives its server), labels. Created
-  unassigned with `assignee_type = server` and a `datacenter`; the server picks it up.
+  unassigned in a location (the api of blcks' days took a datacenter, today's takes a
+  location and knows no datacenters anymore); the server picks it up.
 * firewall: rules as sets, applied-to label selector, labels
 * server: image (recreate), type (recreate), location (recreate), volumes by name
   (recreate), ssh key fingerprint hash label (recreate), user data hash label (recreate),
   primary ipv4/ipv6 by id against `public_net.ipv4.id` / `public_net.ipv6.id`, labels
   (the `sshKeys`/`userData` label prefixes are ignored by the label diff). A server with
-  a primary ip must live in that ip's datacenter; the resource takes the datacenter from
-  the ip when one is given, a location is only used without one.
+  a primary ip must live in that ip's location.
 
 Apply is idempotent: lookup, create when missing, then update labels / protection / rules /
 assignments, then lookup again and return the runtime. A server is created with
@@ -192,7 +192,7 @@ it after `wizard:test`, without a token.
 1. Scaffold the crate, `api` module, `hetzner::labels`, `diff::label_diff`, unit tests. (~400 lines) — done
 2. `hetzner::api`: client, models, the five resource apis, actions, wiremock tests. (~900 lines) — done
 3. ssh key resource + provisioner, the first integration test; this sets the pattern. (~250) — done
-4. volume and primary ip. (~400)
+4. volume and primary ip. (~400) — done
 5. firewall. (~250)
 6. server with cloud-init and ssh key hash labels, volumes, primary ips in `public_net`
    and the power-off/assign/power-on path for an existing server. (~500)

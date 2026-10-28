@@ -48,7 +48,6 @@ pub struct Server {
     /// no name for a deleted image
     pub image: Option<Named<Option<String>>>,
     pub location: Named<Location>,
-    pub datacenter: Named<String>,
     pub protection: Protection,
     /// the ids of the attached volumes
     #[serde(default)]
@@ -88,11 +87,8 @@ pub struct ServerCreate {
     pub name: String,
     pub server_type: ServerType,
     pub image: String,
-    /// one of location and datacenter; a primary ip binds the server to its datacenter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub datacenter: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ssh_keys: Vec<u64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]

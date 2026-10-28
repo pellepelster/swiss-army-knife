@@ -364,7 +364,7 @@ async fn a_server_is_created_with_its_primary_ips_and_user_data() {
             "server": {
                 "id": 1, "name": "backend", "status": "initializing",
                 "server_type": { "id": 1, "name": "cx23" }, "image": { "id": 2, "name": "debian-13" },
-                "location": { "id": 3, "name": "nbg1" }, "datacenter": { "id": 4, "name": "nbg1-dc3" },
+                "location": { "id": 3, "name": "nbg1" },
                 "protection": { "delete": false, "rebuild": false }, "volumes": [3],
                 "public_net": { "ipv4": { "id": 11, "ip": "1.2.3.4" }, "ipv6": { "id": 12, "ip": "2001:db8::/64" } },
                 "private_net": [], "labels": {}
@@ -380,7 +380,6 @@ async fn a_server_is_created_with_its_primary_ips_and_user_data() {
         server_type: ServerType::cx23,
         image: "debian-13".to_string(),
         location: Some(Location::nbg1),
-        datacenter: None,
         ssh_keys: vec![7],
         volumes: vec![3],
         firewalls: vec![],
@@ -404,20 +403,20 @@ async fn a_server_is_created_with_its_primary_ips_and_user_data() {
 }
 
 #[tokio::test]
-async fn a_primary_ip_is_created_unassigned_in_a_datacenter() {
+async fn a_primary_ip_is_created_unassigned_in_a_location() {
     let server = MockServer::start().await;
     let no_assignee = |request: &Request| {
         let body: Value = serde_json::from_slice(&request.body).unwrap_or_default();
-        body.get("assignee_id").is_none()
+        body.get("assignee_id").is_none() && body.get("assignee_type").is_none()
     };
     Mock::given(method("POST"))
         .and(path("/primary_ips"))
-        .and(body_partial_json(json!({ "name": "backend", "type": "ipv4", "assignee_type": "server", "datacenter": "nbg1-dc3", "auto_delete": false })))
+        .and(body_partial_json(json!({ "name": "backend", "type": "ipv4", "location": "nbg1", "auto_delete": false })))
         .and(no_assignee)
         .respond_with(ResponseTemplate::new(201).set_body_json(json!({
             "primary_ip": {
-                "id": 11, "name": "backend", "ip": "1.2.3.4", "type": "ipv4", "assignee_id": null, "assignee_type": "server",
-                "auto_delete": false, "protection": { "delete": false }, "datacenter": { "id": 4, "name": "nbg1-dc3" }, "labels": {}
+                "id": 11, "name": "backend", "ip": "1.2.3.4", "type": "ipv4", "assignee_id": null, "assignee_type": "unassigned",
+                "auto_delete": false, "protection": { "delete": false }, "location": { "id": 3, "name": "nbg1" }, "labels": {}
             },
             "action": null
         })))
@@ -428,16 +427,20 @@ async fn a_primary_ip_is_created_unassigned_in_a_datacenter() {
     let request = PrimaryIpCreate {
         name: "backend".to_string(),
         ip_type: PrimaryIpType::Ipv4,
-        assignee_type: AssigneeType::Server,
+        assignee_type: None,
         assignee_id: None,
-        datacenter: Some("nbg1-dc3".to_string()),
+        location: Some(Location::nbg1),
         auto_delete: false,
         labels: None,
     };
     let created = api(&server).primary_ips().create(&request).await.unwrap();
 
     assert_eq!(created.primary_ip.ip, "1.2.3.4");
-    assert_eq!(created.primary_ip.datacenter.name, "nbg1-dc3");
+    assert_eq!(created.primary_ip.location.name, Location::nbg1);
+    assert_eq!(
+        created.primary_ip.assignee_type,
+        Some(AssigneeType::Unassigned)
+    );
     assert!(created.primary_ip.assignee_id.is_none());
     assert!(created.action.is_none());
 }

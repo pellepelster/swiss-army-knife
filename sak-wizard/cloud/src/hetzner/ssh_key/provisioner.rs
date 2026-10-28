@@ -150,12 +150,9 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{DiffStatus, Labels, LookupProviders};
-    use crate::hetzner::api::Backoff;
+    use crate::api::{DiffStatus, LookupProviders};
+    use crate::hetzner::test_support::{labels, mock_api};
     use serde_json::{Value, json};
-    use std::time::Duration;
-    use wiremock::matchers::{method, path, query_param};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     pub const PUBLIC_KEY: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE+u0dEVRZDzzp4E1teCqF49r8ig3YEk8eaPqNWfDcPb pelle@fry";
     pub const FINGERPRINT: &str = "99:fc:9b:f4:04:69:2c:9d:30:d5:2c:d9:1e:ca:b2:76";
@@ -175,53 +172,16 @@ mod tests {
         json!({ "id": 7, "name": name, "fingerprint": fingerprint, "public_key": PUBLIC_KEY, "labels": labels })
     }
 
-    fn page(keys: Vec<Value>) -> Value {
-        json!({ "ssh_keys": keys, "meta": { "pagination": { "page": 1, "per_page": 50, "next_page": null, "total_entries": keys.len() } } })
-    }
-
-    /// a mock listing `keys`, the name filter is honored
-    async fn api_with(keys: Vec<Value>) -> (MockServer, HetznerSshKeyProvisioner) {
-        let server = MockServer::start().await;
-        for key in &keys {
-            Mock::given(method("GET"))
-                .and(path("/ssh_keys"))
-                .and(query_param("name", key["name"].as_str().unwrap()))
-                .respond_with(ResponseTemplate::new(200).set_body_json(page(vec![key.clone()])))
-                .mount(&server)
-                .await;
-        }
-        // any other name finds nothing, a list without a name filter everything
-        let any_name =
-            |request: &wiremock::Request| request.url.query_pairs().any(|(key, _)| key == "name");
-        Mock::given(method("GET"))
-            .and(path("/ssh_keys"))
-            .and(any_name)
-            .respond_with(ResponseTemplate::new(200).set_body_json(page(vec![])))
-            .mount(&server)
-            .await;
-        Mock::given(method("GET"))
-            .and(path("/ssh_keys"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(page(keys)))
-            .mount(&server)
-            .await;
-        let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(Backoff::new(
-            1,
-            Duration::ZERO,
-            Duration::ZERO,
-        ));
-        (server, HetznerSshKeyProvisioner::new(Arc::new(api)))
-    }
-
-    fn labels(pairs: &[(&str, &str)]) -> Labels {
-        pairs
-            .iter()
-            .map(|(key, value)| (key.to_string(), value.to_string()))
-            .collect()
+    async fn provisioner_with(
+        keys: Vec<Value>,
+    ) -> (wiremock::MockServer, HetznerSshKeyProvisioner) {
+        let (server, api) = mock_api("ssh_keys", keys).await;
+        (server, HetznerSshKeyProvisioner::new(api))
     }
 
     #[tokio::test]
     async fn diff_of_a_missing_key() {
-        let (_server, provisioner) = api_with(vec![]).await;
+        let (_server, provisioner) = provisioner_with(vec![]).await;
 
         let diff = provisioner
             .diff(
@@ -238,7 +198,7 @@ mod tests {
     #[tokio::test]
     async fn diff_of_an_up_to_date_key() {
         let (_server, provisioner) =
-            api_with(vec![key("admin", FINGERPRINT, json!({ "app": "sak" }))]).await;
+            provisioner_with(vec![key("admin", FINGERPRINT, json!({ "app": "sak" }))]).await;
         let resource =
             HetznerSshKey::new("admin", PUBLIC_KEY).with_labels(labels(&[("app", "sak")]));
 
@@ -253,7 +213,7 @@ mod tests {
     #[tokio::test]
     async fn a_changed_key_needs_a_recreate_a_changed_label_does_not() {
         let (_server, provisioner) =
-            api_with(vec![key("admin", "aa:bb", json!({ "app": "old" }))]).await;
+            provisioner_with(vec![key("admin", "aa:bb", json!({ "app": "old" }))]).await;
         let resource =
             HetznerSshKey::new("admin", PUBLIC_KEY).with_labels(labels(&[("app", "sak")]));
 
@@ -275,7 +235,8 @@ mod tests {
 
     #[tokio::test]
     async fn the_same_key_under_another_name_is_a_duplicate() {
-        let (_server, provisioner) = api_with(vec![key("old-name", FINGERPRINT, json!({}))]).await;
+        let (_server, provisioner) =
+            provisioner_with(vec![key("old-name", FINGERPRINT, json!({}))]).await;
 
         let diff = provisioner
             .diff(

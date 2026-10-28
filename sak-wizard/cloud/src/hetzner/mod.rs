@@ -2,7 +2,12 @@
 
 pub mod api;
 pub mod labels;
+pub mod primary_ip;
 pub mod ssh_key;
+pub mod volume;
+
+#[cfg(test)]
+pub(crate) mod test_support;
 
 use crate::api::{DiffItem, Labeled, label_diff};
 

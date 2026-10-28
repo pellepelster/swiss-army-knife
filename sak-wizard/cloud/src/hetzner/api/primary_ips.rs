@@ -1,6 +1,7 @@
 use crate::api::Labels;
 use crate::hetzner::api::model::{
-    Action, ActionResponse, ChangeProtectionRequest, ListQuery, Named, Protection, list_page,
+    Action, ActionResponse, ChangeProtectionRequest, ListQuery, Location, Named, Protection,
+    list_page,
 };
 use crate::hetzner::api::{HetznerApi, NO_BODY, Result};
 use serde::{Deserialize, Serialize};
@@ -22,11 +23,13 @@ impl fmt::Display for PrimaryIpType {
     }
 }
 
-/// a primary ip is only ever assigned to a server
+/// a primary ip is only ever assigned to a server; `Unassigned` is what the api reports
+/// for one that is not
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AssigneeType {
     Server,
+    Unassigned,
 }
 
 /// the public address of a server; with `auto_delete` false it outlives the server, a
@@ -43,8 +46,8 @@ pub struct PrimaryIp {
     pub assignee_type: Option<AssigneeType>,
     pub auto_delete: bool,
     pub protection: Protection,
-    /// a primary ip belongs to a datacenter, `nbg1-dc3`, not only to a location
-    pub datacenter: Named<String>,
+    /// a server using the ip must be created in its location
+    pub location: Named<Location>,
     #[serde(default)]
     pub labels: Labels,
 }
@@ -54,13 +57,14 @@ pub struct PrimaryIpCreate {
     pub name: String,
     #[serde(rename = "type")]
     pub ip_type: PrimaryIpType,
-    pub assignee_type: AssigneeType,
-    /// created assigned to this server, in its datacenter
+    /// with `assignee_id`: created assigned to that server, in its location
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee_type: Option<AssigneeType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_id: Option<u64>,
-    /// created unassigned in this datacenter, one of `assignee_id` and `datacenter` is set
+    /// created unassigned in this location, one of `assignee_id` and `location` is set
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub datacenter: Option<String>,
+    pub location: Option<Location>,
     pub auto_delete: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Labels>,
