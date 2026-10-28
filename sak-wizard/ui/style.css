@@ -180,6 +180,24 @@ body {
   font-size: 1rem;
 }
 
+/* the card header is the button that opens the deployment */
+.deployment-open {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+
+.deployment-open:hover,
+.deployment-open:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--sak-accent) 12%, var(--sak-raised));
+}
+
 /* the state of the deployment, the led pill at the right end of the card header */
 .deployment-status {
   margin-left: auto;

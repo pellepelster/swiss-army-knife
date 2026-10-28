@@ -1,7 +1,8 @@
 // the sak deployments found at the providers, each with the state of its resource group: the
-// ssh key, the firewall and the server, what is missing and what changed. Create leads to a
-// new deployment, back to the provider tokens
+// ssh key, the firewall and the server, what is missing and what changed. A deployment opens
+// its page, create leads to a new deployment, back to the provider tokens
 import { showCreate } from './create.js';
+import { showDeployment } from './deployment.js';
 import { show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -10,11 +11,11 @@ const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
 // the state of a deployment as the led pill shows it, the diff status of a resource as its led
-const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
+export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
-function resource(state) {
+export function resource(state) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state.status;
@@ -42,12 +43,16 @@ function resource(state) {
   return item;
 }
 
-function deployment({ provider, name, status: state, resources }) {
+function deployment(data) {
+  const { provider, name, status: state, resources } = data;
   const item = document.createElement('li');
   item.className = 'card deployment';
   item.dataset.status = state;
-  const header = document.createElement('div');
-  header.className = 'card-header deployment-header provider';
+  // the header opens the deployment
+  const header = document.createElement('button');
+  header.type = 'button';
+  header.className = 'card-header deployment-header deployment-open provider';
+  header.addEventListener('click', () => showDeployment(data));
   const logo = document.createElement('img');
   logo.className = 'provider-logo';
   logo.src = provider.logo;

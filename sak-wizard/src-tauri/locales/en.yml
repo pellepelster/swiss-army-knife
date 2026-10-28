@@ -36,6 +36,8 @@ deployments:
   password_mismatch: "The passwords do not match."
   plan_failed: "The deployment could not be planned at %{provider}: %{error}"
   create_failed: "The deployment could not be created at %{provider}: %{error}"
+  not_found: "There is no deployment named %{name}."
+  wrong_password: "The password is not the one of the deployment %{name}."
   no_provider: "No provider token to create the deployment at."
   name_taken: "A deployment named %{name} exists already."
   failed: "The deployments at %{provider} could not be listed: %{error}"
@@ -67,7 +69,12 @@ ui:
       firewall: "firewall"
       server: "server"
     missing: "missing"
+  deployment:
+    redeploy: "Redeploy"
+    location: "Location"
   create:
+    title_redeploy: "Redeploy the deployment"
+    password_hint_redeploy: "The password the deployment was created with."
     title: "New deployment"
     name: "Name"
     name_hint: "Lower case letters, digits and dashes; the name of every resource of the deployment."
@@ -81,6 +88,9 @@ ui:
     planning: "Planning, the resources are compared with the project…"
   plan:
     title: "Plan"
+    intro_redeploy: "Redeploy the SwissArmyKnife deployment"
+    redeploy: "Redeploy"
+    redeploying: "Redeploying, a server that must change is created anew, its data volume and addresses stay…"
     intro: "Create the SwissArmyKnife deployment"
     creating: "Creating the deployment, this takes a few minutes…"
     working: "creating…"

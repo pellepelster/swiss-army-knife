@@ -1,6 +1,8 @@
 // a new deployment: its name and password, from which rust derives the ssh key and plans the
 // resources; the plan lists what creating it would do and, on create, lights each resource up
-// as rust creates it, then the deployments show the new one
+// as rust creates it, then the deployments show the new one. A redeploy is the same for a
+// deployment that exists: its name and location are given, the password is the one it was
+// created with, and a server that must change is created anew
 import { show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
@@ -10,6 +12,21 @@ const nameInput = document.getElementById('create-name');
 const passwordInput = document.getElementById('create-password');
 const repeatInput = document.getElementById('create-password-repeat');
 const locationInput = document.getElementById('create-location');
+const repeatGroup = document.getElementById('create-repeat-group');
+const planApplyIcon = document.getElementById('plan-apply-icon');
+// the deployment redeployed, none for a new one
+let redeploy = null;
+
+// what the form holds, as rust takes it to plan or create
+function newDeployment() {
+  return {
+    name: nameInput.value,
+    password: passwordInput.value,
+    passwordRepeat: redeploy ? passwordInput.value : repeatInput.value,
+    location: locationInput.value,
+    intent: redeploy ? 'redeploy' : 'create',
+  };
+}
 const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 const planList = document.getElementById('plan-resources');
@@ -56,9 +73,10 @@ function setBusy(busy) {
   }
 }
 
-// the password typed twice: the second field is marked until both match, rust checks it again
+// the password typed twice: the second field is marked until both match, rust checks it again;
+// a redeploy checks it against the deployment instead
 function passwordsMatch() {
-  const match = passwordInput.value === repeatInput.value;
+  const match = redeploy ? true : passwordInput.value === repeatInput.value;
   repeatInput.classList.toggle('is-invalid', !match);
   return match;
 }
@@ -99,10 +117,24 @@ async function prefill() {
   }
 }
 
-export async function showCreate() {
+export async function showCreate(options = {}) {
+  redeploy = options.redeploy ?? null;
   setStatus('');
   repeatInput.classList.remove('is-invalid');
-  await prefill();
+  document.getElementById('create-title').textContent = text(redeploy ? 'ui.create.title_redeploy' : 'ui.create.title');
+  document.getElementById('create-password-hint').textContent = text(
+    redeploy ? 'ui.create.password_hint_redeploy' : 'ui.create.password_hint',
+  );
+  repeatGroup.hidden = Boolean(redeploy);
+  repeatInput.required = !redeploy;
+  nameInput.readOnly = Boolean(redeploy);
+  locationInput.disabled = Boolean(redeploy);
+  if (redeploy) {
+    nameInput.value = redeploy.name;
+    await loadLocations(redeploy.location);
+  } else {
+    await prefill();
+  }
   show('view-create');
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
@@ -114,6 +146,9 @@ function setPlanStatus(message, failed = false) {
 
 function showPlan(plan) {
   document.getElementById('plan-name').textContent = plan.name;
+  document.getElementById('plan-intro').textContent = text(redeploy ? 'ui.plan.intro_redeploy' : 'ui.plan.intro');
+  document.getElementById('plan-apply-text').textContent = text(redeploy ? 'ui.plan.redeploy' : 'ui.plan.apply');
+  planApplyIcon.hidden = Boolean(redeploy);
   rows.clear();
   planList.replaceChildren(
     ...plan.resources.map((state) => {
@@ -147,17 +182,11 @@ document.getElementById('plan-apply').addEventListener('click', async () => {
   for (const button of planButtons) {
     button.disabled = true;
   }
-  setPlanStatus(text('ui.plan.creating'));
+  setPlanStatus(text(redeploy ? 'ui.plan.redeploying' : 'ui.plan.creating'));
   const onEvent = new Channel();
   onEvent.onmessage = onCreateEvent;
   try {
-    await invoke('create_deployment', {
-      name: nameInput.value,
-      password: passwordInput.value,
-      passwordRepeat: repeatInput.value,
-      location: locationInput.value,
-      onEvent,
-    });
+    await invoke('create_deployment', { deployment: newDeployment(), onEvent });
     await backToDeployments();
   } catch (error) {
     setPlanStatus(String(error), true);
@@ -178,12 +207,7 @@ form.addEventListener('submit', async (event) => {
   setBusy(true);
   setStatus(text('ui.create.planning'));
   try {
-    const plan = await invoke('plan_deployment', {
-      name: nameInput.value,
-      password: passwordInput.value,
-      passwordRepeat: repeatInput.value,
-      location: locationInput.value,
-    });
+    const plan = await invoke('plan_deployment', { deployment: newDeployment() });
     setStatus('');
     showPlan(plan);
   } catch (error) {
@@ -197,6 +221,11 @@ form.addEventListener('submit', async (event) => {
 async function backToDeployments() {
   form.reset();
   repeatInput.classList.remove('is-invalid');
+  nameInput.readOnly = false;
+  locationInput.disabled = false;
+  repeatGroup.hidden = false;
+  repeatInput.required = true;
+  redeploy = null;
   setStatus('');
   const { showDeployments } = await import('./deployments.js');
   await showDeployments();

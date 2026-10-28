@@ -100,6 +100,10 @@
   Buttons moving through the wizard (next, back, cancel, plan, the final create) sit in the button
   group at the bottom right (`.page-footer`), buttons acting on the data of the view (add a
   provider, create a deployment) in the one at the top right of the page header.
+- A deployment in the list opens its page (its state, location and resources); what acts on it
+  (redeploy) sits at the top right there. A redeploy runs the plan and the apply of a create for
+  a deployment that exists, after its password was checked against the hash on its server, and
+  may create its server anew; the data volume and the addresses stay.
 - The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
   `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
   layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The

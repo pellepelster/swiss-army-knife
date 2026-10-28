@@ -5,12 +5,15 @@
 use crate::providers::{ProviderTokens, ProviderType, ProviderTypeResponse};
 use rust_i18n::t;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
+use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
-    DeploymentSpec, DeploymentState, DeploymentStatus, ResourceState, check_name, discover, state,
+    DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, ResourceState,
+    check_name, discover, state,
 };
+use sak_cloud::hetzner::labels::HetznerLabels;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
 use tauri::ipc::Channel;
@@ -21,6 +24,7 @@ pub struct DeploymentResponse {
     provider: ProviderTypeResponse,
     name: String,
     status: DeploymentStatus,
+    location: Option<Location>,
     resources: Vec<ResourceState>,
 }
 
@@ -30,6 +34,7 @@ impl DeploymentResponse {
             provider: provider.response(),
             name: state.name,
             status: state.status,
+            location: state.location,
             resources: state.resources,
         }
     }
@@ -129,11 +134,57 @@ fn variable(name: &str) -> Option<String> {
 /// the password of a deployment, the ssh key is derived from it
 const MIN_PASSWORD_CHARS: usize = 16;
 
-/// a new deployment checked and ready: where it goes and what it consists of
+/// what a plan or an apply is for: a deployment that does not exist yet, or one that does
+/// and is brought to what the wizard declares, its server created anew when it must be
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Intent {
+    Create,
+    Redeploy,
+}
+
+/// what the page sends for a deployment to plan or create
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewDeployment {
+    pub name: String,
+    pub password: String,
+    pub password_repeat: String,
+    pub location: Location,
+    pub intent: Intent,
+}
+
+/// a deployment checked and ready: where it goes, what it consists of, whether a resource
+/// may be created anew
 struct Prepared {
     provider: ProviderType,
     runtime: HetznerProviderRuntime,
     spec: DeploymentSpec,
+    recreate: bool,
+}
+
+/// the password of an existing deployment, against the hash on its server or, without a
+/// server, against the key derived from it
+fn verify_password(
+    deployment: &DiscoveredDeployment,
+    name: &str,
+    password: &str,
+) -> Result<(), String> {
+    let wrong = || t!("deployments.wrong_password", name = name).to_string();
+    if let Some(server) = &deployment.server {
+        let labels = HetznerLabels::from_raw(server.labels.clone()).labels();
+        let hash = crate::keys::password_hash(name, password)?;
+        if labels.get(PASSWORD_HASH_LABEL) != Some(&hash) {
+            return Err(wrong());
+        }
+    } else if let Some(key) = &deployment.ssh_key {
+        let derived = crate::keys::derive_public_key(name, password)?;
+        // the blob alone, hetzner may keep the key without its comment
+        if key.public_key.split_whitespace().nth(1) != derived.split_whitespace().nth(1) {
+            return Err(wrong());
+        }
+    }
+    Ok(())
 }
 
 fn failed(provider: ProviderType, error: impl ToString) -> String {
@@ -189,11 +240,16 @@ impl DeploymentManager {
     async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        name: &str,
-        password: &str,
-        password_repeat: &str,
-        location: Location,
+        deployment: &NewDeployment,
     ) -> Result<Prepared, String> {
+        let NewDeployment {
+            name,
+            password,
+            password_repeat,
+            location,
+            intent,
+        } = deployment;
+        let (location, intent) = (*location, *intent);
         let name = name.trim();
         check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
@@ -211,10 +267,30 @@ impl DeploymentManager {
         let api = Arc::new(HetznerApi::new(&token));
         let existing = discover(&api)
             .await
-            .map_err(|error| failed(provider, error))?;
-        if existing.iter().any(|deployment| deployment.name == name) {
-            return Err(t!("deployments.name_taken", name = name).to_string());
-        }
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name);
+        let (location, recreate) = match intent {
+            Intent::Create => {
+                if existing.is_some() {
+                    return Err(t!("deployments.name_taken", name = name).to_string());
+                }
+                (location, false)
+            }
+            Intent::Redeploy => {
+                let Some(existing) = existing else {
+                    return Err(t!("deployments.not_found", name = name).to_string());
+                };
+                verify_password(&existing, name, password)?;
+                // the server stays where it is
+                let location = existing
+                    .server
+                    .as_ref()
+                    .map(|server| server.location)
+                    .unwrap_or(location);
+                (location, true)
+            }
+        };
 
         let public_key = crate::keys::derive_public_key(name, password)?;
         let password_hash = crate::keys::password_hash(name, password)?;
@@ -232,6 +308,7 @@ impl DeploymentManager {
             provider,
             runtime,
             spec,
+            recreate,
         })
     }
 
@@ -239,14 +316,9 @@ impl DeploymentManager {
     pub async fn plan(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        name: &str,
-        password: &str,
-        password_repeat: &str,
-        location: Location,
+        deployment: &NewDeployment,
     ) -> Result<PlanResponse, String> {
-        let prepared = self
-            .prepare(tokens, name, password, password_repeat, location)
-            .await?;
+        let prepared = self.prepare(tokens, deployment).await?;
         let mut registry = prepared
             .spec
             .registry(&prepared.runtime)
@@ -280,15 +352,10 @@ impl DeploymentManager {
     pub async fn create(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        name: &str,
-        password: &str,
-        password_repeat: &str,
-        location: Location,
+        deployment: &NewDeployment,
         on_event: Channel<CreateEvent>,
     ) -> Result<(), String> {
-        let prepared = self
-            .prepare(tokens, name, password, password_repeat, location)
-            .await?;
+        let prepared = self.prepare(tokens, deployment).await?;
         let mut registry = prepared
             .spec
             .registry(&prepared.runtime)
@@ -307,7 +374,7 @@ impl DeploymentManager {
             let _ = on_event.send(event);
         };
         registry
-            .apply_all_with(false, &mut report)
+            .apply_all_with(prepared.recreate, &mut report)
             .await
             .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
         Ok(())
@@ -332,43 +399,65 @@ pub fn locations() -> Vec<LocationResponse> {
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
-    name: String,
-    password: String,
-    password_repeat: String,
-    location: Location,
+    deployment: NewDeployment,
 ) -> Result<PlanResponse, String> {
     let tokens = tokens.tokens();
-    manager
-        .plan(tokens, &name, &password, &password_repeat, location)
-        .await
+    manager.plan(tokens, &deployment).await
 }
 
 #[tauri::command]
 pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
-    name: String,
-    password: String,
-    password_repeat: String,
-    location: Location,
+    deployment: NewDeployment,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), String> {
     let tokens = tokens.tokens();
-    manager
-        .create(
-            tokens,
-            &name,
-            &password,
-            &password_repeat,
-            location,
-            on_event,
-        )
-        .await
+    manager.create(tokens, &deployment, on_event).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_password_of_a_deployment_is_checked_against_its_server_or_its_key() {
+        let name = "alpha";
+        let password = "a password of sixteen";
+        let hash = crate::keys::password_hash(name, password).unwrap();
+        let key = crate::keys::derive_public_key(name, password).unwrap();
+        let server: sak_cloud::hetzner::api::servers::Server =
+            serde_json::from_value(serde_json::json!({
+                "id": 1, "name": name, "status": "running", "server_type": { "id": 1, "name": "cx23" },
+                "image": { "id": 2, "name": "debian-13" }, "location": { "id": 3, "name": "hel1" },
+                "protection": { "delete": false, "rebuild": false }, "volumes": [],
+                "public_net": { "ipv4": null, "ipv6": null }, "private_net": [],
+                "labels": { PASSWORD_HASH_LABEL: hash }
+            }))
+            .unwrap();
+        let blob = key.split_whitespace().take(2).collect::<Vec<_>>().join(" ");
+        let ssh_key: sak_cloud::hetzner::api::ssh_keys::SshKey =
+            serde_json::from_value(serde_json::json!({
+                "id": 7, "name": name, "fingerprint": "aa", "public_key": blob, "labels": {}
+            }))
+            .unwrap();
+
+        let with_server = DiscoveredDeployment {
+            name: name.to_string(),
+            server: Some(server.into()),
+            ..Default::default()
+        };
+        assert!(verify_password(&with_server, name, password).is_ok());
+        assert!(verify_password(&with_server, name, "another password here").is_err());
+
+        let with_key = DiscoveredDeployment {
+            name: name.to_string(),
+            ssh_key: Some(ssh_key.into()),
+            ..Default::default()
+        };
+        assert!(verify_password(&with_key, name, password).is_ok());
+        assert!(verify_password(&with_key, name, "another password here").is_err());
+    }
 
     #[test]
     fn the_server_type_follows_the_location() {

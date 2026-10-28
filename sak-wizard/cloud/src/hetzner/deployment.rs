@@ -149,6 +149,8 @@ pub enum DeploymentStatus {
 pub struct DeploymentState {
     pub name: String,
     pub status: DeploymentStatus,
+    /// the location of the server, none without one
+    pub location: Option<Location>,
     pub resources: Vec<ResourceState>,
 }
 
@@ -267,6 +269,7 @@ pub async fn state(
     Ok(DeploymentState {
         name: name.clone(),
         status,
+        location: deployment.server.as_ref().map(|server| server.location),
         resources,
     })
 }
