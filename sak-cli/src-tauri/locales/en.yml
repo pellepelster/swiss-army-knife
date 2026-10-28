@@ -1,6 +1,4 @@
 checks:
-  failed_title: "SwissArmyKnife can not start"
-  quit: "Quit"
   not_finished: "A check did not finish: %{error}"
   splash_not_updated: "The splash screen could not be updated: %{error}"
   container_runtime:
@@ -80,6 +78,7 @@ deployments:
   domain_mixed: "The deployment %{by} manages %{domain} in domain mode. A subdomain deployment cannot use %{domain}, a root domain has one domain deployment or only subdomain deployments."
   subdomain_only: "Subdomain deployments use %{domain} already (%{by}). Only the subdomain mode is possible."
 ui:
+  quit: "Quit"
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers SwissArmyKnife creates resources at."

@@ -91,27 +91,6 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --push sak-ingress
 """
 
-# the deployment with ansible still ships the images as archives: the builds above, tagged
-# below localhost/ as the controller role loads them, so podman never tries to pull them
-[tasks."docker:build"]
-description = "Build the sak-backend and sak-ingress images for the deployment with ansible"
-depends = ["backend:image:build", "ingress:image:build"]
-run = """
-docker tag {{vars.backend_image}}:latest localhost/sak-backend:latest
-docker tag {{vars.ingress_image}}:latest localhost/sak-ingress:latest
-"""
-
-# gzip -n keeps the archives byte identical for unchanged images, so ansible only
-# uploads and loads images that changed
-[tasks."docker:save"]
-description = "Export the docker images to build/images/ for deployment"
-depends = ["docker:build"]
-run = """
-mkdir -p build/images
-docker save localhost/sak-backend:latest | gzip -n > build/images/sak-backend.tar.gz
-docker save localhost/sak-ingress:latest | gzip -n > build/images/sak-ingress.tar.gz
-"""
-
 # the services of config/local-compose.yaml next to the backend of local:backend:run: the ingress on 80
 # and 443 (admin api 2019), victorialogs 9428 and the mailpit the login links go to, 1025 (smtp)
 # and 8025 (web ui); in the foreground with their logs until Ctrl-C

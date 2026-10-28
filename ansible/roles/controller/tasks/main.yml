@@ -2,11 +2,9 @@
 - name: Check that the required variables are set
   ansible.builtin.assert:
     that:
-      - controller_image_archive | length > 0
-      - controller_ingress_image_archive | length > 0
       - controller_config_src | length > 0
       - controller_env_src | length > 0
-    fail_msg: "controller_image_archive, controller_ingress_image_archive, controller_config_src and controller_env_src must be set"
+    fail_msg: "controller_config_src and controller_env_src must be set"
     quiet: true
 
 - name: Install podman
@@ -87,26 +85,32 @@
     - "{{ controller_victorialogs_data_path }}"
     - "{{ controller_vector_data_path }}"
 
-# the tags are pinned, an image that exists is the right one; pulled here already, the vector
+# every run pulls every image: sak-backend and sak-ingress at the tag CI pushes from main
+# (latest), the log images at their pinned tags. A pull that brings another image than the one
+# there restarts its container and removes the replaced image. Pulled here already, the vector
 # configuration is validated with its image
-- name: Check for the log images
-  ansible.builtin.command:
-    cmd: podman image exists {{ item }}
+- name: Pull the images
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      before=$(podman image inspect --format '{% raw %}{{.Id}}{% endraw %}' {{ item.image | quote }} 2>/dev/null || true)
+      after=$(podman pull --quiet {{ item.image | quote }})
+      [ "$before" = "$after" ] || echo "pulled $after"
+    executable: /bin/bash
   loop:
-    - "{{ controller_victorialogs_image }}"
-    - "{{ controller_vector_image }}"
-  register: controller_log_images
-  changed_when: false
-  failed_when: controller_log_images.rc not in [0, 1]
-
-- name: Pull the log images
-  ansible.builtin.command:
-    cmd: podman pull {{ item.item }}
-  loop: "{{ controller_log_images.results }}"
+    - { name: sak-backend, image: "{{ controller_image }}" }
+    - { name: sak-ingress, image: "{{ controller_ingress_image }}" }
+    - { name: sak-victorialogs, image: "{{ controller_victorialogs_image }}" }
+    - { name: sak-vector, image: "{{ controller_vector_image }}" }
   loop_control:
-    label: "{{ item.item }}"
-  when: item.rc != 0
-  changed_when: true
+    label: "{{ item.image }}"
+  register: controller_pulls
+  changed_when: controller_pulls.stdout is search('pulled')
+  # a pull changes the server, check mode only looks
+  when: not ansible_check_mode
+  notify:
+    - "Restart {{ item.name }}"
+    - Remove replaced images
 
 - name: Upload the vector configuration
   ansible.builtin.copy:
@@ -117,44 +121,6 @@
     mode: "0644"
     validate: podman run --rm --network none --volume %s:/etc/vector/vector.yaml:ro {{ controller_vector_image }} validate --no-environment /etc/vector/vector.yaml
   notify: Restart sak-vector
-
-# the uploaded archives are kept, so an unchanged image is neither copied nor loaded again
-- name: Upload the images
-  ansible.builtin.copy:
-    src: "{{ item.archive }}"
-    dest: "{{ controller_base_path }}/{{ item.name }}-image.tar.gz"
-    owner: root
-    group: root
-    mode: "0600"
-  loop:
-    - { name: sak-backend, archive: "{{ controller_image_archive }}", image: "{{ controller_image }}" }
-    - { name: sak-ingress, archive: "{{ controller_ingress_image_archive }}", image: "{{ controller_ingress_image }}" }
-  loop_control:
-    label: "{{ item.name }}"
-  register: controller_image_uploads
-
-- name: Check for the loaded images
-  ansible.builtin.command:
-    cmd: podman image exists {{ item.item.image }}
-  loop: "{{ controller_image_uploads.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  register: controller_images_loaded
-  changed_when: false
-  failed_when: controller_images_loaded.rc not in [0, 1]
-
-- name: Load the images
-  ansible.builtin.command:
-    cmd: podman load --input {{ controller_base_path }}/{{ item.item.item.name }}-image.tar.gz
-  loop: "{{ controller_images_loaded.results }}"
-  loop_control:
-    label: "{{ item.item.item.name }}"
-  # the uploaded archive does not exist in check mode
-  when: not ansible_check_mode and (item.item.changed or item.rc != 0)
-  changed_when: true
-  notify:
-    - "Restart {{ item.item.item.name }}"
-    - Remove replaced images
 
 - name: Upload the controller configuration
   ansible.builtin.copy:
@@ -182,13 +148,16 @@
     state: stopped
   failed_when: false
 
-- name: Remove the sak-controller quadlet and image archive
+# the images were uploaded as archives before they were pulled
+- name: Remove the sak-controller quadlet and the image archives
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop:
     - /etc/containers/systemd/sak-controller.container
     - "{{ controller_base_path }}/sak-controller-image.tar.gz"
+    - "{{ controller_base_path }}/sak-backend-image.tar.gz"
+    - "{{ controller_base_path }}/sak-ingress-image.tar.gz"
 
 - name: Install the quadlets
   ansible.builtin.template:

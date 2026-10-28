@@ -2,6 +2,6 @@
 #include <stdio.h>
 
 int main(void) {
-    puts("sak-docker-canary");
+    puts("sak-cli-docker-canary");
     return 0;
 }

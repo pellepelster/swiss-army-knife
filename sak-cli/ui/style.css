@@ -16,12 +16,20 @@ body {
 }
 
 .splash {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--sak-space-5);
+}
+
+/* the quit of the splash screen, at the bottom right like the buttons of every page */
+.splash-footer {
+  position: absolute;
+  right: var(--sak-space-5);
+  bottom: var(--sak-space-5);
 }
 
 .splash-icon {

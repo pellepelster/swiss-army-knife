@@ -13,10 +13,10 @@ use std::sync::Mutex;
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
 // a few kilobytes proving a runtime pulls and runs images (canary/Dockerfile), fully qualified,
 // podman refuses short names without a tty to pick the registry on
-const CANARY: &str = "ghcr.io/pellepelster/sak-docker-canary:latest";
-const CANARY_ANSWER: &str = "sak-docker-canary";
+const CANARY: &str = "ghcr.io/pellepelster/sak-cli-docker-canary:latest";
+const CANARY_ANSWER: &str = "sak-cli-docker-canary";
 // the image of the tools (Dockerfile), pulled on every start so the latest one is used
-pub const IMAGE: &str = "ghcr.io/pellepelster/sak-cli:latest";
+pub const IMAGE: &str = "ghcr.io/pellepelster/sak-cli-tools:latest";
 // the user of the image, only it answers to `id -un` with this
 const IMAGE_USER: &str = "sak";
 // the timeout of each request to the docker api, the pull of the image is one

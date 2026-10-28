@@ -8,8 +8,8 @@ node = "22.22.3"
 # the image of the tools sakctl runs in a container (Dockerfile) and the canary proving a
 # container runtime works on startup (canary/Dockerfile)
 [vars]
-image = "ghcr.io/pellepelster/sak-cli"
-canary = "ghcr.io/pellepelster/sak-docker-canary"
+image = "ghcr.io/pellepelster/sak-cli-tools"
+canary = "ghcr.io/pellepelster/sak-cli-docker-canary"
 
 # the theme of ../sak-theme with its bootstrap, copied into ui/theme/ (not committed): tauri
 # bundles ui/ alone
@@ -130,7 +130,7 @@ docker buildx build --platform linux/amd64,linux/arm64 --file Dockerfile \
 """
 
 [tasks."cli:canary:build"]
-description = "Build the canary proving a container runtime works, sak-docker-canary"
+description = "Build the canary proving a container runtime works, sak-cli-docker-canary"
 dir = "{{config_root}}/canary"
 run = """
 docker buildx build --load --tag {{vars.canary}}:latest \
@@ -141,7 +141,7 @@ docker buildx build --load --tag {{vars.canary}}:latest \
 description = "Check that the canary answers"
 depends = ["cli:canary:build"]
 run = """
-[ "$(docker run --rm {{vars.canary}}:latest)" = "sak-docker-canary" ]
+[ "$(docker run --rm {{vars.canary}}:latest)" = "sak-cli-docker-canary" ]
 echo "the canary works"
 """
 

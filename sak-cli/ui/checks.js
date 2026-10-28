@@ -1,13 +1,31 @@
 // the checks of src-tauri/src/checks/ as a list, each with its state, a progress bar while it runs
-// and what it found or why it failed below its name; a failing check ends the app with a dialog
-// of its own, the promise answers what follows the splash screen
+// and what it found or why it failed below its name; the promise answers what follows the splash
+// screen. A failing check stays on the splash screen with its reason, quit is all that is left
 const { invoke, Channel } = window.__TAURI__.core;
 
 // the checkmarks stay a moment before the next view
 const SHOWN_DONE_MS = 600;
 
 const list = document.getElementById('checks');
+const errorText = document.getElementById('checks-error');
+const quitButton = document.getElementById('splash-quit');
 const rows = new Map();
+// a check failed: its row says why, the app can only quit
+let failed = false;
+
+quitButton.addEventListener('click', () => invoke('quit', { failed }));
+
+// the end of the checks: the reason inline (unless the row of the failed check has it), quit the
+// one action left
+function fail(error) {
+  failed = true;
+  if (![...rows.values()].some((item) => item.dataset.state === 'failed')) {
+    errorText.textContent = String(error);
+    errorText.hidden = false;
+  }
+  quitButton.classList.replace('btn-outline-secondary', 'btn-primary');
+  quitButton.focus();
+}
 
 // the led of the theme for the state of a check
 const LEDS = { pending: 'neutral', running: 'busy', ok: 'ok', failed: 'danger' };
@@ -38,8 +56,9 @@ function update(id, state, detail) {
   return item;
 }
 
+// never settles after a failure: nothing follows the splash screen then
 export function runChecks() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const onEvent = new Channel();
     onEvent.onmessage = (message) => {
       switch (message.event) {
@@ -67,6 +86,6 @@ export function runChecks() {
           break;
       }
     };
-    invoke('run_checks', { onEvent }).catch(reject);
+    invoke('run_checks', { onEvent }).catch(fail);
   });
 }

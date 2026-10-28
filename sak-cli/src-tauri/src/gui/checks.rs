@@ -1,5 +1,6 @@
 //! the checks of core on the splash screen: each event sent to it, what they found put into the
-//! state of the window; a failing one ends the app with a dialog
+//! state of the window. A failing one is shown on the splash screen, in its row or, when no check
+//! failed, as the error of the command; quitting is all that is left then
 
 use crate::core::checks::{self, CheckEvent, Next, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
@@ -7,7 +8,6 @@ use crate::core::providers::ProviderTokens;
 use rust_i18n::t;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 #[tauri::command]
 pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result<(), String> {
@@ -19,13 +19,7 @@ pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result
     .await
     .map_err(checks::not_finished)
     .and_then(|result| result);
-    let found = match result {
-        Ok(found) => found,
-        Err(text) => {
-            fail(app, &text);
-            return Ok(());
-        }
-    };
+    let found = result.inspect_err(|text| eprintln!("{text}"))?;
     if let Some(runtime) = found.runtime {
         app.state::<ContainerRuntime>().set(runtime);
     }
@@ -47,14 +41,8 @@ fn send(on_event: &Channel<CheckEvent>, event: CheckEvent) -> Result<(), String>
         .map_err(|e| t!("checks.splash_not_updated", error = e).to_string())
 }
 
-fn fail(app: AppHandle, message: &str) {
-    eprintln!("{message}");
-    app.dialog()
-        .message(message)
-        .title(t!("checks.failed_title"))
-        .kind(MessageDialogKind::Error)
-        .buttons(MessageDialogButtons::OkCustom(
-            t!("checks.quit").to_string(),
-        ))
-        .show(move |_| app.exit(1));
+/// the quit of the splash screen: with exit code 1 after a check failed, 0 otherwise
+#[tauri::command]
+pub fn quit(app: AppHandle, failed: bool) {
+    app.exit(if failed { 1 } else { 0 });
 }

@@ -1,8 +1,6 @@
 ---
-# local path of the image archive written by `mise run docker:save` (required)
-controller_image_archive: ""
-# the image the archive contains, it is only loaded from the archive and never pulled
-controller_image: localhost/sak-backend:latest
+# the controller, pulled on every run: CI pushes it from main
+controller_image: ghcr.io/pellepelster/sak-backend:latest
 # everything of the backend lives below this path on the data volume
 controller_base_path: /storage/data/backend
 # mounted at the same path into the container, the controller hands caddy paths below it
@@ -24,13 +22,12 @@ controller_group: sak
 # containers write belong to them
 controller_uid: 10000
 controller_gid: 10000
-# local path of the ingress (caddy) image archive written by `mise run docker:save` (required)
-controller_ingress_image_archive: ""
-controller_ingress_image: localhost/sak-ingress:latest
+# the ingress (caddy), pulled on every run like the controller
+controller_ingress_image: ghcr.io/pellepelster/sak-ingress:latest
 # caddy keeps its certificates and acme state here
 controller_ingress_data_path: /storage/data/ingress
 # victorialogs keeps the ingress access logs the console computes the metrics of the sites
-# from, it only listens on localhost; both images are pulled, not built
+# from, it only listens on localhost; both log images are pulled at a pinned tag
 controller_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0
 controller_victorialogs_data_path: /storage/data/victorialogs
 # longer than the longest range the console shows (30 days)

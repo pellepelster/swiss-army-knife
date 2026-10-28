@@ -12,12 +12,12 @@ use crate::core::providers::ProviderTokens;
 /// runs the window until it is closed
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())
         .manage(DeploymentManager)
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,
+            checks::quit,
             i18n::locale,
             i18n::ui_texts,
             providers::list_provider_types,

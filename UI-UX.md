@@ -57,6 +57,9 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   Buttons moving through the wizard (next, back, cancel, plan, the final create) sit in the button
   group at the bottom right (`.page-footer`), buttons acting on the data of the view (add a
   provider, create a deployment) in the one at the top right of the page header.
+- The splash screen runs the checks, a Quit button at its bottom right. A failed check says why
+  in its row (an error outside the checks below them), never in a dialog; Quit is then the one
+  action left (`btn-primary`, focused) and ends the app with exit code 1.
 - A deployment in the list opens its page (its state, location and resources); what acts on it
   (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
   for a deployment that exists, after its password was checked against the hash on its resources, and
