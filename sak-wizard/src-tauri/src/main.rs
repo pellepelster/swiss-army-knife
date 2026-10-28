@@ -6,6 +6,7 @@ rust_i18n::i18n!("locales", fallback = "en");
 
 mod checks;
 mod container;
+mod deployments;
 mod i18n;
 mod providers;
 
@@ -21,7 +22,8 @@ fn main() {
             i18n::ui_texts,
             providers::list_provider_types,
             providers::list_provider_tokens,
-            providers::add_provider_token
+            providers::add_provider_token,
+            deployments::list_deployments
         ])
         .run(tauri::generate_context!())
         .expect("sak-wizard failed to start");

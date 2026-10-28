@@ -51,7 +51,7 @@ impl ProviderType {
         }
     }
 
-    fn response(self) -> ProviderTypeResponse {
+    pub(crate) fn response(self) -> ProviderTypeResponse {
         ProviderTypeResponse {
             id: self,
             name: self.name(),
@@ -107,6 +107,19 @@ impl ProviderTokens {
         self.0
             .lock()
             .map(|tokens| tokens.iter().map(ProviderTokenResponse::of).collect())
+            .unwrap_or_default()
+    }
+
+    /// the tokens themselves, for the calls to the providers
+    pub fn tokens(&self) -> Vec<(ProviderType, String)> {
+        self.0
+            .lock()
+            .map(|tokens| {
+                tokens
+                    .iter()
+                    .map(|token| (token.provider, token.token.clone()))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 

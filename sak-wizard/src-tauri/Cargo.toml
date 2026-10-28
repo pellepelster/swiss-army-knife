@@ -22,6 +22,7 @@ getrandom = "0.4.3"
 base64 = "0.23.1"
 bollard = "0.21.1"
 futures-util = "0.3"
+sak-cloud = { path = "../cloud" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

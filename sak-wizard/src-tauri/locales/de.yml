@@ -30,6 +30,8 @@ providers:
     forbidden: "Das Token kann nur lesen, erstelle eines mit den Berechtigungen Lesen & Schreiben."
     refused: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
     not_deleted: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
+deployments:
+  failed: "Die Deployments bei %{provider} konnten nicht aufgelistet werden: %{error}"
 ui:
   providers:
     title: "Provider-Tokens"
@@ -44,17 +46,17 @@ ui:
   cancel: "Abbrechen"
   next: "Weiter"
   back: "Zurück"
-  operations:
-    title: "Was soll der Assistent tun?"
-    install:
-      name: "Installieren"
-      description: "SwissArmyKnife mit den Provider-Tokens neu einrichten."
-    upgrade:
-      name: "Aktualisieren"
-      description: "Ein bestehendes SwissArmyKnife auf diese Version bringen."
-    backup:
-      name: "Sichern"
-      description: "Die Daten eines bestehenden SwissArmyKnife sichern."
-    restore:
-      name: "Wiederherstellen"
-      description: "Die Daten einer Sicherung in SwissArmyKnife zurückspielen."
+  deployments:
+    title: "Deployments"
+    install: "Installieren"
+    loading: "Suche Deployments bei den Providern…"
+    empty: "Kein Deployment gefunden. Installiere eines mit dem Knopf oben."
+    status:
+      ok: "ok"
+      incomplete: "unvollständig"
+      changed: "geändert"
+    resource:
+      ssh_key: "SSH-Key"
+      firewall: "Firewall"
+      server: "Server"
+    missing: "fehlt"

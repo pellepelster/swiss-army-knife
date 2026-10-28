@@ -30,6 +30,8 @@ providers:
     forbidden: "The token can only read, create one with the permissions read & write."
     refused: "The Hetzner Cloud API refused the token: %{error}"
     not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
+deployments:
+  failed: "The deployments at %{provider} could not be listed: %{error}"
 ui:
   providers:
     title: "Provider tokens"
@@ -44,17 +46,17 @@ ui:
   cancel: "Cancel"
   next: "Next"
   back: "Back"
-  operations:
-    title: "What should the wizard do?"
-    install:
-      name: "Install"
-      description: "Set up SwissArmyKnife from scratch with the provider tokens."
-    upgrade:
-      name: "Upgrade"
-      description: "Bring an existing SwissArmyKnife to this version."
-    backup:
-      name: "Backup"
-      description: "Save the data of an existing SwissArmyKnife."
-    restore:
-      name: "Restore"
-      description: "Bring the data of a backup back into SwissArmyKnife."
+  deployments:
+    title: "Deployments"
+    install: "Install"
+    loading: "Looking for deployments at the providers…"
+    empty: "No deployment found. Install one with the button at the top."
+    status:
+      ok: "ok"
+      incomplete: "incomplete"
+      changed: "changed"
+    resource:
+      ssh_key: "ssh key"
+      firewall: "firewall"
+      server: "server"
+    missing: "missing"
