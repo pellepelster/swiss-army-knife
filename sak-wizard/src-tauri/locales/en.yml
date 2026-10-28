@@ -6,6 +6,7 @@ checks:
   container_runtime:
     name: "Verify docker or podman"
     running: "Verifying docker or podman…"
+    done: "Using %{text}"
     passed: "%{runtime} %{version}"
     needed: "SwissArmyKnife needs docker or podman to run containers. Install one of them, make sure it can run containers without sudo and start SwissArmyKnife again."
     not_working: "%{runtime} does not work: %{error}"
@@ -13,6 +14,7 @@ checks:
   image:
     name: "Pull the latest image"
     running: "Pulling the latest image…"
+    done: "Pulled %{text}"
     passed: "%{image}"
     not_pulled: "The image %{image} could not be pulled, make sure %{runtime} can reach ghcr.io: %{error}"
     not_run: "%{runtime} could not run the image %{image}: %{error}"
@@ -21,6 +23,7 @@ checks:
   provider_tokens:
     name: "Verify the provider tokens"
     running: "Verifying provider tokens…"
+    done: "All cloud provider tokens are valid"
     passed: "The tokens of %{variables} are valid"
     invalid: "%{variable} holds no valid %{provider} token: %{error} Correct or unset %{variable} and start SwissArmyKnife again."
 providers:

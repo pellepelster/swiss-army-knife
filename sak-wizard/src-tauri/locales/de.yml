@@ -6,6 +6,7 @@ checks:
   container_runtime:
     name: "docker oder podman prüfen"
     running: "Prüfe docker oder podman…"
+    done: "Verwende %{text}"
     passed: "%{runtime} %{version}"
     needed: "SwissArmyKnife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte SwissArmyKnife erneut."
     not_working: "%{runtime} funktioniert nicht: %{error}"
@@ -13,6 +14,7 @@ checks:
   image:
     name: "Neuestes Image laden"
     running: "Lade das neueste Image…"
+    done: "Geladen: %{text}"
     passed: "%{image}"
     not_pulled: "Das Image %{image} konnte nicht geladen werden, stelle sicher, dass %{runtime} ghcr.io erreichen kann: %{error}"
     not_run: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
@@ -21,6 +23,7 @@ checks:
   provider_tokens:
     name: "Provider-Tokens prüfen"
     running: "Prüfe die Provider-Tokens…"
+    done: "Alle Cloud-Provider-Tokens sind gültig"
     passed: "Die Tokens von %{variables} sind gültig"
     invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
 providers:

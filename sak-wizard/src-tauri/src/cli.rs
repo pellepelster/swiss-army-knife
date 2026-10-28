@@ -154,9 +154,9 @@ async fn check(provider: &Provider) -> Result<ContainerRuntime, String> {
                         log(Level::Info, text);
                     }
                 }
-                CheckEvent::Passed { name, text, .. } => {
+                CheckEvent::Passed { id, text, .. } => {
                     logged = 0;
-                    log(Level::Info, format!("{name} {text}"))
+                    log(Level::Info, t!(format!("checks.{id}.done"), text = text))
                 }
                 // the failure itself ends the command, the error is logged once by run
                 CheckEvent::Failed { .. }
