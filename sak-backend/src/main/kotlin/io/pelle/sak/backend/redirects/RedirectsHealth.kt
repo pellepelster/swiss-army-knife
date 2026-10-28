@@ -10,4 +10,4 @@ class RedirectsHealth(
     redirects: RedirectService,
     check: DomainDnsCheck,
     addresses: SakConfig.AddressesConfig,
-) : DomainsHealth("redirects", { redirects.all().map { it.sourceDomain } }, check, addresses.ipv4, addresses.ipv6)
+) : DomainsHealth("Redirect domains", "redirects", { redirects.all().map { it.sourceDomain } }, check, addresses.ipv4, addresses.ipv6)

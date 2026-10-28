@@ -8,8 +8,10 @@ enum class HealthState {
     UNKNOWN,
 }
 
-// what a check found; the message tells why, e.g. what failed
+// what a check found; the name tells the user what was checked, e.g. Bucket domains, the message
+// why, e.g. what failed
 data class HealthStatus(
+    val name: String,
     val state: HealthState,
     val message: String? = null,
 )

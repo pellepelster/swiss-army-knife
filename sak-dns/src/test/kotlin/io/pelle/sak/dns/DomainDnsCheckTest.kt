@@ -65,22 +65,23 @@ class DomainDnsCheckTest {
         val right = FakeNameServer("1.1.1.1", mapOf("a.example.org" to IPV4 + IPV6, "b.example.org" to IPV4 + IPV6))
         val down = FakeNameServer("9.9.9.9", down = true)
 
-        DomainsHealth("buckets", { listOf("b.example.org", "a.example.org") }, check(right), IPV4, IPV6).check().let {
+        DomainsHealth("Bucket domains", "buckets", { listOf("b.example.org", "a.example.org") }, check(right), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
             it.message shouldBe "the 2 domains of the buckets point to the server"
         }
-        DomainsHealth("buckets", { listOf("a.example.org") }, check(right, down), IPV4, IPV6).check().let {
+        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right, down), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
             it.message shouldBe "the 1 domains of the buckets point to the server, no answer from 9.9.9.9 for a.example.org"
         }
-        DomainsHealth("buckets", { emptyList() }, check(right), IPV4, IPV6).check().state shouldBe HealthState.HEALTHY
+        DomainsHealth("Bucket domains", "buckets", { emptyList() }, check(right), IPV4, IPV6).check().state shouldBe HealthState.HEALTHY
     }
 
     @Test
     fun `is unhealthy when a name server answers with no or other addresses, and tells which`() {
         val stale = FakeNameServer("8.8.8.8", mapOf("a.example.org" to listOf("203.0.113.9")))
 
-        DomainsHealth("redirects", { listOf("a.example.org", "b.example.org") }, check(stale), IPV4, emptyList()).check().let {
+        DomainsHealth("Redirect domains", "redirects", { listOf("a.example.org", "b.example.org") }, check(stale), IPV4, emptyList()).check().let {
+            it.name shouldBe "Redirect domains"
             it.state shouldBe HealthState.UNHEALTHY
             it.message shouldBe "a.example.org: 8.8.8.8 has A 203.0.113.9, no AAAA; b.example.org: 8.8.8.8 has no A, no AAAA"
         }
@@ -91,12 +92,12 @@ class DomainDnsCheckTest {
         val right = FakeNameServer("1.1.1.1", mapOf("a.example.org" to IPV4))
         val down = FakeNameServer("9.9.9.9", down = true)
 
-        DomainsHealth("buckets", { listOf("a.example.org") }, check(right), emptyList(), emptyList()).check().state shouldBe HealthState.UNKNOWN
-        DomainsHealth("buckets", { listOf("a.example.org") }, check(down), IPV4, emptyList()).check().let {
+        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right), emptyList(), emptyList()).check().state shouldBe HealthState.UNKNOWN
+        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(down), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN
             it.message shouldBe "no name server answered for a.example.org"
         }
-        DomainsHealth("buckets", { error("the database is gone") }, check(right), IPV4, emptyList()).check().let {
+        DomainsHealth("Bucket domains", "buckets", { error("the database is gone") }, check(right), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN
             it.message!! shouldContain "could not be checked"
         }

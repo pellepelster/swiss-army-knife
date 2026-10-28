@@ -10,4 +10,4 @@ class HostingHealth(
     buckets: S3BucketService,
     check: DomainDnsCheck,
     addresses: SakConfig.AddressesConfig,
-) : DomainsHealth("buckets", { buckets.all().flatMap(buckets::servedDomains) }, check, addresses.ipv4, addresses.ipv6)
+) : DomainsHealth("Bucket domains", "buckets", { buckets.all().flatMap(buckets::servedDomains) }, check, addresses.ipv4, addresses.ipv6)
