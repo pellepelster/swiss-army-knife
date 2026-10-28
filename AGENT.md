@@ -81,6 +81,13 @@
   - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
     with `firstValueFrom`; everything else subscribes.
 
+## UI (`sak-wizard`)
+
+- One view at a time, a page with a header and, when a page has them, actions at the bottom.
+  Buttons moving through the wizard (next, back, cancel, plan, the final create) sit at the bottom
+  right (`.actions.page-footer`), buttons acting on the data of the view (add a provider, create a
+  deployment) at the top right in the page header.
+
 ## Naming
 
 - A class (a struct in rust) that manages resources outside the process, at a cloud provider,

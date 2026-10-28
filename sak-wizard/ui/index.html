@@ -8,7 +8,10 @@
     <script type="module" src="app.js"></script>
   </head>
   <body>
-    <!-- one view at a time, app.js switches between them; data-text names the text of locales/ -->
+    <!-- one view at a time, app.js switches between them; data-text names the text of locales/.
+         Buttons moving through the wizard (next, back, cancel, plan, create) sit at the bottom
+         right, buttons acting on the data of the view (add a provider, create a deployment)
+         at the top right -->
     <main class="view splash" id="view-splash">
       <img class="splash-icon" src="icon.svg" alt="">
       <h1 class="splash-title">SwissArmyKnife</h1>
@@ -30,9 +33,11 @@
     <main class="view page" id="view-select" hidden>
       <header class="page-header">
         <h1 data-text="ui.select.title"></h1>
-        <button type="button" class="button" id="select-cancel" data-text="ui.cancel"></button>
       </header>
       <ul class="providers" id="provider-types"></ul>
+      <div class="actions page-footer">
+        <button type="button" class="button" id="select-cancel" data-text="ui.cancel"></button>
+      </div>
     </main>
 
     <main class="view page" id="view-token" hidden>
@@ -47,7 +52,7 @@
         <input id="token-input" type="password" autocomplete="off" spellcheck="false">
         <p class="hint" id="token-hint"></p>
         <p class="status" id="token-status" aria-live="polite"></p>
-        <div class="actions">
+        <div class="actions page-footer">
           <button type="button" class="button" id="token-cancel" data-text="ui.cancel"></button>
           <button type="submit" class="button button-primary" id="token-add" data-text="ui.token.add"></button>
         </div>
@@ -57,13 +62,13 @@
     <main class="view page" id="view-deployments" hidden>
       <header class="page-header">
         <h1 data-text="ui.deployments.title"></h1>
-        <div class="actions">
-          <button type="button" class="button" id="deployments-back" data-text="ui.back"></button>
-          <button type="button" class="button button-primary" id="deployments-create" data-text="ui.deployments.create"></button>
-        </div>
+        <button type="button" class="button" id="deployments-create" data-text="ui.deployments.create"></button>
       </header>
       <p class="status" id="deployments-status" aria-live="polite"></p>
       <ul class="deployments" id="deployments"></ul>
+      <div class="actions page-footer">
+        <button type="button" class="button" id="deployments-back" data-text="ui.back"></button>
+      </div>
     </main>
 
     <main class="view page" id="view-create" hidden>
@@ -78,7 +83,7 @@
         <input id="create-password" type="password" autocomplete="new-password" minlength="16" required>
         <p class="hint" data-text="ui.create.password_hint"></p>
         <p class="status" id="create-status" aria-live="polite"></p>
-        <div class="actions">
+        <div class="actions page-footer">
           <button type="button" class="button" id="create-cancel" data-text="ui.cancel"></button>
           <button type="submit" class="button button-primary" id="create-plan" data-text="ui.create.plan"></button>
         </div>
@@ -88,13 +93,13 @@
     <main class="view page" id="view-plan" hidden>
       <header class="page-header">
         <h1 data-text="ui.plan.title"></h1>
-        <button type="button" class="button" id="plan-back" data-text="ui.back"></button>
       </header>
       <p class="hint"><span data-text="ui.plan.intro"></span> <strong id="plan-name"></strong></p>
       <p class="hint"><span data-text="ui.plan.key"></span> <code class="plan-key" id="plan-key"></code></p>
       <ul class="resources" id="plan-resources"></ul>
       <div class="actions page-footer">
         <button type="button" class="button" id="plan-cancel" data-text="ui.cancel"></button>
+        <button type="button" class="button" id="plan-back" data-text="ui.back"></button>
         <button type="button" class="button button-primary" id="plan-apply" data-text="ui.plan.apply"></button>
       </div>
     </main>
