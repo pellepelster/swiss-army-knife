@@ -106,10 +106,31 @@ class FileServiceTest {
     }
 
     @Test
-    fun `an image that can not be read has no thumbnail`() {
+    fun `an image that can not be read has no thumbnail, it is not read again`() {
         val file = (service.store(Media.JPEG.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val content = Files.readAllBytes(service.path(file))
         Files.write(service.path(file), Media.JPEG.copyOf(4))
         service.thumbnail(file) shouldBe null
+
+        // readable again, the marker keeps it from being decoded
+        Files.write(service.path(file), content)
+        service.thumbnail(file) shouldBe null
+    }
+
+    @Test
+    fun `makes the thumbnail of a content once when it is asked for many times at once`() {
+        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val start = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(16)
+        try {
+            val thumbnails = (1..16).map { pool.submit<java.nio.file.Path?> { start.await(); service.thumbnail(file) } }
+            start.countDown()
+            thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(service.thumbnail(file))
+        } finally {
+            pool.shutdownNow()
+        }
+        // the temporary files are made in the storage dir
+        Files.list(service.path(file).parent.parent).use { files -> files.filter { it.toString().endsWith(".tmp") }.count() } shouldBe 0
     }
 
     @Test

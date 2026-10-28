@@ -14,6 +14,7 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Clock
+import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
@@ -58,6 +59,9 @@ class FileService(
         maxSize: Long = DEFAULT_MAX_SIZE,
     ) : this(FileRepository(database, clock), dir, maxSize)
 
+    // the content whose thumbnail is being made, by its sha-256
+    private val thumbnailLocks = ConcurrentHashMap<String, Any>()
+
     init {
         Files.createDirectories(dir)
     }
@@ -85,31 +89,60 @@ class FileService(
     fun path(file: StoredFile): Path = dir.resolve(file.sha256.take(2)).resolve(file.sha256)
 
     // a jpeg of at most THUMBNAIL_SIZE pixels on the longer side: of an image the image itself,
-    // scaled down when it is larger, of a recording its waveform; null when the file can not be read
-    @Synchronized
+    // scaled down when it is larger, of a recording its waveform; null when the file can not be
+    // read, which a marker next to it remembers, so it is not decoded again. One content is
+    // decoded once at a time, other contents meanwhile
     fun thumbnail(file: StoredFile): Path? {
         val thumbnail = path(file).resolveSibling("${file.sha256}$THUMBNAIL_SUFFIX")
+        val none = path(file).resolveSibling("${file.sha256}$NO_THUMBNAIL_SUFFIX")
         if (Files.exists(thumbnail)) return thumbnail
-        val image =
-            try {
-                if (file.contentType.startsWith("audio/")) {
-                    waveform(path(file))
-                } else {
-                    ImageIO.read(path(file).toFile())?.let { scaled(it, THUMBNAIL_SIZE) }
+        if (Files.exists(none)) return null
+        val lock = thumbnailLocks.computeIfAbsent(file.sha256) { Any() }
+        try {
+            synchronized(lock) {
+                // made while waiting for the lock
+                if (Files.exists(thumbnail)) return thumbnail
+                if (Files.exists(none)) return null
+                val image = decodeThumbnail(file)
+                if (image == null) {
+                    write(none) {}
+                    return null
                 }
-            } catch (_: IOException) {
-                null
-            } catch (_: UnsupportedAudioFileException) {
-                null
-            } ?: return null
+                write(thumbnail) { ImageIO.write(image, "jpg", it.toFile()) }
+                return thumbnail
+            }
+        } finally {
+            // the one waiting for the lock meanwhile finds the thumbnail made, as does one with a
+            // lock of its own after this
+            thumbnailLocks.remove(file.sha256, lock)
+        }
+    }
+
+    private fun decodeThumbnail(file: StoredFile): BufferedImage? =
+        try {
+            if (file.contentType.startsWith("audio/")) {
+                waveform(path(file))
+            } else {
+                ImageIO.read(path(file).toFile())?.let { scaled(it, THUMBNAIL_SIZE) }
+            }
+        } catch (_: IOException) {
+            null
+        } catch (_: UnsupportedAudioFileException) {
+            null
+        }
+
+    // written to a temporary file first, a reader never sees half of it
+    private fun write(
+        target: Path,
+        content: (Path) -> Unit,
+    ) {
         val temp = Files.createTempFile(dir, "thumbnail-", ".tmp")
         try {
-            ImageIO.write(image, "jpg", temp.toFile())
-            Files.move(temp, thumbnail, StandardCopyOption.ATOMIC_MOVE)
+            content(temp)
+            Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
         } finally {
             Files.deleteIfExists(temp)
         }
-        return thumbnail
     }
 
     // reads the content to its end, at most maxSize bytes are taken
@@ -196,6 +229,9 @@ class FileService(
         const val THUMBNAIL_SIZE = 480
 
         private const val THUMBNAIL_SUFFIX = ".thumbnail.jpg"
+
+        // next to a content that has no thumbnail, it can not be read
+        private const val NO_THUMBNAIL_SUFFIX = ".no-thumbnail"
 
         private const val WAVEFORM_BARS = 48
 
