@@ -14,6 +14,13 @@ permissions:
   contents: read
   packages: write
 
+# one run at a time per branch: on main a new run waits for the one running, so the images are
+# never pushed by two runs at once (an older run can not overwrite latest after a newer one); a
+# pull request cancels its run before, only its newest commit counts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
   # each job installs the tools it needs only, not every tool of the mise.toml files
