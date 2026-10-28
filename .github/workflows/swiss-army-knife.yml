@@ -1,6 +1,7 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of sak-wizard
-# (the tools and the canary), pushed to ghcr.io from main only, and sak-wizard itself, whose
-# checks pull those images
+# (the tools and the canary, each in a job of its own), pushed to ghcr.io from main only, and
+# sak-wizard itself, whose checks pull those images. Everything that can be is cached: the mise
+# tools, gradle, npm, cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
 on:
@@ -27,9 +28,21 @@ jobs:
       - uses: jdx/mise-action@v5
         with:
           install_args: java node
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
+          restore-keys: npm-
       - run: ./gradlew build
 
   images:
+    name: images (${{ matrix.image }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # the mise tasks wizard:<image>:test and wizard:<image>:push
+        image: [image, canary]
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -42,17 +55,17 @@ jobs:
       # arm64 is built with qemu, buildx pushes both platforms under one tag
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
-      - run: mise run wizard:image:test
-      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: mise run wizard:image:login
+      # the images and their cache may be private
+      - run: mise run wizard:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - run: mise run wizard:${{ matrix.image }}:test
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: mise run wizard:image:push
+        run: mise run wizard:${{ matrix.image }}:push
 
   wizard:
-    # its tests pull the images, the ones of main pushed by the job before
+    # its tests pull the images, the ones of main pushed by the jobs before
     needs: images
     runs-on: ubuntu-24.04
     defaults:
@@ -60,20 +73,26 @@ jobs:
         working-directory: sak-wizard
     steps:
       - uses: actions/checkout@v7
-      - run: |
-          sudo apt-get update
-          sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          version: 1
+      # the tools are installed after the action, saved to its cache in its post step
       - uses: jdx/mise-action@v5
         with:
           install: false
+          cache_save_post: true
       - run: mise install rust node npm:@tauri-apps/cli
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sak-wizard/src-tauri -> target
       # the images may be private
-      - run: mise run wizard:image:login
+      - run: mise run wizard:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run wizard:test
-      # the linux installers, the images were built by the job before
+      # the linux installers, the images were built by the jobs before
       - run: mise exec -- tauri build
       - uses: actions/upload-artifact@v7
         with:

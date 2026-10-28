@@ -21,8 +21,8 @@ run = "tauri dev"
 # the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
 # msi and nsis on windows) land in src-tauri/target/release/bundle/
 [tasks."wizard:build"]
-description = "Build the sak-wizard installers for the current platform and the image of its tools"
-depends = ["wizard:image:build"]
+description = "Build the sak-wizard installers for the current platform, the image of its tools and the canary"
+depends = ["wizard:image:build", "wizard:canary:build"]
 dir = "{{config_root}}"
 run = "tauri build"
 
@@ -32,18 +32,20 @@ description = "Run the tests of sak-wizard"
 dir = "{{config_root}}/src-tauri"
 run = "cargo test"
 
-# for the platform it runs on, into the local images; --load keeps it there when buildx builds in
-# a container of its own (the github workflow)
+# each image built, tested and pushed on its own (the github workflow runs them in parallel); the
+# layers are cached in the registry next to the image, tag buildcache: every build reads it, the
+# push writes it. A build is for the platform it runs on, into the local images; --load keeps it
+# there when buildx builds in a container of its own (the github workflow)
 [tasks."wizard:image:build"]
-description = "Build the image of the tools of sak-wizard, terraform and ansible, and its canary"
+description = "Build the image of the tools of sak-wizard, terraform and ansible"
 dir = "{{config_root}}"
 run = """
-docker build --load --tag {{vars.image}}:latest .
-docker build --load --tag {{vars.canary}}:latest canary
+docker buildx build --load --tag {{vars.image}}:latest \
+  --cache-from type=registry,ref={{vars.image}}:buildcache .
 """
 
 [tasks."wizard:image:test"]
-description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000) and the canary answers"
+description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000)"
 depends = ["wizard:image:build"]
 run = """
 set -e
@@ -54,31 +56,57 @@ docker run --rm "$image" terraform version
 docker run --rm "$image" ansible --version
 docker run --rm "$image" ansible-galaxy collection list community.general
 docker run --rm "$image" ansible localhost -m ping
+echo "the image of the tools works"
+"""
+
+# for amd64 and arm64 (the macs), tagged latest and with the commit it was built from; the
+# platform not running here needs qemu (binfmt)
+[tasks."wizard:image:push"]
+description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
+dir = "{{config_root}}"
+run = """
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.image}}:latest --tag {{vars.image}}:$(git rev-parse --short=12 HEAD) \
+  --cache-from type=registry,ref={{vars.image}}:buildcache \
+  --cache-to type=registry,ref={{vars.image}}:buildcache,mode=max,image-manifest=true \
+  --push .
+"""
+
+[tasks."wizard:canary:build"]
+description = "Build the canary proving a container runtime works, sak-docker-canary"
+dir = "{{config_root}}/canary"
+run = """
+docker buildx build --load --tag {{vars.canary}}:latest \
+  --cache-from type=registry,ref={{vars.canary}}:buildcache .
+"""
+
+[tasks."wizard:canary:test"]
+description = "Check that the canary answers"
+depends = ["wizard:canary:build"]
+run = """
 [ "$(docker run --rm {{vars.canary}}:latest)" = "sak-docker-canary" ]
-echo "the image of the tools and the canary work"
+echo "the canary works"
+"""
+
+[tasks."wizard:canary:push"]
+description = "Build the canary for amd64 and arm64 and push it to ghcr.io"
+dir = "{{config_root}}/canary"
+run = """
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.canary}}:latest --tag {{vars.canary}}:$(git rev-parse --short=12 HEAD) \
+  --cache-from type=registry,ref={{vars.canary}}:buildcache \
+  --cache-to type=registry,ref={{vars.canary}}:buildcache,mode=max,image-manifest=true \
+  --push .
 """
 
 # REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
 # in the workflow github.actor and its GITHUB_TOKEN
-[tasks."wizard:image:login"]
-description = "Log in to ghcr.io to push the images"
+[tasks."wizard:login"]
+description = "Log in to ghcr.io to pull and push the images and their cache"
 run = """
 if [ -z "$REGISTRY_USERNAME" ] || [ -z "$REGISTRY_PASSWORD" ]; then
   echo "set REGISTRY_USERNAME and REGISTRY_PASSWORD to log in to ghcr.io" >&2
   exit 1
 fi
 printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_USERNAME" --password-stdin
-"""
-
-# for amd64 and arm64 (the macs), tagged latest and with the commit they were built from;
-# the platform not running here needs qemu (binfmt)
-[tasks."wizard:image:push"]
-description = "Build the image of the tools and the canary for amd64 and arm64 and push them to ghcr.io"
-dir = "{{config_root}}"
-run = """
-commit=$(git rev-parse --short=12 HEAD)
-docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.canary}}:latest --tag {{vars.canary}}:$commit --push canary
-docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.image}}:latest --tag {{vars.image}}:$commit --push .
 """
