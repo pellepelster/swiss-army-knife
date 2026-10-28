@@ -336,14 +336,19 @@ describe('NotesStore', () => {
     expect(store.notes().map((note) => note.id)).toEqual([1]);
   });
 
-  it('brings a deleted note back when the backend can not delete it', () => {
+  it('brings a deleted note back when the backend can not delete it, keeping the edits meanwhile', () => {
     store.remove(2);
     vi.advanceTimersByTime(UNDO_DELETE_MS);
+    const deleting = http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' });
+    store.setColor(1, 'blue');
     http
-      .expectOne({ method: 'DELETE', url: '/api/v1/notes/2' })
-      .flush(null, { status: 500, statusText: 'Error' });
+      .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+      .flush(noteResponse(1, 'milk', 'blue', ['shopping']));
+    deleting.flush(null, { status: 500, statusText: 'Error' });
 
     expect(store.notes().map((note) => note.id)).toEqual([2, 1]);
+    expect(store.notes()[1].color).toBe('blue');
+    expect(store.pagination()?.total).toBe(2);
     expect(store.error()).toBe('The note could not be deleted.');
   });
 
