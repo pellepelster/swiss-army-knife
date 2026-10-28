@@ -127,6 +127,9 @@ class FileServiceTest {
         // an app1 segment right after the start of the image
         val jpeg = Media.JPEG.copyOf(2) + byteArrayOf(0xFF.toByte(), 0xE1.toByte(), 0, (exif.size + 2).toByte()) + exif + Media.JPEG.copyOfRange(2, Media.JPEG.size)
         service.store(jpeg.inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
+        // the same with a fill byte before its marker, ff ff e1
+        val padded = Media.JPEG.copyOf(2) + byteArrayOf(0xFF.toByte()) + jpeg.copyOfRange(2, jpeg.size)
+        service.store(padded.inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
 
         // an exif chunk and an xmp text chunk right after the header chunk
         fun png(

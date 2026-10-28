@@ -76,9 +76,12 @@ internal object ImageMetadata {
                 var marker = 0
                 while (marker != 0xDA && marker != 0xD9 && marker != 0xE1) {
                     if (input.readUnsignedByte() != 0xFF) return false
-                    marker = input.readUnsignedByte()
+                    // fill bytes may come before a marker, the first other byte is the marker
+                    do {
+                        marker = input.readUnsignedByte()
+                    } while (marker == 0xFF)
                     // the markers without a length
-                    if (marker == 0xD8 || marker in 0xD0..0xD7 || marker == 0x01 || marker == 0xFF) continue
+                    if (marker == 0xD8 || marker in 0xD0..0xD7 || marker == 0x01) continue
                     if (marker != 0xDA && marker != 0xD9 && marker != 0xE1) input.skipNBytes(input.readUnsignedShort() - 2L)
                 }
                 marker == 0xE1
