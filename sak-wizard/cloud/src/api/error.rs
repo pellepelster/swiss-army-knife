@@ -17,6 +17,10 @@ pub enum Error {
 
     #[error("invalid label: {0}")]
     InvalidLabel(String),
+
+    /// the api of a provider failed, the error is the provider's own
+    #[error("{0}")]
+    Provider(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl Error {

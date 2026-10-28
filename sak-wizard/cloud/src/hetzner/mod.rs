@@ -1,5 +1,6 @@
 //! the resources of the Hetzner Cloud
 
+pub mod api;
 pub mod labels;
 
 /// the prefix of the labels the provisioners keep for themselves on the resources
@@ -10,3 +11,9 @@ pub const SSH_KEYS_LABEL: &str = "sak/ssh-keys";
 
 /// the hash of the user data (cloud-init) a server was created with
 pub const USER_DATA_LABEL: &str = "sak/user-data";
+
+impl From<api::ApiError> for crate::api::Error {
+    fn from(error: api::ApiError) -> Self {
+        crate::api::Error::Provider(Box::new(error))
+    }
+}

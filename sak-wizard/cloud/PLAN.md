@@ -189,8 +189,8 @@ it after `wizard:test`, without a token.
 
 ## Steps
 
-1. Scaffold the crate, `api` module, `hetzner::labels`, `diff::label_diff`, unit tests. (~400 lines)
-2. `hetzner::api`: client, models, the five resource apis, actions, wiremock tests. (~900 lines)
+1. Scaffold the crate, `api` module, `hetzner::labels`, `diff::label_diff`, unit tests. (~400 lines) — done
+2. `hetzner::api`: client, models, the five resource apis, actions, wiremock tests. (~900 lines) — done
 3. ssh key resource + provisioner, the first integration test; this sets the pattern. (~250)
 4. volume and primary ip. (~400)
 5. firewall. (~250)
