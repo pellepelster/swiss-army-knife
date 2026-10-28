@@ -110,6 +110,8 @@ pub struct ApplyResult {
 pub enum ApplyEvent {
     Started(ResourceRef),
     Applied(ApplyResult),
+    /// by `destroy_all_with`: the resource is gone, or was gone already (`false`)
+    Destroyed(ResourceRef, bool),
 }
 
 /// the resources declared for a run and the provisioners that reconcile them. A
@@ -263,16 +265,26 @@ impl Registry {
 
     /// destroys every resource, dependents first; the refs of the resources destroyed
     pub async fn destroy_all(&mut self) -> Result<Vec<ResourceRef>> {
+        self.destroy_all_with(&mut |_| {}).await
+    }
+
+    /// `destroy_all`, telling `on_event` about every resource as it is taken up and gone
+    pub async fn destroy_all_with(
+        &mut self,
+        on_event: &mut (dyn FnMut(ApplyEvent) + Send),
+    ) -> Result<Vec<ResourceRef>> {
         let mut destroyed = Vec::new();
         for index in self.order()?.into_iter().rev() {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
             info!("destroying {reference}");
-            if self
+            on_event(ApplyEvent::Started(reference.clone()));
+            let gone = self
                 .provisioner_of(resource)?
                 .destroy(resource, &self.context)
-                .await?
-            {
+                .await?;
+            on_event(ApplyEvent::Destroyed(reference.clone(), gone));
+            if gone {
                 destroyed.push(reference);
             }
         }

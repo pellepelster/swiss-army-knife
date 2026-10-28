@@ -1,5 +1,6 @@
-// one deployment: its state and resources, redeploy at the top right leads to the plan of
-// bringing it to what the wizard declares, back to the deployments
+// one deployment: its state and resources; deploy at the top right leads to the plan of
+// bringing it to what the wizard declares, destroy to the plan of removing everything but its
+// data volume, back to the deployments
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
 import { show, text } from './views.js';
@@ -22,7 +23,12 @@ export function showDeployment(deployment) {
   show('view-deployment');
 }
 
-document.getElementById('deployment-redeploy').addEventListener('click', () => showCreate({ redeploy: current }));
+document.getElementById('deployment-deploy').addEventListener('click', () =>
+  showCreate({ existing: current, intent: 'deploy' }),
+);
+document.getElementById('deployment-destroy').addEventListener('click', () =>
+  showCreate({ existing: current, intent: 'destroy' }),
+);
 document.getElementById('deployment-back').addEventListener('click', async () => {
   const { showDeployments } = await import('./deployments.js');
   await showDeployments();

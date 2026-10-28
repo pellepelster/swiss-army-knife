@@ -1,5 +1,5 @@
 use super::{Check, CheckResult, Progress};
-use crate::gui::container::{self, ContainerRuntime};
+use crate::core::container::{self, ContainerRuntime};
 use rust_i18n::t;
 use tauri::{AppHandle, Manager};
 

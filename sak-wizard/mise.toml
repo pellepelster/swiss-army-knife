@@ -27,7 +27,7 @@ cp -r ../sak-theme/fonts ui/theme/fonts
 
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-# without arguments the window, with a command (list, create, redeploy, --help) the command line:
+# without arguments the window, with a command (list, create, deploy, destroy, --help) the command line:
 # `mise run wizard:run -- list`; tauri dev passes what follows its second -- to the app. The token
 # comes from pass unless HCLOUD_TOKEN is set
 [tasks."wizard:run"]
@@ -36,7 +36,7 @@ depends = ["wizard:theme"]
 dir = "{{config_root}}"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 usage = '''
-arg "<args>" var=#true default="" help="nothing for the window, or list, create [<sak name>] or redeploy <sak name>"
+arg "<args>" var=#true default="" help="nothing for the window, or list, create [<sak name>], deploy <sak name> or destroy <sak name>"
 '''
 run = '''
 eval "set -- ${usage_args}"
@@ -71,15 +71,15 @@ dir = "{{config_root}}/cloud"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = "cargo test"
 
-# the wizard on the command line, the same code as its pages: list, create [<sak name>] or
-# redeploy <sak name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
+# the wizard on the command line, the same code as its pages: list, create [<sak name>],
+# deploy <sak name> or destroy <sak name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
 # environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run wizard:cli -- create
 [tasks."wizard:cli"]
-description = "Run sak-wizard on the command line: list, create [<sak name>] or redeploy <sak name>"
+description = "Run sak-wizard on the command line: list, create [<sak name>], deploy <sak name> or destroy <sak name>"
 dir = "{{config_root}}/src-tauri"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 usage = '''
-arg "<args>" var=#true help="list, create [<sak name>] or redeploy <sak name>"
+arg "<args>" var=#true help="list, create [<sak name>], deploy <sak name> or destroy <sak name>"
 '''
 run = '''
 eval "set -- ${usage_args}"
@@ -112,6 +112,7 @@ docker run --rm "$image" ansible --version
 docker run --rm "$image" ansible-galaxy collection list community.general
 docker run --rm "$image" ansible-galaxy collection list pelle_io.sak | grep -q "^pelle_io.sak "
 docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.controller | grep -q "pelle_io.sak.controller :"
+docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.server | grep -q "pelle_io.sak.storage :"
 docker run --rm "$image" ansible localhost -m ping
 echo "the image of the tools works"
 """

@@ -445,6 +445,17 @@ impl DeploymentSpec {
             .with(self.firewall())?
             .with(self.server())
     }
+
+    /// the resource group without the data volume: what a destroy removes, the data stays
+    pub fn registry_except_data(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
+        provider
+            .registry()
+            .with(self.ssh_key())?
+            .with(self.ipv4())?
+            .with(self.ipv6())?
+            .with(self.firewall())?
+            .with(self.server())
+    }
 }
 
 #[cfg(test)]

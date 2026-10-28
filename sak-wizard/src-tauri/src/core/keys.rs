@@ -6,16 +6,60 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
-/// the public key, `ssh-ed25519 <base64> sak-<name>`, of the key derived from the
-/// password with argon2id, the name its salt
-pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
-    let salt = format!("sak.pelle.io/{name}");
+/// an ed25519 key derived from the password of a deployment: the client key the server
+/// is created with, or the host key the server identifies itself with
+pub struct DerivedKey {
+    key: SigningKey,
+    comment: String,
+}
+
+impl DerivedKey {
+    /// `ssh-ed25519 <base64> <comment>`
+    pub fn public_key(&self) -> String {
+        encode_public_key(&self.key.verifying_key(), &self.comment)
+    }
+
+    /// the private key as openssh writes it, unencrypted
+    pub fn private_key(&self) -> String {
+        encode_private_key(&self.key, &self.comment)
+    }
+}
+
+fn derive(password: &str, salt: &str, comment: &str) -> Result<DerivedKey, String> {
     let mut seed = [0u8; 32];
     Argon2::default()
         .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut seed)
         .map_err(|e| e.to_string())?;
-    let key = SigningKey::from_bytes(&seed).verifying_key();
-    Ok(encode_public_key(&key, &format!("sak-{name}")))
+    Ok(DerivedKey {
+        key: SigningKey::from_bytes(&seed),
+        comment: comment.to_string(),
+    })
+}
+
+/// the client key of a deployment, derived from the password with argon2id, the name its
+/// salt; the server is created with its public half, the wizard logs in with the private
+pub fn derive_key(name: &str, password: &str) -> Result<DerivedKey, String> {
+    derive(
+        password,
+        &format!("sak.pelle.io/{name}"),
+        &format!("sak-{name}"),
+    )
+}
+
+/// the public key, `ssh-ed25519 <base64> sak-<name>`, of the client key
+pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
+    Ok(derive_key(name, password)?.public_key())
+}
+
+/// the host key of the server of a deployment, derived like the client key with a salt of
+/// its own: cloud-init installs it, so the server is known before it ever boots and the
+/// first connection is verified
+pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String> {
+    derive(
+        password,
+        &format!("sak.pelle.io/host-key/{name}"),
+        &format!("sak-{name}-host"),
+    )
 }
 
 /// the hash of the password that goes on the server of the deployment as the label
@@ -32,12 +76,66 @@ pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
 
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
 pub fn encode_public_key(key: &VerifyingKey, comment: &str) -> String {
+    format!(
+        "ssh-ed25519 {} {comment}",
+        STANDARD.encode(public_blob(key))
+    )
+}
+
+// a string of the ssh wire format: its length, then its bytes
+fn put(buffer: &mut Vec<u8>, bytes: &[u8]) {
+    buffer.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+    buffer.extend_from_slice(bytes);
+}
+
+fn public_blob(key: &VerifyingKey) -> Vec<u8> {
     let mut blob = Vec::new();
-    for part in [b"ssh-ed25519".as_slice(), key.as_bytes()] {
-        blob.extend_from_slice(&(part.len() as u32).to_be_bytes());
-        blob.extend_from_slice(part);
+    put(&mut blob, b"ssh-ed25519");
+    put(&mut blob, key.as_bytes());
+    blob
+}
+
+/// the openssh private key format (PROTOCOL.key of openssh), unencrypted: the magic, no
+/// cipher and kdf, one key, its public blob and the private section with the check
+/// values, the key, the comment and the padding
+fn encode_private_key(key: &SigningKey, comment: &str) -> String {
+    let public = key.verifying_key();
+    // the two check values only have to be equal, there is nothing to hide in a key that
+    // is derived anyway
+    let check = 0x5a5a_5a5au32.to_be_bytes();
+    let mut private = Vec::new();
+    private.extend_from_slice(&check);
+    private.extend_from_slice(&check);
+    put(&mut private, b"ssh-ed25519");
+    put(&mut private, public.as_bytes());
+    let mut secret = key.to_bytes().to_vec();
+    secret.extend_from_slice(public.as_bytes());
+    put(&mut private, &secret);
+    put(&mut private, comment.as_bytes());
+    let mut padding = 1u8;
+    while private.len() % 8 != 0 {
+        private.push(padding);
+        padding += 1;
     }
-    format!("ssh-ed25519 {} {comment}", STANDARD.encode(blob))
+
+    let mut blob = b"openssh-key-v1\0".to_vec();
+    put(&mut blob, b"none");
+    put(&mut blob, b"none");
+    put(&mut blob, b"");
+    blob.extend_from_slice(&1u32.to_be_bytes());
+    put(&mut blob, &public_blob(&public));
+    put(&mut blob, &private);
+
+    let encoded = STANDARD.encode(blob);
+    let lines: Vec<&str> = encoded
+        .as_bytes()
+        .chunks(70)
+        .map(|chunk| std::str::from_utf8(chunk).unwrap_or_default())
+        .collect();
+    format!(
+        "-----BEGIN OPENSSH PRIVATE KEY-----\n{}\n-----END OPENSSH PRIVATE KEY-----\n",
+        lines.join("\n")
+    )
 }
 
 #[cfg(test)]
@@ -54,6 +152,54 @@ mod tests {
         );
         assert!(key.starts_with("ssh-ed25519 "));
         assert!(key.ends_with(" sak-alpha"));
+    }
+
+    /// ssh-keygen reads the private key back and derives the same public key from it;
+    /// without ssh-keygen the test checks the file's shape only
+    #[test]
+    fn the_private_key_is_what_openssh_reads() {
+        let key = derive_key("alpha", "a password of sixteen").unwrap();
+        let private = key.private_key();
+        assert!(private.starts_with("-----BEGIN OPENSSH PRIVATE KEY-----\n"));
+        assert!(private.ends_with("-----END OPENSSH PRIVATE KEY-----\n"));
+
+        let dir = std::env::temp_dir().join(format!("sak-wizard-keys-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("id_ed25519");
+        std::fs::write(&path, &private).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let read = std::process::Command::new("ssh-keygen")
+            .args(["-y", "-f"])
+            .arg(&path)
+            .output();
+        std::fs::remove_dir_all(&dir).unwrap();
+        if let Ok(output) = read {
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let public = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(public.trim(), key.public_key());
+        }
+    }
+
+    #[test]
+    fn the_host_key_differs_from_the_client_key() {
+        let client = derive_key("alpha", "a password of sixteen").unwrap();
+        let host = derive_host_key("alpha", "a password of sixteen").unwrap();
+        assert_ne!(client.public_key(), host.public_key());
+        assert!(host.public_key().ends_with(" sak-alpha-host"));
+        assert_eq!(
+            derive_host_key("alpha", "a password of sixteen")
+                .unwrap()
+                .public_key(),
+            host.public_key()
+        );
     }
 
     #[test]

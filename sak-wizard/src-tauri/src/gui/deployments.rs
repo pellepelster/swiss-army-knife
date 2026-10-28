@@ -1,5 +1,6 @@
 //! the commands of the pages about deployments, each a thin call into core
 
+use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, LocationResponse,
     NewDeployment, PlanResponse, defaults,
@@ -32,13 +33,14 @@ pub async fn plan_deployment(
 pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
+    container: State<'_, ContainerRuntime>,
     deployment: NewDeployment,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), String> {
     let tokens = tokens.tokens();
     // a progress event that cannot be delivered is no reason to stop creating
     manager
-        .create(tokens, &deployment, &mut |event| {
+        .create(tokens, &deployment, &container, &mut |event| {
             let _ = on_event.send(event);
         })
         .await

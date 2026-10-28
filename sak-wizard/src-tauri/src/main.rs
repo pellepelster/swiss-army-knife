@@ -14,7 +14,7 @@ mod gui;
 
 fn main() {
     core::i18n::init();
-    // list, create or redeploy as the first argument: the command line, no window
+    // list, create or deploy as the first argument: the command line, no window
     let args: Vec<String> = std::env::args().skip(1).collect();
     if cli::is_command_line(&args) {
         use clap::Parser;

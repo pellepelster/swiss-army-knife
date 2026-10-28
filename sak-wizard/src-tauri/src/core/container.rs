@@ -26,6 +26,16 @@ const API_TIMEOUT_SECONDS: u64 = 3600;
 #[derive(Debug, Default)]
 pub struct ContainerRuntime(Mutex<Option<&'static str>>);
 
+impl Clone for ContainerRuntime {
+    fn clone(&self) -> Self {
+        let runtime = ContainerRuntime::default();
+        if let Some(found) = self.get() {
+            runtime.set(found);
+        }
+        runtime
+    }
+}
+
 impl ContainerRuntime {
     pub fn get(&self) -> Option<&'static str> {
         self.0.lock().ok().and_then(|runtime| *runtime)
@@ -82,11 +92,23 @@ fn canary(runtime: &str) -> Result<String, String> {
     Ok(version)
 }
 
+// runs the future to its end: on the runtime this thread belongs to (a blocking task of the
+// window's), or on one of its own (the command line, the tests)
+fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => handle.block_on(future),
+        Err(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("a runtime of its own")
+            .block_on(future),
+    }
+}
+
 /// pulls the image anew and proves it by running it; docker's api reports the bytes pulled, the
 /// command line of docker and podman nothing
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
-    let pulled =
-        runtime == "docker" && tauri::async_runtime::block_on(pull_with_api(on_progress)).is_ok();
+    let pulled = runtime == "docker" && block_on(pull_with_api(on_progress)).is_ok();
     if !pulled {
         output(runtime, &["pull", IMAGE]).map_err(|error| {
             t!(
@@ -260,7 +282,7 @@ fn output(runtime: &str, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-fn command(program: &str) -> Command {
+pub(crate) fn command(program: &str) -> Command {
     #[allow(unused_mut)]
     let mut command = Command::new(program);
     // no console window flashing up for every process the windows release build starts

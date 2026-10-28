@@ -2,7 +2,6 @@
 //! screen; the commands call into core, this is where tauri lives
 
 pub mod checks;
-pub mod container;
 pub mod deployments;
 pub mod i18n;
 pub mod providers;
@@ -14,7 +13,7 @@ use crate::core::providers::ProviderTokens;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(container::ContainerRuntime::default())
+        .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())
         .manage(DeploymentManager)
         .invoke_handler(tauri::generate_handler![

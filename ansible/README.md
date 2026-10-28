@@ -8,6 +8,10 @@ Ansible collection that provisions the `sak-backend` server.
 | `pelle_io.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` |
 | `pelle_io.sak.controller` | Loads the `sak-backend` and `sak-ingress` (caddy, denies everything until the controller configures it, storage in `/storage/data/ingress`, json logs in `/storage/data/ingress/log`) images into podman and runs them as quadlets; the s3 buckets live in `/storage/data/backend/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000) |
 
+`playbooks/server.yml` (`pelle_io.sak.server`) is what sak-wizard runs against the server of a
+deployment right after creating it: it waits for ssh, then `common` and `storage`; the
+`controller` role follows once its images and configuration come from the wizard.
+
 The `storage` role needs `storage_device`, the data volume's device (`terraform -chdir=terraform/modules/hcloud/backend output -raw data_device`).
 The `controller` role needs `controller_image_archive` and `controller_ingress_image_archive` (exported by `mise run docker:save`
 to `build/images/`) and `controller_config_src`,

@@ -2,7 +2,10 @@
 //! it and diffed against the resource group a deployment consists of; and a new one, planned
 //! and created from its name and password
 
+use crate::core::container::ContainerRuntime;
+use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
+use crate::core::provision::{ProvisionManager, ProvisionRun};
 use rust_i18n::t;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
@@ -54,6 +57,8 @@ pub struct PlannedResource {
     pub(crate) resource: String,
     pub(crate) status: DiffStatus,
     pub(crate) recreate: bool,
+    /// a destroy leaves it: the data volume
+    pub(crate) keep: bool,
     pub(crate) changes: Vec<String>,
 }
 
@@ -62,8 +67,37 @@ pub struct PlannedResource {
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum CreateEvent {
-    Started { resource: String },
-    Applied { resource: String, applied: Applied },
+    Started {
+        resource: String,
+    },
+    Applied {
+        resource: String,
+        applied: Applied,
+    },
+    /// by a destroy: the resource is gone, or was gone already
+    Destroyed {
+        resource: String,
+        gone: bool,
+    },
+    /// a line ansible printed while provisioning the server
+    Output {
+        line: String,
+    },
+}
+
+/// the cloud-init of the server: the host key derived from the password installed before
+/// sshd first starts, and only that one, so the first connection is verified against it
+pub fn user_data(host_key: &DerivedKey) -> String {
+    let private = host_key
+        .private_key()
+        .lines()
+        .map(|line| format!("    {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "#cloud-config\nssh_deletekeys: true\nssh_genkeytypes: []\nssh_keys:\n  ed25519_private: |\n{private}\n  ed25519_public: {public}\n",
+        public = host_key.public_key()
+    )
 }
 
 /// what the environment proposes for a new deployment: SAK_NAME, SAK_PASSWORD and
@@ -167,7 +201,9 @@ const MIN_PASSWORD_CHARS: usize = 16;
 #[serde(rename_all = "snake_case")]
 pub enum Intent {
     Create,
-    Redeploy,
+    Deploy,
+    /// every resource of the deployment removed, except the data volume
+    Destroy,
 }
 
 /// what the page sends for a deployment to plan or create
@@ -188,6 +224,8 @@ struct Prepared {
     runtime: HetznerProviderRuntime,
     spec: DeploymentSpec,
     recreate: bool,
+    client_key: DerivedKey,
+    host_key: DerivedKey,
 }
 
 /// the password of an existing deployment, against the hash on its server or, without a
@@ -304,7 +342,7 @@ impl DeploymentManager {
                 }
                 (location, false)
             }
-            Intent::Redeploy => {
+            Intent::Deploy | Intent::Destroy => {
                 let Some(existing) = existing else {
                     return Err(t!("deployments.not_found", name = name).to_string());
                 };
@@ -315,15 +353,17 @@ impl DeploymentManager {
                     .as_ref()
                     .map(|server| server.location)
                     .unwrap_or(location);
-                (location, true)
+                (location, intent == Intent::Deploy)
             }
         };
 
-        let public_key = crate::core::keys::derive_public_key(name, password)?;
+        let client_key = crate::core::keys::derive_key(name, password)?;
+        let host_key = crate::core::keys::derive_host_key(name, password)?;
+        let public_key = client_key.public_key();
         let password_hash = crate::core::keys::password_hash(name, password)?;
         let runtime =
             HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
-        let spec = DeploymentSpec::new(
+        let mut spec = DeploymentSpec::new(
             name,
             &public_key,
             runtime.default_location,
@@ -331,11 +371,14 @@ impl DeploymentManager {
         )
         .map_err(|error| error.to_string())?
         .with_password_hash(&password_hash);
+        spec.user_data = user_data(&host_key);
         Ok(Prepared {
             provider,
             runtime,
             spec,
             recreate,
+            client_key,
+            host_key,
         })
     }
 
@@ -346,6 +389,7 @@ impl DeploymentManager {
         deployment: &NewDeployment,
     ) -> Result<PlanResponse, String> {
         let prepared = self.prepare(tokens, deployment).await?;
+        let volume = prepared.spec.data_volume().name;
         let mut registry = prepared
             .spec
             .registry(&prepared.runtime)
@@ -363,6 +407,7 @@ impl DeploymentManager {
                     resource: diff.resource.log_text.clone(),
                     status: diff.status,
                     recreate: diff.needs_recreate(),
+                    keep: deployment.intent == Intent::Destroy && diff.resource.name == volume,
                     changes: diff
                         .changes
                         .iter()
@@ -373,16 +418,43 @@ impl DeploymentManager {
         })
     }
 
-    /// creates the deployment: the resources applied in the order of their dependencies,
-    /// each reported to `on_event` as it is taken up and done. What exists already is left
-    /// as it is, so a run that failed half way is finished by the next
+    /// creates or deploys the deployment: the resources applied in the order of their
+    /// dependencies, each reported to `on_event` as it is taken up and done, then the server
+    /// provisioned with ansible in the image of the tools, every line it prints reported too.
+    /// What exists already is left as it is, so a run that failed half way is finished by the
+    /// next. A destroy removes every resource but the data volume, dependents first
     pub async fn create(
         &self,
         tokens: Vec<(ProviderType, String)>,
         deployment: &NewDeployment,
+        container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(CreateEvent) + Send),
     ) -> Result<(), String> {
         let prepared = self.prepare(tokens, deployment).await?;
+        if deployment.intent == Intent::Destroy {
+            let mut registry = prepared
+                .spec
+                .registry_except_data(&prepared.runtime)
+                .map_err(|error| error.to_string())?;
+            let mut report = |event: ApplyEvent| {
+                let event = match event {
+                    ApplyEvent::Started(resource) => CreateEvent::Started {
+                        resource: resource.log_text,
+                    },
+                    ApplyEvent::Destroyed(resource, gone) => CreateEvent::Destroyed {
+                        resource: resource.log_text,
+                        gone,
+                    },
+                    ApplyEvent::Applied(_) => return,
+                };
+                on_event(event);
+            };
+            registry
+                .destroy_all_with(&mut report)
+                .await
+                .map_err(|error| message("deployments.destroy_failed", prepared.provider, error))?;
+            return Ok(());
+        }
         let mut registry = prepared
             .spec
             .registry(&prepared.runtime)
@@ -396,6 +468,7 @@ impl DeploymentManager {
                     resource: result.resource.log_text,
                     applied: result.applied,
                 },
+                ApplyEvent::Destroyed(..) => return,
             };
             on_event(event);
         };
@@ -403,7 +476,62 @@ impl DeploymentManager {
             .apply_all_with(prepared.recreate, &mut report)
             .await
             .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
-        Ok(())
+
+        // what came out of it: the server's address and the device of its data volume
+        let created = discover(&prepared.runtime.api)
+            .await
+            .map_err(|error| failed(prepared.provider, error))?
+            .into_iter()
+            .find(|found| found.name == prepared.spec.name)
+            .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
+        let server = created
+            .server
+            .as_ref()
+            .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
+        let host = server
+            .public_ipv4
+            .clone()
+            .ok_or_else(|| t!("provision.no_address", name = prepared.spec.name).to_string())?;
+        let volume_name = prepared.spec.data_volume().name;
+        let storage_device = created
+            .volumes
+            .iter()
+            .find(|volume| volume.name == volume_name)
+            .map(|volume| volume.device.clone())
+            .ok_or_else(|| t!("provision.no_volume", name = prepared.spec.name).to_string())?;
+        let run = ProvisionRun {
+            name: prepared.spec.name.clone(),
+            host,
+            host_ipv6: server
+                .public_ipv6
+                .clone()
+                .map(|network| first_address(&network)),
+            client_key: prepared.client_key,
+            host_key: prepared.host_key,
+            storage_device,
+        };
+
+        // ansible runs as a process of its own, its lines come through a channel while it does
+        let runtime = container.clone();
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        let provisioning = tokio::task::spawn_blocking(move || {
+            ProvisionManager.provision(&runtime, &run, &mut |line| {
+                let _ = sender.send(line);
+            })
+        });
+        while let Some(line) = receiver.recv().await {
+            on_event(CreateEvent::Output { line });
+        }
+        provisioning.await.map_err(|error| error.to_string())?
+    }
+}
+
+/// `2001:db8::/64` -> `2001:db8::1`, the address of the server in its network
+fn first_address(network: &str) -> String {
+    let prefix = network.split('/').next().unwrap_or(network);
+    match prefix.strip_suffix("::") {
+        Some(head) => format!("{head}::1"),
+        None => prefix.to_string(),
     }
 }
 
@@ -448,6 +576,16 @@ mod tests {
         };
         assert!(verify_password(&with_key, name, password).is_ok());
         assert!(verify_password(&with_key, name, "another password here").is_err());
+    }
+
+    #[test]
+    fn the_user_data_installs_the_host_key() {
+        let host_key =
+            crate::core::keys::derive_host_key("alpha", "a password of sixteen").unwrap();
+        let user_data = user_data(&host_key);
+        assert!(user_data.starts_with("#cloud-config\nssh_deletekeys: true\nssh_genkeytypes: []\nssh_keys:\n  ed25519_private: |\n    -----BEGIN OPENSSH PRIVATE KEY-----\n"));
+        assert!(user_data.ends_with(&format!("  ed25519_public: {}\n", host_key.public_key())));
+        assert_eq!(first_address("2001:db8::/64"), "2001:db8::1");
     }
 
     #[test]

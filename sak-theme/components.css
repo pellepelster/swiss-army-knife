@@ -104,6 +104,24 @@
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M7 2h2v5h5v2H9v5H7V9H2V7h5z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
+/* a terminal: what a tool prints, always dark whatever the scheme */
+.sak-terminal {
+  margin: 0;
+  padding: 0.9rem;
+  max-height: 20rem;
+  overflow: auto;
+  background: #0a0c0b;
+  color: #cdd6d0;
+  font-family: var(--sak-font-mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius-lg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 /* a label over data, small uppercase mono */
 .sak-label {
   font-family: var(--sak-font-mono);

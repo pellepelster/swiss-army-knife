@@ -77,6 +77,22 @@ code {
   --bs-btn-disabled-border-color: var(--sak-accent);
 }
 
+/* the one action that takes something away */
+.btn-danger {
+  --bs-btn-color: var(--sak-accent-ink);
+  --bs-btn-bg: var(--sak-danger);
+  --bs-btn-border-color: var(--sak-danger);
+  --bs-btn-hover-color: var(--sak-accent-ink);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
+  --bs-btn-active-color: var(--sak-accent-ink);
+  --bs-btn-active-bg: color-mix(in srgb, var(--sak-danger) 80%, var(--sak-ink));
+  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-danger) 80%, var(--sak-ink));
+  --bs-btn-disabled-color: var(--sak-accent-ink);
+  --bs-btn-disabled-bg: var(--sak-danger);
+  --bs-btn-disabled-border-color: var(--sak-danger);
+}
+
 .btn-outline-secondary {
   --bs-btn-color: var(--sak-ink);
   --bs-btn-bg: var(--sak-raised);

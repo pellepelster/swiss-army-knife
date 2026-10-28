@@ -1,8 +1,9 @@
 // a new deployment: its name and password, from which rust derives the ssh key and plans the
 // resources; the plan lists what creating it would do and, on create, lights each resource up
-// as rust creates it, then the deployments show the new one. A redeploy is the same for a
+// as rust creates it, then the deployments show the new one. A deploy is the same for a
 // deployment that exists: its name and location are given, the password is the one it was
-// created with, and a server that must change is created anew
+// created with, and a server that must change is created anew; a destroy removes everything
+// of it but the data volume
 import { show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
@@ -14,23 +15,32 @@ const repeatInput = document.getElementById('create-password-repeat');
 const locationInput = document.getElementById('create-location');
 const repeatGroup = document.getElementById('create-repeat-group');
 const planApplyIcon = document.getElementById('plan-apply-icon');
-// the deployment redeployed, none for a new one
-let redeploy = null;
+// the deployment deployed or destroyed, none for a new one, and what is done with it:
+// create, deploy or destroy
+let existing = null;
+let intent = 'create';
+
+// the text of `key` for the intent: `ui.plan.intro` for a create, `ui.plan.intro_deploy`
+function intentText(key) {
+  return text(intent === 'create' ? key : `${key}_${intent}`);
+}
 
 // what the form holds, as rust takes it to plan or create
 function newDeployment() {
   return {
     name: nameInput.value,
     password: passwordInput.value,
-    passwordRepeat: redeploy ? passwordInput.value : repeatInput.value,
+    passwordRepeat: existing ? passwordInput.value : repeatInput.value,
     location: locationInput.value,
-    intent: redeploy ? 'redeploy' : 'create',
+    intent,
   };
 }
 const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 const planList = document.getElementById('plan-resources');
 const planStatus = document.getElementById('plan-status');
+const planOutput = document.getElementById('plan-output');
+const applyButton = document.getElementById('plan-apply');
 const planButtons = ['plan-cancel', 'plan-back', 'plan-apply'].map((id) => document.getElementById(id));
 // the rows of the plan by the resource they show, for the events of the creation
 const rows = new Map();
@@ -38,7 +48,15 @@ const rows = new Map();
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
-function planned({ resource, status: state, recreate, changes }) {
+// what the plan does to a resource: a destroy keeps the data volume and leaves what is gone
+function plannedText(state, recreate, keep) {
+  if (intent === 'destroy') {
+    return keep ? 'keep' : state === 'missing' ? 'gone' : 'will_destroy';
+  }
+  return recreate ? 'recreate' : state;
+}
+
+function planned({ resource, status: state, recreate, keep, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state;
@@ -51,7 +69,7 @@ function planned({ resource, status: state, recreate, changes }) {
   name.textContent = resource;
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  detail.textContent = text(`ui.plan.${recreate ? 'recreate' : state}`);
+  detail.textContent = text(`ui.plan.${plannedText(state, recreate, keep)}`);
   item.append(mark, name, detail);
   for (const change of changes) {
     const line = document.createElement('span');
@@ -74,9 +92,9 @@ function setBusy(busy) {
 }
 
 // the password typed twice: the second field is marked until both match, rust checks it again;
-// a redeploy checks it against the deployment instead
+// a deploy or destroy checks it against the deployment instead
 function passwordsMatch() {
-  const match = redeploy ? true : passwordInput.value === repeatInput.value;
+  const match = existing ? true : passwordInput.value === repeatInput.value;
   repeatInput.classList.toggle('is-invalid', !match);
   return match;
 }
@@ -104,13 +122,13 @@ async function loadLocations(chosen) {
 }
 
 // the fields still empty take what the environment proposes, SAK_NAME, SAK_PASSWORD and
-// SAK_LOCATION; a redeploy has its name and location from the deployment, only the password
+// SAK_LOCATION; a deploy or destroy has its name and location from the deployment, only the password
 // from the environment
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
-  if (redeploy) {
-    nameInput.value = redeploy.name;
-    await loadLocations(redeploy.location);
+  if (existing) {
+    nameInput.value = existing.name;
+    await loadLocations(existing.location);
   } else {
     await loadLocations(defaults.location);
     if (!nameInput.value && defaults.name) {
@@ -124,17 +142,16 @@ async function prefill() {
 }
 
 export async function showCreate(options = {}) {
-  redeploy = options.redeploy ?? null;
+  existing = options.existing ?? null;
+  intent = existing ? options.intent : 'create';
   setStatus('');
   repeatInput.classList.remove('is-invalid');
-  document.getElementById('create-title').textContent = text(redeploy ? 'ui.create.title_redeploy' : 'ui.create.title');
-  document.getElementById('create-password-hint').textContent = text(
-    redeploy ? 'ui.create.password_hint_redeploy' : 'ui.create.password_hint',
-  );
-  repeatGroup.hidden = Boolean(redeploy);
-  repeatInput.required = !redeploy;
-  nameInput.readOnly = Boolean(redeploy);
-  locationInput.disabled = Boolean(redeploy);
+  document.getElementById('create-title').textContent = intentText('ui.create.title');
+  document.getElementById('create-password-hint').textContent = intentText('ui.create.password_hint');
+  repeatGroup.hidden = Boolean(existing);
+  repeatInput.required = !existing;
+  nameInput.readOnly = Boolean(existing);
+  locationInput.disabled = Boolean(existing);
   await prefill();
   show('view-create');
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
@@ -147,9 +164,12 @@ function setPlanStatus(message, failed = false) {
 
 function showPlan(plan) {
   document.getElementById('plan-name').textContent = plan.name;
-  document.getElementById('plan-intro').textContent = text(redeploy ? 'ui.plan.intro_redeploy' : 'ui.plan.intro');
-  document.getElementById('plan-apply-text').textContent = text(redeploy ? 'ui.plan.redeploy' : 'ui.plan.apply');
-  planApplyIcon.hidden = Boolean(redeploy);
+  document.getElementById('plan-intro').textContent = intentText('ui.plan.intro');
+  document.getElementById('plan-apply-text').textContent = text(intent === 'create' ? 'ui.plan.apply' : `ui.plan.${intent}`);
+  planApplyIcon.hidden = intent !== 'create';
+  // a destroy is the one action that takes something away, its button says so
+  applyButton.classList.toggle('btn-danger', intent === 'destroy');
+  applyButton.classList.toggle('btn-primary', intent !== 'destroy');
   rows.clear();
   planList.replaceChildren(
     ...plan.resources.map((state) => {
@@ -164,6 +184,10 @@ function showPlan(plan) {
 
 // a resource of the plan as its creation reports it: busy while rust works on it, ok when done
 function onCreateEvent(message) {
+  if (message.event === 'output') {
+    onOutput(message.line);
+    return;
+  }
   const row = rows.get(message.resource);
   if (!row) {
     return;
@@ -172,23 +196,35 @@ function onCreateEvent(message) {
   const detail = row.querySelector('.resource-detail');
   if (message.event === 'started') {
     led.dataset.sakState = 'busy';
-    detail.textContent = text('ui.plan.working');
+    detail.textContent = text(intent === 'destroy' ? 'ui.plan.working_destroy' : 'ui.plan.working');
   } else if (message.event === 'applied') {
     led.dataset.sakState = 'ok';
     detail.textContent = text(`ui.plan.done.${message.applied}`);
+  } else if (message.event === 'destroyed') {
+    led.dataset.sakState = 'neutral';
+    detail.textContent = text(message.gone ? 'ui.plan.done.destroyed' : 'ui.plan.gone');
   }
 }
 
-document.getElementById('plan-apply').addEventListener('click', async () => {
+// what ansible prints while it provisions the server, line by line, the newest in sight
+function onOutput(line) {
+  planOutput.hidden = false;
+  planOutput.textContent += `${line}\n`;
+  planOutput.scrollTop = planOutput.scrollHeight;
+}
+
+applyButton.addEventListener('click', async () => {
   for (const button of planButtons) {
     button.disabled = true;
   }
-  setPlanStatus(text(redeploy ? 'ui.plan.redeploying' : 'ui.plan.creating'));
+  setPlanStatus(text({ create: 'ui.plan.creating', deploy: 'ui.plan.deploying', destroy: 'ui.plan.destroying' }[intent]));
+  planOutput.textContent = '';
+  planOutput.hidden = true;
   const onEvent = new Channel();
   onEvent.onmessage = onCreateEvent;
   try {
     await invoke('create_deployment', { deployment: newDeployment(), onEvent });
-    await backToDeployments();
+    setPlanStatus(text(intent === 'destroy' ? 'ui.plan.destroyed' : 'ui.plan.provisioned'));
   } catch (error) {
     setPlanStatus(String(error), true);
   } finally {
@@ -226,12 +262,14 @@ async function backToDeployments() {
   locationInput.disabled = false;
   repeatGroup.hidden = false;
   repeatInput.required = true;
-  redeploy = null;
+  existing = null;
+  intent = 'create';
   setStatus('');
   const { showDeployments } = await import('./deployments.js');
   await showDeployments();
 }
 
 document.getElementById('create-cancel').addEventListener('click', backToDeployments);
-document.getElementById('plan-back').addEventListener('click', showCreate);
+// back to the form of the same deployment and intent, what was typed stays
+document.getElementById('plan-back').addEventListener('click', () => showCreate({ existing, intent }));
 document.getElementById('plan-cancel').addEventListener('click', backToDeployments);

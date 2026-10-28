@@ -1,0 +1,17 @@
+---
+# the server of a deployment as sak-wizard creates it: reached as soon as it accepts ssh,
+# then the base setup and the data volume; the controller follows once its images and
+# configuration are there
+- name: Provision the server of a deployment
+  hosts: all
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for the server to accept ssh
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - pelle_io.sak.common
+    - pelle_io.sak.storage

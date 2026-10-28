@@ -101,18 +101,28 @@
   group at the bottom right (`.page-footer`), buttons acting on the data of the view (add a
   provider, create a deployment) in the one at the top right of the page header.
 - A deployment in the list opens its page (its state, location and resources); what acts on it
-  (redeploy) sits at the top right there. A redeploy runs the plan and the apply of a create for
-  a deployment that exists, after its password was checked against the hash on its server, and
-  may create its server anew; the data volume and the addresses stay.
+  (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
+  for a deployment that exists, after its password was checked against the hash on its server, and
+  may create its server anew; the data volume and the addresses stay. A destroy, after the same
+  check, removes every resource of the deployment but its data volume; its plan says so first and
+  its button is the one `btn-danger` of the wizard.
 - The rust of `src-tauri` is three modules: `core` holds what both modes share (the
   `DeploymentManager`, the deployments and their plans, the keys, the providers and their tokens,
   the texts) and knows neither tauri nor clap (a test checks it); `gui` is tauri, the window, the
   commands of the pages as thin calls into core, the checks of the splash screen and the container
-  runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]` and
-  `redeploy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
+  runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]`,
+  `deploy <sak name>` and `destroy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
   and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
   it all; without a command the window opens. `mise run wizard:cli -- <command>` runs it with the
   token from pass, `mise run wizard:run -- <command>` the same through tauri dev.
+- Creating or deploying ends with the provisioning of the server: `core/provision.rs` runs
+  `ansible-playbook pelle_io.sak.server` in the image of the tools (docker or podman) against it,
+  the inventory, the ssh configuration, the client key and the known host key written to a
+  private directory for the run and mounted read-only; every line ansible prints goes to the
+  page's terminal or stdout. The server's host key is derived from the password like the client
+  key (`keys::derive_host_key`) and installed by cloud-init, so the first connection is verified
+  (`StrictHostKeyChecking yes`) and nothing has to be kept; the user data is part of the server's
+  declaration, a changed one is a recreate.
 - The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
   `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
   layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The
