@@ -88,6 +88,8 @@ class NoteService(
 
     init {
         labels.onDelete(repository::detachLabel)
+        // a label deleted without its links being dropped, the label service deletes it first
+        repository.detachDeletedLabels()
     }
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes

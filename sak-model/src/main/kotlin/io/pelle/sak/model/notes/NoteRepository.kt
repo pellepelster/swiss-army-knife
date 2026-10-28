@@ -2,6 +2,7 @@ package io.pelle.sak.model.notes
 
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
+import io.pelle.sak.model.jooq.tables.references.LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES
 import io.pelle.sak.model.jooq.tables.references.NOTES_LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES_FILES
@@ -143,6 +144,15 @@ class NoteRepository(
 
     // drops the label from every note
     fun detachLabel(labelId: Int) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId), clock.instant())
+
+    // drops every deleted label from the notes, the ones whose detachLabel did not happen, e.g. the
+    // process ended between deleting the label and detaching it; does nothing when there are none
+    fun detachDeletedLabels() =
+        deleteLabels(
+            database.dsl,
+            NOTES_LABELS.LABEL_ID.`in`(DSL.select(LABELS.ID).from(LABELS).where(LABELS.DELETED_AT.isNotNull)),
+            clock.instant(),
+        )
 
     private fun visible(
         owner: String,

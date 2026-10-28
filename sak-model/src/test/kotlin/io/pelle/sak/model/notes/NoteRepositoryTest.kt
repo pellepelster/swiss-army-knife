@@ -138,6 +138,19 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `drops the links to labels that were deleted without being detached`() {
+        val milk = label("milk")
+        val eggs = label("eggs")
+        val note = repository.insert("pelle@pelle.io", "breakfast", "yellow", setOf(milk, eggs), emptyList())
+        LabelRepository(database).delete("pelle@pelle.io", eggs)
+
+        repository.detachDeletedLabels()
+        repository.detachDeletedLabels()
+
+        labelLinks(note.id) shouldBe listOf(milk to false, eggs to true)
+    }
+
+    @Test
     fun `the schema attaches a file to a note once among the links that are not deleted only`() {
         val beach = file("beach")
         val note = repository.insert("pelle@pelle.io", "holidays", "blue", emptySet(), emptyList())
