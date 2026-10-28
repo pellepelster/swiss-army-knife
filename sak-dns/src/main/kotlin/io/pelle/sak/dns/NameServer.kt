@@ -1,5 +1,6 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.dns.model.AddressFamily
 import org.xbill.DNS.AAAARecord
 import org.xbill.DNS.ARecord
 import org.xbill.DNS.DClass
@@ -10,18 +11,9 @@ import org.xbill.DNS.Record
 import org.xbill.DNS.Section
 import org.xbill.DNS.SimpleResolver
 import org.xbill.DNS.TextParseException
-import org.xbill.DNS.Type
 import java.io.IOException
 import java.net.InetAddress
 import java.time.Duration
-
-enum class AddressFamily(
-    // the type of its records, a or aaaa
-    internal val type: Int,
-) {
-    IPV4(Type.A),
-    IPV6(Type.AAAA),
-}
 
 class DnsLookupException(
     message: String,

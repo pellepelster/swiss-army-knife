@@ -1,5 +1,7 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.dns.model.AddressFamily
+import io.pelle.sak.dns.model.DnsState
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.pelle.sak.api.HealthState

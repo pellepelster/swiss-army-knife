@@ -1,5 +1,7 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.dns.model.DnsAnswer
+import io.pelle.sak.dns.model.DnsState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.api.Health
 import io.pelle.sak.api.HealthState

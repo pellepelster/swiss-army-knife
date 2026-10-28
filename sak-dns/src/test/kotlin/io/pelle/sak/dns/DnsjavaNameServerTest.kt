@@ -1,5 +1,6 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.dns.model.AddressFamily
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.AfterEach

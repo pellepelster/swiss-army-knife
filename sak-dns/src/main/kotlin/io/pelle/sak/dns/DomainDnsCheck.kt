@@ -1,38 +1,14 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.dns.model.AddressFamily
+import io.pelle.sak.dns.model.DnsAnswer
+import io.pelle.sak.dns.model.DnsState
+import io.pelle.sak.dns.model.DomainDnsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.InetAddress
 import java.util.concurrent.Executors
 
 private val logger = KotlinLogging.logger {}
-
-enum class DnsState {
-    // the records of each family are all addresses of the server
-    OK,
-
-    // there are no records of a family the server has addresses of
-    MISSING,
-
-    // a record is no address of the server, e.g. an aaaa record although the server has no ipv6
-    MISMATCH,
-
-    // the name server did not answer
-    ERROR,
-}
-
-// what one name server answers for a domain
-data class DnsAnswer(
-    val server: String,
-    val state: DnsState,
-    val ipv4: List<String> = emptyList(),
-    val ipv6: List<String> = emptyList(),
-    val error: String? = null,
-)
-
-data class DomainDnsResult(
-    val domain: String,
-    val answers: List<DnsAnswer>,
-)
 
 // whether domains point to the addresses of a server, asked of every name server: a family the
 // server has addresses of has records, all of them its addresses; a family it has none of has no

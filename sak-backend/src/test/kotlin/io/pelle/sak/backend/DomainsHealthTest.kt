@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.dns.model.AddressFamily
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.HealthState
 import io.pelle.sak.backend.hosting.HostingHealth
@@ -7,7 +8,6 @@ import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.redirects.RedirectsHealth
 import io.pelle.sak.config.SakConfig
-import io.pelle.sak.dns.AddressFamily
 import io.pelle.sak.dns.DomainDnsCheck
 import io.pelle.sak.dns.NameServer
 import io.pelle.sak.model.SakDatabase
