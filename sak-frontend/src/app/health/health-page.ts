@@ -44,19 +44,22 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
     @if (statuses(); as statuses) {
       <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Health checks">
         @for (status of statuses; track status.name) {
-          <li class="card card-body" [attr.data-testid]="'health-' + status.name">
-            <div class="d-flex flex-wrap align-items-center gap-2">
-              <span class="fw-semibold flex-grow-1">{{ status.name }}</span>
-              <span [class]="'badge ' + states[status.state].badge" data-testid="state">
-                <i [class]="'fa-solid ' + states[status.state].icon" aria-hidden="true"></i>
-                {{ states[status.state].label }}
-              </span>
+          <li
+            class="card card-body flex-row align-items-center gap-3"
+            [attr.data-testid]="'health-' + status.name"
+          >
+            <div class="flex-grow-1 overflow-hidden">
+              <span class="fw-semibold">{{ status.name }}</span>
+              @if (status.message) {
+                <p class="small text-body-secondary text-break mb-0 mt-1" data-testid="message">
+                  {{ status.message }}
+                </p>
+              }
             </div>
-            @if (status.message) {
-              <p class="small text-body-secondary text-break mb-0 mt-2" data-testid="message">
-                {{ status.message }}
-              </p>
-            }
+            <span [class]="'badge flex-shrink-0 ' + states[status.state].badge" data-testid="state">
+              <i [class]="'fa-solid ' + states[status.state].icon" aria-hidden="true"></i>
+              {{ states[status.state].label }}
+            </span>
           </li>
         } @empty {
           <li class="card card-body text-center py-4">There are no health checks.</li>
