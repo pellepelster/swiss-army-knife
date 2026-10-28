@@ -5,13 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SwissArmyKnife</title>
     <link rel="stylesheet" href="style.css">
-    <script src="checks.js" defer></script>
+    <script type="module" src="app.js"></script>
   </head>
   <body>
-    <main class="splash">
+    <!-- one view at a time, app.js switches between them; data-text names the text of locales/ -->
+    <main class="view splash" id="view-splash">
       <img class="splash-icon" src="icon.svg" alt="">
       <h1 class="splash-title">SwissArmyKnife</h1>
       <p class="check-status" id="check-status" aria-live="polite"></p>
+    </main>
+
+    <main class="view page" id="view-providers" hidden>
+      <header class="page-header">
+        <h1 data-text="ui.providers.title"></h1>
+        <button type="button" class="button button-primary" id="providers-add" data-text="ui.providers.add"></button>
+      </header>
+      <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
+      <ul class="providers" id="provider-tokens"></ul>
+    </main>
+
+    <main class="view page" id="view-select" hidden>
+      <header class="page-header">
+        <h1 data-text="ui.select.title"></h1>
+        <button type="button" class="button" id="select-cancel" data-text="ui.cancel"></button>
+      </header>
+      <ul class="providers" id="provider-types"></ul>
+    </main>
+
+    <main class="view page" id="view-token" hidden>
+      <header class="page-header">
+        <h1 class="provider">
+          <img class="provider-logo" id="token-logo" alt="">
+          <span id="token-provider"></span>
+        </h1>
+      </header>
+      <form class="token-form" id="token-form">
+        <label for="token-input" data-text="ui.token.label"></label>
+        <input id="token-input" type="password" autocomplete="off" spellcheck="false">
+        <p class="hint" id="token-hint"></p>
+        <p class="status" id="token-status" aria-live="polite"></p>
+        <div class="actions">
+          <button type="button" class="button" id="token-cancel" data-text="ui.cancel"></button>
+          <button type="submit" class="button button-primary" id="token-add" data-text="ui.token.add"></button>
+        </div>
+      </form>
     </main>
   </body>
 </html>

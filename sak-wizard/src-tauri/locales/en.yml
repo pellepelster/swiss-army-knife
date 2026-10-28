@@ -11,3 +11,29 @@ checks:
     not_started: "%{runtime} could not be started: %{error}"
     no_container: "%{runtime} could not run a container: %{error}"
     wrong_answer: "The container of %{runtime} answered '%{answer}' instead of '%{expected}'"
+  provider_tokens:
+    checking: "Checking the provider tokens of the environment…"
+    passed: "The tokens of %{variables} are valid"
+    invalid: "%{variable} holds no valid %{provider} token: %{error} Correct or unset %{variable} and start SwissArmyKnife again."
+providers:
+  empty_token: "Enter the token."
+  duplicate: "This token was added already."
+  hetzner:
+    token_hint: "Create a token with the permissions read & write in the Hetzner Cloud console of your project, under Security → API tokens."
+    unreachable: "The Hetzner Cloud API could not be reached: %{error}"
+    unauthorized: "The token is not valid, check that it was copied completely."
+    forbidden: "The token can only read, create one with the permissions read & write."
+    refused: "The Hetzner Cloud API refused the token: %{error}"
+    not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
+ui:
+  providers:
+    title: "Provider tokens"
+    empty: "No provider tokens yet. Add the API tokens of the providers SwissArmyKnife creates resources at."
+    add: "Add"
+  select:
+    title: "Select the provider"
+  token:
+    label: "API token"
+    add: "Add"
+    checking: "Checking the token, an ssh key is created and deleted again…"
+  cancel: "Cancel"

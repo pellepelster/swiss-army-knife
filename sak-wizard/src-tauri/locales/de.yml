@@ -11,3 +11,29 @@ checks:
     not_started: "%{runtime} konnte nicht gestartet werden: %{error}"
     no_container: "%{runtime} konnte keinen Container ausführen: %{error}"
     wrong_answer: "Der Container von %{runtime} antwortete '%{answer}' statt '%{expected}'"
+  provider_tokens:
+    checking: "Prüfe die Provider-Tokens der Umgebung…"
+    passed: "Die Tokens von %{variables} sind gültig"
+    invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
+providers:
+  empty_token: "Gib das Token ein."
+  duplicate: "Dieses Token wurde bereits hinzugefügt."
+  hetzner:
+    token_hint: "Erstelle ein Token mit den Berechtigungen Lesen & Schreiben in der Hetzner Cloud Console deines Projekts, unter Sicherheit → API-Tokens."
+    unreachable: "Die Hetzner Cloud API ist nicht erreichbar: %{error}"
+    unauthorized: "Das Token ist nicht gültig, prüfe, ob es vollständig kopiert wurde."
+    forbidden: "Das Token kann nur lesen, erstelle eines mit den Berechtigungen Lesen & Schreiben."
+    refused: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
+    not_deleted: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
+ui:
+  providers:
+    title: "Provider-Tokens"
+    empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen SwissArmyKnife Ressourcen erstellt."
+    add: "Hinzufügen"
+  select:
+    title: "Wähle den Provider"
+  token:
+    label: "API-Token"
+    add: "Hinzufügen"
+    checking: "Prüfe das Token, ein SSH-Key wird erstellt und wieder gelöscht…"
+  cancel: "Abbrechen"

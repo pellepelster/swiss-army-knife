@@ -1,8 +1,9 @@
+use crate::providers::{ProviderTokens, ProviderType};
 use rust_i18n::t;
 use serde::Serialize;
 use std::process::Command;
-use tauri::AppHandle;
 use tauri::ipc::Channel;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 // tried in this order, the first one running a container is used
@@ -16,13 +17,23 @@ const CONTAINER_ANSWER: &str = "sak-wizard";
 struct Check {
     // the key of the text shown while it runs
     checking: &'static str,
-    run: fn() -> Result<String, String>,
+    // a check not applying is skipped without a word
+    applies: fn() -> bool,
+    run: fn(&AppHandle) -> Result<String, String>,
 }
 
-const CHECKS: &[Check] = &[Check {
-    checking: "checks.container_runtime.checking",
-    run: container_runtime,
-}];
+const CHECKS: &[Check] = &[
+    Check {
+        checking: "checks.container_runtime.checking",
+        applies: || true,
+        run: container_runtime,
+    },
+    Check {
+        checking: "checks.provider_tokens.checking",
+        applies: provider_tokens_given,
+        run: provider_tokens,
+    },
+];
 
 /// the progress of the checks, sent to the splash screen with its text in the user's language
 #[derive(Clone, Serialize)]
@@ -30,21 +41,32 @@ const CHECKS: &[Check] = &[Check {
 pub enum CheckEvent {
     Started { text: String },
     Passed { text: String },
-    Finished { text: String },
+    Finished { text: String, next: Next },
+}
+
+/// what follows the splash screen
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Next {
+    // no provider token yet, the user enters them
+    Providers,
+    // the tokens came from the environment
+    Ready,
 }
 
 // a failing check shows why in a dialog and ends the app, nothing works without it
 #[tauri::command]
 pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result<(), String> {
-    for check in CHECKS {
+    for check in CHECKS.iter().filter(|check| (check.applies)()) {
         send(
             &on_event,
             CheckEvent::Started {
                 text: t!(check.checking).to_string(),
             },
         )?;
-        // the checks run processes and block, off the async runtime's workers
-        let result = tauri::async_runtime::spawn_blocking(check.run)
+        // the checks run processes and wait for apis, off the async runtime's workers
+        let (run, handle) = (check.run, app.clone());
+        let result = tauri::async_runtime::spawn_blocking(move || run(&handle))
             .await
             .map_err(|e| t!("checks.not_finished", error = e).to_string())?;
         match result {
@@ -55,10 +77,16 @@ pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result
             }
         }
     }
+    let next = if app.state::<ProviderTokens>().is_empty() {
+        Next::Providers
+    } else {
+        Next::Ready
+    };
     send(
         &on_event,
         CheckEvent::Finished {
             text: t!("checks.finished").to_string(),
+            next,
         },
     )
 }
@@ -81,8 +109,49 @@ fn fail(app: AppHandle, message: &str) {
         .show(move |_| app.exit(1));
 }
 
-fn container_runtime() -> Result<String, String> {
+fn container_runtime(_: &AppHandle) -> Result<String, String> {
     container_runtime_of(CONTAINER_RUNTIMES)
+}
+
+// the token of each provider whose variable is set, e.g. HCLOUD_TOKEN, is validated and used
+fn provider_token(provider: ProviderType) -> Option<String> {
+    std::env::var(provider.token_variable())
+        .ok()
+        .map(|token| token.trim().to_string())
+        .filter(|token| !token.is_empty())
+}
+
+fn provider_tokens_given() -> bool {
+    ProviderType::ALL
+        .iter()
+        .any(|provider| provider_token(*provider).is_some())
+}
+
+fn provider_tokens(app: &AppHandle) -> Result<String, String> {
+    let tokens = app.state::<ProviderTokens>();
+    let mut variables = Vec::new();
+    for provider in ProviderType::ALL {
+        let Some(token) = provider_token(*provider) else {
+            continue;
+        };
+        let variable = provider.token_variable();
+        tauri::async_runtime::block_on(provider.validate(&token)).map_err(|error| {
+            t!(
+                "checks.provider_tokens.invalid",
+                variable = variable,
+                provider = provider.name(),
+                error = error
+            )
+            .to_string()
+        })?;
+        tokens.add(*provider, &token)?;
+        variables.push(variable);
+    }
+    Ok(t!(
+        "checks.provider_tokens.passed",
+        variables = variables.join(", ")
+    )
+    .to_string())
 }
 
 fn container_runtime_of(runtimes: &[&str]) -> Result<String, String> {
