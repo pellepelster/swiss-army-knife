@@ -99,6 +99,7 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run wizard:test
+      - run: mise run wizard:cloud:test
       # the linux installers, the images were built by the jobs before
       - run: mise exec -- tauri build
       - uses: actions/upload-artifact@v7

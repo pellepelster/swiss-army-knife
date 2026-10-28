@@ -1,0 +1,16 @@
+[package]
+name = "sak-cloud"
+version = "0.1.0"
+description = "Declares cloud resources in code and reconciles them against the running state"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[dependencies]
+async-trait = "0.1.89"
+hex = "0.4.3"
+sha2 = "0.10.9"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

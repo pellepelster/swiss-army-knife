@@ -1,0 +1,320 @@
+use crate::api::resource::{Labels, Resource, ResourceRef};
+use std::fmt::{self, Write};
+
+/// one difference between a declared resource and its runtime
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiffItem {
+    /// what differs, e.g. `image` or `label 'foo'`
+    pub name: String,
+    pub changed: bool,
+    /// the provider cannot change this in place, the resource must be destroyed and created
+    pub triggers_recreate: bool,
+    pub missing: bool,
+    pub expected: Option<String>,
+    pub actual: Option<String>,
+}
+
+impl DiffItem {
+    /// a value the provider can change in place
+    pub fn changed(
+        name: impl Into<String>,
+        expected: impl ToString,
+        actual: impl ToString,
+    ) -> Self {
+        DiffItem {
+            name: name.into(),
+            changed: true,
+            triggers_recreate: false,
+            missing: false,
+            expected: Some(expected.to_string()),
+            actual: Some(actual.to_string()),
+        }
+    }
+
+    /// a value that can only change by recreating the resource
+    pub fn recreate(
+        name: impl Into<String>,
+        expected: impl ToString,
+        actual: impl ToString,
+    ) -> Self {
+        DiffItem {
+            triggers_recreate: true,
+            ..DiffItem::changed(name, expected, actual)
+        }
+    }
+
+    /// something declared the runtime does not have
+    pub fn missing(name: impl Into<String>) -> Self {
+        DiffItem {
+            name: name.into(),
+            changed: false,
+            triggers_recreate: false,
+            missing: true,
+            expected: None,
+            actual: None,
+        }
+    }
+
+    /// something the runtime has that is not declared
+    pub fn removed(name: impl Into<String>) -> Self {
+        DiffItem {
+            name: name.into(),
+            changed: true,
+            triggers_recreate: false,
+            missing: false,
+            expected: None,
+            actual: None,
+        }
+    }
+
+    pub fn with_actual(mut self, actual: Option<impl ToString>) -> Self {
+        self.actual = actual.map(|actual| actual.to_string());
+        self
+    }
+
+    pub fn has_changes(&self) -> bool {
+        self.missing || self.changed || self.triggers_recreate
+    }
+
+    pub fn log_text(&self) -> String {
+        if self.missing {
+            return format!("{} is missing", self.name);
+        }
+
+        if self.expected.is_some() || self.actual.is_some() {
+            return format!(
+                "{} should be '{}' but was '{}'",
+                self.name,
+                self.expected.as_deref().unwrap_or("<empty>"),
+                self.actual.as_deref().unwrap_or("<empty>")
+            );
+        }
+
+        if self.triggers_recreate {
+            return format!("{} changed and requires recreate", self.name);
+        }
+
+        if self.changed {
+            return format!("{} changed", self.name);
+        }
+
+        format!("{} has no changes", self.name)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiffStatus {
+    /// the resource does not exist at the provider
+    Missing,
+    /// a resource this one depends on does not exist, nothing can be said about this one
+    ParentMissing,
+    UpToDate,
+    HasChanges,
+    /// the resource does not exist under its name, but another one with its identity does
+    Duplicate,
+}
+
+/// the diff of one declared resource against its runtime
+#[derive(Clone, Debug)]
+pub struct ResourceDiff {
+    pub resource: ResourceRef,
+    pub status: DiffStatus,
+    pub changes: Vec<DiffItem>,
+    /// which resource is the duplicate, for [DiffStatus::Duplicate]
+    pub duplicate_message: Option<String>,
+}
+
+impl ResourceDiff {
+    pub fn new(resource: &impl Resource, status: DiffStatus) -> Self {
+        ResourceDiff {
+            resource: resource.resource_ref(),
+            status,
+            changes: Vec::new(),
+            duplicate_message: None,
+        }
+    }
+
+    pub fn missing(resource: &impl Resource) -> Self {
+        ResourceDiff::new(resource, DiffStatus::Missing)
+    }
+
+    pub fn parent_missing(resource: &impl Resource) -> Self {
+        ResourceDiff::new(resource, DiffStatus::ParentMissing)
+    }
+
+    pub fn duplicate(resource: &impl Resource, message: impl Into<String>) -> Self {
+        ResourceDiff {
+            duplicate_message: Some(message.into()),
+            ..ResourceDiff::new(resource, DiffStatus::Duplicate)
+        }
+    }
+
+    /// up to date without changes, otherwise the changes
+    pub fn from_changes(resource: &impl Resource, changes: Vec<DiffItem>) -> Self {
+        if changes.is_empty() {
+            ResourceDiff::new(resource, DiffStatus::UpToDate)
+        } else {
+            ResourceDiff {
+                changes,
+                ..ResourceDiff::new(resource, DiffStatus::HasChanges)
+            }
+        }
+    }
+
+    pub fn needs_recreate(&self) -> bool {
+        self.changes.iter().any(|change| change.triggers_recreate)
+    }
+
+    pub fn has_changes(&self) -> bool {
+        self.changes.iter().any(DiffItem::has_changes)
+    }
+}
+
+impl fmt::Display for ResourceDiff {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.status {
+            DiffStatus::Missing => write!(f, "{} is missing", self.resource),
+            DiffStatus::ParentMissing => write!(f, "{} has a missing parent", self.resource),
+            DiffStatus::Duplicate => write!(
+                f,
+                "{}",
+                self.duplicate_message.as_deref().unwrap_or("is duplicated")
+            ),
+            DiffStatus::UpToDate => write!(f, "{} is up to date", self.resource),
+            DiffStatus::HasChanges => {
+                let changes: Vec<String> = self.changes.iter().map(DiffItem::log_text).collect();
+                write!(f, "{} has changes: {}", self.resource, changes.join(", "))
+            }
+        }
+    }
+}
+
+/// the diffs of a run as a report: the changed resources with their changes, then the
+/// missing ones
+pub fn log_text(diffs: &[ResourceDiff]) -> String {
+    let mut text = String::new();
+    writeln!(text, "changed resources:").unwrap();
+    for diff in diffs.iter().filter(|diff| diff.has_changes()) {
+        writeln!(text, "    - {}", diff.resource).unwrap();
+        for change in &diff.changes {
+            writeln!(text, "        - {}", change.log_text()).unwrap();
+        }
+    }
+    writeln!(text, "missing resources:").unwrap();
+    for diff in diffs
+        .iter()
+        .filter(|diff| diff.status == DiffStatus::Missing)
+    {
+        writeln!(text, "    - {}", diff.resource).unwrap();
+    }
+    text
+}
+
+/// the labels declared against the live ones: missing, changed and no longer declared;
+/// labels whose key starts with one of `ignored_prefixes` are left out on both sides,
+/// those are the labels the provisioners keep for themselves (hashes of user data etc.)
+pub fn label_diff(declared: &Labels, live: &Labels, ignored_prefixes: &[&str]) -> Vec<DiffItem> {
+    let ignored = |key: &String| {
+        ignored_prefixes
+            .iter()
+            .any(|prefix| key.starts_with(prefix))
+    };
+    let declared: Vec<(&String, &String)> =
+        declared.iter().filter(|(key, _)| !ignored(key)).collect();
+    let live: Vec<(&String, &String)> = live.iter().filter(|(key, _)| !ignored(key)).collect();
+
+    let live_value = |key: &String| {
+        live.iter()
+            .find(|(live_key, _)| *live_key == key)
+            .map(|(_, value)| *value)
+    };
+
+    let missing = declared
+        .iter()
+        .filter(|(key, _)| live_value(key).is_none())
+        .map(|(key, _)| DiffItem::missing(format!("label '{key}'")));
+
+    let changed = declared.iter().filter_map(|(key, value)| {
+        let actual = live_value(key)?;
+        (actual != *value).then(|| DiffItem::changed(format!("label '{key}'"), value, actual))
+    });
+
+    let removed = live
+        .iter()
+        .filter(|(key, _)| !declared.iter().any(|(declared_key, _)| declared_key == key))
+        .map(|(key, _)| DiffItem::removed(format!("label '{key}'")));
+
+    missing.chain(changed).chain(removed).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn labels(pairs: &[(&str, &str)]) -> Labels {
+        pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn label_diff_reports_missing_changed_and_removed_labels() {
+        let declared = labels(&[("a", "1"), ("b", "2"), ("c", "3")]);
+        let live = labels(&[("b", "changed"), ("c", "3"), ("d", "4")]);
+
+        let diff = label_diff(&declared, &live, &[]);
+
+        assert_eq!(
+            diff,
+            vec![
+                DiffItem::missing("label 'a'"),
+                DiffItem::changed("label 'b'", "2", "changed"),
+                DiffItem::removed("label 'd'"),
+            ]
+        );
+        assert_eq!(diff[0].log_text(), "label 'a' is missing");
+        assert_eq!(
+            diff[1].log_text(),
+            "label 'b' should be '2' but was 'changed'"
+        );
+        assert_eq!(diff[2].log_text(), "label 'd' changed");
+    }
+
+    #[test]
+    fn label_diff_is_empty_for_equal_labels() {
+        let declared = labels(&[("a", "1")]);
+
+        assert!(label_diff(&declared, &declared.clone(), &[]).is_empty());
+    }
+
+    #[test]
+    fn label_diff_leaves_ignored_prefixes_out_on_both_sides() {
+        let declared = labels(&[("a", "1"), ("sak/user-data_0", "abc")]);
+        let live = labels(&[
+            ("a", "1"),
+            ("sak/user-data_0", "def"),
+            ("sak/user-data_1", "ghi"),
+            ("sak/ssh-keys_0", "x"),
+        ]);
+
+        assert!(label_diff(&declared, &live, &["sak/user-data", "sak/ssh-keys"]).is_empty());
+        assert_eq!(label_diff(&declared, &live, &[]).len(), 3);
+    }
+
+    #[test]
+    fn diff_item_log_texts() {
+        assert_eq!(
+            DiffItem::recreate("image", "debian-13", "debian-12").log_text(),
+            "image should be 'debian-13' but was 'debian-12'"
+        );
+        assert_eq!(
+            DiffItem::changed("ip", "10.0.0.1", "")
+                .with_actual(None::<String>)
+                .log_text(),
+            "ip should be '10.0.0.1' but was '<empty>'"
+        );
+        assert!(DiffItem::recreate("type", "a", "b").has_changes());
+        assert!(DiffItem::recreate("type", "a", "b").triggers_recreate);
+    }
+}

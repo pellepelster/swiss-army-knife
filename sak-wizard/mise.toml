@@ -32,6 +32,15 @@ description = "Run the tests of sak-wizard"
 dir = "{{config_root}}/src-tauri"
 run = "cargo test"
 
+# sak-cloud in cloud/, the crate that declares the cloud resources of sak-wizard; the tests
+# against the real hetzner cloud api need HCLOUD_TOKEN, taken from pass when not set, and
+# skip themselves without one (the github workflow has no pass)
+[tasks."wizard:cloud:test"]
+description = "Run the tests of sak-cloud, those against the hetzner cloud api with the token from pass"
+dir = "{{config_root}}/cloud"
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
+run = "cargo test"
+
 # each image built, tested and pushed on its own (the github workflow runs them in parallel); the
 # layers are cached in the registry next to the image, tag buildcache: every build reads it, the
 # push writes it. A build is for the platform it runs on, into the local images; --load keeps it
