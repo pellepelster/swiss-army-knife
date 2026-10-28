@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -39,6 +40,7 @@ class ApiTest {
                 routing {
                     // outside of the api, without content negotiation
                     get("/plain/boom") { error("the secret detail of the plain route") }
+                    post("/plain/large") { throw PayloadTooLargeException(16) }
                     route("/api") {
                         install(ContentNegotiation) { json() }
                         install(ApiErrors)
@@ -47,6 +49,8 @@ class ApiTest {
                             call.respond(page.of((1..120).toList()))
                         }
                         get("/boom") { error("the secret detail of the api") }
+                        // what RequestBodyLimit throws
+                        post("/large") { throw PayloadTooLargeException(16) }
                         post("/names") {
                             val request = call.receive<Request>()
                             if (request.name.isBlank()) call.respondErrors("name must not be blank.") else call.respond(request)
@@ -114,5 +118,15 @@ class ApiTest {
                 }
             malformed.status shouldBe HttpStatusCode.BadRequest
             Json.decodeFromString<ErrorResponse>(malformed.bodyAsText()) shouldBe ErrorResponse(MALFORMED_REQUEST)
+        }
+
+    @Test
+    fun `answers a too large body with a 413 and the error body`() =
+        test {
+            for (path in listOf("/api/large", "/plain/large")) {
+                val large = client.post(path)
+                large.status shouldBe HttpStatusCode.PayloadTooLarge
+                Json.decodeFromString<ErrorResponse>(large.bodyAsText()) shouldBe ErrorResponse(TOO_LARGE_REQUEST)
+            }
         }
 }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.response.respond
 import io.pelle.sak.api.model.ErrorResponse
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -29,17 +30,21 @@ suspend fun ApplicationCall.respondErrors(
 ) = respond(status, ErrorResponse(*messages))
 
 // a body that can not be read, a malformed one or one of the wrong type, is answered like every
-// other bad request; needs content negotiation for json
+// other bad request, a body larger than the route takes (RequestBodyLimit) with a 413 of the same
+// shape; needs content negotiation for json
 val ApiErrors =
     createRouteScopedPlugin("ApiErrors") {
         on(CallFailed) { call, cause ->
-            if (cause is BadRequestException) {
-                call.respondErrors(MALFORMED_REQUEST)
+            when (cause) {
+                is BadRequestException -> call.respondErrors(MALFORMED_REQUEST)
+                is PayloadTooLargeException -> call.respondErrors(TOO_LARGE_REQUEST, status = HttpStatusCode.PayloadTooLarge)
             }
         }
     }
 
 const val MALFORMED_REQUEST = "The request is malformed."
+
+const val TOO_LARGE_REQUEST = "The request body is too large."
 
 // what every route function of the api installs first: json bodies and the errors of ApiErrors
 fun Route.installApi() {
@@ -50,7 +55,7 @@ fun Route.installApi() {
 const val UNEXPECTED_ERROR = "Something went wrong, the request could not be answered."
 
 // every failure no route answered, installed once for the whole application: a malformed request
-// is a 400, everything else is logged and answered with a 500 that tells nothing of it; no
+// is a 400, a too large body a 413, everything else is logged and answered with a 500 that tells nothing of it; no
 // exception, message or stack trace ever reaches the client. The body is written as it is, the
 // routes it covers may have no content negotiation
 fun Application.installUnexpectedErrors() {
@@ -63,6 +68,8 @@ fun Application.installUnexpectedErrors() {
                 call.isHandled -> {}
                 cause is BadRequestException ->
                     call.respondText(errorBody(MALFORMED_REQUEST), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                cause is PayloadTooLargeException ->
+                    call.respondText(errorBody(TOO_LARGE_REQUEST), ContentType.Application.Json, HttpStatusCode.PayloadTooLarge)
                 else -> {
                     call.application.log.error("${call.request.httpMethod.value} ${call.request.uri} failed", cause)
                     call.respondText(errorBody(UNEXPECTED_ERROR), ContentType.Application.Json, HttpStatusCode.InternalServerError)

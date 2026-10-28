@@ -663,7 +663,10 @@ class SakAppsTest {
         withServer { port ->
             val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
 
-            post(port, "/api/v1/login/link", """{"email":"$email"}""").statusCode() shouldBe 413
+            post(port, "/api/v1/login/link", """{"email":"$email"}""").let {
+                it.statusCode() shouldBe 413
+                it.body() shouldBe """{"errors":[{"message":"The request body is too large."}]}"""
+            }
             greenMail.waitForIncomingEmail(500, 1) shouldBe false
         }
     }
