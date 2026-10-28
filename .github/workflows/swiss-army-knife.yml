@@ -1,6 +1,6 @@
-# builds and tests everything: the backend and the frontend with gradle, the images of sak-wizard
-# (the tools and the canary, each in a job of its own), pushed to ghcr.io from main only, and
-# sak-wizard itself, whose checks pull those images. Everything that can be is cached: the mise
+# builds and tests everything: the backend and the frontend with gradle, the images of the server
+# (sak-backend and sak-ingress) and of sak-wizard (the tools and the canary), each in a job of its
+# own and pushed to ghcr.io from main only, and sak-wizard itself, whose checks pull its images. Everything that can be is cached: the mise
 # tools, gradle, npm, cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
@@ -42,6 +42,38 @@ jobs:
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
       - run: ./gradlew build
+
+  server-images:
+    name: images (${{ matrix.image }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # the mise tasks <image>:image:test and <image>:image:push of the root mise.toml
+        image: [backend, ingress]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # the backend's distribution comes from gradle, which builds the frontend with npm
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: java node
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
+          restore-keys: npm-
+      # arm64 is built with qemu, buildx pushes both platforms under one tag
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      # the cache of the images may be private
+      - run: mise run registry:login
+        env:
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - run: mise run ${{ matrix.image }}:image:test
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: mise run ${{ matrix.image }}:image:push
 
   images:
     name: images (${{ matrix.image }})

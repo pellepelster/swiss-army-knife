@@ -8,6 +8,11 @@ node = "22.22.3"
 # the backend the `pipx:` tool above installs with
 pipx = "1.17.2"
 
+# the images of the server, built and pushed to ghcr.io like those of sak-wizard
+[vars]
+backend_image = "ghcr.io/pellepelster/sak-backend"
+ingress_image = "ghcr.io/pellepelster/sak-ingress"
+
 # the only terraform call, every tf:* task runs through it; the credentials are read from
 # pass when a task runs (not when mise loads this file) unless already set in the environment
 [tasks."tf"]
@@ -73,13 +78,93 @@ ansible-playbook -i terraform/modules/hcloud/backend/.ansible/inventory.yml \
   pelle_io.sak.controller
 """
 
-# the images are tagged below localhost/, so podman never tries to pull them
-[tasks."docker:build"]
-description = "Build the sak-backend and sak-ingress docker images"
+# REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
+# in the workflow github.actor and its GITHUB_TOKEN
+[tasks."registry:login"]
+description = "Log in to ghcr.io to pull and push the images and their cache"
+run = """
+if [ -z "$REGISTRY_USERNAME" ] || [ -z "$REGISTRY_PASSWORD" ]; then
+  echo "set REGISTRY_USERNAME and REGISTRY_PASSWORD to log in to ghcr.io" >&2
+  exit 1
+fi
+printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_USERNAME" --password-stdin
+"""
+
+# the images of the server, sak-backend (the controller) and sak-ingress (caddy), each built,
+# tested and pushed on its own (the github workflow runs them in parallel); the layers are
+# cached in the registry next to the image, tag buildcache: every build reads it, the push
+# writes it. A build is for the platform it runs on, into the local images; --load keeps it
+# there when buildx builds in a container of its own (the github workflow)
+[tasks."backend:image:build"]
+description = "Build the image of sak-backend, the controller, from the distribution gradle installs"
 run = """
 ./gradlew :sak-backend:installDist
-docker build -t localhost/sak-backend:latest sak-backend
-docker build -t localhost/sak-ingress:latest sak-ingress
+docker buildx build --load --tag {{vars.backend_image}}:latest \
+  --cache-from type=registry,ref={{vars.backend_image}}:buildcache sak-backend
+"""
+
+[tasks."backend:image:test"]
+description = "Check that the image of sak-backend holds the controller and runs as sak (10000)"
+depends = ["backend:image:build"]
+run = """
+set -e
+image={{vars.backend_image}}:latest
+[ "$(docker run --rm --entrypoint id "$image" -u)" = "10000" ]
+docker run --rm --entrypoint java "$image" -version
+docker run --rm --entrypoint test "$image" -x /opt/sak-backend/bin/sak-backend
+echo "the image of sak-backend works"
+"""
+
+# for amd64 and arm64, tagged latest and with the commit it was built from; the platform not
+# running here needs qemu (binfmt)
+[tasks."backend:image:push"]
+description = "Build the image of sak-backend for amd64 and arm64 and push it to ghcr.io"
+run = """
+./gradlew :sak-backend:installDist
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.backend_image}}:latest --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
+  --cache-from type=registry,ref={{vars.backend_image}}:buildcache \
+  --cache-to type=registry,ref={{vars.backend_image}}:buildcache,mode=max,image-manifest=true \
+  --push sak-backend
+"""
+
+[tasks."ingress:image:build"]
+description = "Build the image of sak-ingress, the caddy in front of the controller"
+run = """
+docker buildx build --load --tag {{vars.ingress_image}}:latest \
+  --cache-from type=registry,ref={{vars.ingress_image}}:buildcache sak-ingress
+"""
+
+[tasks."ingress:image:test"]
+description = "Check that the image of sak-ingress runs caddy with its Caddyfile as sak (10000)"
+depends = ["ingress:image:build"]
+run = """
+set -e
+image={{vars.ingress_image}}:latest
+[ "$(docker run --rm --entrypoint id "$image" -u)" = "10000" ]
+docker run --rm "$image" version
+docker run --rm "$image" validate --config /etc/caddy/Caddyfile --adapter caddyfile
+echo "the image of sak-ingress works"
+"""
+
+[tasks."ingress:image:push"]
+description = "Build the image of sak-ingress for amd64 and arm64 and push it to ghcr.io"
+run = """
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.ingress_image}}:latest --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
+  --cache-from type=registry,ref={{vars.ingress_image}}:buildcache \
+  --cache-to type=registry,ref={{vars.ingress_image}}:buildcache,mode=max,image-manifest=true \
+  --push sak-ingress
+"""
+
+# the deployment with ansible still ships the images as archives: the builds above, tagged
+# below localhost/ as the controller role loads them, so podman never tries to pull them
+[tasks."docker:build"]
+description = "Build the sak-backend and sak-ingress images for the deployment with ansible"
+depends = ["backend:image:build", "ingress:image:build"]
+run = """
+docker tag {{vars.backend_image}}:latest localhost/sak-backend:latest
+docker tag {{vars.ingress_image}}:latest localhost/sak-ingress:latest
 """
 
 # gzip -n keeps the archives byte identical for unchanged images, so ansible only
