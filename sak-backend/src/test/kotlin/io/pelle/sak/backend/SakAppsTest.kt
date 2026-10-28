@@ -810,7 +810,6 @@ class SakAppsTest {
                         "/api/v1/static-hosting/{bucket}/access-logs",
                         "/api/v1/static-hosting/{bucket}/access-logs/metrics",
                         "/api/v1/static-hosting/{bucket}/access-logs/search",
-                        "/api/v1/static-hosting/{bucket}/access-logs/live",
                         "/api/v1/redirects",
                         "/api/v1/redirects/{source}",
                         "/api/v1/labels",

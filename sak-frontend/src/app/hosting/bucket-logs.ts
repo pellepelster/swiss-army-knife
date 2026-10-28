@@ -1,14 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { formatBytes, formatCount, formatPercent } from '../shared/format';
-import {
-  AccessLogs,
-  AccessLogsService,
-  LiveLogError,
-  LogEntry,
-  SiteMetrics,
-} from './access-logs/access-logs.service';
+import { AccessLogs, AccessLogsService, SiteMetrics } from './access-logs/access-logs.service';
 import { TimeSeries } from './access-logs/chart-config';
 import {
   BYTES_COLOR,
@@ -20,17 +13,13 @@ import {
 import { TimeSeriesChart } from './access-logs/time-series-chart';
 import { BucketStore } from './bucket-store';
 
-// the newest requests the list keeps
-const MAX_REQUESTS = 200;
-
 type Failure = 'unknown' | 'forbidden' | 'unavailable';
 
 // the logs tab of a bucket: the requests to all the domains it is served at, which are one site
-// named like the bucket; their totals and chart over a range, and the requests themselves, those
-// of the last minutes and every new one as it arrives
+// named like the bucket; their totals and chart over a range
 @Component({
   selector: 'app-bucket-logs',
-  imports: [LocalDateTimePipe, TimeSeriesChart],
+  imports: [TimeSeriesChart],
   template: `
     <section class="card card-body gap-3" aria-label="Logs">
       @if (failed() === 'unknown') {
@@ -100,38 +89,6 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
         } @else {
           <p class="text-body-secondary mb-0">Loading…</p>
         }
-
-        <h2 class="h6 mb-0">Latest requests</h2>
-        @if (followFailed()) {
-          <p class="alert alert-danger mb-0" role="alert" data-testid="requests-state">
-            The requests can not be followed right now.
-          </p>
-        } @else if (requests().length === 0) {
-          <p class="text-body-secondary mb-0" data-testid="requests-state">
-            No requests in the last minutes yet.
-          </p>
-        } @else {
-          <table class="table table-sm mb-0" aria-label="Latest requests">
-            <thead>
-              <tr>
-                <th scope="col" class="text-body-secondary">Time</th>
-                <th scope="col" class="text-body-secondary">Domain</th>
-                <th scope="col" class="text-body-secondary">Path</th>
-                <th scope="col" class="text-body-secondary">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (request of requests(); track $index) {
-                <tr>
-                  <td>{{ request.time | localDateTime: 'short' : 'medium' }}</td>
-                  <td class="font-monospace text-break">{{ request.host }}</td>
-                  <td class="font-monospace text-break">{{ request.path }}</td>
-                  <td class="font-monospace text-break">{{ request.status || '–' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        }
       }
     </section>
   `,
@@ -147,10 +104,6 @@ export class BucketLogs {
   protected readonly range = signal<string | null>(null);
   protected readonly metrics = signal<SiteMetrics | null>(null);
   protected readonly failed = signal<Failure | null>(null);
-
-  // the newest first
-  protected readonly requests = signal<readonly LogEntry[]>([]);
-  protected readonly followFailed = signal(false);
 
   // the domains of the site and the ranges of the metrics
   private readonly accessLogs = signal<AccessLogs | null>(null);
@@ -198,24 +151,6 @@ export class BucketLogs {
       const subscription = this.service.metrics(name, range).subscribe({
         next: (metrics) => this.metrics.set(metrics),
         error: (error: unknown) => this.failed.set(failure(error)),
-      });
-      onCleanup(() => subscription.unsubscribe());
-    });
-
-    // the requests of the last minutes, then every new one while the tab shows
-    effect((onCleanup) => {
-      const name = this.store.name();
-      if (!name || this.accessLogs() === null) return;
-      this.requests.set([]);
-      this.followFailed.set(false);
-      const subscription = this.service.follow(name).subscribe({
-        next: (entries) =>
-          this.requests.update((requests) =>
-            [...[...entries].reverse(), ...requests].slice(0, MAX_REQUESTS),
-          ),
-        error: (error: unknown) => {
-          if (!(error instanceof LiveLogError && error.status === 401)) this.followFailed.set(true);
-        },
       });
       onCleanup(() => subscription.unsubscribe());
     });

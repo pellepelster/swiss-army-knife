@@ -50,7 +50,6 @@ class VictoriaLogsClient(
         parse(
             send(
                 "/select/logsql/stats_query_range",
-                HttpResponse.BodyHandlers.ofString(),
                 "query" to query,
                 "start" to start.epochSecond.toString(),
                 "end" to end.epochSecond.toString(),
@@ -60,35 +59,17 @@ class VictoriaLogsClient(
 
     // the entries matching a logsql query, one map of field names to values per entry
     fun query(query: String): List<Map<String, String>> =
-        send("/select/logsql/query", HttpResponse.BodyHandlers.ofString(), "query" to query)
+        send("/select/logsql/query", "query" to query)
             .body()
             .lineSequence()
             .filter { it.isNotBlank() }
             .map { record(it) }
             .toList()
 
-    // the entries of the last startOffset matching the query and every new one as it arrives,
-    // until the returned stream is closed; the request timeout only covers the headers, not
-    // the open stream
-    fun tail(
-        query: String,
-        startOffset: Duration,
-    ): LogTail {
-        val response =
-            send(
-                "/select/logsql/tail",
-                HttpResponse.BodyHandlers.ofInputStream(),
-                "query" to query,
-                "start_offset" to "${startOffset.seconds}s",
-            )
-        return LogTail(response.body())
-    }
-
-    private fun <T> send(
+    private fun send(
         path: String,
-        bodyHandler: HttpResponse.BodyHandler<T>,
         vararg form: Pair<String, String>,
-    ): HttpResponse<T> {
+    ): HttpResponse<String> {
         val request =
             HttpRequest
                 .newBuilder(URI.create("$url$path"))
@@ -102,13 +83,12 @@ class VictoriaLogsClient(
 
         val response =
             try {
-                httpClient.send(request, bodyHandler)
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
             } catch (e: java.io.IOException) {
                 throw VictoriaLogsException("victorialogs at '$url' is not reachable", e)
             }
         if (response.statusCode() !in 200..299) {
-            val body = response.body().let { if (it is java.io.InputStream) it.use { s -> String(s.readAllBytes()) } else it }
-            throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: $body")
+            throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: ${response.body()}")
         }
         return response
     }
@@ -149,29 +129,7 @@ class VictoriaLogsClient(
     }
 }
 
-// a running live tail, every line is one entry as a map of field names to values
-class LogTail(
-    private val stream: java.io.InputStream,
-) : java.io.Closeable {
-    private val lines = stream.bufferedReader().lineSequence().filter { it.isNotBlank() }.iterator()
-
-    // blocks until the next entry arrives, null once victorialogs ended the tail; a line that
-    // is no entry is skipped, it must not end the live view
-    fun next(): Map<String, String>? {
-        while (lines.hasNext()) {
-            try {
-                return record(lines.next())
-            } catch (_: VictoriaLogsException) {
-                continue
-            }
-        }
-        return null
-    }
-
-    override fun close() = stream.close()
-}
-
-// one entry of a query or a tail as a map of field names to values
+// one entry of a query as a map of field names to values
 private fun record(line: String): Map<String, String> =
     try {
         Json.parseToJsonElement(line).jsonObject.mapValues { (_, value) ->

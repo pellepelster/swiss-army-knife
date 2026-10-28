@@ -7,30 +7,16 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Operation
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
-import io.ktor.utils.io.ExperimentalKtorApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ChannelResult
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.onTimeout
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlin.time.Duration.Companion.seconds
 import io.pelle.sak.logs.model.SiteMetricsResponse
 import io.pelle.sak.logs.model.LogEntryResponse
 import io.pelle.sak.logs.model.MetricsRangeResponse
@@ -39,32 +25,21 @@ import io.pelle.sak.logs.model.SiteResponse
 
 private val logger = KotlinLogging.logger {}
 
-// keeps a quiet live view open and finds out when its client went away
-private val KEEPALIVE_INTERVAL = 15.seconds
-
 private const val MAX_SEARCH_LENGTH = 200
-
-// every open live view blocks a thread of the io dispatcher on its tail
-const val MAX_LIVE_VIEWS = 8
 
 private const val LOGS_TAG = "access logs"
 
-// the access logs of one site, its metrics, a search and a live view, meant to be mounted below
+// the access logs of one site, its metrics and a search, meant to be mounted below
 // the path of the site behind the authentication, which the openapi document takes its security
 // requirement from; the site is asked for on every request, its domains change
-@OptIn(ExperimentalKtorApi::class)
 fun Route.accessLogs(
     // called on the event loop, a lookup that blocks (e.g. a database query) switches to the io
     // dispatcher itself
     site: suspend (ApplicationCall) -> Site?,
     metrics: SiteMetricsService,
     logs: SiteLogs,
-    maxLiveViews: Int = MAX_LIVE_VIEWS,
-    keepaliveInterval: kotlin.time.Duration = KEEPALIVE_INTERVAL,
 ) {
     installApi()
-
-    val liveViews = Semaphore(maxLiveViews)
 
     fun Operation.Builder.common(summary: String) {
         tag(LOGS_TAG)
@@ -173,81 +148,6 @@ fun Route.accessLogs(
             errors(HttpStatusCode.BadRequest, "No, too long or control characters in the search text, or an invalid page")
             HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
             HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
-        }
-    }
-
-    // the entries of the last minutes and every new one as server-sent events, until the client
-    // goes away
-    get("/live") {
-        val site = call.logsSite(site) ?: return@get
-        if (!liveViews.tryAcquire()) {
-            logger.warn { "not following the logs, $maxLiveViews live views are open already" }
-            call.respond(HttpStatusCode.ServiceUnavailable)
-            return@get
-        }
-        try {
-            val entries =
-                try {
-                    withContext(Dispatchers.IO) { logs.follow(site) }
-                } catch (e: VictoriaLogsException) {
-                    logger.warn(e) { "could not follow the logs" }
-                    call.respond(HttpStatusCode.ServiceUnavailable)
-                    return@get
-                }
-
-            call.response.header(HttpHeaders.CacheControl, "no-store")
-            call.respondTextWriter(ContentType.Text.EventStream) {
-                coroutineScope {
-                    val received = Channel<LogEntryResponse>(Channel.BUFFERED)
-                    val reader =
-                        launch(Dispatchers.IO) {
-                            try {
-                                while (true) received.send(entries.next() ?: break)
-                            } catch (_: java.io.IOException) {
-                                // the tail was closed below
-                            } finally {
-                                received.close()
-                            }
-                        }
-                    try {
-                        write(": following\n\n")
-                        flush()
-                        while (true) {
-                            // a select never loses an entry, a cancelled receive could
-                            val next =
-                                select<ChannelResult<LogEntryResponse>?> {
-                                    received.onReceiveCatching { it }
-                                    onTimeout(keepaliveInterval) { null }
-                                }
-                            when {
-                                next == null -> write(": keepalive\n\n")
-                                next.isClosed -> break
-                                else -> write("data: ${Json.encodeToString(LogEntryResponse.serializer(), next.getOrThrow())}\n\n")
-                            }
-                            flush()
-                        }
-                    } finally {
-                        // also ends the blocking read of the reader
-                        entries.close()
-                        reader.cancel()
-                    }
-                }
-            }
-        } finally {
-            liveViews.release()
-        }
-    }.describe {
-        common("Follow the logs")
-        description =
-            "The requests of the last minutes, then every new one as it arrives, as server-sent events whose data " +
-            "is a log entry; comments keep the stream open."
-        responses {
-            HttpStatusCode.OK {
-                description = "A stream of log entries"
-                ContentType.Text.EventStream { schema = jsonSchema<LogEntryResponse>() }
-            }
-            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
-            HttpStatusCode.ServiceUnavailable { description = "The logs are not available, or too many live views are open" }
         }
     }
 }

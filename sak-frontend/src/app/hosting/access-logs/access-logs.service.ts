@@ -1,8 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuthService } from '../../auth/auth.service';
-import { apiUrl, SERVICE_WORKER_BYPASS } from '../../shared/api-url';
 
 // a bucket served at its domains, the site its access logs are kept under
 interface Site {
@@ -50,44 +48,15 @@ export interface SiteMetrics {
   totalBytes: number;
 }
 
-// one request, with the domain it was made to
-export interface LogEntry {
-  time: string;
-  host: string;
-  path: string;
-  // 0 for requests caddy closed without an answer
-  status: number | null;
-}
-
-export class LiveLogError extends Error {
-  constructor(readonly status: number) {
-    super(`the live log answered ${status}`);
-  }
-}
-
 // the access logs of a bucket
 function accessLogsUrl(bucket: string): string {
   return `/api/v1/static-hosting/${encodeURIComponent(bucket)}/access-logs`;
-}
-
-// the data of the server-sent events in the text, and what is left of an incomplete event
-function parseEvents(text: string): { data: string[]; rest: string } {
-  const events = text.split('\n\n');
-  const rest = events.pop() ?? '';
-  const data = events.flatMap((event) =>
-    event
-      .split('\n')
-      .filter((line) => line.startsWith('data: '))
-      .map((line) => line.slice('data: '.length)),
-  );
-  return { data, rest };
 }
 
 // the access logs of the buckets, of all the domains each one is served at
 @Injectable({ providedIn: 'root' })
 export class AccessLogsService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
 
   accessLogs(bucket: string): Observable<AccessLogs> {
     return this.http.get<AccessLogs>(accessLogsUrl(bucket));
@@ -95,51 +64,5 @@ export class AccessLogsService {
 
   metrics(bucket: string, range: string): Observable<SiteMetrics> {
     return this.http.get<SiteMetrics>(`${accessLogsUrl(bucket)}/metrics`, { params: { range } });
-  }
-
-  // the entries of the last minutes, then every new one until unsubscribed, oldest first and in
-  // the chunks they arrive in, the backlog comes in bursts; fetch instead of an EventSource, which
-  // can not send the session token
-  follow(bucket: string): Observable<LogEntry[]> {
-    return new Observable<LogEntry[]>((subscriber) => {
-      const abort = new AbortController();
-      const token = this.auth.token();
-
-      fetch(apiUrl(`${accessLogsUrl(bucket)}/live`), {
-        headers: {
-          ...SERVICE_WORKER_BYPASS,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        signal: abort.signal,
-      })
-        .then(async (response) => {
-          if (response.status === 401) this.auth.sessionRejected();
-          if (!response.ok || !response.body) {
-            throw new LiveLogError(response.status);
-          }
-
-          const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-          let buffered = '';
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done) {
-              break;
-            }
-            const { data, rest } = parseEvents(buffered + value);
-            buffered = rest;
-            if (data.length > 0) {
-              subscriber.next(data.map((entry) => JSON.parse(entry) as LogEntry));
-            }
-          }
-          subscriber.complete();
-        })
-        .catch((error: unknown) => {
-          if (!abort.signal.aborted) {
-            subscriber.error(error);
-          }
-        });
-
-      return () => abort.abort();
-    });
   }
 }

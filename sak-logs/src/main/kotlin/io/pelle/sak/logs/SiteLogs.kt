@@ -1,9 +1,8 @@
 package io.pelle.sak.logs
 
-import java.time.Duration
 import io.pelle.sak.logs.model.LogEntryResponse
 
-// the access log entries of one site: searched in the stored entries, or followed as they arrive
+// the access log entries of one site, searched in the stored entries
 class SiteLogs(
     private val client: VictoriaLogsClient,
 ) {
@@ -35,21 +34,12 @@ class SiteLogs(
         text: String,
     ) = "${streamFilter(site)} _time:$SEARCH_WINDOW ${textFilter(text)}"
 
-    // the entries of the last minutes first, then every new one; the tail has to be closed
-    fun follow(site: Site): LogEntries {
-        val tail = client.tail("${streamFilter(site)} | $FIELDS", FOLLOW_BACKLOG)
-        return LogEntries(tail)
-    }
-
     companion object {
         // the most entries a search answers
         const val SEARCH_LIMIT = 500
 
         // as far back as the longest statistics range, not over the whole retention
         const val SEARCH_WINDOW = "30d"
-
-        // the entries a live view starts with
-        val FOLLOW_BACKLOG: Duration = Duration.ofMinutes(5)
 
         private const val FIELDS = "fields _time, request.host, request.uri, status"
 
@@ -73,11 +63,3 @@ class SiteLogs(
     }
 }
 
-class LogEntries(
-    private val tail: LogTail,
-) : java.io.Closeable {
-    // blocks until the next entry arrives, null once the tail ended
-    fun next(): LogEntryResponse? = with(SiteLogs) { tail.next()?.toLogEntry() }
-
-    override fun close() = tail.close()
-}

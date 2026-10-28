@@ -16,7 +16,7 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 // the buckets e2e-logs and e2e-other are sites only this test writes
-test('shows the requests to all the domains of a bucket in its logs tab', async ({ page }) => {
+test('counts the requests to all the domains of a bucket in its logs tab', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -24,25 +24,16 @@ test('shows the requests to all the domains of a bucket in its logs tab', async 
 
   await page.goto('/static-hosting/e2e-logs/logs');
   await expect(page.getByTestId('logs-domains')).toContainText('logs.example.org, e2e-logs.example.org');
-  await expect(page.getByTestId('requests-state')).toHaveText('No requests in the last minutes yet.');
 
   appendAccessLog(
     { site: 'e2e-logs', host: 'logs.example.org', status: 200, size: 1000, uri: `/${run}/a`, userAgent: BROWSER },
     { site: 'e2e-logs', host: 'e2e-logs.example.org', status: 404, size: 0, uri: `/${run}/missing`, userAgent: 'curl/8.5.0' },
-    // another bucket, not shown
+    // another bucket, not counted
     { site: 'e2e-other', host: 'other.example.org', status: 200, size: 10, uri: `/${run}/elsewhere`, userAgent: BROWSER },
   );
 
-  // the requests as they arrive, with the domain each one was made to; vector ships them within
-  // a few seconds
-  const requests = page.getByRole('table', { name: 'Latest requests' });
-  await expect(requests.getByRole('row').filter({ hasText: `/${run}/missing` })).toContainText('e2e-logs.example.org', {
-    timeout: 20_000,
-  });
-  await expect(requests.getByRole('row').filter({ hasText: `/${run}/a` })).toContainText('logs.example.org');
-  await expect(requests.getByRole('row').filter({ hasText: `/${run}/elsewhere` })).toHaveCount(0);
-
-  // the totals of all its domains
+  // the totals of all its domains, not of the other bucket; vector ships the requests within a few
+  // seconds
   await expect(async () => {
     await page.reload();
     await page.getByLabel('Range').selectOption('15m');
