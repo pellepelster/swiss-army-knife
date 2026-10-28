@@ -1,0 +1,84 @@
+# builds and tests everything: the backend and the frontend with gradle, the images of sak-wizard
+# (the tools and the canary), pushed to ghcr.io from main only, and sak-wizard itself, whose
+# checks pull those images
+name: swiss-army-knife
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+  # each job installs the tools it needs only, not every tool of the mise.toml files
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+jobs:
+  gradle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # the jdk of the gradle toolchain, node for the frontend the build calls npm for
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: java node
+      - run: ./gradlew build
+
+  images:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: sak-wizard
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+        with:
+          install: false
+      # arm64 is built with qemu, buildx pushes both platforms under one tag
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - run: mise run wizard:image:test
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: mise run wizard:image:login
+        env:
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: mise run wizard:image:push
+
+  wizard:
+    # its tests pull the images, the ones of main pushed by the job before
+    needs: images
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: sak-wizard
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: jdx/mise-action@v5
+        with:
+          install: false
+      - run: mise install rust node npm:@tauri-apps/cli
+      # the images may be private
+      - run: mise run wizard:image:login
+        env:
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - run: mise run wizard:test
+      # the linux installers, the images were built by the job before
+      - run: mise exec -- tauri build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sak-wizard-linux
+          path: |
+            sak-wizard/src-tauri/target/release/bundle/deb/*.deb
+            sak-wizard/src-tauri/target/release/bundle/rpm/*.rpm
+            sak-wizard/src-tauri/target/release/bundle/appimage/*.AppImage

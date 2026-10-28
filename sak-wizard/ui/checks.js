@@ -1,21 +1,68 @@
-// runs the checks of src-tauri/src/checks.rs and shows the one running; a failing check ends
-// the app with a dialog of its own, the promise answers what follows the splash screen
+// the checks of src-tauri/src/checks/ as a list, each with its state, a progress bar while it runs
+// and what it found or why it failed below its name; a failing check ends the app with a dialog
+// of its own, the promise answers what follows the splash screen
 const { invoke, Channel } = window.__TAURI__.core;
 
+// the checkmarks stay a moment before the next view
+const SHOWN_DONE_MS = 600;
+
+const list = document.getElementById('checks');
+const rows = new Map();
+
+function row(check) {
+  const item = document.createElement('li');
+  item.className = 'check';
+  item.dataset.state = 'pending';
+  item.innerHTML = `
+    <span class="check-state" aria-hidden="true"></span>
+    <span class="check-name"></span>
+    <progress class="check-progress" max="1" hidden></progress>
+    <span class="check-detail"></span>`;
+  item.querySelector('.check-name').textContent = check.name;
+  return item;
+}
+
+function update(id, state, detail) {
+  const item = rows.get(id);
+  if (state) {
+    item.dataset.state = state;
+    item.querySelector('.check-progress').hidden = state !== 'running';
+  }
+  if (detail !== undefined) {
+    item.querySelector('.check-detail').textContent = detail;
+  }
+  return item;
+}
+
 export function runChecks() {
-  const status = document.getElementById('check-status');
   return new Promise((resolve, reject) => {
     const onEvent = new Channel();
     onEvent.onmessage = (message) => {
-      status.textContent = message.text;
-      if (message.event === 'finished') {
-        resolve(message.next);
+      switch (message.event) {
+        case 'listed':
+          for (const check of message.checks) {
+            rows.set(check.id, row(check));
+          }
+          list.replaceChildren(...rows.values());
+          break;
+        case 'started':
+          // without a value a progress bar only moves, until the check reports how far it is
+          update(message.id, 'running', '').querySelector('.check-progress').removeAttribute('value');
+          break;
+        case 'progress':
+          update(message.id, null, message.text).querySelector('.check-progress').value = message.fraction;
+          break;
+        case 'passed':
+          update(message.id, 'ok', message.text);
+          break;
+        case 'failed':
+          update(message.id, 'failed', message.text);
+          break;
+        case 'finished':
+          setTimeout(() => resolve(message.next), SHOWN_DONE_MS);
+          break;
       }
     };
-    invoke('run_checks', { onEvent }).catch((error) => {
-      status.textContent = String(error);
-      status.classList.add('status-failed');
-      reject(error);
-    });
+    invoke('run_checks', { onEvent }).catch(reject);
   });
 }

@@ -5,9 +5,11 @@ rust = "1.99.1"
 node = "22.22.3"
 "npm:@tauri-apps/cli" = "2.12.4"
 
-# the image of the tools sak-wizard runs in a container, Dockerfile
+# the image of the tools sak-wizard runs in a container (Dockerfile) and the canary proving a
+# container runtime works on startup (canary/Dockerfile)
 [vars]
 image = "ghcr.io/pellepelster/sak-wizard"
+canary = "ghcr.io/pellepelster/sak-docker-canary"
 
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -33,12 +35,15 @@ run = "cargo test"
 # for the platform it runs on, into the local images; --load keeps it there when buildx builds in
 # a container of its own (the github workflow)
 [tasks."wizard:image:build"]
-description = "Build the image of the tools of sak-wizard, terraform and ansible"
+description = "Build the image of the tools of sak-wizard, terraform and ansible, and its canary"
 dir = "{{config_root}}"
-run = "docker build --load --tag {{vars.image}}:latest ."
+run = """
+docker build --load --tag {{vars.image}}:latest .
+docker build --load --tag {{vars.canary}}:latest canary
+"""
 
 [tasks."wizard:image:test"]
-description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000)"
+description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000) and the canary answers"
 depends = ["wizard:image:build"]
 run = """
 set -e
@@ -49,13 +54,14 @@ docker run --rm "$image" terraform version
 docker run --rm "$image" ansible --version
 docker run --rm "$image" ansible-galaxy collection list community.general
 docker run --rm "$image" ansible localhost -m ping
-echo "the image of the tools works"
+[ "$(docker run --rm {{vars.canary}}:latest)" = "sak-docker-canary" ]
+echo "the image of the tools and the canary work"
 """
 
 # REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
 # in the workflow github.actor and its GITHUB_TOKEN
 [tasks."wizard:image:login"]
-description = "Log in to ghcr.io to push the image of the tools"
+description = "Log in to ghcr.io to push the images"
 run = """
 if [ -z "$REGISTRY_USERNAME" ] || [ -z "$REGISTRY_PASSWORD" ]; then
   echo "set REGISTRY_USERNAME and REGISTRY_PASSWORD to log in to ghcr.io" >&2
@@ -64,14 +70,15 @@ fi
 printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_USERNAME" --password-stdin
 """
 
-# for amd64 and arm64 (the macs), tagged latest and with the commit it was built from;
+# for amd64 and arm64 (the macs), tagged latest and with the commit they were built from;
 # the platform not running here needs qemu (binfmt)
 [tasks."wizard:image:push"]
-description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
+description = "Build the image of the tools and the canary for amd64 and arm64 and push them to ghcr.io"
 dir = "{{config_root}}"
 run = """
+commit=$(git rev-parse --short=12 HEAD)
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.image}}:latest \
-  --tag {{vars.image}}:$(git rev-parse --short=12 HEAD) \
-  --push .
+  --tag {{vars.canary}}:latest --tag {{vars.canary}}:$commit --push canary
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.image}}:latest --tag {{vars.image}}:$commit --push .
 """

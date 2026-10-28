@@ -1,18 +1,23 @@
 checks:
-  finished: "Bereit"
   failed_title: "SwissArmyKnife kann nicht starten"
   quit: "Beenden"
   not_finished: "Eine Prüfung wurde nicht beendet: %{error}"
   splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
   container_runtime:
-    checking: "Prüfe die Container-Runtime…"
-    passed: "%{runtime} führt Container aus"
+    name: "docker oder podman prüfen"
+    passed: "%{runtime} %{version}"
     needed: "SwissArmyKnife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte SwissArmyKnife erneut."
-    not_started: "%{runtime} konnte nicht gestartet werden: %{error}"
-    no_container: "%{runtime} konnte keinen Container ausführen: %{error}"
-    wrong_answer: "Der Container von %{runtime} antwortete '%{answer}' statt '%{expected}'"
+    not_working: "%{runtime} funktioniert nicht: %{error}"
+    wrong_answer: "Das Image %{image} antwortete '%{answer}' statt '%{expected}'."
+  image:
+    name: "Neuestes Image laden"
+    passed: "%{image}"
+    not_pulled: "Das Image %{image} konnte nicht geladen werden, stelle sicher, dass %{runtime} ghcr.io erreichen kann: %{error}"
+    not_run: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
+    progress: "%{downloaded} MB von %{total} MB"
+    wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von SwissArmyKnife."
   provider_tokens:
-    checking: "Prüfe die Provider-Tokens der Umgebung…"
+    name: "Provider-Tokens der Umgebung prüfen"
     passed: "Die Tokens von %{variables} sind gültig"
     invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
 providers:

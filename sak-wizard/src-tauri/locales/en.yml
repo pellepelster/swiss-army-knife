@@ -1,18 +1,23 @@
 checks:
-  finished: "Ready"
   failed_title: "SwissArmyKnife can not start"
   quit: "Quit"
   not_finished: "A check did not finish: %{error}"
   splash_not_updated: "The splash screen could not be updated: %{error}"
   container_runtime:
-    checking: "Checking the container runtime…"
-    passed: "%{runtime} runs containers"
+    name: "Verify docker or podman"
+    passed: "%{runtime} %{version}"
     needed: "SwissArmyKnife needs docker or podman to run containers. Install one of them, make sure it can run containers without sudo and start SwissArmyKnife again."
-    not_started: "%{runtime} could not be started: %{error}"
-    no_container: "%{runtime} could not run a container: %{error}"
-    wrong_answer: "The container of %{runtime} answered '%{answer}' instead of '%{expected}'"
+    not_working: "%{runtime} does not work: %{error}"
+    wrong_answer: "The image %{image} answered '%{answer}' instead of '%{expected}'."
+  image:
+    name: "Pull the latest image"
+    passed: "%{image}"
+    not_pulled: "The image %{image} could not be pulled, make sure %{runtime} can reach ghcr.io: %{error}"
+    not_run: "%{runtime} could not run the image %{image}: %{error}"
+    progress: "%{downloaded} MB of %{total} MB"
+    wrong_answer: "The image %{image} runs as '%{answer}' instead of '%{expected}', it is not the image of SwissArmyKnife."
   provider_tokens:
-    checking: "Checking the provider tokens of the environment…"
+    name: "Verify the provider tokens of the environment"
     passed: "The tokens of %{variables} are valid"
     invalid: "%{variable} holds no valid %{provider} token: %{error} Correct or unset %{variable} and start SwissArmyKnife again."
 providers:

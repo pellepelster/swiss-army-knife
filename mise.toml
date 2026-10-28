@@ -1,5 +1,7 @@
 [tools]
 terraform = "1.17.0"
+# the jdk of the gradle toolchain (buildSrc, sak.java-conventions)
+java = "temurin-25.0.5+8.0.LTS"
 # builds and tests sak-frontend, the gradle build calls npm
 node = "22.22.3"
 "pipx:ansible-core" = "2.18.19"

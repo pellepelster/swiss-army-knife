@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn the_texts_follow_the_locale() {
-        assert_eq!(t!("checks.finished", locale = "de"), "Bereit");
-        assert_eq!(t!("checks.finished", locale = "en"), "Ready");
+        assert_eq!(t!("checks.quit", locale = "de"), "Beenden");
+        assert_eq!(t!("checks.quit", locale = "en"), "Quit");
     }
 }
