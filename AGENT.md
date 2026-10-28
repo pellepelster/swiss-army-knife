@@ -17,6 +17,8 @@ Read this file first. It contains rules for the complete repository.
 - Never claim full verification when only a partial signal was run.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
   subjects, tokens, passwords, auth codes, reset links, raw IPs, or full query strings.
+- Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
+  defect; record it as a feature or an accepted risk until it is fixed.
 - Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
   the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and
   make necessary connections clear to the user.
@@ -109,7 +111,7 @@ for every change of a ui.
     - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
       with `firstValueFrom`; everything else subscribes.
 
-## Wizard code (`sak-wizard`)
+## Wizard code (`sak-cli`)
 
 - The rust of `src-tauri` is three modules: `core` holds what both modes share (the checks on
   startup, the `DeploymentManager`, the deployments and their plans, the provisioning, the keys,
@@ -129,7 +131,7 @@ for every change of a ui.
 
 - A class (a struct in rust) that manages resources outside the process, at a cloud provider,
   a container runtime, a remote api, is called `<name>Manager` after what it manages, e.g.
-  `DeploymentManager` (`sak-wizard`, the sak deployments at the providers). A manager is the one
+  `DeploymentManager` (`sak-cli`, the sak deployments at the providers). A manager is the one
   place its resources are looked up, created, changed and removed from; the rest of the code
   asks it and holds no client of its own.
 
@@ -138,17 +140,21 @@ for every change of a ui.
 - Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, …)
   carries the label `sak.pelle.io/name=<sak name>`, `<sak name>` being the unique name of the
   swiss army knife deployment the resource belongs to (see [GLOSSARY.md](GLOSSARY.md)). Whatever creates
-  resources (`sak-wizard/cloud`) sets it on creation; the label tells the resources
+  resources (`sak-cli/cloud`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
 - SAK removes only resources that carry the label `sak.pelle.io/name=<sak name>` of the deployment. A resource
   without this label, or with the label of another deployment, is never removed, also when its name agrees.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. Every resource of a deployment also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in
-  `sak-wizard`, 30 bytes as hex), so the wizard can check a password
+  `sak-cli`, 30 bytes as hex), so the wizard can check a password
   against a deployment before it touches it: a deploy or destroy stops when the hash on any of
   its resources differs (the firewall selects its servers by the name label alone); the
   password itself is nowhere.
+- Every resource of a deployment also carries `sak.pelle.io/dns-mode=<mode>`, the dns mode of the deployment
+  (`domain` or `subdomain`, see [GLOSSARY.md](GLOSSARY.md)), and `sak.pelle.io/root-domain=<root domain>`. The
+  wizard reads them back for a deploy; a change of either is a label change, never a recreate. The dns mode on a
+  zone or record tells the wizard which deployments use a root domain (`RootDomain`, `sak-cli/cloud`).
 
 ## Privacy
 

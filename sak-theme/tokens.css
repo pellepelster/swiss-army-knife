@@ -1,5 +1,5 @@
 /* the design tokens of sak, the one place its colors, fonts, radii and spaces live: plain css
-   custom properties, so a page without a build (sak-wizard) and the angular app (sak-frontend,
+   custom properties, so a page without a build (sakctl) and the angular app (sak-frontend,
    which maps bootstrap's --bs-* onto them) read the same values. The palette is the one of
    blcks-theme (scss/_tokens.scss there): the "paper" surface by default, the dark "terminal"
    surface when the system prefers dark, and the accent green of the rack-led icon. A color

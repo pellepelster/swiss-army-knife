@@ -13,4 +13,5 @@ maintenance workflow.
 
 | #                                                           | Feature                               | Status       | Last reviewed |
 |-------------------------------------------------------------|---------------------------------------|--------------|---------------|
-| [FDR-001](FDR-001-dns-deployment-mode.md)                   | DNS deployment mode                   | Planned      | 2026-10-28    |
+| [FDR-001](FDR-001-dns-mode.md)                              | DNS mode                              | Active       | 2026-10-28    |
+| [FDR-002](FDR-002-sqlite-encryption.md)                     | SQLite database encryption            | Planned      | 2026-10-28    |

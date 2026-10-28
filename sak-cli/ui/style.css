@@ -1,0 +1,307 @@
+/* the layout of the wizard; the look is bootstrap on the tokens of sak-theme (theme/, copied
+   there by mise run cli:theme). Every color is a var(--sak-…), no literal in here */
+
+html, body {
+  height: 100%;
+}
+
+body {
+  /* an app, not a document: only what is typed in is meant to be selected */
+  user-select: none;
+  cursor: default;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.splash {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sak-space-5);
+}
+
+.splash-icon {
+  width: 128px;
+  height: 128px;
+}
+
+.splash-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(28rem, 100% - 3rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* the led of the theme, the name and beneath it the progress bar and the detail */
+.check {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  column-gap: 0.6rem;
+  row-gap: 0.2rem;
+  align-items: center;
+}
+
+.check-state {
+  grid-row: 1;
+  justify-self: center;
+}
+
+.check-name {
+  font-weight: 600;
+}
+
+.check[data-state="pending"] .check-name {
+  color: var(--sak-muted);
+}
+
+.check-progress,
+.check-detail {
+  grid-column: 2;
+}
+
+.check-progress {
+  width: 100%;
+  height: 0.4rem;
+  accent-color: var(--sak-accent);
+}
+
+.check-detail {
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.check-detail:empty {
+  display: none;
+}
+
+.check[data-state="failed"] .check-detail {
+  color: var(--sak-danger);
+}
+
+.status-failed {
+  color: var(--sak-danger) !important;
+}
+
+/* a page: the header, its content, the footer with the button group at the bottom right */
+.page {
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--sak-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-4);
+  overflow-y: auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sak-space-4);
+}
+
+/* the icon of SwissArmyKnife before the title of every page */
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sak-space-3);
+  min-width: 0;
+}
+
+.app-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.page-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-3);
+}
+
+.page-form input {
+  user-select: text;
+}
+
+.page-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hint {
+  margin: 0;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+}
+
+.provider {
+  display: flex;
+  align-items: center;
+  gap: var(--sak-space-3);
+}
+
+.provider-logo {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+}
+
+.provider-name {
+  font-weight: 600;
+}
+
+/* data in mono: the masked token */
+.provider-token {
+  margin-left: auto;
+  font-family: var(--sak-font-mono);
+  color: var(--sak-muted);
+}
+
+.deployments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-3);
+}
+
+.deployment-name {
+  font-family: var(--sak-font-mono);
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+/* the card header is the button that opens the deployment */
+.deployment-open {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+
+.deployment-open:hover,
+.deployment-open:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--sak-accent) 12%, var(--sak-raised));
+}
+
+/* the state of the deployment, the led pill at the right end of the card header */
+.deployment-status {
+  margin-left: auto;
+}
+
+.resources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-1);
+}
+
+/* the led, the kind and name, the detail; the changes beneath */
+.resource {
+  display: grid;
+  grid-template-columns: 1.25rem auto 1fr;
+  column-gap: 0.6rem;
+  align-items: baseline;
+}
+
+.resource-state {
+  justify-self: center;
+  align-self: center;
+}
+
+.resource-kind {
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sak-muted);
+}
+
+.resource-name {
+  font-family: var(--sak-font-mono);
+  font-weight: 500;
+}
+
+.resource-detail,
+.resource-change {
+  grid-column: 3;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.resource[data-status="missing"] .resource-detail,
+.resource[data-status="parent_missing"] .resource-detail {
+  color: var(--sak-info);
+}
+
+.resource-change {
+  color: var(--sak-warn);
+}
+
+/* a destroy that deletes the data volume: the form and its confirmation in the color of danger */
+.danger-zone {
+  background: color-mix(in srgb, var(--sak-danger) 12%, var(--sak-bg));
+  outline: 2px solid var(--sak-danger);
+  outline-offset: -2px;
+}
+
+/* the confirmation of a destroy, over the page */
+.confirm {
+  max-width: 28rem;
+  padding: var(--sak-space-5);
+  color: var(--sak-ink);
+  background: var(--sak-surface);
+  border: 1px solid var(--sak-line);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.confirm::backdrop {
+  background: color-mix(in srgb, var(--sak-ink) 40%, transparent);
+}
+
+.confirm form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-4);
+}
+
+.confirm .btn-group {
+  align-self: flex-end;
+}
+
+.confirm-title {
+  margin: 0;
+  font-size: 1.25rem;
+}

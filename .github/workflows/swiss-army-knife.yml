@@ -1,7 +1,8 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
-# (sak-backend and sak-ingress) and of sak-wizard (the tools and the canary), each in a job of its
-# own and pushed to ghcr.io from main only, and sak-wizard itself, whose checks pull its images. Everything that can be is cached: the mise
-# tools, gradle, npm, cargo, the apt packages and the docker layers (in the registry).
+# (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
+# the canary), each in a job of its own and pushed to ghcr.io from main only, and sakctl itself,
+# whose checks pull its images. Everything that can be is cached: the mise tools, gradle, npm,
+# cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
 on:
@@ -43,8 +44,8 @@ jobs:
           restore-keys: npm-
       - run: ./gradlew build
 
-  server-images:
-    name: images (${{ matrix.image }})
+  sak-backend-images:
+    name: sak-backend-images (${{ matrix.image }})
     strategy:
       fail-fast: false
       matrix:
@@ -75,17 +76,17 @@ jobs:
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: mise run ${{ matrix.image }}:image:push
 
-  images:
-    name: images (${{ matrix.image }})
+  sak-cli-images:
+    name: sak-cli-images (${{ matrix.image }})
     strategy:
       fail-fast: false
       matrix:
-        # the mise tasks wizard:<image>:test and wizard:<image>:push
+        # the mise tasks cli:<image>:test and cli:<image>:push
         image: [image, canary]
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: sak-wizard
+        working-directory: sak-cli
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
@@ -95,21 +96,21 @@ jobs:
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       # the images and their cache may be private
-      - run: mise run wizard:login
+      - run: mise run cli:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: mise run wizard:${{ matrix.image }}:test
+      - run: mise run cli:${{ matrix.image }}:test
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: mise run wizard:${{ matrix.image }}:push
+        run: mise run cli:${{ matrix.image }}:push
 
-  wizard:
+  sak-cli:
     # its tests pull the images, the ones of main pushed by the jobs before
-    needs: images
+    needs: sak-cli-images
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: sak-wizard
+        working-directory: sak-cli
     steps:
       - uses: actions/checkout@v7
       - uses: awalsh128/cache-apt-pkgs-action@v1
@@ -125,22 +126,30 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            sak-wizard/src-tauri -> target
-            sak-wizard/cloud -> target
+            sak-cli/src-tauri -> target
+            sak-cli/cloud -> target
       # the images may be private
-      - run: mise run wizard:login
+      - run: mise run cli:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: mise run wizard:test
-      - run: mise run wizard:cloud:test
-      # the linux installers, the images were built by the jobs before
-      - run: mise run wizard:theme
-      - run: mise exec -- tauri build
+      - run: mise run cli:test
+      - run: mise run cli:cloud:test
+      # sakctl, the window and the command line in one binary, with the page built in
+      - run: mise run cli:theme
+      - name: Build sakctl
+        run: mise exec -- tauri build --no-bundle
       - uses: actions/upload-artifact@v7
         with:
-          name: sak-wizard-linux
+          name: sakctl-linux
+          path: sak-cli/src-tauri/target/release/sakctl
+      # the linux installers of the same binary, the images were built by the jobs before
+      - name: Bundle the installers
+        run: mise exec -- tauri bundle
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sakctl-installers-linux
           path: |
-            sak-wizard/src-tauri/target/release/bundle/deb/*.deb
-            sak-wizard/src-tauri/target/release/bundle/rpm/*.rpm
-            sak-wizard/src-tauri/target/release/bundle/appimage/*.AppImage
+            sak-cli/src-tauri/target/release/bundle/deb/*.deb
+            sak-cli/src-tauri/target/release/bundle/rpm/*.rpm
+            sak-cli/src-tauri/target/release/bundle/appimage/*.AppImage

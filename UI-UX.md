@@ -1,7 +1,7 @@
 # UI and UX
 
 How the apps look and behave for whoever uses them: the web ui (`sak-frontend`), the wizard
-(`sak-wizard`) in its window and on the command line. What the code looks like is in
+(`sak-cli`) in its window and on the command line. What the code looks like is in
 [AGENT.md](AGENT.md).
 
 ## Both apps
@@ -11,7 +11,18 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   `aria-label`): add a provider, new note, create redirect, the submit of a create form. A button
   creating something of a kind shows the kind after the plus (`+` then the camera for a note with
   a photo). The same sign everywhere, in the wizard and the web ui; tests check it in both
-  (`create-buttons.spec.ts`, the test in `sak-wizard/src-tauri/src/main.rs`).
+  (`create-buttons.spec.ts`, the test in `sak-cli/src-tauri/src/main.rs`).
+
+- A button that destroys, deletes or removes something has the danger color of `sak-theme`:
+  `btn-danger` for the button that does it (and the submit of its form), `btn-outline-danger` for
+  a toolbar button that leads to it. In the web ui: delete a bucket, delete a redirect; in the
+  wizard: destroy a deployment.
+- An action that deletes a resource that is not ephemeral always asks for confirmation first, and
+  says what goes. Not ephemeral is all that holds data or configuration the user made or cannot
+  get back as it was: a bucket, a redirect, a deployment, a data volume. Ephemeral is what the
+  app makes again by itself, e.g. a plan or a filter. The web ui asks inline, the confirm button
+  next to a cancel in the view (no modals: the delete of a bucket or a redirect); the wizard asks
+  with a dialog (the destroy of a deployment), its cancel focused and Escape cancelling.
 
 ## Web ui (`sak-frontend`)
 
@@ -40,7 +51,7 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
 - Dates and times in the browser's locale via the `localDateTime` pipe
   (`shared/local-date-time.pipe.ts`), never angular's `DatePipe` or a fixed format.
 
-## Wizard window (`sak-wizard`)
+## Wizard window (`sak-cli`)
 
 - One view at a time, a page with a header and, when a page has them, actions at the bottom.
   Buttons moving through the wizard (next, back, cancel, plan, the final create) sit in the button
@@ -50,21 +61,28 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
   for a deployment that exists, after its password was checked against the hash on its resources, and
   may create its server anew; the data volume and the addresses stay. A destroy, after the same
-  check, removes every resource of the deployment but its data volume; its plan says so first and
-  its button is the one `btn-danger` of the wizard.
+  check, removes the dns records and every resource of the deployment but its data volume, that
+  one only with the unchecked "delete the data volume" box ticked; its form, its plan and a
+  confirmation dialog say so first, all three with a `btn-danger` destroy button; the form and
+  the dialog turn red when the data volume goes too.
 - The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
-  `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
+  `components.css`), copied into `ui/theme/` by `mise run cli:theme`; `ui/style.css` holds the
   layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The
   toolbars are `btn-group`s, `btn-primary` the one action of a page, `btn-outline-secondary` every
   other button; states are the theme's leds (`.sak-led`, `.sak-status`), not glyphs.
 
-## Wizard command line (`sak-wizard`)
+## Wizard command line (`sak-cli`)
 
-- `sak-wizard list`, `create [<sak name>]`, `deploy <sak name>` and `destroy <sak name>` run on
+- `sakctl list`, `create [<sak name>]`, `deploy <sak name>` and `destroy <sak name>` run on
   the command line; without a command the window opens. The token comes from `--hcloud-token` or
   `HCLOUD_TOKEN`, the name, password and location from the arguments or `SAK_NAME`,
-  `SAK_PASSWORD` and `SAK_LOCATION`; `--help` says it all. `mise run wizard:cli -- <command>`
-  runs it with the token from pass, `mise run wizard:run -- <command>` the same through tauri dev.
+  `SAK_PASSWORD` and `SAK_LOCATION`, the dns mode from `--dns-mode` (`subdomain` when not
+  given, also on a deploy), the root domain from `--root-domain` (a dns zone of the project,
+  needed by create and deploy). A destroy keeps the data volume, `--delete-data` deletes it too;
+  a deployment that is gone is destroyed already (exit code 0). `--help` says it all, the exit
+  codes included: 0 done, 1 failed, 2 wrong arguments, 3 the root domain has a domain deployment
+  already, 4 dns modes mixed on a root domain (`core/error.rs`). `mise run cli:sakctl -- <command>`
+  runs it with the token from pass, `mise run cli:run -- <command>` the same through tauri dev.
 - Every line it prints is `<date> <level> <message>`: one space between each, nothing indented,
   the level coloured (INFO green, WARN yellow, ERROR red on stderr; no colour off a terminal or
   with `NO_COLOR`). WARN is what deserves a second look: a change the plan found, a resource a

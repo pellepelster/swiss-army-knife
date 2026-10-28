@@ -1,7 +1,7 @@
 # sak-theme
 
 The design tokens and the few shared components of sak, as plain css, and bootstrap as the
-dependency of this package: a page without a build (sak-wizard) links them, the angular app
+dependency of this package: a page without a build (sakctl) links them, the angular app
 (sak-frontend) can import them, both read the same values and render the same bootstrap. The palette is the one of blcks-theme (`scss/_tokens.scss` there): the light "paper"
 surface by default, the dark "terminal" surface when the system prefers dark, the accent green
 of the rack-led icon, IBM Plex Sans and Mono.
@@ -23,15 +23,15 @@ of the rack-led icon, IBM Plex Sans and Mono.
   over data), `.sak-mono`.
 
 A consumer's own stylesheet holds no color literal, every color is a `var(--sak-…)`;
-sak-wizard's tests check that for its `ui/style.css`.
+sakctl's tests check that for its `ui/style.css`.
 
 ## Consumers
 
-- sak-wizard: `mise run wizard:theme` runs `npm ci` here and copies bootstrap and the files into
-  `sak-wizard/ui/theme/` (not committed, tauri bundles that one directory); `index.html` links
+- sakctl: `mise run cli:theme` runs `npm ci` here and copies bootstrap and the files into
+  `sak-cli/ui/theme/` (not committed, tauri bundles that one directory); `index.html` links
   `theme/bootstrap.min.css`, `fonts.css`, `tokens.css`, `bootstrap.css` and `components.css`
-  before its own `style.css`, which holds the layout alone. `wizard:run`, `wizard:build` and
-  `wizard:test` copy first. The toolbars are button groups: the one at the bottom right moves
+  before its own `style.css`, which holds the layout alone. `cli:run`, `cli:build` and
+  `cli:test` copy first. The toolbars are button groups: the one at the bottom right moves
   through the wizard, the one at the top right acts on the data of the view.
 - sak-frontend: not wired yet. The way to do it: depend on `"sak-theme": "file:../sak-theme"`
   instead of on bootstrap, list `node_modules/sak-theme/{fonts,tokens,bootstrap,components}.css`

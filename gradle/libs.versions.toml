@@ -14,6 +14,7 @@ kotlinx-serialization = "1.11.0"
 ktor = "3.6.0"
 liquibase = "5.0.4"
 logback = "1.6.5"
+playwright = "1.64.0"
 sqlite-jdbc = "3.53.4.0"
 
 [libraries]
@@ -52,6 +53,7 @@ ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
 liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 [plugins]

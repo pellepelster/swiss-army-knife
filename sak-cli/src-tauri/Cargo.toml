@@ -1,0 +1,40 @@
+[package]
+name = "sakctl"
+version = "0.1.0"
+description = "The SwissArmyKnife desktop app"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+tauri-plugin-dialog = "2.8.4"
+rust-i18n = "4.2.4"
+sys-locale = "0.3.2"
+reqwest = { version = "0.13.5", features = ["json"] }
+serde_json = "1"
+ed25519-dalek = "3.0.0"
+getrandom = "0.4.3"
+base64 = "0.23.1"
+bollard = "0.21.1"
+futures-util = "0.3"
+sak-cloud = { path = "../cloud" }
+argon2 = "0.5.3"
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { version = "1", features = ["rt", "sync"] }
+anstream = "1"
+anstyle = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6.5"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

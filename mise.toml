@@ -7,7 +7,7 @@ node = "22.22.3"
 # the backend the `pipx:` tool above installs with
 pipx = "1.17.2"
 
-# the images of the server, built and pushed to ghcr.io like those of sak-wizard
+# the images of the server, built and pushed to ghcr.io like those of sakctl
 [vars]
 backend_image = "ghcr.io/pellepelster/sak-backend"
 ingress_image = "ghcr.io/pellepelster/sak-ingress"
@@ -162,22 +162,23 @@ run = """
 npx ng serve
 """
 
-# the end to end tests of sak-e2e need the local environment of `mise run local:run`
-[tasks."e2e:install"]
-description = "Install playwright and its chromium for the end to end tests in sak-e2e"
-dir = "{{config_root}}/sak-e2e"
-run = """
-npm ci
-npx playwright install chromium
-"""
+# the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
+# playwright downloads its chromium on the first run
+[tasks."e2e:test:local"]
+description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
+dir = "{{config_root}}"
+run = "./gradlew :sak-e2e:e2eLocal"
 
-[tasks."e2e:run"]
-description = "Run the end to end tests of sak-e2e against the environment of mise run local:run"
-dir = "{{config_root}}/sak-e2e"
-# extra arguments go to playwright (e.g. `mise run e2e:run -- --headed`)
+# the integration tests of sak-e2e: the command line of sakctl, built first, against the Hetzner
+# Cloud project of HCLOUD_TOKEN (from pass unless set). They create and destroy real servers
+# (test-<id>), which takes long and costs money
+[tasks."e2e:test:integration"]
+description = "Run the integration tests of sak-e2e: sakctl against a real Hetzner Cloud project"
+dir = "{{config_root}}"
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = """
-[ -d node_modules ] || mise run e2e:install
-npx playwright test
+(cd sak-cli/src-tauri && mise exec -- cargo build)
+./gradlew :sak-e2e:e2eIntegration
 """
 
 # everything at once, each in its own process group with its log in build/local/logs; the backend

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SwissArmyKnife</title>
+    <!-- the theme comes from ../../sak-theme, copied to theme/ by mise run cli:theme: bootstrap,
+         then the tokens, bootstrap mapped onto them, the components; style.css holds the layout -->
+    <link rel="stylesheet" href="theme/bootstrap.min.css">
+    <link rel="stylesheet" href="theme/fonts.css">
+    <link rel="stylesheet" href="theme/tokens.css">
+    <link rel="stylesheet" href="theme/bootstrap.css">
+    <link rel="stylesheet" href="theme/components.css">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <!-- one view at a time, app.js switches between them; data-text names the text of locales/.
+         Buttons moving through the wizard (next, back, cancel, plan, create) sit in the button
+         group at the bottom right, buttons acting on the data of the view (add a provider,
+         create a deployment) in the one at the top right of the page header -->
+    <main class="view splash" id="view-splash">
+      <img class="splash-icon" src="icon.svg" alt="">
+      <h1 class="splash-title">SwissArmyKnife</h1>
+      <ul class="checks" id="checks" aria-live="polite"></ul>
+    </main>
+
+    <main class="view page" id="view-providers" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 data-text="ui.providers.title"></h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="providers-add"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.providers.add"></span></button>
+        </div>
+      </header>
+      <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
+      <ul class="list-group" id="provider-tokens"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-primary" id="providers-next" data-text="ui.next" disabled></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-select" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 data-text="ui.select.title"></h1>
+        </div>
+      </header>
+      <ul class="list-group" id="provider-types"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="select-cancel" data-text="ui.cancel"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-token" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 class="provider">
+            <img class="provider-logo" id="token-logo" alt="">
+            <span id="token-provider"></span>
+          </h1>
+        </div>
+      </header>
+      <form class="page-form" id="token-form">
+        <div>
+          <label class="form-label" for="token-input" data-text="ui.token.label"></label>
+          <input class="form-control" id="token-input" type="password" autocomplete="off" spellcheck="false">
+          <div class="form-text" id="token-hint"></div>
+        </div>
+        <p class="hint" id="token-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="token-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="token-add"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.token.add"></span></button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main class="view page" id="view-deployments" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 data-text="ui.deployments.title"></h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-create"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.deployments.create"></span></button>
+        </div>
+      </header>
+      <p class="hint" id="deployments-status" aria-live="polite"></p>
+      <ul class="deployments" id="deployments"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-back" data-text="ui.back"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-deployment" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 class="provider">
+            <img class="provider-logo" id="deployment-logo" alt="">
+            <span class="sak-mono" id="deployment-name"></span>
+            <span class="sak-status" id="deployment-status"></span>
+          </h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployment-deploy" data-text="ui.deployment.deploy"></button>
+          <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
+        </div>
+      </header>
+      <p class="hint" id="deployment-location"></p>
+      <ul class="resources" id="deployment-resources"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-create" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 id="create-title" data-text="ui.create.title"></h1>
+        </div>
+      </header>
+      <form class="page-form" id="create-form">
+        <div>
+          <label class="form-label" for="create-name" data-text="ui.create.name"></label>
+          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required>
+          <div class="form-text" data-text="ui.create.name_hint"></div>
+        </div>
+        <div>
+          <label class="form-label" for="create-password" data-text="ui.create.password"></label>
+          <input class="form-control" id="create-password" type="password" autocomplete="new-password" minlength="16" required>
+          <div class="form-text" id="create-password-hint" data-text="ui.create.password_hint"></div>
+        </div>
+        <div id="create-repeat-group">
+          <label class="form-label" for="create-password-repeat" data-text="ui.create.password_repeat"></label>
+          <input class="form-control" id="create-password-repeat" type="password" autocomplete="new-password" minlength="16" required>
+          <div class="invalid-feedback" data-text="ui.create.password_mismatch"></div>
+        </div>
+        <div id="create-location-group">
+          <label class="form-label" for="create-location" data-text="ui.create.location"></label>
+          <select class="form-select" id="create-location"></select>
+          <div class="form-text" data-text="ui.create.location_hint"></div>
+        </div>
+        <div id="create-root-domain-group">
+          <label class="form-label" for="create-root-domain" data-text="ui.create.root_domain"></label>
+          <select class="form-select" id="create-root-domain"></select>
+          <div class="form-text" data-text="ui.create.root_domain_hint"></div>
+          <div class="form-text text-warning" id="create-root-domain-note" hidden></div>
+        </div>
+        <fieldset id="create-dns-mode">
+          <legend class="form-label fs-6" data-text="ui.create.dns_mode"></legend>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="dns-mode" id="create-dns-mode-subdomain" value="subdomain" checked>
+            <label class="form-check-label" for="create-dns-mode-subdomain" data-text="ui.create.dns_mode_subdomain"></label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="dns-mode" id="create-dns-mode-domain" value="domain">
+            <label class="form-check-label" for="create-dns-mode-domain" data-text="ui.create.dns_mode_domain"></label>
+          </div>
+          <div class="form-text" id="create-dns-mode-hint"></div>
+        </fieldset>
+        <div class="form-check" id="create-delete-data-group" hidden>
+          <input class="form-check-input" type="checkbox" id="create-delete-data">
+          <label class="form-check-label" for="create-delete-data" data-text="ui.create.delete_data"></label>
+        </div>
+        <p class="hint" id="create-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="create-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="create-plan" data-text="ui.create.plan"></button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main class="view page" id="view-plan" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 data-text="ui.plan.title"></h1>
+        </div>
+      </header>
+      <p class="hint"><span id="plan-intro" data-text="ui.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
+      <ul class="resources" id="plan-resources"></ul>
+      <p class="hint" id="plan-status" aria-live="polite"></p>
+      <pre class="sak-terminal" id="plan-output" hidden></pre>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-outline-secondary" id="plan-back" data-text="ui.back"></button>
+          <button type="button" class="btn btn-primary" id="plan-apply"><i class="sak-icon-plus" id="plan-apply-icon" aria-hidden="true"></i> <span id="plan-apply-text" data-text="ui.plan.apply"></span></button>
+        </div>
+      </div>
+    </main>
+    <!-- the last word before a destroy: what goes, the data volume too when asked -->
+    <dialog class="confirm" id="destroy-confirm">
+      <form method="dialog">
+        <h2 class="confirm-title" id="destroy-confirm-title"></h2>
+        <p id="destroy-confirm-text"></p>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
+          <button type="submit" class="btn btn-danger" value="destroy" data-text="ui.plan.destroy"></button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 ---
-# the server of a deployment as sak-wizard creates it: reached as soon as it accepts ssh,
+# the server of a deployment as sakctl creates it: reached as soon as it accepts ssh,
 # then the base setup and the data volume; the controller follows once its images and
 # configuration are there
 - name: Provision the server of a deployment

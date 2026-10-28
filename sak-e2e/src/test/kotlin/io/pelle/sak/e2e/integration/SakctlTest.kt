@@ -1,0 +1,83 @@
+package io.pelle.sak.e2e.integration
+
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import java.security.SecureRandom
+
+// the exit codes of sakctl (sak-cli/src-tauri/src/core/error.rs)
+private const val EXIT_OK = 0
+private const val EXIT_DOMAIN_TAKEN = 3
+private const val EXIT_MIXED_DNS_MODES = 4
+
+// the zones the deployments use, both must exist in the project: one for a domain deployment,
+// one for a subdomain deployment
+private val DOMAIN_ZONE = System.getenv("SAK_E2E_DOMAIN_ZONE") ?: "krawallbude.de"
+private val SUBDOMAIN_ZONE = System.getenv("SAK_E2E_SUBDOMAIN_ZONE") ?: "krawallbu.de"
+
+// the deployments of the tests are `test-<id>`, everything else in the project stays untouched
+private const val TEST_PREFIX = "test-"
+
+private val random = SecureRandom()
+
+// `test-` and 5 random lower case letters and digits, a sak name of its own for each run
+private fun testName(): String = TEST_PREFIX + (1..5).map { "abcdefghijklmnopqrstuvwxyz0123456789"[random.nextInt(36)] }.joinToString("")
+
+// the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN: real servers
+// are created, provisioned and destroyed, which takes long and costs money
+@Tag("integration")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class SakctlTest {
+    private val token = System.getenv("HCLOUD_TOKEN") ?: error("HCLOUD_TOKEN is not set")
+    private val project = HetznerProject(token)
+    private val sakctl = Sakctl(token)
+    private val password = (1..24).map { "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[random.nextInt(62)] }.joinToString("")
+
+    // what an earlier run left behind
+    @BeforeAll
+    fun removeTestResources() {
+        project.deleteResources { it.startsWith(TEST_PREFIX) }
+        project.resources { it.startsWith(TEST_PREFIX) }.shouldBeEmpty()
+        val zones = project.zones()
+        zones shouldContain DOMAIN_ZONE
+        zones shouldContain SUBDOMAIN_ZONE
+    }
+
+    private fun create(
+        name: String,
+        dnsMode: String,
+        rootDomain: String,
+    ): Int = sakctl.run("create", name, "--password", password, "--dns-mode", dnsMode, "--root-domain", rootDomain)
+
+    private fun destroy(
+        name: String,
+        vararg options: String,
+    ): Int = sakctl.run("destroy", name, "--password", password, *options)
+
+    @Test
+    fun `a root domain has one domain deployment or only subdomain deployments`() {
+        val (domain, subdomain, refused) = List(3) { testName() }
+        try {
+            // a deployment that is not there is destroyed already
+            destroy(domain) shouldBe EXIT_OK
+
+            create(domain, "domain", DOMAIN_ZONE) shouldBe EXIT_OK
+            create(subdomain, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_OK
+
+            // the domain deployment manages the whole root domain: neither a second domain
+            // deployment nor a subdomain deployment can use it, each with its own exit code
+            create(refused, "domain", DOMAIN_ZONE) shouldBe EXIT_DOMAIN_TAKEN
+            create(refused, "subdomain", DOMAIN_ZONE) shouldBe EXIT_MIXED_DNS_MODES
+        } finally {
+            for (name in listOf(domain, subdomain, refused)) {
+                destroy(name, "--delete-data") shouldBe EXIT_OK
+            }
+        }
+        val names = setOf(domain, subdomain, refused)
+        project.resources { it in names }.shouldBeEmpty()
+    }
+}
