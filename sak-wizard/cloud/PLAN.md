@@ -191,7 +191,7 @@ it after `wizard:test`, without a token.
 
 1. Scaffold the crate, `api` module, `hetzner::labels`, `diff::label_diff`, unit tests. (~400 lines) — done
 2. `hetzner::api`: client, models, the five resource apis, actions, wiremock tests. (~900 lines) — done
-3. ssh key resource + provisioner, the first integration test; this sets the pattern. (~250)
+3. ssh key resource + provisioner, the first integration test; this sets the pattern. (~250) — done
 4. volume and primary ip. (~400)
 5. firewall. (~250)
 6. server with cloud-init and ssh key hash labels, volumes, primary ips in `public_net`
