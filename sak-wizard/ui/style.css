@@ -237,8 +237,3 @@ body {
 .resource-change {
   color: var(--sak-warn);
 }
-
-.plan-key {
-  overflow-wrap: anywhere;
-  user-select: text;
-}
