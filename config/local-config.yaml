@@ -28,6 +28,11 @@ sak:
   # the victorialogs of config/local-compose.yaml, vector ships the access log of its ingress
   logs:
     victorialogs_url: http://127.0.0.1:9428
+  # a dummy address of the server from mise run local:backend:run (192.0.2.1, reserved for
+  # documentation), the health checks of the domains have something to compare with; no domain
+  # points there, they show as unhealthy
+  addresses:
+    ipv4: $SAK_IPV4
   # mise run local:backend:run takes the token from pass (openrouter/pelle/api-key)
   openrouter:
     api_token: $SAK_OPENROUTER_API_TOKEN

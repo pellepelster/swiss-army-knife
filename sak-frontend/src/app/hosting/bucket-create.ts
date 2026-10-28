@@ -19,7 +19,7 @@ import { DomainList } from './domain-list';
         aria-label="All buckets"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Create bucket</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Create static hosting</h1>
     </header>
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
@@ -61,7 +61,7 @@ import { DomainList } from './domain-list';
           } @else {
             <i class="sak-icon-plus" aria-hidden="true"></i>
           }
-          Create bucket
+          Create
         </button>
       </div>
     </form>

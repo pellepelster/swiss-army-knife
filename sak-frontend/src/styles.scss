@@ -18,6 +18,13 @@
   --note-ink: #2b2a27;
 }
 
+// a list in a card, e.g. the domains of a health check, on the card's surface
+.list-group {
+  --bs-list-group-bg: transparent;
+  --bs-list-group-color: inherit;
+  --bs-list-group-border-color: var(--line);
+}
+
 .table {
   --bs-table-bg: transparent;
   --bs-table-color: inherit;

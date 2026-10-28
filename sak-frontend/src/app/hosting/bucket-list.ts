@@ -34,8 +34,8 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
       <a
         class="btn btn-primary"
         routerLink="/static-hosting/create"
-        aria-label="Create bucket"
-        title="Create bucket"
+        aria-label="Create static hosting"
+        title="Create static hosting"
       >
         <i class="sak-icon-plus" aria-hidden="true"></i>
       </a>

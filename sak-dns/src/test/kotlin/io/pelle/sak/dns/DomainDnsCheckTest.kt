@@ -4,6 +4,7 @@ import io.pelle.sak.dns.model.AddressFamily
 import io.pelle.sak.dns.model.DnsState
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.pelle.sak.api.HealthDetail
 import io.pelle.sak.api.HealthState
 import org.junit.jupiter.api.Test
 import java.net.InetAddress
@@ -68,22 +69,29 @@ class DomainDnsCheckTest {
         DomainsHealth("Bucket domains", "buckets", { listOf("b.example.org", "a.example.org") }, check(right), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
             it.message shouldBe "the 2 domains of the buckets point to the server"
+            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.HEALTHY), HealthDetail("b.example.org", HealthState.HEALTHY))
         }
         DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right, down), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
-            it.message shouldBe "the 1 domains of the buckets point to the server, no answer from 9.9.9.9 for a.example.org"
+            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.HEALTHY, "no answer from 9.9.9.9"))
         }
         DomainsHealth("Bucket domains", "buckets", { emptyList() }, check(right), IPV4, IPV6).check().state shouldBe HealthState.HEALTHY
     }
 
     @Test
     fun `is unhealthy when a name server answers with no or other addresses, and tells which`() {
-        val stale = FakeNameServer("8.8.8.8", mapOf("a.example.org" to listOf("203.0.113.9")))
+        val stale = FakeNameServer("8.8.8.8", mapOf("a.example.org" to listOf("203.0.113.9"), "c.example.org" to IPV4))
 
-        DomainsHealth("Redirect domains", "redirects", { listOf("a.example.org", "b.example.org") }, check(stale), IPV4, emptyList()).check().let {
+        DomainsHealth("Redirect domains", "redirects", { listOf("a.example.org", "b.example.org", "c.example.org") }, check(stale), IPV4, emptyList()).check().let {
             it.name shouldBe "Redirect domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "a.example.org: 8.8.8.8 has A 203.0.113.9, no AAAA; b.example.org: 8.8.8.8 has no A, no AAAA"
+            it.message shouldBe "2 of 3 domains of the redirects do not point to the server"
+            it.details shouldBe
+                listOf(
+                    HealthDetail("a.example.org", HealthState.UNHEALTHY, "8.8.8.8 has A 203.0.113.9, no AAAA"),
+                    HealthDetail("b.example.org", HealthState.UNHEALTHY, "8.8.8.8 has no A, no AAAA"),
+                    HealthDetail("c.example.org", HealthState.HEALTHY),
+                )
         }
     }
 
@@ -95,7 +103,8 @@ class DomainDnsCheckTest {
         DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right), emptyList(), emptyList()).check().state shouldBe HealthState.UNKNOWN
         DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(down), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN
-            it.message shouldBe "no name server answered for a.example.org"
+            it.message shouldBe "no name server answered for 1 of 1 domains of the buckets"
+            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.UNKNOWN, "no name server answered"))
         }
         DomainsHealth("Bucket domains", "buckets", { error("the database is gone") }, check(right), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN

@@ -626,8 +626,8 @@ class SakAppsTest {
                 it.statusCode() shouldBe 200
                 it.body() shouldBe
                     "[" +
-                    """{"name":"Bucket domains","state":"UNKNOWN","message":"the addresses of the server are not configured"},""" +
-                    """{"name":"Redirect domains","state":"UNKNOWN","message":"the addresses of the server are not configured"}""" +
+                    """{"name":"Bucket domains","state":"UNKNOWN","message":"the addresses of the server are not configured","details":[]},""" +
+                    """{"name":"Redirect domains","state":"UNKNOWN","message":"the addresses of the server are not configured","details":[]}""" +
                     "]"
             }
         }

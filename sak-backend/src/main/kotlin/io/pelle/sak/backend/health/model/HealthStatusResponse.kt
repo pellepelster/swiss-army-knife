@@ -11,4 +11,6 @@ data class HealthStatusResponse(
     val state: String,
     // why, e.g. what failed; missing when the check tells nothing more
     val message: String?,
+    // the parts it checked one by one, e.g. each domain
+    val details: List<HealthDetailResponse>,
 )

@@ -15,7 +15,7 @@ const HOSTING_FAVICON: Favicon = { svg: 'icons/hosting.svg', png: 'icons/hosting
 // page to edit it; create and edit come first, the bucket's page would take them as its name
 export const hostingRoutes: Routes = [
   { path: '', component: BucketList, title: 'Static hosting' },
-  { path: 'create', component: BucketCreate, title: 'Create bucket · Static hosting' },
+  { path: 'create', component: BucketCreate, title: 'Create static hosting · Static hosting' },
   { path: ':name/edit', component: BucketEdit, title: 'Edit bucket · Static hosting' },
   {
     path: ':name',

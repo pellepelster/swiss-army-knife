@@ -1,0 +1,15 @@
+# Feature Decision Records
+
+This directory contains Feature Decision Records (FDRs) for SwissArmyKnife. Each FDR documents one feature: what it does
+behaviorally, what design decisions shaped it, and the rationale behind those decisions.
+
+FDRs are siblings of the [Architecture Decision Records](../adr/INDEX.md). ADRs cover cross-cutting architectural
+choices; FDRs cover individual features and the design decisions specific to them.
+
+See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the FDR template, writing style, and
+maintenance workflow.
+
+## Features
+
+| #                                                           | Feature                               | Status       | Last reviewed |
+|-------------------------------------------------------------|---------------------------------------|--------------|---------------|

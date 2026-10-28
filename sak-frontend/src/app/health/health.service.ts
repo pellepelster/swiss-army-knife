@@ -4,8 +4,16 @@ import { Observable } from 'rxjs';
 
 export type HealthState = 'HEALTHY' | 'UNHEALTHY' | 'UNKNOWN';
 
-// what one health check found: name tells what was checked, message why, e.g. what failed
+// what one health check found: name tells what was checked, message why, e.g. what failed;
+// details are the parts it checked one by one, e.g. each domain
 export interface HealthStatus {
+  name: string;
+  state: HealthState;
+  message: string | null;
+  details: HealthDetail[];
+}
+
+export interface HealthDetail {
   name: string;
   state: HealthState;
   message: string | null;

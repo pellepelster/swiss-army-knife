@@ -10,6 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.Health
 import io.pelle.sak.api.HealthStatus
 import io.pelle.sak.api.installApi
+import io.pelle.sak.backend.health.model.HealthDetailResponse
 import io.pelle.sak.backend.health.model.HealthStatusResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -19,7 +20,7 @@ import kotlinx.coroutines.withContext
 
 private const val HEALTH_TAG = "health"
 
-fun HealthStatus.response() = HealthStatusResponse(name, state.name, message)
+fun HealthStatus.response() = HealthStatusResponse(name, state.name, message, details.map { HealthDetailResponse(it.name, it.state.name, it.message) })
 
 // the health of everything the backend checks, meant to be mounted behind the authentication;
 // every check runs on each request, all at once, a check may take a few seconds (e.g. dns)

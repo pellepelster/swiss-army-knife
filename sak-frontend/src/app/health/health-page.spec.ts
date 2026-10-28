@@ -37,11 +37,18 @@ describe('HealthPage', () => {
         name: 'Bucket domains',
         state: 'HEALTHY',
         message: 'the 2 domains of the buckets point to the server',
+        details: [
+          { name: 'example.com', state: 'HEALTHY', message: null },
+          { name: 'site.example.org', state: 'HEALTHY', message: 'no answer from 9.9.9.9' },
+        ],
       },
       {
         name: 'Redirect domains',
         state: 'UNHEALTHY',
-        message: 'old.example.com: 1.1.1.1 has no A, no AAAA',
+        message: '1 of 1 domains of the redirects do not point to the server',
+        details: [
+          { name: 'old.example.com', state: 'UNHEALTHY', message: '1.1.1.1 has no A, no AAAA' },
+        ],
       },
     ]);
     await harness.fixture.whenStable();
@@ -54,13 +61,32 @@ describe('HealthPage', () => {
     );
     expect(
       card('Redirect domains').querySelector('[data-testid=message]')?.textContent?.trim(),
-    ).toBe('old.example.com: 1.1.1.1 has no A, no AAAA');
+    ).toBe('1 of 1 domains of the redirects do not point to the server');
+
+    // every domain with its own state, and why when there is something to tell
+    const detail = (name: string) => page().querySelector(`[data-testid="detail-${name}"]`)!;
+    expect(
+      [...card('Bucket domains').querySelectorAll('li')].map((row) => [
+        row.querySelector('.font-monospace')?.textContent?.trim(),
+        row.querySelector('[data-testid=state]')?.textContent?.trim(),
+      ]),
+    ).toEqual([
+      ['example.com', 'Healthy'],
+      ['site.example.org', 'Healthy'],
+    ]);
+    expect(detail('example.com').querySelector('[data-testid=message]')).toBeNull();
+    expect(detail('old.example.com').querySelector('[data-testid=state]')?.classList).toContain(
+      'text-bg-danger',
+    );
+    expect(
+      detail('old.example.com').querySelector('[data-testid=message]')?.textContent?.trim(),
+    ).toBe('1.1.1.1 has no A, no AAAA');
 
     button('Check again').click();
     await harness.fixture.whenStable();
     http
       .expectOne('/api/v1/health')
-      .flush([{ name: 'Bucket domains', state: 'UNKNOWN', message: null }]);
+      .flush([{ name: 'Bucket domains', state: 'UNKNOWN', message: null, details: [] }]);
     await harness.fixture.whenStable();
     expect(card('Bucket domains').querySelector('[data-testid=state]')?.textContent?.trim()).toBe(
       'Unknown',

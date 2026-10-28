@@ -20,12 +20,12 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await expect(page).toHaveURL('/static-hosting');
 
   // e2e-hosting holds the object playwright.config.ts put where its data goes, before it exists
-  await page.getByRole('link', { name: 'Create bucket' }).click();
+  await page.getByRole('link', { name: 'Create static hosting' }).click();
   await expect(page).toHaveURL('/static-hosting/create');
   await page.getByLabel('Name').fill('e2e-hosting');
   await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByLabel('Domain 1', { exact: true }).fill('hosting.example.org');
-  await page.getByRole('button', { name: 'Create bucket' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/e2e-hosting/configuration');
   await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
   await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
@@ -59,9 +59,9 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
 
   // a taken name is reported
   await page.getByRole('link', { name: 'All buckets' }).click();
-  await page.getByRole('link', { name: 'Create bucket' }).click();
+  await page.getByRole('link', { name: 'Create static hosting' }).click();
   await page.getByLabel('Name').fill('e2e-hosting');
-  await page.getByRole('button', { name: 'Create bucket' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByTestId('create-errors')).toHaveText('A bucket of the name exists.');
   await page.getByRole('link', { name: 'Cancel' }).click();
   await expect(page).toHaveURL('/static-hosting');

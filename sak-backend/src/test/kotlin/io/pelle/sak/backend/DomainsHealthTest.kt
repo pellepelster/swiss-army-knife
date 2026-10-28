@@ -53,7 +53,9 @@ class DomainsHealthTest {
         HostingHealth(buckets, check("site.example.com"), addresses).check().let {
             it.name shouldBe "Bucket domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "site.example.org: 1.1.1.1 has no A, no AAAA"
+            it.message shouldBe "1 of 2 domains of the buckets do not point to the server"
+            it.details.map { detail -> detail.name to detail.state } shouldBe
+                listOf("site.example.com" to HealthState.HEALTHY, "site.example.org" to HealthState.UNHEALTHY)
         }
         HostingHealth(buckets, check(), SakConfig.AddressesConfig()).check().state shouldBe HealthState.UNKNOWN
     }
@@ -66,7 +68,8 @@ class DomainsHealthTest {
         RedirectsHealth(redirects, check(), addresses).check().let {
             it.name shouldBe "Redirect domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "old.example.com: 1.1.1.1 has no A, no AAAA"
+            it.message shouldBe "1 of 1 domains of the redirects do not point to the server"
+            it.details.single().message shouldBe "1.1.1.1 has no A, no AAAA"
         }
     }
 }

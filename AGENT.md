@@ -1,15 +1,61 @@
 # Agent guidelines
 
-How the apps look and behave for their users (views, toolbars, buttons, the theme, the output
-of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a ui.
+Read this file first. It contains rules for the complete repository.
+
+## Prime Directives
+
+- Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public
+  documentation!) Find the canonical vocabulary in [`GLOSSARY.md`](GLOSSARY.md).
+- The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
+  more specific.
+- Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
+  Future maintainers must not have to infer this information from call sites.
+- Keep relevant tests and internal documentation current. Change public documentation only when readers must learn or do
+  something differently. For API changes, document the required client migration; keep implementation details and
+  unchanged behavior out. Apply the release-note scope below.
+- Run verification that can find regressions in the changed area.
+- Never claim full verification when only a partial signal was run.
+- Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
+  subjects, tokens, passwords, auth codes, reset links, raw IPs, or full query strings.
+- Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
+  the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and
+  make necessary connections clear to the user.
+
+## Product Boundaries And Instruction Routing
+
+protocols. Unless a path is explicitly Authling-owned or shared, existing
+repository content belongs to Chatto.
+
+- **Authling** is the independent identity-provider product under `authling/`.
+  It is not a Chatto component, runtime unit, feature, or deployment mode.
+- **Runling** is the independent TypeScript workflow and agent orchestrator
+  under `packages/runling/`. It includes a library, CLI, and web console. It
+  uses the root pnpm workspace and has its own version, CI job, and npm release.
+  Keep its public APIs and runtime independent of Chatto and Authling.
+- **Shared framework code** is application-neutral event-sourcing, JetStream
+  client, embedded NATS, data-cryptography, and configuration-loading
+  machinery intended for consumption by both products. The independently
+  versioned but unstable modules live under `pkg/events/`,
+  `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
+  `pkg/appconfig/`.
+
+Authling is in this repository temporarily. It provides the second application
+needed to extract and validate the shared framework. Move Authling to its own
+repository when the shared boundary is stable. Do not describe this repository
+as its permanent home. Do not add coupling that makes this move more difficult.
+
+## UI/UX
+
+How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in [UI-UX.md](UI-UX.md), follow it
+for every change of a ui.
 
 ## Persistence (`sak-model`)
 
 - Every table, link tables included, has `created_at`, `updated_at` and `deleted_at` (`SchemaTest`
   checks it):
-  - `created_at` is set when the row is inserted, never null;
-  - `updated_at` is null until the row really changes, an insert never sets it;
-  - `deleted_at` is null until the row is deleted, a delete sets nothing else.
+    - `created_at` is set when the row is inserted, never null;
+    - `updated_at` is null until the row really changes, an insert never sets it;
+    - `deleted_at` is null until the row is deleted, a delete sets nothing else.
 - Every entity supports soft delete only, no row is ever deleted for real: every read skips the
   rows with `deleted_at` set, a value unique among the live rows has a partial unique index
   (`WHERE deleted_at IS NULL`). A deleted bucket keeps its name taken until it is purged.
@@ -39,8 +85,7 @@ of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a
 - Errors (400 validation, 409 conflict, malformed body, …) answer
   `{"errors": [{"message": "..."}]}` (`call.respondErrors`), one readable sentence per problem.
 - Lists are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for
-  with the `offset` and `limit` query parameters; `limit` is 50 by default and at most 100
-  (`MAX_LIMIT`, `sak-api`).
+  with the `offset` and `limit` query parameters; `limit` is 50 by default and at most 100 (`MAX_LIMIT`, `sak-api`).
 - Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
   in them (e.g. `PageResponse`, `SiteMetricsResponse`); a domain class is mapped to its response
   class, it never crosses the api itself.
@@ -52,17 +97,17 @@ of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a
 ## Frontend code (`sak-frontend`)
 
 - Async code, the same everywhere:
-  - State lives in signals, the templates read them; a store holds what a page shares with its
-    tabs (`@Injectable()` provided by the page, e.g. `BucketStore`) or what the whole app shares
-    (`providedIn: 'root'`, e.g. `NotesStore`).
-  - Observables (`HttpClient`, `timer`) are subscribed with
-    `.pipe(takeUntilDestroyed(this.destroyRef))`, `destroyRef = inject(DestroyRef)` the first
-    field; no `Subscription` collections, no `DestroyRef.onDestroy(() => ….unsubscribe())`.
-  - A load that replaces the one before (another page, polling) keeps its `Subscription` in one
-    field and unsubscribes it before starting the next.
-  - A load following inputs or signals runs in an `effect`, the load itself `untracked`.
-  - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
-    with `firstValueFrom`; everything else subscribes.
+    - State lives in signals, the templates read them; a store holds what a page shares with its
+      tabs (`@Injectable()` provided by the page, e.g. `BucketStore`) or what the whole app shares
+      (`providedIn: 'root'`, e.g. `NotesStore`).
+    - Observables (`HttpClient`, `timer`) are subscribed with
+      `.pipe(takeUntilDestroyed(this.destroyRef))`, `destroyRef = inject(DestroyRef)` the first
+      field; no `Subscription` collections, no `DestroyRef.onDestroy(() => ….unsubscribe())`.
+    - A load that replaces the one before (another page, polling) keeps its `Subscription` in one
+      field and unsubscribes it before starting the next.
+    - A load following inputs or signals runs in an `effect`, the load itself `untracked`.
+    - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
+      with `firstValueFrom`; everything else subscribes.
 
 ## Wizard code (`sak-wizard`)
 
@@ -97,8 +142,8 @@ of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a
   of one deployment from those of another and from everything else in the cloud project.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. Every resource of a deployment also carries
-  `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password
-  (`keys::password_hash` in `sak-wizard`, 30 bytes as hex), so the wizard can check a password
+  `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in
+  `sak-wizard`, 30 bytes as hex), so the wizard can check a password
   against a deployment before it touches it: a deploy or destroy stops when the hash on any of
   its resources differs (the firewall selects its servers by the name label alone); the
   password itself is nowhere.
@@ -117,11 +162,16 @@ of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a
 Known weaknesses that are kept on purpose; a change that touches them keeps the trade-off or
 revisits it here.
 
-- The login link budget can be used up
-  ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). `login` (`sak-auth`,
+- The login link budget can be used up ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). `login`
+  (`sak-auth`,
   `AuthRoutes.kt`) sends at most 60 links an hour altogether (`linksPerHour`), and at most 5 an hour
   to an address from one client (`loginsPerAddress`, keyed by address and client ip). Someone who
   knows an allowed address and has 12 client ips can use up the hour's links, and no allowed
   address gets a link until the hour is over. Accepted: the global ceiling is what keeps the
   server from being used to send mail, an outage of the login for an hour is the price, and the
   apps have few allowed addresses whose sessions last 30 days.
+
+## Additional Agent Rules & Context
+
+- [README.md](README.md) — general project overview.
+- `docs/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.

@@ -2,8 +2,10 @@ package io.pelle.sak.dns
 
 import io.pelle.sak.dns.model.DnsAnswer
 import io.pelle.sak.dns.model.DnsState
+import io.pelle.sak.dns.model.DomainDnsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.api.Health
+import io.pelle.sak.api.HealthDetail
 import io.pelle.sak.api.HealthState
 import io.pelle.sak.api.HealthStatus
 
@@ -34,7 +36,8 @@ open class DomainsHealth(
     private fun status(
         state: HealthState,
         message: String,
-    ) = HealthStatus(name, state, message)
+        details: List<HealthDetail> = emptyList(),
+    ) = HealthStatus(name, state, message, details)
 
     private fun checked(domains: Collection<String>): HealthStatus {
         if (ipv4.isEmpty() && ipv6.isEmpty()) {
@@ -43,21 +46,28 @@ open class DomainsHealth(
         if (domains.isEmpty()) {
             return status(HealthState.HEALTHY, "the $what have no domains")
         }
-        val results = check.check(domains.distinct().sorted(), ipv4, ipv6)
-        val wrong =
-            results.flatMap { result ->
-                result.answers.filter { it.state == DnsState.MISSING || it.state == DnsState.MISMATCH }.map { "${result.domain}: ${it.describe()}" }
-            }
-        if (wrong.isNotEmpty()) {
-            return status(HealthState.UNHEALTHY, wrong.joinToString("; "))
+        val details = check.check(domains.distinct().sorted(), ipv4, ipv6).map { it.detail() }
+        val count = { state: HealthState -> details.count { it.state == state } }
+        return when {
+            count(HealthState.UNHEALTHY) > 0 ->
+                status(HealthState.UNHEALTHY, "${count(HealthState.UNHEALTHY)} of ${details.size} domains of the $what do not point to the server", details)
+            count(HealthState.UNKNOWN) > 0 ->
+                status(HealthState.UNKNOWN, "no name server answered for ${count(HealthState.UNKNOWN)} of ${details.size} domains of the $what", details)
+            else -> status(HealthState.HEALTHY, "the ${details.size} domains of the $what point to the server", details)
         }
-        val unanswered = results.filter { result -> result.answers.all { it.state == DnsState.ERROR } }.map { it.domain }
-        if (unanswered.isNotEmpty()) {
-            return status(HealthState.UNKNOWN, "no name server answered for ${unanswered.joinToString(", ")}")
-        }
-        val errors = results.flatMap { result -> result.answers.filter { it.state == DnsState.ERROR }.map { "${it.server} for ${result.domain}" } }
-        val points = "the ${results.size} domains of the $what point to the server"
-        return status(HealthState.HEALTHY, if (errors.isEmpty()) points else "$points, no answer from ${errors.joinToString(", ")}")
+    }
+}
+
+// unhealthy when a name server answers with no or other addresses, unknown when none answers;
+// the message tells what the name servers answered that is wrong, or which did not answer
+private fun DomainDnsResult.detail(): HealthDetail {
+    val wrong = answers.filter { it.state == DnsState.MISSING || it.state == DnsState.MISMATCH }
+    val unanswered = answers.filter { it.state == DnsState.ERROR }.map { it.server }
+    return when {
+        wrong.isNotEmpty() -> HealthDetail(domain, HealthState.UNHEALTHY, wrong.joinToString("; ") { it.describe() })
+        unanswered.size == answers.size -> HealthDetail(domain, HealthState.UNKNOWN, "no name server answered")
+        unanswered.isNotEmpty() -> HealthDetail(domain, HealthState.HEALTHY, "no answer from ${unanswered.joinToString(", ")}")
+        else -> HealthDetail(domain, HealthState.HEALTHY)
     }
 }
 

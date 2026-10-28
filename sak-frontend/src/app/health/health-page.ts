@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -11,10 +12,11 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
   UNKNOWN: { label: 'Unknown', badge: 'text-bg-secondary', icon: 'fa-circle-question' },
 };
 
-// the status of every health check of the backend, checked anew when the page opens and on demand
+// the status of every health check of the backend and of the parts each checked, e.g. every
+// domain; checked anew when the page opens and on demand
 @Component({
   selector: 'app-health-page',
-  imports: [RouterLink],
+  imports: [NgTemplateOutlet, RouterLink],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -44,22 +46,42 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
     @if (statuses(); as statuses) {
       <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Health checks">
         @for (status of statuses; track status.name) {
-          <li
-            class="card card-body flex-row align-items-center gap-3"
-            [attr.data-testid]="'health-' + status.name"
-          >
-            <div class="flex-grow-1 overflow-hidden">
-              <span class="fw-semibold">{{ status.name }}</span>
-              @if (status.message) {
-                <p class="small text-body-secondary text-break mb-0 mt-1" data-testid="message">
-                  {{ status.message }}
-                </p>
-              }
+          <li class="card" [attr.data-testid]="'health-' + status.name">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="flex-grow-1 overflow-hidden">
+                <span class="fw-semibold">{{ status.name }}</span>
+                @if (status.message) {
+                  <p class="small text-body-secondary text-break mb-0 mt-1" data-testid="message">
+                    {{ status.message }}
+                  </p>
+                }
+              </div>
+              <ng-container
+                *ngTemplateOutlet="pill; context: { $implicit: states[status.state] }"
+              />
             </div>
-            <span [class]="'badge flex-shrink-0 ' + states[status.state].badge" data-testid="state">
-              <i [class]="'fa-solid ' + states[status.state].icon" aria-hidden="true"></i>
-              {{ states[status.state].label }}
-            </span>
+            @if (status.details.length) {
+              <ul class="list-group list-group-flush" [attr.aria-label]="status.name">
+                @for (detail of status.details; track detail.name) {
+                  <li
+                    class="list-group-item d-flex align-items-center gap-3"
+                    [attr.data-testid]="'detail-' + detail.name"
+                  >
+                    <div class="flex-grow-1 overflow-hidden">
+                      <span class="font-monospace text-break">{{ detail.name }}</span>
+                      @if (detail.message) {
+                        <p class="small text-body-secondary text-break mb-0" data-testid="message">
+                          {{ detail.message }}
+                        </p>
+                      }
+                    </div>
+                    <ng-container
+                      *ngTemplateOutlet="pill; context: { $implicit: states[detail.state] }"
+                    />
+                  </li>
+                }
+              </ul>
+            }
           </li>
         } @empty {
           <li class="card card-body text-center py-4">There are no health checks.</li>
@@ -68,6 +90,14 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
     } @else if (!error()) {
       <p class="text-body-secondary">Checking…</p>
     }
+
+    <!-- the state as a pill, of a check or of one of its details -->
+    <ng-template #pill let-look>
+      <span [class]="'badge flex-shrink-0 ' + look.badge" data-testid="state">
+        <i [class]="'fa-solid ' + look.icon" aria-hidden="true"></i>
+        {{ look.label }}
+      </span>
+    </ng-template>
   `,
 })
 export class HealthPage {
