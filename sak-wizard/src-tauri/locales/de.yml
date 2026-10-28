@@ -1,0 +1,13 @@
+checks:
+  finished: "Bereit"
+  failed_title: "SwissArmyKnife kann nicht starten"
+  quit: "Beenden"
+  not_finished: "Eine Prüfung wurde nicht beendet: %{error}"
+  splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
+  container_runtime:
+    checking: "Prüfe die Container-Runtime…"
+    passed: "%{runtime} führt Container aus"
+    needed: "SwissArmyKnife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte SwissArmyKnife erneut."
+    not_started: "%{runtime} konnte nicht gestartet werden: %{error}"
+    no_container: "%{runtime} konnte keinen Container ausführen: %{error}"
+    wrong_answer: "Der Container von %{runtime} antwortete '%{answer}' statt '%{expected}'"

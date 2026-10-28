@@ -1,0 +1,13 @@
+checks:
+  finished: "Ready"
+  failed_title: "SwissArmyKnife can not start"
+  quit: "Quit"
+  not_finished: "A check did not finish: %{error}"
+  splash_not_updated: "The splash screen could not be updated: %{error}"
+  container_runtime:
+    checking: "Checking the container runtime…"
+    passed: "%{runtime} runs containers"
+    needed: "SwissArmyKnife needs docker or podman to run containers. Install one of them, make sure it can run containers without sudo and start SwissArmyKnife again."
+    not_started: "%{runtime} could not be started: %{error}"
+    no_container: "%{runtime} could not run a container: %{error}"
+    wrong_answer: "The container of %{runtime} answered '%{answer}' instead of '%{expected}'"
