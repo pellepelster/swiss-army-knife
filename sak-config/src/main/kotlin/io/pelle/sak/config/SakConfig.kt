@@ -32,11 +32,12 @@ data class SakConfig(
     val secretKeys: Map<Int, String> = emptyMap(),
     // the public addresses of the server the backend runs on, none e.g. locally
     val addresses: AddressesConfig = AddressesConfig(),
+    val dns: DnsConfig = DnsConfig(),
 ) {
     // the secret keys never show, e.g. in a log line
     override fun toString() =
         "SakConfig(dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
-            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()}, addresses=$addresses)"
+            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()}, addresses=$addresses, dns=$dns)"
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
@@ -58,6 +59,19 @@ data class SakConfig(
         @Serializable(with = Ipv6ListSerializer::class)
         val ipv6: List<String> = emptyList(),
     )
+
+    @Serializable
+    data class DnsConfig(
+        // the name servers the domains are checked with, by their address; each is asked
+        // directly, a domain must point to the server at all of them
+        val servers: List<String> = DEFAULT_DNS_SERVERS,
+    ) {
+        init {
+            servers.forEach {
+                require(runCatching { InetAddress.ofLiteral(it) }.isSuccess) { "the name server '$it' is no ip address" }
+            }
+        }
+    }
 
     @Serializable
     data class LogsConfig(
@@ -118,6 +132,9 @@ data class SakConfig(
         const val DEFAULT_OPENROUTER_SPEECH_MODEL = "openai/whisper-large-v3-turbo"
 
         const val DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
+
+        // cloudflare, google and quad9, three operators that do not share a cache
+        val DEFAULT_DNS_SERVERS = listOf("1.1.1.1", "8.8.8.8", "9.9.9.9")
     }
 }
 

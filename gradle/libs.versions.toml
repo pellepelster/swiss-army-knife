@@ -2,6 +2,7 @@
 angus-mail = "2.0.5"
 awssdk = "2.57.3"
 caffeine = "3.3.1"
+dnsjava = "3.6.3"
 greenmail = "2.1.15"
 jackson = "3.2.4"
 jooq = "3.21.9"
@@ -21,6 +22,7 @@ awssdk-bom = { module = "software.amazon.awssdk:bom", version.ref = "awssdk" }
 awssdk-apache-client = { module = "software.amazon.awssdk:apache-client" }
 awssdk-s3 = { module = "software.amazon.awssdk:s3" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+dnsjava = { module = "dnsjava:dnsjava", version.ref = "dnsjava" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
 jackson-dataformat-xml = { module = "tools.jackson.dataformat:jackson-dataformat-xml" }

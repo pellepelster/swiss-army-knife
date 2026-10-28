@@ -170,6 +170,14 @@ class SakConfigLoaderTest {
     }
 
     @Test
+    fun `checks the domains with public name servers unless others are given`() {
+        load("data_dir: /data\n$ROOT_DOMAIN").dns.servers shouldBe listOf("1.1.1.1", "8.8.8.8", "9.9.9.9")
+        load("data_dir: /data\n${ROOT_DOMAIN}dns:\n  servers:\n    - 192.0.2.53\n    - 2001:db8::53\n").dns.servers shouldBe listOf("192.0.2.53", "2001:db8::53")
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}dns:\n  servers:\n    - dns.example.org\n") }
+            .message shouldContain "the name server 'dns.example.org' is no ip address"
+    }
+
+    @Test
     fun `caddy admin url defaults to localhost 2019`() {
         load("data_dir: /data\n$ROOT_DOMAIN").caddyAdminUrl shouldBe SakConfig.DEFAULT_CADDY_ADMIN_URL
     }

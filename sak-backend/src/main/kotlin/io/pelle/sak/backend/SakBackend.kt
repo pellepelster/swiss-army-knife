@@ -1,5 +1,9 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.hosting.HostingHealth
+import io.pelle.sak.backend.redirects.RedirectsHealth
+import io.pelle.sak.dns.DnsjavaNameServer
+import io.pelle.sak.dns.DomainDnsCheck
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
@@ -74,6 +78,9 @@ class SakServices(
     val noteService: NoteService,
     val fileService: FileService,
     val fileTextService: FileTextService,
+    // whether the domains of the buckets and the redirects point to the server
+    val hostingHealth: HostingHealth,
+    val redirectsHealth: RedirectsHealth,
 )
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the
@@ -112,7 +119,20 @@ fun Application.sak(config: SakConfig): SakServices {
         }
     }
 
-    val services = SakServices(secrets, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
+    val domainCheck = DomainDnsCheck(config.dns.servers.map { DnsjavaNameServer(it) })
+    val services =
+        SakServices(
+            secrets,
+            statistics,
+            bucketService,
+            redirectService,
+            labelService,
+            noteService,
+            fileService,
+            fileTextService,
+            HostingHealth(bucketService, domainCheck, config.addresses),
+            RedirectsHealth(redirectService, domainCheck, config.addresses),
+        )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them
     config.auth?.let {
