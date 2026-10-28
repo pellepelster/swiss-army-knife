@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
+import { HealthPage } from './health/health-page';
 import { Home } from './home/home';
 import { hostingRoute } from './hosting/hosting.routes';
 import { redirectsRoute } from './redirects/redirects.routes';
@@ -20,6 +21,7 @@ export const routes: Routes = [
   },
   hostingRoute,
   redirectsRoute,
+  { path: 'health', component: HealthPage, canActivate: [authGuard], title: 'Health' },
   { path: 'login', component: Login, title: 'Sign in' },
   { path: 'signin', component: Signin, title: 'Signing in' },
   { path: '**', redirectTo: '' },

@@ -30,6 +30,7 @@ import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
+import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.redirects.domains
@@ -164,6 +165,10 @@ fun Application.apps(
                         route("/notes") {
                             requireRole(Role.ADMIN)
                             notes(noteService)
+                        }
+                        route("/health") {
+                            requireRole(Role.ADMIN)
+                            health(listOf(hostingHealth, redirectsHealth))
                         }
                         route("/files") {
                             requireRole(Role.ADMIN)

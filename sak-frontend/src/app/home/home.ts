@@ -4,7 +4,7 @@ import { APPS } from '../apps';
 import { AuthService } from '../auth/auth.service';
 import { InstallService } from '../install.service';
 
-// the index page, a tile for every app
+// the index page, a tile for every app and for the maintenance of the backend
 @Component({
   selector: 'app-home',
   imports: [RouterLink],
@@ -43,6 +43,24 @@ import { InstallService } from '../install.service';
             </a>
           </li>
         }
+      </ul>
+    </nav>
+
+    <h2 class="h5 mt-4 mb-3">Maintenance</h2>
+    <nav aria-label="Maintenance">
+      <ul class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 list-unstyled">
+        <li class="col">
+          <a
+            class="card card-body h-100 flex-row align-items-center gap-3 link-body-emphasis text-decoration-none"
+            routerLink="/health"
+          >
+            <i class="fa-solid fa-heart-pulse fs-1" aria-hidden="true"></i>
+            <span class="vstack">
+              <span class="fw-semibold fs-5" data-testid="app-name">Health</span>
+              <span class="small text-body-secondary">The status of all health checks</span>
+            </span>
+          </a>
+        </li>
       </ul>
     </nav>
   `,

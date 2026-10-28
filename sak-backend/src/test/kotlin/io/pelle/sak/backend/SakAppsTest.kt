@@ -618,6 +618,22 @@ class SakAppsTest {
     }
 
     @Test
+    fun `tells the health of the domains of the buckets and the redirects`() {
+        withServer { port ->
+            get(port, "/api/v1/health").statusCode() shouldBe 401
+            // the test config has no addresses of the server, the domains can not be checked
+            get(port, "/api/v1/health", signIn(port)).let {
+                it.statusCode() shouldBe 200
+                it.body() shouldBe
+                    "[" +
+                    """{"name":"Bucket domains","state":"UNKNOWN","message":"the addresses of the server are not configured"},""" +
+                    """{"name":"Redirect domains","state":"UNKNOWN","message":"the addresses of the server are not configured"}""" +
+                    "]"
+            }
+        }
+    }
+
+    @Test
     fun `serves buckets at the domains they are created with and changes them`() {
         withServer { port ->
             val session = signIn(port)
@@ -823,6 +839,7 @@ class SakAppsTest {
                         "/api/v1/files/{id}",
                         "/api/v1/files/{id}/thumbnail",
                         "/api/v1/files/{id}/discover/text",
+                        "/api/v1/health",
                     )
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject

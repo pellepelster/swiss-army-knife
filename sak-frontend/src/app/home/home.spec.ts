@@ -37,13 +37,17 @@ describe('Home', () => {
     expect(page.querySelector('[data-testid=email]')?.textContent).toBe('pelle@pelle.io');
     const tiles = (section: string) =>
       [...page.querySelectorAll<HTMLAnchorElement>(`nav[aria-label="${section}"] a`)].map(
-        (link) => [link.querySelector('[data-testid=app-name]')?.textContent, link.getAttribute('href')],
+        (link) => [
+          link.querySelector('[data-testid=app-name]')?.textContent,
+          link.getAttribute('href'),
+        ],
       );
     expect(tiles('Apps')).toEqual([
       ['Notes', '/notes'],
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);
+    expect(tiles('Maintenance')).toEqual([['Health', '/health']]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];
