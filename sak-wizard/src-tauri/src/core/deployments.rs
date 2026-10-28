@@ -2,7 +2,7 @@
 //! it and diffed against the resource group a deployment consists of; and a new one, planned
 //! and created from its name and password
 
-use crate::providers::{ProviderTokens, ProviderType, ProviderTypeResponse};
+use crate::core::providers::{ProviderType, ProviderTypeResponse};
 use rust_i18n::t;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
@@ -15,17 +15,15 @@ use sak_cloud::hetzner::labels::HetznerLabels;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri::State;
-use tauri::ipc::Channel;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentResponse {
-    provider: ProviderTypeResponse,
-    name: String,
-    status: DeploymentStatus,
-    location: Option<Location>,
-    resources: Vec<ResourceState>,
+    pub(crate) provider: ProviderTypeResponse,
+    pub(crate) name: String,
+    pub(crate) status: DeploymentStatus,
+    pub(crate) location: Option<Location>,
+    pub(crate) resources: Vec<ResourceState>,
 }
 
 impl DeploymentResponse {
@@ -44,19 +42,19 @@ impl DeploymentResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanResponse {
-    name: String,
-    public_key: String,
-    resources: Vec<PlannedResource>,
+    pub(crate) name: String,
+    pub(crate) public_key: String,
+    pub(crate) resources: Vec<PlannedResource>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlannedResource {
     /// `server 'alpha'`
-    resource: String,
-    status: DiffStatus,
-    recreate: bool,
-    changes: Vec<String>,
+    pub(crate) resource: String,
+    pub(crate) status: DiffStatus,
+    pub(crate) recreate: bool,
+    pub(crate) changes: Vec<String>,
 }
 
 /// what creating a deployment reports as it goes: a resource taken up, a resource done; the
@@ -79,16 +77,22 @@ pub struct DeploymentDefaults {
     location: Option<String>,
 }
 
-/// a location to create a deployment in, as the page offers it
+/// the variables a new deployment takes its name, password and location from, the pages
+/// and the command line alike
+pub const NAME_VARIABLE: &str = "SAK_NAME";
+pub const PASSWORD_VARIABLE: &str = "SAK_PASSWORD";
+pub const LOCATION_VARIABLE: &str = "SAK_LOCATION";
+
+/// a location to create a deployment in, as the page and the command line offer it
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationResponse {
-    id: Location,
-    name: &'static str,
+    pub(crate) id: Location,
+    pub(crate) name: &'static str,
 }
 
 /// hetzner's locations; the first is the one proposed
-const LOCATIONS: &[LocationResponse] = &[
+pub(crate) const LOCATIONS: &[LocationResponse] = &[
     LocationResponse {
         id: Location::hel1,
         name: "Helsinki, Finland",
@@ -122,6 +126,29 @@ fn server_type_for(location: Location) -> ServerType {
         Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,
         Location::ash | Location::hil | Location::sin => ServerType::cpx21,
     }
+}
+
+/// the name of a serialized enum value, `up_to_date`, `created`: what the page reads in the
+/// json, the command line in its texts
+pub(crate) fn key<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string))
+        .unwrap_or_default()
+}
+
+/// what the environment proposes for a new deployment
+pub fn defaults() -> DeploymentDefaults {
+    DeploymentDefaults {
+        name: variable(NAME_VARIABLE),
+        password: variable(PASSWORD_VARIABLE),
+        location: variable(LOCATION_VARIABLE),
+    }
+}
+
+/// the locations a deployment can be created in
+pub fn locations() -> Vec<LocationResponse> {
+    LOCATIONS.to_vec()
 }
 
 fn variable(name: &str) -> Option<String> {
@@ -173,12 +200,12 @@ fn verify_password(
     let wrong = || t!("deployments.wrong_password", name = name).to_string();
     if let Some(server) = &deployment.server {
         let labels = HetznerLabels::from_raw(server.labels.clone()).labels();
-        let hash = crate::keys::password_hash(name, password)?;
+        let hash = crate::core::keys::password_hash(name, password)?;
         if labels.get(PASSWORD_HASH_LABEL) != Some(&hash) {
             return Err(wrong());
         }
     } else if let Some(key) = &deployment.ssh_key {
-        let derived = crate::keys::derive_public_key(name, password)?;
+        let derived = crate::core::keys::derive_public_key(name, password)?;
         // the blob alone, hetzner may keep the key without its comment
         if key.public_key.split_whitespace().nth(1) != derived.split_whitespace().nth(1) {
             return Err(wrong());
@@ -292,8 +319,8 @@ impl DeploymentManager {
             }
         };
 
-        let public_key = crate::keys::derive_public_key(name, password)?;
-        let password_hash = crate::keys::password_hash(name, password)?;
+        let public_key = crate::core::keys::derive_public_key(name, password)?;
+        let password_hash = crate::core::keys::password_hash(name, password)?;
         let runtime =
             HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
         let spec = DeploymentSpec::new(
@@ -353,14 +380,13 @@ impl DeploymentManager {
         &self,
         tokens: Vec<(ProviderType, String)>,
         deployment: &NewDeployment,
-        on_event: Channel<CreateEvent>,
+        on_event: &mut (dyn FnMut(CreateEvent) + Send),
     ) -> Result<(), String> {
         let prepared = self.prepare(tokens, deployment).await?;
         let mut registry = prepared
             .spec
             .registry(&prepared.runtime)
             .map_err(|error| error.to_string())?;
-        // a progress event that cannot be delivered is no reason to stop creating
         let mut report = |event: ApplyEvent| {
             let event = match event {
                 ApplyEvent::Started(resource) => CreateEvent::Started {
@@ -371,7 +397,7 @@ impl DeploymentManager {
                     applied: result.applied,
                 },
             };
-            let _ = on_event.send(event);
+            on_event(event);
         };
         registry
             .apply_all_with(prepared.recreate, &mut report)
@@ -379,41 +405,6 @@ impl DeploymentManager {
             .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
         Ok(())
     }
-}
-
-#[tauri::command]
-pub fn deployment_defaults() -> DeploymentDefaults {
-    DeploymentDefaults {
-        name: variable("SAK_NAME"),
-        password: variable("SAK_PASSWORD"),
-        location: variable("SAK_LOCATION"),
-    }
-}
-
-#[tauri::command]
-pub fn locations() -> Vec<LocationResponse> {
-    LOCATIONS.to_vec()
-}
-
-#[tauri::command]
-pub async fn plan_deployment(
-    manager: State<'_, DeploymentManager>,
-    tokens: State<'_, ProviderTokens>,
-    deployment: NewDeployment,
-) -> Result<PlanResponse, String> {
-    let tokens = tokens.tokens();
-    manager.plan(tokens, &deployment).await
-}
-
-#[tauri::command]
-pub async fn create_deployment(
-    manager: State<'_, DeploymentManager>,
-    tokens: State<'_, ProviderTokens>,
-    deployment: NewDeployment,
-    on_event: Channel<CreateEvent>,
-) -> Result<(), String> {
-    let tokens = tokens.tokens();
-    manager.create(tokens, &deployment, on_event).await
 }
 
 #[cfg(test)]
@@ -424,8 +415,8 @@ mod tests {
     fn the_password_of_a_deployment_is_checked_against_its_server_or_its_key() {
         let name = "alpha";
         let password = "a password of sixteen";
-        let hash = crate::keys::password_hash(name, password).unwrap();
-        let key = crate::keys::derive_public_key(name, password).unwrap();
+        let hash = crate::core::keys::password_hash(name, password).unwrap();
+        let key = crate::core::keys::derive_public_key(name, password).unwrap();
         let server: sak_cloud::hetzner::api::servers::Server =
             serde_json::from_value(serde_json::json!({
                 "id": 1, "name": name, "status": "running", "server_type": { "id": 1, "name": "cx23" },
@@ -465,13 +456,4 @@ mod tests {
         assert_eq!(server_type_for(Location::sin), ServerType::cpx21);
         assert_eq!(LOCATIONS[0].id, Location::hel1);
     }
-}
-
-#[tauri::command]
-pub async fn list_deployments(
-    manager: State<'_, DeploymentManager>,
-    tokens: State<'_, ProviderTokens>,
-) -> Result<Vec<DeploymentResponse>, String> {
-    let tokens = tokens.tokens();
-    manager.list(tokens).await
 }

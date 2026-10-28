@@ -111,7 +111,7 @@ async fn error_message(response: Response) -> String {
 // a fresh key every time, its private half is thrown away
 fn public_key() -> Result<String, String> {
     let key = SigningKey::from_bytes(&random::<32>()?).verifying_key();
-    Ok(crate::keys::encode_public_key(&key, "sak-wizard"))
+    Ok(crate::core::keys::encode_public_key(&key, "sak-wizard"))
 }
 
 fn random<const N: usize>() -> Result<[u8; N], String> {

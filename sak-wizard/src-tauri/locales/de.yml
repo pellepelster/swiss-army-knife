@@ -30,6 +30,8 @@ providers:
     forbidden: "Das Token kann nur lesen, erstelle eines mit den Berechtigungen Lesen & Schreiben."
     refused: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
     not_deleted: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
+cli:
+  done: "Das Deployment %{name} ist wie geplant."
 deployments:
   invalid_name: "Ein Name besteht aus 1 bis 63 Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
   short_password: "Das Passwort braucht mindestens %{min} Zeichen."

@@ -1,5 +1,5 @@
 use super::{Check, CheckResult, Progress};
-use crate::providers::{ProviderTokens, ProviderType};
+use crate::core::providers::{ProviderTokens, ProviderType};
 use rust_i18n::t;
 use tauri::{AppHandle, Manager};
 

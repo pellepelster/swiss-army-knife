@@ -5,7 +5,7 @@ mod container_runtime;
 mod image;
 mod provider_tokens;
 
-use crate::providers::ProviderTokens;
+use crate::core::providers::ProviderTokens;
 use rust_i18n::t;
 use serde::Serialize;
 use std::sync::{Arc, Mutex};

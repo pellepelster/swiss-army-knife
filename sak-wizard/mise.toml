@@ -57,6 +57,21 @@ dir = "{{config_root}}/cloud"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = "cargo test"
 
+# the wizard on the command line, the same code as its pages: list, create [<sak name>] or
+# redeploy <sak name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
+# environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run wizard:cli -- create
+[tasks."wizard:cli"]
+description = "Run sak-wizard on the command line: list, create [<sak name>] or redeploy <sak name>"
+dir = "{{config_root}}/src-tauri"
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
+usage = '''
+arg "<args>" var=#true help="list, create [<sak name>] or redeploy <sak name>"
+'''
+run = '''
+eval "set -- ${usage_args}"
+cargo run -q -- "$@"
+'''
+
 # each image built, tested and pushed on its own (the github workflow runs them in parallel); the
 # layers are cached in the registry next to the image, tag buildcache: every build reads it, the
 # push writes it. A build is for the platform it runs on, into the local images; --load keeps it

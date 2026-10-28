@@ -104,6 +104,15 @@
   (redeploy) sits at the top right there. A redeploy runs the plan and the apply of a create for
   a deployment that exists, after its password was checked against the hash on its server, and
   may create its server anew; the data volume and the addresses stay.
+- The rust of `src-tauri` is three modules: `core` holds what both modes share (the
+  `DeploymentManager`, the deployments and their plans, the keys, the providers and their tokens,
+  the texts) and knows neither tauri nor clap (a test checks it); `gui` is tauri, the window, the
+  commands of the pages as thin calls into core, the checks of the splash screen and the container
+  runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]` and
+  `redeploy <sak name>` run on the command line: the token from `HCLOUD_TOKEN`, the name, password
+  and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
+  it all; without a command the window opens. `mise run wizard:cli -- <command>` runs it with the
+  token from pass.
 - The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
   `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
   layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The

@@ -6,7 +6,6 @@ use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Mutex;
-use tauri::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -135,7 +134,7 @@ impl ProviderTokens {
 #[serde(rename_all = "camelCase")]
 pub struct ProviderTypeResponse {
     id: ProviderType,
-    name: &'static str,
+    pub(crate) name: &'static str,
     logo: &'static str,
     token_hint: String,
 }
@@ -164,33 +163,6 @@ fn mask(token: &str) -> String {
         return "****".to_string();
     }
     format!("{}****", token.chars().take(SHOWN).collect::<String>())
-}
-
-#[tauri::command]
-pub fn list_provider_types() -> Vec<ProviderTypeResponse> {
-    ProviderType::ALL
-        .iter()
-        .map(|provider| provider.response())
-        .collect()
-}
-
-#[tauri::command]
-pub fn list_provider_tokens(tokens: State<'_, ProviderTokens>) -> Vec<ProviderTokenResponse> {
-    tokens.list()
-}
-
-#[tauri::command]
-pub async fn add_provider_token(
-    tokens: State<'_, ProviderTokens>,
-    provider: ProviderType,
-    token: String,
-) -> Result<ProviderTokenResponse, String> {
-    let token = token.trim();
-    if token.is_empty() {
-        return Err(t!("providers.empty_token").to_string());
-    }
-    provider.validate(token).await?;
-    tokens.add(provider, token)
 }
 
 #[cfg(test)]

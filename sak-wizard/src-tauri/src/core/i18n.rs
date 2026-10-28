@@ -1,29 +1,6 @@
-use std::collections::HashMap;
-
 /// the language the texts are shown in, the system's when there are texts for it, english otherwise
 pub fn init() {
     rust_i18n::set_locale(&select_locale(sys_locale::get_locale()));
-}
-
-// the language of the page, `<html lang>`
-#[tauri::command]
-pub fn locale() -> String {
-    rust_i18n::locale().to_string()
-}
-
-// the texts of the page, below `ui.` in locales/, english for the ones missing in the language
-#[tauri::command]
-pub fn ui_texts() -> HashMap<String, String> {
-    crate::_rust_i18n_backend()
-        .messages_for_locale("en")
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|(key, _)| key.starts_with("ui."))
-        .map(|(key, _)| {
-            let text = rust_i18n::t!(key.as_ref()).to_string();
-            (key.to_string(), text)
-        })
-        .collect()
 }
 
 // "de-DE" (macos, windows) or "de_DE.UTF-8" (linux) is "de" unless there are texts for the region
