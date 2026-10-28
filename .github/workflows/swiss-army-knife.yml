@@ -92,7 +92,9 @@ jobs:
       - run: mise install rust node npm:@tauri-apps/cli
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: sak-wizard/src-tauri -> target
+          workspaces: |
+            sak-wizard/src-tauri -> target
+            sak-wizard/cloud -> target
       # the images may be private
       - run: mise run wizard:login
         env:
