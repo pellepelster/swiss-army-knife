@@ -112,7 +112,7 @@
   `redeploy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
   and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
   it all; without a command the window opens. `mise run wizard:cli -- <command>` runs it with the
-  token from pass.
+  token from pass, `mise run wizard:run -- <command>` the same through tauri dev.
 - The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
   `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
   layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The

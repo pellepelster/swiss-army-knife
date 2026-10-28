@@ -27,11 +27,25 @@ cp -r ../sak-theme/fonts ui/theme/fonts
 
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+# without arguments the window, with a command (list, create, redeploy, --help) the command line:
+# `mise run wizard:run -- list`; tauri dev passes what follows its second -- to the app. The token
+# comes from pass unless HCLOUD_TOKEN is set
 [tasks."wizard:run"]
-description = "Run sak-wizard, reloading it when its rust code or ui changes"
+description = "Run sak-wizard, reloading it when its rust code or ui changes; a command as argument runs its command line"
 depends = ["wizard:theme"]
 dir = "{{config_root}}"
-run = "tauri dev"
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
+usage = '''
+arg "<args>" var=#true default="" help="nothing for the window, or list, create [<sak name>] or redeploy <sak name>"
+'''
+run = '''
+eval "set -- ${usage_args}"
+if [ $# -eq 0 ]; then
+  tauri dev
+else
+  tauri dev -- -- "$@"
+fi
+'''
 
 # the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
 # msi and nsis on windows) land in src-tauri/target/release/bundle/
