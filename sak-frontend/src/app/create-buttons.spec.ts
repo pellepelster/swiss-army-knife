@@ -1,5 +1,5 @@
 // every button or link that creates or adds something starts with the plus sign of sak-theme,
-// in every template of the app (AGENT.md, "UI (both apps)")
+// in every template of the app (UI-UX.md, "Both apps")
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

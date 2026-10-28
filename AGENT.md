@@ -1,5 +1,8 @@
 # Agent guidelines
 
+How the apps look and behave for their users (views, toolbars, buttons, the theme, the output
+of the command line) is in [UI-UX.md](UI-UX.md); follow it for every change of a ui.
+
 ## Persistence (`sak-model`)
 
 - Every table, link tables included, has `created_at`, `updated_at` and `deleted_at` (`SchemaTest`
@@ -46,32 +49,8 @@
   answering on `/api` keep theirs the same way in `io.pelle.sak.<module>.model` (`sak-api`,
   `sak-auth`, `sak-logs`).
 
-## UI (`sak-frontend`)
+## Frontend code (`sak-frontend`)
 
-- Every entity has a paginated list view leading to a detail view; creating is started from the
-  list's toolbar, all actions on an entity sit in a toolbar at its top right.
-- Every list is paginated with the shared `app-pagination` (`shared/pagination.ts`), `PAGE_SIZE`
-  items a page; an entity list keeps its page in the `offset` query parameter. Only choices and
-  suggestions (e.g. a select, a datalist) load a whole list, page by page with `fetchAll`
-  (`shared/api.ts`).
-- Detail view: overview panel on top (name, created, updated, key facts), tabs below, one child
-  route each, the first and default one "Configuration".
-- No modals: create on `/<entities>/create`, edit on `/<entities>/<id>/edit`, all editable
-  attributes at once, saved or cancelled.
-- Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
-  templates, its default spacing and corner radius included; a component sets its own layout with
-  `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (`"sak-theme":
-  "file:../sak-theme"`, its css listed in `angular.json`): `bootstrap.css` there maps bootstrap onto
-  the tokens, `src/styles.scss` only aliases the names the components read (`--wall`, `--ink`,
-  `--line`, `--sheet`, `--muted`, `--danger`) to them and keeps the post-it colors. No color literal
-  elsewhere. Custom css only for what bootstrap has no class for (the post-its, the terminal look
-  of `app-code-block`, the charts, the recording overlay's stop button), in the component's own
-  stylesheet.
-- Copying to the clipboard is `app-copy-button` (`shared/copy-button.ts`), never written anew.
-- The apps follow the browser's `prefers-color-scheme` with no switch of their own (the tokens of
-  `sak-theme` flip with it).
-- Dates and times in the browser's locale via the `localDateTime` pipe
-  (`shared/local-date-time.pipe.ts`), never angular's `DatePipe` or a fixed format.
 - Async code, the same everywhere:
   - State lives in signals, the templates read them; a store holds what a page shares with its
     tabs (`@Injectable()` provided by the page, e.g. `BucketStore`) or what the whole app shares
@@ -85,40 +64,13 @@
   - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
     with `firstValueFrom`; everything else subscribes.
 
-## UI (both apps)
+## Wizard code (`sak-wizard`)
 
-- A button or link that creates or adds something starts with the plus sign of `sak-theme`,
-  `<i class="sak-icon-plus" aria-hidden="true"></i>` before its text (or alone, with an
-  `aria-label`): add a provider, new note, create redirect, the submit of a create form. A button
-  creating something of a kind shows the kind after the plus (`+` then the camera for a note with
-  a photo). The same sign everywhere, in the wizard and the web ui; tests check it in both
-  (`create-buttons.spec.ts`, the test in `sak-wizard/src-tauri/src/main.rs`).
-
-## UI (`sak-wizard`)
-
-- One view at a time, a page with a header and, when a page has them, actions at the bottom.
-  Buttons moving through the wizard (next, back, cancel, plan, the final create) sit in the button
-  group at the bottom right (`.page-footer`), buttons acting on the data of the view (add a
-  provider, create a deployment) in the one at the top right of the page header.
-- A deployment in the list opens its page (its state, location and resources); what acts on it
-  (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
-  for a deployment that exists, after its password was checked against the hash on its resources, and
-  may create its server anew; the data volume and the addresses stay. A destroy, after the same
-  check, removes every resource of the deployment but its data volume; its plan says so first and
-  its button is the one `btn-danger` of the wizard.
-- The rust of `src-tauri` is three modules: `core` holds what both modes share (the
-  `DeploymentManager`, the deployments and their plans, the keys, the providers and their tokens,
-  the texts) and knows neither tauri nor clap (a test checks it); `gui` is tauri, the window, the
-  commands of the pages as thin calls into core, the checks of the splash screen and the container
-  runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]`,
-  `deploy <sak name>` and `destroy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
-  and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
-  it all; without a command the window opens. Every line it prints is `<date> <level> <message>`,
-  the level coloured, nothing indented; the output of ansible only with `--show-log`, each of its
-  lines prefixed with `[ansible]`. A finished resource is logged verb first, `created server
-  'alpha'`. Before every command the checks of the splash screen (`core/checks`: container
-  runtime, image, provider tokens) run and are logged, a failing one ends the command. `mise run wizard:cli -- <command>` runs it with the
-  token from pass, `mise run wizard:run -- <command>` the same through tauri dev.
+- The rust of `src-tauri` is three modules: `core` holds what both modes share (the checks on
+  startup, the `DeploymentManager`, the deployments and their plans, the provisioning, the keys,
+  the providers and their tokens, the texts) and knows neither tauri nor clap (a test checks it);
+  `gui` is tauri, the window, the commands of the pages as thin calls into core and the checks on
+  its splash screen; `cli` is clap and the log.
 - Creating or deploying ends with the provisioning of the server: `core/provision.rs` runs
   `ansible-playbook pelle_io.sak.server` in the image of the tools (docker or podman) against it,
   the inventory, the ssh configuration, the client key and the known host key written to a
@@ -127,11 +79,6 @@
   key (`keys::derive_host_key`) and installed by cloud-init, so the first connection is verified
   (`StrictHostKeyChecking yes`) and nothing has to be kept; the user data is part of the server's
   declaration, a changed one is a recreate.
-- The look is bootstrap on `sak-theme` (`bootstrap.css` maps it onto `tokens.css`; the fonts,
-  `components.css`), copied into `ui/theme/` by `mise run wizard:theme`; `ui/style.css` holds the
-  layout and names no color of its own, every color is a `var(--sak-…)` (a test checks it). The
-  toolbars are `btn-group`s, `btn-primary` the one action of a page, `btn-outline-secondary` every
-  other button; states are the theme's leds (`.sak-led`, `.sak-status`), not glyphs.
 
 ## Naming
 
