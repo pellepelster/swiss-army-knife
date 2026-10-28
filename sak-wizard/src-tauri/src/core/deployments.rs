@@ -232,24 +232,55 @@ struct Prepared {
     host_key: DerivedKey,
 }
 
-/// the password of an existing deployment, against the hash on its server or, without a
-/// server, against the key derived from it
+/// the password of an existing deployment, checked before anything of it is changed: against
+/// the hash on each of its resources, every one that carries it has to match; without a hash on
+/// any of them (created before every resource carried it), against the key derived from it
 fn verify_password(
     deployment: &DiscoveredDeployment,
     name: &str,
     password: &str,
 ) -> Result<(), String> {
+    let mut labels = Vec::new();
+    labels.extend(deployment.server.iter().map(|server| &server.labels));
+    labels.extend(deployment.ssh_key.iter().map(|key| &key.labels));
+    labels.extend(deployment.firewall.iter().map(|firewall| &firewall.labels));
+    labels.extend(deployment.volumes.iter().map(|volume| &volume.labels));
+    labels.extend(deployment.primary_ips.iter().map(|ip| &ip.labels));
+    let hashes: Vec<String> = labels
+        .into_iter()
+        .filter_map(|raw| {
+            HetznerLabels::from_raw(raw.clone())
+                .labels()
+                .get(PASSWORD_HASH_LABEL)
+                .cloned()
+        })
+        .collect();
+    let key = deployment
+        .ssh_key
+        .as_ref()
+        .map(|key| key.public_key.as_str());
+    check_password(&hashes, key, name, password)
+}
+
+/// `hashes` the password hashes found on the resources, `key` the public key of the ssh key
+fn check_password(
+    hashes: &[String],
+    key: Option<&str>,
+    name: &str,
+    password: &str,
+) -> Result<(), String> {
     let wrong = || t!("deployments.wrong_password", name = name).to_string();
-    if let Some(server) = &deployment.server {
-        let labels = HetznerLabels::from_raw(server.labels.clone()).labels();
+    if !hashes.is_empty() {
         let hash = crate::core::keys::password_hash(name, password)?;
-        if labels.get(PASSWORD_HASH_LABEL) != Some(&hash) {
-            return Err(wrong());
-        }
-    } else if let Some(key) = &deployment.ssh_key {
+        return match hashes.iter().all(|found| *found == hash) {
+            true => Ok(()),
+            false => Err(wrong()),
+        };
+    }
+    if let Some(key) = key {
         let derived = crate::core::keys::derive_public_key(name, password)?;
         // the blob alone, hetzner may keep the key without its comment
-        if key.public_key.split_whitespace().nth(1) != derived.split_whitespace().nth(1) {
+        if key.split_whitespace().nth(1) != derived.split_whitespace().nth(1) {
             return Err(wrong());
         }
     }
@@ -588,6 +619,20 @@ mod tests {
         };
         assert!(verify_password(&with_key, name, password).is_ok());
         assert!(verify_password(&with_key, name, "another password here").is_err());
+    }
+
+    #[test]
+    fn every_hash_on_the_resources_has_to_match() {
+        let (name, password) = ("alpha", "a password of sixteen");
+        let hash = crate::core::keys::password_hash(name, password).unwrap();
+        let other = crate::core::keys::password_hash(name, "another password here").unwrap();
+        assert!(check_password(&[hash.clone(), hash.clone()], None, name, password).is_ok());
+        // one resource of another password is enough to stop
+        assert!(check_password(&[hash.clone(), other], None, name, password).is_err());
+        // a hash wins over the key, a key of another password is not asked
+        assert!(check_password(&[hash], Some("ssh-ed25519 AAAA"), name, password).is_ok());
+        // nothing to check against: a data volume left without a hash
+        assert!(check_password(&[], None, name, password).is_ok());
     }
 
     #[test]

@@ -338,7 +338,7 @@ pub struct DeploymentSpec {
     pub image: String,
     pub data_volume_gb: u64,
     pub user_data: String,
-    /// on the server, for the wizard to check a password against
+    /// on every resource, for the wizard to check a password against
     pub password_hash: Option<String>,
     /// on every resource, next to the name label
     pub labels: Labels,
@@ -382,8 +382,9 @@ impl DeploymentSpec {
         labels
     }
 
-    /// the labels of the server: those of every resource and the password hash
-    fn server_labels(&self) -> Labels {
+    /// the labels a resource carries: those of `labels` and the password hash; the firewall
+    /// selects its servers by `labels` alone
+    fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         if let Some(hash) = &self.password_hash {
             labels.insert(PASSWORD_HASH_LABEL.to_string(), hash.clone());
@@ -392,7 +393,7 @@ impl DeploymentSpec {
     }
 
     pub fn ssh_key(&self) -> HetznerSshKey {
-        HetznerSshKey::new(&self.name, &self.public_key).with_labels(self.labels())
+        HetznerSshKey::new(&self.name, &self.public_key).with_labels(self.resource_labels())
     }
 
     pub fn data_volume(&self) -> HetznerVolume {
@@ -401,17 +402,17 @@ impl DeploymentSpec {
             self.location,
             self.data_volume_gb,
         )
-        .with_labels(self.labels())
+        .with_labels(self.resource_labels())
     }
 
     pub fn ipv4(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.name), self.location)
-            .with_labels(self.labels())
+            .with_labels(self.resource_labels())
     }
 
     pub fn ipv6(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.name), self.location)
-            .with_labels(self.labels())
+            .with_labels(self.resource_labels())
     }
 
     /// ssh, https and icmp from anywhere, applied to the servers of the deployment
@@ -421,7 +422,7 @@ impl DeploymentSpec {
             vec![inbound_tcp("22"), inbound_tcp("443"), inbound_icmp()],
         )
         .applied_to(self.labels())
-        .with_labels(self.labels())
+        .with_labels(self.resource_labels())
     }
 
     pub fn server(&self) -> HetznerServer {
@@ -431,7 +432,7 @@ impl DeploymentSpec {
             .with_volumes(vec![self.data_volume().as_lookup()])
             .with_ipv4(self.ipv4().as_lookup())
             .with_ipv6(self.ipv6().as_lookup())
-            .with_labels(self.server_labels())
+            .with_labels(self.resource_labels())
     }
 
     /// the resource group in a registry of the provider, ready to diff and apply
@@ -650,7 +651,20 @@ mod tests {
         assert_eq!(spec.server().labels[NAME_LABEL], "alpha");
         assert_eq!(spec.server().labels[PASSWORD_HASH_LABEL], "abc");
         assert_eq!(spec.server().labels["env"], "test");
-        assert_eq!(spec.data_volume().labels.get(PASSWORD_HASH_LABEL), None);
+        for labels in [
+            spec.ssh_key().labels,
+            spec.data_volume().labels,
+            spec.ipv4().labels,
+            spec.ipv6().labels,
+            spec.firewall().labels,
+        ] {
+            assert_eq!(labels[PASSWORD_HASH_LABEL], "abc");
+        }
+        // the firewall selects the servers by name, not by the hash
+        assert_eq!(
+            spec.firewall().applied_to_labels.get(PASSWORD_HASH_LABEL),
+            None
+        );
         assert_eq!(spec.data_volume().labels["env"], "test");
         assert_eq!(spec.data_volume().name, "alpha-data");
 

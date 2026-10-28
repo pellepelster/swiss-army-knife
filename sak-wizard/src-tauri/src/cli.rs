@@ -143,7 +143,9 @@ async fn check(provider: &Provider) -> Result<ContainerRuntime, String> {
         let mut logged = 0;
         checks::run(checks::checks(tokens), &mut |event| {
             match event {
-                CheckEvent::Started { name, .. } => log(Level::Info, format!("{name}…")),
+                CheckEvent::Started { id, .. } => {
+                    log(Level::Info, t!(format!("checks.{id}.running")))
+                }
                 CheckEvent::Progress { fraction, text, .. } => {
                     let tenth = (fraction * 10.0).floor() as u32;
                     if tenth > logged && fraction < 1.0 {

@@ -102,7 +102,7 @@
   provider, create a deployment) in the one at the top right of the page header.
 - A deployment in the list opens its page (its state, location and resources); what acts on it
   (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
-  for a deployment that exists, after its password was checked against the hash on its server, and
+  for a deployment that exists, after its password was checked against the hash on its resources, and
   may create its server anew; the data volume and the addresses stay. A destroy, after the same
   check, removes every resource of the deployment but its data volume; its plan says so first and
   its button is the one `btn-danger` of the wizard.
@@ -149,10 +149,12 @@
   resources (`sak-wizard/cloud`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
-  user declares never does. The server of a deployment also carries
+  user declares never does. Every resource of a deployment also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password
   (`keys::password_hash` in `sak-wizard`, 30 bytes as hex), so the wizard can check a password
-  against a deployment before it touches it; the password itself is nowhere.
+  against a deployment before it touches it: a deploy or destroy stops when the hash on any of
+  its resources differs (the firewall selects its servers by the name label alone); the
+  password itself is nowhere.
 
 ## Privacy
 

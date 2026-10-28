@@ -5,12 +5,14 @@ checks:
   splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
   container_runtime:
     name: "docker oder podman prüfen"
+    running: "Prüfe docker oder podman…"
     passed: "%{runtime} %{version}"
     needed: "SwissArmyKnife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte SwissArmyKnife erneut."
     not_working: "%{runtime} funktioniert nicht: %{error}"
     wrong_answer: "Das Image %{image} antwortete '%{answer}' statt '%{expected}'."
   image:
     name: "Neuestes Image laden"
+    running: "Lade das neueste Image…"
     passed: "%{image}"
     not_pulled: "Das Image %{image} konnte nicht geladen werden, stelle sicher, dass %{runtime} ghcr.io erreichen kann: %{error}"
     not_run: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
@@ -18,6 +20,7 @@ checks:
     wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von SwissArmyKnife."
   provider_tokens:
     name: "Provider-Tokens prüfen"
+    running: "Prüfe die Provider-Tokens…"
     passed: "Die Tokens von %{variables} sind gültig"
     invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
 providers:
