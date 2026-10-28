@@ -47,7 +47,7 @@ cli:
   done: "Das Deployment %{name} ist wie geplant."
 provision:
   no_runtime: "Keine Container-Runtime, in der Ansible laufen kann, docker oder podman wird gebraucht."
-  running: "Richte %{host} mit %{playbook} im Image der Werkzeuge ein…"
+  running: "Richte Server %{name} (%{host}) ein…"
   not_started: "%{runtime} konnte das Image der Werkzeuge nicht starten: %{error}"
   failed: "Ansible ist fehlgeschlagen (Exit-Code %{status})."
   no_address: "Der Server von %{name} hat keine öffentliche Adresse."

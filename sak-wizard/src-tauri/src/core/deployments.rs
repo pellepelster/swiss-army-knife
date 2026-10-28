@@ -5,7 +5,7 @@
 use crate::core::container::ContainerRuntime;
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
-use crate::core::provision::{PLAYBOOK, ProvisionManager, ProvisionRun};
+use crate::core::provision::{ProvisionManager, ProvisionRun};
 use rust_i18n::t;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
@@ -549,8 +549,8 @@ impl DeploymentManager {
         on_event(CreateEvent::Provisioning {
             message: t!(
                 "provision.running",
-                host = run.host.as_str(),
-                playbook = PLAYBOOK
+                name = run.name.as_str(),
+                host = run.host.as_str()
             )
             .to_string(),
         });
