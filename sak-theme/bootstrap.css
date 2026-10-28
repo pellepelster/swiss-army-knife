@@ -35,7 +35,10 @@
   --bs-border-radius-xl: var(--sak-radius-xl);
 }
 
-/* the text colors are rgb triplets in bootstrap, the tokens are not: set outright */
+/* the text and background utilities are rgb triplets in bootstrap, the tokens are not: set outright */
+.bg-body { background-color: var(--sak-bg) !important; }
+.bg-body-secondary,
+.bg-body-tertiary { background-color: var(--sak-raised) !important; }
 .text-success { color: var(--sak-ok) !important; }
 .text-info { color: var(--sak-info) !important; }
 .text-warning { color: var(--sak-warn) !important; }
@@ -111,6 +114,18 @@ code {
   border-color: var(--sak-accent);
   color: var(--sak-ink);
   box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
+}
+
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--sak-accent);
+  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
+}
+
+/* bootstrap compiles its blue into the checked controls, they take the accent */
+.form-check-input:checked {
+  background-color: var(--sak-accent);
+  border-color: var(--sak-accent);
 }
 
 .form-control:disabled {

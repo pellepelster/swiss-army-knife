@@ -31,7 +31,7 @@ import { Redirect, RedirectsService } from './redirects.service';
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">Redirects</h1>
       <a class="btn btn-primary" routerLink="/redirects/create">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i> Create redirect
+        <i class="sak-icon-plus" aria-hidden="true"></i> Create redirect
       </a>
     </header>
 

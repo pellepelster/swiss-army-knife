@@ -39,7 +39,7 @@ import { DOMAIN_PATTERN } from '../shared/domains';
         class="btn btn-outline-secondary btn-sm align-self-start"
         (click)="add()"
       >
-        <i class="fa-solid fa-plus" aria-hidden="true"></i> Add domain
+        <i class="sak-icon-plus" aria-hidden="true"></i> Add domain
       </button>
       <p class="form-text mb-0">
         The objects of the bucket are served at every domain, redirects to the bucket lead to the

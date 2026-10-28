@@ -58,6 +58,8 @@ import { DomainList } from './domain-list';
         <button class="btn btn-primary" type="submit" [disabled]="!valid() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="sak-icon-plus" aria-hidden="true"></i>
           }
           Create bucket
         </button>

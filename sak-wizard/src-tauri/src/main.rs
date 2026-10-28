@@ -47,4 +47,22 @@ mod tests {
         );
         assert!(css.contains("var(--sak-accent)"));
     }
+
+    /// every button that creates or adds something starts with the plus sign of sak-theme
+    #[test]
+    fn every_create_button_starts_with_the_plus_sign() {
+        let html = include_str!("../../ui/index.html");
+        let mut creates = 0;
+        for button in html.split("<button").skip(1) {
+            let button = button.split("</button>").next().unwrap_or_default();
+            let creating = ["ui.providers.add", "ui.token.add", "ui.deployments.create", "ui.plan.apply"]
+                .iter()
+                .any(|key| button.contains(key));
+            if creating {
+                creates += 1;
+                assert!(button.contains("sak-icon-plus"), "a create button without the plus sign: {button}");
+            }
+        }
+        assert_eq!(creates, 4);
+    }
 }

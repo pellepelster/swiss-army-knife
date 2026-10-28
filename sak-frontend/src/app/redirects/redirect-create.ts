@@ -57,6 +57,8 @@ import { RedirectsService } from './redirects.service';
         <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="sak-icon-plus" aria-hidden="true"></i>
           }
           Create redirect
         </button>

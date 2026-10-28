@@ -1,15 +1,14 @@
-// the colors of the wall and of the post-its; the post-its keep their paper colors in dark mode
+// the colors of the wall are the tokens of sak-theme (node_modules/sak-theme/tokens.css, light and
+// dark), bootstrap is mapped onto them there; the names below are what the components and the
+// notes read. The post-its keep their paper colors in dark mode
 :root {
-  color-scheme: light dark;
-  --wall: #f4f1ea;
-  // the wall as rgb for bootstrap's bg-body
-  --wall-rgb: 244, 241, 234;
-  --ink: #2b2a27;
-  --muted: #7a766c;
-  --line: #d6d1c4;
+  --wall: var(--sak-bg);
+  --ink: var(--sak-ink);
+  --muted: var(--sak-muted);
+  --line: var(--sak-line);
   // a surface on the wall, e.g. a form or a table
-  --sheet: #fbfaf6;
-  --danger: #b3261e;
+  --sheet: var(--sak-surface);
+  --danger: var(--sak-danger);
 
   --note-yellow: #fff59d;
   --note-pink: #f8bbd0;
@@ -17,41 +16,6 @@
   --note-green: #c5e1a5;
   --note-orange: #ffcc80;
   --note-ink: #2b2a27;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --wall: #1f1e1c;
-    --wall-rgb: 31, 30, 28;
-    --ink: #f1eee6;
-    --muted: #a19c90;
-    --line: #45423c;
-    --sheet: #282724;
-    --danger: #f2b8b5;
-  }
-}
-
-// bootstrap in the colors of the apps, light and dark (ColorSchemeService sets data-bs-theme): its
-// pages, cards, alerts and links take the palette above, its primary buttons the ink
-:root,
-[data-bs-theme] {
-  --bs-body-bg: var(--wall);
-  --bs-body-bg-rgb: var(--wall-rgb);
-  --bs-body-color: var(--ink);
-  --bs-emphasis-color: var(--ink);
-  --bs-secondary-color: var(--muted);
-  --bs-tertiary-bg: var(--sheet);
-  --bs-border-color: var(--line);
-  --bs-link-color: var(--ink);
-  --bs-link-color-rgb: var(--bs-body-color-rgb);
-  --bs-link-hover-color: var(--ink);
-  --bs-link-decoration: underline;
-  --bs-danger-text-emphasis: var(--danger);
-  --bs-danger-bg-subtle: color-mix(in srgb, var(--danger) 14%, transparent);
-  --bs-danger-border-subtle: color-mix(in srgb, var(--danger) 35%, transparent);
-  --bs-form-invalid-color: var(--danger);
-  --bs-form-invalid-border-color: var(--danger);
-  --bs-code-color: var(--ink);
 }
 
 .table {
@@ -67,52 +31,6 @@ body {
 a {
   text-decoration-color: var(--muted);
   text-underline-offset: 3px;
-}
-
-.card {
-  --bs-card-bg: var(--sheet);
-  --bs-card-border-color: var(--line);
-}
-
-.btn-primary {
-  --bs-btn-bg: var(--ink);
-  --bs-btn-border-color: var(--ink);
-  --bs-btn-color: var(--wall);
-  --bs-btn-hover-bg: color-mix(in srgb, var(--ink) 85%, var(--wall));
-  --bs-btn-hover-border-color: color-mix(in srgb, var(--ink) 85%, var(--wall));
-  --bs-btn-hover-color: var(--wall);
-  --bs-btn-active-bg: color-mix(in srgb, var(--ink) 75%, var(--wall));
-  --bs-btn-active-border-color: color-mix(in srgb, var(--ink) 75%, var(--wall));
-  --bs-btn-active-color: var(--wall);
-  --bs-btn-disabled-bg: var(--ink);
-  --bs-btn-disabled-border-color: var(--ink);
-  --bs-btn-disabled-color: var(--wall);
-  --bs-btn-focus-shadow-rgb: 120, 118, 108;
-}
-
-// bootstrap compiles its blue into the checked and focused form controls, they take the ink
-.form-check-input:checked {
-  background-color: var(--ink);
-  border-color: var(--ink);
-}
-
-.form-control:focus,
-.form-select:focus,
-.form-check-input:focus,
-.btn:focus-visible {
-  border-color: var(--muted);
-  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--ink) 18%, transparent);
-}
-
-.btn-outline-secondary {
-  --bs-btn-color: var(--ink);
-  --bs-btn-border-color: var(--line);
-  --bs-btn-hover-bg: var(--line);
-  --bs-btn-hover-border-color: var(--line);
-  --bs-btn-hover-color: var(--ink);
-  --bs-btn-active-bg: var(--line);
-  --bs-btn-active-border-color: var(--line);
-  --bs-btn-active-color: var(--ink);
 }
 
 // a post-it: a square-ish paper with a soft shadow, its corners rounded like bootstrap's cards

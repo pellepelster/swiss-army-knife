@@ -17,7 +17,8 @@ of the rack-led icon, IBM Plex Sans and Mono.
   accent, the one action of a page, `btn-outline-secondary` every other button; `form-label`,
   `form-control`, `card` and `list-group` take the tokens. `package.json` pins bootstrap,
   `npm ci` here fetches it.
-- `components.css` - `.sak-led` (a state as a glowing square, `data-sak-state` one of ok, info,
+- `components.css` - `.sak-icon-plus` (the plus sign every button that creates or adds something
+  starts with), `.sak-led` (a state as a glowing square, `data-sak-state` one of ok, info,
   warn, danger, neutral, busy), `.sak-status` (the led with a word), `.sak-label` (a mono label
   over data), `.sak-mono`.
 

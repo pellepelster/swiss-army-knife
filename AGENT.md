@@ -60,12 +60,16 @@
   attributes at once, saved or cancelled.
 - Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
   templates, its default spacing and corner radius included; a component sets its own layout with
-  `host: { class: '…' }`. `src/styles.scss` maps the palette onto bootstrap's variables. Custom
-  css only for what bootstrap has no class for (the post-its, the terminal look of `app-code-block`,
-  the charts, the recording overlay's stop button), in the component's own stylesheet.
+  `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (`"sak-theme":
+  "file:../sak-theme"`, its css listed in `angular.json`): `bootstrap.css` there maps bootstrap onto
+  the tokens, `src/styles.scss` only aliases the names the components read (`--wall`, `--ink`,
+  `--line`, `--sheet`, `--muted`, `--danger`) to them and keeps the post-it colors. No color literal
+  elsewhere. Custom css only for what bootstrap has no class for (the post-its, the terminal look
+  of `app-code-block`, the charts, the recording overlay's stop button), in the component's own
+  stylesheet.
 - Copying to the clipboard is `app-copy-button` (`shared/copy-button.ts`), never written anew.
-- The apps follow the browser's `prefers-color-scheme` with no switch of their own (css custom
-  properties in `src/styles.scss`).
+- The apps follow the browser's `prefers-color-scheme` with no switch of their own (the tokens of
+  `sak-theme` flip with it).
 - Dates and times in the browser's locale via the `localDateTime` pipe
   (`shared/local-date-time.pipe.ts`), never angular's `DatePipe` or a fixed format.
 - Async code, the same everywhere:
@@ -80,6 +84,15 @@
   - A load following inputs or signals runs in an `effect`, the load itself `untracked`.
   - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
     with `firstValueFrom`; everything else subscribes.
+
+## UI (both apps)
+
+- A button or link that creates or adds something starts with the plus sign of `sak-theme`,
+  `<i class="sak-icon-plus" aria-hidden="true"></i>` before its text (or alone, with an
+  `aria-label`): add a provider, new note, create redirect, the submit of a create form. A button
+  creating something of a kind shows the kind after the plus (`+` then the camera for a note with
+  a photo). The same sign everywhere, in the wizard and the web ui; tests check it in both
+  (`create-buttons.spec.ts`, the test in `sak-wizard/src-tauri/src/main.rs`).
 
 ## UI (`sak-wizard`)
 

@@ -37,7 +37,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
         aria-label="Create bucket"
         title="Create bucket"
       >
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        <i class="sak-icon-plus" aria-hidden="true"></i>
       </a>
     </header>
 

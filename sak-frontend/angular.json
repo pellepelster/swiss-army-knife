@@ -48,7 +48,11 @@
             "styles": [
               "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
               "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
-              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/sak-theme/fonts.css",
+              "node_modules/sak-theme/tokens.css",
+              "node_modules/sak-theme/bootstrap.css",
+              "node_modules/sak-theme/components.css",
               "src/styles.scss"
             ]
           },
