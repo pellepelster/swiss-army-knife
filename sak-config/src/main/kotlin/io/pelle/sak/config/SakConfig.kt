@@ -7,6 +7,9 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.nio.file.Path
 
 @Serializable
@@ -27,11 +30,13 @@ data class SakConfig(
     // encrypts; each is at least 32 random bytes, base64. The backend refuses to start without one
     @SerialName("secret_keys")
     val secretKeys: Map<Int, String> = emptyMap(),
+    // the public addresses of the server the backend runs on, none e.g. locally
+    val addresses: AddressesConfig = AddressesConfig(),
 ) {
     // the secret keys never show, e.g. in a log line
     override fun toString() =
         "SakConfig(dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
-            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()})"
+            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()}, addresses=$addresses)"
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
@@ -43,6 +48,16 @@ data class SakConfig(
 
     // the login links of sak-frontend point here
     val frontendUrl: String get() = auth?.frontendUrl ?: "https://$appsHost"
+
+    // each a comma separated list, terraform writes them to backend.env (infra/main.tf); every one
+    // must be an address of its family, the backend refuses to start otherwise
+    @Serializable
+    data class AddressesConfig(
+        @Serializable(with = Ipv4ListSerializer::class)
+        val ipv4: List<String> = emptyList(),
+        @Serializable(with = Ipv6ListSerializer::class)
+        val ipv6: List<String> = emptyList(),
+    )
 
     @Serializable
     data class LogsConfig(
@@ -116,3 +131,34 @@ object PathSerializer : KSerializer<Path> {
 
     override fun deserialize(decoder: Decoder): Path = Path.of(decoder.decodeString())
 }
+
+// a comma separated list of ip addresses of one family, e.g. "203.0.113.1, 203.0.113.2"; blanks
+// around the commas and empty entries are left out
+abstract class AddressListSerializer(
+    private val family: Class<out InetAddress>,
+    // e.g. ipv4
+    private val name: String,
+) : KSerializer<List<String>> {
+    override val descriptor = PrimitiveSerialDescriptor("io.pelle.sak.config.${name}List", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: List<String>,
+    ) = encoder.encodeString(value.joinToString(","))
+
+    override fun deserialize(decoder: Decoder): List<String> =
+        decoder.decodeString().split(',').map { it.trim() }.filter { it.isNotEmpty() }.onEach {
+            // a literal only, a host name would be looked up
+            val address =
+                try {
+                    InetAddress.ofLiteral(it)
+                } catch (_: IllegalArgumentException) {
+                    null
+                }
+            require(family.isInstance(address)) { "'$it' is no $name address" }
+        }
+}
+
+object Ipv4ListSerializer : AddressListSerializer(Inet4Address::class.java, "ipv4")
+
+object Ipv6ListSerializer : AddressListSerializer(Inet6Address::class.java, "ipv6")

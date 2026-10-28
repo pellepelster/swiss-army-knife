@@ -170,8 +170,9 @@ resource "random_bytes" "secret_key_1" {
   }
 }
 
-# the smtp credentials, the openrouter token and the secret key config/controller-config.yaml
-# references, deployed as systemd EnvironmentFile of the sak-backend unit
+# the smtp credentials, the openrouter token, the secret key and the addresses of the server
+# config/controller-config.yaml references, deployed as systemd EnvironmentFile of the sak-backend
+# unit
 resource "local_sensitive_file" "backend_env" {
   content              = <<-EOT
     SAK_SECRET_KEY_1=${random_bytes.secret_key_1.base64}
@@ -180,6 +181,8 @@ resource "local_sensitive_file" "backend_env" {
     SAK_SMTP_USERNAME=${var.smtp_username}
     SAK_SMTP_PASSWORD=${var.smtp_password}
     SAK_OPENROUTER_API_TOKEN=${var.openrouter_api_token}
+    SAK_IPV4=${hcloud_primary_ip.controller_ipv4.ip_address}
+    SAK_IPV6=${hcloud_server.controller.ipv6_address}
   EOT
   filename             = "${path.module}/.ansible/backend.env"
   file_permission      = "0600"

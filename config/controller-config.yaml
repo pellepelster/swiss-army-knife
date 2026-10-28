@@ -23,3 +23,8 @@ sak:
   # reads the text in the photos of notes, the token comes from pass (openrouter/pelle/api-key)
   openrouter:
     api_token: $SAK_OPENROUTER_API_TOKEN
+  # the public addresses of the server, each a comma separated list; terraform writes them to
+  # backend.env (infra/main.tf)
+  addresses:
+    ipv4: $SAK_IPV4
+    ipv6: $SAK_IPV6

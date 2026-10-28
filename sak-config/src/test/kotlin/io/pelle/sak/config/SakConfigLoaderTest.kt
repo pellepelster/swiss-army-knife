@@ -141,6 +141,35 @@ class SakConfigLoaderTest {
     }
 
     @Test
+    fun `reads the addresses of the server as comma separated lists, as terraform writes them`() {
+        System.setProperty("SAK_TEST_IPV4", "203.0.113.1, 203.0.113.2")
+        System.setProperty("SAK_TEST_IPV6", "2001:db8::1")
+        try {
+            load("data_dir: /data\n${ROOT_DOMAIN}addresses:\n  ipv4: \$SAK_TEST_IPV4\n  ipv6: \$SAK_TEST_IPV6\n").addresses shouldBe
+                SakConfig.AddressesConfig(listOf("203.0.113.1", "203.0.113.2"), listOf("2001:db8::1"))
+        } finally {
+            System.clearProperty("SAK_TEST_IPV4")
+            System.clearProperty("SAK_TEST_IPV6")
+        }
+    }
+
+    @Test
+    fun `has no addresses unless they are given`() {
+        load("data_dir: /data\n$ROOT_DOMAIN").addresses shouldBe SakConfig.AddressesConfig()
+        load("data_dir: /data\n${ROOT_DOMAIN}addresses:\n  ipv4: ''\n").addresses.ipv4 shouldBe emptyList()
+    }
+
+    @Test
+    fun `fails on addresses of the other family or host names`() {
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}addresses:\n  ipv4: 203.0.113.1, 2001:db8::1\n") }
+            .message shouldContain "'2001:db8::1' is no ipv4 address"
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}addresses:\n  ipv6: 203.0.113.1\n") }
+            .message shouldContain "'203.0.113.1' is no ipv6 address"
+        shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}addresses:\n  ipv4: example.org\n") }
+            .message shouldContain "'example.org' is no ipv4 address"
+    }
+
+    @Test
     fun `caddy admin url defaults to localhost 2019`() {
         load("data_dir: /data\n$ROOT_DOMAIN").caddyAdminUrl shouldBe SakConfig.DEFAULT_CADDY_ADMIN_URL
     }
