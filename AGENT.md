@@ -81,6 +81,15 @@
   - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
     with `firstValueFrom`; everything else subscribes.
 
+## Resource labeling (cloud resources)
+
+- Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, bucket,
+  …) carries the label `sak.pelle.io/name=<name>`, `<name>` being the name the resource is
+  declared with; whatever creates resources (`sak-wizard/cloud`, `terraform`) sets it on
+  creation, and a resource without it is not managed by sak.
+- Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
+  user declares never does.
+
 ## Privacy
 
 - Nothing is loaded from outside `<root_domain>` (no cdn, font service, analytics or other third
