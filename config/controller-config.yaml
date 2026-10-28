@@ -5,9 +5,8 @@ ktor:
 sak:
   data_dir: /storage/data/backend/data
   root_domain: pelle.io
-  # the keys the secrets are encrypted with by their version, the highest encrypts; terraform
-  # creates them (terraform/modules/hcloud/backend/main.tf, random_bytes.secret_key_1) and writes
-  # them to backend.env
+  # the keys the secrets are encrypted with by their version, the highest encrypts; the
+  # provisioning of the server creates them and writes them to backend.env
   secret_keys:
     1: $SAK_SECRET_KEY_1
   auth:
@@ -24,8 +23,8 @@ sak:
   # reads the text in the photos of notes, the token comes from pass (openrouter/pelle/api-key)
   openrouter:
     api_token: $SAK_OPENROUTER_API_TOKEN
-  # the public addresses of the server, each a comma separated list; terraform writes them to
-  # backend.env (terraform/modules/hcloud/backend/main.tf)
+  # the public addresses of the server, each a comma separated list; the provisioning of the
+  # server writes them to backend.env
   addresses:
     ipv4: $SAK_IPV4
     ipv6: $SAK_IPV6

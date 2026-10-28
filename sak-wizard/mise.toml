@@ -92,7 +92,7 @@ cargo run -q -- "$@"
 # there when buildx builds in a container of its own (the github workflow). The context is the
 # repository, the image takes the ansible collection of ../ansible
 [tasks."wizard:image:build"]
-description = "Build the image of the tools of sak-wizard, terraform, ansible and the pelle_io.sak collection"
+description = "Build the image of the tools of sak-wizard, ansible and the pelle_io.sak collection"
 dir = "{{config_root}}"
 run = """
 docker buildx build --load --file Dockerfile --tag {{vars.image}}:latest \
@@ -100,14 +100,13 @@ docker buildx build --load --file Dockerfile --tag {{vars.image}}:latest \
 """
 
 [tasks."wizard:image:test"]
-description = "Check that the image of the tools runs terraform, ansible and the pelle_io.sak collection as sak (1000:1000)"
+description = "Check that the image of the tools runs ansible and the pelle_io.sak collection as sak (1000:1000)"
 depends = ["wizard:image:build"]
 run = """
 set -e
 image={{vars.image}}:latest
 [ "$(docker run --rm "$image" id -u):$(docker run --rm "$image" id -g)" = "1000:1000" ]
 [ "$(docker run --rm "$image" id -un)" = "sak" ]
-docker run --rm "$image" terraform version
 docker run --rm "$image" ansible --version
 docker run --rm "$image" ansible-galaxy collection list community.general
 docker run --rm "$image" ansible-galaxy collection list pelle_io.sak | grep -q "^pelle_io.sak "

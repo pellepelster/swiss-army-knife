@@ -1,5 +1,4 @@
 [tools]
-terraform = "1.17.0"
 # the jdk of the gradle toolchain (buildSrc, sak.java-conventions)
 java = "temurin-25.0.5+8.0.LTS"
 # builds and tests sak-frontend, the gradle build calls npm
@@ -12,71 +11,6 @@ pipx = "1.17.2"
 [vars]
 backend_image = "ghcr.io/pellepelster/sak-backend"
 ingress_image = "ghcr.io/pellepelster/sak-ingress"
-
-# the only terraform call, every tf:* task runs through it; the credentials are read from
-# pass when a task runs (not when mise loads this file) unless already set in the environment
-[tasks."tf"]
-description = "Run terraform in terraform/modules/hcloud/backend/ with the Hetzner Cloud, AWS, SMTP and OpenRouter credentials from pass"
-env = {
-    AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
-    AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
-    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token | head -n1')) }}",
-    # the scaleway transactional email account the login links of the apps are sent with
-    TF_VAR_smtp_host = "{{ get_env(name='TF_VAR_smtp_host', default=exec(command='pass show scaleway/pelle.io/smtp_host | head -n1')) }}",
-    TF_VAR_smtp_port = "{{ get_env(name='TF_VAR_smtp_port', default=exec(command='pass show scaleway/pelle.io/smtp_port | head -n1')) }}",
-    TF_VAR_smtp_username = "{{ get_env(name='TF_VAR_smtp_username', default=exec(command='pass show scaleway/pelle.io/smtp_user | head -n1')) }}",
-    TF_VAR_smtp_password = "{{ get_env(name='TF_VAR_smtp_password', default=exec(command='pass show scaleway/pelle.io/smtp_password | head -n1')) }}",
-    TF_VAR_openrouter_api_token = "{{ get_env(name='TF_VAR_openrouter_api_token', default=exec(command='pass show openrouter/pelle/api-key | head -n1')) }}"
-}
-usage = '''
-arg "<args>" var=#true help="arguments passed to terraform"
-'''
-# usage_args is shell quoted (e.g. '-input=false'), eval restores the original arguments
-run = '''
-eval "set -- ${usage_args}"
-terraform -chdir=terraform/modules/hcloud/backend "$@"
-'''
-
-[tasks."tf:init"]
-description = "Initialize Terraform for the Hetzner Cloud infrastructure in terraform/modules/hcloud/backend/"
-run = "mise run tf -- init"
-
-[tasks."tf:plan"]
-description = "Show the changes Terraform would make to the Hetzner Cloud infrastructure"
-run = "mise run tf -- plan"
-
-[tasks."tf:apply"]
-description = "Create or update sak-backend and its sak-data volume in Hetzner Cloud"
-run = "mise run tf -- apply"
-
-# uses the client key and the pinned host key that tf:apply writes to
-# terraform/modules/hcloud/backend/.ssh/,
-# extra arguments are passed to ssh (e.g. `mise run ssh -- uptime`)
-[tasks."ssh"]
-description = "Log in to sak-backend as root with the generated ssh client key"
-run = "ssh -i terraform/modules/hcloud/backend/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=terraform/modules/hcloud/backend/.ssh/known_hosts -o StrictHostKeyChecking=yes root@\"$(mise run tf -- output -raw controller_ipv4)\""
-
-# the collection is linked (not copied) into .ansible/collections, so changes below
-# ansible/ take effect without reinstalling it; the inventory is written by tf:apply,
-# the images are built and exported before every run and only deployed when they changed
-[tasks."ansible:run"]
-description = "Provision sak-backend with the pelle_io.sak collection"
-env = { ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/.ansible/collections" }
-run = """
-if [ ! -f terraform/modules/hcloud/backend/.ansible/inventory.yml ]; then
-  echo "terraform/modules/hcloud/backend/.ansible/inventory.yml is missing, run 'mise run tf:apply' first" >&2
-  exit 1
-fi
-mkdir -p .ansible/collections/ansible_collections/pelle_io
-ln -sfn ../../../../ansible .ansible/collections/ansible_collections/pelle_io/sak
-ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
-mise run docker:save
-ansible-playbook -i terraform/modules/hcloud/backend/.ansible/inventory.yml \
-  -e controller_image_archive="$PWD/build/images/sak-backend.tar.gz" \
-  -e controller_ingress_image_archive="$PWD/build/images/sak-ingress.tar.gz" \
-  -e controller_config_src="$PWD/config/controller-config.yaml" \
-  pelle_io.sak.controller
-"""
 
 # REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
 # in the workflow github.actor and its GITHUB_TOKEN

@@ -16,7 +16,7 @@ controller_config_file: "{{ controller_base_path }}/config.yaml"
 controller_config_src: ""
 # environment of the controller container, holds the s3 credentials the configuration references
 controller_env_file: "{{ controller_base_path }}/backend.env"
-# local path of the environment file, written by tf:apply (required)
+# local path of the environment file (required)
 controller_env_src: ""
 controller_user: sak
 controller_group: sak

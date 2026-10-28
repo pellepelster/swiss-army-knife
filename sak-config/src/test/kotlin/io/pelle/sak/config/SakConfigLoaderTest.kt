@@ -141,7 +141,7 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `reads the addresses of the server as comma separated lists, as terraform writes them`() {
+    fun `reads the addresses of the server as comma separated lists, as the environment file holds them`() {
         System.setProperty("SAK_TEST_IPV4", "203.0.113.1, 203.0.113.2")
         System.setProperty("SAK_TEST_IPV6", "2001:db8::1")
         try {

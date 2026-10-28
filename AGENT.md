@@ -16,7 +16,7 @@
 - Every secret (a bucket's secret key, the signing key of the login, …) lives in the `secrets`
   table and nowhere else, no other table and no file holds one. `SecretService` (sak-backend) is
   the only way to them: it encrypts with AES-256-GCM under the keys of `sak.secret_keys`
-  (versioned, the newest encrypts, older ones are encrypted anew on start; terraform creates them),
+  (versioned, the newest encrypts, older ones are encrypted anew on start; the provisioning of the server creates them),
   authenticates the type and scope with each value and hands them out as `Secret`, whose
   `toString()` never shows the value. Configuration and value classes holding a secret override
   `toString()` the same way.
@@ -142,7 +142,7 @@
 - Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, …)
   carries the label `sak.pelle.io/name=<sak name>`, `<sak name>` being the unique name of the
   swiss army knife deployment the resource belongs to (see the glossary). Whatever creates
-  resources (`sak-wizard/cloud`, `terraform`) sets it on creation; the label tells the resources
+  resources (`sak-wizard/cloud`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. The server of a deployment also carries

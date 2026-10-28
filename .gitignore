@@ -4,10 +4,7 @@ build/
 .idea/
 *.iml
 out/
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-terraform/modules/hcloud/backend/.ssh/
-terraform/modules/hcloud/backend/.ansible/
+# what the former terraform setup left locally: its providers, the ssh key and backend.env
+# of the server it created
+terraform/
 .ansible/

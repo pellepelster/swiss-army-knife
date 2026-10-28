@@ -12,12 +12,13 @@ Ansible collection that provisions the `sak-backend` server.
 deployment right after creating it: it waits for ssh, then `common` and `storage`; the
 `controller` role follows once its images and configuration come from the wizard.
 
-The `storage` role needs `storage_device`, the data volume's device (`terraform -chdir=terraform/modules/hcloud/backend output -raw data_device`).
+The `storage` role needs `storage_device`, the data volume's device (sak-wizard sets it in the inventory of the run).
 The `controller` role needs `controller_image_archive` and `controller_ingress_image_archive` (exported by `mise run docker:save`
 to `build/images/`) and `controller_config_src`,
-the controller configuration `config/controller-config.yaml` (passed by `mise run ansible:run`), and `controller_env_src`,
+the controller configuration `config/controller-config.yaml`, and `controller_env_src`,
 the environment file with the s3 credentials the configuration references (`$SAK_S3_ACCESS_KEY_ID`,
-`$SAK_S3_SECRET_ACCESS_KEY`), written to `terraform/modules/hcloud/backend/.ansible/backend.env` by `tf:apply` (set in the inventory).
+`$SAK_S3_SECRET_ACCESS_KEY`), the secret keys, the smtp and openrouter credentials and the addresses of the server;
+sak-wizard does not write it yet.
 
 ```yaml
 - hosts: controller

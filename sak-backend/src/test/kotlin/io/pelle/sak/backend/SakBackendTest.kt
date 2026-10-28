@@ -134,7 +134,7 @@ class SakBackendTest {
             config.openrouter shouldBe SakConfig.OpenRouterConfig(apiToken = "openrouter-token")
             config.secretKeys shouldBe TEST_SECRET_KEYS
             config.addresses shouldBe SakConfig.AddressesConfig(listOf("203.0.113.1"), listOf("2001:db8::1"))
-            // the keys terraform writes are taken for the domain of the deployment
+            // the keys of backend.env are taken for the domain of the deployment
             SecretCipher(config.secretKeys, config.rootDomain).activeVersion shouldBe 1
         } finally {
             environment.keys.forEach { System.clearProperty(it) }
