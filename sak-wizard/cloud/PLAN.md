@@ -195,7 +195,7 @@ it after `wizard:test`, without a token.
 4. volume and primary ip. (~400) — done
 5. firewall. (~250) — done
 6. server with cloud-init and ssh key hash labels, volumes, primary ips in `public_net`
-   and the power-off/assign/power-on path for an existing server. (~500)
+   and the power-off/assign/power-on path for an existing server. (~500) — done
 7. `providers::hetzner`, `registry` (dependency order, `diff_all` report, `apply_all`),
    `examples/backend.rs`. (~400)
 8. Follow-ups, not in this plan: networks/subnets (restores the private ip test), dns, an

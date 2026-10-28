@@ -28,6 +28,8 @@ impl fmt::Display for Location {
 #[serde(rename_all = "lowercase")]
 #[allow(non_camel_case_types)]
 pub enum ServerType {
+    cpx02,
+    cpx11,
     cx23,
     cx33,
     cx43,

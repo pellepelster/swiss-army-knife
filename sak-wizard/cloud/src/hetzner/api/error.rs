@@ -82,6 +82,10 @@ pub enum ApiError {
 
     #[error("action '{command}' ({id}) did not finish in time")]
     ActionTimeout { id: u64, command: String },
+
+    /// a state the api was polled for did not come in time
+    #[error("timed out waiting for {what}")]
+    Timeout { what: String },
 }
 
 impl ApiError {

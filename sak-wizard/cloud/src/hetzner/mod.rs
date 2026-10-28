@@ -4,6 +4,7 @@ pub mod api;
 pub mod firewall;
 pub mod labels;
 pub mod primary_ip;
+pub mod server;
 pub mod ssh_key;
 pub mod volume;
 

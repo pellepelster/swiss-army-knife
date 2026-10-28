@@ -20,6 +20,7 @@ use model::{ActionResponse, ListPage};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use std::future::Future;
 use std::time::Duration;
 use tracing::{debug, info};
 
@@ -198,6 +199,25 @@ impl HetznerApi {
                 _ => return Ok(items),
             }
         }
+    }
+
+    /// polls `condition` with the wait backoff until it holds, for states the api reaches
+    /// after an action ended, e.g. the volumes of a deleted server detached
+    pub(crate) async fn wait_until<F, Fut>(&self, what: &str, mut condition: F) -> Result<()>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = Result<bool>>,
+    {
+        for attempt in 0..self.wait.attempts {
+            if condition().await? {
+                return Ok(());
+            }
+            info!("waiting for {what}");
+            tokio::time::sleep(self.wait.delay(attempt)).await;
+        }
+        Err(ApiError::Timeout {
+            what: what.to_string(),
+        })
     }
 
     /// polls the action at `v1/<resource>/actions/<id>` until it ended, an error of the
