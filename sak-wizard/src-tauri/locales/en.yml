@@ -47,3 +47,9 @@ ui:
     upgrade:
       name: "Upgrade"
       description: "Bring an existing SwissArmyKnife to this version."
+    backup:
+      name: "Backup"
+      description: "Save the data of an existing SwissArmyKnife."
+    restore:
+      name: "Restore"
+      description: "Bring the data of a backup back into SwissArmyKnife."

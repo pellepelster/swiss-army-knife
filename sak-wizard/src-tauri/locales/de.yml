@@ -47,3 +47,9 @@ ui:
     upgrade:
       name: "Aktualisieren"
       description: "Ein bestehendes SwissArmyKnife auf diese Version bringen."
+    backup:
+      name: "Sichern"
+      description: "Die Daten eines bestehenden SwissArmyKnife sichern."
+    restore:
+      name: "Wiederherstellen"
+      description: "Die Daten einer Sicherung in SwissArmyKnife zurückspielen."

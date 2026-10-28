@@ -210,6 +210,17 @@ body {
   border-color: var(--primary);
 }
 
+.choice-icon {
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.25rem;
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .choice-name {
   font-weight: 600;
   font-size: 1.1rem;
