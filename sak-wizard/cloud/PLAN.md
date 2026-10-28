@@ -20,9 +20,9 @@ modules (`~/git/blcks`) and the provider layer of `solidblocks-cloud`.
   primary ips (`PrimaryIps.kt`) but no provisioner and no test; those are new, written
   after the pattern of the floating ip provisioner and its test
 
-Out of scope for now, listed so the design leaves room: networks/subnets (the blcks server
-test attaches a private ip, that part is dropped), dns zones/records, load balancers,
-other providers (aws, libvirt).
+Out of scope: networks/subnets (skipped for good, the blcks server test attaches a
+private ip, that part is dropped), load balancers, other providers (aws, libvirt). DNS
+zones/records came in as step 8.
 
 ## Mapping of the Kotlin structure
 
@@ -202,8 +202,8 @@ it after `wizard:test`, without a token.
    the lookup of a zone that exists) and `dns_record` (an rrset whose values are literals,
    the public ipv4 of a server or the address of a primary ip), the test with a zone of
    its own. — done
-9. Follow-ups, not in this plan: networks/subnets (restores the private ip test), an api
-   cache, a second provider.
+9. Follow-ups, not in this plan: an api cache, a second provider. Networks and subnets
+   are skipped.
 
 Each step is one commit on main with its tests green; integration tests are run by hand
 with the token before the commit of steps 3-6.
