@@ -7,6 +7,7 @@ const { invoke } = window.__TAURI__.core;
 const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
 const passwordInput = document.getElementById('create-password');
+const repeatInput = document.getElementById('create-password-repeat');
 const status = document.getElementById('create-status');
 const planList = document.getElementById('plan-resources');
 
@@ -48,8 +49,20 @@ function setBusy(busy) {
   }
 }
 
+// the password typed twice: the second field is marked until both match, rust checks it again
+function passwordsMatch() {
+  const match = passwordInput.value === repeatInput.value;
+  repeatInput.classList.toggle('is-invalid', !match);
+  return match;
+}
+
+for (const input of [passwordInput, repeatInput]) {
+  input.addEventListener('input', () => repeatInput.classList.remove('is-invalid'));
+}
+
 export function showCreate() {
   setStatus('');
+  repeatInput.classList.remove('is-invalid');
   show('view-create');
   nameInput.focus();
 }
@@ -63,10 +76,19 @@ function showPlan(plan) {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!passwordsMatch()) {
+    setStatus('');
+    repeatInput.focus();
+    return;
+  }
   setBusy(true);
   setStatus(text('ui.create.planning'));
   try {
-    const plan = await invoke('plan_deployment', { name: nameInput.value, password: passwordInput.value });
+    const plan = await invoke('plan_deployment', {
+      name: nameInput.value,
+      password: passwordInput.value,
+      passwordRepeat: repeatInput.value,
+    });
     setStatus('');
     showPlan(plan);
   } catch (error) {

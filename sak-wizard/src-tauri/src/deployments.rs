@@ -109,11 +109,15 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
+        password_repeat: &str,
     ) -> Result<PlanResponse, String> {
         let name = name.trim();
         check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
             return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS).to_string());
+        }
+        if password != password_repeat {
+            return Err(t!("deployments.password_mismatch").to_string());
         }
         let Some((provider, token)) = tokens
             .into_iter()
@@ -178,9 +182,12 @@ pub async fn plan_deployment(
     tokens: State<'_, ProviderTokens>,
     name: String,
     password: String,
+    password_repeat: String,
 ) -> Result<PlanResponse, String> {
     let tokens = tokens.tokens();
-    manager.plan(tokens, &name, &password).await
+    manager
+        .plan(tokens, &name, &password, &password_repeat)
+        .await
 }
 
 #[tauri::command]
