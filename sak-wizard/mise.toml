@@ -5,6 +5,10 @@ rust = "1.99.1"
 node = "22.22.3"
 "npm:@tauri-apps/cli" = "2.12.4"
 
+# the image of the tools sak-wizard runs in a container, image/Dockerfile
+[vars]
+image = "ghcr.io/pellepelster/sak-wizard-tools"
+
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 [tasks."wizard:run"]
@@ -15,7 +19,8 @@ run = "tauri dev"
 # the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
 # msi and nsis on windows) land in src-tauri/target/release/bundle/
 [tasks."wizard:build"]
-description = "Build the sak-wizard installers for the current platform"
+description = "Build the sak-wizard installers for the current platform and the image of its tools"
+depends = ["wizard:image:build"]
 dir = "{{config_root}}"
 run = "tauri build"
 
@@ -24,3 +29,49 @@ run = "tauri build"
 description = "Run the tests of sak-wizard"
 dir = "{{config_root}}/src-tauri"
 run = "cargo test"
+
+# for the platform it runs on, into the local images; --load keeps it there when buildx builds in
+# a container of its own (the github workflow)
+[tasks."wizard:image:build"]
+description = "Build the image of the tools of sak-wizard, terraform and ansible"
+dir = "{{config_root}}/image"
+run = "docker build --load --tag {{vars.image}}:latest ."
+
+[tasks."wizard:image:test"]
+description = "Check that the image of the tools runs terraform and ansible as sak (1000:1000)"
+depends = ["wizard:image:build"]
+run = """
+set -e
+image={{vars.image}}:latest
+[ "$(docker run --rm "$image" id -u):$(docker run --rm "$image" id -g)" = "1000:1000" ]
+[ "$(docker run --rm "$image" id -un)" = "sak" ]
+docker run --rm "$image" terraform version
+docker run --rm "$image" ansible --version
+docker run --rm "$image" ansible-galaxy collection list community.general
+docker run --rm "$image" ansible localhost -m ping
+echo "the image of the tools works"
+"""
+
+# REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
+# in the workflow github.actor and its GITHUB_TOKEN
+[tasks."wizard:image:login"]
+description = "Log in to ghcr.io to push the image of the tools"
+run = """
+if [ -z "$REGISTRY_USERNAME" ] || [ -z "$REGISTRY_PASSWORD" ]; then
+  echo "set REGISTRY_USERNAME and REGISTRY_PASSWORD to log in to ghcr.io" >&2
+  exit 1
+fi
+printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_USERNAME" --password-stdin
+"""
+
+# for amd64 and arm64 (the macs), tagged latest and with the commit it was built from;
+# the platform not running here needs qemu (binfmt)
+[tasks."wizard:image:push"]
+description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
+dir = "{{config_root}}/image"
+run = """
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag {{vars.image}}:latest \
+  --tag {{vars.image}}:$(git rev-parse --short=12 HEAD) \
+  --push .
+"""
