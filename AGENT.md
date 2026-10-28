@@ -89,3 +89,17 @@
   `api.<root_domain>`, it is never widened beyond `<root_domain>`.
 - User data leaves the backend only on the user's explicit request (e.g. text discovery) and only to
   providers that do not collect it (openrouter `provider.data_collection: deny`).
+
+## Accepted risks
+
+Known weaknesses that are kept on purpose; a change that touches them keeps the trade-off or
+revisits it here.
+
+- The login link budget can be used up
+  ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). `login` (`sak-auth`,
+  `AuthRoutes.kt`) sends at most 60 links an hour altogether (`linksPerHour`), and at most 5 an hour
+  to an address from one client (`loginsPerAddress`, keyed by address and client ip). Someone who
+  knows an allowed address and has 12 client ips can use up the hour's links, and no allowed
+  address gets a link until the hour is over. Accepted: the global ceiling is what keeps the
+  server from being used to send mail, an outage of the login for an hour is the price, and the
+  apps have few allowed addresses whose sessions last 30 days.
