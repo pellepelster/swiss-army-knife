@@ -229,7 +229,8 @@ body {
   overflow-wrap: anywhere;
 }
 
-.resource[data-status="missing"] .resource-detail {
+.resource[data-status="missing"] .resource-detail,
+.resource[data-status="parent_missing"] .resource-detail {
   color: var(--sak-info);
 }
 

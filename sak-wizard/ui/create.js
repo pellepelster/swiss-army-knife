@@ -69,7 +69,6 @@ export function showCreate() {
 
 function showPlan(plan) {
   document.getElementById('plan-name').textContent = plan.name;
-  document.getElementById('plan-key').textContent = plan.publicKey;
   planList.replaceChildren(...plan.resources.map(planned));
   show('view-plan');
 }

@@ -77,8 +77,7 @@ ui:
     planning: "Planning, the resources are compared with the project…"
   plan:
     title: "Plan"
-    intro: "Creating the deployment"
-    key: "ssh key"
+    intro: "Create the SwissArmyKnife deployment"
     apply: "Create"
     missing: "will be created"
     parent_missing: "will be created"

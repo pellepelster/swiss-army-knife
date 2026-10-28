@@ -77,8 +77,7 @@ ui:
     planning: "Plane, die Ressourcen werden mit dem Projekt verglichen…"
   plan:
     title: "Plan"
-    intro: "Das Erstellen des Deployments"
-    key: "SSH-Key"
+    intro: "Erstelle das SwissArmyKnife-Deployment"
     apply: "Erstellen"
     missing: "wird erstellt"
     parent_missing: "wird erstellt"
