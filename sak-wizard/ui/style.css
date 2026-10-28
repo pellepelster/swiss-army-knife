@@ -1,0 +1,62 @@
+/* follows the system's color scheme like sak-frontend, no switch of its own */
+:root {
+  --background: #ffffff;
+  --text: #1f2430;
+  --muted: #5b6170;
+  --failed: #c0281b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1b1e24;
+    --text: #e6e8ec;
+    --muted: #9aa1ad;
+    --failed: #ff6b5e;
+  }
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* a splash screen, nothing on it is meant to be selected */
+  user-select: none;
+  cursor: default;
+}
+
+.splash {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.splash-icon {
+  width: 160px;
+  height: 160px;
+}
+
+.splash-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.check-status {
+  margin: 0;
+  padding: 0 1.5rem;
+  min-height: 1.5em;
+  color: var(--muted);
+  text-align: center;
+}
+
+.check-status-failed {
+  color: var(--failed);
+}

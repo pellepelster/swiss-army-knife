@@ -1,0 +1,26 @@
+# sak-wizard, the desktop app: tauri 2 with its rust core in src-tauri/ and the static web ui in ui/
+[tools]
+rust = "1.99.1"
+# the tauri cli comes from npm as a prebuilt binary, node only runs it
+node = "22.22.3"
+"npm:@tauri-apps/cli" = "2.12.4"
+
+# on linux the webview needs the webkitgtk headers, on debian/ubuntu:
+# sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+[tasks."wizard:run"]
+description = "Run sak-wizard, reloading it when its rust code or ui changes"
+dir = "{{config_root}}"
+run = "tauri dev"
+
+# the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
+# msi and nsis on windows) land in src-tauri/target/release/bundle/
+[tasks."wizard:build"]
+description = "Build the sak-wizard installers for the current platform"
+dir = "{{config_root}}"
+run = "tauri build"
+
+# the checks run real containers with the docker or podman installed, skipped without one
+[tasks."wizard:test"]
+description = "Run the tests of sak-wizard"
+dir = "{{config_root}}/src-tauri"
+run = "cargo test"
