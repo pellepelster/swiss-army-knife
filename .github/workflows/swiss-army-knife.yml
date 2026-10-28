@@ -14,12 +14,12 @@ permissions:
   contents: read
   packages: write
 
-# one run at a time per branch: on main a new run waits for the one running, so the images are
-# never pushed by two runs at once (an older run can not overwrite latest after a newer one); a
-# pull request cancels its run before, only its newest commit counts
+# one run at a time per branch, a newer push cancels the run before: only the newest commit
+# counts, and the images are never pushed by two runs at once (an older run can not overwrite
+# latest after a newer one)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 env:
   MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
