@@ -16,6 +16,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(container::ContainerRuntime::default())
         .manage(providers::ProviderTokens::default())
+        .manage(deployments::DeploymentManager)
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,
             i18n::locale,

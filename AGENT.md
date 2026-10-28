@@ -81,6 +81,14 @@
   - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
     with `firstValueFrom`; everything else subscribes.
 
+## Naming
+
+- A class (a struct in rust) that manages resources outside the process, at a cloud provider,
+  a container runtime, a remote api, is called `<name>Manager` after what it manages, e.g.
+  `DeploymentManager` (`sak-wizard`, the sak deployments at the providers). A manager is the one
+  place its resources are looked up, created, changed and removed from; the rest of the code
+  asks it and holds no client of its own.
+
 ## Resource labeling (cloud resources)
 
 - Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, …)
