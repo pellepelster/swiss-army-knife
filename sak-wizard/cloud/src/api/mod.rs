@@ -16,5 +16,5 @@ pub use diff::{DiffItem, DiffStatus, ResourceDiff, label_diff};
 pub use error::{Error, Result};
 pub use lookup::{AnyLookup, Lookup};
 pub use provisioner::{Listable, LookupProvider, Provisioner};
-pub use registry::{Applied, ApplyResult, Registry};
+pub use registry::{Applied, ApplyEvent, ApplyResult, Registry};
 pub use resource::{Labeled, Labels, Resource, ResourceRef, Runtime};

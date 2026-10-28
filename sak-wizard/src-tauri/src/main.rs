@@ -27,7 +27,8 @@ fn main() {
             providers::add_provider_token,
             deployments::list_deployments,
             deployments::deployment_defaults,
-            deployments::plan_deployment
+            deployments::plan_deployment,
+            deployments::create_deployment
         ])
         .run(tauri::generate_context!())
         .expect("sak-wizard failed to start");

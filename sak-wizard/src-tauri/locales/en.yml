@@ -78,6 +78,13 @@ ui:
   plan:
     title: "Plan"
     intro: "Create the SwissArmyKnife deployment"
+    creating: "Creating the deployment, this takes a few minutes…"
+    working: "creating…"
+    done:
+      created: "created"
+      updated: "updated"
+      recreated: "created anew"
+      unchanged: "exists"
     apply: "Create"
     missing: "will be created"
     parent_missing: "will be created"

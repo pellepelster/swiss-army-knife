@@ -90,7 +90,8 @@ impl<R: Resource, P: Provisioner<R> + 'static> ErasedProvisioner for Erased<R, P
 }
 
 /// what `apply_all` did to a resource
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Applied {
     Created,
     Updated,
@@ -102,6 +103,13 @@ pub enum Applied {
 pub struct ApplyResult {
     pub resource: ResourceRef,
     pub applied: Applied,
+}
+
+/// what `apply_all_with` reports as it goes: a resource taken up, a resource done
+#[derive(Clone, Debug)]
+pub enum ApplyEvent {
+    Started(ResourceRef),
+    Applied(ApplyResult),
 }
 
 /// the resources declared for a run and the provisioners that reconcile them. A
@@ -196,11 +204,21 @@ impl Registry {
     /// destroyed and created again when `recreate` is set, refused otherwise; a duplicate
     /// is refused
     pub async fn apply_all(&mut self, recreate: bool) -> Result<Vec<ApplyResult>> {
+        self.apply_all_with(recreate, &mut |_| {}).await
+    }
+
+    /// `apply_all`, telling `on_event` about every resource as it is taken up and done
+    pub async fn apply_all_with(
+        &mut self,
+        recreate: bool,
+        on_event: &mut (dyn FnMut(ApplyEvent) + Send),
+    ) -> Result<Vec<ApplyResult>> {
         self.context.clear_pending();
         let mut results = Vec::new();
         for index in self.order()? {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
+            on_event(ApplyEvent::Started(reference.clone()));
             let provisioner = self.provisioner_of(resource)?;
             let diff = provisioner.diff(resource, &self.context).await?;
             let applied = match diff.status {
@@ -233,10 +251,12 @@ impl Registry {
                     Applied::Updated
                 }
             };
-            results.push(ApplyResult {
+            let result = ApplyResult {
                 resource: reference,
                 applied,
-            });
+            };
+            on_event(ApplyEvent::Applied(result.clone()));
+            results.push(result);
         }
         Ok(results)
     }

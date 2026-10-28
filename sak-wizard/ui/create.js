@@ -1,8 +1,9 @@
 // a new deployment: its name and password, from which rust derives the ssh key and plans the
-// resources; the plan lists what creating it would do. Apply is not wired yet
+// resources; the plan lists what creating it would do and, on create, lights each resource up
+// as rust creates it, then the deployments show the new one
 import { show, text } from './views.js';
 
-const { invoke } = window.__TAURI__.core;
+const { invoke, Channel } = window.__TAURI__.core;
 
 const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
@@ -11,6 +12,10 @@ const repeatInput = document.getElementById('create-password-repeat');
 const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 const planList = document.getElementById('plan-resources');
+const planStatus = document.getElementById('plan-status');
+const planButtons = ['plan-cancel', 'plan-back', 'plan-apply'].map((id) => document.getElementById(id));
+// the rows of the plan by the resource they show, for the events of the creation
+const rows = new Map();
 
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
@@ -81,11 +86,65 @@ export async function showCreate() {
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
 
+function setPlanStatus(message, failed = false) {
+  planStatus.textContent = message;
+  planStatus.classList.toggle('status-failed', failed);
+}
+
 function showPlan(plan) {
   document.getElementById('plan-name').textContent = plan.name;
-  planList.replaceChildren(...plan.resources.map(planned));
+  rows.clear();
+  planList.replaceChildren(
+    ...plan.resources.map((state) => {
+      const item = planned(state);
+      rows.set(state.resource, item);
+      return item;
+    }),
+  );
+  setPlanStatus('');
   show('view-plan');
 }
+
+// a resource of the plan as its creation reports it: busy while rust works on it, ok when done
+function onCreateEvent(message) {
+  const row = rows.get(message.resource);
+  if (!row) {
+    return;
+  }
+  const led = row.querySelector('.resource-state');
+  const detail = row.querySelector('.resource-detail');
+  if (message.event === 'started') {
+    led.dataset.sakState = 'busy';
+    detail.textContent = text('ui.plan.working');
+  } else if (message.event === 'applied') {
+    led.dataset.sakState = 'ok';
+    detail.textContent = text(`ui.plan.done.${message.applied}`);
+  }
+}
+
+document.getElementById('plan-apply').addEventListener('click', async () => {
+  for (const button of planButtons) {
+    button.disabled = true;
+  }
+  setPlanStatus(text('ui.plan.creating'));
+  const onEvent = new Channel();
+  onEvent.onmessage = onCreateEvent;
+  try {
+    await invoke('create_deployment', {
+      name: nameInput.value,
+      password: passwordInput.value,
+      passwordRepeat: repeatInput.value,
+      onEvent,
+    });
+    await backToDeployments();
+  } catch (error) {
+    setPlanStatus(String(error), true);
+  } finally {
+    for (const button of planButtons) {
+      button.disabled = false;
+    }
+  }
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

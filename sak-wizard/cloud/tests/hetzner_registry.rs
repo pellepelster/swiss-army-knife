@@ -1,15 +1,11 @@
-//! the whole thing against the real api: a backend declared as an ssh key, a volume, a
-//! primary ip, a firewall and a server, diffed, applied, recreated after a change of its
-//! user data and destroyed through the registry
+//! the whole thing against the real api: a deployment as the wizard declares it, an ssh
+//! key, a data volume, a primary ipv4 and ipv6, a firewall and a server, diffed, applied,
+//! recreated after a change of its user data and destroyed through the registry
 
 mod support;
 
-use sak_cloud::api::{Applied, DiffStatus, Resource};
-use sak_cloud::hetzner::firewall::{HetznerFirewall, inbound_icmp, inbound_tcp};
-use sak_cloud::hetzner::primary_ip::HetznerPrimaryIp;
-use sak_cloud::hetzner::server::HetznerServer;
-use sak_cloud::hetzner::ssh_key::HetznerSshKey;
-use sak_cloud::hetzner::volume::HetznerVolume;
+use sak_cloud::api::{Applied, DiffStatus};
+use sak_cloud::hetzner::deployment::DeploymentSpec;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use support::HetznerTest;
 
@@ -31,28 +27,19 @@ async fn backend_flow() {
                 HetznerProviderRuntime::from_api(hetzner.api.clone(), location, server_type);
 
             let declare = |user_data: &str| {
-                let key = HetznerSshKey::new(&name, PUBLIC_KEY).with_labels(hetzner.labels.clone());
-                let volume = HetznerVolume::new(&name, location, 16)
-                    .with_protected(false)
+                let mut spec = DeploymentSpec::new(&name, PUBLIC_KEY, location, server_type)
+                    .unwrap()
+                    .with_password_hash("0123456789abcdef")
                     .with_labels(hetzner.labels.clone());
-                let ip = HetznerPrimaryIp::ipv4(&name, location)
-                    .with_protected(false)
-                    .with_labels(hetzner.labels.clone());
-                let firewall = HetznerFirewall::new(&name, vec![inbound_tcp("22"), inbound_icmp()])
-                    .applied_to(hetzner.labels.clone())
-                    .with_labels(hetzner.labels.clone());
-                let server = HetznerServer::new(&name, location, server_type, user_data)
-                    .with_ssh_keys(vec![key.as_lookup()])
-                    .with_volumes(vec![volume.as_lookup()])
-                    .with_ipv4(ip.as_lookup())
-                    .with_labels(hetzner.labels.clone());
+                spec.user_data = user_data.to_string();
                 let mut registry = provider.registry();
                 // the server first on purpose, the registry orders by dependencies
-                registry.add(server).unwrap();
-                registry.add(firewall).unwrap();
-                registry.add(key).unwrap();
-                registry.add(volume).unwrap();
-                registry.add(ip).unwrap();
+                registry.add(spec.server()).unwrap();
+                registry.add(spec.firewall()).unwrap();
+                registry.add(spec.ssh_key()).unwrap();
+                registry.add(spec.data_volume()).unwrap();
+                registry.add(spec.ipv4()).unwrap();
+                registry.add(spec.ipv6()).unwrap();
                 registry
             };
 
@@ -65,12 +52,13 @@ async fn backend_flow() {
                     DiffStatus::Missing,
                     DiffStatus::Missing,
                     DiffStatus::Missing,
+                    DiffStatus::Missing,
                     DiffStatus::ParentMissing,
                     DiffStatus::Missing
                 ],
                 "{diffs:?}"
             );
-            assert_eq!(diffs[3].resource.log_text, format!("server '{name}'"));
+            assert_eq!(diffs[4].resource.log_text, format!("server '{name}'"));
 
             let results = registry.apply_all(false).await.unwrap();
             let order: Vec<String> = results
@@ -81,8 +69,9 @@ async fn backend_flow() {
                 order,
                 vec![
                     format!("ssh key '{name}'"),
-                    format!("volume '{name}'"),
-                    format!("primary ip '{name}'"),
+                    format!("volume '{name}-data'"),
+                    format!("primary ip '{name}-ipv4'"),
+                    format!("primary ip '{name}-ipv6'"),
                     format!("server '{name}'"),
                     format!("firewall '{name}'"),
                 ]
@@ -129,7 +118,7 @@ async fn backend_flow() {
                     .iter()
                     .filter(|result| result.applied == Applied::Unchanged)
                     .count(),
-                4
+                5
             );
             let diffs = changed.diff_all().await.unwrap();
             assert!(
@@ -138,7 +127,7 @@ async fn backend_flow() {
             );
 
             let destroyed = changed.destroy_all().await.unwrap();
-            assert_eq!(destroyed.len(), 5);
+            assert_eq!(destroyed.len(), 6);
             assert_eq!(destroyed[0].log_text, format!("firewall '{name}'"));
             assert_eq!(destroyed[1].log_text, format!("server '{name}'"));
             let diffs = changed.diff_all().await.unwrap();

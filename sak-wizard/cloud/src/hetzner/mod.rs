@@ -23,6 +23,10 @@ pub const LABEL_NAMESPACE: &str = "sak.pelle.io";
 /// resource of a deployment carries it
 pub const NAME_LABEL: &str = "sak.pelle.io/name";
 
+/// the hash of the password of a deployment, on its server; the wizard checks a password
+/// against it before it touches a deployment
+pub const PASSWORD_HASH_LABEL: &str = "sak.pelle.io/password-hash";
+
 /// the hash of the fingerprints of the ssh keys a server was created with
 pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 

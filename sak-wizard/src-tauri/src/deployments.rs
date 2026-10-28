@@ -1,9 +1,10 @@
 //! the sak deployments found at the providers: everything labeled with a sak name, grouped by
-//! it and diffed against the resource group a deployment consists of
+//! it and diffed against the resource group a deployment consists of; and a new one, planned
+//! and created from its name and password
 
 use crate::providers::{ProviderTokens, ProviderType, ProviderTypeResponse};
 use rust_i18n::t;
-use sak_cloud::api::DiffStatus;
+use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, ResourceState, check_name, discover, state,
@@ -12,6 +13,7 @@ use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::State;
+use tauri::ipc::Channel;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,52 +32,6 @@ impl DeploymentResponse {
             status: state.status,
             resources: state.resources,
         }
-    }
-}
-
-/// manages the sak deployments at the providers: finds them by the name label and diffs
-/// them against the resource group a deployment consists of. The tokens come from the
-/// provider tokens of the app at every call, a token added later counts right away
-#[derive(Default)]
-pub struct DeploymentManager;
-
-impl DeploymentManager {
-    /// the deployments at every provider with a token, by provider and name
-    pub async fn list(
-        &self,
-        tokens: Vec<(ProviderType, String)>,
-    ) -> Result<Vec<DeploymentResponse>, String> {
-        let mut deployments = Vec::new();
-        for (provider, token) in tokens {
-            let failed = |error: String| {
-                t!(
-                    "deployments.failed",
-                    provider = provider.name(),
-                    error = error
-                )
-                .to_string()
-            };
-            match provider {
-                ProviderType::Hetzner => {
-                    let api = Arc::new(HetznerApi::new(&token));
-                    let runtime = HetznerProviderRuntime::from_api(
-                        api.clone(),
-                        Location::nbg1,
-                        ServerType::cx23,
-                    );
-                    let discovered = discover(&api)
-                        .await
-                        .map_err(|error| failed(error.to_string()))?;
-                    for deployment in &discovered {
-                        let state = state(&runtime, deployment)
-                            .await
-                            .map_err(|error| failed(error.to_string()))?;
-                        deployments.push(DeploymentResponse::of(provider, state));
-                    }
-                }
-            }
-        }
-        Ok(deployments)
     }
 }
 
@@ -98,82 +54,13 @@ pub struct PlannedResource {
     changes: Vec<String>,
 }
 
-/// the password of a deployment, the ssh key is derived from it
-const MIN_PASSWORD_CHARS: usize = 16;
-
-impl DeploymentManager {
-    /// checks the name and the password, derives the key and diffs the resource group of
-    /// the deployment against what the first hetzner project holds
-    pub async fn plan(
-        &self,
-        tokens: Vec<(ProviderType, String)>,
-        name: &str,
-        password: &str,
-        password_repeat: &str,
-    ) -> Result<PlanResponse, String> {
-        let name = name.trim();
-        check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
-        if password.chars().count() < MIN_PASSWORD_CHARS {
-            return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS).to_string());
-        }
-        if password != password_repeat {
-            return Err(t!("deployments.password_mismatch").to_string());
-        }
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("deployments.no_provider").to_string());
-        };
-        let failed = |error: String| {
-            t!(
-                "deployments.failed",
-                provider = provider.name(),
-                error = error
-            )
-            .to_string()
-        };
-        let api = Arc::new(HetznerApi::new(&token));
-        let existing = discover(&api)
-            .await
-            .map_err(|error| failed(error.to_string()))?;
-        if existing.iter().any(|deployment| deployment.name == name) {
-            return Err(t!("deployments.name_taken", name = name).to_string());
-        }
-
-        let public_key = crate::keys::derive_public_key(name, password)?;
-        let runtime =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
-        let spec = DeploymentSpec::new(
-            name,
-            &public_key,
-            runtime.default_location,
-            runtime.default_server_type,
-        )
-        .map_err(|error| error.to_string())?;
-        let mut registry = spec.registry(&runtime).map_err(|error| error.to_string())?;
-        let diffs = registry
-            .diff_all()
-            .await
-            .map_err(|error| failed(error.to_string()))?;
-        Ok(PlanResponse {
-            name: name.to_string(),
-            public_key,
-            resources: diffs
-                .iter()
-                .map(|diff| PlannedResource {
-                    resource: diff.resource.log_text.clone(),
-                    status: diff.status,
-                    recreate: diff.needs_recreate(),
-                    changes: diff
-                        .changes
-                        .iter()
-                        .map(|change| change.log_text())
-                        .collect(),
-                })
-                .collect(),
-        })
-    }
+/// what creating a deployment reports as it goes: a resource taken up, a resource done; the
+/// command itself answers when everything is done or failed
+#[derive(Clone, Serialize)]
+#[serde(tag = "event", rename_all = "camelCase")]
+pub enum CreateEvent {
+    Started { resource: String },
+    Applied { resource: String, applied: Applied },
 }
 
 /// what the environment proposes for a new deployment: SAK_NAME and SAK_PASSWORD, so a
@@ -190,6 +77,191 @@ fn variable(name: &str) -> Option<String> {
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+/// the password of a deployment, the ssh key is derived from it
+const MIN_PASSWORD_CHARS: usize = 16;
+
+/// a new deployment checked and ready: where it goes and what it consists of
+struct Prepared {
+    provider: ProviderType,
+    runtime: HetznerProviderRuntime,
+    spec: DeploymentSpec,
+}
+
+fn failed(provider: ProviderType, error: impl ToString) -> String {
+    t!(
+        "deployments.failed",
+        provider = provider.name(),
+        error = error.to_string()
+    )
+    .to_string()
+}
+
+/// manages the sak deployments at the providers: finds them by the name label and diffs
+/// them against the resource group a deployment consists of, plans and creates new ones.
+/// The tokens come from the provider tokens of the app at every call, a token added later
+/// counts right away
+#[derive(Default)]
+pub struct DeploymentManager;
+
+impl DeploymentManager {
+    /// the deployments at every provider with a token, by provider and name
+    pub async fn list(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+    ) -> Result<Vec<DeploymentResponse>, String> {
+        let mut deployments = Vec::new();
+        for (provider, token) in tokens {
+            match provider {
+                ProviderType::Hetzner => {
+                    let api = Arc::new(HetznerApi::new(&token));
+                    let runtime = HetznerProviderRuntime::from_api(
+                        api.clone(),
+                        Location::nbg1,
+                        ServerType::cx23,
+                    );
+                    let discovered = discover(&api)
+                        .await
+                        .map_err(|error| failed(provider, error))?;
+                    for deployment in &discovered {
+                        let state = state(&runtime, deployment)
+                            .await
+                            .map_err(|error| failed(provider, error))?;
+                        deployments.push(DeploymentResponse::of(provider, state));
+                    }
+                }
+            }
+        }
+        Ok(deployments)
+    }
+
+    /// checks the name (a sak name no deployment of the project carries yet) and the
+    /// password (long enough, typed twice the same), derives the ssh key and the password
+    /// hash and lays out the resource group at the first hetzner project
+    async fn prepare(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+        password_repeat: &str,
+    ) -> Result<Prepared, String> {
+        let name = name.trim();
+        check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
+        if password.chars().count() < MIN_PASSWORD_CHARS {
+            return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS).to_string());
+        }
+        if password != password_repeat {
+            return Err(t!("deployments.password_mismatch").to_string());
+        }
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("deployments.no_provider").to_string());
+        };
+        let api = Arc::new(HetznerApi::new(&token));
+        let existing = discover(&api)
+            .await
+            .map_err(|error| failed(provider, error))?;
+        if existing.iter().any(|deployment| deployment.name == name) {
+            return Err(t!("deployments.name_taken", name = name).to_string());
+        }
+
+        let public_key = crate::keys::derive_public_key(name, password)?;
+        let password_hash = crate::keys::password_hash(name, password)?;
+        let runtime =
+            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let spec = DeploymentSpec::new(
+            name,
+            &public_key,
+            runtime.default_location,
+            runtime.default_server_type,
+        )
+        .map_err(|error| error.to_string())?
+        .with_password_hash(&password_hash);
+        Ok(Prepared {
+            provider,
+            runtime,
+            spec,
+        })
+    }
+
+    /// what creating the deployment would do: its resources diffed against the project
+    pub async fn plan(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+        password_repeat: &str,
+    ) -> Result<PlanResponse, String> {
+        let prepared = self
+            .prepare(tokens, name, password, password_repeat)
+            .await?;
+        let mut registry = prepared
+            .spec
+            .registry(&prepared.runtime)
+            .map_err(|error| error.to_string())?;
+        let diffs = registry
+            .diff_all()
+            .await
+            .map_err(|error| failed(prepared.provider, error))?;
+        Ok(PlanResponse {
+            name: prepared.spec.name.clone(),
+            public_key: prepared.spec.public_key.clone(),
+            resources: diffs
+                .iter()
+                .map(|diff| PlannedResource {
+                    resource: diff.resource.log_text.clone(),
+                    status: diff.status,
+                    recreate: diff.needs_recreate(),
+                    changes: diff
+                        .changes
+                        .iter()
+                        .map(|change| change.log_text())
+                        .collect(),
+                })
+                .collect(),
+        })
+    }
+
+    /// creates the deployment: the resources applied in the order of their dependencies,
+    /// each reported to `on_event` as it is taken up and done. What exists already is left
+    /// as it is, so a run that failed half way is finished by the next
+    pub async fn create(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+        password_repeat: &str,
+        on_event: Channel<CreateEvent>,
+    ) -> Result<(), String> {
+        let prepared = self
+            .prepare(tokens, name, password, password_repeat)
+            .await?;
+        let mut registry = prepared
+            .spec
+            .registry(&prepared.runtime)
+            .map_err(|error| error.to_string())?;
+        // a progress event that cannot be delivered is no reason to stop creating
+        let mut report = |event: ApplyEvent| {
+            let event = match event {
+                ApplyEvent::Started(resource) => CreateEvent::Started {
+                    resource: resource.log_text,
+                },
+                ApplyEvent::Applied(result) => CreateEvent::Applied {
+                    resource: result.resource.log_text,
+                    applied: result.applied,
+                },
+            };
+            let _ = on_event.send(event);
+        };
+        registry
+            .apply_all_with(false, &mut report)
+            .await
+            .map_err(|error| failed(prepared.provider, error))?;
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -211,6 +283,21 @@ pub async fn plan_deployment(
     let tokens = tokens.tokens();
     manager
         .plan(tokens, &name, &password, &password_repeat)
+        .await
+}
+
+#[tauri::command]
+pub async fn create_deployment(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    name: String,
+    password: String,
+    password_repeat: String,
+    on_event: Channel<CreateEvent>,
+) -> Result<(), String> {
+    let tokens = tokens.tokens();
+    manager
+        .create(tokens, &name, &password, &password_repeat, on_event)
         .await
 }
 

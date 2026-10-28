@@ -122,7 +122,10 @@
   resources (`sak-wizard/cloud`, `terraform`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
-  user declares never does.
+  user declares never does. The server of a deployment also carries
+  `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password
+  (`keys::password_hash` in `sak-wizard`, 30 bytes as hex), so the wizard can check a password
+  against a deployment before it touches it; the password itself is nowhere.
 
 ## Privacy
 

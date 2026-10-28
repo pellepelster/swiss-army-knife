@@ -18,6 +18,18 @@ pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
     Ok(encode_public_key(&key, &format!("sak-{name}")))
 }
 
+/// the hash of the password that goes on the server of the deployment as the label
+/// sak.pelle.io/password-hash: argon2id over the password with a salt of its own, 30 bytes
+/// as hex, short enough for one label value. The wizard checks a password against it
+pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
+    let salt = format!("sak.pelle.io/password-hash/{name}");
+    let mut hash = [0u8; 30];
+    Argon2::default()
+        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut hash)
+        .map_err(|e| e.to_string())?;
+    Ok(hash.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
 pub fn encode_public_key(key: &VerifyingKey, comment: &str) -> String {
     let mut blob = Vec::new();
@@ -42,6 +54,26 @@ mod tests {
         );
         assert!(key.starts_with("ssh-ed25519 "));
         assert!(key.ends_with(" sak-alpha"));
+    }
+
+    #[test]
+    fn the_password_hash_fits_one_label_and_tells_names_apart() {
+        let hash = password_hash("alpha", "a password of sixteen").unwrap();
+
+        assert_eq!(hash.len(), 60);
+        assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert_eq!(
+            password_hash("alpha", "a password of sixteen").unwrap(),
+            hash
+        );
+        assert_ne!(
+            password_hash("beta", "a password of sixteen").unwrap(),
+            hash
+        );
+        assert_ne!(
+            password_hash("alpha", "another password here").unwrap(),
+            hash
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@ use crate::hetzner::primary_ip::{
 use crate::hetzner::server::{HetznerServer, HetznerServerRuntime, UserData};
 use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyRuntime};
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeRuntime};
-use crate::hetzner::{NAME_LABEL, USER_DATA_LABEL, is_managed_label};
+use crate::hetzner::{NAME_LABEL, PASSWORD_HASH_LABEL, USER_DATA_LABEL, is_managed_label};
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -335,6 +335,10 @@ pub struct DeploymentSpec {
     pub image: String,
     pub data_volume_gb: u64,
     pub user_data: String,
+    /// on the server, for the wizard to check a password against
+    pub password_hash: Option<String>,
+    /// on every resource, next to the name label
+    pub labels: Labels,
 }
 
 impl DeploymentSpec {
@@ -353,12 +357,35 @@ impl DeploymentSpec {
             image: "debian-13".to_string(),
             data_volume_gb: 16,
             user_data: USER_DATA.to_string(),
+            password_hash: None,
+            labels: Labels::new(),
         })
     }
 
-    /// the name label every resource carries
+    pub fn with_password_hash(mut self, hash: &str) -> Self {
+        self.password_hash = Some(hash.to_string());
+        self
+    }
+
+    pub fn with_labels(mut self, labels: Labels) -> Self {
+        self.labels = labels;
+        self
+    }
+
+    /// the labels every resource carries: the name label and the extra ones
     pub fn labels(&self) -> Labels {
-        Labels::from([(NAME_LABEL.to_string(), self.name.clone())])
+        let mut labels = self.labels.clone();
+        labels.insert(NAME_LABEL.to_string(), self.name.clone());
+        labels
+    }
+
+    /// the labels of the server: those of every resource and the password hash
+    fn server_labels(&self) -> Labels {
+        let mut labels = self.labels();
+        if let Some(hash) = &self.password_hash {
+            labels.insert(PASSWORD_HASH_LABEL.to_string(), hash.clone());
+        }
+        labels
     }
 
     pub fn ssh_key(&self) -> HetznerSshKey {
@@ -401,7 +428,7 @@ impl DeploymentSpec {
             .with_volumes(vec![self.data_volume().as_lookup()])
             .with_ipv4(self.ipv4().as_lookup())
             .with_ipv6(self.ipv6().as_lookup())
-            .with_labels(self.labels())
+            .with_labels(self.server_labels())
     }
 
     /// the resource group in a registry of the provider, ready to diff and apply
@@ -603,8 +630,14 @@ mod tests {
             Location::hel1,
             ServerType::cx23,
         )
-        .unwrap();
+        .unwrap()
+        .with_password_hash("abc")
+        .with_labels(Labels::from([("env".to_string(), "test".to_string())]));
         assert_eq!(spec.server().labels[NAME_LABEL], "alpha");
+        assert_eq!(spec.server().labels[PASSWORD_HASH_LABEL], "abc");
+        assert_eq!(spec.server().labels["env"], "test");
+        assert_eq!(spec.data_volume().labels.get(PASSWORD_HASH_LABEL), None);
+        assert_eq!(spec.data_volume().labels["env"], "test");
         assert_eq!(spec.data_volume().name, "alpha-data");
 
         let diffs = spec.registry(&provider).unwrap().diff_all().await.unwrap();
