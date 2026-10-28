@@ -97,7 +97,11 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+// cancel, from the form or from the plan: what was typed is forgotten, back from the plan keeps it
 async function backToDeployments() {
+  form.reset();
+  repeatInput.classList.remove('is-invalid');
+  setStatus('');
   const { showDeployments } = await import('./deployments.js');
   await showDeployments();
 }
