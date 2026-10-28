@@ -37,3 +37,13 @@ ui:
     add: "Hinzufügen"
     checking: "Prüfe das Token, ein SSH-Key wird erstellt und wieder gelöscht…"
   cancel: "Abbrechen"
+  next: "Weiter"
+  back: "Zurück"
+  operations:
+    title: "Was soll der Assistent tun?"
+    install:
+      name: "Installieren"
+      description: "SwissArmyKnife mit den Provider-Tokens neu einrichten."
+    upgrade:
+      name: "Aktualisieren"
+      description: "Ein bestehendes SwissArmyKnife auf diese Version bringen."

@@ -18,10 +18,13 @@
     <main class="view page" id="view-providers" hidden>
       <header class="page-header">
         <h1 data-text="ui.providers.title"></h1>
-        <button type="button" class="button button-primary" id="providers-add" data-text="ui.providers.add"></button>
+        <button type="button" class="button" id="providers-add" data-text="ui.providers.add"></button>
       </header>
       <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
       <ul class="providers" id="provider-tokens"></ul>
+      <div class="actions page-footer">
+        <button type="button" class="button button-primary" id="providers-next" data-text="ui.next" disabled></button>
+      </div>
     </main>
 
     <main class="view page" id="view-select" hidden>
@@ -49,6 +52,27 @@
           <button type="submit" class="button button-primary" id="token-add" data-text="ui.token.add"></button>
         </div>
       </form>
+    </main>
+
+    <main class="view page" id="view-operations" hidden>
+      <header class="page-header">
+        <h1 data-text="ui.operations.title"></h1>
+        <button type="button" class="button" id="operations-back" data-text="ui.back"></button>
+      </header>
+      <ul class="choices">
+        <li>
+          <button type="button" class="choice" id="operation-install">
+            <span class="choice-name" data-text="ui.operations.install.name"></span>
+            <span class="hint" data-text="ui.operations.install.description"></span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="choice" id="operation-upgrade">
+            <span class="choice-name" data-text="ui.operations.upgrade.name"></span>
+            <span class="hint" data-text="ui.operations.upgrade.description"></span>
+          </button>
+        </li>
+      </ul>
     </main>
   </body>
 </html>

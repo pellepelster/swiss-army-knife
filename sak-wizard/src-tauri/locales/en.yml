@@ -37,3 +37,13 @@ ui:
     add: "Add"
     checking: "Checking the token, an ssh key is created and deleted again…"
   cancel: "Cancel"
+  next: "Next"
+  back: "Back"
+  operations:
+    title: "What should the wizard do?"
+    install:
+      name: "Install"
+      description: "Set up SwissArmyKnife from scratch with the provider tokens."
+    upgrade:
+      name: "Upgrade"
+      description: "Bring an existing SwissArmyKnife to this version."

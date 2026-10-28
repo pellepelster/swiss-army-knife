@@ -1,5 +1,6 @@
 // the provider tokens: the list, the selection of the provider for a new one and its entry;
 // rust validates a token before it is added and only ever answers it masked
+import { showOperations } from './operations.js';
 import { show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -38,6 +39,8 @@ export async function showProviders() {
     }),
   );
   document.getElementById('providers-empty').hidden = tokens.length > 0;
+  // every token listed is valid, rust adds none it could not validate
+  document.getElementById('providers-next').disabled = tokens.length === 0;
   show('view-providers');
 }
 
@@ -97,5 +100,6 @@ form.addEventListener('submit', async (event) => {
 });
 
 document.getElementById('providers-add').addEventListener('click', showSelection);
+document.getElementById('providers-next').addEventListener('click', showOperations);
 document.getElementById('select-cancel').addEventListener('click', showProviders);
 document.getElementById('token-cancel').addEventListener('click', showProviders);
