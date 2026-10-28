@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.backend.DomainRegistry
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.backend.testSecrets
@@ -35,7 +36,7 @@ class RedirectServiceTest {
             database,
             buckets,
             clock,
-            reservedDomains = { setOf("console.example.org") },
+            domains = DomainRegistry(database, setOf("console.example.org")),
         ).apply { onChange { changes.add("changed") } }
     }
 

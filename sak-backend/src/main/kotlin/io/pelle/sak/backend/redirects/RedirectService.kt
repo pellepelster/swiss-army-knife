@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.backend.hosting.S3BucketService
@@ -52,14 +53,14 @@ class RedirectService(
     private val repository: RedirectRepository,
     private val buckets: S3BucketService,
     // the domains the controller serves itself, which can not be redirected
-    private val reservedDomains: () -> Set<String>,
+    private val domains: DomainRegistry,
 ) {
     constructor(
         database: SakDatabase,
         buckets: S3BucketService,
         clock: Clock = Clock.systemUTC(),
-        reservedDomains: () -> Set<String> = { emptySet() },
-    ) : this(RedirectRepository(database, clock), buckets, reservedDomains)
+        domains: DomainRegistry = DomainRegistry(database),
+    ) : this(RedirectRepository(database, clock), buckets, domains)
 
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
 
@@ -70,9 +71,6 @@ class RedirectService(
     fun all(): List<Redirect> = repository.all()
 
     fun byId(sourceDomain: String): Redirect? = repository.byId(sourceDomain.lowercase())
-
-    // the redirected domains, no bucket may be served at them
-    fun sourceDomains(): Set<String> = repository.all().map { it.sourceDomain }.toSet()
 
     // the domain the redirect leads to, null for a bucket no longer served at a domain
     fun location(target: RedirectTarget): String? =
@@ -86,7 +84,7 @@ class RedirectService(
         target: RedirectTarget,
     ): CreateRedirectResult {
         val source = sourceDomain.lowercase()
-        if (!isValidDomain(source) || source in reservedDomains() || buckets.bucketOfDomain(source) != null) {
+        if (!isValidDomain(source) || domains.isReserved(source) || buckets.bucketOfDomain(source) != null) {
             return CreateRedirectResult.InvalidDomain
         }
         val normalized =

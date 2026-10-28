@@ -18,7 +18,6 @@ import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
-import io.pelle.sak.backend.secrets.SecretService
 import io.pelle.sak.backend.secrets.SecretType
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SESSION_AUTH
@@ -30,19 +29,13 @@ import io.pelle.sak.auth.me
 import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
-import io.pelle.sak.backend.hosting.BucketStatisticsCache
 import io.pelle.sak.backend.hosting.buckets
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.redirects.domains
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.config.SakConfig
-import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.files.FileTextService
-import io.pelle.sak.backend.labels.LabelService
-import io.pelle.sak.backend.notes.NoteService
-import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.logs.SiteLogs
 import io.pelle.sak.logs.SiteMetricsService
 import io.pelle.sak.logs.VictoriaLogsClient
@@ -106,15 +99,8 @@ private val SecurityHeaders =
 fun Application.apps(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
-    secrets: SecretService,
-    statistics: BucketStatisticsCache,
-    bucketService: S3BucketService,
-    redirectService: RedirectService,
-    labelService: LabelService,
-    noteService: NoteService,
-    fileService: FileService,
-    fileTextService: FileTextService,
-) {
+    services: SakServices,
+) = with(services) {
     // generated once and kept with the secrets, so sessions survive restarts
     val signingKey = secrets.getOrCreate(SecretType.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
     val tokens = TokenService(SigningKey.fromPem(signingKey.value), config.frontendUrl)

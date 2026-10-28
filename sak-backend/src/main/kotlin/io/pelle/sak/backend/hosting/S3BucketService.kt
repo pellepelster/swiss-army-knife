@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.secrets.Secret
 import io.pelle.sak.backend.secrets.SecretService
@@ -58,8 +59,8 @@ class S3BucketService(
     private val rootDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
     private val reservedNames: Set<String>,
-    // domains no bucket can be served at, e.g. the ones of the apps or redirected ones
-    private val reservedDomains: () -> Set<String>,
+    // domains no bucket can be served at, the ones of the apps and the redirected ones
+    private val domains: DomainRegistry,
 ) {
     constructor(
         database: SakDatabase,
@@ -67,8 +68,8 @@ class S3BucketService(
         clock: Clock = Clock.systemUTC(),
         rootDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
-        reservedDomains: () -> Set<String> = { emptySet() },
-    ) : this(S3BucketRepository(database, clock), secrets, rootDomain, reservedNames, reservedDomains)
+        domains: DomainRegistry = DomainRegistry(database),
+    ) : this(S3BucketRepository(database, clock), secrets, rootDomain, reservedNames, domains)
 
     private val random = SecureRandom()
 
@@ -122,7 +123,7 @@ class S3BucketService(
         if (repository.byName(name) != null) {
             return CreateBucketResult.NameTaken
         }
-        if (subdomain(name)?.let { it in reservedDomains() || repository.bucketOfDomain(it) != null } == true) {
+        if (subdomain(name)?.let { !available(it) || repository.bucketOfDomain(it) != null } == true) {
             return CreateBucketResult.SubdomainTaken
         }
         val normalized =
@@ -184,8 +185,7 @@ class S3BucketService(
         domains: List<String>,
     ): DomainCheck {
         val normalized = domains.map { it.trim().lowercase() }.distinct()
-        val reserved = reservedDomains()
-        if (normalized.any { !isValidDomain(it) || it in reserved }) {
+        if (normalized.any { !isValidDomain(it) || !available(it) }) {
             return DomainCheck.Invalid
         }
         if (normalized.any { domain -> bucketOfDomain(domain).let { it != null && it != name } }) {
@@ -193,6 +193,9 @@ class S3BucketService(
         }
         return DomainCheck.Valid(normalized)
     }
+
+    // neither one of the apps nor redirected
+    private fun available(domain: String) = !domains.isReserved(domain) && !domains.isRedirected(domain)
 
     private fun changed() = listeners.forEach { it() }
 

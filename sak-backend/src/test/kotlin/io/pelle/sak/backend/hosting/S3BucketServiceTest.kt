@@ -4,6 +4,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.ingress.RedirectRepository
+import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.backend.DomainRegistry
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -29,8 +32,16 @@ class S3BucketServiceTest {
             secrets,
             clock,
             reservedNames = setOf("console"),
-            reservedDomains = { setOf("console.example.org", "redirected.example.org") },
+            domains = domains(database, "console.example.org"),
         ).apply { onChange { changes.add("changed") } }
+    }
+
+    // the domain reserved for the apps, and redirected.example.org redirected
+    private fun domains(
+        database: SakDatabase,
+        reserved: String,
+    ) = DomainRegistry(database, setOf(reserved)).also {
+        RedirectRepository(database).insert("redirected.example.org", RedirectTarget.Domain("example.net"))
     }
 
     @Test
@@ -76,7 +87,7 @@ class S3BucketServiceTest {
                 clock,
                 rootDomain = "example.org",
                 reservedNames = setOf("apps"),
-                reservedDomains = { setOf("apps.example.org", "redirected.example.org") },
+                domains = domains(database, "apps.example.org"),
             )
             }
         val site = buckets.create("site", listOf("example.com")).shouldBeInstanceOf<CreateBucketResult.Created>().bucket

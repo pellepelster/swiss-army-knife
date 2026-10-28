@@ -63,10 +63,17 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopping) { reconciler.stop() }
 }
 
-// the services module() needs next to the routes, the caddy reconciler hears of their changes
+// every service of the backend, made once by sak(); the routes of the apps use them, the caddy
+// reconciler hears of the changes of the buckets and the redirects
 class SakServices(
+    val secrets: SecretService,
+    val statistics: BucketStatisticsCache,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
+    val labelService: LabelService,
+    val noteService: NoteService,
+    val fileService: FileService,
+    val fileTextService: FileTextService,
 )
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the
@@ -85,18 +92,10 @@ fun Application.sak(config: SakConfig): SakServices {
     // every secret, encrypted under sak.secret_keys; the ones under an older key move to the newest
     val secrets = SecretService(database, config.secretKeys, config.rootDomain)
     secrets.reencryptUnderNewestKey()
-    // a bucket is not served at a redirected domain and the other way round, each service checks
-    // the other's domains
-    lateinit var redirectService: RedirectService
-    val bucketService =
-        S3BucketService(
-            database,
-            secrets,
-            rootDomain = config.rootDomain,
-            reservedNames = RESERVED_SITES,
-            reservedDomains = { reservedDomains(config) + redirectService.sourceDomains() },
-        )
-    redirectService = RedirectService(database, bucketService, reservedDomains = { reservedDomains(config) })
+    // a bucket is not served at a redirected domain and the other way round
+    val domains = DomainRegistry(database, reservedDomains(config))
+    val bucketService = S3BucketService(database, secrets, rootDomain = config.rootDomain, reservedNames = RESERVED_SITES, domains = domains)
+    val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
     val recognizer = config.openrouter?.let { OpenRouterTextRecognizer(it.url, it.apiToken, it.model) }
@@ -113,14 +112,16 @@ fun Application.sak(config: SakConfig): SakServices {
         }
     }
 
+    val services = SakServices(secrets, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
+
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them
     config.auth?.let {
         try {
-            apps(config, it, secrets, statistics, bucketService, redirectService, labelService, noteService, fileService, fileTextService)
+            apps(config, it, services)
         } catch (e: Exception) {
             logger.error(e) { "the apps could not be set up, they are not served" }
         }
     }
 
-    return SakServices(bucketService, redirectService)
+    return services
 }
