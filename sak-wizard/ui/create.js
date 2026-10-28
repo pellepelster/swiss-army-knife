@@ -104,12 +104,18 @@ async function loadLocations(chosen) {
 }
 
 // the fields still empty take what the environment proposes, SAK_NAME, SAK_PASSWORD and
-// SAK_LOCATION
+// SAK_LOCATION; a redeploy has its name and location from the deployment, only the password
+// from the environment
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
-  await loadLocations(defaults.location);
-  if (!nameInput.value && defaults.name) {
-    nameInput.value = defaults.name;
+  if (redeploy) {
+    nameInput.value = redeploy.name;
+    await loadLocations(redeploy.location);
+  } else {
+    await loadLocations(defaults.location);
+    if (!nameInput.value && defaults.name) {
+      nameInput.value = defaults.name;
+    }
   }
   if (!passwordInput.value && !repeatInput.value && defaults.password) {
     passwordInput.value = defaults.password;
@@ -129,12 +135,7 @@ export async function showCreate(options = {}) {
   repeatInput.required = !redeploy;
   nameInput.readOnly = Boolean(redeploy);
   locationInput.disabled = Boolean(redeploy);
-  if (redeploy) {
-    nameInput.value = redeploy.name;
-    await loadLocations(redeploy.location);
-  } else {
-    await prefill();
-  }
+  await prefill();
   show('view-create');
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
