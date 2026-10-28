@@ -35,6 +35,9 @@ providers:
     not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
 cli:
   working: "creating %{resource}…"
+  working_update: "updating %{resource}…"
+  working_recreate: "recreating %{resource}…"
+  working_check: "checking %{resource}…"
   working_destroy: "destroying %{resource}…"
   applied:
     created: "created %{resource}"
@@ -128,6 +131,9 @@ ui:
     intro: "Create the SwissArmyKnife deployment"
     creating: "Creating the deployment, this takes a few minutes…"
     working: "creating…"
+    working_update: "updating…"
+    working_recreate: "recreating…"
+    working_check: "checking…"
     done:
       created: "created"
       updated: "updated"

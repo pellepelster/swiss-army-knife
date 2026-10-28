@@ -60,6 +60,7 @@ function planned({ resource, status: state, recreate, keep, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state;
+  item.dataset.recreate = String(Boolean(recreate));
   const mark = document.createElement('span');
   mark.className = 'resource-state sak-led';
   mark.dataset.sakState = LEDS[state] ?? 'neutral';
@@ -182,6 +183,22 @@ function showPlan(plan) {
   show('view-plan');
 }
 
+// what is being done to the resource of a row as its apply starts, after what the plan found:
+// creating what is missing, updating or recreating what changed, checking what is up to date
+function workingText(row) {
+  if (intent === 'destroy') {
+    return 'ui.plan.working_destroy';
+  }
+  const state = row.dataset.status;
+  if (state === 'missing' || state === 'parent_missing') {
+    return 'ui.plan.working';
+  }
+  if (state === 'up_to_date') {
+    return 'ui.plan.working_check';
+  }
+  return row.dataset.recreate === 'true' ? 'ui.plan.working_recreate' : 'ui.plan.working_update';
+}
+
 // a resource of the plan as its creation reports it: busy while rust works on it, ok when done
 function onCreateEvent(message) {
   if (message.event === 'provisioning') {
@@ -200,7 +217,7 @@ function onCreateEvent(message) {
   const detail = row.querySelector('.resource-detail');
   if (message.event === 'started') {
     led.dataset.sakState = 'busy';
-    detail.textContent = text(intent === 'destroy' ? 'ui.plan.working_destroy' : 'ui.plan.working');
+    detail.textContent = text(workingText(row));
   } else if (message.event === 'applied') {
     led.dataset.sakState = 'ok';
     detail.textContent = text(`ui.plan.done.${message.applied}`);

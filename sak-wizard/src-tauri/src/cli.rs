@@ -17,6 +17,7 @@ use clap::{Args, Parser, Subcommand};
 use rust_i18n::t;
 use sak_cloud::api::DiffStatus;
 use sak_cloud::hetzner::api::Location;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 /// SwissArmyKnife: the deployments of a Hetzner Cloud project, listed, created and
@@ -303,12 +304,20 @@ async fn deploy(
     }
 
     // what is done to a resource, the verb first: `created server 'alpha'`
-    let working = match deployment.intent {
-        Intent::Destroy => "cli.working_destroy",
-        _ => "cli.working",
-    };
+    // what is being done to a resource as its apply starts, after what the plan found
+    let working: HashMap<String, &str> = plan
+        .resources
+        .iter()
+        .map(|resource| {
+            let key = working_key(deployment.intent, &resource.status, resource.recreate);
+            (resource.resource.clone(), key)
+        })
+        .collect();
     let mut report = |event: CreateEvent| match event {
-        CreateEvent::Started { resource } => log(Level::Info, t!(working, resource = resource)),
+        CreateEvent::Started { resource } => {
+            let key = working.get(&resource).copied().unwrap_or("cli.working");
+            log(Level::Info, t!(key, resource = resource))
+        }
         CreateEvent::Applied { resource, applied } => log(
             Level::Info,
             t!(
@@ -340,6 +349,18 @@ async fn deploy(
     };
     log(Level::Info, done);
     Ok(())
+}
+
+/// the text of a resource whose apply starts: creating what is missing, updating or recreating
+/// what changed, checking what is up to date, destroying on a destroy
+fn working_key(intent: Intent, status: &DiffStatus, recreate: bool) -> &'static str {
+    match (intent, status) {
+        (Intent::Destroy, _) => "cli.working_destroy",
+        (_, DiffStatus::Missing | DiffStatus::ParentMissing) => "cli.working",
+        (_, DiffStatus::UpToDate) => "cli.working_check",
+        _ if recreate => "cli.working_recreate",
+        _ => "cli.working_update",
+    }
 }
 
 /// how much a line of the log matters, its colour on a terminal
@@ -394,6 +415,30 @@ mod tests {
 
     fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
         Cli::try_parse_from(std::iter::once("sak-wizard").chain(words.iter().copied()))
+    }
+
+    #[test]
+    fn the_start_of_an_apply_says_what_is_done_to_the_resource() {
+        assert_eq!(
+            working_key(Intent::Create, &DiffStatus::Missing, false),
+            "cli.working"
+        );
+        assert_eq!(
+            working_key(Intent::Deploy, &DiffStatus::HasChanges, false),
+            "cli.working_update"
+        );
+        assert_eq!(
+            working_key(Intent::Deploy, &DiffStatus::HasChanges, true),
+            "cli.working_recreate"
+        );
+        assert_eq!(
+            working_key(Intent::Deploy, &DiffStatus::UpToDate, false),
+            "cli.working_check"
+        );
+        assert_eq!(
+            working_key(Intent::Destroy, &DiffStatus::UpToDate, false),
+            "cli.working_destroy"
+        );
     }
 
     #[test]
