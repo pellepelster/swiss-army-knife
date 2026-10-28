@@ -8,6 +8,6 @@ out/
 *.tfstate
 *.tfstate.*
 *.tfplan
-infra/.ssh/
-infra/.ansible/
+terraform/modules/hcloud/backend/.ssh/
+terraform/modules/hcloud/backend/.ansible/
 .ansible/

@@ -11,7 +11,7 @@ pipx = "1.17.2"
 # the only terraform call, every tf:* task runs through it; the credentials are read from
 # pass when a task runs (not when mise loads this file) unless already set in the environment
 [tasks."tf"]
-description = "Run terraform in infra/ with the Hetzner Cloud, AWS, SMTP and OpenRouter credentials from pass"
+description = "Run terraform in terraform/modules/hcloud/backend/ with the Hetzner Cloud, AWS, SMTP and OpenRouter credentials from pass"
 env = {
     AWS_ACCESS_KEY_ID = "{{ get_env(name='AWS_ACCESS_KEY_ID', default=exec(command='pass show aws/pelle/pelle-io/admin/access_key | head -n1')) }}",
     AWS_SECRET_ACCESS_KEY = "{{ get_env(name='AWS_SECRET_ACCESS_KEY', default=exec(command='pass show aws/pelle/pelle-io/admin/secret_access_key | head -n1')) }}",
@@ -29,11 +29,11 @@ arg "<args>" var=#true help="arguments passed to terraform"
 # usage_args is shell quoted (e.g. '-input=false'), eval restores the original arguments
 run = '''
 eval "set -- ${usage_args}"
-terraform -chdir=infra "$@"
+terraform -chdir=terraform/modules/hcloud/backend "$@"
 '''
 
 [tasks."tf:init"]
-description = "Initialize Terraform for the Hetzner Cloud infrastructure in infra/"
+description = "Initialize Terraform for the Hetzner Cloud infrastructure in terraform/modules/hcloud/backend/"
 run = "mise run tf -- init"
 
 [tasks."tf:plan"]
@@ -44,11 +44,12 @@ run = "mise run tf -- plan"
 description = "Create or update sak-backend and its sak-data volume in Hetzner Cloud"
 run = "mise run tf -- apply"
 
-# uses the client key and the pinned host key that tf:apply writes to infra/.ssh/,
+# uses the client key and the pinned host key that tf:apply writes to
+# terraform/modules/hcloud/backend/.ssh/,
 # extra arguments are passed to ssh (e.g. `mise run ssh -- uptime`)
 [tasks."ssh"]
 description = "Log in to sak-backend as root with the generated ssh client key"
-run = "ssh -i infra/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=infra/.ssh/known_hosts -o StrictHostKeyChecking=yes root@\"$(mise run tf -- output -raw controller_ipv4)\""
+run = "ssh -i terraform/modules/hcloud/backend/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=terraform/modules/hcloud/backend/.ssh/known_hosts -o StrictHostKeyChecking=yes root@\"$(mise run tf -- output -raw controller_ipv4)\""
 
 # the collection is linked (not copied) into .ansible/collections, so changes below
 # ansible/ take effect without reinstalling it; the inventory is written by tf:apply,
@@ -57,15 +58,15 @@ run = "ssh -i infra/.ssh/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=
 description = "Provision sak-backend with the pelle.sak collection"
 env = { ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/.ansible/collections" }
 run = """
-if [ ! -f infra/.ansible/inventory.yml ]; then
-  echo "infra/.ansible/inventory.yml is missing, run 'mise run tf:apply' first" >&2
+if [ ! -f terraform/modules/hcloud/backend/.ansible/inventory.yml ]; then
+  echo "terraform/modules/hcloud/backend/.ansible/inventory.yml is missing, run 'mise run tf:apply' first" >&2
   exit 1
 fi
 mkdir -p .ansible/collections/ansible_collections/pelle
 ln -sfn ../../../../ansible .ansible/collections/ansible_collections/pelle/sak
 ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
 mise run docker:save
-ansible-playbook -i infra/.ansible/inventory.yml \
+ansible-playbook -i terraform/modules/hcloud/backend/.ansible/inventory.yml \
   -e controller_image_archive="$PWD/build/images/sak-backend.tar.gz" \
   -e controller_ingress_image_archive="$PWD/build/images/sak-ingress.tar.gz" \
   -e controller_config_src="$PWD/config/controller-config.yaml" \

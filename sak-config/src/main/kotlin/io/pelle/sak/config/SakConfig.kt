@@ -50,8 +50,9 @@ data class SakConfig(
     // the login links of sak-frontend point here
     val frontendUrl: String get() = auth?.frontendUrl ?: "https://$appsHost"
 
-    // each a comma separated list, terraform writes them to backend.env (infra/main.tf); every one
-    // must be an address of its family, the backend refuses to start otherwise
+    // each a comma separated list, terraform writes them to backend.env
+    // (terraform/modules/hcloud/backend/main.tf); every one must be an address of its family, the
+    // backend refuses to start otherwise
     @Serializable
     data class AddressesConfig(
         @Serializable(with = Ipv4ListSerializer::class)
