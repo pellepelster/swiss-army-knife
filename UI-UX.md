@@ -81,7 +81,10 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   `HCLOUD_TOKEN`, the name, password and location from the arguments or `SAK_NAME`,
   `SAK_PASSWORD` and `SAK_LOCATION`, the dns mode from `--dns-mode` (`subdomain` when not
   given, also on a deploy), the root domain from `--root-domain` (a dns zone of the project,
-  needed by create and deploy). A destroy keeps the data volume, `--delete-data` deletes it too;
+  needed by create and deploy), the mail server from `--smtp-host`, `--smtp-port`,
+  `--smtp-username`, `--smtp-password` and `--smtp-starttls` or `SAK_SMTP_HOST`, `SAK_SMTP_PORT`,
+  `SAK_SMTP_USERNAME`, `SAK_SMTP_PASSWORD` and `SAK_SMTP_STARTTLS` (the window prefills its form
+  from the same variables). A destroy keeps the data volume, `--delete-data` deletes it too;
   a deployment that is gone is destroyed already (exit code 0). `--help` says it all, the exit
   codes included: 0 done, 1 failed, 2 wrong arguments, 3 the root domain has a domain deployment
   already, 4 dns modes mixed on a root domain (`core/error.rs`). `mise run cli:sakctl -- <command>`

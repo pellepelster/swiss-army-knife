@@ -178,6 +178,32 @@
           </div>
           <div class="form-text" id="create-dns-mode-hint"></div>
         </fieldset>
+        <fieldset id="create-smtp">
+          <legend class="form-label fs-6" data-text="ui.create.smtp"></legend>
+          <div class="form-text" data-text="ui.create.smtp_hint"></div>
+          <div class="smtp-grid">
+            <div>
+              <label class="form-label" for="create-smtp-host" data-text="ui.create.smtp_host"></label>
+              <input class="form-control" id="create-smtp-host" type="text" autocomplete="off" spellcheck="false" placeholder="smtp.example.org">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-port" data-text="ui.create.smtp_port"></label>
+              <input class="form-control" id="create-smtp-port" type="number" min="1" max="65535" value="587">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-username" data-text="ui.create.smtp_username"></label>
+              <input class="form-control" id="create-smtp-username" type="text" autocomplete="off" spellcheck="false">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-password" data-text="ui.create.smtp_password"></label>
+              <input class="form-control" id="create-smtp-password" type="password" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="create-smtp-starttls" checked>
+            <label class="form-check-label" for="create-smtp-starttls" data-text="ui.create.smtp_starttls"></label>
+          </div>
+        </fieldset>
         <div class="form-check" id="create-delete-data-group" hidden>
           <input class="form-check-input" type="checkbox" id="create-delete-data">
           <label class="form-check-label" for="create-delete-data" data-text="ui.create.delete_data"></label>
@@ -202,7 +228,7 @@
       <p class="hint"><span id="plan-intro" data-text="ui.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
       <ul class="resources" id="plan-resources"></ul>
       <p class="hint" id="plan-status" aria-live="polite"></p>
-      <pre class="sak-terminal" id="plan-output" hidden></pre>
+      <pre class="sak-terminal plan-output" id="plan-output" hidden></pre>
       <div class="page-footer">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>

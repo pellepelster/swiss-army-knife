@@ -50,9 +50,9 @@ tasks.distZip {
     enabled = false
 }
 
-// SakBackendTest validates the deployed configuration
+// SakBackendTest validates the deployed configuration, the template of the controller role
 tasks.test {
-    inputs.file(rootProject.file("config/controller-config.yaml")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file("ansible/roles/controller/templates/controller-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // the unit tests of the vector configuration the controller role deploys, run with the image

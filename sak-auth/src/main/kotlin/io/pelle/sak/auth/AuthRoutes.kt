@@ -41,7 +41,7 @@ val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",
         bearerFormat = "JWT",
-        description = "The session token the apps get for a login link, see POST /api/v1/login/exchange.",
+        description = "The session token the apps get for a login link, see POST /api/v1/auth/login/exchange.",
     )
 
 private const val AUTH_TAG = "auth"

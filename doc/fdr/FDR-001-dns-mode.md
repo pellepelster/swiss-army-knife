@@ -41,7 +41,8 @@ must not go to one deployment.
 ### 3. A wildcard next to the base name
 
 **Decision:** Each mode manages the base name and a wildcard below it.
-**Why:** The apps use subdomains of the base name (for example `api.`). A new app needs no new record.
+**Why:** The frontend is at `sak.` and the api at `api.` of the base name, buckets at `<bucket>.`. A new name needs no
+new record.
 **Tradeoff:** All names below the base name go to the deployment, also names that no app uses.
 
 ### 4. One mode for each root domain

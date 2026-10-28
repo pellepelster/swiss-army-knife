@@ -36,7 +36,7 @@ import kotlinx.coroutines.withContext
 private val logger = KotlinLogging.logger {}
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
-fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.appsHost)
+fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
 
 // the domains every bucket is served at
 fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }

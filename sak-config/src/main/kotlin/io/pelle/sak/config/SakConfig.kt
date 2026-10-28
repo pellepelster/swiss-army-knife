@@ -14,6 +14,13 @@ import java.nio.file.Path
 
 @Serializable
 data class SakConfig(
+    // the sak name of the deployment the backend belongs to, written by the provisioning of the
+    // server; GET /api/v1/info answers it
+    val name: String = DEFAULT_NAME,
+    // the dns mode of the deployment, written by the provisioning of the server like the name;
+    // subdomain unless told, as sakctl creates a deployment
+    @SerialName("dns_mode")
+    val dnsMode: DnsMode = DnsMode.SUBDOMAIN,
     @SerialName("data_dir")
     @Serializable(with = PathSerializer::class)
     val dataDir: Path,
@@ -34,21 +41,35 @@ data class SakConfig(
     val addresses: AddressesConfig = AddressesConfig(),
     val dns: DnsConfig = DnsConfig(),
 ) {
+    init {
+        require(SAK_NAME.matches(name)) {
+            "the name '$name' is no sak name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+        }
+    }
+
     // the secret keys never show, e.g. in a log line
     override fun toString() =
-        "SakConfig(dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
+        "SakConfig(name=$name, dnsMode=$dnsMode, dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
             "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()}, addresses=$addresses, dns=$dns)"
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
-    // sak-frontend, its apps and their login
-    val appsHost: String get() = "apps.$rootDomain"
+    // the domain the names of the deployment are below, by its dns mode: the root domain itself
+    // (DOMAIN), or <name>.<root_domain> (SUBDOMAIN)
+    val baseDomain: String get() =
+        when (dnsMode) {
+            DnsMode.DOMAIN -> rootDomain
+            DnsMode.SUBDOMAIN -> "$name.$rootDomain"
+        }
 
-    // the api of sak-frontend below /v1 and the s3 api of the buckets
-    val apiHost: String get() = "api.$rootDomain"
+    // sak-frontend, its apps and their login: sak.<base_domain>
+    val frontendHost: String get() = "$FRONTEND_LABEL.$baseDomain"
+
+    // the api of sak-frontend below /v1 and the s3 api of the buckets: api.<base_domain>
+    val apiHost: String get() = "$API_LABEL.$baseDomain"
 
     // the login links of sak-frontend point here
-    val frontendUrl: String get() = auth?.frontendUrl ?: "https://$appsHost"
+    val frontendUrl: String get() = auth?.frontendUrl ?: "https://$frontendHost"
 
     // each a comma separated list, the provisioning of the server writes them to backend.env;
     // every one must be an address of its family, the
@@ -87,7 +108,7 @@ data class SakConfig(
         // other address gets a login link
         val admins: List<String> = emptyList(),
         val smtp: SmtpConfig,
-        // overrides https://apps.<root_domain>, e.g. for local tests
+        // overrides https://sak.<base_domain>, e.g. for local tests
         @SerialName("frontend_url")
         val frontendUrl: String? = null,
     )
@@ -124,6 +145,16 @@ data class SakConfig(
     }
 
     companion object {
+        // the first labels of the hosts of sak-frontend and the api below the base domain
+        const val FRONTEND_LABEL = "sak"
+        const val API_LABEL = "api"
+
+        // the name of a backend that is no deployment, e.g. the one of `mise run local:run`
+        const val DEFAULT_NAME = "local"
+
+        // what sakctl takes as a sak name (check_name in sak-cli/cloud): a hostname label
+        private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?")
+
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
 
         const val DEFAULT_VICTORIALOGS_URL = "http://127.0.0.1:9428"

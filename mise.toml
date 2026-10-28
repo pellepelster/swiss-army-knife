@@ -95,7 +95,7 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 # and 443 (admin api 2019), victorialogs 9428 and the mailpit the login links go to, 1025 (smtp)
 # and 8025 (web ui); in the foreground with their logs until Ctrl-C
 [tasks."local:env:run"]
-description = "Run the ingress on https://apps.localhost, victorialogs on http://localhost:9428 and mailpit on http://localhost:8025 until Ctrl-C"
+description = "Run the ingress on https://sak.localhost, victorialogs on http://localhost:9428 and mailpit on http://localhost:8025 until Ctrl-C"
 env = {
     SAK_LOCAL_DIR = "{{config_root}}/build/local",
     SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
@@ -230,7 +230,7 @@ cat <<ADDRESSES
 
   frontend   http://localhost:4200   the apps
   backend    http://localhost:8080   api at /api/v1, swagger ui at /swagger/
-  ingress    https://apps.localhost  the apps behind caddy, its certificate is caddy's own,
+  ingress    https://sak.localhost   the apps behind caddy, its certificate is caddy's own,
              https://api.localhost   their api at /v1 and the s3 api of the buckets
   mailpit    http://localhost:8025   every login link arrives here
   logs       http://localhost:9428   victorialogs, vector ships the access log of the ingress

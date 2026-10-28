@@ -85,9 +85,9 @@ class S3BucketServiceTest {
                 database,
                 testSecrets(database),
                 clock,
-                rootDomain = "example.org",
-                reservedNames = setOf("apps"),
-                domains = domains(database, "apps.example.org"),
+                baseDomain = "example.org",
+                reservedNames = setOf("sak"),
+                domains = domains(database, "sak.example.org"),
             )
             }
         val site = buckets.create("site", listOf("example.com")).shouldBeInstanceOf<CreateBucketResult.Created>().bucket
@@ -105,8 +105,8 @@ class S3BucketServiceTest {
         buckets.updateDomains("site", listOf("site.example.org")).shouldBeInstanceOf<UpdateDomainsResult.Updated>()
         buckets.servedDomains(buckets.byName("site")!!) shouldBe listOf("site.example.org")
 
-        // no name whose subdomain is served already, apps.<root_domain> is the frontend's
-        buckets.create("apps") shouldBe CreateBucketResult.InvalidName
+        // no name whose subdomain is served already, sak.<base_domain> is the frontend's
+        buckets.create("sak") shouldBe CreateBucketResult.InvalidName
         buckets.create("redirected") shouldBe CreateBucketResult.SubdomainTaken
         buckets.create("other", listOf("taken.example.org")).shouldBeInstanceOf<CreateBucketResult.Created>()
         buckets.create("taken") shouldBe CreateBucketResult.SubdomainTaken

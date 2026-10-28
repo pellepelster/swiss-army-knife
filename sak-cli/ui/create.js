@@ -25,7 +25,10 @@ const deleteDataInput = document.getElementById('create-delete-data');
 const createView = document.getElementById('view-create');
 const confirmDialog = document.getElementById('destroy-confirm');
 // a destroy asks for the name and the password alone
-const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode'].map((id) => document.getElementById(id));
+const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-smtp'].map((id) => document.getElementById(id));
+const smtpInputs = Object.fromEntries(
+  ['host', 'port', 'username', 'password', 'starttls'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
+);
 
 // deleting the data volume is the one thing that cannot be undone, the form says so in red
 function showDeleteData() {
@@ -70,7 +73,37 @@ function newDeployment() {
     rootDomain: rootDomainInput.value || null,
     intent,
     deleteData: intent === 'destroy' && deleteDataInput.checked,
+    smtp: smtp(),
   };
+}
+
+// the mail server as rust takes it, none without a host; a destroy needs none
+function smtp() {
+  const host = smtpInputs.host.value.trim();
+  if (intent === 'destroy' || !host) {
+    return null;
+  }
+  return {
+    host,
+    port: Number(smtpInputs.port.value) || 0,
+    username: smtpInputs.username.value,
+    password: smtpInputs.password.value,
+    starttls: smtpInputs.starttls.checked,
+  };
+}
+
+// the fields of the mail server still empty take what the environment proposes, SAK_SMTP_HOST,
+// SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and SAK_SMTP_STARTTLS; nothing of it is
+// kept with a deployment, a deploy asks again
+function prefillSmtp(defaults) {
+  if (smtpInputs.host.value) {
+    return;
+  }
+  smtpInputs.host.value = defaults.smtpHost ?? '';
+  smtpInputs.port.value = defaults.smtpPort ?? '587';
+  smtpInputs.username.value = defaults.smtpUsername ?? '';
+  smtpInputs.password.value = defaults.smtpPassword ?? '';
+  smtpInputs.starttls.checked = defaults.smtpStarttls ?? true;
 }
 
 // the dns mode chosen, subdomain unless domain is
@@ -237,6 +270,7 @@ async function loadLocations(chosen) {
 // from the environment
 async function prefill(back) {
   const defaults = await invoke('deployment_defaults');
+  prefillSmtp(defaults);
   if (existing) {
     nameInput.value = existing.name;
     await loadLocations(existing.location);

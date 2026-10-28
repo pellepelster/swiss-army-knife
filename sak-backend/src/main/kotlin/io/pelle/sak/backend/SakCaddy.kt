@@ -22,16 +22,17 @@ fun bucketObjectsDir(
     bucket: String,
 ): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
 
-// the root domain leads to sak-frontend, unless a bucket is served at it or it is redirected
-// elsewhere; sak-frontend is only served when the login is configured
+// the base domain (the root domain or <name>.<root_domain>, by the dns mode) leads to
+// sak-frontend, unless a bucket is served at it or it is redirected elsewhere; sak-frontend is
+// only served when the login is configured
 fun redirectsRootDomain(
     config: SakConfig,
     bucketDomains: Map<String, List<String>>,
     redirectedDomains: Collection<String>,
 ): Boolean =
     config.auth != null &&
-        bucketDomains.values.none { config.rootDomain in it } &&
-        config.rootDomain !in redirectedDomains
+        bucketDomains.values.none { config.baseDomain in it } &&
+        config.baseDomain !in redirectedDomains
 
 // bucketDomains are the domains each bucket is served at, redirects maps every redirected domain
 // to the domain it leads to
@@ -56,17 +57,17 @@ fun caddyConfig(
 
             if (config.auth != null) {
                 // sak-frontend, served by the controller; the api and the s3 api the controller
-                // serves as well belong to api.<root_domain> only
+                // serves as well belong to api.<base_domain> only
                 route {
-                    host(config.appsHost)
+                    host(config.frontendHost)
                     path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*", API_PATH_PREFIX, "$API_PATH_PREFIX/*")
-                    logField(SITE_LOG_FIELD, APPS_SITE)
+                    logField(SITE_LOG_FIELD, FRONTEND_SITE)
                     respond(404)
                     terminal()
                 }
                 route {
-                    host(config.appsHost)
-                    logField(SITE_LOG_FIELD, APPS_SITE)
+                    host(config.frontendHost)
+                    logField(SITE_LOG_FIELD, FRONTEND_SITE)
                     responseHeader("Strict-Transport-Security", "max-age=31536000")
                     maxRequestBodySize(APPS_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
@@ -87,7 +88,7 @@ fun caddyConfig(
                 }
             }
 
-            // everything else at api.<root_domain> is the s3 api, below /s3 of the controller
+            // everything else at api.<base_domain> is the s3 api, below /s3 of the controller
             route {
                 host(config.apiHost)
                 logField(SITE_LOG_FIELD, API_SITE)
@@ -118,9 +119,9 @@ fun caddyConfig(
 
             if (redirectsRootDomain(config, bucketDomains, redirects.keys)) {
                 route {
-                    host(config.rootDomain)
+                    host(config.baseDomain)
                     logField(SITE_LOG_FIELD, REDIRECT_SITE)
-                    redirect("https://${config.appsHost}{http.request.uri}")
+                    redirect("https://${config.frontendHost}{http.request.uri}")
                     terminal()
                 }
             }

@@ -1,10 +1,14 @@
 ---
+# the configuration of sak-backend, rendered by the controller role: the sak name, the dns mode and
+# the root domain come from the inventory sakctl writes (sak_name, sak_dns_mode, sak_root_domain)
 ktor:
   deployment:
     port: 8080
 sak:
+  name: {{ sak_name }}
+  dns_mode: {{ sak_dns_mode }}
   data_dir: /storage/data/backend/data
-  root_domain: pelle.io
+  root_domain: {{ sak_root_domain }}
   # the keys the secrets are encrypted with by their version, the highest encrypts; the
   # provisioning of the server creates them and writes them to backend.env
   secret_keys:

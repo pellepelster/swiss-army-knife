@@ -60,6 +60,17 @@ impl DiscoveredDeployment {
         self.label(ROOT_DOMAIN_LABEL).cloned()
     }
 
+    /// where its frontend is, `https://sak.<base domain>`; none without a root domain on its
+    /// resources, a deployment without a dns mode is a subdomain one
+    pub fn frontend_url(&self) -> Option<String> {
+        let root_domain = self.root_domain()?;
+        let dns_mode = self.dns_mode().unwrap_or_default();
+        Some(format!(
+            "https://{}",
+            frontend_host(&self.name, dns_mode, &root_domain)
+        ))
+    }
+
     /// the value of `key` on the first of its resources that carries it
     fn label(&self, key: &str) -> Option<&String> {
         let mut labels: Vec<&Labels> = Vec::new();
@@ -264,6 +275,21 @@ pub async fn root_domains(provider: &HetznerProviderRuntime) -> Result<Vec<RootD
         .iter()
         .map(RootDomain::of)
         .collect())
+}
+
+/// the domain the hosts of a deployment are below: the root domain in domain mode,
+/// `<sak name>.<root domain>` in subdomain mode
+pub fn base_domain(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
+    match dns_mode {
+        DnsMode::Domain => root_domain.to_string(),
+        DnsMode::Subdomain => format!("{name}.{root_domain}"),
+    }
+}
+
+/// the host of the frontend of a deployment, `sak.<base domain>`, as the backend derives it
+/// (`SakConfig.frontendHost`); its api is `api.<base domain>`
+pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
+    format!("sak.{}", base_domain(name, dns_mode, root_domain))
 }
 
 /// how dns is set up for a deployment: `domain` manages `<root domain>` and
@@ -1394,6 +1420,39 @@ mod tests {
             !deleted
                 .iter()
                 .any(|resource| resource.starts_with("dns record"))
+        );
+    }
+
+    #[test]
+    fn the_frontend_is_sak_below_the_base_domain_of_the_dns_mode() {
+        assert_eq!(
+            frontend_host("alpha", DnsMode::Domain, "pelle.io"),
+            "sak.pelle.io"
+        );
+        assert_eq!(
+            frontend_host("alpha", DnsMode::Subdomain, "pelle.io"),
+            "sak.alpha.pelle.io"
+        );
+
+        let mut deployment = DiscoveredDeployment::new("alpha");
+        assert_eq!(deployment.frontend_url(), None);
+        let key = |labels: Value| -> crate::hetzner::api::ssh_keys::SshKey {
+            serde_json::from_value(key(7, "alpha", labels)).unwrap()
+        };
+        // without a dns mode on the resources, a subdomain deployment
+        deployment.ssh_key =
+            Some(key(json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io" })).into());
+        assert_eq!(
+            deployment.frontend_url().as_deref(),
+            Some("https://sak.alpha.pelle.io")
+        );
+        deployment.ssh_key = Some(
+            key(json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }))
+                .into(),
+        );
+        assert_eq!(
+            deployment.frontend_url().as_deref(),
+            Some("https://sak.pelle.io")
         );
     }
 

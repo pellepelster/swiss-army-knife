@@ -1,4 +1,4 @@
-// sak-frontend, its build is packaged below frontend/ in a jar sak-backend serves it from at apps.<root_domain>
+// sak-frontend, its build is packaged below frontend/ in a jar sak-backend serves it from at sak.<base_domain>
 plugins {
     `java-library`
 }

@@ -221,6 +221,16 @@ body {
 }
 
 /* the state of the deployment, the led pill at the right end of the card header */
+/* where the frontend of the deployment is, a link above its resources */
+.deployment-link {
+  padding-bottom: 0;
+}
+
+.deployment-url {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .deployment-status {
   margin-left: auto;
 }
@@ -312,4 +322,20 @@ body {
 .confirm-title {
   margin: 0;
   font-size: 1.25rem;
+}
+
+/* the output of ansible on the plan page takes the height the resources leave, so it stays in
+   sight while a deploy runs */
+.plan-output {
+  flex: 1 1 0;
+  min-height: 8rem;
+  max-height: none;
+}
+
+/* the mail server: host and port, user name and password side by side */
+.smtp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sak-space-3);
+  margin: var(--sak-space-2) 0;
 }

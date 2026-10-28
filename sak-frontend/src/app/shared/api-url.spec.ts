@@ -4,8 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { apiUrl, apiUrlInterceptor } from './api-url';
 
 describe('apiUrl', () => {
-  it('calls api.<root_domain>/v1 from apps.<root_domain>', () => {
-    const apps = new URL('https://apps.pelle.io/notes');
+  it('calls api.<base_domain>/v1 from sak.<base_domain>', () => {
+    const apps = new URL('https://sak.pelle.io/notes');
     expect(apiUrl('/api/v1/notes?limit=500', apps)).toBe('https://api.pelle.io/v1/notes?limit=500');
     expect(apiUrl('/api/v1/files/7/thumbnail', apps)).toBe(
       'https://api.pelle.io/v1/files/7/thumbnail',
@@ -14,6 +14,11 @@ describe('apiUrl', () => {
       'https://example.org/api/v1/notes',
     );
     expect(apiUrl('/swagger/openapi.json', apps)).toBe('/swagger/openapi.json');
+  });
+
+  it('calls api.<sak name>.<root domain> in dns mode subdomain', () => {
+    const frontend = new URL('https://sak.alpha.krawallbu.de/notes');
+    expect(apiUrl('/api/v1/notes', frontend)).toBe('https://api.alpha.krawallbu.de/v1/notes');
   });
 
   it('stays on the same origin everywhere else', () => {

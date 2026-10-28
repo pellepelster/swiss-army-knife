@@ -161,7 +161,7 @@ for every change of a ui.
 - Nothing is loaded from outside `<root_domain>` (no cdn, font service, analytics or other third
   party); everything is bundled (e.g. `@fontsource`, `swagger-ui-dist`) or served by the backend.
   The content security policy (`contentSecurityPolicy`) allows only the page's own origin and
-  `api.<root_domain>`, it is never widened beyond `<root_domain>`.
+  `api.<base domain>`, it is never widened beyond `<root_domain>`.
 - User data leaves the backend only on the user's explicit request (e.g. text discovery) and only to
   providers that do not collect it (openrouter `provider.data_collection: deny`).
 

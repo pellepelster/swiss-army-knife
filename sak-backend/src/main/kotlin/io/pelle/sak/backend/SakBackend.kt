@@ -101,7 +101,7 @@ fun Application.sak(config: SakConfig): SakServices {
     secrets.reencryptUnderNewestKey()
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(database, reservedDomains(config))
-    val bucketService = S3BucketService(database, secrets, rootDomain = config.rootDomain, reservedNames = RESERVED_SITES, domains = domains)
+    val bucketService = S3BucketService(database, secrets, baseDomain = config.baseDomain, reservedNames = RESERVED_SITES, domains = domains)
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))

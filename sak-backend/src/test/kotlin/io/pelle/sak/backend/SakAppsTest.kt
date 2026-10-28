@@ -19,6 +19,7 @@ import io.pelle.sak.backend.hosting.CreateBucketResult
 import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -61,7 +62,7 @@ class SakAppsTest {
 
     private fun config(
         auth: Boolean = true,
-        frontendUrl: String = APPS_URL,
+        frontendUrl: String = FRONTEND_URL,
     ): SakConfig {
         val configFile = tempDir.resolve("config.yaml")
         Files.writeString(
@@ -69,6 +70,8 @@ class SakAppsTest {
             """
             ---
             sak:
+              name: alpha
+              dns_mode: domain
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
               secret_keys:
@@ -178,13 +181,13 @@ class SakAppsTest {
         mails: Int = 1,
         email: String = "admin@example.org",
     ): Map<String, String> {
-        post(port, "/api/v1/login/link", """{"email":"$email","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
+        post(port, "/api/v1/auth/login/link", """{"email":"$email","redirect":"/buckets?tab=1"}""").statusCode() shouldBe 202
         greenMail.waitForIncomingEmail(5_000, mails) shouldBe true
 
         val mail = greenMail.receivedMessages.last()
         mail.allRecipients.single().toString() shouldBe email
-        val link = GreenMailUtil.getBody(mail).lines().single { it.startsWith(APPS_URL) }
-        link shouldStartWith "$APPS_URL/signin?"
+        val link = GreenMailUtil.getBody(mail).lines().single { it.startsWith(FRONTEND_URL) }
+        link shouldStartWith "$FRONTEND_URL/signin?"
         return URI.create(link).rawQuery.split('&').associate {
             it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8)
         }
@@ -198,7 +201,7 @@ class SakAppsTest {
             val link = requestLoginLink(port)
             link.keys shouldBe setOf("token")
 
-            val exchange = post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""")
+            val exchange = post(port, "/api/v1/auth/login/exchange", """{"token":"${link.getValue("token")}"}""")
             exchange.statusCode() shouldBe 200
             val session = exchange.json()
             session.string("email") shouldBe "admin@example.org"
@@ -209,7 +212,7 @@ class SakAppsTest {
             me.json().string("email") shouldBe "admin@example.org"
 
             // the link only works once
-            post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
+            post(port, "/api/v1/auth/login/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
         }
     }
 
@@ -220,7 +223,7 @@ class SakAppsTest {
         mails: Int = 1,
     ): String {
         val link = requestLoginLink(port, mails, email)
-        return post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+        return post(port, "/api/v1/auth/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
     }
 
     @Test
@@ -274,9 +277,9 @@ class SakAppsTest {
             post(port, "/api/v1/static-hosting", """{"name":"No_Bucket"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"under_score"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"dot.ted"}""", session).statusCode() shouldBe 400
-            // apps.<root_domain> and api.<root_domain> are the controller's own
+            // sak.<base_domain> and api.<base_domain> are the controller's own
             post(port, "/api/v1/static-hosting", """{"name":"api"}""", session).statusCode() shouldBe 400
-            post(port, "/api/v1/static-hosting", """{"name":"apps"}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"sak"}""", session).statusCode() shouldBe 400
 
             // neither the list nor the bucket carry its keys
             val list = get(port, "/api/v1/static-hosting", session).body()
@@ -344,7 +347,7 @@ class SakAppsTest {
                 it.body() shouldBe """{"errors":[{"message":"The request is malformed."}]}"""
             }
             get(port, "/api/v1/redirects?offset=-1", session).statusCode() shouldBe 400
-            create("""{"sourceDomain":"apps.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
+            create("""{"sourceDomain":"sak.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"site.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"ftp","host":"example.net"}}""").statusCode() shouldBe 400
             create("""{"sourceDomain":"example.at","target":{"type":"bucket","bucket":"unknown"}}""").statusCode() shouldBe 422
@@ -647,7 +650,7 @@ class SakAppsTest {
             site.statusCode() shouldBe 201
             domains(site) shouldBe listOf("example.com", "www.example.com")
             post(port, "/api/v1/static-hosting", """{"name":"other","domains":["example.com"]}""", session).statusCode() shouldBe 409
-            post(port, "/api/v1/static-hosting", """{"name":"other","domains":["apps.example.org"]}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/static-hosting", """{"name":"other","domains":["sak.example.org"]}""", session).statusCode() shouldBe 400
 
             // the access logs of the bucket are the ones of all the domains it is served at
             get(port, "/api/v1/static-hosting/site/access-logs").statusCode() shouldBe 401
@@ -679,7 +682,7 @@ class SakAppsTest {
         withServer { port ->
             val email = "a".repeat(API_MAX_BODY_SIZE.toInt()) + "@example.org"
 
-            post(port, "/api/v1/login/link", """{"email":"$email"}""").let {
+            post(port, "/api/v1/auth/login/link", """{"email":"$email"}""").let {
                 it.statusCode() shouldBe 413
                 it.body() shouldBe """{"errors":[{"message":"The request body is too large."}]}"""
             }
@@ -690,7 +693,7 @@ class SakAppsTest {
     @Test
     fun `addresses that are not allowed get no link`() {
         withServer { port ->
-            post(port, "/api/v1/login/link", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
+            post(port, "/api/v1/auth/login/link", """{"email":"someone@example.org"}""").statusCode() shouldBe 202
 
             greenMail.waitForIncomingEmail(1_000, 1) shouldBe false
         }
@@ -702,7 +705,7 @@ class SakAppsTest {
         var sessionToken = ""
         withServer(config) { port ->
             val link = requestLoginLink(port)
-            sessionToken = post(port, "/api/v1/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
+            sessionToken = post(port, "/api/v1/auth/login/exchange", """{"token":"${link.getValue("token")}"}""").json().string("sessionToken")
         }
 
         signingKey(config) shouldNotBe null
@@ -747,7 +750,7 @@ class SakAppsTest {
                     HttpResponse.BodyHandlers.discarding(),
                 )
 
-            listOf("https://apps.example.org", "http://localhost:4200").forEach { origin ->
+            listOf("https://sak.example.org", "http://localhost:4200").forEach { origin ->
                 preflight(origin).let {
                     it.statusCode() shouldBe 200
                     it.headers().firstValue("Access-Control-Allow-Origin").get() shouldBe origin
@@ -781,14 +784,15 @@ class SakAppsTest {
                         request(port, method.uppercase(), url, answer = HttpResponse.BodyHandlers.discarding()).statusCode()
                     status != 401
                 }
-            public shouldBe listOf("post" to "/api/v1/login/link", "post" to "/api/v1/login/exchange")
+            public shouldBe
+                listOf("get" to "/api/v1/info", "post" to "/api/v1/auth/login/link", "post" to "/api/v1/auth/login/exchange")
         }
     }
 
     @Test
     fun `serves sak-frontend at every host`() {
         withServer { port ->
-            listOf("apps.example.org", "localhost").forEach { host ->
+            listOf("sak.example.org", "localhost").forEach { host ->
                 listOf("/", "/notes", "/static-hosting/site/logs", "/signin?token=abc").forEach { path ->
                     val page = getWithHost(port, host, path)
                     page shouldStartWith "HTTP/1.1 200"
@@ -797,12 +801,12 @@ class SakAppsTest {
                 }
             }
             // installable as an app, with the service worker that keeps it on the phone
-            getWithHost(port, "apps.example.org", "/notes.webmanifest") shouldContain "Content-Type: application/manifest+json"
-            getWithHost(port, "apps.example.org", "/ngsw-worker.js") shouldStartWith "HTTP/1.1 200"
+            getWithHost(port, "sak.example.org", "/notes.webmanifest") shouldContain "Content-Type: application/manifest+json"
+            getWithHost(port, "sak.example.org", "/ngsw-worker.js") shouldStartWith "HTTP/1.1 200"
             // an inlined critical css loads the rest of the styles with an inline onload, which the
             // content security policy blocks
-            getWithHost(port, "apps.example.org", "/") shouldNotContain "media=\"print\""
-            getWithHost(port, "apps.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
+            getWithHost(port, "sak.example.org", "/") shouldNotContain "media=\"print\""
+            getWithHost(port, "sak.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
         }
     }
 
@@ -819,8 +823,9 @@ class SakAppsTest {
                 val paths = doc.getValue("paths").jsonObject
                 paths.keys shouldBe
                     setOf(
-                        "/api/v1/login/link",
-                        "/api/v1/login/exchange",
+                        "/api/v1/auth/login/link",
+                        "/api/v1/auth/login/exchange",
+                        "/api/v1/info",
                         "/api/v1/auth/me",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
@@ -844,7 +849,7 @@ class SakAppsTest {
                 // the routes behind the login require the session token, the login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject
                 me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"))
-                paths.getValue("/api/v1/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
+                paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
                 doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue("session").jsonObject.let {
                     it.string("type") shouldBe "http"
                     it.string("scheme") shouldBe "bearer"
@@ -892,15 +897,27 @@ class SakAppsTest {
     }
 
     @Test
+    fun `the info answers the sak name of the deployment without a session`() {
+        withServer { port ->
+            val info = get(port, "/api/v1/info")
+            info.statusCode() shouldBe 200
+            info.headers().firstValue("Content-Type").get() shouldContain "application/json"
+            info.json() shouldBe JsonObject(mapOf("name" to JsonPrimitive("alpha"), "dnsMode" to JsonPrimitive("domain")))
+        }
+    }
+
+    @Test
     fun `without auth configuration there are neither apps nor login`() {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404
-            post(port, "/api/v1/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
+            // the api, the info with it, is part of the apps
+            get(port, "/api/v1/info").statusCode() shouldBe 404
+            post(port, "/api/v1/auth/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
             signingKey(config(auth = false)) shouldBe null
         }
     }
 
     companion object {
-        private const val APPS_URL = "https://apps.example.org"
+        private const val FRONTEND_URL = "https://sak.example.org"
     }
 }

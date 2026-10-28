@@ -21,7 +21,7 @@ sealed interface CreateBucketResult {
 
     data object NameTaken : CreateBucketResult
 
-    // <name>.<root_domain> is a domain of another bucket, a redirect or the controller
+    // <name>.<base_domain> is a domain of another bucket, a redirect or the controller
     data object SubdomainTaken : CreateBucketResult
 
     // no valid domain, or one the controller serves itself or redirects
@@ -51,12 +51,13 @@ sealed interface UpdateDomainsResult {
 
 // the buckets of the s3 api, the key pair of each and the domains they are served at, the only
 // way to them; listeners hear of every change of the domains. Every bucket is also served at
-// <name>.<root_domain> when the root domain is given
+// <name>.<base_domain> when the root domain is given
 class S3BucketService(
     private val repository: S3BucketRepository,
     // the secret of each bucket's key pair
     private val secrets: SecretService,
-    private val rootDomain: String?,
+    // the domain the buckets get their subdomain of, the base domain of the deployment
+    private val baseDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
     private val reservedNames: Set<String>,
     // domains no bucket can be served at, the ones of the apps and the redirected ones
@@ -66,10 +67,10 @@ class S3BucketService(
         database: SakDatabase,
         secrets: SecretService,
         clock: Clock = Clock.systemUTC(),
-        rootDomain: String? = null,
+        baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(database),
-    ) : this(S3BucketRepository(database, clock), secrets, rootDomain, reservedNames, domains)
+    ) : this(S3BucketRepository(database, clock), secrets, baseDomain, reservedNames, domains)
 
     private val random = SecureRandom()
 
@@ -96,20 +97,20 @@ class S3BucketService(
         return bucket.accessKeyId to secret
     }
 
-    // the bucket served at the domain, one of its own or its subdomain of the root domain
+    // the bucket served at the domain, one of its own or its subdomain of the base domain
     fun bucketOfDomain(domain: String): String? {
         val normalized = domain.lowercase()
         return repository.bucketOfDomain(normalized)
-            ?: rootDomain
+            ?: baseDomain
                 ?.let { normalized.removeSuffix(".$it").takeIf { name -> name != normalized } }
                 ?.takeIf { isValidName(it) && repository.byName(it) != null }
     }
 
-    // <name>.<root_domain>, none without a root domain or for a name from before only letters,
+    // <name>.<base_domain>, none without a base domain or for a name from before only letters,
     // digits and hyphens were allowed
-    fun subdomain(name: String): String? = rootDomain?.let { "$name.$it" }?.takeIf { isValidName(name) }
+    fun subdomain(name: String): String? = baseDomain?.let { "$name.$it" }?.takeIf { isValidName(name) }
 
-    // the domains of the bucket, then its subdomain of the root domain
+    // the domains of the bucket, then its subdomain of the base domain
     fun servedDomains(bucket: S3Bucket): List<String> = (bucket.domains + listOfNotNull(subdomain(bucket.name))).distinct()
 
     // a bucket with a new key pair for it alone, served at the domains

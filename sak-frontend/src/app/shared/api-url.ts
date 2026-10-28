@@ -1,18 +1,20 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
-// the api of the apps is /api/v1 of the backend; served at apps.<root_domain>, the frontend calls
-// it at api.<root_domain>/v1 instead, which caddy leads there. Everywhere else, the dev server and
+// the api of the apps is /api/v1 of the backend; served at sak.<base_domain>, the frontend calls
+// it at api.<base_domain>/v1 instead, which caddy leads there. Everywhere else, the dev server and
 // the backend serving the frontend itself, it is on the same origin
 const API_PREFIX = '/api/v1/';
 
-// the host of the api for the host of the apps (with or without its port), e.g. api.example.org
-// for apps.example.org; swagger-initializer.js, outside of angular, does the same
-export function apiHost(appsHost: string): string {
-  return `api.${appsHost.replace(/^apps\./, '')}`;
+// the host of the api for the host of the frontend (with or without its port): its first label
+// sak becomes api, e.g. api.example.org for sak.example.org (dns mode domain) and
+// api.alpha.example.org for sak.alpha.example.org (dns mode subdomain); swagger-initializer.js,
+// outside of angular, does the same
+export function apiHost(frontendHost: string): string {
+  return `api.${frontendHost.replace(/^sak\./, '')}`;
 }
 
 export function apiUrl(url: string, here: Location | URL = location): string {
-  if (!url.startsWith(API_PREFIX) || !here.hostname.startsWith('apps.')) return url;
+  if (!url.startsWith(API_PREFIX) || !here.hostname.startsWith('sak.')) return url;
   return `${here.protocol}//${apiHost(here.host)}/v1/${url.slice(API_PREFIX.length)}`;
 }
 

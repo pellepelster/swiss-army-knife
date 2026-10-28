@@ -7,7 +7,7 @@ import io.pelle.sak.model.ingress.RedirectRepository
 // redirected ones; buckets and redirects both consult it, so neither takes a domain of the other.
 // The domains of the buckets S3BucketService knows itself
 class DomainRegistry(
-    // e.g. api.<root_domain> and apps.<root_domain>
+    // e.g. api.<base_domain> and sak.<base_domain>
     private val reserved: Set<String>,
     private val redirects: RedirectRepository,
 ) {

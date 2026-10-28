@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
+import io.pelle.sak.config.DnsMode
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
@@ -27,6 +28,7 @@ class SakCaddyTest {
         SakConfig(
             dataDir = Path.of("/data"),
             rootDomain = "example.org",
+            dnsMode = DnsMode.DOMAIN,
         )
 
     private val bucketDomains = mapOf("private" to emptyList(), "site" to listOf("example.org", "www.example.org"))
@@ -121,9 +123,9 @@ class SakCaddyTest {
             Json.parseToJsonElement(
                 """
                 {
-                  "match": [{ "host": ["apps.example.org"], "path": ["/s3", "/s3/*", "/api", "/api/*"] }],
+                  "match": [{ "host": ["sak.example.org"], "path": ["/s3", "/s3/*", "/api", "/api/*"] }],
                   "handle": [
-                    { "handler": "log_append", "key": "site", "value": "apps" },
+                    { "handler": "log_append", "key": "site", "value": "sak" },
                     { "handler": "static_response", "status_code": 404 }
                   ],
                   "terminal": true
@@ -134,9 +136,9 @@ class SakCaddyTest {
             Json.parseToJsonElement(
                 """
                 {
-                  "match": [{ "host": ["apps.example.org"] }],
+                  "match": [{ "host": ["sak.example.org"] }],
                   "handle": [
-                    { "handler": "log_append", "key": "site", "value": "apps" },
+                    { "handler": "log_append", "key": "site", "value": "sak" },
                     {
                       "handler": "headers",
                       "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
@@ -204,7 +206,7 @@ class SakCaddyTest {
                     {
                       "handler": "static_response",
                       "status_code": 308,
-                      "headers": { "Location": ["https://apps.example.org{http.request.uri}"] }
+                      "headers": { "Location": ["https://sak.example.org{http.request.uri}"] }
                     }
                   ],
                   "terminal": true

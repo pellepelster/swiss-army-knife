@@ -47,7 +47,7 @@ describe('AuthService', () => {
       .requestLogin('admin@example.org', 'https://evil.example.com/')
       .subscribe(() => (done = true));
 
-    const request = http.expectOne('/api/v1/login/link');
+    const request = http.expectOne('/api/v1/auth/login/link');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
       email: 'admin@example.org',
@@ -63,7 +63,7 @@ describe('AuthService', () => {
     let redirect: string | undefined;
 
     auth.signIn('login-token').subscribe((value) => (redirect = value));
-    const request = http.expectOne('/api/v1/login/exchange');
+    const request = http.expectOne('/api/v1/auth/login/exchange');
     expect(request.request.body).toEqual({ token: 'login-token' });
     request.flush({
       sessionToken: 'session-token',

@@ -17,7 +17,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
-    // the session is added to the paths of the api, before they become urls of api.<root_domain>
+    // the session is added to the paths of the api, before they become urls of api.<base_domain>
     provideHttpClient(withInterceptors([authInterceptor, apiUrlInterceptor])),
     // keeps the app on the phone, it starts without the network; only in the production build
     provideServiceWorker('ngsw-worker.js', {

@@ -430,7 +430,8 @@ describe('Hosting', () => {
     expect(text('logs-state')).toBe('No requests in this range.');
   });
 
-  it('takes the endpoint from the host of the apps', () => {
-    expect(s3Endpoint('apps.pelle.io')).toBe('https://api.pelle.io');
+  it('takes the endpoint from the host of the frontend', () => {
+    expect(s3Endpoint('sak.pelle.io')).toBe('https://api.pelle.io');
+    expect(s3Endpoint('sak.alpha.pelle.io')).toBe('https://api.alpha.pelle.io');
   });
 });

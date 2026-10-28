@@ -24,7 +24,7 @@ class DomainsHealthTest {
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
-    private val buckets by lazy { S3BucketService(database, testSecrets(database), rootDomain = "example.org") }
+    private val buckets by lazy { S3BucketService(database, testSecrets(database), baseDomain = "example.org") }
 
     private val redirects by lazy { RedirectService(database, buckets) }
 

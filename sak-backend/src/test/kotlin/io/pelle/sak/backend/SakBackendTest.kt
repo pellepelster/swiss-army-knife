@@ -6,6 +6,7 @@ import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.ConfigLoader
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.pelle.sak.config.DnsMode
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
@@ -105,7 +106,7 @@ class SakBackendTest {
     }
 
     @Test
-    fun `the deployed configuration in config is valid`() {
+    fun `the deployed configuration, the template of the controller role, is valid`() {
         val environment =
             mapOf(
                 "SAK_SMTP_HOST" to "smtp.example.org",
@@ -119,9 +120,16 @@ class SakBackendTest {
             )
         environment.forEach { (name, value) -> System.setProperty(name, value) }
         try {
-            val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, "../config/controller-config.yaml"))
+            // rendered as ansible renders it, with the sak name and the dns mode of the inventory
+            val template = Path.of("../ansible/roles/controller/templates/controller-config.yaml.j2")
+            val rendered = tempDir.resolve("controller-config.yaml")
+            Files.writeString(rendered, Files.readString(template).replace("{{ sak_name }}", "alpha").replace("{{ sak_dns_mode }}", "domain").replace("{{ sak_root_domain }}", "pelle.io"))
+            val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, rendered.toString()))
 
-            config.frontendUrl shouldBe "https://apps.pelle.io"
+            config.name shouldBe "alpha"
+            config.dnsMode shouldBe DnsMode.DOMAIN
+
+            config.frontendUrl shouldBe "https://sak.pelle.io"
             config.auth!!.smtp shouldBe
                 SakConfig.SmtpConfig(
                     host = "smtp.example.org",

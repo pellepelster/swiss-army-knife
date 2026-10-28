@@ -43,6 +43,26 @@ export function resource(state) {
   return item;
 }
 
+// the frontend of a deployment as a link in its card, opened by rust in the browser of the system
+// (the window itself never leaves the wizard)
+function frontendLink(url) {
+  const line = document.createElement('div');
+  line.className = 'card-body deployment-link';
+  line.hidden = !url;
+  const link = document.createElement('a');
+  link.className = 'deployment-url sak-mono';
+  link.href = url ?? '';
+  link.textContent = url ?? '';
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    invoke('open_url', { url }).catch((error) => {
+      status.textContent = String(error);
+    });
+  });
+  line.append(link);
+  return line;
+}
+
 function deployment(data) {
   const { provider, name, status: state, resources } = data;
   const item = document.createElement('li');
@@ -60,6 +80,7 @@ function deployment(data) {
   const title = document.createElement('span');
   title.className = 'deployment-name';
   title.textContent = name;
+
   const badge = document.createElement('span');
   badge.className = 'deployment-status sak-status';
   badge.dataset.sakState = STATES[state] ?? 'neutral';
@@ -68,7 +89,10 @@ function deployment(data) {
   const group = document.createElement('ul');
   group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));
-  item.append(header, group);
+  // where its frontend is, opened in the browser of the system; none for a deployment without a
+  // root domain on its resources
+  const link = frontendLink(data.frontendUrl);
+  item.append(header, link, group);
   return item;
 }
 

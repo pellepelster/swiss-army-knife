@@ -34,18 +34,25 @@ pub struct DeploymentResponse {
     pub(crate) dns_mode: Option<DnsMode>,
     /// the root domain on its resources, none for a deployment created before it was kept
     pub(crate) root_domain: Option<String>,
+    /// where its frontend is, `https://sak.<base domain>`; none without a root domain
+    pub(crate) frontend_url: Option<String>,
     pub(crate) resources: Vec<ResourceState>,
 }
 
 impl DeploymentResponse {
-    fn of(provider: ProviderType, state: DeploymentState, root_domain: Option<String>) -> Self {
+    fn of(
+        provider: ProviderType,
+        state: DeploymentState,
+        deployment: &DiscoveredDeployment,
+    ) -> Self {
         DeploymentResponse {
             provider: provider.response(),
             name: state.name,
             status: state.status,
             location: state.location,
             dns_mode: state.dns_mode,
-            root_domain,
+            root_domain: deployment.root_domain(),
+            frontend_url: deployment.frontend_url(),
             resources: state.resources,
         }
     }
@@ -225,6 +232,13 @@ pub struct DeploymentDefaults {
     name: Option<String>,
     password: Option<String>,
     location: Option<String>,
+    /// the mail server of SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD
+    /// and SAK_SMTP_STARTTLS
+    smtp_host: Option<String>,
+    smtp_port: Option<String>,
+    smtp_username: Option<String>,
+    smtp_password: Option<String>,
+    smtp_starttls: Option<bool>,
 }
 
 /// the variables a new deployment takes its name, password and location from, the pages
@@ -232,6 +246,55 @@ pub struct DeploymentDefaults {
 pub const NAME_VARIABLE: &str = "SAK_NAME";
 pub const PASSWORD_VARIABLE: &str = "SAK_PASSWORD";
 pub const LOCATION_VARIABLE: &str = "SAK_LOCATION";
+
+/// the variables the mail server of a deployment is taken from, the pages and the command line
+/// alike
+pub const SMTP_HOST_VARIABLE: &str = "SAK_SMTP_HOST";
+pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
+pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
+pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
+pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
+
+/// the port and the starttls of a mail server unless told, the ones of the backend
+pub const DEFAULT_SMTP_PORT: u16 = 587;
+pub const DEFAULT_SMTP_STARTTLS: bool = true;
+
+/// the mail server the backend sends its login links with; no Debug, the password never shows
+/// up in a log. Checked, but not yet handed on: the provisioning does not run the controller
+/// role, which would write it into the environment of the backend
+#[derive(Clone, Deserialize)]
+#[allow(dead_code)]
+#[serde(rename_all = "camelCase")]
+pub struct Smtp {
+    pub host: String,
+    pub port: u16,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    pub starttls: bool,
+}
+
+/// a host and a port: the host a name without blanks, the port not 0
+fn check_smtp(smtp: &Smtp) -> Result<(), String> {
+    let host = smtp.host.trim();
+    if host.is_empty() || host.contains(char::is_whitespace) {
+        return Err(t!("deployments.invalid_smtp_host").to_string());
+    }
+    if smtp.port == 0 {
+        return Err(t!("deployments.invalid_smtp_port").to_string());
+    }
+    Ok(())
+}
+
+/// `true`, `false` (also `1`/`0`, `yes`/`no`, `on`/`off`), as a variable or an argument gives it
+pub fn parse_flag(value: &str) -> Result<bool, String> {
+    match value.trim().to_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" => Ok(false),
+        _ => Err("true or false".to_string()),
+    }
+}
 
 /// a location to create a deployment in, as the page and the command line offer it
 #[derive(Clone, Copy, Serialize)]
@@ -293,6 +356,11 @@ pub fn defaults() -> DeploymentDefaults {
         name: variable(NAME_VARIABLE),
         password: variable(PASSWORD_VARIABLE),
         location: variable(LOCATION_VARIABLE),
+        smtp_host: variable(SMTP_HOST_VARIABLE),
+        smtp_port: variable(SMTP_PORT_VARIABLE),
+        smtp_username: variable(SMTP_USERNAME_VARIABLE),
+        smtp_password: variable(SMTP_PASSWORD_VARIABLE),
+        smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
     }
 }
 
@@ -341,6 +409,9 @@ pub struct NewDeployment {
     /// a destroy deletes the data volume too, it keeps it otherwise
     #[serde(default)]
     pub delete_data: bool,
+    /// the mail server of the backend, none when none was given; a destroy needs none
+    #[serde(default)]
+    pub smtp: Option<Smtp>,
 }
 
 /// a deployment checked and ready: where it goes, what it consists of, whether a resource
@@ -450,11 +521,7 @@ impl DeploymentManager {
                         let state = state(&runtime, deployment)
                             .await
                             .map_err(|error| failed(provider, error))?;
-                        deployments.push(DeploymentResponse::of(
-                            provider,
-                            state,
-                            deployment.root_domain(),
-                        ));
+                        deployments.push(DeploymentResponse::of(provider, state, deployment));
                     }
                 }
             }
@@ -507,6 +574,7 @@ impl DeploymentManager {
             root_domain,
             intent,
             delete_data: _,
+            smtp,
         } = deployment;
         let (location, dns_mode, intent) = (*location, *dns_mode, *intent);
         let name = name.trim();
@@ -518,6 +586,9 @@ impl DeploymentManager {
         }
         if password != password_repeat {
             return Err(t!("deployments.password_mismatch").to_string().into());
+        }
+        if let (Intent::Create | Intent::Deploy, Some(smtp)) = (intent, smtp) {
+            check_smtp(smtp)?;
         }
         let Some((provider, token)) = tokens
             .into_iter()
@@ -765,6 +836,9 @@ impl DeploymentManager {
             .ok_or_else(|| t!("provision.no_volume", name = prepared.spec.name).to_string())?;
         let run = ProvisionRun {
             name: prepared.spec.name.clone(),
+            dns_mode: prepared.spec.dns_mode,
+            // a create or deploy has one, prepare checked it
+            root_domain: prepared.spec.root_domain.clone().unwrap_or_default(),
             host,
             host_ipv6: server
                 .public_ipv6
@@ -1055,6 +1129,66 @@ mod tests {
                 "note": responses[1].note,
             })
         );
+    }
+
+    fn smtp(host: &str, port: u16) -> Smtp {
+        Smtp {
+            host: host.to_string(),
+            port,
+            username: "user".to_string(),
+            password: "secret".to_string(),
+            starttls: true,
+        }
+    }
+
+    #[test]
+    fn a_mail_server_needs_a_host_and_a_port() {
+        assert!(check_smtp(&smtp("smtp.example.org", 587)).is_ok());
+        assert!(check_smtp(&smtp(" smtp.example.org ", 465)).is_ok());
+        assert_eq!(
+            check_smtp(&smtp("", 587)),
+            Err(t!("deployments.invalid_smtp_host").to_string())
+        );
+        assert!(check_smtp(&smtp("smtp example.org", 587)).is_err());
+        assert_eq!(
+            check_smtp(&smtp("smtp.example.org", 0)),
+            Err(t!("deployments.invalid_smtp_port").to_string())
+        );
+    }
+
+    #[test]
+    fn a_flag_is_true_or_false_in_the_usual_spellings() {
+        for value in ["true", "TRUE", "1", "yes", "on"] {
+            assert_eq!(parse_flag(value), Ok(true), "{value}");
+        }
+        for value in ["false", "0", "no", "Off"] {
+            assert_eq!(parse_flag(value), Ok(false), "{value}");
+        }
+        assert!(parse_flag("maybe").is_err());
+    }
+
+    #[test]
+    fn the_page_gets_the_mail_server_of_the_environment() {
+        let defaults = DeploymentDefaults {
+            name: None,
+            password: None,
+            location: None,
+            smtp_host: Some("smtp.example.org".to_string()),
+            smtp_port: Some("465".to_string()),
+            smtp_username: Some("user".to_string()),
+            smtp_password: Some("secret".to_string()),
+            smtp_starttls: Some(false),
+        };
+        let json = serde_json::to_value(&defaults).unwrap();
+        assert_eq!(json["smtpHost"], "smtp.example.org");
+        assert_eq!(json["smtpPort"], "465");
+        assert_eq!(json["smtpStarttls"], false);
+        // and reads it back from the page, the user name and password may be left out
+        let page: Smtp = serde_json::from_value(serde_json::json!({
+            "host": "smtp.example.org", "port": 587, "starttls": true
+        }))
+        .unwrap();
+        assert_eq!((page.port, page.username.as_str()), (587, ""));
     }
 
     #[test]

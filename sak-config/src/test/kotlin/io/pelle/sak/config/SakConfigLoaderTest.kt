@@ -31,7 +31,8 @@ class SakConfigLoaderTest {
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.s3DataDir shouldBe Path.of("/something/s3")
         config.secretKeys.keys shouldBe setOf(1, 2)
-        config.frontendUrl shouldBe "https://apps.example.org"
+        // the sak name and the dns mode of a backend that is no deployment: local, subdomain
+        config.frontendUrl shouldBe "https://sak.local.example.org"
         config.auth shouldBe
             SakConfig.AuthConfig(
                 admins = listOf("Admin@example.org"),
@@ -185,6 +186,38 @@ class SakConfigLoaderTest {
     @Test
     fun `fails on the redirects, they moved to the database`() {
         shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}redirects:\n  example.com: example.org\n") }
+    }
+
+    @Test
+    fun `the sak name is local unless the provisioning writes the one of the deployment`() {
+        load("data_dir: /data\n$ROOT_DOMAIN").name shouldBe "local"
+        load("name: alpha-1\ndata_dir: /data\n$ROOT_DOMAIN").name shouldBe "alpha-1"
+        listOf("Alpha", "-alpha", "alpha-", "a_b", "\"\"", "a".repeat(64)).forEach { name ->
+            shouldThrow<IllegalArgumentException> { load("name: $name\ndata_dir: /data\n$ROOT_DOMAIN") }
+        }
+    }
+
+    @Test
+    fun `the dns mode is subdomain unless the provisioning writes the one of the deployment`() {
+        load("data_dir: /data\n$ROOT_DOMAIN").dnsMode shouldBe DnsMode.SUBDOMAIN
+        load("dns_mode: domain\ndata_dir: /data\n$ROOT_DOMAIN").dnsMode shouldBe DnsMode.DOMAIN
+        load("dns_mode: subdomain\ndata_dir: /data\n$ROOT_DOMAIN").dnsMode shouldBe DnsMode.SUBDOMAIN
+        shouldThrow<RuntimeException> { load("dns_mode: whole\ndata_dir: /data\n$ROOT_DOMAIN") }
+    }
+
+    @Test
+    fun `the hosts are below the root domain in domain mode and below the subdomain of the sak name otherwise`() {
+        val domain = load("name: alpha\ndns_mode: domain\ndata_dir: /data\n$ROOT_DOMAIN")
+        domain.baseDomain shouldBe "example.org"
+        domain.frontendHost shouldBe "sak.example.org"
+        domain.apiHost shouldBe "api.example.org"
+        domain.frontendUrl shouldBe "https://sak.example.org"
+
+        val subdomain = load("name: alpha\ndns_mode: subdomain\ndata_dir: /data\n$ROOT_DOMAIN")
+        subdomain.baseDomain shouldBe "alpha.example.org"
+        subdomain.frontendHost shouldBe "sak.alpha.example.org"
+        subdomain.apiHost shouldBe "api.alpha.example.org"
+        subdomain.frontendUrl shouldBe "https://sak.alpha.example.org"
     }
 
     @Test

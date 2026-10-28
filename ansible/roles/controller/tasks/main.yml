@@ -2,9 +2,11 @@
 - name: Check that the required variables are set
   ansible.builtin.assert:
     that:
-      - controller_config_src | length > 0
+      - sak_name | default('') | length > 0
+      - sak_dns_mode in ['domain', 'subdomain']
+      - sak_root_domain | default('') | length > 0
       - controller_env_src | length > 0
-    fail_msg: "controller_config_src and controller_env_src must be set"
+    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain and controller_env_src must be set"
     quiet: true
 
 - name: Install podman
@@ -122,9 +124,9 @@
     validate: podman run --rm --network none --volume %s:/etc/vector/vector.yaml:ro {{ controller_vector_image }} validate --no-environment /etc/vector/vector.yaml
   notify: Restart sak-vector
 
-- name: Upload the controller configuration
-  ansible.builtin.copy:
-    src: "{{ controller_config_src }}"
+- name: Write the controller configuration
+  ansible.builtin.template:
+    src: controller-config.yaml.j2
     dest: "{{ controller_config_file }}"
     owner: root
     group: "{{ controller_group }}"

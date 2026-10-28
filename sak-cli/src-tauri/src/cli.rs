@@ -9,8 +9,10 @@
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    CreateEvent, DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE,
-    NewDeployment, PASSWORD_VARIABLE, key,
+    CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager, Intent,
+    LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
+    SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE,
+    SMTP_USERNAME_VARIABLE, Smtp, key, parse_flag,
 };
 use crate::core::error::{EXIT_OK, WizardError};
 use crate::core::providers::ProviderType;
@@ -110,6 +112,22 @@ pub struct DeploymentArgs {
     /// create and deploy. The zone must exist, SAK does not create it
     #[arg(long)]
     root_domain: Option<String>,
+    /// The mail server the backend sends its login links with; without it, no mail server
+    #[arg(long, env = SMTP_HOST_VARIABLE)]
+    smtp_host: Option<String>,
+    /// The port of the mail server
+    #[arg(long, env = SMTP_PORT_VARIABLE, default_value_t = DEFAULT_SMTP_PORT)]
+    smtp_port: u16,
+    /// The user name at the mail server
+    #[arg(long, env = SMTP_USERNAME_VARIABLE, default_value = "")]
+    smtp_username: String,
+    /// The password at the mail server
+    #[arg(long, env = SMTP_PASSWORD_VARIABLE, hide_env_values = true, default_value = "")]
+    smtp_password: String,
+    /// Whether the connection to the mail server is upgraded with STARTTLS (true or false)
+    #[arg(long,
+        action = clap::ArgAction::Set, env = SMTP_STARTTLS_VARIABLE, default_value_t = DEFAULT_SMTP_STARTTLS, value_parser = parse_flag)]
+    smtp_starttls: bool,
     /// Stream the output of ansible while it provisions the server, each line prefixed with
     /// [ansible]
     #[arg(long)]
@@ -171,6 +189,13 @@ impl DeploymentArgs {
             root_domain: self.root_domain.clone(),
             intent,
             delete_data,
+            smtp: self.smtp_host.as_ref().map(|host| Smtp {
+                host: host.clone(),
+                port: self.smtp_port,
+                username: self.smtp_username.clone(),
+                password: self.smtp_password.clone(),
+                starttls: self.smtp_starttls,
+            }),
         }
     }
 }
@@ -285,12 +310,14 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), Wi
         log(
             Level::Info,
             format!(
-                "{} {} {} {}",
+                "{} {} {} {} {}",
                 deployment.name,
                 t!(format!("ui.deployments.status.{}", key(&deployment.status))),
                 location,
-                deployment.provider.name
-            ),
+                deployment.provider.name,
+                deployment.frontend_url.as_deref().unwrap_or_default()
+            )
+            .trim_end(),
         );
         for resource in deployment.resources {
             let kind = t!(format!("ui.deployments.resource.{}", key(&resource.kind)));
@@ -609,6 +636,12 @@ mod tests {
             "domain",
             "--root-domain",
             "pelle.io",
+            "--smtp-host",
+            "smtp.example.org",
+            "--smtp-port",
+            "465",
+            "--smtp-starttls",
+            "false",
         ])
         .unwrap();
         let Some(Command::Create { deployment, .. }) = cli.command else {
@@ -625,6 +658,11 @@ mod tests {
                 .root_domain
                 .as_deref(),
             Some("pelle.io")
+        );
+        let smtp = deployment.deployment(Intent::Create, false).smtp.unwrap();
+        assert_eq!(
+            (smtp.host.as_str(), smtp.port, smtp.starttls),
+            ("smtp.example.org", 465, false)
         );
 
         assert!(

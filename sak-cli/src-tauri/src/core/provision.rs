@@ -20,8 +20,12 @@ pub const PLAYBOOK: &str = "pelle_io.sak.server";
 
 /// a server to provision and what ansible needs to reach and set it up
 pub struct ProvisionRun {
-    /// the sak name, the host in the inventory
+    /// the sak name, the host in the inventory and `sak_name` of the controller configuration
     pub name: String,
+    /// `sak_dns_mode` of the controller configuration
+    pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,
+    /// `sak_root_domain` of the controller configuration
+    pub root_domain: String,
     /// the public ipv4 of the server
     pub host: String,
     /// the public ipv6 of the server, when it has one
@@ -39,11 +43,13 @@ impl ProvisionRun {
         format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
              ansible_ssh_private_key_file: {dir}/id_ed25519\n      ansible_ssh_common_args: -F {dir}/ssh_config\n      \
-             storage_device: {device}\n",
+             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n",
             name = self.name,
             host = self.host,
             dir = RUN_DIR,
-            device = self.storage_device
+            device = self.storage_device,
+            dns_mode = self.dns_mode,
+            root_domain = self.root_domain
         )
     }
 
@@ -213,6 +219,8 @@ mod tests {
     fn run() -> ProvisionRun {
         ProvisionRun {
             name: "alpha".to_string(),
+            dns_mode: sak_cloud::hetzner::deployment::DnsMode::Domain,
+            root_domain: "pelle.io".to_string(),
             host: "203.0.113.1".to_string(),
             host_ipv6: Some("2001:db8::1".to_string()),
             client_key: derive_key("alpha", "a password of sixteen").unwrap(),
@@ -225,6 +233,10 @@ mod tests {
     fn the_inventory_names_the_host_its_key_and_its_volume() {
         let inventory = run().inventory();
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
+        // what the controller role writes into the configuration of the backend
+        assert!(inventory.contains(
+            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n"
+        ));
         assert!(inventory.contains("ansible_ssh_private_key_file: /run/sak/id_ed25519"));
         assert!(inventory.contains("storage_device: /dev/disk/by-id/scsi-0HC_Volume_1"));
     }

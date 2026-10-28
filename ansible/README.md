@@ -15,8 +15,10 @@ deployment right after creating it: it waits for ssh, then `common` and `storage
 The `storage` role needs `storage_device`, the data volume's device (sakctl sets it in the inventory of the run).
 The `controller` role pulls its images (`controller_image`, `controller_ingress_image` and the two
 log images) on every run, so a run always brings the newest `latest` of main. It needs
-`controller_config_src`,
-the controller configuration `config/controller-config.yaml`, and `controller_env_src`,
+`sak_name`, `sak_dns_mode` (`domain` or `subdomain`) and `sak_root_domain`, which it writes into the controller
+configuration it renders from `templates/controller-config.yaml.j2` (sakctl sets both in the
+inventory of the run; the frontend is then at `sak.<base domain>`, the api at `api.<base domain>`),
+and `controller_env_src`,
 the environment file with the s3 credentials the configuration references (`$SAK_S3_ACCESS_KEY_ID`,
 `$SAK_S3_SECRET_ACCESS_KEY`), the secret keys, the smtp and openrouter credentials and the addresses of the server;
 sakctl does not write it yet.

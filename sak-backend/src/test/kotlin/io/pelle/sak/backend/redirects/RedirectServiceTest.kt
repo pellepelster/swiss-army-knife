@@ -73,7 +73,7 @@ class RedirectServiceTest {
     @Test
     fun `leads to the subdomain of a bucket without domains and keeps it from being redirected`() {
         val database = SakDatabase.open(tempDir.resolve("root.db"))
-        val buckets = S3BucketService(database, testSecrets(database), rootDomain = "example.org").apply { create("private") }
+        val buckets = S3BucketService(database, testSecrets(database), baseDomain = "example.org").apply { create("private") }
         val redirects = RedirectService(database, buckets, clock)
 
         val created = redirects.create("example.de", RedirectTarget.Bucket("private"))

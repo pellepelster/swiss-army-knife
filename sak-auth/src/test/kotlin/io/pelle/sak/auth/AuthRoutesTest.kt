@@ -43,7 +43,7 @@ class AuthRoutesTest {
 
     private val mails = Channel<Mail>(Channel.UNLIMITED)
 
-    private val tokens = TokenService(SigningKey.generate(), APPS_URL)
+    private val tokens = TokenService(SigningKey.generate(), FRONTEND_URL)
 
     private val rolesOf = { email: String -> if (email == "admin@example.org") setOf(Role.ADMIN) else emptySet() }
 
@@ -58,11 +58,11 @@ class AuthRoutesTest {
                 route("/api/v1/auth") {
                     authenticate(SESSION_AUTH) { me() }
                 }
-                route("/api/v1/login") {
+                route("/api/v1/auth/login") {
                     login(
                         tokens,
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
-                        LoginApp(APPS_URL, "apps.example.org"),
+                        LoginApp(FRONTEND_URL, "sak.example.org"),
                         rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
@@ -76,20 +76,20 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         redirect: String? = null,
-    ) = post("/api/v1/login/link") {
+    ) = post("/api/v1/auth/login/link") {
         contentType(ContentType.Application.Json)
         setBody("""{"email":"$email"${redirect?.let { ",\"redirect\":\"$it\"" } ?: ""}}""")
     }
 
     private suspend fun HttpClient.exchange(token: String) =
-        post("/api/v1/login/exchange") {
+        post("/api/v1/auth/login/exchange") {
             contentType(ContentType.Application.Json)
             setBody("""{"token":"$token"}""")
         }
 
     private suspend fun receiveLink(): Url {
         val mail = withTimeout(5_000) { mails.receive() }
-        val link = mail.text.lines().single { it.startsWith(APPS_URL) }
+        val link = mail.text.lines().single { it.startsWith(FRONTEND_URL) }
         return Url(link)
     }
 
@@ -100,9 +100,9 @@ class AuthRoutesTest {
 
             val mail = withTimeout(5_000) { mails.receive() }
             mail.to shouldBe "admin@example.org"
-            mail.subject shouldBe "Sign in to apps.example.org"
-            val link = Url(mail.text.lines().single { it.startsWith(APPS_URL) })
-            link.toString() shouldStartWith "$APPS_URL/signin?token="
+            mail.subject shouldBe "Sign in to sak.example.org"
+            val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
+            link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
             link.parameters.names() shouldBe setOf("token")
             val token = link.parameters["token"]!!
 
@@ -138,7 +138,7 @@ class AuthRoutesTest {
                 it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
             }
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
-            client.post("/api/v1/login/link") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
+            client.post("/api/v1/auth/login/link") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
                 HttpStatusCode.BadRequest
         }
 
@@ -147,9 +147,9 @@ class AuthRoutesTest {
         authTest {
             client.login("admin@example.org", "/notes").status shouldBe HttpStatusCode.Accepted
             val mail = mails.receive()
-            mail.subject shouldBe "Sign in to apps.example.org"
-            val link = Url(mail.text.lines().single { it.startsWith(APPS_URL) })
-            link.toString() shouldStartWith "$APPS_URL/signin?token="
+            mail.subject shouldBe "Sign in to sak.example.org"
+            val link = Url(mail.text.lines().single { it.startsWith(FRONTEND_URL) })
+            link.toString() shouldStartWith "$FRONTEND_URL/signin?token="
             client.exchange(link.parameters["token"]!!).bodyAsText().json().string("redirect") shouldBe "/notes"
 
             client.login("not-an-address").let {
@@ -222,7 +222,7 @@ class AuthRoutesTest {
     private suspend fun HttpClient.login(
         email: String,
         block: HttpRequestBuilder.() -> Unit,
-    ) = post("/api/v1/login/link") {
+    ) = post("/api/v1/auth/login/link") {
         contentType(ContentType.Application.Json)
         setBody("""{"email":"$email"}""")
         block()
@@ -253,6 +253,6 @@ class AuthRoutesTest {
         }
 
     companion object {
-        private const val APPS_URL = "https://apps.example.org"
+        private const val FRONTEND_URL = "https://sak.example.org"
     }
 }
