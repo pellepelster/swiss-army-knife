@@ -1,6 +1,6 @@
 //! the wizard on the command line: `list`, `create` and `redeploy` as the first argument run
 //! without a window, on the same DeploymentManager, deployments and texts as the pages; this
-//! file only parses the arguments and prints. The token comes from HCLOUD_TOKEN, a
+//! file only parses the arguments and prints. The token comes from --hcloud-token or HCLOUD_TOKEN, a
 //! deployment's name, password and location from the argument or SAK_NAME, SAK_PASSWORD and
 //! SAK_LOCATION, the same variables the pages take their proposals from
 
@@ -49,7 +49,7 @@ pub enum Command {
 pub struct Provider {
     /// The API token of the Hetzner Cloud project
     #[arg(long, env = "HCLOUD_TOKEN", hide_env_values = true)]
-    token: String,
+    hcloud_token: String,
 }
 
 #[derive(Args, Debug, PartialEq, Eq)]
@@ -98,7 +98,7 @@ pub fn run(command: Command) -> i32 {
 
 impl Provider {
     fn tokens(&self) -> Vec<(ProviderType, String)> {
-        vec![(ProviderType::Hetzner, self.token.clone())]
+        vec![(ProviderType::Hetzner, self.hcloud_token.clone())]
     }
 }
 
@@ -228,18 +228,18 @@ mod tests {
 
     #[test]
     fn the_arguments_of_the_commands() {
-        let cli = parse(&["list", "--token", "t"]).unwrap();
+        let cli = parse(&["list", "--hcloud-token", "t"]).unwrap();
         assert_eq!(
             cli.command,
             Some(Command::List(Provider {
-                token: "t".to_string()
+                hcloud_token: "t".to_string()
             }))
         );
 
         let cli = parse(&[
             "redeploy",
             "alpha",
-            "--token",
+            "--hcloud-token",
             "t",
             "--password",
             "a password of sixteen",
@@ -254,7 +254,7 @@ mod tests {
         else {
             panic!("a redeploy");
         };
-        assert_eq!(provider.token, "t");
+        assert_eq!(provider.hcloud_token, "t");
         assert_eq!(deployment.name, "alpha");
         assert_eq!(deployment.location, Location::nbg1);
         assert_eq!(
@@ -266,7 +266,7 @@ mod tests {
             parse(&[
                 "create",
                 "alpha",
-                "--token",
+                "--hcloud-token",
                 "t",
                 "--password",
                 "p",

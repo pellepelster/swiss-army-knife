@@ -109,7 +109,7 @@
   the texts) and knows neither tauri nor clap (a test checks it); `gui` is tauri, the window, the
   commands of the pages as thin calls into core, the checks of the splash screen and the container
   runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]` and
-  `redeploy <sak name>` run on the command line: the token from `HCLOUD_TOKEN`, the name, password
+  `redeploy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
   and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
   it all; without a command the window opens. `mise run wizard:cli -- <command>` runs it with the
   token from pass.
