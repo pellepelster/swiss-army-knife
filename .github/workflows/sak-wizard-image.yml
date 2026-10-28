@@ -5,12 +5,14 @@ on:
   push:
     branches: [main]
     paths:
-      - sak-wizard/image/**
+      - sak-wizard/Dockerfile
+      - sak-wizard/.dockerignore
       - sak-wizard/mise.toml
       - .github/workflows/sak-wizard-image.yml
   pull_request:
     paths:
-      - sak-wizard/image/**
+      - sak-wizard/Dockerfile
+      - sak-wizard/.dockerignore
       - sak-wizard/mise.toml
       - .github/workflows/sak-wizard-image.yml
   workflow_dispatch:

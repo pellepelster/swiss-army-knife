@@ -5,9 +5,9 @@ rust = "1.99.1"
 node = "22.22.3"
 "npm:@tauri-apps/cli" = "2.12.4"
 
-# the image of the tools sak-wizard runs in a container, image/Dockerfile
+# the image of the tools sak-wizard runs in a container, Dockerfile
 [vars]
-image = "ghcr.io/pellepelster/sak-wizard-tools"
+image = "ghcr.io/pellepelster/sak-wizard"
 
 # on linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -34,7 +34,7 @@ run = "cargo test"
 # a container of its own (the github workflow)
 [tasks."wizard:image:build"]
 description = "Build the image of the tools of sak-wizard, terraform and ansible"
-dir = "{{config_root}}/image"
+dir = "{{config_root}}"
 run = "docker build --load --tag {{vars.image}}:latest ."
 
 [tasks."wizard:image:test"]
@@ -68,7 +68,7 @@ printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_US
 # the platform not running here needs qemu (binfmt)
 [tasks."wizard:image:push"]
 description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
-dir = "{{config_root}}/image"
+dir = "{{config_root}}"
 run = """
 docker buildx build --platform linux/amd64,linux/arm64 \
   --tag {{vars.image}}:latest \

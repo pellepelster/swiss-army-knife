@@ -1,0 +1,2 @@
+# the Dockerfile copies nothing, the build context stays empty instead of sending src-tauri/target
+*
