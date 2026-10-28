@@ -26,6 +26,7 @@ fn main() {
             providers::list_provider_tokens,
             providers::add_provider_token,
             deployments::list_deployments,
+            deployments::deployment_defaults,
             deployments::plan_deployment
         ])
         .run(tauri::generate_context!())
@@ -55,12 +56,20 @@ mod tests {
         let mut creates = 0;
         for button in html.split("<button").skip(1) {
             let button = button.split("</button>").next().unwrap_or_default();
-            let creating = ["ui.providers.add", "ui.token.add", "ui.deployments.create", "ui.plan.apply"]
-                .iter()
-                .any(|key| button.contains(key));
+            let creating = [
+                "ui.providers.add",
+                "ui.token.add",
+                "ui.deployments.create",
+                "ui.plan.apply",
+            ]
+            .iter()
+            .any(|key| button.contains(key));
             if creating {
                 creates += 1;
-                assert!(button.contains("sak-icon-plus"), "a create button without the plus sign: {button}");
+                assert!(
+                    button.contains("sak-icon-plus"),
+                    "a create button without the plus sign: {button}"
+                );
             }
         }
         assert_eq!(creates, 4);

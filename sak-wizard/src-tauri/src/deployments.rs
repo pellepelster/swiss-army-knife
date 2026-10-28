@@ -176,6 +176,30 @@ impl DeploymentManager {
     }
 }
 
+/// what the environment proposes for a new deployment: SAK_NAME and SAK_PASSWORD, so a
+/// scripted run types nothing; no Debug, the password never shows up in a log
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentDefaults {
+    name: Option<String>,
+    password: Option<String>,
+}
+
+fn variable(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+#[tauri::command]
+pub fn deployment_defaults() -> DeploymentDefaults {
+    DeploymentDefaults {
+        name: variable("SAK_NAME"),
+        password: variable("SAK_PASSWORD"),
+    }
+}
+
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,

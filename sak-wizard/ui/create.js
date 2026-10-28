@@ -9,6 +9,7 @@ const nameInput = document.getElementById('create-name');
 const passwordInput = document.getElementById('create-password');
 const repeatInput = document.getElementById('create-password-repeat');
 const status = document.getElementById('create-status');
+const planButton = document.getElementById('create-plan');
 const planList = document.getElementById('plan-resources');
 
 // the led of the theme for the diff status of a resource
@@ -60,11 +61,24 @@ for (const input of [passwordInput, repeatInput]) {
   input.addEventListener('input', () => repeatInput.classList.remove('is-invalid'));
 }
 
-export function showCreate() {
+// the fields still empty take what the environment proposes, SAK_NAME and SAK_PASSWORD
+async function prefill() {
+  const defaults = await invoke('deployment_defaults');
+  if (!nameInput.value && defaults.name) {
+    nameInput.value = defaults.name;
+  }
+  if (!passwordInput.value && !repeatInput.value && defaults.password) {
+    passwordInput.value = defaults.password;
+    repeatInput.value = defaults.password;
+  }
+}
+
+export async function showCreate() {
   setStatus('');
   repeatInput.classList.remove('is-invalid');
+  await prefill();
   show('view-create');
-  nameInput.focus();
+  (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
 
 function showPlan(plan) {
