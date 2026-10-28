@@ -17,28 +17,37 @@ pub fn page(key: &str, items: Vec<Value>) -> Value {
 /// a mock listing `items` at `/<key>`: a request with a name filter gets the item of that
 /// name or nothing, one without every item. The server must stay alive with the api
 pub async fn mock_api(key: &str, items: Vec<Value>) -> (MockServer, Arc<HetznerApi>) {
+    mock_api_all(&[(key, items)]).await
+}
+
+/// `mock_api` for several resource types at once
+pub async fn mock_api_all(resources: &[(&str, Vec<Value>)]) -> (MockServer, Arc<HetznerApi>) {
     let server = MockServer::start().await;
-    let endpoint = format!("/{key}");
-    for item in &items {
+    for (key, items) in resources {
+        let endpoint = format!("/{key}");
+        for item in items {
+            Mock::given(method("GET"))
+                .and(path(&endpoint))
+                .and(query_param("name", item["name"].as_str().unwrap()))
+                .respond_with(
+                    ResponseTemplate::new(200).set_body_json(page(key, vec![item.clone()])),
+                )
+                .mount(&server)
+                .await;
+        }
+        let any_name = |request: &Request| request.url.query_pairs().any(|(key, _)| key == "name");
         Mock::given(method("GET"))
             .and(path(&endpoint))
-            .and(query_param("name", item["name"].as_str().unwrap()))
-            .respond_with(ResponseTemplate::new(200).set_body_json(page(key, vec![item.clone()])))
+            .and(any_name)
+            .respond_with(ResponseTemplate::new(200).set_body_json(page(key, vec![])))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(&endpoint))
+            .respond_with(ResponseTemplate::new(200).set_body_json(page(key, items.clone())))
             .mount(&server)
             .await;
     }
-    let any_name = |request: &Request| request.url.query_pairs().any(|(key, _)| key == "name");
-    Mock::given(method("GET"))
-        .and(path(&endpoint))
-        .and(any_name)
-        .respond_with(ResponseTemplate::new(200).set_body_json(page(key, vec![])))
-        .mount(&server)
-        .await;
-    Mock::given(method("GET"))
-        .and(path(&endpoint))
-        .respond_with(ResponseTemplate::new(200).set_body_json(page(key, items)))
-        .mount(&server)
-        .await;
     let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(Backoff::new(
         1,
         Duration::ZERO,

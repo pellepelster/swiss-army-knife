@@ -103,8 +103,13 @@ impl HetznerLabels {
     }
 
     pub fn hash_matches(&self, key: &str, value: &str) -> HashComparison {
+        self.matches_hash(key, &sha256_hex(value))
+    }
+
+    /// like `hash_matches` with the hash of the value already in hand
+    pub fn matches_hash(&self, key: &str, expected: &str) -> HashComparison {
         let actual = self.labels().get(key).cloned();
-        let expected = sha256_hex(value);
+        let expected = expected.to_string();
         HashComparison {
             matches: actual.as_deref() == Some(expected.as_str()),
             expected,

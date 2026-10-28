@@ -6,7 +6,7 @@ use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, 
 use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
-use crate::hetzner::server::{HetznerServer, HetznerServerLookup, HetznerServerRuntime};
+use crate::hetzner::server::{HetznerServer, HetznerServerLookup, HetznerServerRuntime, UserData};
 use crate::hetzner::ssh_key::HetznerSshKeyRuntime;
 use crate::hetzner::volume::HetznerVolumeRuntime;
 use crate::hetzner::{SSH_KEYS_LABEL, USER_DATA_LABEL, hetzner_label_diff};
@@ -98,7 +98,7 @@ impl HetznerServerProvisioner {
     fn labels(resource: &HetznerServer, dependencies: &Dependencies) -> Result<Labels> {
         let mut labels = HetznerLabels::new();
         labels.add_hashed(SSH_KEYS_LABEL, &dependencies.fingerprints())?;
-        labels.add_hashed(USER_DATA_LABEL, &resource.user_data)?;
+        labels.add(USER_DATA_LABEL, &resource.user_data.hash())?;
         labels.add_all(&resource.labels)?;
         Ok(labels.into_raw())
     }
@@ -194,7 +194,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             );
         }
 
-        let user_data = labels.hash_matches(USER_DATA_LABEL, &resource.user_data);
+        let user_data = labels.matches_hash(USER_DATA_LABEL, &resource.user_data.hash());
         if !user_data.matches {
             changes.push(
                 DiffItem::recreate("user data checksum", &user_data.expected, "")
@@ -273,13 +273,18 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             Some(runtime) => runtime,
             None => {
                 info!(
-                    "{} not found, creating ({}, {}) in '{}' from '{}'",
+                    "{} not found, creating ({}) in '{}' from '{}'",
                     resource.log_text(),
                     resource.server_type,
                     resource.location,
-                    resource.location,
                     resource.image
                 );
+                let UserData::Text(user_data) = &resource.user_data else {
+                    return Err(Error::message(format!(
+                        "{} cannot be created, its user data is known by its hash only",
+                        resource.log_text()
+                    )));
+                };
                 self.wait_for_volumes(&dependencies.volumes).await?;
                 let request = ServerCreate {
                     name: resource.name.clone(),
@@ -293,7 +298,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
                         .map(|volume| volume.id)
                         .collect(),
                     firewalls: vec![],
-                    user_data: Some(resource.user_data.clone()),
+                    user_data: Some(user_data.clone()),
                     public_net: Some(PublicNetCreate {
                         enable_ipv4: true,
                         enable_ipv6: true,
@@ -545,7 +550,7 @@ mod tests {
         )])
         .await;
         let resource = HetznerServer {
-            user_data: "#cloud-config\nchanged\n".to_string(),
+            user_data: UserData::text("#cloud-config\nchanged\n"),
             ..resource()
         };
 

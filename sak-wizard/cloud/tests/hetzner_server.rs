@@ -9,7 +9,7 @@ use sak_cloud::api::{DiffStatus, LookupProvider, LookupProviders, Provisioner, R
 use sak_cloud::hetzner::primary_ip::{
     HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpProvisioner,
 };
-use sak_cloud::hetzner::server::{HetznerServer, HetznerServerProvisioner};
+use sak_cloud::hetzner::server::{HetznerServer, HetznerServerProvisioner, UserData};
 use sak_cloud::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyProvisioner};
 use sak_cloud::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeProvisioner};
 use std::sync::Arc;
@@ -110,7 +110,7 @@ async fn server_flow() {
             );
 
             let other_user_data = HetznerServer {
-                user_data: "#cloud-config\nchanged\n".to_string(),
+                user_data: UserData::text("#cloud-config\nchanged\n"),
                 ..server.clone()
             };
             let diff = servers.diff(&other_user_data, &context).await.unwrap();

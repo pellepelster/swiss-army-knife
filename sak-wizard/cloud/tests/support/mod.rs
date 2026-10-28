@@ -10,7 +10,7 @@ use sak_cloud::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
 use std::future::Future;
 use std::sync::Arc;
 
-pub const TEST_ID_LABEL: &str = "sak/test-id";
+pub const TEST_ID_LABEL: &str = "sak.pelle.io/test-id";
 
 pub struct HetznerTest {
     pub api: Arc<HetznerApi>,
@@ -30,7 +30,7 @@ impl HetznerTest {
         let test_id = uuid::Uuid::new_v4().to_string();
         let labels = Labels::from([
             (TEST_ID_LABEL.to_string(), test_id.clone()),
-            ("sak/managed-by".to_string(), "test".to_string()),
+            ("sak.pelle.io/managed-by".to_string(), "test".to_string()),
         ]);
         eprintln!(
             "the resources of this test are labeled {TEST_ID_LABEL}={test_id} and removed at its end"

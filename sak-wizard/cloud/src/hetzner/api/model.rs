@@ -143,6 +143,12 @@ impl ListQuery {
         self
     }
 
+    /// resources carrying the label `key`, whatever its value
+    pub fn label_exists(mut self, key: &str) -> Self {
+        self.label_selectors.push(key.to_string());
+        self
+    }
+
     /// all of `labels` set
     pub fn labels(self, labels: &Labels) -> Self {
         labels
@@ -221,7 +227,8 @@ mod tests {
     fn list_query_params() {
         let query = ListQuery::name("backend")
             .label("env", "prod")
-            .label("app", "sak");
+            .label("app", "sak")
+            .label_exists("sak.pelle.io/name");
 
         assert_eq!(
             query.params(2, 50),
@@ -231,7 +238,7 @@ mod tests {
                 ("name".to_string(), "backend".to_string()),
                 (
                     "label_selector".to_string(),
-                    "env==prod,app==sak".to_string()
+                    "env==prod,app==sak,sak.pelle.io/name".to_string()
                 ),
             ]
         );

@@ -8,5 +8,5 @@ mod runtime;
 
 pub use lookup::HetznerServerLookup;
 pub use provisioner::HetznerServerProvisioner;
-pub use resource::HetznerServer;
+pub use resource::{HetznerServer, UserData};
 pub use runtime::HetznerServerRuntime;
