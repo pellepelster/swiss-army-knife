@@ -21,14 +21,15 @@ enum class Role(
 }
 
 class RequireRoleConfig {
-    lateinit var role: Role
+    var role: Role? = null
 }
 
 // the routes it is installed on below authenticate(SESSION_AUTH) answer 403 to sessions
 // without the role
 val RequireRole =
     createRouteScopedPlugin("RequireRole", ::RequireRoleConfig) {
-        val role = pluginConfig.role
+        // a route without a role would be open to every session, it must not start
+        val role = requireNotNull(pluginConfig.role) { "RequireRole needs the role it requires" }
         on(AuthenticationChecked) { call ->
             val principal = call.principal<SessionPrincipal>()
             if (principal != null && role !in principal.roles) {

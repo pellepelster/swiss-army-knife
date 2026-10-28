@@ -8,7 +8,6 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -18,7 +17,7 @@ class BinaryStorageS3BackendTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private lateinit var storage: BinaryStorageS3Backend
+    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver()) }
 
     private fun rootResolver(root: String = "root1") = S3BucketPathResolver { bucket -> BlobPath(listOf(root, "$bucket-data")) }
 
@@ -26,11 +25,6 @@ class BinaryStorageS3BackendTest {
         bucket: String = "bucket1",
         root: String = "root1",
     ) = tempDir.resolve("$root/$bucket-data")
-
-    @BeforeEach
-    fun createStorage() {
-        storage = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver())
-    }
 
     private fun md5Hex(data: ByteArray) = MessageDigest.getInstance("MD5").digest(data).joinToString("") { "%02x".format(it) }
 

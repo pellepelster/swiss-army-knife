@@ -7,7 +7,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -15,9 +14,6 @@ import java.net.http.HttpTimeoutException
 import java.time.Duration
 
 class CaddyManagerTest {
-    private lateinit var server: HttpServer
-    private lateinit var manager: CaddyManager
-
     private var lastMethod: String? = null
     private var lastPath: String? = null
     private var lastContentType: String? = null
@@ -26,22 +22,23 @@ class CaddyManagerTest {
     private var responseStatus = 200
     private var responseBody = "{}"
 
-    @BeforeEach
-    fun startServer() {
-        server = HttpServer.create(InetSocketAddress(0), 0)
-        server.createContext("/") { exchange ->
-            lastMethod = exchange.requestMethod
-            lastPath = exchange.requestURI.path
-            lastContentType = exchange.requestHeaders.getFirst("Content-Type")
-            lastBody = exchange.requestBody.readBytes().toString(Charsets.UTF_8)
+    // junit makes an instance for every test, every test has a server of its own
+    private val server =
+        HttpServer.create(InetSocketAddress(0), 0).apply {
+            createContext("/") { exchange ->
+                lastMethod = exchange.requestMethod
+                lastPath = exchange.requestURI.path
+                lastContentType = exchange.requestHeaders.getFirst("Content-Type")
+                lastBody = exchange.requestBody.readBytes().toString(Charsets.UTF_8)
 
-            val bytes = responseBody.toByteArray()
-            exchange.sendResponseHeaders(responseStatus, bytes.size.toLong())
-            exchange.responseBody.use { it.write(bytes) }
+                val bytes = responseBody.toByteArray()
+                exchange.sendResponseHeaders(responseStatus, bytes.size.toLong())
+                exchange.responseBody.use { it.write(bytes) }
+            }
+            start()
         }
-        server.start()
-        manager = CaddyManager("http://localhost:${server.address.port}")
-    }
+
+    private val manager = CaddyManager("http://localhost:${server.address.port}")
 
     @AfterEach
     fun stopServer() {
