@@ -169,6 +169,20 @@ class FileServiceTest {
     }
 
     @Test
+    fun `can not tell the length of a recording whose header leaves its frames open`() {
+        val pcm = javax.sound.sampled.AudioFormat(16_000f, 16, 1, true, false)
+        val unknownRate = javax.sound.sampled.AudioFormat(javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED, -1f, 16, 1, 2, -1f, false)
+        fun format(
+            audio: javax.sound.sampled.AudioFormat,
+            frames: Int,
+        ) = javax.sound.sampled.AudioFileFormat(javax.sound.sampled.AudioFileFormat.Type.WAVE, audio, frames)
+
+        FileService.recordingSeconds(format(pcm, 32_000)) shouldBe 2f
+        FileService.recordingSeconds(format(pcm, javax.sound.sampled.AudioSystem.NOT_SPECIFIED)) shouldBe null
+        FileService.recordingSeconds(format(unknownRate, 32_000)) shouldBe null
+    }
+
+    @Test
     fun `takes recordings of at most five minutes, as the apps record them`() {
         val recordings = service(maxSize = 10_000_000)
         recordings.store(Media.wav(seconds = 300, rate = 100f).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()

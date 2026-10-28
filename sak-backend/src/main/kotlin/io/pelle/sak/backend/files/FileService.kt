@@ -16,6 +16,7 @@ import java.security.MessageDigest
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
+import javax.sound.sampled.AudioFileFormat
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
@@ -197,6 +198,11 @@ class FileService(
 
         const val MAX_RECORDING_SECONDS = 300
 
+        // how long a recording is, null when its header leaves the number or the rate of its frames
+        // open (AudioSystem.NOT_SPECIFIED), its length can not be told then
+        fun recordingSeconds(format: AudioFileFormat): Float? =
+            format.takeIf { it.frameLength >= 0 && it.format.frameRate > 0 }?.let { it.frameLength / it.format.frameRate }
+
         // why the content can not be stored, null when it can
         fun check(
             content: Path,
@@ -205,13 +211,17 @@ class FileService(
             if (contentType.startsWith("audio/")) {
                 val seconds =
                     try {
-                        AudioSystem.getAudioFileFormat(content.toFile()).let { it.frameLength / it.format.frameRate }
+                        recordingSeconds(AudioSystem.getAudioFileFormat(content.toFile()))
                     } catch (_: UnsupportedAudioFileException) {
                         return StoreFileResult.UnsupportedType
                     } catch (_: IOException) {
                         return StoreFileResult.UnsupportedType
                     }
-                if (seconds > MAX_RECORDING_SECONDS) StoreFileResult.RecordingTooLong else null
+                when {
+                    seconds == null -> StoreFileResult.UnsupportedType
+                    seconds > MAX_RECORDING_SECONDS -> StoreFileResult.RecordingTooLong
+                    else -> null
+                }
             } else {
                 val (width, height) = ImageMetadata.size(content, contentType) ?: return StoreFileResult.UnsupportedType
                 val hasMetadata = ImageMetadata.hasMetadata(content, contentType) ?: return StoreFileResult.UnsupportedType
