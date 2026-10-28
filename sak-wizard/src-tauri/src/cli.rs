@@ -2,18 +2,22 @@
 //! without a window, on the same DeploymentManager, deployments and texts as the pages; this
 //! file only parses the arguments and prints. The token comes from --hcloud-token or HCLOUD_TOKEN, a
 //! deployment's name, password and location from the argument or SAK_NAME, SAK_PASSWORD and
-//! SAK_LOCATION, the same variables the pages take their proposals from
+//! SAK_LOCATION, the same variables the pages take their proposals from. Every line it prints
+//! is `<date> <level> <message>`, the level coloured on a terminal, nothing indented
 
-use crate::core::container::{self, ContainerRuntime};
+use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
+use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     CreateEvent, DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE,
     NewDeployment, PASSWORD_VARIABLE, key,
 };
 use crate::core::providers::ProviderType;
+use anstyle::{AnsiColor, Style};
 use clap::{Args, Parser, Subcommand};
 use rust_i18n::t;
 use sak_cloud::api::DiffStatus;
 use sak_cloud::hetzner::api::Location;
+use std::fmt::Display;
 
 /// SwissArmyKnife: the deployments of a Hetzner Cloud project, listed, created and
 /// deployed. Without a command the window opens.
@@ -72,6 +76,10 @@ pub struct DeploymentArgs {
     /// Where the server, its data volume and its addresses are created
     #[arg(long, env = LOCATION_VARIABLE, default_value = "hel1", value_parser = parse_location)]
     location: Location,
+    /// Stream the output of ansible while it provisions the server, each line prefixed with
+    /// [ansible]
+    #[arg(long)]
+    show_log: bool,
 }
 
 fn parse_location(value: &str) -> Result<Location, String> {
@@ -99,7 +107,7 @@ pub fn run(command: Command) -> i32 {
     match tauri::async_runtime::block_on(execute(command)) {
         Ok(()) => 0,
         Err(message) => {
-            eprintln!("{message}");
+            log(Level::Error, message);
             1
         }
     }
@@ -123,41 +131,119 @@ impl DeploymentArgs {
     }
 }
 
+/// the checks the window runs on startup, each logged, the tokens checked those of the command
+async fn check(provider: &Provider) -> Result<ContainerRuntime, String> {
+    let tokens = ProviderTokensCheck::new(vec![(
+        ProviderType::Hetzner,
+        provider.hcloud_token.clone(),
+        "--hcloud-token",
+    )]);
+    let found = tokio::task::spawn_blocking(move || {
+        // the progress of a pull ten times a second is for the eye, the log takes each tenth
+        let mut logged = 0;
+        checks::run(checks::checks(tokens), &mut |event| {
+            match event {
+                CheckEvent::Started { name, .. } => log(Level::Info, format!("{name}…")),
+                CheckEvent::Progress { fraction, text, .. } => {
+                    let tenth = (fraction * 10.0).floor() as u32;
+                    if tenth > logged && fraction < 1.0 {
+                        logged = tenth;
+                        log(Level::Info, text);
+                    }
+                }
+                CheckEvent::Passed { name, text, .. } => {
+                    logged = 0;
+                    log(Level::Info, format!("{name} {text}"))
+                }
+                // the failure itself ends the command, the error is logged once by run
+                CheckEvent::Failed { .. }
+                | CheckEvent::Listed { .. }
+                | CheckEvent::Finished { .. } => {}
+            }
+            Ok(())
+        })
+    })
+    .await
+    .map_err(checks::not_finished)??;
+    let runtime = ContainerRuntime::default();
+    if let Some(found) = found.runtime {
+        runtime.set(found);
+    }
+    Ok(runtime)
+}
+
 async fn execute(command: Command) -> Result<(), String> {
     let manager = DeploymentManager;
+    let provider = match &command {
+        Command::List(provider)
+        | Command::Create { provider, .. }
+        | Command::Deploy { provider, .. }
+        | Command::Destroy { provider, .. } => provider,
+    };
+    let runtime = check(provider).await?;
     match command {
         Command::List(provider) => list(&manager, &provider).await,
         Command::Create {
             provider,
             deployment,
-        } => deploy(&manager, &provider, &deployment.deployment(Intent::Create)).await,
+        } => {
+            deploy(
+                &manager,
+                &provider,
+                &deployment.deployment(Intent::Create),
+                &runtime,
+                deployment.show_log,
+            )
+            .await
+        }
         Command::Deploy {
             provider,
             deployment,
-        } => deploy(&manager, &provider, &deployment.deployment(Intent::Deploy)).await,
+        } => {
+            deploy(
+                &manager,
+                &provider,
+                &deployment.deployment(Intent::Deploy),
+                &runtime,
+                deployment.show_log,
+            )
+            .await
+        }
         Command::Destroy {
             provider,
             deployment,
-        } => deploy(&manager, &provider, &deployment.deployment(Intent::Destroy)).await,
+        } => {
+            deploy(
+                &manager,
+                &provider,
+                &deployment.deployment(Intent::Destroy),
+                &runtime,
+                deployment.show_log,
+            )
+            .await
+        }
     }
 }
 
 async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), String> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
-        println!("{}", t!("ui.deployments.empty"));
+        log(Level::Info, t!("ui.deployments.empty"));
     }
     for deployment in deployments {
         let location = deployment
             .location
             .map(|location| location.to_string())
             .unwrap_or_default();
-        println!(
-            "{}  {}  {}  {}",
-            deployment.name,
-            t!(format!("ui.deployments.status.{}", key(&deployment.status))),
-            location,
-            deployment.provider.name
+        log(
+            Level::Info,
+            format!(
+                "{} {} {} {}",
+                deployment.name,
+                t!(format!("ui.deployments.status.{}", key(&deployment.status))),
+                location,
+                deployment.provider.name
+            ),
         );
         for resource in deployment.resources {
             let kind = t!(format!("ui.deployments.resource.{}", key(&resource.kind)));
@@ -165,9 +251,10 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), St
                 DiffStatus::Missing => t!("ui.deployments.missing").to_string(),
                 _ => resource.detail.unwrap_or_default(),
             };
-            println!("  {kind} '{}'  {detail}", resource.name);
+            let resource_name = format!("{kind} '{}'", resource.name);
+            log(Level::Info, format!("{resource_name} {detail}"));
             for change in resource.changes {
-                println!("    {change}");
+                log(Level::Warn, format!("{resource_name} {change}"));
             }
         }
     }
@@ -175,11 +262,13 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), St
 }
 
 /// plans, prints the plan and applies it, each resource printed as it is done: what the
-/// plan page and its create do
+/// plan page and its create do; the output of ansible only with `show_log`
 async fn deploy(
     manager: &DeploymentManager,
     provider: &Provider,
     deployment: &NewDeployment,
+    runtime: &ContainerRuntime,
+    show_log: bool,
 ) -> Result<(), String> {
     let plan = manager.plan(provider.tokens(), deployment).await?;
     let intro = match deployment.intent {
@@ -187,7 +276,7 @@ async fn deploy(
         Intent::Deploy => t!("ui.plan.intro_deploy"),
         Intent::Destroy => t!("ui.plan.intro_destroy"),
     };
-    println!("{intro} {}", plan.name);
+    log(Level::Info, format!("{intro} {}", plan.name));
     for resource in &plan.resources {
         let what = match deployment.intent {
             Intent::Destroy if resource.keep => "keep".to_string(),
@@ -196,43 +285,99 @@ async fn deploy(
             _ if resource.recreate => "recreate".to_string(),
             _ => key(&resource.status),
         };
-        println!("  {}  {}", resource.resource, t!(format!("ui.plan.{what}")));
+        log(
+            Level::Info,
+            format!("{} {}", resource.resource, t!(format!("ui.plan.{what}"))),
+        );
         for change in &resource.changes {
-            println!("    {change}");
+            log(Level::Warn, format!("{} {change}", resource.resource));
         }
     }
 
-    // the server is provisioned in the image of the tools, docker or podman runs it
-    let runtime = ContainerRuntime::default();
-    let (found, _) = container::find(&["docker", "podman"])?;
-    runtime.set(found);
+    // what is done to a resource, the verb first: `created server 'alpha'`
     let working = match deployment.intent {
-        Intent::Destroy => t!("ui.plan.working_destroy"),
-        _ => t!("ui.plan.working"),
+        Intent::Destroy => "cli.working_destroy",
+        _ => "cli.working",
     };
     let mut report = |event: CreateEvent| match event {
-        CreateEvent::Started { resource } => println!("  {resource}  {working}"),
-        CreateEvent::Applied { resource, applied } => {
-            println!(
-                "  {resource}  {}",
-                t!(format!("ui.plan.done.{}", key(&applied)))
+        CreateEvent::Started { resource } => log(Level::Info, t!(working, resource = resource)),
+        CreateEvent::Applied { resource, applied } => log(
+            Level::Info,
+            t!(
+                format!("cli.applied.{}", key(&applied)),
+                resource = resource
+            ),
+        ),
+        CreateEvent::Destroyed { resource, gone } => {
+            let what = if gone { "destroyed" } else { "gone" };
+            log(
+                Level::Info,
+                t!(format!("cli.applied.{what}"), resource = resource),
             )
         }
-        CreateEvent::Destroyed { resource, gone } => {
-            let what = if gone { "done.destroyed" } else { "gone" };
-            println!("  {resource}  {}", t!(format!("ui.plan.{what}")))
+        CreateEvent::Provisioning { message } => log(Level::Info, message),
+        // ansible indents and spaces out its output, the log keeps only what it says
+        CreateEvent::Output { line } => {
+            if show_log && !line.trim().is_empty() {
+                log(Level::Info, format!("[ansible] {}", line.trim()))
+            }
         }
-        CreateEvent::Output { line } => println!("{line}"),
     };
     manager
-        .create(provider.tokens(), deployment, &runtime, &mut report)
+        .create(provider.tokens(), deployment, runtime, &mut report)
         .await?;
     let done = match deployment.intent {
         Intent::Destroy => t!("cli.destroyed", name = deployment.name),
         _ => t!("cli.done", name = deployment.name),
     };
-    println!("{done}");
+    log(Level::Info, done);
     Ok(())
+}
+
+/// how much a line of the log matters, its colour on a terminal
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Level {
+    Info,
+    /// a change the plan found
+    Warn,
+    /// the command failed
+    Error,
+}
+
+impl Level {
+    fn name(self) -> &'static str {
+        match self {
+            Level::Info => "INFO",
+            Level::Warn => "WARN",
+            Level::Error => "ERROR",
+        }
+    }
+
+    fn style(self) -> Style {
+        let color = match self {
+            Level::Info => AnsiColor::Green,
+            Level::Warn => AnsiColor::Yellow,
+            Level::Error => AnsiColor::Red,
+        };
+        Style::new().fg_color(Some(color.into())).bold()
+    }
+}
+
+/// `<date> <level> <message>`, one space between each
+fn log_line(date: &str, level: Level, message: impl Display) -> String {
+    let style = level.style();
+    format!("{date} {style}{}{style:#} {message}", level.name())
+}
+
+/// prints a line of the log, an error to stderr; anstream drops the colour when the output
+/// is no terminal or NO_COLOR is set
+fn log(level: Level, message: impl Display) {
+    let date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    let line = log_line(&date, level, message);
+    match level {
+        Level::Error => anstream::eprintln!("{line}"),
+        _ => anstream::println!("{line}"),
+    }
 }
 
 #[cfg(test)]
@@ -241,6 +386,22 @@ mod tests {
 
     fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
         Cli::try_parse_from(std::iter::once("sak-wizard").chain(words.iter().copied()))
+    }
+
+    #[test]
+    fn a_log_line_is_date_level_message_with_the_level_coloured() {
+        let line = log_line("2026-10-28 14:03:12", Level::Info, "created server 'alpha'");
+        assert_eq!(
+            anstream::adapter::strip_str(&line).to_string(),
+            "2026-10-28 14:03:12 INFO created server 'alpha'"
+        );
+        assert!(line.contains("\x1b[1m\x1b[32mINFO\x1b[0m created"));
+        let error = log_line("2026-10-28 14:03:12", Level::Error, "failed");
+        assert_eq!(
+            anstream::adapter::strip_str(&error).to_string(),
+            "2026-10-28 14:03:12 ERROR failed"
+        );
+        assert!(error.contains("\x1b[31m"));
     }
 
     #[test]
@@ -298,6 +459,22 @@ mod tests {
             Intent::Destroy
         );
         assert_eq!(deployment.location, Location::hel1);
+        assert!(!deployment.show_log);
+
+        let cli = parse(&[
+            "create",
+            "alpha",
+            "--hcloud-token",
+            "t",
+            "--password",
+            "p",
+            "--show-log",
+        ])
+        .unwrap();
+        let Some(Command::Create { deployment, .. }) = cli.command else {
+            panic!("a create");
+        };
+        assert!(deployment.show_log);
 
         assert!(
             parse(&[

@@ -94,7 +94,7 @@ fn canary(runtime: &str) -> Result<String, String> {
 
 // runs the future to its end: on the runtime this thread belongs to (a blocking task of the
 // window's), or on one of its own (the command line, the tests)
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
+pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => handle.block_on(future),
         Err(_) => tokio::runtime::Builder::new_current_thread()

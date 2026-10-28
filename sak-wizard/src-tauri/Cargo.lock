@@ -3545,9 +3545,12 @@ dependencies = [
 name = "sak-wizard"
 version = "0.1.0"
 dependencies = [
+ "anstream",
+ "anstyle",
  "argon2",
  "base64 0.23.1",
  "bollard",
+ "chrono",
  "clap",
  "ed25519-dalek",
  "futures-util",

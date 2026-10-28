@@ -17,7 +17,7 @@ checks:
     progress: "%{downloaded} MB of %{total} MB"
     wrong_answer: "The image %{image} runs as '%{answer}' instead of '%{expected}', it is not the image of SwissArmyKnife."
   provider_tokens:
-    name: "Verify the provider tokens of the environment"
+    name: "Verify the provider tokens"
     passed: "The tokens of %{variables} are valid"
     invalid: "%{variable} holds no valid %{provider} token: %{error} Correct or unset %{variable} and start SwissArmyKnife again."
 providers:
@@ -31,6 +31,15 @@ providers:
     refused: "The Hetzner Cloud API refused the token: %{error}"
     not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
 cli:
+  working: "creating %{resource}…"
+  working_destroy: "destroying %{resource}…"
+  applied:
+    created: "created %{resource}"
+    updated: "updated %{resource}"
+    recreated: "recreated %{resource}"
+    unchanged: "%{resource} is up-to-date"
+    destroyed: "destroyed %{resource}"
+    gone: "%{resource} is gone already"
   destroyed: "The deployment %{name} is destroyed, its data volume stays."
   done: "The deployment %{name} is as planned."
 provision:
@@ -126,7 +135,7 @@ ui:
     apply: "Create"
     missing: "will be created"
     parent_missing: "will be created"
-    up_to_date: "exists as planned"
+    up_to_date: "is up-to-date"
     has_changes: "will be changed"
     recreate: "will be created anew"
     duplicate: "exists under another name"

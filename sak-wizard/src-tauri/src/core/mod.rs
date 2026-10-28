@@ -1,7 +1,8 @@
-//! what the window and the command line share: the deployments and their manager, the keys
+//! what the window and the command line share: the checks on startup, the deployments and their manager, the keys
 //! derived from a password, the providers and their tokens, the texts. Nothing in here knows
 //! tauri or clap
 
+pub mod checks;
 pub mod container;
 pub mod deployments;
 pub mod i18n;
@@ -15,6 +16,16 @@ mod tests {
     #[test]
     fn core_knows_neither_tauri_nor_clap() {
         for (name, source) in [
+            ("checks/mod.rs", include_str!("checks/mod.rs")),
+            (
+                "checks/container_runtime.rs",
+                include_str!("checks/container_runtime.rs"),
+            ),
+            ("checks/image.rs", include_str!("checks/image.rs")),
+            (
+                "checks/provider_tokens.rs",
+                include_str!("checks/provider_tokens.rs"),
+            ),
             ("container.rs", include_str!("container.rs")),
             ("deployments.rs", include_str!("deployments.rs")),
             ("provision.rs", include_str!("provision.rs")),

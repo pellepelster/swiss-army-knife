@@ -184,6 +184,10 @@ function showPlan(plan) {
 
 // a resource of the plan as its creation reports it: busy while rust works on it, ok when done
 function onCreateEvent(message) {
+  if (message.event === 'provisioning') {
+    onOutput(message.message);
+    return;
+  }
   if (message.event === 'output') {
     onOutput(message.line);
     return;

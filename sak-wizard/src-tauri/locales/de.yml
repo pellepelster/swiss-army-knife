@@ -17,7 +17,7 @@ checks:
     progress: "%{downloaded} MB von %{total} MB"
     wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von SwissArmyKnife."
   provider_tokens:
-    name: "Provider-Tokens der Umgebung prüfen"
+    name: "Provider-Tokens prüfen"
     passed: "Die Tokens von %{variables} sind gültig"
     invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
 providers:
@@ -31,6 +31,15 @@ providers:
     refused: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
     not_deleted: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
 cli:
+  working: "erstelle %{resource}…"
+  working_destroy: "zerstöre %{resource}…"
+  applied:
+    created: "erstellt %{resource}"
+    updated: "geändert %{resource}"
+    recreated: "neu erstellt %{resource}"
+    unchanged: "%{resource} ist aktuell"
+    destroyed: "zerstört %{resource}"
+    gone: "%{resource} ist schon weg"
   destroyed: "Das Deployment %{name} ist zerstört, sein Datenvolume bleibt."
   done: "Das Deployment %{name} ist wie geplant."
 provision:
@@ -126,7 +135,7 @@ ui:
     apply: "Erstellen"
     missing: "wird erstellt"
     parent_missing: "wird erstellt"
-    up_to_date: "besteht wie geplant"
+    up_to_date: "ist aktuell"
     has_changes: "wird geändert"
     recreate: "wird neu erstellt"
     duplicate: "besteht unter anderem Namen"

@@ -113,7 +113,11 @@
   runtime; `cli` is clap and printing. `sak-wizard list`, `create [<sak name>]`,
   `deploy <sak name>` and `destroy <sak name>` run on the command line: the token from `--hcloud-token` or `HCLOUD_TOKEN`, the name, password
   and location from the arguments or `SAK_NAME`, `SAK_PASSWORD` and `SAK_LOCATION`, `--help` says
-  it all; without a command the window opens. `mise run wizard:cli -- <command>` runs it with the
+  it all; without a command the window opens. Every line it prints is `<date> <level> <message>`,
+  the level coloured, nothing indented; the output of ansible only with `--show-log`, each of its
+  lines prefixed with `[ansible]`. A finished resource is logged verb first, `created server
+  'alpha'`. Before every command the checks of the splash screen (`core/checks`: container
+  runtime, image, provider tokens) run and are logged, a failing one ends the command. `mise run wizard:cli -- <command>` runs it with the
   token from pass, `mise run wizard:run -- <command>` the same through tauri dev.
 - Creating or deploying ends with the provisioning of the server: `core/provision.rs` runs
   `ansible-playbook pelle_io.sak.server` in the image of the tools (docker or podman) against it,

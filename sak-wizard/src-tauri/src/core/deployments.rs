@@ -5,7 +5,7 @@
 use crate::core::container::ContainerRuntime;
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
-use crate::core::provision::{ProvisionManager, ProvisionRun};
+use crate::core::provision::{PLAYBOOK, ProvisionManager, ProvisionRun};
 use rust_i18n::t;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
@@ -78,6 +78,10 @@ pub enum CreateEvent {
     Destroyed {
         resource: String,
         gone: bool,
+    },
+    /// the provisioning of the server begins, what the wizard says about it
+    Provisioning {
+        message: String,
     },
     /// a line ansible printed while provisioning the server
     Output {
@@ -511,6 +515,14 @@ impl DeploymentManager {
             storage_device,
         };
 
+        on_event(CreateEvent::Provisioning {
+            message: t!(
+                "provision.running",
+                host = run.host.as_str(),
+                playbook = PLAYBOOK
+            )
+            .to_string(),
+        });
         // ansible runs as a process of its own, its lines come through a channel while it does
         let runtime = container.clone();
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();

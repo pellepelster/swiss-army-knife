@@ -119,14 +119,6 @@ impl ProvisionManager {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        on_line(
-            t!(
-                "provision.running",
-                host = run.host.as_str(),
-                playbook = PLAYBOOK
-            )
-            .to_string(),
-        );
 
         let mut child = command
             .spawn()
