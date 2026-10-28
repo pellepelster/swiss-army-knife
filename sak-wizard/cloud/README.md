@@ -4,8 +4,8 @@ Declares cloud resources in code and reconciles them against the running state. 
 resource is looked up at the provider, diffed (missing, changed, needs a recreate) and
 applied; a registry does that for a whole set in the order of their dependencies.
 
-Hetzner Cloud is the first provider: ssh keys, volumes, primary ips, firewalls and
-servers. A server keeps the hashes of its cloud-init user data and ssh keys in labels,
+Hetzner Cloud is the first provider: ssh keys, volumes, primary ips, firewalls, servers,
+dns zones and records. A server keeps the hashes of its cloud-init user data and ssh keys in labels,
 so a change of either shows up in the diff as a recreate, and with a primary ip the
 recreated server keeps its address.
 

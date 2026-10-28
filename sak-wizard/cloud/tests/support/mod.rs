@@ -164,6 +164,25 @@ impl HetznerTest {
             Err(error) => eprintln!("cleanup: {error}"),
         }
 
+        match api.zones().list(&query).await {
+            Ok(zones) => {
+                for zone in zones {
+                    eprintln!("cleanup: deleting dns zone '{}'", zone.name);
+                    if zone.protection.delete
+                        && let Ok(action) = api.zones().change_protection(&zone.name, false).await
+                    {
+                        log_error(api.zones().wait_for_action(&action).await);
+                    }
+                    match api.zones().delete(&zone.name).await {
+                        Ok(Some(action)) => log_error(api.zones().wait_for_action(&action).await),
+                        Ok(None) => {}
+                        Err(error) => eprintln!("cleanup: {error}"),
+                    }
+                }
+            }
+            Err(error) => eprintln!("cleanup: {error}"),
+        }
+
         match api.ssh_keys().list(&query).await {
             Ok(keys) => {
                 for key in keys {

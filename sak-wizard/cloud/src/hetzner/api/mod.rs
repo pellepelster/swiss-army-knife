@@ -8,6 +8,7 @@ pub mod primary_ips;
 pub mod servers;
 pub mod ssh_keys;
 pub mod volumes;
+pub mod zones;
 
 #[cfg(test)]
 mod tests;
@@ -116,6 +117,10 @@ impl HetznerApi {
 
     pub fn primary_ips(&self) -> primary_ips::PrimaryIpsApi<'_> {
         primary_ips::PrimaryIpsApi { api: self }
+    }
+
+    pub fn zones(&self) -> zones::ZonesApi<'_> {
+        zones::ZonesApi { api: self }
     }
 
     fn url(&self, path: &str) -> String {

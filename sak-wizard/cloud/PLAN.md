@@ -198,8 +198,12 @@ it after `wizard:test`, without a token.
    and the power-off/assign/power-on path for an existing server. (~500) — done
 7. `providers::hetzner`, `registry` (dependency order, `diff_all` report, `apply_all`),
    `examples/backend.rs`. (~400) — done
-8. Follow-ups, not in this plan: networks/subnets (restores the private ip test), dns, an
-   api cache, a second provider.
+8. dns: `hetzner::api::zones` (zones and rrsets), `dns_zone` (a resource of its own, or
+   the lookup of a zone that exists) and `dns_record` (an rrset whose values are literals,
+   the public ipv4 of a server or the address of a primary ip), the test with a zone of
+   its own. — done
+9. Follow-ups, not in this plan: networks/subnets (restores the private ip test), an api
+   cache, a second provider.
 
 Each step is one commit on main with its tests green; integration tests are run by hand
 with the token before the commit of steps 3-6.

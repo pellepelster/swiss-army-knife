@@ -1,6 +1,8 @@
 use crate::api::Registry;
 use crate::api::error::{Error, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
+use crate::hetzner::dns_record::{HetznerDnsRecord, HetznerDnsRecordProvisioner};
+use crate::hetzner::dns_zone::{HetznerDnsZone, HetznerDnsZoneProvisioner};
 use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallProvisioner};
 use crate::hetzner::primary_ip::{HetznerPrimaryIp, HetznerPrimaryIpProvisioner};
 use crate::hetzner::server::{HetznerServer, HetznerServerProvisioner};
@@ -76,6 +78,14 @@ impl HetznerProviderRuntime {
         Arc::new(HetznerServerProvisioner::new(self.api.clone()))
     }
 
+    pub fn dns_zones(&self) -> Arc<HetznerDnsZoneProvisioner> {
+        Arc::new(HetznerDnsZoneProvisioner::new(self.api.clone()))
+    }
+
+    pub fn dns_records(&self) -> Arc<HetznerDnsRecordProvisioner> {
+        Arc::new(HetznerDnsRecordProvisioner::new(self.api.clone()))
+    }
+
     /// a registry with every hetzner provisioner registered
     pub fn registry(&self) -> Registry {
         let mut registry = Registry::new();
@@ -91,6 +101,8 @@ impl ProviderRuntime for HetznerProviderRuntime {
         registry.register::<HetznerPrimaryIp, _>(self.primary_ips());
         registry.register::<HetznerFirewall, _>(self.firewalls());
         registry.register::<HetznerServer, _>(self.servers());
+        registry.register::<HetznerDnsZone, _>(self.dns_zones());
+        registry.register::<HetznerDnsRecord, _>(self.dns_records());
     }
 }
 
