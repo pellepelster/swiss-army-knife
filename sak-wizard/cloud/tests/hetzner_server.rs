@@ -6,7 +6,6 @@
 mod support;
 
 use sak_cloud::api::{DiffStatus, LookupProvider, LookupProviders, Provisioner, Resource};
-use sak_cloud::hetzner::api::{Location, ServerType};
 use sak_cloud::hetzner::primary_ip::{
     HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpProvisioner,
 };
@@ -30,6 +29,8 @@ async fn server_flow() {
     hetzner
         .run(|hetzner| async move {
             let name = hetzner.test_id.clone();
+            let location = hetzner.location();
+            let server_type = hetzner.server_type();
             let api = hetzner.api.clone();
             let ssh_keys = Arc::new(HetznerSshKeyProvisioner::new(api.clone()));
             let volumes = Arc::new(HetznerVolumeProvisioner::new(api.clone()));
@@ -44,10 +45,10 @@ async fn server_flow() {
                 HetznerSshKey::new(&format!("{name}-1"), KEY_1).with_labels(hetzner.labels.clone());
             let key_2 =
                 HetznerSshKey::new(&format!("{name}-2"), KEY_2).with_labels(hetzner.labels.clone());
-            let volume = HetznerVolume::new(&name, Location::hel1, 16)
+            let volume = HetznerVolume::new(&name, location, 16)
                 .with_protected(false)
                 .with_labels(hetzner.labels.clone());
-            let ip = HetznerPrimaryIp::ipv4(&name, Location::hel1)
+            let ip = HetznerPrimaryIp::ipv4(&name, location)
                 .with_protected(false)
                 .with_labels(hetzner.labels.clone());
             ssh_keys.apply(&key_1, &context).await.unwrap();
@@ -55,12 +56,11 @@ async fn server_flow() {
             volumes.apply(&volume, &context).await.unwrap();
             let address = ips.apply(&ip, &context).await.unwrap().ip;
 
-            let server =
-                HetznerServer::new(&name, Location::hel1, ServerType::cx23, "#cloud-config\n")
-                    .with_ssh_keys(vec![key_1.as_lookup()])
-                    .with_volumes(vec![volume.as_lookup()])
-                    .with_ipv4(ip.as_lookup())
-                    .with_labels(hetzner.labels.clone());
+            let server = HetznerServer::new(&name, location, server_type, "#cloud-config\n")
+                .with_ssh_keys(vec![key_1.as_lookup()])
+                .with_volumes(vec![volume.as_lookup()])
+                .with_ipv4(ip.as_lookup())
+                .with_labels(hetzner.labels.clone());
 
             assert!(
                 servers

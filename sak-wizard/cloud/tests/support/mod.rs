@@ -6,7 +6,7 @@
 
 use sak_cloud::api::Labels;
 use sak_cloud::hetzner::api::firewalls::FirewallResource;
-use sak_cloud::hetzner::api::{HetznerApi, ListQuery};
+use sak_cloud::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -40,6 +40,25 @@ impl HetznerTest {
             test_id,
             labels,
         }))
+    }
+
+    /// where the servers of the tests are created: `SAK_TEST_LOCATION` and
+    /// `SAK_TEST_SERVER_TYPE`, hel1 and cx23 unless set. A server type sold out in a
+    /// location fails a test with 'currently not available', another one helps then
+    pub fn location(&self) -> Location {
+        match std::env::var("SAK_TEST_LOCATION").as_deref() {
+            Ok(name) => serde_json::from_value(serde_json::Value::String(name.to_string()))
+                .unwrap_or_else(|_| panic!("unknown location '{name}'")),
+            Err(_) => Location::hel1,
+        }
+    }
+
+    pub fn server_type(&self) -> ServerType {
+        match std::env::var("SAK_TEST_SERVER_TYPE").as_deref() {
+            Ok(name) => serde_json::from_value(serde_json::Value::String(name.to_string()))
+                .unwrap_or_else(|_| panic!("unknown server type '{name}'")),
+            Err(_) => ServerType::cx23,
+        }
     }
 
     /// the labels of the test plus `extra`
