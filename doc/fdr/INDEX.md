@@ -13,3 +13,4 @@ maintenance workflow.
 
 | #                                                           | Feature                               | Status       | Last reviewed |
 |-------------------------------------------------------------|---------------------------------------|--------------|---------------|
+| [FDR-001](FDR-001-dns-deployment-mode.md)                   | DNS deployment mode                   | Planned      | 2026-10-28    |

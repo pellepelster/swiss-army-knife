@@ -140,6 +140,8 @@ for every change of a ui.
   swiss army knife deployment the resource belongs to (see [GLOSSARY.md](GLOSSARY.md)). Whatever creates
   resources (`sak-wizard/cloud`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
+- SAK removes only resources that carry the label `sak.pelle.io/name=<sak name>` of the deployment. A resource
+  without this label, or with the label of another deployment, is never removed, also when its name agrees.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. Every resource of a deployment also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in
