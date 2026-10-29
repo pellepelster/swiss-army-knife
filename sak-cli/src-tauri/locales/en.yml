@@ -58,7 +58,7 @@ provision:
   no_address: "The server of %{name} has no public address."
   no_volume: "The data volume of %{name} is not attached."
 deployments:
-  invalid_name: "A name is 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit."
+  invalid_name: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
   short_password: "The password needs at least %{min} characters."
   password_mismatch: "The passwords do not match."
   plan_failed: "The deployment could not be planned at %{provider}: %{error}"

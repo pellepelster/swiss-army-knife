@@ -45,7 +45,7 @@ data class SakConfig(
     init {
         require(apiTokenSha256 == null || SHA256_HEX.matches(apiTokenSha256)) { "the api_token_sha256 is no sha-256 in hex" }
         require(SAK_NAME.matches(name)) {
-            "the name '$name' is no valid name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+            "the name '$name' is no valid name: 1 to $MAX_NAME_LENGTH lower case letters, digits and dashes, starting and ending with a letter or digit"
         }
     }
 
@@ -180,8 +180,19 @@ data class SakConfig(
 
         private val SHA256_HEX = Regex("[0-9a-f]{64}")
 
-        // what sakctl takes as a name (check_name in sak-cli/cloud): a hostname label
-        private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?")
+        // the prefix and the longest suffix of the cloud names of a deployment, sak-<name>-data
+        // (RESOURCE_PREFIX and DATA_VOLUME_SUFFIX in sak-cli/cloud)
+        private const val RESOURCE_PREFIX = "sak-"
+        private const val DATA_VOLUME_SUFFIX = "-data"
+
+        // the longest a dns label may be
+        private const val DNS_LABEL_LENGTH = 63
+
+        const val MAX_NAME_LENGTH = DNS_LABEL_LENGTH - RESOURCE_PREFIX.length - DATA_VOLUME_SUFFIX.length
+
+        // what sakctl takes as a name (check_name in sak-cli/cloud): a hostname label short
+        // enough for sak-<name>-data
+        private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,${MAX_NAME_LENGTH - 2}}[a-z0-9])?")
 
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
 

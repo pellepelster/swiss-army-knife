@@ -187,7 +187,10 @@ class SakConfigLoaderTest {
     fun `the name is local unless the provisioning writes the one of the deployment`() {
         load("data_dir: /data\n$ROOT_DOMAIN").name shouldBe "local"
         load("name: alpha-1\ndata_dir: /data\n$ROOT_DOMAIN").name shouldBe "alpha-1"
-        listOf("Alpha", "-alpha", "alpha-", "a_b", "\"\"", "a".repeat(64)).forEach { name ->
+        // the longest name, sak-<name>-data stays a dns label
+        SakConfig.MAX_NAME_LENGTH shouldBe 54
+        load("name: ${"a".repeat(54)}\ndata_dir: /data\n$ROOT_DOMAIN").name shouldBe "a".repeat(54)
+        listOf("Alpha", "-alpha", "alpha-", "a_b", "\"\"", "a".repeat(55)).forEach { name ->
             shouldThrow<IllegalArgumentException> { load("name: $name\ndata_dir: /data\n$ROOT_DOMAIN") }
         }
     }

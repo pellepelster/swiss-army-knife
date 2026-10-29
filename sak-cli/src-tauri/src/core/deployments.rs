@@ -15,7 +15,7 @@ use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
-    DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode,
+    DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
     ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records, discover,
     remove_records, root_domains, stale_records, state,
 };
@@ -245,6 +245,8 @@ pub struct DeploymentDefaults {
     admin_email: Option<String>,
     /// the user mode of SAK_USER_MODE
     user_mode: Option<UserMode>,
+    /// the longest name, not from the environment: what the page limits its field to
+    max_name_length: usize,
 }
 
 /// the variables a new deployment takes its name, password and location from, the pages
@@ -292,6 +294,11 @@ impl UserMode {
     }
 }
 
+/// the longest host name of a mail server and the longest e-mail address, as dns and smtp allow
+/// them; the page limits its fields to them as well
+pub const MAX_HOST_LEN: usize = 253;
+pub const MAX_ADDRESS_LEN: usize = 254;
+
 /// the port and the starttls of a mail server unless told, the ones of the backend
 pub const DEFAULT_SMTP_PORT: u16 = 587;
 pub const DEFAULT_SMTP_STARTTLS: bool = true;
@@ -314,7 +321,7 @@ pub struct Smtp {
 /// break, `backend.env` has one line for each value
 fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
-    if host.is_empty() || host.contains(char::is_whitespace) {
+    if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
         return Err(t!("deployments.invalid_smtp_host").to_string());
     }
     if smtp.port == 0 {
@@ -332,6 +339,9 @@ fn check_smtp(smtp: &Smtp) -> Result<(), String> {
 /// an e-mail address as far as a deployment needs it: a local part of letters, digits and
 /// `._%+-`, one `@`, a domain with a dot; nothing that breaks a line of `backend.env` or yaml
 pub fn is_address(address: &str) -> bool {
+    if address.trim().len() > MAX_ADDRESS_LEN {
+        return false;
+    }
     let mut parts = address.trim().split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
         return false;
@@ -368,12 +378,12 @@ pub struct LocationResponse {
 /// hetzner's locations; the first is the one proposed
 pub(crate) const LOCATIONS: &[LocationResponse] = &[
     LocationResponse {
-        id: Location::hel1,
-        name: "Helsinki, Finland",
-    },
-    LocationResponse {
         id: Location::nbg1,
         name: "Nuremberg, Germany",
+    },
+    LocationResponse {
+        id: Location::hel1,
+        name: "Helsinki, Finland",
     },
     LocationResponse {
         id: Location::fsn1,
@@ -424,6 +434,7 @@ pub fn defaults() -> DeploymentDefaults {
         smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
         admin_email: variable(ADMIN_EMAIL_VARIABLE),
         user_mode: variable(USER_MODE_VARIABLE).and_then(|value| UserMode::parse(&value)),
+        max_name_length: MAX_NAME_LEN,
     }
 }
 
@@ -745,7 +756,8 @@ impl DeploymentManager {
         } = deployment;
         let (location, intent) = (*location, *intent);
         let name = name.trim();
-        check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
+        check_name(name)
+            .map_err(|_| t!("deployments.invalid_name", max = MAX_NAME_LEN).to_string())?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
             return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS)
                 .to_string()
@@ -1368,6 +1380,7 @@ mod tests {
             "ad min@example.org",
             "admin@example.org\nSAK_X=1",
             "admin:x@example.org",
+            &format!("{}@example.org", "a".repeat(MAX_ADDRESS_LEN)),
         ] {
             assert!(!is_address(address), "{address:?}");
         }
@@ -1399,6 +1412,7 @@ mod tests {
             Err(t!("deployments.invalid_smtp_host").to_string())
         );
         assert!(check_smtp(&smtp("smtp example.org", 587)).is_err());
+        assert!(check_smtp(&smtp(&"a".repeat(MAX_HOST_LEN + 1), 587)).is_err());
         assert_eq!(
             check_smtp(&smtp("smtp.example.org", 0)),
             Err(t!("deployments.invalid_smtp_port").to_string())
@@ -1429,6 +1443,7 @@ mod tests {
             smtp_starttls: Some(false),
             admin_email: Some("admin@example.org".to_string()),
             user_mode: Some(UserMode::Multi),
+            max_name_length: MAX_NAME_LEN,
         };
         let json = serde_json::to_value(&defaults).unwrap();
         assert_eq!(json["userMode"], "multi");
@@ -1554,6 +1569,6 @@ mod tests {
     fn the_server_type_follows_the_location() {
         assert_eq!(server_type_for(Location::hel1), ServerType::cx23);
         assert_eq!(server_type_for(Location::sin), ServerType::cpx21);
-        assert_eq!(LOCATIONS[0].id, Location::hel1);
+        assert_eq!(LOCATIONS[0].id, Location::nbg1);
     }
 }

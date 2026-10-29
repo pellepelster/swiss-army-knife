@@ -11,9 +11,8 @@ use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager,
     Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
-    SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
-    SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, USER_MODE_VARIABLE, UserMode, key,
-    parse_flag,
+    SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE,
+    SMTP_USERNAME_VARIABLE, Smtp, USER_MODE_VARIABLE, UserMode, key, parse_flag,
 };
 use crate::core::error::{EXIT_OK, WizardError};
 use crate::core::providers::ProviderType;
@@ -127,7 +126,7 @@ pub struct DeploymentArgs {
     #[arg(long, env = PASSWORD_VARIABLE, hide_env_values = true)]
     password: String,
     /// Where the server, its data volume and its addresses are created
-    #[arg(long, env = LOCATION_VARIABLE, default_value = "hel1", value_parser = parse_location)]
+    #[arg(long, env = LOCATION_VARIABLE, default_value = "nbg1", value_parser = parse_location)]
     location: Location,
     /// How DNS is set up: domain manages <root domain> and *.<root domain>, subdomain manages
     /// <name>.<root domain> and *.<name>.<root domain>. Not given: subdomain for a create,
@@ -765,7 +764,7 @@ mod tests {
             deployment.deployment(Intent::Destroy, false).intent,
             Intent::Destroy
         );
-        assert_eq!(deployment.location, Location::hel1);
+        assert_eq!(deployment.location, Location::nbg1);
         assert!(!deployment.show_log);
 
         let cli = parse(&[

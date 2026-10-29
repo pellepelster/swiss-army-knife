@@ -142,7 +142,7 @@
       <form class="page-form" id="create-form">
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>
-          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required>
+          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" required>
           <div class="form-text" data-text="ui.create.name_hint"></div>
         </div>
         <div>
@@ -193,7 +193,7 @@
         <!-- multi user only: the admin's address and the mail server -->
         <div id="create-admin-email-group">
           <label class="form-label" for="create-admin-email" data-text="ui.create.admin_email"></label>
-          <input class="form-control" id="create-admin-email" type="email" autocomplete="email" spellcheck="false">
+          <input class="form-control" id="create-admin-email" type="email" autocomplete="email" spellcheck="false" maxlength="254">
           <div class="form-text" data-text="ui.create.admin_email_hint"></div>
         </div>
         <fieldset id="create-smtp">
@@ -202,7 +202,7 @@
           <div class="smtp-grid">
             <div>
               <label class="form-label" for="create-smtp-host" data-text="ui.create.smtp_host"></label>
-              <input class="form-control" id="create-smtp-host" type="text" autocomplete="off" spellcheck="false" placeholder="smtp.example.org">
+              <input class="form-control" id="create-smtp-host" type="text" autocomplete="off" spellcheck="false" maxlength="253" placeholder="smtp.example.org">
             </div>
             <div>
               <label class="form-label" for="create-smtp-port" data-text="ui.create.smtp_port"></label>

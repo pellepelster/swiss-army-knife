@@ -618,11 +618,24 @@ fn missing(kind: ResourceKind, name: &str) -> ResourceState {
 /// the cloud-init a deployment's server is created with, until the install of sak is there
 pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
 
-/// a name: 1 to 63 lower case letters, digits and dashes, a letter or digit at both
-/// ends, what hetzner takes as a name and dns as a label
+/// the prefix of the cloud name of every resource of a deployment, `sak-<name>`
+pub const RESOURCE_PREFIX: &str = "sak-";
+
+/// the suffix of the data volume's cloud name, `sak-<name>-data`, the longest cloud name of a
+/// resource
+pub const DATA_VOLUME_SUFFIX: &str = "-data";
+
+/// the longest a dns label, and so a hostname, may be
+pub const DNS_LABEL_LEN: usize = 63;
+
+/// the longest name: the longest cloud name, `sak-<name>-data`, stays a dns label
+pub const MAX_NAME_LEN: usize = DNS_LABEL_LEN - RESOURCE_PREFIX.len() - DATA_VOLUME_SUFFIX.len();
+
+/// a name: 1 to MAX_NAME_LEN lower case letters, digits and dashes, a letter or digit at both
+/// ends, what hetzner takes as a name and dns as a label, also with the prefix and a suffix
 pub fn check_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
-        && name.len() <= 63
+        && name.len() <= MAX_NAME_LEN
         && name
             .bytes()
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
@@ -632,7 +645,7 @@ pub fn check_name(name: &str) -> Result<()> {
         Ok(())
     } else {
         Err(Error::message(format!(
-            "'{name}' is no valid name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+            "'{name}' is no valid name: 1 to {MAX_NAME_LEN} lower case letters, digits and dashes, starting and ending with a letter or digit"
         )))
     }
 }
@@ -724,15 +737,21 @@ impl DeploymentSpec {
         labels
     }
 
+    /// the cloud name of the deployment's resources, `sak-<name>`; the volume and the primary
+    /// ips add what they are, `sak-<name>-data`
+    pub fn resource_name(&self) -> String {
+        format!("{RESOURCE_PREFIX}{}", self.name)
+    }
+
     pub fn ssh_key(&self) -> HetznerSshKey {
-        HetznerSshKey::new(&self.name, &self.public_key)
+        HetznerSshKey::new(&self.resource_name(), &self.public_key)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
     }
 
     pub fn data_volume(&self) -> HetznerVolume {
         HetznerVolume::new(
-            &format!("{}-data", self.name),
+            &format!("{}{DATA_VOLUME_SUFFIX}", self.resource_name()),
             self.location,
             self.data_volume_gb,
         )
@@ -741,13 +760,13 @@ impl DeploymentSpec {
     }
 
     pub fn ipv4(&self) -> HetznerPrimaryIp {
-        HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.name), self.location)
+        HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.resource_name()), self.location)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
     }
 
     pub fn ipv6(&self) -> HetznerPrimaryIp {
-        HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.name), self.location)
+        HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.resource_name()), self.location)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
     }
@@ -755,7 +774,7 @@ impl DeploymentSpec {
     /// ssh, https and icmp from anywhere, applied to the servers of the deployment
     pub fn firewall(&self) -> HetznerFirewall {
         HetznerFirewall::new(
-            &self.name,
+            &self.resource_name(),
             vec![inbound_tcp("22"), inbound_tcp("443"), inbound_icmp()],
         )
         .applied_to(self.labels())
@@ -764,14 +783,19 @@ impl DeploymentSpec {
     }
 
     pub fn server(&self) -> HetznerServer {
-        HetznerServer::new(&self.name, self.location, self.server_type, &self.user_data)
-            .with_image(&self.image)
-            .with_ssh_keys(vec![self.ssh_key().as_lookup()])
-            .with_volumes(vec![self.data_volume().as_lookup()])
-            .with_ipv4(self.ipv4().as_lookup())
-            .with_ipv6(self.ipv6().as_lookup())
-            .with_labels(self.resource_labels())
-            .with_identity(self.identity())
+        HetznerServer::new(
+            &self.resource_name(),
+            self.location,
+            self.server_type,
+            &self.user_data,
+        )
+        .with_image(&self.image)
+        .with_ssh_keys(vec![self.ssh_key().as_lookup()])
+        .with_volumes(vec![self.data_volume().as_lookup()])
+        .with_ipv4(self.ipv4().as_lookup())
+        .with_ipv6(self.ipv6().as_lookup())
+        .with_labels(self.resource_labels())
+        .with_identity(self.identity())
     }
 
     /// the names the deployment manages in its root domain: `@` and `*` in domain mode,
@@ -1315,14 +1339,14 @@ mod tests {
         assert_eq!(
             subdomain[0].values,
             vec![RecordValue::PrimaryIp(
-                HetznerPrimaryIpLookup::new("alpha-ipv4")
+                HetznerPrimaryIpLookup::new("sak-alpha-ipv4")
                     .with_identity(spec(DnsMode::Subdomain).identity())
             )]
         );
         assert_eq!(
             subdomain[1].values,
             vec![RecordValue::PrimaryIp(
-                HetznerPrimaryIpLookup::new("alpha-ipv6")
+                HetznerPrimaryIpLookup::new("sak-alpha-ipv6")
                     .with_identity(spec(DnsMode::Subdomain).identity())
             )]
         );
@@ -1440,7 +1464,7 @@ mod tests {
     /// all protected where hetzner allows it: none of it created by a deployment
     async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
         let volume = json!({
-            "id": 3, "name": "web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
+            "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
             "protection": { "delete": true }, "server": null, "status": "available",
             "location": { "id": 2, "name": "hel1" }, "labels": {}
         });
@@ -1451,13 +1475,16 @@ mod tests {
             })
         };
         mock_api_all(&[
-            ("servers", vec![server(1, "web", json!({}))]),
-            ("ssh_keys", vec![key(7, "web", json!({}))]),
-            ("firewalls", vec![firewall(5, "web", json!({}))]),
+            ("servers", vec![server(1, "sak-web", json!({}))]),
+            ("ssh_keys", vec![key(7, "sak-web", json!({}))]),
+            ("firewalls", vec![firewall(5, "sak-web", json!({}))]),
             ("volumes", vec![volume]),
             (
                 "primary_ips",
-                vec![ip(11, "web-ipv4", "ipv4"), ip(12, "web-ipv6", "ipv6")],
+                vec![
+                    ip(11, "sak-web-ipv4", "ipv4"),
+                    ip(12, "sak-web-ipv6", "ipv6"),
+                ],
             ),
         ])
         .await
@@ -1494,7 +1521,7 @@ mod tests {
             .unwrap_err();
 
         assert!(
-            matches!(&error, Error::NotOwned { resource, .. } if resource == "server 'web'"),
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "server 'sak-web'"),
             "{error}"
         );
         // neither deleted nor unprotected, detached or unassigned
@@ -1514,7 +1541,7 @@ mod tests {
             .unwrap_err();
 
         assert!(
-            matches!(&error, Error::NotOwned { resource, .. } if resource == "ssh key 'web'"),
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "ssh key 'sak-web'"),
             "{error}"
         );
         assert_eq!(writes(&mock).await, Vec::<String>::new());
@@ -1533,7 +1560,7 @@ mod tests {
             "ssh_keys",
             vec![key(
                 7,
-                "web",
+                "sak-web",
                 json!({ NAME_LABEL: "web", PASSWORD_HASH_LABEL: "another-hash" }),
             )],
         )])
@@ -1551,7 +1578,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "ssh key 'web' exists and does not belong to this deployment: its label 'sak.pelle.io/password-hash' has another value"
+            "ssh key 'sak-web' exists and does not belong to this deployment: its label 'sak.pelle.io/password-hash' has another value"
         );
     }
 
@@ -1561,7 +1588,7 @@ mod tests {
         // volume and the addresses never
         let labeled = || json!({ NAME_LABEL: "web", PASSWORD_HASH_LABEL: "any-password-hash" });
         let volume = json!({
-            "id": 3, "name": "web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
+            "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
             "protection": { "delete": true }, "server": null, "status": "available",
             "location": { "id": 2, "name": "nbg1" }, "labels": labeled()
         });
@@ -1584,7 +1611,7 @@ mod tests {
 
         assert!(
             matches!(&error, Error::RecreateRefused { resource, changes }
-                if resource == "volume 'web-data'" && changes == "location should be 'hel1' but was 'nbg1'"),
+                if resource == "volume 'sak-web-data'" && changes == "location should be 'hel1' but was 'nbg1'"),
             "{error}"
         );
         assert!(matches!(
@@ -1597,14 +1624,14 @@ mod tests {
     #[test]
     fn the_location_of_a_deployment_is_its_servers_else_its_volumes_else_its_addresses() {
         let volume: crate::hetzner::api::volumes::Volume = serde_json::from_value(json!({
-            "id": 3, "name": "alpha-data", "format": "ext4", "linux_device": "/dev/x", "size": 16,
+            "id": 3, "name": "sak-alpha-data", "format": "ext4", "linux_device": "/dev/x", "size": 16,
             "protection": { "delete": true }, "server": null, "status": "available",
             "location": { "id": 2, "name": "nbg1" }, "labels": {}
         }))
         .unwrap();
         let ip = |location: &str| -> crate::hetzner::api::primary_ips::PrimaryIp {
             serde_json::from_value(json!({
-                "id": 11, "name": "alpha-ipv4", "ip": "1.2.3.4", "type": "ipv4", "assignee_id": null,
+                "id": 11, "name": "sak-alpha-ipv4", "ip": "1.2.3.4", "type": "ipv4", "assignee_id": null,
                 "assignee_type": "unassigned", "auto_delete": false, "protection": { "delete": true },
                 "location": { "id": 3, "name": location }, "labels": {}
             }))
@@ -1621,7 +1648,7 @@ mod tests {
         deployment.primary_ips = vec![ip("hel1").into()];
         assert_eq!(
             deployment.location(),
-            Err("volume 'alpha-data' in nbg1, primary ip 'alpha-ipv4' in hel1".to_string())
+            Err("volume 'sak-alpha-data' in nbg1, primary ip 'sak-alpha-ipv4' in hel1".to_string())
         );
     }
 
@@ -1652,11 +1679,11 @@ mod tests {
         }
         let (kept, deleted) = (&planned[0], &planned[1]);
         assert!(
-            !kept.contains(&"volume 'alpha-data'".to_string()),
+            !kept.contains(&"volume 'sak-alpha-data'".to_string()),
             "{kept:?}"
         );
         assert_eq!(kept.len(), 5);
-        assert!(deleted.contains(&"volume 'alpha-data'".to_string()));
+        assert!(deleted.contains(&"volume 'sak-alpha-data'".to_string()));
         // the records are no part of it, they are found by their labels
         assert!(
             !deleted
@@ -1699,8 +1726,11 @@ mod tests {
     }
 
     #[test]
-    fn a_sak_name_is_a_lower_case_hostname_label() {
+    fn a_name_is_a_lower_case_hostname_label_short_enough_for_its_resources() {
         assert!(check_name("alpha-1").is_ok());
+        // sak-<name>-data is 63 characters, the longest a dns label may be
+        assert_eq!(MAX_NAME_LEN, 54);
+        assert!(check_name(&"a".repeat(MAX_NAME_LEN)).is_ok());
         for name in [
             "",
             "Alpha",
@@ -1708,7 +1738,7 @@ mod tests {
             "alpha-",
             "al pha",
             "a_b",
-            &"a".repeat(64),
+            &"a".repeat(MAX_NAME_LEN + 1),
         ] {
             assert!(check_name(name).is_err(), "{name}");
         }
@@ -1758,7 +1788,7 @@ mod tests {
             None
         );
         assert_eq!(spec.data_volume().labels["env"], "test");
-        assert_eq!(spec.data_volume().name, "alpha-data");
+        assert_eq!(spec.data_volume().name, "sak-alpha-data");
 
         let diffs = spec.registry(&provider).unwrap().diff_all().await.unwrap();
 
@@ -1769,12 +1799,18 @@ mod tests {
         assert_eq!(
             planned,
             vec![
-                ("ssh key 'alpha'".to_string(), DiffStatus::Missing),
-                ("volume 'alpha-data'".to_string(), DiffStatus::Missing),
-                ("primary ip 'alpha-ipv4'".to_string(), DiffStatus::Missing),
-                ("primary ip 'alpha-ipv6'".to_string(), DiffStatus::Missing),
-                ("firewall 'alpha'".to_string(), DiffStatus::Missing),
-                ("server 'alpha'".to_string(), DiffStatus::ParentMissing),
+                ("ssh key 'sak-alpha'".to_string(), DiffStatus::Missing),
+                ("volume 'sak-alpha-data'".to_string(), DiffStatus::Missing),
+                (
+                    "primary ip 'sak-alpha-ipv4'".to_string(),
+                    DiffStatus::Missing
+                ),
+                (
+                    "primary ip 'sak-alpha-ipv6'".to_string(),
+                    DiffStatus::Missing
+                ),
+                ("firewall 'sak-alpha'".to_string(), DiffStatus::Missing),
+                ("server 'sak-alpha'".to_string(), DiffStatus::ParentMissing),
             ]
         );
     }

@@ -58,7 +58,7 @@ provision:
   no_address: "Der Server von %{name} hat keine öffentliche Adresse."
   no_volume: "Das Datenvolume von %{name} ist nicht angehängt."
 deployments:
-  invalid_name: "Ein Name besteht aus 1 bis 63 Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+  invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
   short_password: "Das Passwort braucht mindestens %{min} Zeichen."
   password_mismatch: "Die Passwörter stimmen nicht überein."
   plan_failed: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"

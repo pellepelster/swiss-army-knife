@@ -105,6 +105,10 @@ in the same commit and says why.
 
 ## Naming
 
+- Every cloud resource of a deployment is named `sak-<name>`, with a suffix for what it is where a deployment has
+  more than one of a kind: the server, the firewall and the ssh key `sak-<name>`, the data volume `sak-<name>-data`,
+  the primary ips `sak-<name>-ipv4` and `sak-<name>-ipv6`. A name is at most 54 characters, so the longest cloud
+  name stays a dns label of 63. DNS records are named by the dns mode, not by this rule.
 - A class (a struct in rust) that manages resources outside the process, at a cloud provider,
   a container runtime, a remote api, is called `<name>Manager` after what it manages, e.g.
   `DeploymentManager` (`sak-cli`, the sak deployments at the providers). A manager is the one

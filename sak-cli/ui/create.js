@@ -308,6 +308,8 @@ async function loadLocations(chosen) {
 // from the environment
 async function prefill(back) {
   const defaults = await invoke('deployment_defaults');
+  // sak-<name>-data stays a dns label, rust tells how long a name may be
+  nameInput.maxLength = defaults.maxNameLength;
   prefillUsers(defaults);
   if (existing) {
     nameInput.value = existing.name;
