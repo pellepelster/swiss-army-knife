@@ -237,6 +237,41 @@ pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec
     records
 }
 
+/// the records in the way of the records of `spec`, as their log texts: every rrset at a name the
+/// deployment manages that lacks a label of its identity, whatever its type, so a name another
+/// owner uses stops the plan before anything is created. At the zone apex (`@`, domain mode) only
+/// those that cannot stand next to the records of the deployment (A, AAAA, CNAME): the others
+/// there (SOA, NS, MX, TXT, CAA, …) belong to the zone and stay
+pub fn foreign_records(listings: &[HetznerDnsZoneListing], spec: &DeploymentSpec) -> Vec<String> {
+    let Some(root_domain) = &spec.root_domain else {
+        return Vec::new();
+    };
+    let names = spec.record_names();
+    let identity = spec.identity();
+    let owned = |labels: &Labels| {
+        identity
+            .iter()
+            .all(|(key, value)| labels.get(key) == Some(value))
+    };
+    listings
+        .iter()
+        .filter(|listing| &listing.zone.name == root_domain)
+        .flat_map(|listing| &listing.rrsets)
+        .filter(|rrset| names.contains(&rrset.name) && !owned(&rrset.labels))
+        .filter(|rrset| {
+            rrset.name != "@" || matches!(rrset.rr_type, RRType::A | RRType::AAAA | RRType::CNAME)
+        })
+        .map(|rrset| {
+            HetznerDnsRecordLookup::new(
+                &rrset.name,
+                HetznerDnsZoneLookup::new(root_domain),
+                rrset.rr_type,
+            )
+            .log_text()
+        })
+        .collect()
+}
+
 /// the records of `found` not among `declared`: all of them on a destroy, those of the old
 /// dns mode or root domain on a deploy. Only records that carry every label of `identity` (the
 /// name and the password hash) are the deployment's to remove
@@ -605,6 +640,36 @@ fn resource_state(
             .collect(),
         detail,
     }
+}
+
+/// sets the label `key` of the server `id` to `value`, or removes it without one; every other label
+/// of the server stays as it is
+pub async fn set_server_label(
+    api: &HetznerApi,
+    id: u64,
+    key: &str,
+    value: Option<&str>,
+) -> Result<()> {
+    let server = api
+        .servers()
+        .get(id)
+        .await?
+        .ok_or_else(|| Error::message(format!("the server {id} is gone")))?;
+    let mut labels = server.labels;
+    match value {
+        Some(value) => labels.insert(key.to_string(), value.to_string()),
+        None => labels.remove(key),
+    };
+    api.servers()
+        .update(
+            id,
+            &crate::hetzner::api::servers::ServerUpdate {
+                labels: Some(labels),
+                ..Default::default()
+            },
+        )
+        .await?;
+    Ok(())
 }
 
 /// the cloud-init a deployment's server is created with, until the install of sak is there
@@ -1198,6 +1263,88 @@ mod tests {
         assert_eq!(
             serde_json::to_value(DnsMode::Domain).unwrap(),
             json!("domain")
+        );
+    }
+
+    /// the zone pelle.io with rrsets of the name, type and labels given
+    fn zone_with(rrsets: &[(&str, &str, Labels)]) -> Vec<HetznerDnsZoneListing> {
+        vec![HetznerDnsZoneListing {
+            zone: crate::hetzner::dns_zone::HetznerDnsZoneRuntime {
+                id: 1,
+                name: "pelle.io".to_string(),
+                ttl: 3600,
+                status: "ok".to_string(),
+                nameservers: vec![],
+                delete_protected: false,
+                labels: Labels::new(),
+            },
+            rrsets: rrsets
+                .iter()
+                .map(|(name, rr_type, labels)| {
+                    serde_json::from_value(json!({
+                        "id": format!("{name}/{rr_type}"), "name": name, "type": rr_type, "ttl": null,
+                        "protection": { "change": false }, "records": [{ "value": "x" }], "zone": 1,
+                        "labels": labels
+                    }))
+                    .unwrap()
+                })
+                .collect(),
+        }]
+    }
+
+    #[test]
+    fn a_record_of_any_type_at_a_managed_name_is_in_the_way() {
+        let subdomain = DeploymentSpec::new("www", "k", Location::hel1, ServerType::cx23)
+            .unwrap()
+            .with_dns_mode(DnsMode::Subdomain)
+            .with_root_domain("pelle.io")
+            .with_password_hash("abc");
+        // of another owner at the names of the deployment: whatever the type, it stops the plan
+        for rr_type in ["CNAME", "MX", "TXT", "A"] {
+            assert_eq!(
+                foreign_records(&zone_with(&[("www", rr_type, Labels::new())]), &subdomain),
+                vec![format!("dns record 'www.pelle.io/{rr_type}'")],
+                "{rr_type}"
+            );
+        }
+        assert_eq!(
+            foreign_records(&zone_with(&[("*.www", "TXT", Labels::new())]), &subdomain).len(),
+            1
+        );
+        // the deployment's own records, and names it does not manage, are in nobody's way
+        let own = subdomain.identity();
+        assert!(
+            foreign_records(
+                &zone_with(&[("www", "A", own.clone()), ("mail", "MX", Labels::new())]),
+                &subdomain
+            )
+            .is_empty()
+        );
+        // a record with the name of the deployment but another password is someone else's
+        let mut other = own.clone();
+        other.insert(PASSWORD_HASH_LABEL.to_string(), "xyz".to_string());
+        assert_eq!(
+            foreign_records(&zone_with(&[("www", "AAAA", other)]), &subdomain).len(),
+            1
+        );
+
+        // domain mode: the zone keeps its own records at the apex, a CNAME or an address there
+        // of another owner stops the plan
+        let domain = subdomain.clone().with_dns_mode(DnsMode::Domain);
+        let apex = zone_with(&[
+            ("@", "SOA", Labels::new()),
+            ("@", "NS", Labels::new()),
+            ("@", "MX", Labels::new()),
+            ("@", "TXT", Labels::new()),
+        ]);
+        assert!(foreign_records(&apex, &domain).is_empty());
+        assert_eq!(
+            foreign_records(&zone_with(&[("@", "A", Labels::new())]), &domain),
+            vec!["dns record '@.pelle.io/A'".to_string()]
+        );
+        assert_eq!(
+            foreign_records(&zone_with(&[("*", "MX", Labels::new())]), &domain).len(),
+            1
         );
     }
 

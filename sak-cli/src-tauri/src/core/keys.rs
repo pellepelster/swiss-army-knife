@@ -113,6 +113,23 @@ pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String>
         .to_string())
 }
 
+/// the label `sak.pelle.io/provisioned-config` of the server: argon2id over the password with a
+/// salt made of the name and the sha-256 of `config`, the configuration the playbook writes, 30
+/// bytes as hex, one label value. The same configuration gives the same value on every machine,
+/// another one another value; without the password nobody can tell from it what the configuration
+/// is, not even a weak password of the mail server in it
+pub fn provisioned_config(name: &str, password: &str, config: &str) -> Result<String, String> {
+    let salt = format!(
+        "sak.pelle.io/provisioned-config/v1/{name}/{}",
+        sak_cloud::hetzner::labels::sha256_hex(config)
+    );
+    let mut hash = [0u8; 30];
+    Argon2::default()
+        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut hash)
+        .map_err(|e| e.to_string())?;
+    Ok(hash.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
 pub fn encode_public_key(key: &VerifyingKey, comment: &str) -> String {
     format!(
@@ -360,6 +377,31 @@ mod tests {
             admin_password_hash("beta", "a password of sixteen").unwrap()
         );
         assert_eq!(hash, ADMIN_PASSWORD_VECTOR);
+    }
+
+    #[test]
+    fn the_provisioned_config_fits_one_label_and_follows_the_configuration() {
+        let (name, password) = ("alpha", "a password of sixteen");
+        let value = provisioned_config(name, password, "sak_name: alpha").unwrap();
+        assert_eq!(value.len(), 60);
+        assert_eq!(
+            provisioned_config(name, password, "sak_name: alpha").unwrap(),
+            value
+        );
+        assert_ne!(
+            provisioned_config(name, password, "sak_name: beta").unwrap(),
+            value
+        );
+        assert_ne!(
+            provisioned_config("beta", password, "sak_name: alpha").unwrap(),
+            value
+        );
+        assert_ne!(
+            provisioned_config(name, "another password here", "sak_name: alpha").unwrap(),
+            value
+        );
+        // it is no plain hash of the configuration
+        assert!(!sak_cloud::hetzner::labels::sha256_hex("sak_name: alpha").starts_with(&value));
     }
 
     #[test]

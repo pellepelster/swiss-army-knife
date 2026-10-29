@@ -1,8 +1,9 @@
 //! the wizard on the command line: `list`, `create` and `deploy` as the first argument run
 //! without a window, on the same DeploymentManager, deployments and texts as the pages; this
 //! file only parses the arguments and prints. The token comes from --hcloud-token or HCLOUD_TOKEN, a
-//! deployment's name, password and location from the argument or SAK_NAME, SAK_PASSWORD and
-//! SAK_LOCATION, the same variables the pages take their proposals from. Every line it prints
+//! deployment's name and location from the argument or SAK_NAME and SAK_LOCATION, its password from
+//! SAK_PASSWORD or typed on the terminal (`--password` asks for it), never from an argument; the
+//! same variables the pages take their proposals from. Every line it prints
 //! is `<date> <level> <message>`, the level coloured on a terminal, nothing indented. The exit
 //! code tells a root domain that cannot be used from any other failure (`core::error`)
 
@@ -12,9 +13,9 @@ use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager,
     Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
     SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE,
-    SMTP_USERNAME_VARIABLE, Smtp, USER_MODE_VARIABLE, UserMode, key, parse_flag,
+    SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, key, parse_flag,
 };
-use crate::core::error::{EXIT_OK, WizardError};
+use crate::core::error::{EXIT_OK, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
 use anstyle::{AnsiColor, Style};
 use clap::{Args, Parser, Subcommand};
@@ -24,6 +25,7 @@ use sak_cloud::hetzner::api::Location;
 use sak_cloud::hetzner::deployment::DnsMode;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::io::IsTerminal;
 
 /// the exit codes, at the end of the help; a test keeps them those of `core::error`
 const EXIT_CODES: &str = "Exit codes:
@@ -104,9 +106,9 @@ pub enum ConfigCommand {
         /// The name of the deployment
         #[arg(env = NAME_VARIABLE)]
         name: String,
-        /// The password of the deployment
-        #[arg(long, env = PASSWORD_VARIABLE, hide_env_values = true)]
-        password: String,
+        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        #[arg(long)]
+        password: bool,
     },
 }
 
@@ -122,9 +124,11 @@ pub struct DeploymentArgs {
     /// The name of the deployment
     #[arg(env = NAME_VARIABLE)]
     name: String,
-    /// The password of the deployment, at least 16 characters; the ssh key is derived from it
-    #[arg(long, env = PASSWORD_VARIABLE, hide_env_values = true)]
-    password: String,
+    /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set. The
+    /// password (at least 16 characters, the keys of the deployment are derived from it) is never
+    /// an argument: it comes from SAK_PASSWORD or is typed, without echo
+    #[arg(long)]
+    password: bool,
     /// Where the server, its data volume and its addresses are created
     #[arg(long, env = LOCATION_VARIABLE, default_value = "nbg1", value_parser = parse_location)]
     location: Location,
@@ -229,12 +233,81 @@ impl Provider {
     }
 }
 
+/// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed on the
+/// terminal without echo, twice for a create. Never an argument, which every process of the
+/// machine can read; without a terminal and SAK_PASSWORD a usage error
+fn password(
+    ask: bool,
+    twice: bool,
+    from_env: Option<String>,
+) -> Result<(String, String), WizardError> {
+    if !ask && let Some(password) = from_env.filter(|password| !password.is_empty()) {
+        return Ok((password.clone(), password));
+    }
+    if !std::io::stdin().is_terminal() {
+        return Err(WizardError::new(t!("cli.no_password"), EXIT_USAGE));
+    }
+    let typed = |prompt: std::borrow::Cow<'_, str>| {
+        rpassword::prompt_password(prompt.as_ref()).map_err(|error| error.to_string())
+    };
+    let first = typed(t!("cli.password_prompt"))?;
+    let second = if twice {
+        typed(t!("cli.password_repeat_prompt"))?
+    } else {
+        first.clone()
+    };
+    Ok((first, second))
+}
+
+/// the settings of multiple users not given taken from the running deployment: the admin and the
+/// mail server with its password; a password given (SAK_SMTP_PASSWORD) wins. A backend of before
+/// answers no password, then one the mail server has must be given, a deploy without it would take
+/// it away
+fn with_running(
+    mut deployment: NewDeployment,
+    running: &crate::core::config::RunningConfig,
+    smtp_password: &str,
+) -> Result<NewDeployment, WizardError> {
+    if deployment.admin_email.is_none() {
+        deployment.admin_email = running.admins.first().cloned();
+    }
+    if deployment.smtp.is_none()
+        && let Some(smtp) = &running.smtp
+    {
+        let password = match (smtp_password, &smtp.password) {
+            ("", Some(running)) => running.clone(),
+            ("", None) if smtp.password_set => {
+                return Err(WizardError::new(t!("cli.smtp_password_needed"), EXIT_USAGE));
+            }
+            (given, _) => given.to_string(),
+        };
+        deployment.smtp = Some(Smtp {
+            host: smtp.host.clone(),
+            port: smtp.port,
+            username: smtp.username.clone().unwrap_or_default(),
+            password,
+            starttls: smtp.starttls,
+        });
+    }
+    Ok(deployment)
+}
+
+/// SAK_PASSWORD of the environment of the process
+fn password_variable() -> Option<String> {
+    std::env::var(PASSWORD_VARIABLE).ok()
+}
+
 impl DeploymentArgs {
-    fn deployment(&self, intent: Intent, delete_data: bool) -> NewDeployment {
+    fn deployment(
+        &self,
+        intent: Intent,
+        delete_data: bool,
+        (password, password_repeat): (String, String),
+    ) -> NewDeployment {
         NewDeployment {
             name: self.name.clone(),
-            password: self.password.clone(),
-            password_repeat: self.password.clone(),
+            password,
+            password_repeat,
             location: self.location,
             dns_mode: self.dns_mode,
             root_domain: self.root_domain.clone(),
@@ -298,6 +371,20 @@ async fn check(provider: &Provider) -> Result<ContainerRuntime, String> {
 
 async fn execute(command: Command) -> Result<(), WizardError> {
     let manager = DeploymentManager;
+    // asked before the checks, which take a while
+    let password = match &command {
+        Command::List(_) => None,
+        Command::Create { deployment, .. } => {
+            Some(password(deployment.password, true, password_variable())?)
+        }
+        Command::Deploy { deployment, .. } | Command::Destroy { deployment, .. } => {
+            Some(password(deployment.password, false, password_variable())?)
+        }
+        Command::Config(ConfigCommand::Show { password: ask, .. }) => {
+            Some(password(*ask, false, password_variable())?)
+        }
+    };
+    let password = password.unwrap_or_default();
     let provider = match &command {
         Command::List(provider)
         | Command::Create { provider, .. }
@@ -308,11 +395,9 @@ async fn execute(command: Command) -> Result<(), WizardError> {
     let runtime = check(provider).await?;
     match command {
         Command::List(provider) => list(&manager, &provider).await,
-        Command::Config(ConfigCommand::Show {
-            provider,
-            name,
-            password,
-        }) => show_config(&manager, &provider, &name, &password).await,
+        Command::Config(ConfigCommand::Show { provider, name, .. }) => {
+            show_config(&manager, &provider, &name, &password.0).await
+        }
         Command::Create {
             provider,
             deployment,
@@ -320,7 +405,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             deploy(
                 &manager,
                 &provider,
-                &deployment.deployment(Intent::Create, false),
+                &deployment.deployment(Intent::Create, false, password),
                 &runtime,
                 deployment.show_log,
             )
@@ -330,14 +415,17 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             provider,
             deployment,
         } => {
-            deploy(
-                &manager,
-                &provider,
-                &deployment.deployment(Intent::Deploy, false),
-                &runtime,
-                deployment.show_log,
-            )
-            .await
+            let mut new = deployment.deployment(Intent::Deploy, false, password);
+            // multiple users without all of their settings: the running deployment has them
+            if new.user_mode == Some(UserMode::Multi)
+                && (new.smtp.is_none() || new.admin_email.is_none())
+                && let Ok((_, running)) = manager
+                    .running_config(provider.tokens(), &new.name, &new.password)
+                    .await
+            {
+                new = with_running(new, &running, &deployment.smtp_password)?;
+            }
+            deploy(&manager, &provider, &new, &runtime, deployment.show_log).await
         }
         Command::Destroy {
             provider,
@@ -347,7 +435,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             deploy(
                 &manager,
                 &provider,
-                &deployment.deployment(Intent::Destroy, delete_data),
+                &deployment.deployment(Intent::Destroy, delete_data, password),
                 &runtime,
                 deployment.show_log,
             )
@@ -512,6 +600,33 @@ async fn deploy(
                 log(Level::Info, format!("[ansible] {}", line.trim()))
             }
         }
+        // each task of the playbook as it ends, one line each; a failure as an error
+        CreateEvent::TaskDone {
+            task,
+            outcome,
+            message,
+            ..
+        } => {
+            let level = match outcome {
+                TaskOutcome::Failed | TaskOutcome::Unreachable => Level::Error,
+                TaskOutcome::Ignored => Level::Warn,
+                _ => Level::Info,
+            };
+            log(
+                level,
+                t!(
+                    format!("cli.task.{}", key(&outcome)),
+                    task = task,
+                    message = message.unwrap_or_default()
+                ),
+            )
+        }
+        CreateEvent::Provisioned { .. } => log(
+            Level::Info,
+            t!("cli.provisioned", name = deployment.name.trim()),
+        ),
+        // the error of the run says what failed, the command ends with it
+        CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
     };
     manager
         .create(provider.tokens(), deployment, runtime, &mut report)
@@ -674,13 +789,25 @@ mod tests {
             "--hcloud-token",
             "t",
             "--password",
-            "p",
         ])
         .unwrap();
         let Some(Command::Config(ConfigCommand::Show { name, password, .. })) = cli.command else {
             panic!("config show");
         };
-        assert_eq!((name.as_str(), password.as_str()), ("alpha", "p"));
+        // --password asks for it, it takes no value
+        assert_eq!((name.as_str(), password), ("alpha", true));
+        assert!(
+            parse(&[
+                "config",
+                "show",
+                "alpha",
+                "--hcloud-token",
+                "t",
+                "--password",
+                "p"
+            ])
+            .is_err()
+        );
         assert!(is_command_line(&["config".to_string()]));
 
         let config = crate::core::config::RunningConfig {
@@ -689,17 +816,22 @@ mod tests {
                 port: 465,
                 username: None,
                 password_set: true,
+                password: Some("the-smtp-password".to_string()),
                 from: "noreply@example.org".to_string(),
                 tls: true,
                 starttls: false,
             }),
+            admins: vec!["admin@example.org".to_string()],
         };
         let lines = config_lines(&config);
         assert!(lines.contains(&"smtp.host smtp.example.org".to_string()));
         assert!(lines.contains(&"smtp.username -".to_string()));
         assert!(lines.contains(&"smtp.password set".to_string()));
         assert_eq!(
-            config_lines(&crate::core::config::RunningConfig { smtp: None }),
+            config_lines(&crate::core::config::RunningConfig {
+                smtp: None,
+                admins: vec![]
+            }),
             vec![t!("config.no_smtp").to_string()]
         );
 
@@ -709,25 +841,111 @@ mod tests {
         let shown = shown_lines(" alpha ", "https://api.pelle.io", &config).join("\n");
         assert!(shown.contains("https://api.pelle.io"), "{shown}");
         assert!(!shown.contains(password) && !shown.contains(&token) && !shown.contains("sak_"));
+        // nor the password of the mail server, which the backend answers for a redeploy
+        assert!(!shown.contains("the-smtp-password"));
     }
 
     #[test]
-    fn config_show_takes_the_password_from_the_environment() {
-        use clap::CommandFactory;
-        let command = Cli::command();
-        let show = command
-            .find_subcommand("config")
-            .and_then(|config| config.find_subcommand("show"))
-            .unwrap();
-        let password = show
-            .get_arguments()
-            .find(|argument| argument.get_id() == "password")
-            .unwrap();
+    fn a_multi_user_deploy_takes_what_it_lacks_from_the_running_deployment() {
+        let running = |password_set| crate::core::config::RunningConfig {
+            smtp: Some(crate::core::config::RunningSmtp {
+                host: "smtp.example.org".into(),
+                port: 465,
+                username: Some("user".into()),
+                password_set,
+                password: None,
+                from: "noreply@pelle.io".into(),
+                tls: true,
+                starttls: false,
+            }),
+            admins: vec!["admin@example.org".into()],
+        };
+        let given = || NewDeployment {
+            name: "alpha".into(),
+            password: "p".into(),
+            password_repeat: "p".into(),
+            location: Location::nbg1,
+            dns_mode: None,
+            root_domain: None,
+            intent: Intent::Deploy,
+            delete_data: false,
+            user_mode: Some(UserMode::Multi),
+            smtp: None,
+            admin_email: None,
+        };
+
+        let filled = with_running(given(), &running(false), "").unwrap();
+        assert_eq!(filled.admin_email.as_deref(), Some("admin@example.org"));
+        let smtp = filled.smtp.unwrap();
         assert_eq!(
-            password.get_env().and_then(|env| env.to_str()),
-            Some(PASSWORD_VARIABLE)
+            (
+                smtp.host.as_str(),
+                smtp.port,
+                smtp.username.as_str(),
+                smtp.starttls
+            ),
+            ("smtp.example.org", 465, "user", false)
         );
-        assert!(password.is_hide_env_values_set());
+        // the password of the mail server never comes back, it has to be given again
+        assert_eq!(
+            with_running(given(), &running(true), "")
+                .err()
+                .map(|error| error.exit_code),
+            Some(EXIT_USAGE)
+        );
+        // a backend that answers it: taken over
+        let mut with_password = running(true);
+        if let Some(smtp) = with_password.smtp.as_mut() {
+            smtp.password = Some("running secret".into());
+        }
+        assert_eq!(
+            with_running(given(), &with_password, "")
+                .unwrap()
+                .smtp
+                .unwrap()
+                .password,
+            "running secret"
+        );
+        assert_eq!(
+            with_running(given(), &running(true), "secret")
+                .unwrap()
+                .smtp
+                .unwrap()
+                .password,
+            "secret"
+        );
+        // what is given stays
+        let mut own = given();
+        own.admin_email = Some("other@example.org".into());
+        assert_eq!(
+            with_running(own, &running(false), "")
+                .unwrap()
+                .admin_email
+                .as_deref(),
+            Some("other@example.org")
+        );
+    }
+
+    #[test]
+    fn the_password_comes_from_sak_password_or_is_typed_never_from_an_argument() {
+        // SAK_PASSWORD, for both fields
+        assert_eq!(
+            password(false, true, Some("from the environment".into())).unwrap(),
+            ("from the environment".into(), "from the environment".into())
+        );
+        // asked for, or no SAK_PASSWORD: typed, which needs a terminal; the tests have none
+        if !std::io::stdin().is_terminal() {
+            for (ask, from_env) in [
+                (true, Some("x".to_string())),
+                (false, None),
+                (false, Some(String::new())),
+            ] {
+                assert_eq!(
+                    password(ask, false, from_env).unwrap_err().exit_code,
+                    EXIT_USAGE
+                );
+            }
+        }
     }
 
     #[test]
@@ -755,8 +973,6 @@ mod tests {
             "alpha",
             "--hcloud-token",
             "t",
-            "--password",
-            "a password of sixteen",
             "--location",
             "nbg1",
         ])
@@ -774,12 +990,15 @@ mod tests {
         // not given: the core resolves them, a deploy to the deployment's own
         assert_eq!(deployment.dns_mode, None);
         assert_eq!(deployment.root_domain, None);
+        assert!(!deployment.password);
         assert_eq!(
-            deployment.deployment(Intent::Deploy, false).password_repeat,
-            "a password of sixteen"
+            deployment
+                .deployment(Intent::Deploy, false, ("p".into(), "q".into()))
+                .password_repeat,
+            "q"
         );
 
-        let cli = parse(&["destroy", "alpha", "--hcloud-token", "t", "--password", "p"]).unwrap();
+        let cli = parse(&["destroy", "alpha", "--hcloud-token", "t", "--password"]).unwrap();
         let Some(Command::Destroy {
             deployment,
             delete_data,
@@ -790,7 +1009,9 @@ mod tests {
         };
         assert!(!delete_data);
         assert_eq!(
-            deployment.deployment(Intent::Destroy, false).intent,
+            deployment
+                .deployment(Intent::Destroy, false, Default::default())
+                .intent,
             Intent::Destroy
         );
         assert_eq!(deployment.location, Location::nbg1);
@@ -801,8 +1022,6 @@ mod tests {
             "alpha",
             "--hcloud-token",
             "t",
-            "--password",
-            "p",
             "--show-log",
             "--dns-mode",
             "domain",
@@ -823,21 +1042,28 @@ mod tests {
         };
         assert!(deployment.show_log);
         assert_eq!(
-            deployment.deployment(Intent::Create, false).dns_mode,
+            deployment
+                .deployment(Intent::Create, false, Default::default())
+                .dns_mode,
             Some(DnsMode::Domain)
         );
         assert_eq!(
             deployment
-                .deployment(Intent::Create, false)
+                .deployment(Intent::Create, false, Default::default())
                 .root_domain
                 .as_deref(),
             Some("pelle.io")
         );
         assert_eq!(
-            deployment.deployment(Intent::Create, false).user_mode,
+            deployment
+                .deployment(Intent::Create, false, Default::default())
+                .user_mode,
             Some(UserMode::Multi)
         );
-        let smtp = deployment.deployment(Intent::Create, false).smtp.unwrap();
+        let smtp = deployment
+            .deployment(Intent::Create, false, Default::default())
+            .smtp
+            .unwrap();
         assert_eq!(
             (smtp.host.as_str(), smtp.port, smtp.starttls),
             ("smtp.example.org", 465, false)
@@ -850,7 +1076,6 @@ mod tests {
                 "--hcloud-token",
                 "t",
                 "--password",
-                "p",
                 "--dns-mode",
                 "whole"
             ])
@@ -864,7 +1089,6 @@ mod tests {
                 "--hcloud-token",
                 "t",
                 "--password",
-                "p",
                 "--location",
                 "moon"
             ])

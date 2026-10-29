@@ -51,9 +51,15 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   the deployment is, never at a default location.
 - **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user ticks a box
   to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
+- **A redeploy takes over what runs.** With the password at hand, a redeploy of a running deployment with multiple
+  users fills the empty fields of the users from it: the admin and the whole mail server. On the command line,
+  `--user-mode multi` takes what is not given the same way.
 
 ## sakctl command line
 
+- **The password is never an argument.** It comes from `SAK_PASSWORD`, or the command asks for it on the terminal
+  without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. An argument would show in the
+  list of processes.
 - **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show the
   running configuration) with the same rules and texts. Without a command, the window opens.
 - **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists

@@ -1,110 +1,58 @@
+//! the check of a hetzner token, through the client of sak-cloud (`HetznerApi`), the one client of
+//! the hetzner api sakctl has
+
 use ed25519_dalek::SigningKey;
-use reqwest::{Client, Response, StatusCode};
 use rust_i18n::t;
-use serde::Deserialize;
-use serde_json::json;
-use std::time::Duration;
+use sak_cloud::hetzner::api::ssh_keys::SshKeyCreate;
+use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi};
 
-const API: &str = "https://api.hetzner.cloud/v1";
-
-/// the hetzner cloud api, as far as sakctl uses it
-pub struct HetznerCloud {
-    client: Client,
-    api: String,
-}
-
-#[derive(Deserialize)]
-struct SshKeyResponse {
-    ssh_key: SshKey,
-}
-
-#[derive(Deserialize)]
-struct SshKey {
-    id: u64,
-}
-
-#[derive(Deserialize)]
-struct ErrorResponse {
-    error: ApiError,
-}
-
-#[derive(Deserialize)]
-struct ApiError {
-    message: String,
-}
-
-impl HetznerCloud {
-    pub fn new() -> Self {
-        Self::with_api(API)
-    }
-
-    fn with_api(api: &str) -> Self {
-        let client = Client::builder()
-            .user_agent(concat!("sak-cli/", env!("CARGO_PKG_VERSION")))
-            .timeout(Duration::from_secs(30))
-            .build()
-            .expect("the http client has no configuration that can fail");
-        Self {
-            client,
-            api: api.to_string(),
-        }
-    }
-
-    // a read only token can list but not create, so the check writes: an ssh key is the
-    // cheapest resource there is, it costs nothing and is deleted right away
-    pub async fn validate(&self, token: &str) -> Result<(), String> {
-        let name = format!("sakctl-token-check-{}", hex(&random::<8>()?));
-        let response = self
-            .client
-            .post(format!("{}/ssh_keys", self.api))
-            .bearer_auth(token)
-            .json(&json!({ "name": name, "public_key": public_key()? }))
-            .send()
-            .await
-            .map_err(|e| t!("providers.hetzner.unreachable", error = e).to_string())?;
-        let created: SshKeyResponse = refused(response)
-            .await?
-            .json()
-            .await
-            .map_err(|e| t!("providers.hetzner.refused", error = e).to_string())?;
-
-        let not_deleted = |error: String| {
-            t!("providers.hetzner.not_deleted", name = name, error = error).to_string()
-        };
-        let response = self
-            .client
-            .delete(format!("{}/ssh_keys/{}", self.api, created.ssh_key.id))
-            .bearer_auth(token)
-            .send()
-            .await
-            .map_err(|e| not_deleted(e.to_string()))?;
-        if !response.status().is_success() {
-            return Err(not_deleted(error_message(response).await));
-        }
-        Ok(())
-    }
-}
-
-// the response itself when the api accepted the request, why it did not otherwise
-async fn refused(response: Response) -> Result<Response, String> {
-    match response.status() {
-        status if status.is_success() => Ok(response),
-        StatusCode::UNAUTHORIZED => Err(t!("providers.hetzner.unauthorized").to_string()),
-        StatusCode::FORBIDDEN => Err(t!("providers.hetzner.forbidden").to_string()),
-        _ => Err(t!(
-            "providers.hetzner.refused",
-            error = error_message(response).await
+/// a read only token can list but not create, so the check writes: an ssh key is the cheapest
+/// resource there is, it costs nothing and is deleted right away
+pub async fn validate(api: &HetznerApi) -> Result<(), String> {
+    let name = format!("sakctl-token-check-{}", hex(&random::<8>()?));
+    let created = api
+        .ssh_keys()
+        .create(&SshKeyCreate {
+            name: name.clone(),
+            public_key: public_key()?,
+            labels: None,
+        })
+        .await
+        .map_err(refused)?;
+    match api.ssh_keys().delete(created.id).await {
+        Ok(_) => Ok(()),
+        Err(error) => Err(t!(
+            "providers.hetzner.not_deleted",
+            name = name,
+            error = message(&error)
         )
         .to_string()),
     }
 }
 
-// the api answers `{"error": {"code": "…", "message": "…"}}`, the status when it did not
-async fn error_message(response: Response) -> String {
-    let status = response.status();
-    match response.json::<ErrorResponse>().await {
-        Ok(body) => body.error.message,
-        Err(_) => status.to_string(),
+/// why the api did not take the token: unknown, read only, not reachable, or what it says
+fn refused(error: ApiError) -> String {
+    match &error {
+        ApiError::Api {
+            code: ErrorCode::Unauthorized,
+            ..
+        } => t!("providers.hetzner.unauthorized").to_string(),
+        ApiError::Api {
+            code: ErrorCode::Forbidden,
+            ..
+        } => t!("providers.hetzner.forbidden").to_string(),
+        ApiError::Request { source, .. } => {
+            t!("providers.hetzner.unreachable", error = source).to_string()
+        }
+        _ => t!("providers.hetzner.refused", error = message(&error)).to_string(),
+    }
+}
+
+/// what the api says, without the path of the request
+fn message(error: &ApiError) -> String {
+    match error {
+        ApiError::Api { message, .. } => message.clone(),
+        other => other.to_string(),
     }
 }
 
@@ -129,6 +77,7 @@ mod tests {
     use super::*;
     use base64::Engine;
     use base64::engine::general_purpose::STANDARD;
+    use serde_json::json;
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
@@ -144,7 +93,7 @@ mod tests {
                 .is_some_and(|key| key.starts_with("ssh-ed25519 "))
     }
 
-    async fn api(create: ResponseTemplate, delete: ResponseTemplate) -> MockServer {
+    async fn api(create: ResponseTemplate, delete: ResponseTemplate) -> (MockServer, HetznerApi) {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/ssh_keys"))
@@ -160,49 +109,49 @@ mod tests {
             .expect(..=1)
             .mount(&server)
             .await;
-        server
+        let api = HetznerApi::with_base_url(TOKEN, &server.uri());
+        (server, api)
     }
 
     fn created() -> ResponseTemplate {
-        ResponseTemplate::new(201).set_body_json(json!({ "ssh_key": { "id": 42 } }))
+        ResponseTemplate::new(201).set_body_json(json!({ "ssh_key": {
+            "id": 42, "name": "sakctl-token-check-x", "fingerprint": "aa", "public_key": "ssh-ed25519 AAAA", "labels": {}
+        } }))
     }
 
-    fn error(status: u16, message: &str) -> ResponseTemplate {
+    fn error(status: u16, code: &str, message: &str) -> ResponseTemplate {
         ResponseTemplate::new(status)
-            .set_body_json(json!({ "error": { "code": "error", "message": message } }))
+            .set_body_json(json!({ "error": { "code": code, "message": message } }))
     }
 
     #[tokio::test]
     async fn a_token_creating_and_deleting_an_ssh_key_is_valid() {
-        let server = api(created(), ResponseTemplate::new(204)).await;
-        assert_eq!(
-            HetznerCloud::with_api(&server.uri()).validate(TOKEN).await,
-            Ok(())
-        );
+        let (_server, api) = api(created(), ResponseTemplate::new(204)).await;
+        assert_eq!(validate(&api).await, Ok(()));
     }
 
     #[tokio::test]
     async fn an_unknown_token_is_invalid() {
-        let server = api(
-            error(401, "unable to authenticate"),
+        let (_server, api) = api(
+            error(401, "unauthorized", "unable to authenticate"),
             ResponseTemplate::new(204),
         )
         .await;
         assert_eq!(
-            HetznerCloud::with_api(&server.uri()).validate(TOKEN).await,
+            validate(&api).await,
             Err("The token is not valid, check that it was copied completely.".to_string())
         );
     }
 
     #[tokio::test]
     async fn a_read_only_token_is_invalid() {
-        let server = api(
-            error(403, "insufficient permissions"),
+        let (_server, api) = api(
+            error(403, "forbidden", "insufficient permissions"),
             ResponseTemplate::new(204),
         )
         .await;
         assert_eq!(
-            HetznerCloud::with_api(&server.uri()).validate(TOKEN).await,
+            validate(&api).await,
             Err(
                 "The token can only read, create one with the permissions read & write."
                     .to_string()
@@ -212,11 +161,8 @@ mod tests {
 
     #[tokio::test]
     async fn the_ssh_key_left_behind_is_named() {
-        let server = api(created(), error(500, "server error")).await;
-        let error = HetznerCloud::with_api(&server.uri())
-            .validate(TOKEN)
-            .await
-            .unwrap_err();
+        let (_server, api) = api(created(), error(500, "server_error", "server error")).await;
+        let error = validate(&api).await.unwrap_err();
         assert!(error.contains("sakctl-token-check-"), "{error}");
         assert!(error.ends_with("server error"), "{error}");
     }
@@ -236,6 +182,6 @@ mod tests {
             eprintln!("HCLOUD_TOKEN is not set, skipped");
             return;
         };
-        assert_eq!(HetznerCloud::new().validate(&token).await, Ok(()));
+        assert_eq!(validate(&HetznerApi::new(&token)).await, Ok(()));
     }
 }

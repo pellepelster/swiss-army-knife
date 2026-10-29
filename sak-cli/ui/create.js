@@ -86,6 +86,50 @@ function newDeployment() {
   };
 }
 
+// a redeploy of a running multi user deployment takes over the running configuration, read with
+// the password: the users, the admin and the mail server with its password (an accepted risk, see
+// docs/ARCHITECTURE.md); only fields still empty, asked once for each password
+const smtpPasswordHint = document.getElementById('create-smtp-password-hint');
+let runningAsked = null;
+
+async function prefillFromRunning() {
+  if (intent !== 'deploy' || !existing || !passwordInput.value || runningAsked === passwordInput.value) {
+    return;
+  }
+  runningAsked = passwordInput.value;
+  let config;
+  try {
+    config = await invoke('running_config', { name: existing.name, password: passwordInput.value });
+  } catch {
+    // not running, not reachable or another password: nothing to take over
+    return;
+  }
+  if (!config.smtp) {
+    return;
+  }
+  form.elements['user-mode'].value = 'multi';
+  if (!adminEmailInput.value && config.admins.length > 0) {
+    adminEmailInput.value = config.admins[0];
+  }
+  if (!smtpInputs.host.value) {
+    smtpInputs.host.value = config.smtp.host;
+    smtpInputs.port.value = config.smtp.port;
+    smtpInputs.username.value = config.smtp.username ?? '';
+    smtpInputs.starttls.checked = config.smtp.starttls;
+  }
+  if (!smtpInputs.password.value && config.smtp.password) {
+    smtpInputs.password.value = config.smtp.password;
+  }
+  // a backend of before answers no password: then it has to be typed again, a redeploy without it
+  // would leave the mail server of the backend without its password
+  const typeAgain = config.smtp.passwordSet && !smtpInputs.password.value;
+  smtpPasswordHint.hidden = !typeAgain;
+  smtpInputs.password.required = typeAgain;
+  showUserMode();
+}
+
+passwordInput.addEventListener('blur', prefillFromRunning);
+
 // the user mode chosen, single unless multi is
 function userMode() {
   return form.elements['user-mode'].value || 'single';
@@ -106,10 +150,28 @@ function showUserMode() {
   smtpInputs.host.required = multi;
   smtpInputs.port.required = multi;
   userModeHint.textContent = text(`ui.create.user_mode_hint_${userMode()}`);
+  // what the plan waits for changes with the mode
+  applyRootDomain();
 }
 
 for (const input of form.elements['user-mode']) {
   input.addEventListener('change', showUserMode);
+}
+
+// multiple users need the admin's address and the mail server, and its password where the running
+// deployment has one: without them the plan waits
+function multiUserIncomplete() {
+  return (
+    multiUser() &&
+    (!adminEmailInput.value.trim() ||
+      !smtpInputs.host.value.trim() ||
+      !smtpInputs.port.value ||
+      (smtpInputs.password.required && !smtpInputs.password.value))
+  );
+}
+
+for (const input of [adminEmailInput, smtpInputs.host, smtpInputs.port, smtpInputs.password]) {
+  input.addEventListener('input', () => applyRootDomain());
 }
 
 // the mail server as rust takes it, only for multiple users
@@ -230,7 +292,7 @@ function applyRootDomain() {
   if (domainModeInput.disabled && dnsMode() === 'domain') {
     setDnsMode('subdomain');
   }
-  planButton.disabled = (!destroying && modes.length === 0) || Boolean(nameRefusal);
+  planButton.disabled = (!destroying && modes.length === 0) || Boolean(nameRefusal) || multiUserIncomplete();
   showDnsModeHint();
 }
 
@@ -359,7 +421,8 @@ async function prefill(back) {
       nameInput.value = defaults.name;
     }
   }
-  if (!passwordInput.value && !repeatInput.value && defaults.password) {
+  // a deploy or destroy has no repeat field, what it still holds of a create does not count
+  if (!passwordInput.value && (existing || !repeatInput.value) && defaults.password) {
     passwordInput.value = defaults.password;
     repeatInput.value = defaults.password;
   }
@@ -370,6 +433,11 @@ export async function showCreate(options = {}) {
   intent = existing ? options.intent : 'create';
   setStatus('');
   repeatInput.classList.remove('is-invalid');
+  // the password of another deployment does not stay, back from the plan it does
+  if (!options.back) {
+    passwordInput.value = '';
+    repeatInput.value = '';
+  }
   nameRefusal = null;
   nameInput.classList.remove('is-invalid');
   document.getElementById('create-title').textContent = intentText('ui.create.title');
@@ -397,7 +465,14 @@ export async function showCreate(options = {}) {
   }
   // a destroy needs no users, their hidden fields must not stop the form
   showUserMode();
+  if (!options.back) {
+    runningAsked = null;
+    smtpPasswordHint.hidden = true;
+    smtpInputs.password.required = false;
+  }
   show('view-create');
+  // with the password at hand (SAK_PASSWORD), the running configuration right away
+  prefillFromRunning();
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
 
@@ -443,13 +518,19 @@ function workingText(row) {
 }
 
 // a resource of the plan as its creation reports it: busy while rust works on it, ok when done
+// whether the playbook reported its tasks: then they show on the row of the provisioning, the raw
+// output of ansible only without them
+let tasksReported = false;
+
 function onCreateEvent(message) {
   if (message.event === 'provisioning') {
     onOutput(message.message);
     return;
   }
   if (message.event === 'output') {
-    onOutput(message.line);
+    if (!tasksReported) {
+      onOutput(message.line);
+    }
     return;
   }
   const row = rows.get(message.resource);
@@ -458,6 +539,32 @@ function onCreateEvent(message) {
   }
   const led = row.querySelector('.resource-state');
   const detail = row.querySelector('.resource-detail');
+  // the task that runs on the label of the provisioning, at the end all ok or the failed task
+  if (message.event === 'taskStarted' || message.event === 'taskDone') {
+    if (!tasksReported) {
+      tasksReported = true;
+      planOutput.hidden = true;
+    }
+    if (message.event === 'taskStarted') {
+      led.dataset.sakState = 'busy';
+      detail.textContent = message.task;
+    }
+    return;
+  }
+  if (message.event === 'provisioned') {
+    led.dataset.sakState = 'ok';
+    detail.dataset.outcome = 'ok';
+    detail.textContent = text('ui.plan.provisioning.all_ok');
+    return;
+  }
+  if (message.event === 'provisionFailed') {
+    led.dataset.sakState = 'danger';
+    detail.dataset.outcome = 'failed';
+    detail.textContent = message.task
+      ? text('ui.plan.provisioning.failed').replaceAll('%{task}', message.task).replaceAll('%{message}', message.message)
+      : message.message;
+    return;
+  }
   if (message.event === 'started') {
     led.dataset.sakState = 'busy';
     detail.textContent = text(workingText(row));
@@ -488,6 +595,7 @@ applyButton.addEventListener('click', async () => {
   setPlanStatus(text({ create: 'ui.plan.creating', deploy: 'ui.plan.deploying', destroy: `ui.plan.destroying${withData}` }[intent]));
   planOutput.textContent = '';
   planOutput.hidden = true;
+  tasksReported = false;
   const onEvent = new Channel();
   onEvent.onmessage = onCreateEvent;
   try {

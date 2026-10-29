@@ -2,15 +2,18 @@ package io.pelle.sak.backend.config.model
 
 import kotlinx.serialization.Serializable
 
-// the mail server of the login links, without its password
+// the mail server of the login links, its password included: sakctl takes it over on a redeploy
+// (docs/ARCHITECTURE.md, accepted risks)
 @Serializable
 data class SmtpConfigResponse(
     val host: String,
     val port: Int,
     // none when the server takes mail without a login
     val username: String?,
-    // whether a password is configured, the password itself never leaves the backend
+    // whether a password is configured
     val passwordSet: Boolean,
+    // the password at the mail server, none without one
+    val password: String?,
     // the sender of the login mails
     val from: String,
     // implicit tls (smtps)

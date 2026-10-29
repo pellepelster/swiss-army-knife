@@ -202,6 +202,8 @@ docker run --rm "$image" ansible-galaxy collection list pelle_io.sak | grep -q "
 docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.controller | grep -q "pelle_io.sak.controller :"
 docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.server | grep -q "pelle_io.sak.storage :"
 docker run --rm "$image" ansible localhost -m ping
+# the callback posts the events of a run to the endpoint with the token of the run
+docker run --rm -v "{{config_root}}/sak-cli/image-test:/test:ro" "$image" sh /test/callback.sh
 echo "the image of the tools works"
 """
 

@@ -72,8 +72,9 @@ impl HetznerDnsRecordProvisioner {
     }
 }
 
-/// `2001:db8::/64` -> `2001:db8::1`
-fn first_address(network: &str) -> String {
+/// `2001:db8::/64` -> `2001:db8::1`: the address hetzner gives a server in its ipv6 network, what
+/// the AAAA records point to and what the backend is told
+pub fn first_address(network: &str) -> String {
     let prefix = network.split('/').next().unwrap_or(network);
     match prefix.strip_suffix("::") {
         Some(head) => format!("{head}::1"),

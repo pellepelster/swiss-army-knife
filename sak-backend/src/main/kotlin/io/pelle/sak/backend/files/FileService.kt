@@ -79,7 +79,7 @@ class FileService(
         ids: Collection<Int>,
     ): Map<Int, StoredFile> = if (ids.isEmpty()) emptyMap() else repository.byIds(owner, ids.toSet())
 
-    fun setDiscovered(
+    internal fun setDiscovered(
         file: StoredFile,
         text: String,
     ): StoredFile {
@@ -204,7 +204,7 @@ class FileService(
             format.takeIf { it.frameLength >= 0 && it.format.frameRate > 0 }?.let { it.frameLength / it.format.frameRate }
 
         // why the content can not be stored, null when it can
-        fun check(
+        internal fun check(
             content: Path,
             contentType: String,
         ): StoreFileResult? =
@@ -247,7 +247,7 @@ class FileService(
 
         // the loudness of the recording in bars from its start to its end, on the 4:3 of the
         // photos; the loudest part reaches the full height, silence keeps a dot
-        fun waveform(recording: Path): BufferedImage {
+        internal fun waveform(recording: Path): BufferedImage {
             val samples = AudioSystem.getAudioInputStream(recording.toFile()).use { samples(it) }
             val peaks =
                 (0 until WAVEFORM_BARS).map { bar ->
@@ -305,7 +305,7 @@ class FileService(
 
         // halved step by step, a single step from a large image leaves it jagged; jpeg has no
         // transparency, it is drawn on white
-        fun scaled(
+        internal fun scaled(
             image: BufferedImage,
             size: Int,
         ): BufferedImage {
@@ -329,7 +329,7 @@ class FileService(
         }
 
         // the types the storage takes, told by their first bytes: images and wav recordings
-        fun contentType(head: ByteArray): String? {
+        internal fun contentType(head: ByteArray): String? {
             fun startsWith(vararg bytes: Int) = head.size >= bytes.size && bytes.indices.all { head[it] == bytes[it].toByte() }
             fun ascii(
                 offset: Int,

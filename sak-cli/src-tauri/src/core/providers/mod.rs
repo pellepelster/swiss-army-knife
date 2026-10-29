@@ -46,7 +46,9 @@ impl ProviderType {
     /// a token is only valid when it can create resources, checked by creating and deleting one
     pub async fn validate(self, token: &str) -> Result<(), String> {
         match self {
-            ProviderType::Hetzner => hetzner::HetznerCloud::new().validate(token).await,
+            ProviderType::Hetzner => {
+                hetzner::validate(&sak_cloud::hetzner::api::HetznerApi::new(token)).await
+            }
         }
     }
 

@@ -70,6 +70,19 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
+/// the running configuration of a deployment, read with the admin api token of the password: the
+/// page takes the mail server and the admin of a redeploy from it
+#[tauri::command]
+pub async fn running_config(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    name: String,
+    password: String,
+) -> Result<crate::core::config::RunningConfig, String> {
+    let tokens = tokens.tokens();
+    Ok(manager.running_config(tokens, &name, &password).await?.1)
+}
+
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,

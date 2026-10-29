@@ -2,9 +2,11 @@
 //! by the container runtime, against the server with the roles of the pelle_io.sak
 //! collection the image holds. The inventory, the ssh configuration, the client key and
 //! the known host key are written to a directory of their own for the run and mounted into
-//! the container read-only; every line ansible prints goes to the caller
+//! the container read-only; every line ansible prints and every event its callback posts to the
+//! endpoint of the run (`core::events`) go to the caller
 
 use crate::core::container::{self, ContainerRuntime};
+use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer};
 use crate::core::keys::DerivedKey;
 use rust_i18n::t;
 use std::io::{BufRead, BufReader};
@@ -106,18 +108,39 @@ impl ProvisionRun {
     }
 }
 
+/// what a run hands its caller as it goes: a line ansible printed, or an event of its callback
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProvisionOutput {
+    Line(String),
+    Event(AnsibleEvent),
+}
+
+/// how the container reaches the endpoint of the run on the loopback of the machine: on linux it
+/// shares the network of the machine, docker desktop and a podman machine (macos, windows) give
+/// the machine a name of its own; the arguments of `run` and the host of the url
+fn events_host(runtime: &str) -> (Vec<&'static str>, &'static str) {
+    if cfg!(target_os = "linux") {
+        (vec!["--network", "host"], "127.0.0.1")
+    } else if runtime == "podman" {
+        (Vec::new(), "host.containers.internal")
+    } else {
+        (Vec::new(), "host.docker.internal")
+    }
+}
+
 /// manages the provisioning of servers: one run of the playbook per call, in the image
 /// of the tools
 pub struct ProvisionManager;
 
 impl ProvisionManager {
-    /// runs the playbook against the server, every line of ansible's output to `on_line`;
-    /// an error when ansible failed or the container could not run
+    /// runs the playbook against the server, every line of ansible's output and every event of
+    /// its callback to `on_output` in the order they come; an error when ansible failed, naming the
+    /// task that failed when the events told it, or when the container could not run
     pub fn provision(
         &self,
         runtime: &ContainerRuntime,
         run: &ProvisionRun,
-        on_line: &mut dyn FnMut(String),
+        on_output: &mut dyn FnMut(ProvisionOutput),
     ) -> Result<(), String> {
         let runtime = runtime
             .get()
@@ -128,6 +151,18 @@ impl ProvisionManager {
         dir.write("known_hosts", &run.known_hosts(), false)?;
         dir.write("id_ed25519", &run.client_key.private_key(), true)?;
         dir.write("backend.env", &run.backend_env(), true)?;
+
+        // the lines of ansible and the events of its callback go into one channel, in the order
+        // they arrive; the endpoint lives as long as the run
+        let (sender, receiver) = mpsc::channel();
+        let events = {
+            let sender = sender.clone();
+            EventServer::start(move |event| {
+                let _ = sender.send(ProvisionOutput::Event(event));
+            })?
+        };
+        dir.write("events_token", events.token(), true)?;
+        let (network, host) = events_host(runtime);
 
         let mut command = container::command(runtime);
         command.args(["run", "--rm"]);
@@ -142,6 +177,7 @@ impl ProvisionManager {
             }
         }
         command
+            .args(network)
             .args([
                 "-e",
                 "HOME=/tmp",
@@ -149,6 +185,15 @@ impl ProvisionManager {
                 "ANSIBLE_NOCOLOR=1",
                 "-e",
                 "PYTHONUNBUFFERED=1",
+                "-e",
+                "ANSIBLE_CALLBACKS_ENABLED=pelle_io.sak.http_notify",
+                "-e",
+                &format!("SAK_EVENTS_TOKEN_FILE={RUN_DIR}/events_token"),
+                "-e",
+                &format!(
+                    "SAK_EVENTS_URL=http://{host}:{}{EVENTS_PATH}",
+                    events.port()
+                ),
             ])
             .args(["-v", &format!("{}:{RUN_DIR}:ro", dir.path.display())])
             .arg(container::IMAGE)
@@ -165,8 +210,7 @@ impl ProvisionManager {
         let mut child = command
             .spawn()
             .map_err(|e| t!("provision.not_started", runtime = runtime, error = e).to_string())?;
-        // both streams line by line into one channel, in the order they arrive
-        let (sender, receiver) = mpsc::channel();
+        // both streams line by line into the channel
         let mut readers = Vec::new();
         for stream in [
             child
@@ -184,26 +228,69 @@ impl ProvisionManager {
             let sender = sender.clone();
             readers.push(std::thread::spawn(move || {
                 for line in BufReader::new(stream).lines().map_while(Result::ok) {
-                    if sender.send(line).is_err() {
+                    if sender.send(ProvisionOutput::Line(line)).is_err() {
                         break;
                     }
                 }
             }));
         }
         drop(sender);
-        for line in receiver {
-            on_line(line);
-        }
-        for reader in readers {
-            let _ = reader.join();
+        // the channel ends with the output of ansible; the endpoint holds a sender until it stops
+        let mut failed = None;
+        let readers_done = std::thread::spawn(move || {
+            for reader in readers {
+                let _ = reader.join();
+            }
+        });
+        loop {
+            match receiver.recv_timeout(std::time::Duration::from_millis(100)) {
+                Ok(output) => {
+                    if let ProvisionOutput::Event(event) = &output {
+                        failed = failed.take().or_else(|| failure_of(event));
+                    }
+                    on_output(output);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {}
+                Err(_) => break,
+            }
         }
         let status = child.wait().map_err(|e| e.to_string())?;
-        drop(dir);
-        if status.success() {
-            Ok(())
-        } else {
-            Err(t!("provision.failed", status = status.code().unwrap_or(-1)).to_string())
+        // the events posted after the last line, then no more
+        drop(events);
+        for output in receiver.try_iter() {
+            if let ProvisionOutput::Event(event) = &output {
+                failed = failed.take().or_else(|| failure_of(event));
+            }
+            on_output(output);
         }
+        drop(dir);
+        match (status.success(), failed) {
+            (true, _) => Ok(()),
+            (false, Some((task, message))) => Err(t!(
+                "provision.task_failed",
+                task = task,
+                message = message.unwrap_or_default()
+            )
+            .to_string()),
+            (false, None) => {
+                Err(t!("provision.failed", status = status.code().unwrap_or(-1)).to_string())
+            }
+        }
+    }
+}
+
+/// the task of a failure that stops the run and what ansible says about it; a failure that is
+/// ignored is none
+fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
+    match event {
+        AnsibleEvent::Failed {
+            task,
+            msg,
+            ignore_errors: false,
+            ..
+        }
+        | AnsibleEvent::Unreachable { task, msg, .. } => Some((task.clone(), msg.clone())),
+        _ => None,
     }
 }
 
@@ -272,6 +359,34 @@ mod tests {
                 starttls: false,
             }),
             admin_password_hash: "$argon2id$v=19$m=19456,t=2,p=1$salt$hash".to_string(),
+        }
+    }
+
+    #[test]
+    fn a_failure_that_stops_the_run_names_its_task() {
+        let failed = |ignore_errors| AnsibleEvent::Failed {
+            host: "alpha".into(),
+            task: "Start the backend".into(),
+            msg: Some("no".into()),
+            ignore_errors,
+        };
+        assert_eq!(
+            failure_of(&failed(false)),
+            Some(("Start the backend".into(), Some("no".into())))
+        );
+        assert_eq!(failure_of(&failed(true)), None);
+        assert!(
+            failure_of(&AnsibleEvent::Unreachable {
+                host: "alpha".into(),
+                task: "Gathering Facts".into(),
+                msg: None
+            })
+            .is_some()
+        );
+        // the container reaches the endpoint on the loopback of the machine
+        let (args, host) = events_host("docker");
+        if cfg!(target_os = "linux") {
+            assert_eq!((args, host), (vec!["--network", "host"], "127.0.0.1"));
         }
     }
 

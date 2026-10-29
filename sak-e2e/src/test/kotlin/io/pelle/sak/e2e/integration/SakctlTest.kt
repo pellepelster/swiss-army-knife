@@ -42,8 +42,10 @@ private fun testName(): String = TEST_PREFIX + (1..5).map { "abcdefghijklmnopqrs
 class SakctlTest {
     private val token = System.getenv("HCLOUD_TOKEN") ?: error("HCLOUD_TOKEN is not set")
     private val project = HetznerProject(token)
-    private val sakctl = Sakctl(token)
     private val password = (1..24).map { "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[random.nextInt(62)] }.joinToString("")
+
+    // the password goes in SAK_PASSWORD, sakctl takes it from there instead of asking
+    private val sakctl = Sakctl(token, password)
 
     // what an earlier run left behind
     @BeforeAll
@@ -60,12 +62,12 @@ class SakctlTest {
         dnsMode: String,
         rootDomain: String,
         vararg users: String = SINGLE_USER,
-    ): Int = sakctl.run("create", name, "--password", password, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain)
+    ): Int = sakctl.run("create", name, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain)
 
     // `config show` once the backend answers, it starts after the provisioning: the lines it printed
     private fun configShow(name: String): List<String> {
         repeat(30) {
-            val (exit, lines) = sakctl.output("config", "show", name, "--password", password)
+            val (exit, lines) = sakctl.output("config", "show", name)
             if (exit == EXIT_OK) return lines
             Thread.sleep(10_000)
         }
@@ -75,7 +77,7 @@ class SakctlTest {
     private fun destroy(
         name: String,
         vararg options: String,
-    ): Int = sakctl.run("destroy", name, "--password", password, *options)
+    ): Int = sakctl.run("destroy", name, *options)
 
     @Test
     fun `a root domain has one domain deployment or only subdomain deployments`() {
@@ -93,7 +95,11 @@ class SakctlTest {
             }
             // a deploy without --dns-mode and --root-domain keeps both: the records of the domain mode
             // stay, nothing switches it to a subdomain deployment
-            sakctl.run("deploy", domain, "--password", password, *MULTI_USER) shouldBe EXIT_OK
+            // a deploy runs the whole playbook again, task by task
+            sakctl.output("deploy", domain, *MULTI_USER).let { (exit, lines) ->
+                exit shouldBe EXIT_OK
+                lines.any { it.contains("[ok] ") || it.contains("[changed] ") } shouldBe true
+            }
             project
                 .resources { it == domain }
                 .filter { it.kind == "dns record" }

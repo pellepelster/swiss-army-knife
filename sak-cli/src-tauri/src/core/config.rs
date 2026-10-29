@@ -4,23 +4,30 @@
 use reqwest::redirect::Policy;
 use reqwest::{Client, StatusCode};
 use rust_i18n::t;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// what `GET /v1/config` answers: no secret, a password only as whether there is one
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+/// what `GET /v1/config` answers: no secret, a password only as whether there is one; the page
+/// takes the mail server of a redeploy from it
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RunningConfig {
     /// the mail server of the login links, none without the login
     pub smtp: Option<RunningSmtp>,
+    /// the addresses of the e-mail login, the first the admin; a backend of before answers none
+    #[serde(default)]
+    pub admins: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RunningSmtp {
     pub host: String,
     pub port: u16,
     pub username: Option<String>,
     pub password_set: bool,
+    /// the password at the mail server, a redeploy takes it over; never printed
+    #[serde(default)]
+    pub password: Option<String>,
     pub from: String,
     pub tls: bool,
     pub starttls: bool,

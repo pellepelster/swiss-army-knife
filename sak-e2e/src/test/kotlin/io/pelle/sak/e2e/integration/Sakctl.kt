@@ -4,9 +4,11 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 // the command line of sakctl: the binary of `cargo build` (SAK_E2E_SAKCTL points elsewhere),
-// run with the token of the project; every line it prints goes to the output of the test
+// run with the token of the project and the password of the deployments in SAK_PASSWORD; every line
+// it prints goes to the output of the test
 class Sakctl(
     private val token: String,
+    private val password: String,
 ) {
     private val binary: File =
         File(System.getenv("SAK_E2E_SAKCTL") ?: System.getProperty("sak.e2e.sakctl") ?: "sakctl").also {
@@ -26,6 +28,7 @@ class Sakctl(
                     environment()["HCLOUD_TOKEN"] = token
                     // the settings come as arguments, the variables of the developer stay out
                     environment().keys.removeIf { it.startsWith("SAK_") }
+                    environment()["SAK_PASSWORD"] = password
                 }.start()
         val lines = mutableListOf<String>()
         process.inputStream.bufferedReader().forEachLine {

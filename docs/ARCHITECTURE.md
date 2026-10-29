@@ -113,6 +113,11 @@ and the health of the domains.
   the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail server) in
   a private directory for the run. It sets up the base system, the data volume and the controller: the backend, its
   configuration and the containers next to it.
+- **Every deploy provisions.** A deploy always runs the whole playbook, so the server is as the deployment declares
+  it whatever happened to it. After a provisioning succeeded the server carries a label that stands for the
+  configuration it was provisioned with, keyed by the password, so it tells nothing of the configuration; the plan
+  tells from it whether the configuration changed. The label goes before a provisioning starts, so one that failed
+  shows as missing.
 
 ## Cloud resources
 
@@ -176,6 +181,12 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   it should. Accepted: the chance stays far beyond reach (about one in 2^120 for a collision anyone could search
   for), and one label per hash is simpler than splitting it across several. The password hash label is 240 bits
   as well.
+
+- **The running configuration answers the password of the mail server.** An admin, and sakctl with the admin api
+  token, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
+  again. A comfort feature: whoever holds the password of the deployment or an admin session can read the password of
+  the mail server, and send mail with it from elsewhere. Accepted: the same people can already read it on the server,
+  and the account at the mail server is meant for the login mails of this deployment alone.
 
 - **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
   login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by

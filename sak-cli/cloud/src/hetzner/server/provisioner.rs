@@ -527,12 +527,16 @@ mod tests {
 
     #[tokio::test]
     async fn diff_of_an_up_to_date_server_ignores_the_hash_labels() {
+        // the label sakctl keeps after provisioning is no declared label either
         let (_server, api) = mock(vec![server(
             "backend",
             "debian-13",
             vec![3],
             None,
-            created_labels(&[("app", "sak")]),
+            created_labels(&[
+                ("app", "sak"),
+                (crate::hetzner::PROVISIONED_CONFIG_LABEL, "abc"),
+            ]),
         )])
         .await;
 

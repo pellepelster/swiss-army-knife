@@ -954,7 +954,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `admins read the running configuration, without the password of the mail server`() {
+    fun `admins read the running configuration`() {
         withServer { port ->
             get(port, "/api/v1/config").statusCode() shouldBe 401
             val session = signIn(port)
@@ -965,7 +965,10 @@ class SakAppsTest {
             smtp.getValue("port").jsonPrimitive.content shouldBe greenMail.smtp.port.toString()
             smtp.string("from") shouldBe "login@example.org"
             smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "false"
-            smtp.keys shouldNotContain "password"
+            smtp["password"] shouldBe JsonNull
+            // the addresses of the e-mail login as configured, the first the admin
+            config.json().getValue("admins").jsonArray.map { it.jsonPrimitive.content } shouldBe
+                listOf("Admin@example.org", "second@example.org")
         }
     }
 
@@ -1004,12 +1007,15 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the running configuration hides a configured password of the mail server`() {
+    fun `the running configuration answers the password of the mail server, for a redeploy to take over`() {
         withServer(config(smtpPassword = "the-smtp-password")) { port ->
             val answer = get(port, "/api/v1/config", API_TOKEN)
             answer.statusCode() shouldBe 200
-            answer.json().getValue("smtp").jsonObject.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
-            answer.body() shouldNotContain "the-smtp-password"
+            val smtp = answer.json().getValue("smtp").jsonObject
+            smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
+            smtp.string("password") shouldBe "the-smtp-password"
+            // only for admins
+            get(port, "/api/v1/config").statusCode() shouldBe 401
         }
     }
 

@@ -7,6 +7,7 @@ pub mod config;
 pub mod container;
 pub mod deployments;
 pub mod error;
+pub mod events;
 pub mod i18n;
 pub mod keys;
 pub mod providers;

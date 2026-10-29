@@ -39,9 +39,17 @@ pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 /// the hash of the user data (cloud-init) a server was created with
 pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 
-/// whether a label is one of the hashes the provisioners keep, chunks included
+/// the configuration the server was provisioned with, as a hash only sakctl can make (it is keyed
+/// by the password): set after a provisioning succeeded, removed before one starts; sakctl keeps it
+/// on the server, the declaration of the server has none
+pub const PROVISIONED_CONFIG_LABEL: &str = "sak.pelle.io/provisioned-config";
+
+/// whether a label is one the provisioners or sakctl keep on a resource beside its declared
+/// labels, chunks included
 pub fn is_managed_label(key: &str) -> bool {
-    key.starts_with(SSH_KEYS_LABEL) || key.starts_with(USER_DATA_LABEL)
+    key.starts_with(SSH_KEYS_LABEL)
+        || key.starts_with(USER_DATA_LABEL)
+        || key == PROVISIONED_CONFIG_LABEL
 }
 
 /// the label diff of a hetzner resource, without the labels the provisioners keep
@@ -49,7 +57,7 @@ pub(crate) fn hetzner_label_diff(resource: &impl Labeled, runtime: &impl Labeled
     label_diff(
         resource.labels(),
         runtime.labels(),
-        &[SSH_KEYS_LABEL, USER_DATA_LABEL],
+        &[SSH_KEYS_LABEL, USER_DATA_LABEL, PROVISIONED_CONFIG_LABEL],
     )
 }
 

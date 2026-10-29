@@ -8,6 +8,6 @@ mod runtime;
 
 pub use crate::hetzner::api::zones::RRType;
 pub use lookup::HetznerDnsRecordLookup;
-pub use provisioner::HetznerDnsRecordProvisioner;
+pub use provisioner::{HetznerDnsRecordProvisioner, first_address};
 pub use resource::{HetznerDnsRecord, RecordValue};
 pub use runtime::HetznerDnsRecordRuntime;

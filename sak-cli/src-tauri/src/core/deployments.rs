@@ -7,21 +7,22 @@ use crate::core::error::{
     EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, EXIT_USAGE,
     WizardError,
 };
+use crate::core::events::AnsibleEvent;
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
-use crate::core::provision::{ProvisionManager, ProvisionRun};
+use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
 use rust_i18n::t;
 use sak_cloud::api::Lookup;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
-use sak_cloud::hetzner::PASSWORD_HASH_LABEL;
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
     ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records, discover,
-    remove_records, root_domains, stale_records, state,
+    foreign_records, remove_records, root_domains, set_server_label, stale_records, state,
 };
-use sak_cloud::hetzner::dns_record::HetznerDnsRecordLookup;
+use sak_cloud::hetzner::dns_record::{HetznerDnsRecordLookup, first_address};
 use sak_cloud::hetzner::labels::HetznerLabels;
+use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, PROVISIONED_CONFIG_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -209,6 +210,85 @@ pub enum CreateEvent {
     Output {
         line: String,
     },
+    /// a task of the playbook begins; `resource` is the provisioning as the plan names it
+    TaskStarted {
+        resource: String,
+        task: String,
+    },
+    /// a task of the playbook ended on the server, with what ansible says when it failed
+    TaskDone {
+        resource: String,
+        task: String,
+        outcome: TaskOutcome,
+        message: Option<String>,
+    },
+    /// the playbook ran through
+    Provisioned {
+        resource: String,
+    },
+    /// the playbook failed, at the task when the events told it
+    ProvisionFailed {
+        resource: String,
+        task: Option<String>,
+        message: String,
+    },
+}
+
+/// how a task of the playbook ended on the server
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskOutcome {
+    Ok,
+    Changed,
+    Skipped,
+    /// failed, and the playbook goes on all the same
+    Ignored,
+    Failed,
+    Unreachable,
+}
+
+/// the event of the deploy for an event of the playbook, none for what the deploy does not show
+fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
+    let done = |task: String, outcome, message| {
+        Some(CreateEvent::TaskDone {
+            resource: resource.to_string(),
+            task,
+            outcome,
+            message,
+        })
+    };
+    match event {
+        AnsibleEvent::TaskStart { task } => Some(CreateEvent::TaskStarted {
+            resource: resource.to_string(),
+            task,
+        }),
+        AnsibleEvent::Ok { task, changed, .. } => done(
+            task,
+            if changed {
+                TaskOutcome::Changed
+            } else {
+                TaskOutcome::Ok
+            },
+            None,
+        ),
+        AnsibleEvent::Skipped { task, .. } => done(task, TaskOutcome::Skipped, None),
+        AnsibleEvent::Failed {
+            task,
+            msg,
+            ignore_errors,
+            ..
+        } => done(
+            task,
+            if ignore_errors {
+                TaskOutcome::Ignored
+            } else {
+                TaskOutcome::Failed
+            },
+            msg,
+        ),
+        AnsibleEvent::Unreachable { task, msg, .. } => done(task, TaskOutcome::Unreachable, msg),
+        AnsibleEvent::PlayStart { .. } | AnsibleEvent::Stats { .. } => None,
+    }
 }
 
 /// the cloud-init of the server: the host key derived from the password installed before
@@ -545,6 +625,81 @@ struct Prepared {
     admin_password_hash: String,
     /// the mail server of the e-mail login, none: only the password login
     smtp: Option<Smtp>,
+    /// what the label `sak.pelle.io/provisioned-config` of the server is after a provisioning of
+    /// this configuration, and what it is now: none for a server never provisioned, or none at all.
+    /// The plan tells from it whether the configuration changed; a deploy always provisions
+    provisioned_config: String,
+    provisioned: Option<String>,
+}
+
+impl Prepared {
+    /// the configuration the playbook writes, one line each, what the label of the server stands
+    /// for; the addresses and the device of the volume are left out, a deployment keeps them
+    fn config(&self) -> String {
+        config_text(
+            &self.spec.name,
+            self.spec.dns_mode,
+            self.spec.root_domain.as_deref().unwrap_or_default(),
+            &self.api_token_sha256,
+            self.admin_email.as_deref().unwrap_or_default(),
+            self.smtp.as_ref(),
+            &self.admin_password_hash,
+        )
+    }
+}
+
+/// what the plan says of the provisioning, which a deploy always runs: missing for a server created
+/// (anew) or never provisioned, changes for a server that changes or another configuration, up to
+/// date only with the label of this configuration on a server that stays as it is
+fn provisioning_status(
+    provisioned: Option<&str>,
+    expected: &str,
+    server: Option<DiffStatus>,
+    server_recreated: bool,
+) -> (DiffStatus, Vec<String>) {
+    let changed = |key: &str| (DiffStatus::HasChanges, vec![t!(key).to_string()]);
+    match server {
+        None | Some(DiffStatus::Missing | DiffStatus::ParentMissing) => {
+            return (DiffStatus::Missing, Vec::new());
+        }
+        Some(_) if server_recreated => return (DiffStatus::Missing, Vec::new()),
+        Some(DiffStatus::HasChanges) => return changed("provision.server_changes"),
+        Some(_) => {}
+    }
+    match provisioned {
+        None => (DiffStatus::Missing, Vec::new()),
+        Some(label) if label != expected => changed("provision.config_changed"),
+        Some(_) => (DiffStatus::UpToDate, Vec::new()),
+    }
+}
+
+/// what the playbook writes onto the server, the values `ProvisionRun` hands it: a change of any
+/// of them is a change of the configuration
+fn config_text(
+    name: &str,
+    dns_mode: DnsMode,
+    root_domain: &str,
+    api_token_sha256: &str,
+    admin_email: &str,
+    smtp: Option<&Smtp>,
+    admin_password_hash: &str,
+) -> String {
+    let mut lines = vec![
+        format!("name {name}"),
+        format!("dns_mode {dns_mode}"),
+        format!("root_domain {root_domain}"),
+        format!("api_token_sha256 {api_token_sha256}"),
+        format!("admin_email {admin_email}"),
+        format!("admin_password_hash {admin_password_hash}"),
+    ];
+    if let Some(smtp) = smtp {
+        lines.push(format!("smtp_host {}", smtp.host.trim()));
+        lines.push(format!("smtp_port {}", smtp.port));
+        lines.push(format!("smtp_username {}", smtp.username));
+        lines.push(format!("smtp_password {}", smtp.password));
+        lines.push(format!("smtp_starttls {}", smtp.starttls));
+    }
+    lines.join("\n")
 }
 
 /// the password of an existing deployment, checked before anything of it is changed: against
@@ -848,6 +1003,11 @@ impl DeploymentManager {
             .await
             .map_err(|error| failed(provider, error))?;
         let records = deployment_records(&listings, name);
+        // what the server was provisioned with, before `existing` is taken apart
+        let provisioned = existing
+            .as_ref()
+            .and_then(|deployment| deployment.server.as_ref())
+            .and_then(|server| server.labels.get(PROVISIONED_CONFIG_LABEL).cloned());
         let location = match (intent, existing) {
             (Intent::Create, Some(_)) => {
                 return Err(t!("deployments.name_taken", name = name).to_string().into());
@@ -917,7 +1077,22 @@ impl DeploymentManager {
         }
         spec.user_data = user_data(&host_key);
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
-        Ok(Prepared {
+        // a name of the deployment that another owner uses, with a record of any type, stops it
+        // here, before anything is created
+        let in_the_way = foreign_records(&listings, &spec);
+        if intent != Intent::Destroy && !in_the_way.is_empty() {
+            return Err(WizardError::new(
+                t!(
+                    "deployments.not_owned",
+                    error = t!(
+                        "deployments.records_in_the_way",
+                        records = in_the_way.join(", ")
+                    )
+                ),
+                EXIT_NOT_OWNED,
+            ));
+        }
+        let mut prepared = Prepared {
             provider,
             runtime,
             spec,
@@ -927,8 +1102,15 @@ impl DeploymentManager {
             api_token_sha256,
             admin_email,
             admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
-            smtp: smtp.clone(),
-        })
+            smtp,
+            provisioned_config: String::new(),
+            provisioned,
+        };
+        if intent != Intent::Destroy {
+            prepared.provisioned_config =
+                crate::core::keys::provisioned_config(name, password, &prepared.config())?;
+        }
+        Ok(prepared)
     }
 
     /// what creating the deployment would do: its resources diffed against the project
@@ -977,6 +1159,27 @@ impl DeploymentManager {
                     keep: false,
                     remove: true,
                     changes: Vec::new(),
+                }))
+                // a create or deploy provisions the server after its resources, unless it is
+                // provisioned with this configuration already
+                .chain((deployment.intent != Intent::Destroy).then(|| {
+                    let server = prepared.spec.resource_name();
+                    let server = diffs.iter().find(|diff| diff.resource.name == server);
+                    let (status, changes) = provisioning_status(
+                        prepared.provisioned.as_deref(),
+                        &prepared.provisioned_config,
+                        server.map(|diff| diff.status),
+                        server.is_some_and(|diff| diff.needs_recreate()),
+                    );
+                    PlannedResource {
+                        resource: t!("provision.resource", name = prepared.spec.resource_name())
+                            .to_string(),
+                        status,
+                        recreate: false,
+                        keep: false,
+                        remove: false,
+                        changes,
+                    }
                 }))
                 .collect(),
         })
@@ -1068,6 +1271,19 @@ impl DeploymentManager {
             .server
             .as_ref()
             .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
+        // provisioned with this configuration already, by the label as the server has it now: a
+        // server created anew or with changed labels has none
+        // the provisioning as the plan names it, its events carry it; a deploy always runs the
+        // playbook, so the server is as the deployment declares it whatever happened to it
+        let resource = t!("provision.resource", name = prepared.spec.resource_name()).to_string();
+        let server_id = server.id;
+        let provider = prepared.provider;
+        let api = prepared.runtime.api.clone();
+        let provisioned_config = prepared.provisioned_config.clone();
+        // a run that fails or is stopped leaves no label, the next deploy runs the playbook again
+        set_server_label(&api, server_id, PROVISIONED_CONFIG_LABEL, None)
+            .await
+            .map_err(|error| failed(prepared.provider, error))?;
         let host = server
             .public_ipv4
             .clone()
@@ -1111,14 +1327,46 @@ impl DeploymentManager {
         let runtime = container.clone();
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
         let provisioning = tokio::task::spawn_blocking(move || {
-            ProvisionManager.provision(&runtime, &run, &mut |line| {
-                let _ = sender.send(line);
+            ProvisionManager.provision(&runtime, &run, &mut |output| {
+                let _ = sender.send(output);
             })
         });
-        while let Some(line) = receiver.recv().await {
-            on_event(CreateEvent::Output { line });
+        let mut failed_task = None;
+        while let Some(output) = receiver.recv().await {
+            let event = match output {
+                ProvisionOutput::Line(line) => Some(CreateEvent::Output { line }),
+                ProvisionOutput::Event(event) => task_event(&resource, event),
+            };
+            if let Some(CreateEvent::TaskDone {
+                task,
+                outcome: TaskOutcome::Failed | TaskOutcome::Unreachable,
+                ..
+            }) = &event
+            {
+                failed_task.get_or_insert_with(|| task.clone());
+            }
+            if let Some(event) = event {
+                on_event(event);
+            }
         }
-        Ok(provisioning.await.map_err(|error| error.to_string())??)
+        if let Err(message) = provisioning.await.map_err(|error| error.to_string())? {
+            on_event(CreateEvent::ProvisionFailed {
+                resource,
+                task: failed_task,
+                message: message.clone(),
+            });
+            return Err(message.into());
+        }
+        on_event(CreateEvent::Provisioned { resource });
+        set_server_label(
+            &api,
+            server_id,
+            PROVISIONED_CONFIG_LABEL,
+            Some(&provisioned_config),
+        )
+        .await
+        .map_err(|error| failed(provider, error))?;
+        Ok(())
     }
 
     /// removes the stale dns records of the deployment, each reported as it is taken up and
@@ -1144,15 +1392,6 @@ impl DeploymentManager {
             },
         )
         .await
-    }
-}
-
-/// `2001:db8::/64` -> `2001:db8::1`, the address of the server in its network
-fn first_address(network: &str) -> String {
-    let prefix = network.split('/').next().unwrap_or(network);
-    match prefix.strip_suffix("::") {
-        Some(head) => format!("{head}::1"),
-        None => prefix.to_string(),
     }
 }
 
@@ -1296,6 +1535,146 @@ mod tests {
     }
 
     #[test]
+    fn the_tasks_of_the_playbook_show_on_the_row_of_the_provisioning() {
+        let row = "provisioning 'sak-alpha'";
+        let done = |event| match task_event(row, event) {
+            Some(CreateEvent::TaskDone {
+                resource,
+                outcome,
+                message,
+                ..
+            }) => {
+                assert_eq!(resource, row);
+                (outcome, message)
+            }
+            _ => panic!("no task done"),
+        };
+        let ok = |changed| AnsibleEvent::Ok {
+            host: "alpha".into(),
+            task: "t".into(),
+            changed,
+        };
+        assert_eq!(done(ok(false)), (TaskOutcome::Ok, None));
+        assert_eq!(done(ok(true)), (TaskOutcome::Changed, None));
+        let failed = |ignore_errors| AnsibleEvent::Failed {
+            host: "alpha".into(),
+            task: "t".into(),
+            msg: Some("no".into()),
+            ignore_errors,
+        };
+        assert_eq!(
+            done(failed(false)),
+            (TaskOutcome::Failed, Some("no".into()))
+        );
+        assert_eq!(
+            done(failed(true)),
+            (TaskOutcome::Ignored, Some("no".into()))
+        );
+        assert!(matches!(
+            task_event(row, AnsibleEvent::TaskStart { task: "t".into() }),
+            Some(CreateEvent::TaskStarted { task, .. }) if task == "t"
+        ));
+        assert!(task_event(row, AnsibleEvent::PlayStart { play: "p".into() }).is_none());
+        // the window reads the events by these names
+        assert_eq!(
+            serde_json::to_value(CreateEvent::Provisioned {
+                resource: row.into()
+            })
+            .unwrap()["event"],
+            "provisioned"
+        );
+        assert_eq!(
+            serde_json::to_value(TaskOutcome::Unreachable).unwrap(),
+            "unreachable"
+        );
+    }
+
+    #[test]
+    fn the_plan_tells_whether_the_configuration_of_the_server_changed() {
+        let up = Some(DiffStatus::UpToDate);
+        // provisioned with this configuration, the server stays: up to date
+        assert_eq!(
+            provisioning_status(Some("a"), "a", up, false),
+            (DiffStatus::UpToDate, vec![])
+        );
+        // another configuration, a changing server: changes, and why
+        assert_eq!(
+            provisioning_status(Some("b"), "a", up, false),
+            (
+                DiffStatus::HasChanges,
+                vec![t!("provision.config_changed").to_string()]
+            )
+        );
+        assert_eq!(
+            provisioning_status(Some("a"), "a", Some(DiffStatus::HasChanges), false),
+            (
+                DiffStatus::HasChanges,
+                vec![t!("provision.server_changes").to_string()]
+            )
+        );
+        // never provisioned, a new server, one created anew: the first run
+        assert_eq!(
+            provisioning_status(None, "a", up, false).0,
+            DiffStatus::Missing
+        );
+        assert_eq!(
+            provisioning_status(Some("a"), "a", None, false).0,
+            DiffStatus::Missing
+        );
+        assert_eq!(
+            provisioning_status(Some("a"), "a", Some(DiffStatus::HasChanges), true).0,
+            DiffStatus::Missing
+        );
+    }
+
+    #[test]
+    fn the_configuration_of_the_label_holds_what_the_playbook_writes() {
+        let smtp = Smtp {
+            host: " smtp.example.org ".to_string(),
+            port: 465,
+            username: "user".to_string(),
+            password: "secret".to_string(),
+            starttls: false,
+        };
+        let text = config_text(
+            "alpha",
+            DnsMode::Domain,
+            "pelle.io",
+            "abc",
+            "admin@example.org",
+            Some(&smtp),
+            "$argon2id$hash",
+        );
+        for part in [
+            "name alpha",
+            "dns_mode domain",
+            "root_domain pelle.io",
+            "api_token_sha256 abc",
+            "admin_email admin@example.org",
+            "admin_password_hash $argon2id$hash",
+            "smtp_host smtp.example.org",
+            "smtp_port 465",
+            "smtp_password secret",
+            "smtp_starttls false",
+        ] {
+            assert!(text.lines().any(|line| line == part), "{part}");
+        }
+        // single user: no mail server, another configuration
+        assert_ne!(
+            config_text(
+                "alpha",
+                DnsMode::Domain,
+                "pelle.io",
+                "abc",
+                "",
+                None,
+                "$argon2id$hash"
+            ),
+            text
+        );
+    }
+
+    #[test]
     fn every_hash_on_the_resources_has_to_match() {
         let (name, password) = ("alpha", "a password of sixteen");
         let hash = crate::core::keys::password_hash(name, password).unwrap();
@@ -1316,7 +1695,6 @@ mod tests {
         let user_data = user_data(&host_key);
         assert!(user_data.starts_with("#cloud-config\nssh_deletekeys: true\nssh_genkeytypes: []\nssh_keys:\n  ed25519_private: |\n    -----BEGIN OPENSSH PRIVATE KEY-----\n"));
         assert!(user_data.ends_with(&format!("  ed25519_public: {}\n", host_key.public_key())));
-        assert_eq!(first_address("2001:db8::/64"), "2001:db8::1");
     }
 
     fn uses(name: &str, uses: &[(Option<&str>, DnsMode)]) -> RootDomain {
