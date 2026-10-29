@@ -317,12 +317,11 @@ const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_ch
 
 // a resource of the plan: its kind and name, its status (up-to-date, missing, has changes), then
 // what the plan does to it, which rust decides
-function planned({ kind, name: resourceName, resourceStatus, action, status: state, recreate, remove, changes }) {
+function planned({ kind, name: resourceName, resourceStatus, action, working, status: state, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state;
-  item.dataset.recreate = String(Boolean(recreate));
-  item.dataset.remove = String(Boolean(remove));
+  item.dataset.working = working;
   const mark = document.createElement('span');
   mark.className = 'resource-state sak-led';
   mark.dataset.sakState = LEDS[state] ?? 'neutral';
@@ -500,22 +499,6 @@ function showPlan(plan) {
   show('view-plan');
 }
 
-// what is being done to the resource of a row as its apply starts, after what the plan found:
-// creating what is missing, updating or recreating what changed, checking what is up to date
-function workingText(row) {
-  if (intent === 'destroy' || row.dataset.remove === 'true') {
-    return 'ui.plan.working_destroy';
-  }
-  const state = row.dataset.status;
-  if (state === 'missing' || state === 'parent_missing') {
-    return 'ui.plan.working';
-  }
-  if (state === 'up_to_date') {
-    return 'ui.plan.working_check';
-  }
-  return row.dataset.recreate === 'true' ? 'ui.plan.working_recreate' : 'ui.plan.working_update';
-}
-
 // a resource of the plan as its creation reports it: busy while rust works on it, ok when done
 // whether the playbook reported its tasks: then they show on the row of the provisioning, the raw
 // output of ansible only without them
@@ -566,7 +549,7 @@ function onCreateEvent(message) {
   }
   if (message.event === 'started') {
     led.dataset.sakState = 'busy';
-    detail.textContent = text(workingText(row));
+    detail.textContent = text(`ui.plan.${row.dataset.working}`);
   } else if (message.event === 'applied') {
     led.dataset.sakState = 'ok';
     detail.textContent = text(`ui.plan.done.${message.applied}`);

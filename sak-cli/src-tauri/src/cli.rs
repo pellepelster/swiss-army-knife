@@ -21,7 +21,6 @@ use crate::core::providers::ProviderType;
 use anstyle::{AnsiColor, Style};
 use clap::{Args, Parser, Subcommand};
 use rust_i18n::t;
-use sak_cloud::api::DiffStatus;
 use sak_cloud::hetzner::api::Location;
 use sak_cloud::hetzner::deployment::DnsMode;
 use std::collections::HashMap;
@@ -115,10 +114,15 @@ pub enum ConfigCommand {
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct Provider {
-    /// The API token of the Hetzner Cloud project
-    #[arg(long, env = "HCLOUD_TOKEN", hide_env_values = true)]
-    hcloud_token: String,
+    /// Ask for the API token of the Hetzner Cloud project on the terminal, even when HCLOUD_TOKEN
+    /// is set. The token is never an argument: it comes from HCLOUD_TOKEN or is typed, without
+    /// echo
+    #[arg(long)]
+    hcloud_token: bool,
 }
+
+/// the API token of the Hetzner Cloud project the command acts on; no Debug, it never shows
+pub struct HetznerToken(String);
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct DeploymentArgs {
@@ -242,10 +246,24 @@ pub fn run(command: Command) -> i32 {
     }
 }
 
-impl Provider {
+impl HetznerToken {
     fn tokens(&self) -> Vec<(ProviderType, String)> {
-        vec![(ProviderType::Hetzner, self.hcloud_token.clone())]
+        vec![(ProviderType::Hetzner, self.0.clone())]
     }
+}
+
+/// the token of the project: HCLOUD_TOKEN unless `ask`, else typed on the terminal without echo.
+/// Never an argument, which every process of the machine can read; without either a usage error
+fn hcloud_token(ask: bool, from_env: Option<String>) -> Result<HetznerToken, WizardError> {
+    if !ask && let Some(token) = from_env.filter(|token| !token.trim().is_empty()) {
+        return Ok(HetznerToken(token));
+    }
+    if !std::io::stdin().is_terminal() {
+        return Err(WizardError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
+    }
+    rpassword::prompt_password(t!("cli.hcloud_token_prompt").as_ref())
+        .map(HetznerToken)
+        .map_err(|error| error.to_string().into())
 }
 
 /// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed on the
@@ -336,11 +354,11 @@ impl DeploymentArgs {
 }
 
 /// the checks the window runs on startup, each logged, the tokens checked those of the command
-async fn check(provider: &Provider) -> Result<ContainerRuntime, String> {
+async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     let tokens = ProviderTokensCheck::new(vec![(
         ProviderType::Hetzner,
-        provider.hcloud_token.clone(),
-        "--hcloud-token",
+        provider.0.clone(),
+        "HCLOUD_TOKEN",
     )]);
     let found = tokio::task::spawn_blocking(move || {
         // the progress of a pull ten times a second is for the eye, the log takes each tenth
@@ -407,29 +425,24 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         | Command::Destroy { provider, .. }
         | Command::Config(ConfigCommand::Show { provider, .. }) => provider,
     };
-    let runtime = check(provider).await?;
+    let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
+    let runtime = check(&token).await?;
     match command {
-        Command::List(provider) => list(&manager, &provider).await,
-        Command::Config(ConfigCommand::Show { provider, name, .. }) => {
-            show_config(&manager, &provider, &name, &password.0).await
+        Command::List(_) => list(&manager, &token).await,
+        Command::Config(ConfigCommand::Show { name, .. }) => {
+            show_config(&manager, &token, &name, &password.0).await
         }
-        Command::Create {
-            provider,
-            deployment,
-        } => {
+        Command::Create { deployment, .. } => {
             deploy(
                 &manager,
-                &provider,
+                &token,
                 &deployment.deployment(Intent::Create, false, password, &smtp_password),
                 &runtime,
                 deployment.show_log,
             )
             .await
         }
-        Command::Deploy {
-            provider,
-            deployment,
-        } => {
+        Command::Deploy { deployment, .. } => {
             let mut new = deployment.deployment(Intent::Deploy, false, password, &smtp_password);
             // what is not given the deployment has: its user mode and, for multiple users, the
             // admin and the mail server, detected as the window does
@@ -437,21 +450,21 @@ async fn execute(command: Command) -> Result<(), WizardError> {
                 && (new.user_mode.is_none() || new.smtp.is_none() || new.admin_email.is_none());
             if incomplete
                 && let Ok(detected) = manager
-                    .detected(provider.tokens(), &new.name, &new.password)
+                    .detected(token.tokens(), &new.name, &new.password)
                     .await
             {
                 new = complete(new, &detected, &smtp_password)?;
             }
-            deploy(&manager, &provider, &new, &runtime, deployment.show_log).await
+            deploy(&manager, &token, &new, &runtime, deployment.show_log).await
         }
         Command::Destroy {
-            provider,
             deployment,
             delete_data,
+            ..
         } => {
             deploy(
                 &manager,
-                &provider,
+                &token,
                 &deployment.deployment(Intent::Destroy, delete_data, password, ""),
                 &runtime,
                 deployment.show_log,
@@ -461,7 +474,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
     }
 }
 
-async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), WizardError> {
+async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<(), WizardError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
         log(Level::Info, t!("ui.deployments.empty"));
@@ -507,7 +520,7 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), Wi
 /// the running configuration of the deployment, a line for each setting
 async fn show_config(
     manager: &DeploymentManager,
-    provider: &Provider,
+    provider: &HetznerToken,
     name: &str,
     password: &str,
 ) -> Result<(), WizardError> {
@@ -550,7 +563,7 @@ fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
 /// plan page and its create do; the output of ansible only with `show_log`
 async fn deploy(
     manager: &DeploymentManager,
-    provider: &Provider,
+    provider: &HetznerToken,
     deployment: &NewDeployment,
     runtime: &ContainerRuntime,
     show_log: bool,
@@ -604,15 +617,15 @@ async fn deploy(
     let working: HashMap<String, &str> = plan
         .resources
         .iter()
-        .map(|resource| {
-            let key = working_key(deployment.intent, &resource.status, resource.recreate);
-            (resource.resource.clone(), key)
-        })
+        .map(|resource| (resource.resource.clone(), resource.working))
         .collect();
     let mut report = |event: CreateEvent| match event {
         CreateEvent::Started { resource } => {
-            let key = working.get(&resource).copied().unwrap_or("cli.working");
-            log(Level::Info, t!(key, resource = titled(&resource)))
+            let key = working.get(&resource).copied().unwrap_or("working");
+            log(
+                Level::Info,
+                t!(format!("cli.{key}"), resource = titled(&resource)),
+            )
         }
         CreateEvent::Applied { resource, applied } => log(
             Level::Info,
@@ -677,18 +690,6 @@ async fn deploy(
     Ok(())
 }
 
-/// the text of a resource whose apply starts: creating what is missing, updating or recreating
-/// what changed, checking what is up to date, destroying on a destroy
-fn working_key(intent: Intent, status: &DiffStatus, recreate: bool) -> &'static str {
-    match (intent, status) {
-        (Intent::Destroy, _) => "cli.working_destroy",
-        (_, DiffStatus::Missing | DiffStatus::ParentMissing) => "cli.working",
-        (_, DiffStatus::UpToDate) => "cli.working_check",
-        _ if recreate => "cli.working_recreate",
-        _ => "cli.working_update",
-    }
-}
-
 /// how much a line of the log matters, its colour on a terminal
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Level {
@@ -748,30 +749,6 @@ mod tests {
     }
 
     #[test]
-    fn the_start_of_an_apply_says_what_is_done_to_the_resource() {
-        assert_eq!(
-            working_key(Intent::Create, &DiffStatus::Missing, false),
-            "cli.working"
-        );
-        assert_eq!(
-            working_key(Intent::Deploy, &DiffStatus::HasChanges, false),
-            "cli.working_update"
-        );
-        assert_eq!(
-            working_key(Intent::Deploy, &DiffStatus::HasChanges, true),
-            "cli.working_recreate"
-        );
-        assert_eq!(
-            working_key(Intent::Deploy, &DiffStatus::UpToDate, false),
-            "cli.working_check"
-        );
-        assert_eq!(
-            working_key(Intent::Destroy, &DiffStatus::UpToDate, false),
-            "cli.working_destroy"
-        );
-    }
-
-    #[test]
     fn a_log_line_is_date_level_message_with_the_level_coloured() {
         let line = log_line("2026-10-28 14:03:12", Level::Info, "created server 'alpha'");
         assert_eq!(
@@ -817,15 +794,7 @@ mod tests {
 
     #[test]
     fn config_show_takes_the_name_and_password_and_prints_no_secret() {
-        let cli = parse(&[
-            "config",
-            "show",
-            "alpha",
-            "--hcloud-token",
-            "t",
-            "--password",
-        ])
-        .unwrap();
+        let cli = parse(&["config", "show", "alpha", "--hcloud-token", "--password"]).unwrap();
         let Some(Command::Config(ConfigCommand::Show { name, password, .. })) = cli.command else {
             panic!("config show");
         };
@@ -837,7 +806,6 @@ mod tests {
                 "show",
                 "alpha",
                 "--hcloud-token",
-                "t",
                 "--password",
                 "p"
             ])
@@ -881,6 +849,30 @@ mod tests {
     }
 
     #[test]
+    fn the_hcloud_token_comes_from_hcloud_token_or_is_typed_never_from_an_argument() {
+        assert_eq!(
+            hcloud_token(false, Some("token".into())).unwrap().0,
+            "token"
+        );
+        if !std::io::stdin().is_terminal() {
+            for (ask, from_env) in [
+                (true, Some("token".to_string())),
+                (false, None),
+                (false, Some(" ".to_string())),
+            ] {
+                assert_eq!(
+                    hcloud_token(ask, from_env)
+                        .err()
+                        .map(|error| error.exit_code),
+                    Some(EXIT_USAGE)
+                );
+            }
+        }
+        // --hcloud-token asks for it, it takes no value
+        assert!(parse(&["list", "--hcloud-token", "the-token"]).is_err());
+    }
+
+    #[test]
     fn the_smtp_password_comes_from_sak_smtp_password_or_is_typed_never_from_an_argument() {
         assert_eq!(
             smtp_password(false, Some("secret".into())).unwrap(),
@@ -902,13 +894,12 @@ mod tests {
                 "create",
                 "alpha",
                 "--hcloud-token",
-                "t",
                 "--smtp-password",
                 "secret"
             ])
             .is_err()
         );
-        assert!(parse(&["create", "alpha", "--hcloud-token", "t", "--smtp-password"]).is_ok());
+        assert!(parse(&["create", "alpha", "--hcloud-token", "--smtp-password"]).is_ok());
     }
 
     #[test]
@@ -945,23 +936,13 @@ mod tests {
 
     #[test]
     fn the_arguments_of_the_commands() {
-        let cli = parse(&["list", "--hcloud-token", "t"]).unwrap();
+        let cli = parse(&["list", "--hcloud-token"]).unwrap();
         assert_eq!(
             cli.command,
-            Some(Command::List(Provider {
-                hcloud_token: "t".to_string()
-            }))
+            Some(Command::List(Provider { hcloud_token: true }))
         );
 
-        let cli = parse(&[
-            "deploy",
-            "alpha",
-            "--hcloud-token",
-            "t",
-            "--location",
-            "nbg1",
-        ])
-        .unwrap();
+        let cli = parse(&["deploy", "alpha", "--hcloud-token", "--location", "nbg1"]).unwrap();
         let Some(Command::Deploy {
             provider,
             deployment,
@@ -969,7 +950,7 @@ mod tests {
         else {
             panic!("a deploy");
         };
-        assert_eq!(provider.hcloud_token, "t");
+        assert!(provider.hcloud_token);
         assert_eq!(deployment.name, "alpha");
         assert_eq!(deployment.location, Location::nbg1);
         // not given: the core resolves them, a deploy to the deployment's own
@@ -983,7 +964,7 @@ mod tests {
             "q"
         );
 
-        let cli = parse(&["destroy", "alpha", "--hcloud-token", "t", "--password"]).unwrap();
+        let cli = parse(&["destroy", "alpha", "--hcloud-token", "--password"]).unwrap();
         let Some(Command::Destroy {
             deployment,
             delete_data,
@@ -1006,7 +987,6 @@ mod tests {
             "create",
             "alpha",
             "--hcloud-token",
-            "t",
             "--show-log",
             "--dns-mode",
             "domain",
@@ -1059,7 +1039,6 @@ mod tests {
                 "create",
                 "alpha",
                 "--hcloud-token",
-                "t",
                 "--password",
                 "--dns-mode",
                 "whole"
@@ -1072,7 +1051,6 @@ mod tests {
                 "create",
                 "alpha",
                 "--hcloud-token",
-                "t",
                 "--password",
                 "--location",
                 "moon"

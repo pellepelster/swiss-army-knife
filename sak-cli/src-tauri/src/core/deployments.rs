@@ -26,6 +26,7 @@ use sak_cloud::hetzner::labels::HetznerLabels;
 use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, PROVISIONED_CONFIG_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::sync::Arc;
 
 #[derive(Debug, Serialize)]
@@ -185,13 +186,13 @@ pub struct PlannedResource {
     /// what the plan does to it, `will_create`, `will_update`, `will_destroy`, `will_keep`,
     /// `already_deleted` or `will_run`; none for a resource that stays as it is
     pub(crate) action: Option<&'static str>,
+    /// what is being done to it as its apply starts, `working`, `working_update`,
+    /// `working_recreate`, `working_check` or `working_destroy`: the command line says it with
+    /// `cli.<working>`, the window with `ui.plan.<working>`
+    pub(crate) working: &'static str,
     pub(crate) status: DiffStatus,
-    pub(crate) recreate: bool,
     /// a destroy leaves it: the data volume, unless asked to delete it
     pub(crate) keep: bool,
-    /// a dns record of the deployment that goes: all of them on a destroy, those of the old
-    /// dns mode or root domain on a deploy
-    pub(crate) remove: bool,
     pub(crate) changes: Vec<String>,
 }
 
@@ -717,8 +718,9 @@ pub struct Detected {
     pub smtp: Option<DetectedSmtp>,
 }
 
-/// the mail server of the running configuration; its password where the backend answers it
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+/// the mail server of the running configuration; its password where the backend answers it. No
+/// derived Debug, the password never shows
+#[derive(Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DetectedSmtp {
     pub host: String,
@@ -727,6 +729,19 @@ pub struct DetectedSmtp {
     pub password: Option<String>,
     pub password_set: bool,
     pub starttls: bool,
+}
+
+impl fmt::Debug for DetectedSmtp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DetectedSmtp")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| "***"))
+            .field("password_set", &self.password_set)
+            .field("starttls", &self.starttls)
+            .finish()
+    }
 }
 
 /// the user mode of the label, else of the running configuration (a mail server makes it multi
@@ -835,6 +850,20 @@ fn action(
     }
 }
 
+/// what is being done to a resource as its apply starts, after what the plan found: creating what
+/// is missing, updating or recreating what changed, checking what is up to date, destroying on a
+/// destroy and what goes
+fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> &'static str {
+    match (intent, status) {
+        _ if remove => "working_destroy",
+        (Intent::Destroy, _) => "working_destroy",
+        (_, DiffStatus::Missing | DiffStatus::ParentMissing) => "working",
+        (_, DiffStatus::UpToDate) => "working_check",
+        _ if recreate => "working_recreate",
+        _ => "working_update",
+    }
+}
+
 /// what the plan says of the provisioning, which a deploy always runs: missing for a server created
 /// (anew) or never provisioned, changes for a server that changes or another configuration, up to
 /// date only with the label of this configuration on a server that stays as it is
@@ -903,15 +932,12 @@ fn verify_password(
 
 /// where `config show` asks and with what: the api of the base domain on the labels of the
 /// deployment and the admin api token of the password. The password is checked first, so the token
-/// of a wrong password never leaves; one that nothing can check would only be refused by the backend
+/// of a wrong password never leaves
 fn config_endpoint(
     deployment: &DiscoveredDeployment,
     name: &str,
     password: &str,
 ) -> Result<(String, String), String> {
-    if matches!(password_proofs(deployment), (hashes, None) if hashes.is_empty()) {
-        return Err(t!("config.unverifiable", name = name).to_string());
-    }
     verify_password(deployment, name, password)?;
     let root_domain = deployment
         .root_domain()
@@ -965,7 +991,8 @@ fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&s
     (hashes, key)
 }
 
-/// `hashes` the password hashes found on the resources, `key` the public key of the ssh key
+/// `hashes` the password hashes found on the resources, `key` the public key of the ssh key. With
+/// neither, no password can be told from another: refused, rather than taking every password
 fn check_password(
     hashes: &[String],
     key: Option<&str>,
@@ -986,8 +1013,9 @@ fn check_password(
         if key.split_whitespace().nth(1) != derived.split_whitespace().nth(1) {
             return Err(wrong());
         }
+        return Ok(());
     }
-    Ok(())
+    Err(t!("deployments.unverifiable", name = name).to_string())
 }
 
 fn failed(provider: ProviderType, error: impl ToString) -> String {
@@ -1409,10 +1437,14 @@ impl DeploymentManager {
                             keep,
                             false,
                         ),
+                        working: working(
+                            deployment.intent,
+                            diff.status,
+                            diff.needs_recreate(),
+                            false,
+                        ),
                         status: diff.status,
-                        recreate: diff.needs_recreate(),
                         keep,
-                        remove: false,
                         // everything goes on a destroy, what would change is of no interest
                         changes: match deployment.intent {
                             Intent::Destroy => Vec::new(),
@@ -1430,10 +1462,9 @@ impl DeploymentManager {
                     name: record.resource_ref().name,
                     resource_status: resource_status(DiffStatus::UpToDate),
                     action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
+                    working: working(deployment.intent, DiffStatus::UpToDate, false, true),
                     status: DiffStatus::UpToDate,
-                    recreate: false,
                     keep: false,
-                    remove: true,
                     changes: Vec::new(),
                 }))
                 // a create or deploy provisions the server after its resources, unless it is
@@ -1455,10 +1486,9 @@ impl DeploymentManager {
                         resource_status: resource_status(status),
                         // the playbook runs on every create and deploy
                         action: Some("will_run"),
+                        working: working(deployment.intent, status, false, false),
                         status,
-                        recreate: false,
                         keep: false,
-                        remove: false,
                         changes,
                     }
                 }))
@@ -1705,6 +1735,35 @@ mod tests {
     use sak_cloud::hetzner::{DNS_MODE_LABEL, ROOT_DOMAIN_LABEL};
 
     #[test]
+    fn the_start_of_an_apply_says_what_is_done_to_the_resource() {
+        assert_eq!(
+            working(Intent::Create, DiffStatus::Missing, false, false),
+            "working"
+        );
+        assert_eq!(
+            working(Intent::Deploy, DiffStatus::HasChanges, false, false),
+            "working_update"
+        );
+        assert_eq!(
+            working(Intent::Deploy, DiffStatus::HasChanges, true, false),
+            "working_recreate"
+        );
+        assert_eq!(
+            working(Intent::Deploy, DiffStatus::UpToDate, false, false),
+            "working_check"
+        );
+        assert_eq!(
+            working(Intent::Destroy, DiffStatus::UpToDate, false, false),
+            "working_destroy"
+        );
+        // a dns record of the old dns mode goes on a deploy
+        assert_eq!(
+            working(Intent::Deploy, DiffStatus::UpToDate, false, true),
+            "working_destroy"
+        );
+    }
+
+    #[test]
     fn the_password_of_a_deployment_is_checked_against_its_server_or_its_key() {
         let name = "alpha";
         let password = "a password of sixteen";
@@ -1819,7 +1878,7 @@ mod tests {
         };
         assert_eq!(
             config_endpoint(&deployment, "alpha", "a password of sixteen"),
-            Err(t!("config.unverifiable", name = "alpha").to_string())
+            Err(t!("deployments.unverifiable", name = "alpha").to_string())
         );
     }
 
@@ -1903,7 +1962,11 @@ mod tests {
         let multi = detect(None, Some(&running(Some("secret"), true)));
         assert_eq!(multi.user_mode, Some(UserMode::Multi));
         assert_eq!(multi.admin_email.as_deref(), Some("admin@example.org"));
-        assert_eq!(multi.smtp.unwrap().password.as_deref(), Some("secret"));
+        let smtp = multi.smtp.unwrap();
+        assert_eq!(smtp.password.as_deref(), Some("secret"));
+        // the password never shows, not in a {:?} either
+        assert!(!format!("{smtp:?}").contains("secret"));
+        assert!(!format!("{:?}", running(Some("secret"), true)).contains("secret"));
         let without_mail = crate::core::config::RunningConfig {
             smtp: None,
             admins: vec![],
@@ -2115,8 +2178,11 @@ mod tests {
         assert!(check_password(&[hash.clone(), other], None, name, password).is_err());
         // a hash wins over the key, a key of another password is not asked
         assert!(check_password(&[hash], Some("ssh-ed25519 AAAA"), name, password).is_ok());
-        // nothing to check against: a data volume left without a hash
-        assert!(check_password(&[], None, name, password).is_ok());
+        // nothing to check against, a data volume left without a hash: refused, not any password
+        assert_eq!(
+            check_password(&[], None, name, password),
+            Err(t!("deployments.unverifiable", name = name).to_string())
+        );
     }
 
     #[test]

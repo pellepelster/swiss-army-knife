@@ -62,6 +62,8 @@ cli:
   password_repeat_prompt: "Repeat the password: "
   no_smtp_password: "No terminal to type the password at the mail server: set SAK_SMTP_PASSWORD instead of --smtp-password."
   smtp_password_prompt: "Password at the mail server: "
+  no_hcloud_token: "No Hetzner Cloud token: set HCLOUD_TOKEN, or run the command in a terminal to type it."
+  hcloud_token_prompt: "API token of the Hetzner Cloud project: "
   done: "The deployment %{name} is up-to-date."
 provision:
   no_runtime: "No container runtime to run ansible in, docker or podman is needed."
@@ -83,6 +85,7 @@ deployments:
   destroy_failed: "The deployment could not be destroyed at %{provider}: %{error}"
   not_found: "There is no deployment named %{name}."
   wrong_password: "The password is not the one of the deployment %{name}."
+  unverifiable: "Nothing of the deployment %{name} carries what its password could be checked against, so nothing of it is changed or shown. Remove what is left of it in the console of the Hetzner Cloud project."
   no_provider: "No provider token to create the deployment at."
   name_taken: "A deployment named %{name} exists already."
   failed: "The deployments at %{provider} could not be listed: %{error}"
@@ -114,7 +117,6 @@ config:
   shown: "The running configuration of %{name} at %{url}"
   api_not_answering: "The deployment does not answer at %{url} within %{seconds} seconds, the last time: %{error}. New DNS records and the TLS certificate can take a while to be in place: try again later with a deploy, nothing of the deployment is lost."
   no_smtp: "No mail server"
-  unverifiable: "The deployment %{name} has nothing to check the password against, deploy it first."
   not_https: "The api %{url} is no https address, the admin api token is only sent over https."
 ui:
   # the resource status of the glossary

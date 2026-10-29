@@ -18,7 +18,8 @@ pub struct RunningConfig {
     pub admins: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+/// no derived Debug, the password never shows
+#[derive(Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RunningSmtp {
     pub host: String,
@@ -31,6 +32,21 @@ pub struct RunningSmtp {
     pub from: String,
     pub tls: bool,
     pub starttls: bool,
+}
+
+impl std::fmt::Debug for RunningSmtp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RunningSmtp")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password_set", &self.password_set)
+            .field("password", &self.password.as_ref().map(|_| "***"))
+            .field("from", &self.from)
+            .field("tls", &self.tls)
+            .field("starttls", &self.starttls)
+            .finish()
+    }
 }
 
 /// the api of a deployment, `https://api.<base domain>`; caddy leads its `/v1` to the backend

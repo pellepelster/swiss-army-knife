@@ -59,10 +59,11 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 ## sakctl command line
 
-- **A password is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command asks
+- **A secret is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command asks
   for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
-  password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`). An argument
-  would show in the list of processes.
+  password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`), the API token of
+  the Hetzner Cloud project from `HCLOUD_TOKEN` or is typed (`--hcloud-token`). An argument would show in the list of
+  processes.
 - **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
   Encrypt, which has none of the limits of the production one; the deployment keeps it, sakctl trusts its roots. The
   integration tests use it.
