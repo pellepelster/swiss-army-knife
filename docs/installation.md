@@ -1,13 +1,14 @@
 ---
 title: "Installation"
-description: "Install sakctl, the app that sets up and maintains your SwissArmyKnife, on Linux, macOS or Windows."
+description: "Install sakctl, the program that sets up and maintains your SwissArmyKnife, on Linux, macOS or Windows."
 weight: 5
 ---
 
 # Installation
 
-sakctl is the app on your computer that creates your SwissArmyKnife, keeps it up to date, makes backups and removes it
-again. It has a window, and on Linux and macOS also a command line.
+sakctl is the program on your computer that creates your SwissArmyKnife, keeps it up to date, makes backups and
+removes it again. It has a window, and on Linux and macOS also a command line. There is no installer: sakctl is one
+program.
 
 ## What you need
 
@@ -27,44 +28,38 @@ sakctl is built for each change on the main branch. The downloads are the artifa
    (you must be signed in to GitHub).
 2. Open the newest build.
 3. Below **Artifacts**, download the file of your system: `sakctl-linux`, `sakctl-macos` or `sakctl-windows`. Each
-   is a zip file.
+   is a zip file with one program, `sakctl` (`sakctl.exe` on Windows).
 
-The files are not signed. macOS and Windows warn about this on the first start.
+The program is not signed. macOS and Windows warn about this on the first start. Started without a command, sakctl
+opens its window; `sakctl --help` shows the commands of its command line.
 
 ## Linux
 
-The zip file contains the program `sakctl` and three installers. Use the one that fits your distribution:
-
-- **Debian, Ubuntu:** install the `.deb` file, e.g. `sudo apt install ./SwissArmyKnife_0.1.0_amd64.deb`.
-- **Fedora, openSUSE:** install the `.rpm` file, e.g. `sudo dnf install ./SwissArmyKnife-0.1.0-1.x86_64.rpm`.
-- **Every other distribution:** make the `.AppImage` file executable (`chmod +x`) and start it.
-
-SwissArmyKnife is then in the menu of your desktop. For the command line, start `sakctl --help`.
+1. Extract `sakctl` from the zip file, e.g. to `~/.local/bin`, and make it executable: `chmod +x sakctl`.
+2. The window needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
+   libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedora).
+3. Start `sakctl`.
 
 ## macOS
 
-The zip file contains a disk image (`.dmg`) and the program `sakctl` for the command line. Both work on Apple silicon
-and on Intel.
+The program works on Apple silicon and on Intel.
 
-1. Open the `.dmg` file and drag **SwissArmyKnife** into **Applications**.
-2. Start SwissArmyKnife. macOS refuses the first start, because the app is not signed by a known developer.
-3. Open **System Settings**, **Privacy & Security**. Below **Security**, click **Open Anyway** next to
-   SwissArmyKnife, and confirm.
+1. Extract `sakctl` from the zip file, e.g. to `/usr/local/bin`, and make it executable: `chmod +x sakctl`.
+2. Start `sakctl` in the Terminal. macOS refuses the first start, because the program is not signed by a known
+   developer.
+3. Open **System Settings**, **Privacy & Security**. Below **Security**, click **Open Anyway** next to sakctl, and
+   confirm. Then start `sakctl` again.
 
-macOS asks this only once. For the command line, the program is in the app:
-`/Applications/SwissArmyKnife.app/Contents/MacOS/sakctl --help`.
+macOS asks this only once.
 
 ## Windows
 
-The zip file contains two installers and the program `sakctl.exe`. Use one of the installers:
+1. Extract `sakctl.exe` from the zip file, e.g. to a folder in your user directory.
+2. Start `sakctl.exe`. Windows SmartScreen can warn that the program is not known. Click **More info**, then **Run
+   anyway**.
 
-- the `.msi` file, or
-- the `-setup.exe` file.
-
-Windows SmartScreen can warn that the app is not known. Click **More info**, then **Run anyway**.
-
-SwissArmyKnife is then in the start menu. On Windows, use the window: the command line of `sakctl.exe` does not show
-its output.
+On Windows, use the window: the command line of `sakctl.exe` does not show its output. The window needs the Microsoft
+Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## The first start
 

@@ -1,7 +1,7 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
 # (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
-# the canary), each in a job of its own and pushed to ghcr.io from main only, sakctl and its
-# installers for linux, macOS and windows, and the documentation of docs/ as a site, published as
+# the canary), each in a job of its own and pushed to ghcr.io from main only, sakctl as a native
+# binary for linux, macOS and windows, and the documentation of docs/ as a site, published as
 # the github pages of the repository from main only. Everything that can be is cached: the mise tools, gradle,
 # npm, cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
@@ -102,8 +102,8 @@ jobs:
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: mise run cli:${{ matrix.image }}:push
 
-  # sakctl for each platform: the window and the command line in one binary with the page built in,
-  # and its installers, one artifact for each platform (docs/installation.md). macOS gets one
+  # sakctl for each platform: the window and the command line in one native binary with the page
+  # built in, one artifact for each platform (docs/installation.md), no installers. macOS gets one
   # universal binary for apple silicon and intel. Nothing is signed: macOS and windows warn on the
   # first start
   sakctl:
@@ -114,25 +114,16 @@ jobs:
         include:
           - platform: linux
             runner: ubuntu-24.04
-            build: --bundles deb,rpm,appimage
-            artifacts: |
-              sak-cli/src-tauri/target/release/sakctl
-              sak-cli/src-tauri/target/release/bundle/deb/*.deb
-              sak-cli/src-tauri/target/release/bundle/rpm/*.rpm
-              sak-cli/src-tauri/target/release/bundle/appimage/*.AppImage
+            build: --no-bundle
+            binary: sak-cli/src-tauri/target/release/sakctl
           - platform: macos
             runner: macos-15
-            build: --target universal-apple-darwin --bundles app,dmg
-            artifacts: |
-              sak-cli/src-tauri/target/universal-apple-darwin/release/sakctl
-              sak-cli/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            build: --target universal-apple-darwin --no-bundle
+            binary: sak-cli/src-tauri/target/universal-apple-darwin/release/sakctl
           - platform: windows
             runner: windows-2025
-            build: --bundles msi,nsis
-            artifacts: |
-              sak-cli/src-tauri/target/release/sakctl.exe
-              sak-cli/src-tauri/target/release/bundle/msi/*.msi
-              sak-cli/src-tauri/target/release/bundle/nsis/*.exe
+            build: --no-bundle
+            binary: sak-cli/src-tauri/target/release/sakctl.exe
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -158,13 +149,13 @@ jobs:
           workspaces: sak-cli/src-tauri -> target
           key: ${{ matrix.platform }}
       - run: mise run cli:theme
-      - name: Build sakctl and its installers
+      - name: Build sakctl
         working-directory: sak-cli
         run: mise exec -- tauri build ${{ matrix.build }}
       - uses: actions/upload-artifact@v7
         with:
           name: sakctl-${{ matrix.platform }}
-          path: ${{ matrix.artifacts }}
+          path: ${{ matrix.binary }}
           if-no-files-found: error
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
