@@ -190,7 +190,7 @@ interface Media {
           @if (store.uploading().has(note().id)) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           } @else {
-            <i class="sak-icon-plus" aria-hidden="true"></i><i class="fa-solid fa-camera" aria-hidden="true"></i>
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
           }
         </button>
         <button
@@ -201,7 +201,7 @@ interface Media {
           [disabled]="store.recordingFor() !== null"
           (click)="store.record(note().id)"
         >
-          <i class="sak-icon-plus" aria-hidden="true"></i><i class="fa-solid fa-microphone" aria-hidden="true"></i>
+          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
         </button>
         <button
           type="button"

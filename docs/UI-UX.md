@@ -8,8 +8,10 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 - **One look.** All apps use the same theme, its colors, fonts and status lights. They follow the light or dark mode
   of the system and have no switch of their own.
-- **Create has a plus.** A button that creates or adds something starts with the same plus sign in every app. A
-  button that creates a special kind of thing shows the kind after the plus.
+- **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the one
+  that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what they
+  add, as its icon (a photo, a recording); their label and tooltip say what they do. A small inline link to add
+  something (`+ label`) may start with a plus in its text.
 - **Destructive is red.** A button that destroys, deletes or removes something has the danger color. The button that
   does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
 - **Confirm before data goes.** An action that deletes something that holds data or configuration the user made
