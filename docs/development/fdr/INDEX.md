@@ -26,4 +26,4 @@ maintenance workflow.
 | [FDR-004](FDR-004-maintenance-cleanup.md)                   | Maintenance cleanup                   | Planned      | 2026-10-29    |
 | [FDR-005](FDR-005-login.md)                                 | Login                                 | Active       | 2026-10-29    |
 | [FDR-006](FDR-006-provisioning-events.md)                   | Provisioning events                   | Planned      | 2026-10-29    |
-| [FDR-007](FDR-007-backup.md)                                | Backup and restore                    | Experimental | 2026-10-29    |
+| [FDR-007](FDR-007-backup.md)                                | Backup and restore                    | Active       | 2026-10-29    |

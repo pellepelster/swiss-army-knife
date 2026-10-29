@@ -7,7 +7,7 @@ weight: 1
 
 # Plan: Backup and Restore of a Deployment
 
-**Status:** Built; the integration test (`mise run e2e:test:integration`) has not run against a real project yet
+**Status:** Built; the integration test (`mise run e2e:test:integration`) passed against a real project on 2026-10-29
 **Created:** 2026-10-29
 **Last reviewed:** 2026-10-29
 

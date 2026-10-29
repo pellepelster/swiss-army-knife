@@ -7,7 +7,7 @@ weight: 7
 
 # FDR-007: Backup and Restore
 
-**Status:** Experimental
+**Status:** Active
 **Last reviewed:** 2026-10-29
 
 ## Overview
