@@ -46,8 +46,8 @@ export function resource(state) {
 // the frontend of a deployment as `Address: <link>` at the bottom of its card, opened by rust in
 // the browser of the system (the window itself never leaves the wizard)
 function frontendLink(url) {
-  const line = document.createElement('div');
-  line.className = 'card-body deployment-link';
+  const line = document.createElement('li');
+  line.className = 'deployment-link';
   line.hidden = !url;
   const label = document.createElement('span');
   label.className = 'deployment-address';
@@ -94,8 +94,9 @@ function deployment(data) {
   group.replaceChildren(...resources.map(resource));
   // where its frontend is, opened in the browser of the system; none for a deployment without a
   // root domain on its resources
-  const link = frontendLink(data.frontendUrl);
-  item.append(header, group, link);
+  // the last line of the list, so it starts where the resources start
+  group.append(frontendLink(data.frontendUrl));
+  item.append(header, group);
   return item;
 }
 
