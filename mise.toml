@@ -3,9 +3,10 @@
 java = "temurin-25.0.5+8.0.LTS"
 # builds and tests sak-frontend, the gradle build calls npm
 node = "22.22.3"
-"pipx:ansible-core" = "2.18.19"
+# ansible and pipx exist for linux and macOS only; sakctl runs ansible in its image of the tools
+"pipx:ansible-core" = { version = "2.18.19", os = ["linux", "macos"] }
 # the backend the `pipx:` tool above installs with
-pipx = "1.17.2"
+pipx = { version = "1.17.2", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2 with its rust core in sak-cli/src-tauri/ and the static web ui in
 # sak-cli/ui/; the tauri cli comes from npm as a prebuilt binary, node only runs it
 rust = "1.99.1"
