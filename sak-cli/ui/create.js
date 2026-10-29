@@ -157,7 +157,7 @@ function setDnsMode(mode) {
 // how the names of the apps are made in the chosen mode, with the name typed so far and the
 // root domain chosen
 function showDnsModeHint() {
-  const name = nameInput.value.trim() || '<sak name>';
+  const name = nameInput.value.trim() || '<name>';
   const hint = text(`ui.create.dns_mode_hint_${dnsMode()}`).replaceAll('%{name}', name);
   dnsModeHint.textContent = rootDomainInput.value ? hint.replaceAll('<root domain>', rootDomainInput.value) : hint;
 }

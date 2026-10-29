@@ -297,7 +297,7 @@ pub async fn root_domains(provider: &HetznerProviderRuntime) -> Result<Vec<RootD
 }
 
 /// the domain the hosts of a deployment are below: the root domain in domain mode,
-/// `<sak name>.<root domain>` in subdomain mode
+/// `<name>.<root domain>` in subdomain mode
 pub fn base_domain(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
     match dns_mode {
         DnsMode::Domain => root_domain.to_string(),
@@ -312,8 +312,8 @@ pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String
 }
 
 /// how dns is set up for a deployment: `domain` manages `<root domain>` and
-/// `*.<root domain>`, `subdomain` (the default) manages `<sak name>.<root domain>` and
-/// `*.<sak name>.<root domain>`; a root domain has one domain deployment or any number of
+/// `*.<root domain>`, `subdomain` (the default) manages `<name>.<root domain>` and
+/// `*.<name>.<root domain>`; a root domain has one domain deployment or any number of
 /// subdomain deployments (docs/fdr/FDR-001-dns-mode.md)
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
@@ -775,7 +775,7 @@ impl DeploymentSpec {
     }
 
     /// the names the deployment manages in its root domain: `@` and `*` in domain mode,
-    /// `<sak name>` and `*.<sak name>` in subdomain mode
+    /// `<name>` and `*.<name>` in subdomain mode
     pub fn record_names(&self) -> [String; 2] {
         match self.dns_mode {
             DnsMode::Domain => ["@".to_string(), "*".to_string()],

@@ -11,7 +11,7 @@ deployment, or puts more than one deployment under one root domain.
 ## Behavior
 
 - **Domain:** the deployment manages `<root domain>` and `*.<root domain>`.
-- **Subdomain** (the default): the deployment manages `<sak name>.<root domain>` and `*.<sak name>.<root domain>`.
+- **Subdomain** (the default): the deployment manages `<name>.<root domain>` and `*.<name>.<root domain>`.
 - Each managed name has an A and an AAAA record to the server of the deployment.
 - The user selects the root domain from the DNS zones of the cloud project, and the mode, in the wizard window and on
   the command line. The window shows how the names of the apps are made.

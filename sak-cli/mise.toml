@@ -36,7 +36,7 @@ depends = ["cli:theme"]
 dir = "{{config_root}}"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 usage = '''
-arg "<args>" var=#true default="" help="nothing for the window, or list, create [<sak name>], deploy <sak name> or destroy <sak name>"
+arg "<args>" var=#true default="" help="nothing for the window, or list, create [<name>], deploy <name> or destroy <name>"
 '''
 run = '''
 eval "set -- ${usage_args}"
@@ -71,15 +71,15 @@ dir = "{{config_root}}/cloud"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = "cargo test"
 
-# the wizard on the command line, the same code as its pages: list, create [<sak name>],
-# deploy <sak name> or destroy <sak name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
+# the wizard on the command line, the same code as its pages: list, create [<name>],
+# deploy <name> or destroy <name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
 # environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run cli:sakctl -- create
 [tasks."cli:sakctl"]
-description = "Run sakctl on the command line: list, create [<sak name>], deploy <sak name> or destroy <sak name>"
+description = "Run sakctl on the command line: list, create [<name>], deploy <name> or destroy <name>"
 dir = "{{config_root}}/src-tauri"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 usage = '''
-arg "<args>" var=#true help="list, create [<sak name>], deploy <sak name> or destroy <sak name>"
+arg "<args>" var=#true help="list, create [<name>], deploy <name> or destroy <name>"
 '''
 run = '''
 eval "set -- ${usage_args}"

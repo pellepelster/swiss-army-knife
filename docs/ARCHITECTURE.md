@@ -58,7 +58,7 @@ and the health of the domains.
   buckets and the redirects.
 - The hosts depend on the **dns mode** (refer to [FDR-001](fdr/FDR-001-dns-mode.md)): the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
-  base domain is the root domain (`domain`) or `<sak name>.<root domain>` (`subdomain`).
+  base domain is the root domain (`domain`) or `<name>.<root domain>` (`subdomain`).
 
 ## Backend layers
 
@@ -114,7 +114,7 @@ and the health of the domains.
 ## Cloud resources
 
 - **The name label.** Every cloud resource of a deployment (server, volume, primary IP, firewall, ssh key, DNS
-  record) carries `sak.pelle.io/name=<sak name>`. It tells the resources of one deployment from those of another
+  record) carries `sak.pelle.io/name=<name>`. It tells the resources of one deployment from those of another
   and from everything else in the project.
 - **The password hash label.** Every resource of a deployment, the DNS records included, also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the password. sakctl checks a password against it before

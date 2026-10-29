@@ -130,7 +130,7 @@ pub struct DeploymentArgs {
     #[arg(long, env = LOCATION_VARIABLE, default_value = "hel1", value_parser = parse_location)]
     location: Location,
     /// How DNS is set up: domain manages <root domain> and *.<root domain>, subdomain manages
-    /// <sak name>.<root domain> and *.<sak name>.<root domain>. Not given: subdomain for a create,
+    /// <name>.<root domain> and *.<name>.<root domain>. Not given: subdomain for a create,
     /// the deployment's own for a deploy
     #[arg(long, value_parser = parse_dns_mode)]
     dns_mode: Option<DnsMode>,

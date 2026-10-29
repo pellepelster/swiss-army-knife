@@ -16,7 +16,7 @@ describe('apiUrl', () => {
     expect(apiUrl('/swagger/openapi.json', apps)).toBe('/swagger/openapi.json');
   });
 
-  it('calls api.<sak name>.<root domain> in dns mode subdomain', () => {
+  it('calls api.<name>.<root domain> in dns mode subdomain', () => {
     const frontend = new URL('https://sak.alpha.krawallbu.de/notes');
     expect(apiUrl('/api/v1/notes', frontend)).toBe('https://api.alpha.krawallbu.de/v1/notes');
   });
