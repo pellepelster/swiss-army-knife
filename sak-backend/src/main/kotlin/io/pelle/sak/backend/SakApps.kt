@@ -4,7 +4,6 @@ import io.ktor.http.HttpHeaders
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
@@ -14,8 +13,10 @@ import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.response.header
-import io.ktor.server.response.respond
-import io.ktor.server.routing.openapi.hide
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.RouteSelector
+import io.ktor.server.routing.RouteSelectorEvaluation
+import io.ktor.server.routing.RoutingResolveContext
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
@@ -210,19 +211,37 @@ fun Application.apps(
                         }
                     }
                 }
-                // unknown api paths and versions are no pages of the apps
-                route("{...}") {
-                    handle { call.respond(HttpStatusCode.NotFound) }
-                }.hide()
             }
 
             apiDoc()
 
-            // caddy only lets sak.<base_domain> through, its swagger ui is part of sak-frontend
-            singlePageApplication {
-                useResources = true
-                filesPath = FRONTEND_RESOURCES
+            // caddy only lets sak.<base_domain> through, its swagger ui is part of sak-frontend.
+            // Unknown api paths and versions are no pages of the apps: there routing answers 404,
+            // and 405 for a method a known path does not take
+            outsideOf(API_PATH_PREFIX) {
+                singlePageApplication {
+                    useResources = true
+                    filesPath = FRONTEND_RESOURCES
+                }
             }
         }
     }
+}
+
+// the routes of `build` for every path but those below `prefix`
+private fun Route.outsideOf(
+    prefix: String,
+    build: Route.() -> Unit,
+) {
+    val segment = prefix.trim('/')
+    createChild(
+        object : RouteSelector() {
+            override suspend fun evaluate(
+                context: RoutingResolveContext,
+                segmentIndex: Int,
+            ) = if (context.segments.getOrNull(segmentIndex) == segment) RouteSelectorEvaluation.FailedPath else RouteSelectorEvaluation.Transparent
+
+            override fun toString() = "(outside of $prefix)"
+        },
+    ).build()
 }

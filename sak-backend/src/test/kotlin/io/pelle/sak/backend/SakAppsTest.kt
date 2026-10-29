@@ -766,6 +766,11 @@ class SakAppsTest {
 
             get(port, "/api/v1/unknown").statusCode() shouldBe 404
             get(port, "/api/v2/auth/who-am-i").statusCode() shouldBe 404
+            get(port, "/api").statusCode() shouldBe 404
+            // a method a known path does not take
+            delete(port, "/api/v1/auth/who-am-i", "token").statusCode() shouldBe 405
+            post(port, "/api/v1/info", "{}").statusCode() shouldBe 405
+            post(port, "/api/v1/unknown", "{}").statusCode() shouldBe 404
             get(port, "/api/v1/auth/who-am-i").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
         }
     }

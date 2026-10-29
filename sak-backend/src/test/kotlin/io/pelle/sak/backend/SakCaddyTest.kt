@@ -60,6 +60,10 @@ class SakCaddyTest {
                           "match": [{ "host": ["api.example.org"] }],
                           "handle": [
                             { "handler": "log_append", "key": "site", "value": "api" },
+                            {
+                              "handler": "headers",
+                              "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
+                            },
                             { "handler": "rewrite", "uri": "/s3{http.request.uri}" },
                             { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                           ],

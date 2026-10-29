@@ -89,10 +89,13 @@ fun caddyConfig(
                 }
             }
 
-            // everything else at api.<base_domain> is the s3 api, below /s3 of the controller
+            // everything else at api.<base_domain> is the s3 api, below /s3 of the controller; hsts
+            // holds for a host, so as for the api of sak-frontend. The bucket domains and the
+            // redirects have none, the owner of a site decides that
             route {
                 host(config.apiHost)
                 logField(SITE_LOG_FIELD, API_SITE)
+                responseHeader("Strict-Transport-Security", "max-age=31536000")
                 rewrite("$S3_PATH_PREFIX{http.request.uri}")
                 reverseProxy("localhost:$port")
                 terminal()

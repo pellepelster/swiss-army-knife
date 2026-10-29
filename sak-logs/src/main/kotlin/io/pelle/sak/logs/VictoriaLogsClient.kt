@@ -33,12 +33,21 @@ data class StatsPoint(
 )
 
 // victorialogs runs next to the controller and only listens on localhost, so there is neither
-// authentication nor tenant
+// authentication nor tenant. The addresses are built once: a url that is none fails here, at the
+// start, not with every request
 class VictoriaLogsClient(
     url: String,
     private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
 ) {
     private val url = url.trimEnd('/')
+    private val statsQueryRangeUri = uri("/select/logsql/stats_query_range")
+    private val queryUri = uri("/select/logsql/query")
+
+    private fun uri(path: String): URI {
+        val uri = runCatching { URI("$url$path") }.getOrNull()
+        require(uri != null && uri.scheme in setOf("http", "https") && uri.host != null) { "the victorialogs url '$url' is no http url" }
+        return uri
+    }
 
     // a logsql stats query evaluated for every step between start and end
     fun statsQueryRange(
@@ -49,7 +58,7 @@ class VictoriaLogsClient(
     ): List<StatsSeries> =
         parse(
             send(
-                "/select/logsql/stats_query_range",
+                statsQueryRangeUri,
                 "query" to query,
                 "start" to start.epochSecond.toString(),
                 "end" to end.epochSecond.toString(),
@@ -59,7 +68,7 @@ class VictoriaLogsClient(
 
     // the entries matching a logsql query, one map of field names to values per entry
     fun query(query: String): List<Map<String, String>> =
-        send("/select/logsql/query", "query" to query)
+        send(queryUri, "query" to query)
             .body()
             .lineSequence()
             .filter { it.isNotBlank() }
@@ -67,12 +76,12 @@ class VictoriaLogsClient(
             .toList()
 
     private fun send(
-        path: String,
+        uri: URI,
         vararg form: Pair<String, String>,
     ): HttpResponse<String> {
         val request =
             HttpRequest
-                .newBuilder(URI.create("$url$path"))
+                .newBuilder(uri)
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .timeout(Duration.ofSeconds(15))
                 .POST(

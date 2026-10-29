@@ -49,13 +49,16 @@ class SakConfigLoaderTest {
 
     @Test
     fun `tells no secret of the config when it is printed`() {
+        System.setProperty("SAK_TEST_ADMIN_PASSWORD", "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$the-admin-hash")
         val config =
             load(
                 """
                 data_dir: /data
                 root_domain: example.org
+                api_token_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                 auth:
                   admins: [admin@example.org]
+                  admin_password: ${'$'}SAK_TEST_ADMIN_PASSWORD
                   smtp:
                     host: smtp.example.org
                     username: login
@@ -66,13 +69,25 @@ class SakConfigLoaderTest {
                 """.trimIndent(),
             )
 
-        // e.g. in a log line or a failing assertion
-        listOf(config.toString(), "$config", config.auth.toString(), config.openrouter.toString()).forEach { printed ->
-            listOf("the-smtp-password", "the-openrouter-token").forEach {
-                printed shouldNotContain it
+        // e.g. in a log line or a failing assertion: neither the secrets nor the hashes of them,
+        // not of the config and not of any part of it
+        val printed =
+            listOf(
+                config.toString(),
+                "$config",
+                config.auth.toString(),
+                config.auth?.smtp.toString(),
+                config.openrouter.toString(),
+                listOf(config).toString(),
+            )
+        printed.forEach { text ->
+            listOf("the-smtp-password", "the-openrouter-token", "the-admin-hash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").forEach {
+                text shouldNotContain it
             }
         }
         config.toString() shouldContain "smtp.example.org"
+        config.auth.toString() shouldContain "adminPassword=set"
+        System.clearProperty("SAK_TEST_ADMIN_PASSWORD")
     }
 
     @Test
@@ -171,6 +186,15 @@ class SakConfigLoaderTest {
         load("data_dir: /data\n${ROOT_DOMAIN}dns:\n  servers:\n    - 192.0.2.53\n    - 2001:db8::53\n").dns.servers shouldBe listOf("192.0.2.53", "2001:db8::53")
         shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}dns:\n  servers:\n    - dns.example.org\n") }
             .message shouldContain "the name server 'dns.example.org' is no ip address"
+    }
+
+    @Test
+    fun `fails on a victorialogs url that is none`() {
+        load("data_dir: /data\n${ROOT_DOMAIN}logs:\n  victorialogs_url: http://127.0.0.1:9428\n").logs.victorialogsUrl shouldBe "http://127.0.0.1:9428"
+        for (url in listOf("http://local host:9428", "127.0.0.1:9428", "ftp://127.0.0.1")) {
+            shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}logs:\n  victorialogs_url: '$url'\n") }
+                .message shouldContain "the victorialogs_url '$url' is no http url"
+        }
     }
 
     @Test

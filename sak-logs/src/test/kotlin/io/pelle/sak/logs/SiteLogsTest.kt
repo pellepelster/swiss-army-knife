@@ -2,7 +2,9 @@ package io.pelle.sak.logs
 
 import java.time.Instant
 import com.sun.net.httpserver.HttpServer
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -120,6 +122,13 @@ class SiteLogsTest {
                 it.bodyAsText() shouldBe """{"errors":[{"message":"limit must be a number from 1 to 100."}]}"""
             }
         }
+
+    @Test
+    fun `a victorialogs url that is none fails when the client is made, not with a request`() {
+        for (url in listOf("http://local host:9428", "127.0.0.1:9428", "")) {
+            shouldThrow<IllegalArgumentException> { VictoriaLogsClient(url) }.message shouldContain "is no http url"
+        }
+    }
 
     @Test
     fun `answers service unavailable when victorialogs is down`() =
