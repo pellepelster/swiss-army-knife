@@ -3,8 +3,8 @@
 The canonical vocabulary of this repository. Use these terms in code, documentation and the
 user interface. Use the same term for the same thing every time.
 
-- **sak name**: The unique name of a swiss army knife deployment. Each deployment has one sak
-  name. Two deployments cannot have the same sak name. Each cloud resource of a deployment has
+- **name**: The unique name of a swiss army knife deployment. Each deployment has one name. Two
+  deployments cannot have the same name. Each cloud resource of a deployment has
   the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in
   [ARCHITECTURE.md](ARCHITECTURE.md)).
 - **dns mode** (`dns_mode`): How SAK sets up DNS for a deployment. The mode `domain` manages `<root domain>` and

@@ -28,7 +28,7 @@ Section 4 lists the tests that are missing for these findings.
 
 ### S1 (High): A destroy and a recreate remove resources that do not have the label of the deployment
 
-AGENT.md, "Resource labeling": "SAK removes only resources that carry the label `sak.pelle.io/name=<sak name>` of the
+AGENT.md, "Resource labeling": "SAK removes only resources that carry the label `sak.pelle.io/name=<name>` of the
 deployment." The code does not do this check.
 
 - `DeploymentSpec::destroy_registry` (`cloud/src/hetzner/deployment.rs:800-814`) declares the resources by name only.
@@ -49,11 +49,11 @@ The password check does not stop this. For a destroy of a deployment that `disco
 **Failure scenario:** A Hetzner project has a server `web`, a firewall `web`, an ssh key `web` and primary IPs
 `web-ipv4` and `web-ipv6`. SAK did not create them. A user types `sakctl destroy web --password <any 16 characters>
 --delete-data`. sakctl deletes all of them and the volume `web-data`, also if they have delete protection.
-The same occurs on a deploy: if a server with the sak name exists without the label, its diff is a recreate, and
+The same occurs on a deploy: if a server with the name exists without the label, its diff is a recreate, and
 `apply_all_with(recreate = true)` deletes it.
 
 **Recommended change:** Make the label check part of each `destroy` (and of the destroy before a recreate). Read the
-resource, compare its `sak.pelle.io/name` label with the sak name, and stop with an error if the label is missing or
+resource, compare its `sak.pelle.io/name` label with the name, and stop with an error if the label is missing or
 different. The DNS record `apply` has this check already (`dns_record/provisioner.rs:169-177`); use the same
 pattern. Do not remove the delete protection of a resource that does not have the label.
 
@@ -93,7 +93,7 @@ say this in `--help` and in `UI-UX.md`.
 ### S4 (Medium): The password hash is public in the project, and the key derivation is weak for offline guessing
 
 Each resource carries `sak.pelle.io/password-hash` (`deployment.rs:696-698`). All users and all read-only tokens of
-the project can read it. The hash uses `Argon2::default()` (19 MiB, 2 passes, 1 lane) and a salt that is the sak name
+the project can read it. The hash uses `Argon2::default()` (19 MiB, 2 passes, 1 lane) and a salt that is the name
 (`core/keys.rs:68-75`). The only rule for the password is a length of 16 characters (`core/deployments.rs:582`). A
 password such as `aaaaaaaaaaaaaaaa` is accepted. A correct guess gives the private client key with `derive_key`, and
 thus root on the server.
@@ -191,7 +191,7 @@ password field is empty.
 ### Areas examined with no finding
 
 - Command and argument injection into docker, podman and ansible: all arguments go through `Command::args`, no shell.
-  The sak name passes `check_name` (`deployment.rs:598-613`) before it goes into a path or the inventory. The root
+  The name passes `check_name` (`deployment.rs:598-613`) before it goes into a path or the inventory. The root
   domain must be one of the zones of the project (`core/deployments.rs:121-158`). The storage device comes from the
   API.
 - SSH host key verification: `StrictHostKeyChecking yes`, a `known_hosts` file for the IPv4 and the IPv6 address
@@ -413,7 +413,7 @@ same list of label maps. Add `DiscoveredDeployment::labels()` that returns all o
 ### Areas examined with no finding
 
 - The boundary rule "core knows neither tauri nor clap" has a test (`core/mod.rs:15-43`), and the code follows it.
-- GLOSSARY.md terms (sak name, dns mode, base domain, root domain) are used correctly in code, texts and
+- GLOSSARY.md terms (name, dns mode, base domain, root domain) are used correctly in code, texts and
   `--help`.
 - The color rule of `ui/style.css` and the plus sign rule have tests (`gui/mod.rs:67-107`).
 

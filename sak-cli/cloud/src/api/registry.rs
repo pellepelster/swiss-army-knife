@@ -159,7 +159,7 @@ pub struct Registry {
     context: LookupProviders,
     provisioners: HashMap<TypeId, Box<dyn ErasedProvisioner>>,
     resources: Vec<Box<dyn AnyResource>>,
-    /// the labels a resource must carry to be destroyed by this registry, e.g. the sak name and
+    /// the labels a resource must carry to be destroyed by this registry, e.g. the name and
     /// the password hash of a deployment; nothing is destroyed without them
     owner: Option<Labels>,
     /// the resources that may be destroyed and created again when their changes need it; every

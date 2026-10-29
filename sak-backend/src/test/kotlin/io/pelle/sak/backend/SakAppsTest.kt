@@ -924,7 +924,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the info answers the sak name of the deployment without a session`() {
+    fun `the info answers the name of the deployment without a session`() {
         withServer { port ->
             val info = get(port, "/api/v1/info")
             info.statusCode() shouldBe 200

@@ -41,7 +41,7 @@ away the password, which is also the key to the ssh access and the cloud resourc
 
 ### 2. Only a hash reaches the server
 
-**Decision:** sakctl writes an argon2id hash of the password (its own salt, derived from the sak name) into the
+**Decision:** sakctl writes an argon2id hash of the password (its own salt, derived from the name) into the
 environment of the backend; the backend checks a password against it.
 **Why:** The password is nowhere on the server. The salt of its own keeps the hash apart from the password hash
 label of the cloud resources. The salt is derived, so every deploy writes the same hash and the backend does not

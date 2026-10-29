@@ -19,7 +19,7 @@ use crate::api::{DiffItem, Labeled, label_diff};
 /// the prefix of the labels sak keeps for itself on the resources
 pub const LABEL_NAMESPACE: &str = "sak.pelle.io";
 
-/// the sak name, the unique name of the deployment a resource belongs to; every cloud
+/// the name, the unique name of the deployment a resource belongs to; every cloud
 /// resource of a deployment carries it
 pub const NAME_LABEL: &str = "sak.pelle.io/name";
 

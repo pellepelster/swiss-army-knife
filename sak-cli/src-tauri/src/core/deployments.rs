@@ -1,4 +1,4 @@
-//! the sak deployments found at the providers: everything labeled with a sak name, grouped by
+//! the sak deployments found at the providers: everything labeled with a name, grouped by
 //! it and diffed against the resource group a deployment consists of; and a new one, planned
 //! and created from its name and password
 
@@ -84,7 +84,7 @@ fn root_domain_response(domain: &RootDomain, name: &str) -> RootDomainResponse {
     }
 }
 
-/// the deployments using a root domain, `beta, gamma`; one without a sak name as such
+/// the deployments using a root domain, `beta, gamma`; one without a name as such
 fn by_text(by: &[Option<String>]) -> String {
     by.iter()
         .map(|name| match name {
@@ -721,7 +721,7 @@ impl DeploymentManager {
             .collect())
     }
 
-    /// checks the name (a sak name no deployment of the project carries yet) and the
+    /// checks the name (one no deployment of the project carries yet) and the
     /// password (long enough, typed twice the same) and, but for a destroy, the root domain
     /// (a zone of the project the dns mode is possible in), derives the ssh key and the
     /// password hash and lays out the resource group at the first hetzner project

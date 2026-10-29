@@ -26,7 +26,7 @@ private const val TEST_PREFIX = "test-"
 
 private val random = SecureRandom()
 
-// `test-` and 5 random lower case letters and digits, a sak name of its own for each run
+// `test-` and 5 random lower case letters and digits, a name of its own for each run
 private fun testName(): String = TEST_PREFIX + (1..5).map { "abcdefghijklmnopqrstuvwxyz0123456789"[random.nextInt(36)] }.joinToString("")
 
 // the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN: real servers

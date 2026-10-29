@@ -17,7 +17,7 @@ pub const EXIT_DOMAIN_TAKEN: i32 = 3;
 /// the dns mode asked is not the one other deployments use the root domain in
 pub const EXIT_MIXED_DNS_MODES: i32 = 4;
 /// a resource of a name the deployment declares exists and belongs to someone else (it lacks
-/// the sak name or the password hash of the deployment); nothing of it was changed
+/// the name or the password hash of the deployment); nothing of it was changed
 pub const EXIT_NOT_OWNED: i32 = 5;
 /// a resource that must stay (the data volume, a primary ip) would have to be created anew,
 /// which would remove what it holds; nothing was changed

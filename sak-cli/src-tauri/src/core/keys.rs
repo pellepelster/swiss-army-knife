@@ -95,7 +95,7 @@ pub fn api_token_sha256(token: &str) -> String {
 
 /// the hash of the admin password (the deployment password) the backend checks a password login
 /// against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`). The salt is
-/// derived from the sak name, so the same password gives the same hash on every deploy and the
+/// derived from the name, so the same password gives the same hash on every deploy and the
 /// configuration of the backend does not change; its purpose is its own, so the hash shares nothing
 /// with the password hash label or the keys
 pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {

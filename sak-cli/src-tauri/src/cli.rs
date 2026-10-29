@@ -102,7 +102,7 @@ pub enum ConfigCommand {
     Show {
         #[command(flatten)]
         provider: Provider,
-        /// The sak name of the deployment
+        /// The name of the deployment
         #[arg(env = NAME_VARIABLE)]
         name: String,
         /// The password of the deployment
@@ -120,7 +120,7 @@ pub struct Provider {
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct DeploymentArgs {
-    /// The sak name of the deployment
+    /// The name of the deployment
     #[arg(env = NAME_VARIABLE)]
     name: String,
     /// The password of the deployment, at least 16 characters; the ssh key is derived from it

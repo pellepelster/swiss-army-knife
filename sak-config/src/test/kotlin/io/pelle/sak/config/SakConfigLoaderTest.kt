@@ -30,7 +30,7 @@ class SakConfigLoaderTest {
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.s3DataDir shouldBe Path.of("/something/s3")
-        // the sak name and the dns mode of a backend that is no deployment: local, subdomain
+        // the name and the dns mode of a backend that is no deployment: local, subdomain
         config.frontendUrl shouldBe "https://sak.local.example.org"
         config.auth shouldBe
             SakConfig.AuthConfig(
@@ -184,7 +184,7 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `the sak name is local unless the provisioning writes the one of the deployment`() {
+    fun `the name is local unless the provisioning writes the one of the deployment`() {
         load("data_dir: /data\n$ROOT_DOMAIN").name shouldBe "local"
         load("name: alpha-1\ndata_dir: /data\n$ROOT_DOMAIN").name shouldBe "alpha-1"
         listOf("Alpha", "-alpha", "alpha-", "a_b", "\"\"", "a".repeat(64)).forEach { name ->
@@ -201,7 +201,7 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `the hosts are below the root domain in domain mode and below the subdomain of the sak name otherwise`() {
+    fun `the hosts are below the root domain in domain mode and below the subdomain of the name otherwise`() {
         val domain = load("name: alpha\ndns_mode: domain\ndata_dir: /data\n$ROOT_DOMAIN")
         domain.baseDomain shouldBe "example.org"
         domain.frontendHost shouldBe "sak.example.org"

@@ -78,7 +78,7 @@ deployments:
   invalid_smtp_port: "The port of the mail server is a number from 1 to 65535."
   invalid_smtp_value: "A value of the mail server has a line break."
   invalid_admin_email: "Multiple users need the e-mail address of the admin (--admin-email)."
-  unnamed: "an entry without a sak name"
+  unnamed: "an entry without a name"
   no_zones: "The project has no DNS zone. Create the zone of the root domain first, SAK does not create it."
   no_root_domain: "Select the root domain of the deployment, one of: %{domains}."
   unknown_root_domain: "%{domain} is no DNS zone of the project. Create the zone first, or select one of: %{domains}."

@@ -128,7 +128,7 @@ pub struct RootDomain {
 /// a deployment found on the entries of a root domain
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DomainUse {
-    /// the sak name on the entry, none for an entry with a dns mode but no name
+    /// the name on the entry, none for an entry with a dns mode but no name
     pub name: Option<String>,
     pub dns_mode: DnsMode,
 }
@@ -223,7 +223,7 @@ pub struct DeploymentRecord {
     pub labels: Labels,
 }
 
-/// the dns records labeled with the sak name `name`, in the zones of the project
+/// the dns records labeled with the name `name`, in the zones of the project
 /// (`list_all` of the dns zones): only these are the deployment's to remove
 pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec<DeploymentRecord> {
     let mut records = Vec::new();
@@ -243,7 +243,7 @@ pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec
 
 /// the records of `found` not among `declared`: all of them on a destroy, those of the old
 /// dns mode or root domain on a deploy. Only records that carry every label of `identity` (the
-/// sak name and the password hash) are the deployment's to remove
+/// name and the password hash) are the deployment's to remove
 pub fn stale_records(
     found: &[DeploymentRecord],
     declared: &[HetznerDnsRecord],
@@ -618,7 +618,7 @@ fn missing(kind: ResourceKind, name: &str) -> ResourceState {
 /// the cloud-init a deployment's server is created with, until the install of sak is there
 pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
 
-/// a sak name: 1 to 63 lower case letters, digits and dashes, a letter or digit at both
+/// a name: 1 to 63 lower case letters, digits and dashes, a letter or digit at both
 /// ends, what hetzner takes as a name and dns as a label
 pub fn check_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
@@ -632,14 +632,14 @@ pub fn check_name(name: &str) -> Result<()> {
         Ok(())
     } else {
         Err(Error::message(format!(
-            "'{name}' is no sak name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+            "'{name}' is no valid name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
         )))
     }
 }
 
 /// what a deployment consists of, as the wizard creates it: an ssh key, a data volume, a
 /// primary ipv4 and ipv6, a firewall and the server made of them, every one labeled with
-/// the sak name
+/// the name
 #[derive(Clone, Debug)]
 pub struct DeploymentSpec {
     pub name: String,
@@ -811,7 +811,7 @@ impl DeploymentSpec {
             .collect()
     }
 
-    /// what identifies a resource of the deployment: the sak name and the password hash. Every
+    /// what identifies a resource of the deployment: the name and the password hash. Every
     /// resource carries them as labels and as identity, so a lookup refuses a resource of the
     /// name without them, and the registries destroy nothing else
     pub fn identity(&self) -> Labels {
@@ -1061,7 +1061,7 @@ mod tests {
         );
     }
 
-    /// labels of an entry: the dns mode and, when given, the sak name
+    /// labels of an entry: the dns mode and, when given, the name
     fn entry(name: Option<&str>, mode: &str) -> Labels {
         let mut labels = Labels::from([(DNS_MODE_LABEL.to_string(), mode.to_string())]);
         if let Some(name) = name {

@@ -23,7 +23,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-// the label every resource of a deployment carries, its value the sak name
+// the label every resource of a deployment carries, its value the name
 const val NAME_LABEL = "sak.pelle.io/name"
 
 // a resource of the project that carries the name label: what it is, its name, the deployment

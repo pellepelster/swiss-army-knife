@@ -20,7 +20,7 @@ pub const PLAYBOOK: &str = "pelle_io.sak.server";
 
 /// a server to provision and what ansible needs to reach and set it up
 pub struct ProvisionRun {
-    /// the sak name, the host in the inventory and `sak_name` of the controller configuration
+    /// the name, the host in the inventory and `sak_name` of the controller configuration
     pub name: String,
     /// `sak_dns_mode` of the controller configuration
     pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,

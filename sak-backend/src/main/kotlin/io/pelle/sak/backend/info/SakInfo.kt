@@ -14,7 +14,7 @@ import io.pelle.sak.config.DnsMode
 private const val INFO_TAG = "info"
 
 // the info of a deployment, without a session: which deployment answers at a domain, e.g. after
-// its dns records were set up; it tells the sak name and the dns mode and nothing else
+// its dns records were set up; it tells the name and the dns mode and nothing else
 @OptIn(ExperimentalKtorApi::class)
 fun Route.info(
     name: String,
@@ -27,10 +27,10 @@ fun Route.info(
     }.describe {
         tag(INFO_TAG)
         summary = "The deployment that answers"
-        description = "The sak name and the dns mode (domain or subdomain) of the deployment the backend belongs to. Needs no session."
+        description = "The name and the dns mode (domain or subdomain) of the deployment the backend belongs to. Needs no session."
         responses {
             HttpStatusCode.OK {
-                description = "The sak name and the dns mode of the deployment"
+                description = "The name and the dns mode of the deployment"
                 schema = jsonSchema<InfoResponse>()
             }
         }

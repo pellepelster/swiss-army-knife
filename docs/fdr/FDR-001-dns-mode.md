@@ -32,11 +32,11 @@ deployment, or puts more than one deployment under one root domain.
 must not go to one deployment.
 **Tradeoff:** Two DNS layouts to set up, test and explain.
 
-### 2. The sak name is the subdomain
+### 2. The name is the subdomain
 
-**Decision:** In subdomain mode, the subdomain is the sak name.
-**Why:** The sak name is unique and a valid DNS label, so two deployments cannot use the same names.
-**Tradeoff:** A new subdomain is a new sak name.
+**Decision:** In subdomain mode, the subdomain is the name.
+**Why:** The name is unique and a valid DNS label, so two deployments cannot use the same names.
+**Tradeoff:** A new subdomain is a new name.
 
 ### 3. A wildcard next to the base name
 
@@ -50,7 +50,7 @@ new record.
 **Decision:** Domain and subdomain deployments never share a root domain.
 **Why:** The wildcard of a domain deployment covers the names of the subdomain deployments.
 **Tradeoff:** To add a subdomain deployment, a domain deployment must first change to subdomain mode. The wizard finds
-the deployments of a root domain by the labels on the zone and its records. A record with a mode but no sak name
+the deployments of a root domain by the labels on the zone and its records. A record with a mode but no name
 counts as another deployment.
 
 ### 5. The zone and its other records belong to the user
@@ -76,7 +76,7 @@ old names in use, and an old domain wildcard covers the names of other deploymen
 
 ### 8. The mode is kept on the resources
 
-**Decision:** Each resource of the deployment carries its mode and root domain, next to the sak name.
+**Decision:** Each resource of the deployment carries its mode and root domain, next to the name.
 **Why:** The wizard keeps no local state. A deploy from another computer, or from the command line, knows the mode.
 **Tradeoff:** A change of the mode changes each resource.
 

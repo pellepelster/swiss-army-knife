@@ -1,5 +1,5 @@
 //! the discovery of deployments against the real api: an ssh key and a firewall labeled
-//! with a sak name make a deployment whose server is missing
+//! with a name make a deployment whose server is missing
 
 mod support;
 

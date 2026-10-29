@@ -14,7 +14,7 @@ import java.nio.file.Path
 
 @Serializable
 data class SakConfig(
-    // the sak name of the deployment the backend belongs to, written by the provisioning of the
+    // the name of the deployment the backend belongs to, written by the provisioning of the
     // server; GET /api/v1/info answers it
     val name: String = DEFAULT_NAME,
     // the dns mode of the deployment, written by the provisioning of the server like the name;
@@ -45,7 +45,7 @@ data class SakConfig(
     init {
         require(apiTokenSha256 == null || SHA256_HEX.matches(apiTokenSha256)) { "the api_token_sha256 is no sha-256 in hex" }
         require(SAK_NAME.matches(name)) {
-            "the name '$name' is no sak name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
+            "the name '$name' is no valid name: 1 to 63 lower case letters, digits and dashes, starting and ending with a letter or digit"
         }
     }
 
@@ -180,7 +180,7 @@ data class SakConfig(
 
         private val SHA256_HEX = Regex("[0-9a-f]{64}")
 
-        // what sakctl takes as a sak name (check_name in sak-cli/cloud): a hostname label
+        // what sakctl takes as a name (check_name in sak-cli/cloud): a hostname label
         private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?")
 
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
