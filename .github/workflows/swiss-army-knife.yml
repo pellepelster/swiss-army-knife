@@ -1,8 +1,8 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
 # (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
-# the canary), each in a job of its own and pushed to ghcr.io from main only, and sakctl itself,
-# whose checks pull its images, and the documentation of docs/ as a site, published as the github
-# pages of the repository from main only. Everything that can be is cached: the mise tools, gradle,
+# the canary), each in a job of its own and pushed to ghcr.io from main only, sakctl and its
+# installers for linux, macOS and windows, and the documentation of docs/ as a site, published as
+# the github pages of the repository from main only. Everything that can be is cached: the mise tools, gradle,
 # npm, cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
@@ -101,35 +101,6 @@ jobs:
       - run: mise run cli:${{ matrix.image }}:test
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: mise run cli:${{ matrix.image }}:push
-
-  sak-cli:
-    # its tests pull the images, the ones of main pushed by the jobs before
-    needs: sak-cli-images
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-          version: 1
-      # the tools are installed after the action, saved to its cache in its post step
-      - uses: jdx/mise-action@v5
-        with:
-          install: false
-          cache_save_post: true
-      - run: mise install rust node npm:@tauri-apps/cli
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            sak-cli/src-tauri -> target
-            sak-cli/cloud -> target
-      # the images may be private
-      - run: mise run registry:login
-        env:
-          REGISTRY_USERNAME: ${{ github.actor }}
-          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: mise run cli:test
-      - run: mise run cli:cloud:test
 
   # sakctl for each platform: the window and the command line in one binary with the page built in,
   # and its installers, one artifact for each platform (docs/installation.md). macOS gets one
