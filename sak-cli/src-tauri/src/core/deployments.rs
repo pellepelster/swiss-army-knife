@@ -3,7 +3,9 @@
 //! and created from its name and password
 
 use crate::core::container::ContainerRuntime;
-use crate::core::error::{EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, WizardError};
+use crate::core::error::{
+    EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, WizardError,
+};
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
 use crate::core::provision::{ProvisionManager, ProvisionRun};
@@ -399,10 +401,13 @@ pub struct NewDeployment {
     pub password: String,
     pub password_repeat: String,
     pub location: Location,
-    /// how dns is set up for the deployment, kept on every resource; a deploy may change it
-    pub dns_mode: DnsMode,
-    /// the dns zone of the project the deployment's names are in, kept on every resource; a
-    /// destroy needs none
+    /// how dns is set up for the deployment, kept on every resource; none given: subdomain for a
+    /// create, the deployment's own for a deploy (`resolve_dns`), a deploy changes it only when
+    /// it is given
+    #[serde(default)]
+    pub dns_mode: Option<DnsMode>,
+    /// the dns zone of the project the deployment's names are in, kept on every resource; none
+    /// given: the deployment's own for a deploy; a destroy needs none
     #[serde(default)]
     pub root_domain: Option<String>,
     pub intent: Intent,
@@ -414,13 +419,43 @@ pub struct NewDeployment {
     pub smtp: Option<Smtp>,
 }
 
+/// the dns mode and the root domain of a deployment: what was given, else for a deploy what the
+/// deployment carries on its labels, so a deploy keeps them unless told otherwise. A create
+/// without a mode is a subdomain one, a deploy of a deployment without the label too; a
+/// deploy without a root domain anywhere is refused. A destroy needs neither
+fn resolve_dns(
+    name: &str,
+    intent: Intent,
+    given_mode: Option<DnsMode>,
+    given_domain: Option<&str>,
+    labeled_mode: Option<DnsMode>,
+    labeled_domain: Option<String>,
+) -> Result<(DnsMode, Option<String>), String> {
+    let given_domain = given_domain
+        .map(str::trim)
+        .filter(|domain| !domain.is_empty())
+        .map(str::to_string);
+    match intent {
+        Intent::Destroy => Ok((DnsMode::default(), None)),
+        Intent::Create => Ok((given_mode.unwrap_or_default(), given_domain)),
+        Intent::Deploy => {
+            let domain = given_domain.or(labeled_domain).ok_or_else(|| {
+                t!("deployments.deploy_without_root_domain", name = name).to_string()
+            })?;
+            Ok((
+                given_mode.or(labeled_mode).unwrap_or_default(),
+                Some(domain),
+            ))
+        }
+    }
+}
+
 /// a deployment checked and ready: where it goes, what it consists of, whether a resource
 /// may be created anew
 struct Prepared {
     provider: ProviderType,
     runtime: HetznerProviderRuntime,
     spec: DeploymentSpec,
-    recreate: bool,
     /// the dns records of the deployment that go
     stale_records: Vec<HetznerDnsRecordLookup>,
     client_key: DerivedKey,
@@ -495,6 +530,10 @@ fn cloud_failure(key: &str, provider: ProviderType, error: sak_cloud::api::Error
         sak_cloud::api::Error::NotOwned { .. } => WizardError::new(
             t!("deployments.not_owned", error = error.to_string()),
             EXIT_NOT_OWNED,
+        ),
+        sak_cloud::api::Error::RecreateRefused { .. } => WizardError::new(
+            t!("deployments.recreate_refused", error = error.to_string()),
+            EXIT_RECREATE_REFUSED,
         ),
         error => message(key, provider, error).into(),
     }
@@ -628,7 +667,7 @@ impl DeploymentManager {
             delete_data: _,
             smtp,
         } = deployment;
-        let (location, dns_mode, intent) = (*location, *dns_mode, *intent);
+        let (location, intent) = (*location, *intent);
         let name = name.trim();
         check_name(name).map_err(|_| t!("deployments.invalid_name").to_string())?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
@@ -654,6 +693,16 @@ impl DeploymentManager {
             .map_err(|error| failed(provider, error))?
             .into_iter()
             .find(|deployment| deployment.name == name);
+        let (dns_mode, root_domain) = resolve_dns(
+            name,
+            intent,
+            *dns_mode,
+            root_domain.as_deref(),
+            existing.as_ref().and_then(DiscoveredDeployment::dns_mode),
+            existing
+                .as_ref()
+                .and_then(DiscoveredDeployment::root_domain),
+        )?;
         let runtime =
             HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
         // one look at the zones: the root domains, the records of the deployment, those in the way
@@ -663,11 +712,11 @@ impl DeploymentManager {
             .await
             .map_err(|error| failed(provider, error))?;
         let records = deployment_records(&listings, name);
-        let (location, recreate) = match (intent, existing) {
+        let location = match (intent, existing) {
             (Intent::Create, Some(_)) => {
                 return Err(t!("deployments.name_taken", name = name).to_string().into());
             }
-            (Intent::Create, None) => (location, false),
+            (Intent::Create, None) => location,
             (Intent::Deploy, None) => {
                 return Err(t!("deployments.not_found", name = name).to_string().into());
             }
@@ -678,17 +727,23 @@ impl DeploymentManager {
                     .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
                     .collect();
                 check_password(&hashes, None, name, password)?;
-                (location, false)
+                location
             }
             (Intent::Deploy | Intent::Destroy, Some(existing)) => {
                 verify_password(&existing, name, password)?;
-                // the server stays where it is
-                let location = existing
-                    .server
-                    .as_ref()
-                    .map(|server| server.location)
-                    .unwrap_or(location);
-                (location, intent == Intent::Deploy)
+                // where the deployment is: its server, volume or addresses never move, the given
+                // location counts only when none of them exists
+                existing
+                    .location()
+                    .map_err(|resources| {
+                        t!(
+                            "deployments.mixed_locations",
+                            name = name,
+                            resources = resources
+                        )
+                        .to_string()
+                    })?
+                    .unwrap_or(location)
             }
         };
         let runtime =
@@ -730,7 +785,6 @@ impl DeploymentManager {
             provider,
             runtime,
             spec,
-            recreate,
             stale_records,
             client_key,
             host_key,
@@ -853,7 +907,7 @@ impl DeploymentManager {
             on_event(event);
         };
         registry
-            .apply_all_with(prepared.recreate, &mut report)
+            .apply_all_with(&mut report)
             .await
             .map_err(|error| {
                 cloud_failure("deployments.create_failed", prepared.provider, error)
@@ -1258,6 +1312,20 @@ mod tests {
         assert!(not_owned.message.starts_with(
             "server 'web' exists and does not belong to this deployment: it has no label 'sak.pelle.io/name'"
         ));
+        let refused = cloud_failure(
+            "deployments.create_failed",
+            ProviderType::Hetzner,
+            sak_cloud::api::Error::RecreateRefused {
+                resource: "volume 'web-data'".to_string(),
+                changes: "location should be 'hel1' but was 'nbg1'".to_string(),
+            },
+        );
+        assert_eq!(refused.exit_code, EXIT_RECREATE_REFUSED);
+        assert!(
+            refused
+                .message
+                .starts_with("volume 'web-data' would have to be created anew")
+        );
         // any other failure of the provider is a failure as before
         let other = cloud_failure(
             "deployments.destroy_failed",
@@ -1266,6 +1334,75 @@ mod tests {
         );
         assert_eq!(other.exit_code, crate::core::error::EXIT_FAILED);
         assert!(other.message.contains("timeout"));
+    }
+
+    #[test]
+    fn a_deploy_keeps_the_dns_mode_and_root_domain_of_the_deployment_unless_given() {
+        let labeled = || Some("pelle.io".to_string());
+        // a deploy without them keeps what the deployment carries: no switch to subdomain
+        assert_eq!(
+            resolve_dns(
+                "beta",
+                Intent::Deploy,
+                None,
+                None,
+                Some(DnsMode::Domain),
+                labeled()
+            ),
+            Ok((DnsMode::Domain, labeled()))
+        );
+        // given, they change it
+        assert_eq!(
+            resolve_dns(
+                "beta",
+                Intent::Deploy,
+                Some(DnsMode::Subdomain),
+                Some("example.com"),
+                Some(DnsMode::Domain),
+                labeled()
+            ),
+            Ok((DnsMode::Subdomain, Some("example.com".to_string())))
+        );
+        // a deployment from before the labels: subdomain, and the root domain must be given
+        assert_eq!(
+            resolve_dns("beta", Intent::Deploy, None, Some(" pelle.io "), None, None),
+            Ok((DnsMode::Subdomain, labeled()))
+        );
+        assert_eq!(
+            resolve_dns("beta", Intent::Deploy, None, None, None, None),
+            Err(t!("deployments.deploy_without_root_domain", name = "beta").to_string())
+        );
+        assert!(resolve_dns("beta", Intent::Deploy, None, Some("  "), None, None).is_err());
+    }
+
+    #[test]
+    fn a_create_is_a_subdomain_one_unless_given_and_a_destroy_needs_neither() {
+        assert_eq!(
+            resolve_dns("alpha", Intent::Create, None, Some("pelle.io"), None, None),
+            Ok((DnsMode::Subdomain, Some("pelle.io".to_string())))
+        );
+        assert_eq!(
+            resolve_dns(
+                "alpha",
+                Intent::Create,
+                Some(DnsMode::Domain),
+                None,
+                None,
+                None
+            ),
+            Ok((DnsMode::Domain, None))
+        );
+        assert_eq!(
+            resolve_dns(
+                "alpha",
+                Intent::Destroy,
+                None,
+                None,
+                Some(DnsMode::Domain),
+                None
+            ),
+            Ok((DnsMode::Subdomain, None))
+        );
     }
 
     #[test]

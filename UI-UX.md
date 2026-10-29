@@ -63,7 +63,9 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
 - A deployment in the list opens its page (its state, location and resources); what acts on it
   (deploy, destroy) sits at the top right there. A deploy runs the plan and the apply of a create
   for a deployment that exists, after its password was checked against the hash on its resources, and
-  may create its server anew; the data volume and the addresses stay. A destroy, after the same
+  may create its server anew; the data volume and the addresses stay: a change that would need
+  them created anew stops the plan before anything is changed, and the location of a deploy is
+  the deployment's (its server, else its volume, else its addresses), never a default. A destroy, after the same
   check, removes the dns records and every resource of the deployment but its data volume, that
   one only with the unchecked "delete the data volume" box ticked; its form, its plan and a
   confirmation dialog say so first, all three with a `btn-danger` destroy button; the form and
@@ -81,16 +83,18 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   from the backend with the admin api token derived from the password, no secret of it is shown;
   without a command the window opens. The token comes from `--hcloud-token` or `HCLOUD_TOKEN`,
   the name, password and location from the arguments or `SAK_NAME`,
-  `SAK_PASSWORD` and `SAK_LOCATION`, the dns mode from `--dns-mode` (`subdomain` when not
-  given, also on a deploy), the root domain from `--root-domain` (a dns zone of the project,
-  needed by create and deploy), the mail server from `--smtp-host`, `--smtp-port`,
+  `SAK_PASSWORD` and `SAK_LOCATION`, the dns mode from `--dns-mode` and the root domain
+  from `--root-domain` (a dns zone of the project): a create needs the root domain and is a
+  subdomain one unless told; a deploy keeps the mode and the root domain of the deployment (its
+  labels) unless they are given, so it never changes them by a default, the mail server from `--smtp-host`, `--smtp-port`,
   `--smtp-username`, `--smtp-password` and `--smtp-starttls` or `SAK_SMTP_HOST`, `SAK_SMTP_PORT`,
   `SAK_SMTP_USERNAME`, `SAK_SMTP_PASSWORD` and `SAK_SMTP_STARTTLS` (the window prefills its form
   from the same variables). A destroy keeps the data volume, `--delete-data` deletes it too;
   a deployment that is gone is destroyed already (exit code 0). `--help` says it all, the exit
   codes included: 0 done, 1 failed, 2 wrong arguments, 3 the root domain has a domain deployment
   already, 4 dns modes mixed on a root domain, 5 a resource of the deployment's names belongs to
-  someone else and was left alone (`core/error.rs`). `mise run cli:sakctl -- <command>`
+  someone else and was left alone, 6 the data volume or a primary ip would have to be created anew
+  (`core/error.rs`). `mise run cli:sakctl -- <command>`
   runs it with the token from pass, `mise run cli:run -- <command>` the same through tauri dev.
 - Every line it prints is `<date> <level> <message>`: one space between each, nothing indented,
   the level coloured (INFO green, WARN yellow, ERROR red on stderr; no colour off a terminal or

@@ -15,6 +15,7 @@ pub fn run() {
         .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())
         .manage(DeploymentManager)
+        .manage(deployments::FrontendUrls::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,

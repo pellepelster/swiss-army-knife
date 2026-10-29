@@ -162,6 +162,9 @@ pub struct Registry {
     /// the labels a resource must carry to be destroyed by this registry, e.g. the sak name and
     /// the password hash of a deployment; nothing is destroyed without them
     owner: Option<Labels>,
+    /// the resources that may be destroyed and created again when their changes need it; every
+    /// other resource is never recreated, e.g. a volume with data or a primary ip
+    recreatable: HashSet<ResourceRef>,
 }
 
 impl Registry {
@@ -186,6 +189,30 @@ impl Registry {
     pub fn owned_by(mut self, owner: Labels) -> Self {
         self.owner = Some(owner);
         self
+    }
+
+    /// lets the resource be destroyed and created again when its changes need it; a resource not
+    /// named here never is, a plan or apply that would need it fails with `RecreateRefused`
+    pub fn recreatable(mut self, resource: ResourceRef) -> Self {
+        self.recreatable.insert(resource);
+        self
+    }
+
+    /// `RecreateRefused` for a diff that needs a recreate of a resource that is not recreatable
+    fn refuse_recreate(&self, diff: &ResourceDiff) -> Result<()> {
+        if diff.needs_recreate() && !self.recreatable.contains(&diff.resource) {
+            return Err(Error::RecreateRefused {
+                resource: diff.resource.log_text.clone(),
+                changes: diff
+                    .changes
+                    .iter()
+                    .filter(|change| change.triggers_recreate)
+                    .map(|change| change.log_text())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            });
+        }
+        Ok(())
     }
 
     /// the owner labels, or why nothing may be destroyed
@@ -258,6 +285,8 @@ impl Registry {
                     .diff(resource, &self.context)
                     .await?
             };
+            // a plan that would recreate a resource that must stay fails here, before the apply
+            self.refuse_recreate(&diff)?;
             if diff.status != DiffStatus::UpToDate {
                 self.context.mark_pending(reference);
             }
@@ -268,18 +297,20 @@ impl Registry {
 
     /// applies every resource, dependencies first: created when missing, updated when
     /// changed, left alone when up to date. A resource whose changes need a recreate is
-    /// destroyed and created again when `recreate` is set, refused otherwise; a duplicate
-    /// is refused
-    pub async fn apply_all(&mut self, recreate: bool) -> Result<Vec<ApplyResult>> {
-        self.apply_all_with(recreate, &mut |_| {}).await
+    /// destroyed and created again when it is recreatable (`recreatable`), refused otherwise;
+    /// a duplicate is refused
+    pub async fn apply_all(&mut self) -> Result<Vec<ApplyResult>> {
+        self.apply_all_with(&mut |_| {}).await
     }
 
     /// `apply_all`, telling `on_event` about every resource as it is taken up and done
     pub async fn apply_all_with(
         &mut self,
-        recreate: bool,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
+        // the whole plan first: a refused recreate or a resource of someone else stops the apply
+        // before anything is created, never half way
+        self.diff_all().await?;
         self.context.clear_pending();
         let mut results = Vec::new();
         for index in self.order()? {
@@ -302,11 +333,7 @@ impl Registry {
                     )));
                 }
                 DiffStatus::HasChanges if diff.needs_recreate() => {
-                    if !recreate {
-                        return Err(Error::message(format!(
-                            "{reference} needs a recreate, run with recreate allowed: {diff}"
-                        )));
-                    }
+                    self.refuse_recreate(&diff)?;
                     info!("recreating {reference}: {diff}");
                     provisioner
                         .destroy(resource, &self.context, self.owner()?)
@@ -619,7 +646,7 @@ mod tests {
             .with(thing("key", 1, &[]))
             .unwrap();
 
-        let results = registry.apply_all(false).await.unwrap();
+        let results = registry.apply_all().await.unwrap();
 
         let order: Vec<&str> = results
             .iter()
@@ -631,9 +658,12 @@ mod tests {
                 .iter()
                 .all(|result| result.applied == Applied::Created)
         );
+        // the plan first (the server not diffed, its parents are missing), then the apply
         assert_eq!(
             log(&cloud),
             vec![
+                "diff key pending []",
+                "diff volume pending []",
                 "diff key pending []",
                 "apply key",
                 "diff volume pending []",
@@ -643,7 +673,7 @@ mod tests {
             ]
         );
 
-        let results = registry.apply_all(false).await.unwrap();
+        let results = registry.apply_all().await.unwrap();
         assert!(
             results
                 .iter()
@@ -708,15 +738,21 @@ mod tests {
         };
         let mut registry = registry(&cloud).with(strict).unwrap();
 
-        let error = registry.apply_all(false).await.unwrap_err();
+        // not recreatable: neither the plan nor the apply recreate it
+        let error = registry.diff_all().await.unwrap_err();
         assert!(
-            error
-                .to_string()
-                .starts_with("thing 'key' needs a recreate"),
+            matches!(&error, Error::RecreateRefused { resource, changes }
+                if resource == "thing 'key'" && changes == "version should be '2' but was '1'"),
             "{error}"
         );
+        assert!(matches!(
+            registry.apply_all().await,
+            Err(Error::RecreateRefused { .. })
+        ));
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));
 
-        let results = registry.apply_all(true).await.unwrap();
+        let mut registry = registry.recreatable(Resource::resource_ref(&thing("key", 2, &[])));
+        let results = registry.apply_all().await.unwrap();
         assert_eq!(results[0].applied, Applied::Recreated);
         assert_eq!(
             log(&cloud),
@@ -735,7 +771,7 @@ mod tests {
         let mut registry = Registry::new();
         registry.register::<Thing, Cloud>(cloud.clone());
         let mut registry = registry.with(thing("key", 1, &[])).unwrap();
-        registry.apply_all(false).await.unwrap();
+        registry.apply_all().await.unwrap();
         log(&cloud);
 
         let error = registry.destroy_all().await.unwrap_err();
@@ -772,9 +808,12 @@ mod tests {
 
         let mut strict = thing("key", 2, &[]);
         strict.strict = true;
-        let mut changed = registry(&cloud).with(strict).unwrap();
+        let mut changed = registry(&cloud)
+            .with(strict)
+            .unwrap()
+            .recreatable(Resource::resource_ref(&thing("key", 2, &[])));
         assert!(matches!(
-            changed.apply_all(true).await,
+            changed.apply_all().await,
             Err(Error::NotOwned { .. })
         ));
         assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));

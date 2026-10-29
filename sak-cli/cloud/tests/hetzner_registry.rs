@@ -4,7 +4,7 @@
 
 mod support;
 
-use sak_cloud::api::{Applied, DiffStatus};
+use sak_cloud::api::{Applied, DiffStatus, Resource};
 use sak_cloud::hetzner::deployment::DeploymentSpec;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use support::HetznerTest;
@@ -26,7 +26,7 @@ async fn backend_flow() {
             let provider =
                 HetznerProviderRuntime::from_api(hetzner.api.clone(), location, server_type);
 
-            let declare = |user_data: &str| {
+            let declare = |user_data: &str, recreatable: bool| {
                 let mut spec = DeploymentSpec::new(&name, PUBLIC_KEY, location, server_type)
                     .unwrap()
                     .with_password_hash("0123456789abcdef")
@@ -40,10 +40,13 @@ async fn backend_flow() {
                 registry.add(spec.data_volume()).unwrap();
                 registry.add(spec.ipv4()).unwrap();
                 registry.add(spec.ipv6()).unwrap();
+                if recreatable {
+                    registry = registry.recreatable(spec.server().resource_ref());
+                }
                 registry
             };
 
-            let mut registry = declare("#cloud-config\n");
+            let mut registry = declare("#cloud-config\n", true);
             let diffs = registry.diff_all().await.unwrap();
             let statuses: Vec<DiffStatus> = diffs.iter().map(|diff| diff.status).collect();
             assert_eq!(
@@ -60,7 +63,7 @@ async fn backend_flow() {
             );
             assert_eq!(diffs[4].resource.log_text, format!("server '{name}'"));
 
-            let results = registry.apply_all(false).await.unwrap();
+            let results = registry.apply_all().await.unwrap();
             let order: Vec<String> = results
                 .iter()
                 .map(|result| result.resource.log_text.clone())
@@ -87,14 +90,22 @@ async fn backend_flow() {
                 diffs.iter().all(|diff| diff.status == DiffStatus::UpToDate),
                 "{diffs:?}"
             );
-            let results = registry.apply_all(false).await.unwrap();
+            let results = registry.apply_all().await.unwrap();
             assert!(
                 results
                     .iter()
                     .all(|result| result.applied == Applied::Unchanged)
             );
 
-            let mut changed = declare("#cloud-config\npackage_update: true\n");
+            // the server is not recreatable unless declared so: the plan refuses it
+            let mut refused = declare("#cloud-config\npackage_update: true\n", false);
+            let error = refused.diff_all().await.unwrap_err();
+            assert!(
+                matches!(error, sak_cloud::api::Error::RecreateRefused { .. }),
+                "{error}"
+            );
+
+            let mut changed = declare("#cloud-config\npackage_update: true\n", true);
             let diffs = changed.diff_all().await.unwrap();
             let server = diffs
                 .iter()
@@ -104,10 +115,7 @@ async fn backend_flow() {
             assert!(server.needs_recreate());
             assert_eq!(server.changes[0].name, "user data checksum");
 
-            let error = changed.apply_all(false).await.unwrap_err();
-            assert!(error.to_string().contains("needs a recreate"), "{error}");
-
-            let results = changed.apply_all(true).await.unwrap();
+            let results = changed.apply_all().await.unwrap();
             let server = results
                 .iter()
                 .find(|result| result.resource.log_text.starts_with("server"))

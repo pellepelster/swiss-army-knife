@@ -76,7 +76,9 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
                 runtime.location,
             ));
         }
-        if resource.size_gb != runtime.size_gb {
+        // a volume only grows: one larger than declared (e.g. grown in the console) is up to
+        // date, one smaller would have to be created anew
+        if resource.size_gb > runtime.size_gb {
             changes.push(DiffItem::recreate(
                 "size",
                 resource.size_gb,
@@ -211,6 +213,23 @@ mod tests {
             .unwrap();
 
         assert_eq!(diff.status, DiffStatus::UpToDate);
+    }
+
+    #[tokio::test]
+    async fn a_volume_grown_beyond_its_declared_size_is_up_to_date() {
+        // grown in the console from the declared 16 to 32 GB: a volume never shrinks
+        let (_server, provisioner) =
+            provisioner_with(vec![volume("data", 32, true, json!({}))]).await;
+
+        let diff = provisioner
+            .diff(
+                &HetznerVolume::new("data", Location::nbg1, 16),
+                &LookupProviders::new(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(diff.status, DiffStatus::UpToDate, "{:?}", diff.changes);
     }
 
     #[tokio::test]

@@ -23,6 +23,13 @@ pub enum Error {
     #[error("{resource} exists and does not belong to this deployment: {reason}")]
     NotOwned { resource: String, reason: String },
 
+    /// a resource would have to be destroyed and created again (`changes`), but it is not
+    /// declared recreatable, e.g. because it holds data or an address; nothing was changed
+    #[error(
+        "{resource} would have to be created anew ({changes}), which would remove it with what it holds"
+    )]
+    RecreateRefused { resource: String, changes: String },
+
     /// the api of a provider failed, the error is the provider's own
     #[error("{0}")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),

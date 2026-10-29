@@ -34,7 +34,9 @@ const EXIT_CODES: &str = "Exit codes:
   4  The DNS mode asked is not the one other deployments use the root domain in: a root
      domain has one domain deployment or only subdomain deployments.
   5  A resource of a name the deployment uses belongs to someone else: it lacks the label
-     sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.";
+     sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.
+  6  The data volume or a primary IP would have to be created anew, which would remove its
+     data or address. Nothing was changed.";
 
 /// SwissArmyKnife: the deployments of a Hetzner Cloud project, listed, created and
 /// deployed. Without a command the window opens.
@@ -127,11 +129,13 @@ pub struct DeploymentArgs {
     #[arg(long, env = LOCATION_VARIABLE, default_value = "hel1", value_parser = parse_location)]
     location: Location,
     /// How DNS is set up: domain manages <root domain> and *.<root domain>, subdomain manages
-    /// <sak name>.<root domain> and *.<sak name>.<root domain>
-    #[arg(long, default_value = "subdomain", value_parser = parse_dns_mode)]
-    dns_mode: DnsMode,
-    /// The DNS zone of the project the names of the deployment are in, pelle.io; needed by
-    /// create and deploy. The zone must exist, SAK does not create it
+    /// <sak name>.<root domain> and *.<sak name>.<root domain>. Not given: subdomain for a create,
+    /// the deployment's own for a deploy
+    #[arg(long, value_parser = parse_dns_mode)]
+    dns_mode: Option<DnsMode>,
+    /// The DNS zone of the project the names of the deployment are in, pelle.io; needed by a
+    /// create, a deploy takes the deployment's own when not given. The zone must exist, SAK does
+    /// not create it
     #[arg(long)]
     root_domain: Option<String>,
     /// The mail server the backend sends its login links with; without it, no mail server
@@ -565,7 +569,8 @@ fn log(level: Level, message: impl Display) {
 mod tests {
     use super::*;
     use crate::core::error::{
-        EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_USAGE,
+        EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED,
+        EXIT_RECREATE_REFUSED, EXIT_USAGE,
     };
 
     fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
@@ -621,6 +626,7 @@ mod tests {
             EXIT_DOMAIN_TAKEN,
             EXIT_MIXED_DNS_MODES,
             EXIT_NOT_OWNED,
+            EXIT_RECREATE_REFUSED,
         ] {
             assert!(EXIT_CODES.contains(&format!("\n  {code}  ")), "{code}");
         }
@@ -719,7 +725,8 @@ mod tests {
         assert_eq!(provider.hcloud_token, "t");
         assert_eq!(deployment.name, "alpha");
         assert_eq!(deployment.location, Location::nbg1);
-        assert_eq!(deployment.dns_mode, DnsMode::Subdomain);
+        // not given: the core resolves them, a deploy to the deployment's own
+        assert_eq!(deployment.dns_mode, None);
         assert_eq!(deployment.root_domain, None);
         assert_eq!(
             deployment.deployment(Intent::Deploy, false).password_repeat,
@@ -769,7 +776,7 @@ mod tests {
         assert!(deployment.show_log);
         assert_eq!(
             deployment.deployment(Intent::Create, false).dns_mode,
-            DnsMode::Domain
+            Some(DnsMode::Domain)
         );
         assert_eq!(
             deployment

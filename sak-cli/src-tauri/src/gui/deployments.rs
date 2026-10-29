@@ -7,31 +7,44 @@ use crate::core::deployments::{
 };
 use crate::core::error::WizardError;
 use crate::core::providers::ProviderTokens;
+use std::collections::HashSet;
+use std::sync::Mutex;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
+use url::Url;
+
+/// the frontend urls of the deployments the last list answered: the only urls `open_url` opens
+#[derive(Default)]
+pub struct FrontendUrls(Mutex<HashSet<String>>);
 
 #[tauri::command]
 pub fn deployment_defaults() -> DeploymentDefaults {
     defaults()
 }
 
-/// opens the frontend of a deployment in the browser of the system; nothing but an https url, the
-/// page gets no opener of its own
+/// opens the frontend of a deployment in the browser of the system: only a url the last list of
+/// deployments answered, the page gets no opener of its own
 #[tauri::command]
-pub fn open_url(app: AppHandle, url: String) -> Result<(), String> {
-    if !is_https(&url) {
-        return Err(format!("'{url}' is no https url"));
-    }
+pub fn open_url(app: AppHandle, known: State<'_, FrontendUrls>, url: String) -> Result<(), String> {
+    let known = known.0.lock().map_err(|e| e.to_string())?;
+    let url = checked_url(&known, &url)?;
     app.opener()
-        .open_url(url, None::<&str>)
+        .open_url(url.as_str(), None::<&str>)
         .map_err(|error| error.to_string())
 }
 
-/// `https://` and a host, no other scheme reaches the browser
-fn is_https(url: &str) -> bool {
-    url.strip_prefix("https://")
-        .is_some_and(|rest| !rest.is_empty() && !rest.contains(char::is_whitespace))
+/// the url when it is one of `known`, an https url with a host and no control character
+fn checked_url(known: &HashSet<String>, url: &str) -> Result<Url, String> {
+    let refused = || format!("'{}' is no frontend of a deployment", url.escape_debug());
+    if url.chars().any(char::is_control) || !known.contains(url) {
+        return Err(refused());
+    }
+    let parsed = Url::parse(url).map_err(|_| refused())?;
+    if parsed.scheme() != "https" || parsed.host_str().is_none_or(str::is_empty) {
+        return Err(refused());
+    }
+    Ok(parsed)
 }
 
 #[tauri::command]
@@ -80,9 +93,16 @@ pub async fn create_deployment(
 pub async fn list_deployments(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
+    frontend_urls: State<'_, FrontendUrls>,
 ) -> Result<Vec<DeploymentResponse>, String> {
     let tokens = tokens.tokens();
-    manager.list(tokens).await
+    let deployments = manager.list(tokens).await?;
+    // what the page may open: the frontends of these deployments, no other url
+    *frontend_urls.0.lock().map_err(|e| e.to_string())? = deployments
+        .iter()
+        .filter_map(|deployment| deployment.frontend_url.clone())
+        .collect();
+    Ok(deployments)
 }
 
 #[cfg(test)]
@@ -90,17 +110,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_https_urls_reach_the_browser() {
-        assert!(is_https("https://sak.alpha.pelle.io"));
+    fn only_the_frontend_of_a_listed_deployment_reaches_the_browser() {
+        let known: HashSet<String> = ["https://sak.alpha.pelle.io".to_string()].into();
+        assert_eq!(
+            checked_url(&known, "https://sak.alpha.pelle.io")
+                .unwrap()
+                .as_str(),
+            "https://sak.alpha.pelle.io/"
+        );
         for url in [
-            "http://sak.pelle.io",
+            // any other https site, also of the same root domain
+            "https://evil.example",
+            "https://sak.beta.pelle.io",
+            // the known one with something added, or another scheme
+            "https://sak.alpha.pelle.io/x",
+            "http://sak.alpha.pelle.io",
             "file:///etc/passwd",
             "javascript:alert(1)",
-            "https://",
-            "https://a b",
             "",
         ] {
-            assert!(!is_https(url), "{url}");
+            assert!(checked_url(&known, url).is_err(), "{url}");
         }
+        // a control character is refused even in a url that is known
+        let with_newline: HashSet<String> = ["https://sak.alpha.pelle.io\n".to_string()].into();
+        assert!(checked_url(&with_newline, "https://sak.alpha.pelle.io\n").is_err());
+        // a known url that is no https url with a host is refused too
+        let http: HashSet<String> = ["http://sak.alpha.pelle.io".to_string()].into();
+        assert!(checked_url(&http, "http://sak.alpha.pelle.io").is_err());
     }
 }

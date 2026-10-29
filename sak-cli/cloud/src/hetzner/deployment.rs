@@ -71,6 +71,39 @@ impl DiscoveredDeployment {
         ))
     }
 
+    /// where it is: the location of its server, else of its volumes, else of its primary ips;
+    /// none when it has none of them. Resources in different locations are an error that names
+    /// them, a deploy must not guess
+    pub fn location(&self) -> std::result::Result<Option<Location>, String> {
+        let mut found: Vec<(String, Location)> = Vec::new();
+        found.extend(
+            self.server
+                .iter()
+                .map(|server| (format!("server '{}'", server.name), server.location)),
+        );
+        found.extend(
+            self.volumes
+                .iter()
+                .map(|volume| (format!("volume '{}'", volume.name), volume.location)),
+        );
+        found.extend(
+            self.primary_ips
+                .iter()
+                .map(|ip| (format!("primary ip '{}'", ip.name), ip.location)),
+        );
+        let Some((_, location)) = found.first() else {
+            return Ok(None);
+        };
+        if found.iter().any(|(_, other)| other != location) {
+            let all: Vec<String> = found
+                .iter()
+                .map(|(resource, location)| format!("{resource} in {location}"))
+                .collect();
+            return Err(all.join(", "));
+        }
+        Ok(Some(*location))
+    }
+
     /// the value of `key` on the first of its resources that carries it
     fn label(&self, key: &str) -> Option<&String> {
         let mut labels: Vec<&Labels> = Vec::new();
@@ -541,7 +574,13 @@ pub async fn state(
     Ok(DeploymentState {
         name: name.clone(),
         status,
-        location: deployment.server.as_ref().map(|server| server.location),
+        // the server's, else the volume's or the addresses'; the first when they disagree
+        location: deployment
+            .server
+            .as_ref()
+            .map(|server| server.location)
+            .or_else(|| deployment.volumes.first().map(|volume| volume.location))
+            .or_else(|| deployment.primary_ips.first().map(|ip| ip.location)),
         dns_mode: deployment.dns_mode(),
         resources,
     })
@@ -784,11 +823,16 @@ impl DeploymentSpec {
     }
 
     /// the resource group with its dns records in a registry of the provider, ready to diff
-    /// and apply; a recreate removes only resources with the identity of the deployment
+    /// and apply. Only the server and the ssh key may be created anew (the key holds nothing,
+    /// a new key needs a new server anyway); the data volume and the primary ips never are, a
+    /// change that would need it stops the plan (`RecreateRefused`). A recreate removes only
+    /// resources with the identity of the deployment
     pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
         let mut registry = provider
             .registry()
             .owned_by(self.identity())
+            .recreatable(self.server().resource_ref())
+            .recreatable(self.ssh_key().resource_ref())
             .with(self.ssh_key())?
             .with(self.data_volume())?
             .with(self.ipv4())?
@@ -1477,7 +1521,7 @@ mod tests {
         // nor does an apply take it over
         let mut registry = web().registry(&provider).unwrap();
         assert!(matches!(
-            registry.apply_all(true).await,
+            registry.apply_all().await,
             Err(Error::NotOwned { .. })
         ));
         assert_eq!(writes(&mock).await, Vec::<String>::new());
@@ -1508,6 +1552,76 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "ssh key 'web' exists and does not belong to this deployment: its label 'sak.pelle.io/password-hash' has another value"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_deploy_recreates_the_server_but_never_the_data_volume_or_the_addresses() {
+        // the deployment in nbg1, declared in hel1: the server and the key may follow, the
+        // volume and the addresses never
+        let labeled = || json!({ NAME_LABEL: "web", PASSWORD_HASH_LABEL: "any-password-hash" });
+        let volume = json!({
+            "id": 3, "name": "web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
+            "protection": { "delete": true }, "server": null, "status": "available",
+            "location": { "id": 2, "name": "nbg1" }, "labels": labeled()
+        });
+        let (mock, api) = mock_api_all(&[
+            ("servers", vec![]),
+            ("ssh_keys", vec![]),
+            ("firewalls", vec![]),
+            ("volumes", vec![volume]),
+            ("primary_ips", vec![]),
+        ])
+        .await;
+        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+
+        let error = web()
+            .registry(&provider)
+            .unwrap()
+            .diff_all()
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, Error::RecreateRefused { resource, changes }
+                if resource == "volume 'web-data'" && changes == "location should be 'hel1' but was 'nbg1'"),
+            "{error}"
+        );
+        assert!(matches!(
+            web().registry(&provider).unwrap().apply_all().await,
+            Err(Error::RecreateRefused { .. })
+        ));
+        assert_eq!(writes(&mock).await, Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_location_of_a_deployment_is_its_servers_else_its_volumes_else_its_addresses() {
+        let volume: crate::hetzner::api::volumes::Volume = serde_json::from_value(json!({
+            "id": 3, "name": "alpha-data", "format": "ext4", "linux_device": "/dev/x", "size": 16,
+            "protection": { "delete": true }, "server": null, "status": "available",
+            "location": { "id": 2, "name": "nbg1" }, "labels": {}
+        }))
+        .unwrap();
+        let ip = |location: &str| -> crate::hetzner::api::primary_ips::PrimaryIp {
+            serde_json::from_value(json!({
+                "id": 11, "name": "alpha-ipv4", "ip": "1.2.3.4", "type": "ipv4", "assignee_id": null,
+                "assignee_type": "unassigned", "auto_delete": false, "protection": { "delete": true },
+                "location": { "id": 3, "name": location }, "labels": {}
+            }))
+            .unwrap()
+        };
+        let mut deployment = DiscoveredDeployment::new("alpha");
+        assert_eq!(deployment.location(), Ok(None));
+        deployment.primary_ips = vec![ip("nbg1").into()];
+        assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
+        // the server gone, the volume tells
+        deployment.volumes = vec![volume.into()];
+        assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
+        // resources in two locations: no guess
+        deployment.primary_ips = vec![ip("hel1").into()];
+        assert_eq!(
+            deployment.location(),
+            Err("volume 'alpha-data' in nbg1, primary ip 'alpha-ipv4' in hel1".to_string())
         );
     }
 

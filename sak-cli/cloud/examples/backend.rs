@@ -56,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .with_ipv4(ip.as_lookup())
     .with_labels(labels.clone());
 
+    let server_ref = server.resource_ref();
     // what a destroy may remove: only resources that carry these labels
     let mut registry = hetzner
         .registry()
@@ -77,8 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     print!("{}", diff::log_text(&diffs));
 
     if arguments.iter().any(|argument| argument == "--apply") {
-        let recreate = arguments.iter().any(|argument| argument == "--recreate");
-        for result in registry.apply_all(recreate).await? {
+        // --recreate lets the server be created anew, nothing else ever is
+        if arguments.iter().any(|argument| argument == "--recreate") {
+            registry = registry.recreatable(server_ref);
+        }
+        for result in registry.apply_all().await? {
             println!("{}: {:?}", result.resource, result.applied);
         }
     }

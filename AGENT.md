@@ -16,35 +16,14 @@ Read this file first. It contains rules for the complete repository.
 - Run verification that can find regressions in the changed area.
 - Never claim full verification when only a partial signal was run.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
-  subjects, tokens, passwords, auth codes, reset links, raw IPs, or full query strings.
+  subjects, tokens, passwords, auth codes, reset links, raw IPs of clients or users, or full query strings. The IP
+  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakctl may show
+  and log them, e.g. in `list` and while it provisions a server.
 - Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
   defect; record it as a feature or an accepted risk until it is fixed.
 - Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
   the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and
   make necessary connections clear to the user.
-
-## Product Boundaries And Instruction Routing
-
-protocols. Unless a path is explicitly Authling-owned or shared, existing
-repository content belongs to Chatto.
-
-- **Authling** is the independent identity-provider product under `authling/`.
-  It is not a Chatto component, runtime unit, feature, or deployment mode.
-- **Runling** is the independent TypeScript workflow and agent orchestrator
-  under `packages/runling/`. It includes a library, CLI, and web console. It
-  uses the root pnpm workspace and has its own version, CI job, and npm release.
-  Keep its public APIs and runtime independent of Chatto and Authling.
-- **Shared framework code** is application-neutral event-sourcing, JetStream
-  client, embedded NATS, data-cryptography, and configuration-loading
-  machinery intended for consumption by both products. The independently
-  versioned but unstable modules live under `pkg/events/`,
-  `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
-  `pkg/appconfig/`.
-
-Authling is in this repository temporarily. It provides the second application
-needed to extract and validate the shared framework. Move Authling to its own
-repository when the shared boundary is stable. Do not describe this repository
-as its permanent home. Do not add coupling that makes this move more difficult.
 
 ## UI/UX
 
