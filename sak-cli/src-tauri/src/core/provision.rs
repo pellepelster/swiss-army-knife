@@ -359,6 +359,7 @@ impl RunDir {
 
     /// fails when anything exists at `path`, also a link of someone else; private from the start
     fn create_at(path: PathBuf, runtime: &str, name: String) -> Result<Self, String> {
+        #[allow(unused_mut)]
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {

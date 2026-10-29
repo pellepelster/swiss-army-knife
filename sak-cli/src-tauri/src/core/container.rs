@@ -183,6 +183,7 @@ fn docker_api() -> Option<Docker> {
             )
             .ok()
         })?;
+    #[cfg(unix)]
     if host.starts_with("unix://") {
         return Docker::connect_with_unix(&host, API_TIMEOUT_SECONDS, API_DEFAULT_VERSION).ok();
     }

@@ -183,12 +183,13 @@ zip -j "build/sak-cli-macos-${VERSION}.zip" src-tauri/target/universal-apple-dar
 (cd build && shasum -a 256 "sak-cli-macos-${VERSION}.zip" > "sak-cli-macos-${VERSION}.zip.sha256")
 """
 
-# in git bash, which has no zip; 7-Zip is there instead
+# in git bash, which has no zip; 7-Zip is there instead. -e: a failed step ends the task, as sh
+# does for the others
 [tasks."cli:build:windows"]
 description = "Build sakctl for windows into sak-cli/build/sak-cli-windows-<VERSION>.zip"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
-shell = "bash -c"
+shell = "bash -e -c"
 run = """
 tauri build --no-bundle
 mkdir -p build
