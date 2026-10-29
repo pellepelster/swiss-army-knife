@@ -1,16 +1,4 @@
 cli:
-  working: "erstelle %{resource}…"
-  working_update: "ändere %{resource}…"
-  working_recreate: "erstelle %{resource} neu…"
-  working_check: "prüfe %{resource}…"
-  working_destroy: "zerstöre %{resource}…"
-  applied:
-    created: "erstellt %{resource}"
-    updated: "aktualisiert %{resource}"
-    recreated: "erstellt %{resource}"
-    unchanged: "%{resource} aktuell"
-    destroyed: "zerstört %{resource}"
-    gone: "%{resource} schon gelöscht"
   destroyed: "Das Deployment %{name} ist zerstört, sein Datenvolume bleibt."
   destroyed_with_data: "Das Deployment %{name} und sein Datenvolume sind zerstört."
   task:
@@ -152,6 +140,16 @@ shared:
     already_deleted: "schon gelöscht"
     will_run: "wird ausgeführt"
     runs_when_forced: "läuft nur beim erzwungenen Ausrollen"
+  working:
+    working: "wird erstellt…"
+    working_update: "wird geändert…"
+    working_recreate: "wird neu erstellt…"
+    working_check: "wird geprüft…"
+    working_destroy: "wird zerstört…"
+  done:
+    created: "erstellt"
+    updated: "aktualisiert"
+    destroyed: "zerstört"
 ui:
   quit: "Beenden"
   providers:
@@ -173,14 +171,12 @@ ui:
     loading: "Suche Deployments bei den Providern…"
     address: "Adresse"
   deployment:
-    deploy: "Erneut ausrollen"
     destroy: "Zerstören"
     location: "Standort"
     check: "Deployment prüfen"
   password:
     title: "Passwort"
     intro: "Das Passwort des Deployments"
-    label: "Passwort"
     checking: "Das Passwort wird geprüft…"
     right: "Das Passwort stimmt."
     show: "Passwort zeigen"
@@ -188,8 +184,6 @@ ui:
   run:
     done: "Fertig"
   create:
-    title_deploy: "Deployment erneut ausrollen"
-    password_hint_deploy: "Das Passwort, mit dem das Deployment erstellt wurde."
     title_destroy: "Deployment zerstören"
     password_hint_destroy: "Das Passwort, mit dem das Deployment erstellt wurde; alles außer seinem Datenvolume wird entfernt."
     title: "Neues Deployment"
@@ -198,7 +192,6 @@ ui:
     password: "Passwort"
     password_hint: "Mindestens 16 Zeichen. Der SSH-Key des Deployments wird aus Name und Passwort abgeleitet, derselbe Name und dasselbe Passwort ergeben wieder denselben Key."
     password_repeat: "Passwort wiederholen"
-    password_mismatch: "Die Passwörter stimmen nicht überein."
     location: "Standort"
     location_hint: "Wo der Server, sein Datenvolume und seine Adressen erstellt werden."
     admin_email: "E-Mail-Adresse des Admins"
@@ -238,28 +231,15 @@ ui:
     title_create: "Wird erstellt"
     title_deploy: "Wird neu ausgerollt"
     title_destroy: "Wird gelöscht"
-    deploy: "Erneut ausrollen"
     deploying: "Rolle aus, ein Server, der sich ändern muss, wird neu erstellt, sein Datenvolume und seine Adressen bleiben…"
     destroy: "Zerstören"
     destroying: "Zerstöre das Deployment, sein Datenvolume bleibt…"
     destroying_with_data: "Zerstöre das Deployment und sein Datenvolume…"
     destroyed: "Das Deployment ist zerstört, sein Datenvolume bleibt."
     destroyed_with_data: "Das Deployment und sein Datenvolume sind zerstört."
-    working_destroy: "wird zerstört…"
     creating: "Erstelle das Deployment, das dauert ein paar Minuten…"
-    working: "wird erstellt…"
-    working_update: "wird geändert…"
-    working_recreate: "wird neu erstellt…"
-    working_check: "wird geprüft…"
     provisioning:
       all_ok: "alles ok"
       up_to_date: "aktuell, das Playbook lief nicht"
       failed: "fehlgeschlagen bei %{task}: %{message}"
-    done:
-      created: "erstellt"
-      updated: "aktualisiert"
-      recreated: "erstellt"
-      unchanged: "aktuell"
-      destroyed: "zerstört"
     provisioned: "Das Deployment ist aktuell und sein Server eingerichtet."
-    apply: "Erstellen"

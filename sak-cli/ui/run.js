@@ -16,6 +16,15 @@ const runList = document.getElementById('run-resources');
 const runStatus = document.getElementById('run-status');
 const doneButton = document.getElementById('run-done');
 
+// the text of an apply's result, as the command line has it (applied_key in rust): a resource
+// created anew reads as created, one that stays as up-to-date
+const APPLIED = {
+  created: 'shared.done.created',
+  recreated: 'shared.done.created',
+  updated: 'shared.done.updated',
+  unchanged: 'shared.resource_status.up_to_date',
+};
+
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
@@ -38,7 +47,7 @@ function setStatus(element, message, failed = false) {
 }
 
 // a resource of the plan: its kind, name and resource status, then what the plan does to it.
-// Rust decides the action and the working text (`ui.plan.<working>`) that the row shows when the
+// Rust decides the action and the working text (`shared.working.<working>`) that the row shows when the
 // run starts
 function row({ kind, name: resourceName, resourceStatus, action, working, status: state, changes }) {
   const item = document.createElement('li');
@@ -100,15 +109,15 @@ function onEvent(message) {
   switch (message.event) {
     case 'started':
       led.dataset.sakState = 'busy';
-      detail.textContent = text(`ui.plan.${item.dataset.working}`);
+      detail.textContent = text(`shared.working.${item.dataset.working}`);
       break;
     case 'applied':
       led.dataset.sakState = 'ok';
-      detail.textContent = text(`ui.plan.done.${message.applied}`);
+      detail.textContent = text(APPLIED[message.applied]);
       break;
     case 'destroyed':
       led.dataset.sakState = 'neutral';
-      detail.textContent = text(message.gone ? 'ui.plan.done.destroyed' : 'shared.plan.already_deleted');
+      detail.textContent = text(message.gone ? 'shared.done.destroyed' : 'shared.plan.already_deleted');
       break;
     case 'taskStarted':
       led.dataset.sakState = 'busy';

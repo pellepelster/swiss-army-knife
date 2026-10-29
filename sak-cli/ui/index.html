@@ -21,10 +21,15 @@
          plan, create) are in the button group at the bottom right. Buttons that act on the data
          of the view (add a provider, create a deployment) are at the top right of the header -->
     <main class="view splash" id="view-splash">
-      <img class="splash-icon" src="icon.svg" alt="">
-      <h1 class="splash-title">SwissArmyKnife</h1>
-      <ul class="checks" id="checks" aria-live="polite"></ul>
-      <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
+      <!-- the icon and the title a third down the window, the checks hang below them -->
+      <div class="splash-brand">
+        <img class="splash-icon" src="icon.svg" alt="">
+        <h1 class="splash-title">SwissArmyKnife</h1>
+        <div class="splash-checks">
+          <ul class="checks" id="checks" aria-live="polite"></ul>
+          <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
+        </div>
+      </div>
       <!-- quit only after a check failed -->
       <div class="splash-footer btn-group" role="group" id="splash-footer" hidden>
         <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit"></button>
@@ -121,17 +126,16 @@
           </h1>
         </div>
         <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployment-check" data-text="ui.deployment.check"></button>
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
         </div>
       </header>
       <p class="hint" id="deployment-location"></p>
       <ul class="resources" id="deployment-resources"></ul>
       <p class="hint" id="deployment-message" aria-live="polite"></p>
-      <!-- the toolbar at the bottom: back to the list, or a plan of what a deploy would change -->
       <div class="page-footer">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
-          <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </div>
     </main>
@@ -147,7 +151,7 @@
       <form class="page-form" id="password-form">
         <p class="hint"><span data-text="ui.password.intro"></span> <strong class="sak-mono" id="password-name"></strong></p>
         <div>
-          <label class="form-label" for="password-input" data-text="ui.password.label"></label>
+          <label class="form-label" for="password-input" data-text="ui.password.title"></label>
           <!-- the button at the end of the field shows the password as typed, and hides it again -->
           <div class="input-group">
             <input class="form-control" id="password-input" type="password" autocomplete="current-password" spellcheck="false">
@@ -192,7 +196,7 @@
         <div id="create-repeat-group">
           <label class="form-label" for="create-password-repeat" data-text="ui.create.password_repeat"></label>
           <input class="form-control" id="create-password-repeat" type="password" autocomplete="new-password" minlength="16" required>
-          <div class="invalid-feedback" data-text="ui.create.password_mismatch"></div>
+          <div class="invalid-feedback" data-text="shared.deployments.password_mismatch"></div>
         </div>
         <div id="create-location-group">
           <label class="form-label" for="create-location" data-text="ui.create.location"></label>

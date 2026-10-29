@@ -19,13 +19,32 @@ body {
   position: relative;
   box-sizing: border-box;
   height: 100%;
+}
+
+/* the middle of the icon and the title a third down the window, whatever their size; the checks
+   hang below them and count for nothing, so they grow towards the bottom */
+.splash-brand {
+  position: absolute;
+  top: calc(100% / 3);
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sak-space-5);
-  /* the icon and the title in the middle of the window, where they stay; the checks grow below
-     them towards the bottom */
-  padding-top: calc(50vh - (128px + var(--sak-space-5) + 2.4rem) / 2);
+}
+
+.splash-checks {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sak-space-3);
+  padding-top: var(--sak-space-5);
 }
 
 /* the quit of the splash screen, at the bottom right like the buttons of every page */

@@ -13,7 +13,7 @@ use crate::core::deployments::{
     DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment,
     PASSWORD_VARIABLE, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
     SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE,
-    UserMode, complete, key, parse_flag, resource_status,
+    UserMode, applied_key, complete, destroyed_key, key, parse_flag, resource_status,
 };
 use crate::core::error::{EXIT_OK, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
@@ -639,29 +639,27 @@ async fn deploy(
         .iter()
         .map(|resource| (resource.resource.clone(), resource.working))
         .collect();
-    // what is done to a resource, the verb first: `created server 'alpha'`
+    // a resource, then what is done to it, with the texts of the window: `Server 'alpha': created`
     let mut report = |event: CreateEvent| match event {
         CreateEvent::Started { resource } => {
             let key = working.get(&resource).copied().unwrap_or("working");
             log(
                 Level::Info,
-                t!(format!("cli.{key}"), resource = titled(&resource)),
+                format!(
+                    "{}: {}",
+                    titled(&resource),
+                    t!(format!("shared.working.{key}"))
+                ),
             )
         }
         CreateEvent::Applied { resource, applied } => log(
             Level::Info,
-            t!(
-                format!("cli.applied.{}", key(&applied)),
-                resource = titled(&resource)
-            ),
+            format!("{}: {}", titled(&resource), t!(applied_key(applied))),
         ),
-        CreateEvent::Destroyed { resource, gone } => {
-            let what = if gone { "destroyed" } else { "gone" };
-            log(
-                Level::Info,
-                t!(format!("cli.applied.{what}"), resource = titled(&resource)),
-            )
-        }
+        CreateEvent::Destroyed { resource, gone } => log(
+            Level::Info,
+            format!("{}: {}", titled(&resource), t!(destroyed_key(gone))),
+        ),
         CreateEvent::Provisioning { message } => log(Level::Info, message),
         // the log keeps the text of a line of ansible without its spaces and empty lines
         CreateEvent::Output { line } => {
@@ -775,12 +773,16 @@ mod tests {
 
     #[test]
     fn a_log_line_is_date_level_message_with_the_level_coloured() {
-        let line = log_line("2026-10-28 14:03:12", Level::Info, "created server 'alpha'");
+        let line = log_line(
+            "2026-10-28 14:03:12",
+            Level::Info,
+            "Server 'alpha': created",
+        );
         assert_eq!(
             anstream::adapter::strip_str(&line).to_string(),
-            "2026-10-28 14:03:12 INFO created server 'alpha'"
+            "2026-10-28 14:03:12 INFO Server 'alpha': created"
         );
-        assert!(line.contains("\x1b[1m\x1b[32mINFO\x1b[0m created"));
+        assert!(line.contains("\x1b[1m\x1b[32mINFO\x1b[0m Server"));
         let error = log_line("2026-10-28 14:03:12", Level::Error, "failed");
         assert_eq!(
             anstream::adapter::strip_str(&error).to_string(),

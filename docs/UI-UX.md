@@ -79,7 +79,7 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 - **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color on a
   terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
   the plan found or a resource a destroy will remove.
-- **Verb first.** What happens to a resource reads verb first, as it starts and when it is done: "creating server
-  'alpha'…", then "created server 'alpha'".
+- **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is done
+  to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".
 - **The same checks as the window** run before each command; a failed check ends the command.
 - **Quiet by default.** The output of the provisioning shows only when the user asks for it.

@@ -196,6 +196,25 @@ pub struct PlannedResource {
     pub(crate) changes: Vec<String>,
 }
 
+/// the key of the text of an apply's result, for the command line and the window alike: a
+/// resource created anew reads as created, one that stays as up-to-date
+pub fn applied_key(applied: Applied) -> &'static str {
+    match applied {
+        Applied::Created | Applied::Recreated => "shared.done.created",
+        Applied::Updated => "shared.done.updated",
+        Applied::Unchanged => "shared.resource_status.up_to_date",
+    }
+}
+
+/// the key of the text of a destroyed resource: destroyed, or gone already
+pub fn destroyed_key(gone: bool) -> &'static str {
+    if gone {
+        "shared.done.destroyed"
+    } else {
+        "shared.plan.already_deleted"
+    }
+}
+
 /// what an apply reports while it runs: a resource started, a resource done, the provisioning.
 /// The command itself answers when everything is done or failed
 #[derive(Clone, Serialize)]

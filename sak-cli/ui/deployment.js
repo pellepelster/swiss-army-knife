@@ -1,6 +1,6 @@
-// the page of one deployment, opened with its password: its state, location and resources.
-// Destroy at the top right opens the form of a destroy. The toolbar at the bottom: back to the
-// list, or check deployment, which plans a deploy of the deployment as it is
+// the page of one deployment, opened with its password: its state, location and resources. The
+// toolbar at the top right: check deployment, which plans a deploy of the deployment as it is,
+// and destroy, which opens the form of a destroy. Back at the bottom leads to the list
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
 import { openedDeployment } from './password.js';
