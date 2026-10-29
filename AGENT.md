@@ -14,7 +14,6 @@ Read this file first. It contains rules for the complete repository.
   something differently. For API changes, document the required client migration; keep implementation details and
   unchanged behavior out. Apply the release-note scope below.
 - Run verification that can find regressions in the changed area.
-- Never claim full verification when only a partial signal was run.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
   subjects, tokens, passwords, auth codes, reset links, raw IPs of clients or users, or full query strings. The IP
   addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakctl may show
@@ -24,6 +23,7 @@ Read this file first. It contains rules for the complete repository.
 - Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
   the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and
   make necessary connections clear to the user.
+- Keep comments terse and condensed, only add comments for non-obvious behavior
 
 ## UI/UX
 
