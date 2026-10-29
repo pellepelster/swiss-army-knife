@@ -65,14 +65,14 @@ docker run --rm --entrypoint test "$image" -x /opt/sak-backend/bin/sak-backend
 echo "the image of sak-backend works"
 """
 
-# for amd64 and arm64, tagged latest and with the commit it was built from; the platform not
-# running here needs qemu (binfmt)
+# for amd64 and arm64, tagged <VERSION>-rc (`release` makes it <VERSION>) and with the commit it
+# was built from; the platform not running here needs qemu (binfmt)
 [tasks."backend:image:push"]
 description = "Build the image of sak-backend for amd64 and arm64 and push it to ghcr.io"
 run = """
 ./gradlew :sak-backend:installDist
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.backend_image}}:latest --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.backend_image}}:${VERSION}-rc --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.backend_image}}:buildcache \
   --cache-to type=registry,ref={{vars.backend_image}}:buildcache,mode=max,image-manifest=true \
   --push sak-backend
@@ -101,7 +101,7 @@ echo "the image of sak-ingress works"
 description = "Build the image of sak-ingress for amd64 and arm64 and push it to ghcr.io"
 run = """
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.ingress_image}}:latest --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.ingress_image}}:${VERSION}-rc --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache \
   --cache-to type=registry,ref={{vars.ingress_image}}:buildcache,mode=max,image-manifest=true \
   --push sak-ingress
@@ -258,14 +258,14 @@ docker run --rm -v "{{config_root}}/sak-cli/image-test:/test:ro" "$image" sh /te
 echo "the image of the tools works"
 """
 
-# for amd64 and arm64 (the macs), tagged latest and with the commit it was built from; the
-# platform not running here needs qemu (binfmt)
+# for amd64 and arm64 (the macs), tagged <VERSION>-rc (`release` makes it <VERSION>) and with the
+# commit it was built from; the platform not running here needs qemu (binfmt)
 [tasks."cli:image:push"]
 description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
 dir = "{{config_root}}/sak-cli"
 run = """
 docker buildx build --platform linux/amd64,linux/arm64 --file Dockerfile \
-  --tag {{vars.cli_image}}:latest --tag {{vars.cli_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.cli_image}}:${VERSION}-rc --tag {{vars.cli_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.cli_image}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_image}}:buildcache,mode=max,image-manifest=true \
   --push ..
@@ -292,10 +292,21 @@ description = "Build the canary for amd64 and arm64 and push it to ghcr.io"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag {{vars.cli_canary}}:latest --tag {{vars.cli_canary}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.cli_canary}}:${VERSION}-rc --tag {{vars.cli_canary}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.cli_canary}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_canary}}:buildcache,mode=max,image-manifest=true \
   --push .
+"""
+
+# the images of a build, pushed as <VERSION>-rc by their push tasks, as <VERSION>: the registry
+# copies the manifest of both platforms, nothing is pulled. Run when all images are pushed (the
+# workflow, job release); sakctl and the servers take <VERSION> only after it
+[tasks."release"]
+description = "Tag the images pushed as <VERSION>-rc as <VERSION> in ghcr.io"
+run = """
+for image in {{vars.backend_image}} {{vars.ingress_image}} {{vars.cli_image}} {{vars.cli_canary}}; do
+  docker buildx imagetools create --tag "$image:${VERSION}" "$image:${VERSION}-rc"
+done
 """
 
 # the services of config/local-compose.yaml next to the backend of local:backend:run: the ingress on 80

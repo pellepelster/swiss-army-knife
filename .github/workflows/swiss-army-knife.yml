@@ -1,9 +1,10 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
 # (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
-# the canary), each in a job of its own and pushed to ghcr.io from main only, sakctl as a native
-# binary for linux, macOS and windows, and the documentation of docs/ as a site, published as
-# the github pages of the repository from main only. Everything that can be is cached: the mise tools, gradle,
-# npm, cargo, the apt packages and the docker layers (in the registry).
+# the canary), each in a job of its own and pushed to ghcr.io as <VERSION>-rc from main only, then
+# all of them as <VERSION> (release), sakctl as a native binary for linux, macOS and windows, and
+# the documentation of docs/ as a site, published as the github pages of the repository from main
+# only after the release. Everything that can be is cached: the mise tools, gradle, npm, cargo, the
+# apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
 on:
@@ -172,10 +173,28 @@ jobs:
         with:
           path: build/site
 
-  # the site of the job docs as the github pages of the repository, from main only
-  docs-pages:
+  # the images of the jobs before, pushed as <VERSION>-rc, as <VERSION> (mise run release), from main
+  # only and when all of them are built
+  release:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: docs
+    needs: [sak-backend-images, sak-cli-images]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+        with:
+          install: false
+      - uses: docker/setup-buildx-action@v4
+      - run: mise run registry:login
+        env:
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - run: mise run release
+
+  # the site of the job docs as the github pages of the repository, from main only, after the release
+  publish-documentation:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [docs, release]
     runs-on: ubuntu-24.04
     permissions:
       pages: write
