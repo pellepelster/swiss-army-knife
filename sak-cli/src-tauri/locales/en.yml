@@ -61,6 +61,8 @@ cli:
   password_prompt: "Password of the deployment: "
   password_repeat_prompt: "Repeat the password: "
   smtp_password_needed: "The mail server of the running deployment has a password, which never leaves its backend: give it again with SAK_SMTP_PASSWORD."
+  no_smtp_password: "No terminal to type the password at the mail server: set SAK_SMTP_PASSWORD instead of --smtp-password."
+  smtp_password_prompt: "Password at the mail server: "
   done: "The deployment %{name} is up-to-date."
 provision:
   no_runtime: "No container runtime to run ansible in, docker or podman is needed."

@@ -3,11 +3,15 @@
 
 use ed25519_dalek::SigningKey;
 use rust_i18n::t;
+use sak_cloud::api::Labels;
+use sak_cloud::hetzner::TOKEN_CHECK_LABEL;
 use sak_cloud::hetzner::api::ssh_keys::SshKeyCreate;
-use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi};
+use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi, ListQuery};
 
 /// a read only token can list but not create, so the check writes: an ssh key is the cheapest
-/// resource there is, it costs nothing and is deleted right away
+/// resource there is, it costs nothing and is deleted right away. It carries the label
+/// `sak.pelle.io/token-check`, so a key a check left behind (a delete that failed) is told from
+/// every other key and removed by the next check
 pub async fn validate(api: &HetznerApi) -> Result<(), String> {
     let name = format!("sakctl-token-check-{}", hex(&random::<8>()?));
     let created = api
@@ -15,18 +19,34 @@ pub async fn validate(api: &HetznerApi) -> Result<(), String> {
         .create(&SshKeyCreate {
             name: name.clone(),
             public_key: public_key()?,
-            labels: None,
+            labels: Some(Labels::from([(
+                TOKEN_CHECK_LABEL.to_string(),
+                "true".to_string(),
+            )])),
         })
         .await
         .map_err(refused)?;
-    match api.ssh_keys().delete(created.id).await {
-        Ok(_) => Ok(()),
-        Err(error) => Err(t!(
+    api.ssh_keys().delete(created.id).await.map_err(|error| {
+        t!(
             "providers.hetzner.not_deleted",
             name = name,
             error = message(&error)
         )
-        .to_string()),
+        .to_string()
+    })?;
+    remove_left_behind(api).await;
+    Ok(())
+}
+
+/// the keys of earlier checks whose delete failed; one that cannot be removed now is left for the
+/// next check, it does not make this one fail
+async fn remove_left_behind(api: &HetznerApi) {
+    let query = ListQuery::new().label(TOKEN_CHECK_LABEL, "true");
+    let Ok(keys) = api.ssh_keys().list(&query).await else {
+        return;
+    };
+    for key in keys {
+        let _ = api.ssh_keys().delete(key.id).await;
     }
 }
 
@@ -91,6 +111,7 @@ mod tests {
             && body["public_key"]
                 .as_str()
                 .is_some_and(|key| key.starts_with("ssh-ed25519 "))
+            && body["labels"][TOKEN_CHECK_LABEL] == "true"
     }
 
     async fn api(create: ResponseTemplate, delete: ResponseTemplate) -> (MockServer, HetznerApi) {
@@ -127,6 +148,34 @@ mod tests {
     #[tokio::test]
     async fn a_token_creating_and_deleting_an_ssh_key_is_valid() {
         let (_server, api) = api(created(), ResponseTemplate::new(204)).await;
+        assert_eq!(validate(&api).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn the_keys_earlier_checks_left_behind_are_removed() {
+        let (server, api) = api(created(), ResponseTemplate::new(204)).await;
+        Mock::given(method("GET"))
+            .and(path("/ssh_keys"))
+            .and(wiremock::matchers::query_param(
+                "label_selector",
+                format!("{TOKEN_CHECK_LABEL}==true"),
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ssh_keys": [{
+                    "id": 41, "name": "sakctl-token-check-old", "fingerprint": "bb",
+                    "public_key": "ssh-ed25519 BBBB", "labels": { TOKEN_CHECK_LABEL: "true" }
+                }],
+                "meta": { "pagination": { "page": 1, "per_page": 50, "previous_page": null, "next_page": null, "last_page": 1, "total_entries": 1 } }
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("DELETE"))
+            .and(path("/ssh_keys/41"))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+
         assert_eq!(validate(&api).await, Ok(()));
     }
 

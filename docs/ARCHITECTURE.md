@@ -182,6 +182,13 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   for), and one label per hash is simpler than splitting it across several. The password hash label is 240 bits
   as well.
 
+- **The ssh host key is in the user data of the server.** cloud-init installs the host key derived from the password,
+  so the first connection is verified; the cloud provider keeps the user data, and the metadata service of the server
+  hands it out for as long as the server lives. A process that reads it could act as the server towards sakctl.
+  Accepted: the server reaches the metadata service only as root, every other process, the containers included (they
+  run as the user of SAK, on the network of the server), is refused by the firewall of the server; and root on the
+  server, or someone with the cloud project, has everything the host key would give anyway.
+
 - **The running configuration answers the password of the mail server.** An admin, and sakctl with the admin api
   token, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
   again. A comfort feature: whoever holds the password of the deployment or an admin session can read the password of

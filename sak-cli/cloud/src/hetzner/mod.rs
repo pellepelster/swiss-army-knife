@@ -39,6 +39,10 @@ pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 /// the hash of the user data (cloud-init) a server was created with
 pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 
+/// on the ssh key sakctl creates and deletes to check a token: what a check left behind is found
+/// by it and removed by the next
+pub const TOKEN_CHECK_LABEL: &str = "sak.pelle.io/token-check";
+
 /// the configuration the server was provisioned with, as a hash only sakctl can make (it is keyed
 /// by the password): set after a provisioning succeeded, removed before one starts; sakctl keeps it
 /// on the server, the declaration of the server has none

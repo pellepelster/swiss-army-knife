@@ -57,9 +57,10 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 ## sakctl command line
 
-- **The password is never an argument.** It comes from `SAK_PASSWORD`, or the command asks for it on the terminal
-  without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. An argument would show in the
-  list of processes.
+- **A password is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command asks
+  for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
+  password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`). An argument
+  would show in the list of processes.
 - **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show the
   running configuration) with the same rules and texts. Without a command, the window opens.
 - **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists
