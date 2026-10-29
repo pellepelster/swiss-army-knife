@@ -56,8 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .with_ipv4(ip.as_lookup())
     .with_labels(labels.clone());
 
+    // what a destroy may remove: only resources that carry these labels
     let mut registry = hetzner
         .registry()
+        .owned_by(labels.clone())
         .with(key)?
         .with(volume)?
         .with(ip)?

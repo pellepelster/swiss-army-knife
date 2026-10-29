@@ -19,6 +19,11 @@ print!("{}", diff::log_text(&registry.diff_all().await?));
 registry.apply_all(false).await?;
 ```
 
+A resource can carry identity labels (`with_identity`): with its name they identify it, and every
+lookup checks them. A resource of the name without them belongs to someone else; the lookup fails
+with `Error::NotOwned`, so no diff, apply or destroy touches it. A registry destroys only
+resources with its owner labels (`Registry::owned_by`) and refuses to destroy without them.
+
 `examples/backend.rs` declares a backend with everything, `HCLOUD_TOKEN=... SSH_PUBLIC_KEY=...
 cargo run --example backend -- --apply`.
 

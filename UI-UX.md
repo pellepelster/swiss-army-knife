@@ -89,7 +89,8 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
   from the same variables). A destroy keeps the data volume, `--delete-data` deletes it too;
   a deployment that is gone is destroyed already (exit code 0). `--help` says it all, the exit
   codes included: 0 done, 1 failed, 2 wrong arguments, 3 the root domain has a domain deployment
-  already, 4 dns modes mixed on a root domain (`core/error.rs`). `mise run cli:sakctl -- <command>`
+  already, 4 dns modes mixed on a root domain, 5 a resource of the deployment's names belongs to
+  someone else and was left alone (`core/error.rs`). `mise run cli:sakctl -- <command>`
   runs it with the token from pass, `mise run cli:run -- <command>` the same through tauri dev.
 - Every line it prints is `<date> <level> <message>`: one space between each, nothing indented,
   the level coloured (INFO green, WARN yellow, ERROR red on stderr; no colour off a terminal or

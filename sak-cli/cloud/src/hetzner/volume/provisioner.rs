@@ -1,3 +1,5 @@
+use crate::api::Lookup as _;
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Listable, LookupContext, LookupProvider,
     Provisioner, Resource, ResourceDiff, Result,
@@ -19,8 +21,18 @@ impl HetznerVolumeProvisioner {
         HetznerVolumeProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerVolumeRuntime>> {
-        Ok(self.api.volumes().get_by_name(name).await?.map(Into::into))
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(&self, lookup: &HetznerVolumeLookup) -> Result<Option<HetznerVolumeRuntime>> {
+        let found: Result<Option<HetznerVolumeRuntime>> = {
+            Ok(self
+                .api
+                .volumes()
+                .get_by_name(&lookup.name)
+                .await?
+                .map(Into::into))
+        };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 }
 
@@ -31,7 +43,7 @@ impl LookupProvider<HetznerVolumeLookup> for HetznerVolumeProvisioner {
         lookup: &HetznerVolumeLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerVolumeRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -52,7 +64,7 @@ impl Listable<HetznerVolumeLookup> for HetznerVolumeProvisioner {
 #[async_trait]
 impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
     async fn diff(&self, resource: &HetznerVolume, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             return Ok(ResourceDiff::missing(resource));
         };
 
@@ -88,7 +100,7 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
         resource: &HetznerVolume,
         _: &dyn ApplyContext,
     ) -> Result<HetznerVolumeRuntime> {
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => runtime,
             None => {
                 info!(
@@ -130,10 +142,7 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
     }
 
     /// lifts the delete protection and detaches the volume first
-    async fn destroy(&self, lookup: &HetznerVolumeLookup, _: &dyn DestroyContext) -> Result<bool> {
-        let Some(runtime) = self.find(&lookup.name).await? else {
-            return Ok(false);
-        };
+    async fn destroy(&self, runtime: &HetznerVolumeRuntime, _: &dyn DestroyContext) -> Result<()> {
         if runtime.delete_protected {
             let action = self
                 .api
@@ -146,7 +155,8 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
             let action = self.api.volumes().detach(runtime.id).await?;
             self.api.volumes().wait_for_action(&action).await?;
         }
-        Ok(self.api.volumes().delete(runtime.id).await?)
+        self.api.volumes().delete(runtime.id).await?;
+        Ok(())
     }
 }
 

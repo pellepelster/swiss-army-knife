@@ -1,3 +1,5 @@
+use crate::api::Lookup as _;
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Labels, Listable, LookupContext,
     LookupProvider, Provisioner, Resource, ResourceDiff, Result,
@@ -22,11 +24,16 @@ impl HetznerFirewallProvisioner {
         HetznerFirewallProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerFirewallRuntime>> {
-        match self.api.firewalls().get_by_name(name).await? {
-            Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
-            None => Ok(None),
-        }
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(&self, lookup: &HetznerFirewallLookup) -> Result<Option<HetznerFirewallRuntime>> {
+        let found: Result<Option<HetznerFirewallRuntime>> = {
+            match self.api.firewalls().get_by_name(&lookup.name).await? {
+                Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
+                None => Ok(None),
+            }
+        };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 }
 
@@ -57,7 +64,7 @@ impl LookupProvider<HetznerFirewallLookup> for HetznerFirewallProvisioner {
         lookup: &HetznerFirewallLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerFirewallRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -78,7 +85,7 @@ impl Listable<HetznerFirewallLookup> for HetznerFirewallProvisioner {
 #[async_trait]
 impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
     async fn diff(&self, resource: &HetznerFirewall, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             return Ok(ResourceDiff::missing(resource));
         };
 
@@ -108,7 +115,7 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
         _: &dyn ApplyContext,
     ) -> Result<HetznerFirewallRuntime> {
         let firewalls = self.api.firewalls();
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => {
                 let request = FirewallUpdate {
                     name: Some(resource.name.clone()),
@@ -158,7 +165,7 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
             }
         }
 
-        self.find(&resource.name).await?.ok_or_else(|| {
+        self.find(&resource.as_lookup()).await?.ok_or_else(|| {
             crate::api::Error::message(format!("{} is gone after apply", resource.log_text()))
         })
     }
@@ -166,12 +173,9 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
     /// takes the firewall off every resource first, hetzner refuses to delete it otherwise
     async fn destroy(
         &self,
-        lookup: &HetznerFirewallLookup,
+        runtime: &HetznerFirewallRuntime,
         _: &dyn DestroyContext,
-    ) -> Result<bool> {
-        let Some(runtime) = self.find(&lookup.name).await? else {
-            return Ok(false);
-        };
+    ) -> Result<()> {
         if !runtime.applied_to.is_empty() {
             let actions = self
                 .api
@@ -180,7 +184,8 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
                 .await?;
             self.api.firewalls().wait_for_actions(&actions).await?;
         }
-        Ok(self.api.firewalls().delete(runtime.id).await?)
+        self.api.firewalls().delete(runtime.id).await?;
+        Ok(())
     }
 }
 

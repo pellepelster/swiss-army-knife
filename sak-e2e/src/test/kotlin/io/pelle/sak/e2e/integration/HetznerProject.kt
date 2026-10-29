@@ -12,7 +12,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.net.URI
+import java.security.KeyPairGenerator
+import java.util.Base64
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -102,6 +106,40 @@ class HetznerProject(
             ?.get("delete")
             ?.jsonPrimitive
             ?.booleanOrNull == true
+
+    /**
+     * creates an ssh key without any label, as a user of the project would: a resource sakctl
+     * must never change or remove. A key of its own each time, hetzner refuses a fingerprint twice
+     */
+    fun createForeignSshKey(name: String) {
+        val generator = KeyPairGenerator.getInstance("Ed25519")
+        // the raw key is the last 32 bytes of its X.509 encoding
+        val raw = generator.generateKeyPair().public.encoded.takeLast(32).toByteArray()
+        val blob = ByteArrayOutputStream()
+        DataOutputStream(blob).use { out ->
+            listOf("ssh-ed25519".toByteArray(), raw).forEach {
+                out.writeInt(it.size)
+                out.write(it)
+            }
+        }
+        val publicKey = "ssh-ed25519 " + Base64.getEncoder().encodeToString(blob.toByteArray())
+        call(
+            "POST",
+            "ssh_keys",
+            buildJsonObject {
+                put("name", name)
+                put("public_key", publicKey)
+            },
+        )
+    }
+
+    /** whether an ssh key of the name exists, labeled or not */
+    fun sshKeyExists(name: String): Boolean = list("ssh_keys", "ssh_keys", "name=" + URLEncoder.encode(name, Charsets.UTF_8)).isNotEmpty()
+
+    /** deletes the ssh key of the name, labeled or not: for the keys a test created itself */
+    fun deleteSshKey(name: String) {
+        list("ssh_keys", "ssh_keys", "name=" + URLEncoder.encode(name, Charsets.UTF_8)).forEach { call("DELETE", "ssh_keys/${it.id()}") }
+    }
 
     /** the names of the dns zones of the project */
     fun zones(): List<String> = list("zones", "zones").map { it.name() }

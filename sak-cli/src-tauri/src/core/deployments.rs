@@ -3,7 +3,7 @@
 //! and created from its name and password
 
 use crate::core::container::ContainerRuntime;
-use crate::core::error::{EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, WizardError};
+use crate::core::error::{EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, WizardError};
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
 use crate::core::provision::{ProvisionManager, ProvisionRun};
@@ -15,7 +15,7 @@ use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode,
     ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records, discover,
-    foreign_records, remove_records, root_domains, stale_records, state,
+    remove_records, root_domains, stale_records, state,
 };
 use sak_cloud::hetzner::dns_record::HetznerDnsRecordLookup;
 use sak_cloud::hetzner::labels::HetznerLabels;
@@ -488,6 +488,18 @@ fn failed(provider: ProviderType, error: impl ToString) -> String {
     message("deployments.failed", provider, error)
 }
 
+/// a failure of the provider while planning, creating or destroying: a resource of a declared
+/// name that belongs to someone else has an exit code of its own, nothing of it was changed
+fn cloud_failure(key: &str, provider: ProviderType, error: sak_cloud::api::Error) -> WizardError {
+    match error {
+        sak_cloud::api::Error::NotOwned { .. } => WizardError::new(
+            t!("deployments.not_owned", error = error.to_string()),
+            EXIT_NOT_OWNED,
+        ),
+        error => message(key, provider, error).into(),
+    }
+}
+
 /// a message about the provider: `key` names what failed, listing, planning or creating
 fn message(key: &str, provider: ProviderType, error: impl ToString) -> String {
     t!(key, provider = provider.name(), error = error.to_string()).to_string()
@@ -713,18 +725,7 @@ impl DeploymentManager {
             spec = spec.with_root_domain(root_domain);
         }
         spec.user_data = user_data(&host_key);
-        let foreign = foreign_records(&listings, &spec.dns_records());
-        if !foreign.is_empty() {
-            let names: Vec<String> = foreign.iter().map(|record| record.log_text()).collect();
-            return Err(t!(
-                "deployments.foreign_records",
-                name = name,
-                records = names.join(", ")
-            )
-            .to_string()
-            .into());
-        }
-        let stale_records = stale_records(&records, &spec.dns_records());
+        let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
         Ok(Prepared {
             provider,
             runtime,
@@ -752,7 +753,7 @@ impl DeploymentManager {
         let diffs = registry
             .diff_all()
             .await
-            .map_err(|error| message("deployments.plan_failed", prepared.provider, error))?;
+            .map_err(|error| cloud_failure("deployments.plan_failed", prepared.provider, error))?;
         Ok(PlanResponse {
             name: prepared.spec.name.clone(),
             public_key: prepared.spec.public_key.clone(),
@@ -806,7 +807,9 @@ impl DeploymentManager {
         if deployment.intent == Intent::Destroy {
             self.remove_records(&prepared, on_event)
                 .await
-                .map_err(|error| message("deployments.destroy_failed", prepared.provider, error))?;
+                .map_err(|error| {
+                    cloud_failure("deployments.destroy_failed", prepared.provider, error)
+                })?;
             let mut registry = prepared
                 .spec
                 .destroy_registry(&prepared.runtime, deployment.delete_data)
@@ -827,7 +830,9 @@ impl DeploymentManager {
             registry
                 .destroy_all_with(&mut report)
                 .await
-                .map_err(|error| message("deployments.destroy_failed", prepared.provider, error))?;
+                .map_err(|error| {
+                    cloud_failure("deployments.destroy_failed", prepared.provider, error)
+                })?;
             return Ok(());
         }
         let mut registry = prepared
@@ -850,10 +855,14 @@ impl DeploymentManager {
         registry
             .apply_all_with(prepared.recreate, &mut report)
             .await
-            .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
+            .map_err(|error| {
+                cloud_failure("deployments.create_failed", prepared.provider, error)
+            })?;
         self.remove_records(&prepared, on_event)
             .await
-            .map_err(|error| message("deployments.create_failed", prepared.provider, error))?;
+            .map_err(|error| {
+                cloud_failure("deployments.create_failed", prepared.provider, error)
+            })?;
 
         // what came out of it: the server's address and the device of its data volume
         let created = discover(&prepared.runtime.api)
@@ -1233,6 +1242,30 @@ mod tests {
         }))
         .unwrap();
         assert_eq!((page.port, page.username.as_str()), (587, ""));
+    }
+
+    #[test]
+    fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
+        let not_owned = cloud_failure(
+            "deployments.destroy_failed",
+            ProviderType::Hetzner,
+            sak_cloud::api::Error::NotOwned {
+                resource: "server 'web'".to_string(),
+                reason: "it has no label 'sak.pelle.io/name'".to_string(),
+            },
+        );
+        assert_eq!(not_owned.exit_code, EXIT_NOT_OWNED);
+        assert!(not_owned.message.starts_with(
+            "server 'web' exists and does not belong to this deployment: it has no label 'sak.pelle.io/name'"
+        ));
+        // any other failure of the provider is a failure as before
+        let other = cloud_failure(
+            "deployments.destroy_failed",
+            ProviderType::Hetzner,
+            sak_cloud::api::Error::message("timeout"),
+        );
+        assert_eq!(other.exit_code, crate::core::error::EXIT_FAILED);
+        assert!(other.message.contains("timeout"));
     }
 
     #[test]

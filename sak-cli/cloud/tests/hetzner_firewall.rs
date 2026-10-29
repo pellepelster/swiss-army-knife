@@ -4,6 +4,7 @@
 
 mod support;
 
+use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{DiffStatus, LookupProvider, LookupProviders, Provisioner, Resource};
 use sak_cloud::hetzner::firewall::{
     FirewallRule, HetznerFirewall, HetznerFirewallProvisioner, RuleDirection, RuleProtocol,
@@ -167,8 +168,7 @@ async fn firewall_flow() {
             );
 
             assert!(
-                provisioner
-                    .destroy(&resource.as_lookup(), &context)
+                destroy_resource(&provisioner, &resource, &context)
                     .await
                     .unwrap()
             );

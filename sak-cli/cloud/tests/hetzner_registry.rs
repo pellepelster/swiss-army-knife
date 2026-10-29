@@ -32,7 +32,7 @@ async fn backend_flow() {
                     .with_password_hash("0123456789abcdef")
                     .with_labels(hetzner.labels.clone());
                 spec.user_data = user_data.to_string();
-                let mut registry = provider.registry();
+                let mut registry = provider.registry().owned_by(spec.identity());
                 // the server first on purpose, the registry orders by dependencies
                 registry.add(spec.server()).unwrap();
                 registry.add(spec.firewall()).unwrap();

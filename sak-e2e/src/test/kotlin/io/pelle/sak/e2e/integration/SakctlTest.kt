@@ -13,6 +13,7 @@ import java.security.SecureRandom
 private const val EXIT_OK = 0
 private const val EXIT_DOMAIN_TAKEN = 3
 private const val EXIT_MIXED_DNS_MODES = 4
+private const val EXIT_NOT_OWNED = 5
 
 // the zones the deployments use, both must exist in the project: one for a domain deployment,
 // one for a subdomain deployment
@@ -79,5 +80,25 @@ class SakctlTest {
         }
         val names = setOf(domain, subdomain, refused)
         project.resources { it in names }.shouldBeEmpty()
+    }
+
+    @Test
+    fun `a resource of someone else with the name of a deployment is neither removed nor taken over`() {
+        val name = testName()
+        project.createForeignSshKey(name)
+        try {
+            // a destroy finds the key by its name, but it has neither the name label nor the password
+            // hash of the deployment
+            destroy(name, "--delete-data") shouldBe EXIT_NOT_OWNED
+            project.sshKeyExists(name) shouldBe true
+
+            // a create stops at the plan, before anything is created
+            create(name, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_NOT_OWNED
+            project.sshKeyExists(name) shouldBe true
+            project.resources { it == name }.shouldBeEmpty()
+        } finally {
+            project.deleteSshKey(name)
+        }
+        project.sshKeyExists(name) shouldBe false
     }
 }

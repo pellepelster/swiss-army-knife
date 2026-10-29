@@ -1,3 +1,5 @@
+use crate::api::Lookup as _;
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Listable, LookupContext, LookupProvider,
     Provisioner, Resource, ResourceDiff, Result,
@@ -21,13 +23,21 @@ impl HetznerPrimaryIpProvisioner {
         HetznerPrimaryIpProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerPrimaryIpRuntime>> {
-        Ok(self
-            .api
-            .primary_ips()
-            .get_by_name(name)
-            .await?
-            .map(Into::into))
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(
+        &self,
+        lookup: &HetznerPrimaryIpLookup,
+    ) -> Result<Option<HetznerPrimaryIpRuntime>> {
+        let found: Result<Option<HetznerPrimaryIpRuntime>> = {
+            Ok(self
+                .api
+                .primary_ips()
+                .get_by_name(&lookup.name)
+                .await?
+                .map(Into::into))
+        };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 }
 
@@ -38,7 +48,7 @@ impl LookupProvider<HetznerPrimaryIpLookup> for HetznerPrimaryIpProvisioner {
         lookup: &HetznerPrimaryIpLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerPrimaryIpRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -59,7 +69,7 @@ impl Listable<HetznerPrimaryIpLookup> for HetznerPrimaryIpProvisioner {
 #[async_trait]
 impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
     async fn diff(&self, resource: &HetznerPrimaryIp, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             return Ok(ResourceDiff::missing(resource));
         };
 
@@ -98,7 +108,7 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
         resource: &HetznerPrimaryIp,
         _: &dyn ApplyContext,
     ) -> Result<HetznerPrimaryIpRuntime> {
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => runtime,
             None => {
                 info!(
@@ -150,12 +160,9 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
     /// lifts the delete protection and unassigns the ip first
     async fn destroy(
         &self,
-        lookup: &HetznerPrimaryIpLookup,
+        runtime: &HetznerPrimaryIpRuntime,
         _: &dyn DestroyContext,
-    ) -> Result<bool> {
-        let Some(runtime) = self.find(&lookup.name).await? else {
-            return Ok(false);
-        };
+    ) -> Result<()> {
         if runtime.delete_protected {
             let action = self
                 .api
@@ -168,7 +175,8 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
             let action = self.api.primary_ips().unassign(runtime.id).await?;
             self.api.primary_ips().wait_for_action(&action).await?;
         }
-        Ok(self.api.primary_ips().delete(runtime.id).await?)
+        self.api.primary_ips().delete(runtime.id).await?;
+        Ok(())
     }
 }
 

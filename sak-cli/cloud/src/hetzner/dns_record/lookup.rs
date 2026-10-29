@@ -1,4 +1,4 @@
-use crate::api::Lookup;
+use crate::api::{Labels, Lookup};
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::dns_record::HetznerDnsRecordRuntime;
 use crate::hetzner::dns_zone::HetznerDnsZoneLookup;
@@ -11,6 +11,8 @@ pub struct HetznerDnsRecordLookup {
     pub zone: HetznerDnsZoneLookup,
     pub rr_type: RRType,
     full_name: String,
+    /// the labels that, with the name, identify the record (`api::identity`)
+    pub identity: Labels,
 }
 
 impl HetznerDnsRecordLookup {
@@ -21,7 +23,14 @@ impl HetznerDnsRecordLookup {
             zone,
             rr_type,
             full_name,
+            identity: Labels::new(),
         }
+    }
+
+    /// the lookup that also checks these labels, see `api::identity`
+    pub fn with_identity(mut self, identity: Labels) -> Self {
+        self.identity = identity;
+        self
     }
 }
 
@@ -30,6 +39,10 @@ impl Lookup for HetznerDnsRecordLookup {
 
     fn name(&self) -> &str {
         &self.full_name
+    }
+
+    fn identity(&self) -> &Labels {
+        &self.identity
     }
 
     fn log_text(&self) -> String {

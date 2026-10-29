@@ -5,6 +5,7 @@
 
 mod support;
 
+use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{DiffStatus, LookupProvider, LookupProviders, Provisioner, Resource};
 use sak_cloud::hetzner::primary_ip::{
     HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpProvisioner,
@@ -119,12 +120,7 @@ async fn server_flow() {
             assert_eq!(diff.changes[0].name, "user data checksum");
 
             // the recreate: the volume and the address survive the server
-            assert!(
-                servers
-                    .destroy(&server.as_lookup(), &context)
-                    .await
-                    .unwrap()
-            );
+            assert!(destroy_resource(&servers, &server, &context).await.unwrap());
             assert!(
                 servers
                     .lookup(&server.as_lookup(), &context)
@@ -150,18 +146,8 @@ async fn server_flow() {
                     .status,
                 DiffStatus::UpToDate
             );
-            assert!(
-                servers
-                    .destroy(&server.as_lookup(), &context)
-                    .await
-                    .unwrap()
-            );
-            assert!(
-                !servers
-                    .destroy(&server.as_lookup(), &context)
-                    .await
-                    .unwrap()
-            );
+            assert!(destroy_resource(&servers, &server, &context).await.unwrap());
+            assert!(!destroy_resource(&servers, &server, &context).await.unwrap());
         })
         .await;
 }

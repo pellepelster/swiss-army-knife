@@ -1,3 +1,5 @@
+use crate::api::Lookup as _;
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Listable, LookupContext,
     LookupProvider, Provisioner, Resource, ResourceDiff, Result,
@@ -40,8 +42,18 @@ impl HetznerSshKeyProvisioner {
         HetznerSshKeyProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerSshKeyRuntime>> {
-        Ok(self.api.ssh_keys().get_by_name(name).await?.map(Into::into))
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(&self, lookup: &HetznerSshKeyLookup) -> Result<Option<HetznerSshKeyRuntime>> {
+        let found: Result<Option<HetznerSshKeyRuntime>> = {
+            Ok(self
+                .api
+                .ssh_keys()
+                .get_by_name(&lookup.name)
+                .await?
+                .map(Into::into))
+        };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 }
 
@@ -52,7 +64,7 @@ impl LookupProvider<HetznerSshKeyLookup> for HetznerSshKeyProvisioner {
         lookup: &HetznerSshKeyLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerSshKeyRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -75,7 +87,7 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
     async fn diff(&self, resource: &HetznerSshKey, _: &dyn DiffContext) -> Result<ResourceDiff> {
         let expected = fingerprint(&resource.public_key)?;
 
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             // hetzner refuses a second key with the same fingerprint, whatever its name
             let duplicate = self
                 .api
@@ -114,7 +126,7 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
         resource: &HetznerSshKey,
         _: &dyn ApplyContext,
     ) -> Result<HetznerSshKeyRuntime> {
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => runtime,
             None => {
                 info!("{} not found, creating", resource.log_text());
@@ -139,11 +151,9 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
             .into())
     }
 
-    async fn destroy(&self, lookup: &HetznerSshKeyLookup, _: &dyn DestroyContext) -> Result<bool> {
-        match self.find(&lookup.name).await? {
-            Some(runtime) => Ok(self.api.ssh_keys().delete(runtime.id).await?),
-            None => Ok(false),
-        }
+    async fn destroy(&self, runtime: &HetznerSshKeyRuntime, _: &dyn DestroyContext) -> Result<()> {
+        self.api.ssh_keys().delete(runtime.id).await?;
+        Ok(())
     }
 }
 

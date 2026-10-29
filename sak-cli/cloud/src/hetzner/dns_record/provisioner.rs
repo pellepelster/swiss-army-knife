@@ -1,3 +1,4 @@
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Lookup, LookupContext,
     LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
@@ -8,7 +9,7 @@ use crate::hetzner::api::zones::{RRSetCreate, RRSetUpdate, Record};
 use crate::hetzner::dns_record::{
     HetznerDnsRecord, HetznerDnsRecordLookup, HetznerDnsRecordRuntime, RecordValue,
 };
-use crate::hetzner::{NAME_LABEL, hetzner_label_diff};
+use crate::hetzner::hetzner_label_diff;
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -34,6 +35,7 @@ impl HetznerDnsRecordProvisioner {
             .get(&lookup.record, lookup.rr_type)
             .await?
             .map(|rrset| HetznerDnsRecordRuntime::from_rrset(rrset, &lookup.zone.name)))
+        .and_then(|found| identity::check(found, lookup.identity(), &lookup.log_text()))
     }
 
     /// the values the records should have, resolved through the context
@@ -162,15 +164,6 @@ impl Provisioner<HetznerDnsRecord> for HetznerDnsRecordProvisioner {
 
         match self.find(&lookup).await? {
             Some(runtime) => {
-                // a record of the user or of another deployment is never taken over
-                if let Some(owner) = resource.labels.get(NAME_LABEL)
-                    && runtime.labels.get(NAME_LABEL) != Some(owner)
-                {
-                    return Err(Error::message(format!(
-                        "{} exists and does not belong to the deployment '{owner}'",
-                        resource.log_text()
-                    )));
-                }
                 if let Some(ttl) = resource.ttl
                     && Some(ttl) != runtime.ttl
                 {
@@ -220,17 +213,14 @@ impl Provisioner<HetznerDnsRecord> for HetznerDnsRecordProvisioner {
 
     async fn destroy(
         &self,
-        lookup: &HetznerDnsRecordLookup,
+        runtime: &HetznerDnsRecordRuntime,
         _: &dyn DestroyContext,
-    ) -> Result<bool> {
-        let rrsets = self.api.zones().rrsets(&lookup.zone.name);
-        match rrsets.delete(&lookup.record, lookup.rr_type).await? {
-            Some(action) => {
-                rrsets.wait_for_action(&action).await?;
-                Ok(true)
-            }
-            None => Ok(false),
+    ) -> Result<()> {
+        let rrsets = self.api.zones().rrsets(&runtime.zone);
+        if let Some(action) = rrsets.delete(&runtime.name, runtime.rr_type).await? {
+            rrsets.wait_for_action(&action).await?;
         }
+        Ok(())
     }
 }
 
@@ -238,6 +228,7 @@ impl Provisioner<HetznerDnsRecord> for HetznerDnsRecordProvisioner {
 mod tests {
     use super::*;
     use crate::api::{DiffStatus, LookupProviders};
+    use crate::hetzner::NAME_LABEL;
     use crate::hetzner::api::Backoff;
     use crate::hetzner::dns_zone::{HetznerDnsZoneLookup, HetznerDnsZoneProvisioner};
     use crate::hetzner::test_support::labels;
@@ -320,24 +311,41 @@ mod tests {
         // the rrset of the mock carries no name label: the user's
         let (_server, api) = mock(Some(rrset(&["203.0.113.1"], None))).await;
         let provisioner = HetznerDnsRecordProvisioner::new(api.clone());
-        let ours = resource(&["203.0.113.9"]).with_labels(labels(&[(NAME_LABEL, "alpha")]));
+        let ours = resource(&["203.0.113.9"]).with_identity(labels(&[(NAME_LABEL, "alpha")]));
 
-        let error = provisioner.apply(&ours, &context(&api)).await.unwrap_err();
-
-        assert!(
-            error
-                .to_string()
-                .contains("does not belong to the deployment 'alpha'"),
-            "{error}"
-        );
-        // nothing was changed: the mock has no route for a change, a request would fail
-        // with another error
+        // the lookup, the diff and the apply refuse it alike; the mock has no route for a
+        // change, nothing was written
+        for error in [
+            provisioner
+                .lookup(&ours.as_lookup(), &context(&api))
+                .await
+                .err(),
+            provisioner.diff(&ours, &context(&api)).await.err(),
+            provisioner.apply(&ours, &context(&api)).await.err(),
+        ] {
+            assert!(
+                matches!(&error, Some(Error::NotOwned { resource, reason })
+                    if resource == "dns record 'www.example.de/A'" && reason == "it has no label 'sak.pelle.io/name'"),
+                "{error:?}"
+            );
+        }
 
         let mut theirs = rrset(&["203.0.113.1"], None);
         theirs["labels"] = json!({ NAME_LABEL: "beta" });
         let (_server, api) = mock(Some(theirs)).await;
         let provisioner = HetznerDnsRecordProvisioner::new(api.clone());
-        assert!(provisioner.apply(&ours, &context(&api)).await.is_err());
+        assert!(matches!(
+            provisioner.apply(&ours, &context(&api)).await,
+            Err(Error::NotOwned { .. })
+        ));
+        // without an identity the record is taken by its name, as before
+        assert!(
+            provisioner
+                .lookup(&resource(&[]).as_lookup(), &context(&api))
+                .await
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[tokio::test]

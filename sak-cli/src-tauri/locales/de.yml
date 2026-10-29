@@ -69,7 +69,7 @@ deployments:
   no_provider: "Kein Provider-Token, bei dem das Deployment erstellt werden kann."
   name_taken: "Ein Deployment namens %{name} gibt es schon."
   failed: "Die Deployments bei %{provider} konnten nicht aufgelistet werden: %{error}"
-  foreign_records: "Diese DNS-Einträge gibt es schon und sie gehören nicht zum Deployment %{name}: %{records}. SAK ändert sie nie, entferne sie zuerst."
+  not_owned: "%{error}. SAK ändert und entfernt nur Ressourcen mit dem Label sak.pelle.io/name und dem Passwort-Hash des Deployments; nichts davon wurde verändert."
   invalid_smtp_host: "Der Mailserver braucht einen Hostnamen ohne Leerzeichen, zum Beispiel smtp.example.org."
   invalid_smtp_port: "Der Port des Mailservers ist eine Zahl von 1 bis 65535."
   unnamed: "ein Eintrag ohne SAK-Namen"

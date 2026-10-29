@@ -4,6 +4,7 @@
 
 mod support;
 
+use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{DiffStatus, LookupProvider, LookupProviders, Provisioner, Resource};
 use sak_cloud::hetzner::api::Location;
 use sak_cloud::hetzner::volume::{HetznerVolume, HetznerVolumeProvisioner};
@@ -121,8 +122,7 @@ async fn volume_flow() {
             );
 
             assert!(
-                provisioner
-                    .destroy(&resource.as_lookup(), &context)
+                destroy_resource(&provisioner, &resource, &context)
                     .await
                     .unwrap()
             );
@@ -162,8 +162,7 @@ async fn destroys_a_protected_volume() {
             );
 
             assert!(
-                provisioner
-                    .destroy(&resource.as_lookup(), &context)
+                destroy_resource(&provisioner, &resource, &context)
                     .await
                     .unwrap()
             );

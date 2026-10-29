@@ -1,3 +1,4 @@
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labels, Listable, Lookup,
     LookupContext, LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
@@ -42,8 +43,18 @@ impl HetznerServerProvisioner {
         HetznerServerProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerServerRuntime>> {
-        Ok(self.api.servers().get_by_name(name).await?.map(Into::into))
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
+        let found: Result<Option<HetznerServerRuntime>> = {
+            Ok(self
+                .api
+                .servers()
+                .get_by_name(&lookup.name)
+                .await?
+                .map(Into::into))
+        };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 
     async fn dependencies(
@@ -142,7 +153,7 @@ impl LookupProvider<HetznerServerLookup> for HetznerServerProvisioner {
         lookup: &HetznerServerLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerServerRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -167,7 +178,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
         resource: &HetznerServer,
         context: &dyn DiffContext,
     ) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             return Ok(ResourceDiff::missing(resource));
         };
         let dependencies = self.dependencies(resource, context).await?;
@@ -269,7 +280,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
         let labels = Self::labels(resource, &dependencies)?;
         let servers = self.api.servers();
 
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => runtime,
             None => {
                 info!(
@@ -340,7 +351,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             }
         }
 
-        let runtime = self.find(&resource.name).await?.ok_or_else(|| {
+        let runtime = self.find(&resource.as_lookup()).await?.ok_or_else(|| {
             Error::message(format!("{} is gone after apply", resource.log_text()))
         })?;
         if runtime.status == ServerStatus::Off {
@@ -356,20 +367,14 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
     }
 
     /// the volumes and primary ips of the server stay, they are resources of their own
-    async fn destroy(&self, lookup: &HetznerServerLookup, _: &dyn DestroyContext) -> Result<bool> {
-        let Some(runtime) = self.find(&lookup.name).await? else {
-            return Ok(false);
-        };
-        match self.api.servers().delete(runtime.id).await? {
-            Some(action) => {
-                self.api.servers().wait_for_action(&action).await?;
-                // hetzner detaches the volumes after the delete, a server created with them
-                // right away is refused
-                self.wait_for_detach(&runtime.volumes).await?;
-                Ok(true)
-            }
-            None => Ok(false),
+    async fn destroy(&self, runtime: &HetznerServerRuntime, _: &dyn DestroyContext) -> Result<()> {
+        if let Some(action) = self.api.servers().delete(runtime.id).await? {
+            self.api.servers().wait_for_action(&action).await?;
+            // hetzner detaches the volumes after the delete, a server created with them right
+            // away is refused
+            self.wait_for_detach(&runtime.volumes).await?;
         }
+        Ok(())
     }
 }
 

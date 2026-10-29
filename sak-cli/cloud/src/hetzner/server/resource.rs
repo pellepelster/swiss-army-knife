@@ -35,6 +35,9 @@ impl UserData {
 #[derive(Clone, Debug)]
 pub struct HetznerServer {
     pub name: String,
+    /// the labels that, with the name, identify it: written with the labels, checked on every
+    /// lookup (`api::identity`); a resource of the name without them is left alone
+    pub identity: Labels,
     pub location: Location,
     pub server_type: ServerType,
     /// `debian-13`
@@ -53,6 +56,7 @@ impl HetznerServer {
     pub fn new(name: &str, location: Location, server_type: ServerType, user_data: &str) -> Self {
         HetznerServer {
             name: name.to_string(),
+            identity: Labels::new(),
             location,
             server_type,
             image: "debian-13".to_string(),
@@ -94,6 +98,13 @@ impl HetznerServer {
         self.labels = labels;
         self
     }
+
+    /// the identity labels, also written as labels: a lookup of it checks them
+    pub fn with_identity(mut self, identity: Labels) -> Self {
+        self.labels.extend(identity.clone());
+        self.identity = identity;
+        self
+    }
 }
 
 impl Resource for HetznerServer {
@@ -105,7 +116,7 @@ impl Resource for HetznerServer {
     }
 
     fn as_lookup(&self) -> HetznerServerLookup {
-        HetznerServerLookup::new(&self.name)
+        HetznerServerLookup::new(&self.name).with_identity(self.identity.clone())
     }
 
     fn depends_on(&self) -> Vec<ResourceRef> {

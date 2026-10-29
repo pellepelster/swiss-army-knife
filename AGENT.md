@@ -148,6 +148,10 @@ for every change of a ui.
   gave. A resource without the password hash label is never removed. For this reason, the password hash label
   is always attached to all resources of a deployment, the DNS records included; a resource without it is a
   defect.
+- The name label and the password hash label are the identity of a resource (`with_identity`, `api::identity` in
+  `sak-cli/cloud`). Every lookup checks them: a resource of the declared name without them is someone else's, and
+  no diff, apply, recreate or destroy changes it (`Error::NotOwned`, exit code 5 of `sakctl`). A registry also
+  destroys nothing without its owner labels (`Registry::owned_by`).
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. Every resource of a deployment also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in

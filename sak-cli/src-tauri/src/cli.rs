@@ -32,7 +32,9 @@ const EXIT_CODES: &str = "Exit codes:
   2  The arguments are wrong.
   3  Domain mode asked, another deployment manages the root domain in domain mode already.
   4  The DNS mode asked is not the one other deployments use the root domain in: a root
-     domain has one domain deployment or only subdomain deployments.";
+     domain has one domain deployment or only subdomain deployments.
+  5  A resource of a name the deployment uses belongs to someone else: it lacks the label
+     sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.";
 
 /// SwissArmyKnife: the deployments of a Hetzner Cloud project, listed, created and
 /// deployed. Without a command the window opens.
@@ -562,7 +564,9 @@ fn log(level: Level, message: impl Display) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::error::{EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_USAGE};
+    use crate::core::error::{
+        EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_USAGE,
+    };
 
     fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
         Cli::try_parse_from(std::iter::once("sakctl").chain(words.iter().copied()))
@@ -616,6 +620,7 @@ mod tests {
             EXIT_USAGE,
             EXIT_DOMAIN_TAKEN,
             EXIT_MIXED_DNS_MODES,
+            EXIT_NOT_OWNED,
         ] {
             assert!(EXIT_CODES.contains(&format!("\n  {code}  ")), "{code}");
         }

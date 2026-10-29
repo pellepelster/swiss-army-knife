@@ -1,5 +1,8 @@
-use crate::api::resource::{ResourceRef, Runtime};
+use crate::api::resource::{Labels, ResourceRef, Runtime};
 use std::any::Any;
+
+/// the identity of a lookup without identity labels
+static NO_IDENTITY: Labels = Labels::new();
 
 /// refers to a resource by name, declared here or not: the data source of this crate. A
 /// lookup provider turns it into the runtime, resources hold lookups of what they need
@@ -10,6 +13,12 @@ pub trait Lookup: Clone + Send + Sync + 'static {
 
     /// the resource in log lines and diffs, e.g. `ssh key 'admin'`
     fn log_text(&self) -> String;
+
+    /// the labels that, with the name, identify the resource (`api::identity`): a resource of
+    /// the name without them is someone else's. None by default, the name alone then
+    fn identity(&self) -> &Labels {
+        &NO_IDENTITY
+    }
 
     /// what must exist before this lookup resolves, for lookups of nested resources
     fn depends_on(&self) -> Vec<ResourceRef> {

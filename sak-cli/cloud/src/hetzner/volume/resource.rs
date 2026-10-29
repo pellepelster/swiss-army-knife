@@ -7,6 +7,9 @@ use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
 #[derive(Clone, Debug)]
 pub struct HetznerVolume {
     pub name: String,
+    /// the labels that, with the name, identify it: written with the labels, checked on every
+    /// lookup (`api::identity`); a resource of the name without them is left alone
+    pub identity: Labels,
     pub location: Location,
     /// in GB, 10 at least; a volume only grows, a smaller size is a recreate
     pub size_gb: u64,
@@ -20,6 +23,7 @@ impl HetznerVolume {
     pub fn new(name: &str, location: Location, size_gb: u64) -> Self {
         HetznerVolume {
             name: name.to_string(),
+            identity: Labels::new(),
             location,
             size_gb,
             format: VolumeFormat::Ext4,
@@ -30,6 +34,13 @@ impl HetznerVolume {
 
     pub fn with_labels(mut self, labels: Labels) -> Self {
         self.labels = labels;
+        self
+    }
+
+    /// the identity labels, also written as labels: a lookup of it checks them
+    pub fn with_identity(mut self, identity: Labels) -> Self {
+        self.labels.extend(identity.clone());
+        self.identity = identity;
         self
     }
 
@@ -53,7 +64,7 @@ impl Resource for HetznerVolume {
     }
 
     fn as_lookup(&self) -> HetznerVolumeLookup {
-        HetznerVolumeLookup::new(&self.name)
+        HetznerVolumeLookup::new(&self.name).with_identity(self.identity.clone())
     }
 }
 

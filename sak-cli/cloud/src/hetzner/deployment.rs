@@ -2,8 +2,8 @@
 //! its value, and the state of each against the resource group a deployment consists of
 
 use crate::api::{
-    DiffStatus, Error, Labels, LookupProviders, Provisioner, Registry, Resource, ResourceDiff,
-    Result,
+    DiffStatus, Error, Labels, Lookup, LookupProviders, Provisioner, Registry, Resource,
+    ResourceDiff, Result,
 };
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
@@ -208,41 +208,27 @@ pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec
     records
 }
 
-/// the declared records that exist already without the deployment's name label, the user's
-/// or another deployment's: a deployment never takes one over, so they stop it before
-/// anything is created
-pub fn foreign_records(
-    listings: &[HetznerDnsZoneListing],
-    declared: &[HetznerDnsRecord],
-) -> Vec<HetznerDnsRecordLookup> {
-    declared
-        .iter()
-        .filter(|record| {
-            let lookup = record.as_lookup();
-            listings
-                .iter()
-                .filter(|listing| listing.zone.name == lookup.zone.name)
-                .flat_map(|listing| &listing.rrsets)
-                .any(|rrset| {
-                    rrset.name == lookup.record
-                        && rrset.rr_type == lookup.rr_type
-                        && rrset.labels.get(NAME_LABEL) != record.labels.get(NAME_LABEL)
-                })
-        })
-        .map(|record| record.as_lookup())
-        .collect()
-}
-
 /// the records of `found` not among `declared`: all of them on a destroy, those of the old
-/// dns mode or root domain on a deploy
+/// dns mode or root domain on a deploy. Only records that carry every label of `identity` (the
+/// sak name and the password hash) are the deployment's to remove
 pub fn stale_records(
     found: &[DeploymentRecord],
     declared: &[HetznerDnsRecord],
+    identity: &Labels,
 ) -> Vec<HetznerDnsRecordLookup> {
     found
         .iter()
+        .filter(|record| {
+            identity
+                .iter()
+                .all(|(key, value)| record.labels.get(key) == Some(value))
+        })
         .map(|record| record.lookup.clone())
-        .filter(|lookup| !declared.iter().any(|record| record.as_lookup() == *lookup))
+        .filter(|lookup| {
+            !declared
+                .iter()
+                .any(|record| Lookup::name(&record.as_lookup()) == Lookup::name(lookup))
+        })
         .collect()
 }
 
@@ -700,7 +686,9 @@ impl DeploymentSpec {
     }
 
     pub fn ssh_key(&self) -> HetznerSshKey {
-        HetznerSshKey::new(&self.name, &self.public_key).with_labels(self.resource_labels())
+        HetznerSshKey::new(&self.name, &self.public_key)
+            .with_labels(self.resource_labels())
+            .with_identity(self.identity())
     }
 
     pub fn data_volume(&self) -> HetznerVolume {
@@ -710,16 +698,19 @@ impl DeploymentSpec {
             self.data_volume_gb,
         )
         .with_labels(self.resource_labels())
+        .with_identity(self.identity())
     }
 
     pub fn ipv4(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.name), self.location)
             .with_labels(self.resource_labels())
+            .with_identity(self.identity())
     }
 
     pub fn ipv6(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.name), self.location)
             .with_labels(self.resource_labels())
+            .with_identity(self.identity())
     }
 
     /// ssh, https and icmp from anywhere, applied to the servers of the deployment
@@ -730,6 +721,7 @@ impl DeploymentSpec {
         )
         .applied_to(self.labels())
         .with_labels(self.resource_labels())
+        .with_identity(self.identity())
     }
 
     pub fn server(&self) -> HetznerServer {
@@ -740,6 +732,7 @@ impl DeploymentSpec {
             .with_ipv4(self.ipv4().as_lookup())
             .with_ipv6(self.ipv6().as_lookup())
             .with_labels(self.resource_labels())
+            .with_identity(self.identity())
     }
 
     /// the names the deployment manages in its root domain: `@` and `*` in domain mode,
@@ -773,16 +766,29 @@ impl DeploymentSpec {
                         vec![RecordValue::PrimaryIp(ip)],
                     )
                     .with_labels(self.resource_labels())
+                    .with_identity(self.identity())
                 })
             })
             .collect()
     }
 
+    /// what identifies a resource of the deployment: the sak name and the password hash. Every
+    /// resource carries them as labels and as identity, so a lookup refuses a resource of the
+    /// name without them, and the registries destroy nothing else
+    pub fn identity(&self) -> Labels {
+        let mut identity = Labels::from([(NAME_LABEL.to_string(), self.name.clone())]);
+        if let Some(hash) = &self.password_hash {
+            identity.insert(PASSWORD_HASH_LABEL.to_string(), hash.clone());
+        }
+        identity
+    }
+
     /// the resource group with its dns records in a registry of the provider, ready to diff
-    /// and apply
+    /// and apply; a recreate removes only resources with the identity of the deployment
     pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
         let mut registry = provider
             .registry()
+            .owned_by(self.identity())
             .with(self.ssh_key())?
             .with(self.data_volume())?
             .with(self.ipv4())?
@@ -795,14 +801,18 @@ impl DeploymentSpec {
         Ok(registry)
     }
 
-    /// what a destroy removes: the resource group, the data volume only with `delete_data`;
-    /// the dns records are found by their labels instead (`deployment_records`)
+    /// what a destroy removes: the resource group, the data volume only with `delete_data`, each
+    /// only with the identity of the deployment; the dns records are found by their labels
+    /// instead (`deployment_records`, `stale_records`)
     pub fn destroy_registry(
         &self,
         provider: &HetznerProviderRuntime,
         delete_data: bool,
     ) -> Result<Registry> {
-        let mut registry = provider.registry().with(self.ssh_key())?;
+        let mut registry = provider
+            .registry()
+            .owned_by(self.identity())
+            .with(self.ssh_key())?;
         if delete_data {
             registry.add(self.data_volume())?;
         }
@@ -1014,18 +1024,6 @@ mod tests {
             labels.insert(NAME_LABEL.to_string(), name.to_string());
         }
         labels
-    }
-
-    fn zone_runtime() -> crate::hetzner::dns_zone::HetznerDnsZoneRuntime {
-        crate::hetzner::dns_zone::HetznerDnsZoneRuntime {
-            id: 1,
-            name: "pelle.io".to_string(),
-            ttl: 3600,
-            status: "ok".to_string(),
-            nameservers: vec![],
-            delete_protected: false,
-            labels: Labels::new(),
-        }
     }
 
     /// the root domain `pelle.io` with the labels of its zone and of its rrsets
@@ -1269,18 +1267,20 @@ mod tests {
                 "dns record '*.alpha.pelle.io/AAAA'",
             ]
         );
-        // to the primary ips, labeled like every resource of the deployment
+        // to the primary ips, by their name and the identity of the deployment
         assert_eq!(
             subdomain[0].values,
-            vec![RecordValue::PrimaryIp(HetznerPrimaryIpLookup::new(
-                "alpha-ipv4"
-            ))]
+            vec![RecordValue::PrimaryIp(
+                HetznerPrimaryIpLookup::new("alpha-ipv4")
+                    .with_identity(spec(DnsMode::Subdomain).identity())
+            )]
         );
         assert_eq!(
             subdomain[1].values,
-            vec![RecordValue::PrimaryIp(HetznerPrimaryIpLookup::new(
-                "alpha-ipv6"
-            ))]
+            vec![RecordValue::PrimaryIp(
+                HetznerPrimaryIpLookup::new("alpha-ipv6")
+                    .with_identity(spec(DnsMode::Subdomain).identity())
+            )]
         );
         assert_eq!(subdomain[0].labels[NAME_LABEL], "alpha");
         assert_eq!(subdomain[0].labels[DNS_MODE_LABEL], "subdomain");
@@ -1290,24 +1290,41 @@ mod tests {
     }
 
     #[test]
-    fn the_records_of_another_mode_or_domain_are_stale() {
-        let record = |name: &str, zone: &str, rr_type: RRType| DeploymentRecord {
-            lookup: HetznerDnsRecordLookup::new(name, HetznerDnsZoneLookup::new(zone), rr_type),
-            labels: Labels::new(),
+    fn the_records_of_another_mode_or_domain_are_stale_when_they_carry_the_identity() {
+        let identity = Labels::from([
+            (NAME_LABEL.to_string(), "alpha".to_string()),
+            (PASSWORD_HASH_LABEL.to_string(), "abc".to_string()),
+        ]);
+        let record = |name: &str, zone: &str, labels: &Labels| DeploymentRecord {
+            lookup: HetznerDnsRecordLookup::new(name, HetznerDnsZoneLookup::new(zone), RRType::A),
+            labels: labels.clone(),
         };
+        let mut other_password = identity.clone();
+        other_password.insert(PASSWORD_HASH_LABEL.to_string(), "xyz".to_string());
         let found = vec![
-            record("@", "pelle.io", RRType::A),
-            record("alpha", "pelle.io", RRType::A),
-            record("alpha", "example.com", RRType::A),
+            record("@", "pelle.io", &identity),
+            record("alpha", "pelle.io", &identity),
+            record("alpha", "example.com", &identity),
+            // the name label alone, or another password hash: not the deployment's to remove
+            record(
+                "www",
+                "pelle.io",
+                &Labels::from([(NAME_LABEL.to_string(), "alpha".to_string())]),
+            ),
+            record("old", "pelle.io", &other_password),
         ];
+        let declared = spec(DnsMode::Subdomain)
+            .with_password_hash("abc")
+            .dns_records();
 
-        let stale = stale_records(&found, &spec(DnsMode::Subdomain).dns_records());
+        let stale = stale_records(&found, &declared, &identity);
+
         assert_eq!(
             stale,
             vec![found[0].lookup.clone(), found[2].lookup.clone()]
         );
-        // a destroy declares none, everything goes
-        assert_eq!(stale_records(&found, &[]).len(), 3);
+        // a destroy declares none, everything with the identity goes
+        assert_eq!(stale_records(&found, &[], &identity).len(), 3);
     }
 
     #[tokio::test]
@@ -1347,40 +1364,151 @@ mod tests {
     }
 
     #[test]
-    fn records_of_the_user_or_of_another_deployment_at_the_managed_names_are_foreign() {
-        let rrset =
-            |name: &str, rr_type: &str, labels: Value| -> crate::hetzner::api::zones::RRSet {
-                let mut rrset = crate::hetzner::dns_zone::provisioner_tests::rrset(1, name, labels);
-                rrset["type"] = json!(rr_type);
-                serde_json::from_value(rrset).unwrap()
-            };
-        let listing = |rrsets| HetznerDnsZoneListing {
-            zone: zone_runtime(),
-            rrsets,
-        };
-        let declared = spec(DnsMode::Domain).dns_records();
-
-        // the user's records at @ and *, the MX next to them is no business of the deployment
-        let user = listing(vec![
-            rrset("@", "A", json!({})),
-            rrset("*", "AAAA", json!({ NAME_LABEL: "beta" })),
-            rrset("@", "MX", json!({})),
-        ]);
-        let names: Vec<String> = foreign_records(&[user], &declared)
-            .iter()
-            .map(|record| record.log_text())
-            .collect();
-        assert_eq!(
-            names,
-            vec!["dns record '@.pelle.io/A'", "dns record '*.pelle.io/AAAA'"]
+    fn every_resource_of_a_deployment_carries_its_identity_as_label_and_lookup() {
+        let spec = spec(DnsMode::Domain).with_password_hash("abc");
+        let identity = spec.identity();
+        assert_eq!(identity[NAME_LABEL], "alpha");
+        assert_eq!(identity[PASSWORD_HASH_LABEL], "abc");
+        assert_eq!(Lookup::identity(&spec.ssh_key().as_lookup()), &identity);
+        assert_eq!(Lookup::identity(&spec.data_volume().as_lookup()), &identity);
+        assert_eq!(Lookup::identity(&spec.ipv4().as_lookup()), &identity);
+        assert_eq!(Lookup::identity(&spec.ipv6().as_lookup()), &identity);
+        assert_eq!(Lookup::identity(&spec.firewall().as_lookup()), &identity);
+        assert_eq!(Lookup::identity(&spec.server().as_lookup()), &identity);
+        for record in spec.dns_records() {
+            assert_eq!(Lookup::identity(&record.as_lookup()), &identity);
+            assert_eq!(record.labels[PASSWORD_HASH_LABEL], "abc");
+        }
+        // the server refers to its key, volume and addresses with the identity too
+        let server = spec.server();
+        assert!(
+            server
+                .ssh_keys
+                .iter()
+                .all(|key| Lookup::identity(key) == &identity)
         );
+        // without a password hash the name alone
+        let unhashed = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
+        assert_eq!(unhashed.identity().len(), 1);
+    }
 
-        // its own records are no obstacle, nor are records in another zone
-        let own = listing(vec![rrset("@", "A", json!({ NAME_LABEL: "alpha" }))]);
-        assert!(foreign_records(&[own], &declared).is_empty());
-        let mut elsewhere = listing(vec![rrset("@", "A", json!({}))]);
-        elsewhere.zone.name = "example.com".to_string();
-        assert!(foreign_records(&[elsewhere], &declared).is_empty());
+    /// a project with an unlabeled `web` server, ssh key, firewall, data volume and primary ips,
+    /// all protected where hetzner allows it: none of it created by a deployment
+    async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
+        let volume = json!({
+            "id": 3, "name": "web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
+            "protection": { "delete": true }, "server": null, "status": "available",
+            "location": { "id": 2, "name": "hel1" }, "labels": {}
+        });
+        let ip = |id: u64, name: &str, ip_type: &str| {
+            json!({
+                "id": id, "name": name, "ip": "1.2.3.4", "type": ip_type, "assignee_id": null, "assignee_type": "unassigned",
+                "auto_delete": false, "protection": { "delete": true }, "location": { "id": 3, "name": "hel1" }, "labels": {}
+            })
+        };
+        mock_api_all(&[
+            ("servers", vec![server(1, "web", json!({}))]),
+            ("ssh_keys", vec![key(7, "web", json!({}))]),
+            ("firewalls", vec![firewall(5, "web", json!({}))]),
+            ("volumes", vec![volume]),
+            (
+                "primary_ips",
+                vec![ip(11, "web-ipv4", "ipv4"), ip(12, "web-ipv6", "ipv6")],
+            ),
+        ])
+        .await
+    }
+
+    /// what the mock was asked to change: every request but a read
+    async fn writes(server: &wiremock::MockServer) -> Vec<String> {
+        server
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .filter(|request| request.method != wiremock::http::Method::GET)
+            .map(|request| format!("{} {}", request.method, request.url.path()))
+            .collect()
+    }
+
+    fn web() -> DeploymentSpec {
+        DeploymentSpec::new("web", "ssh-ed25519 AAAA", Location::hel1, ServerType::cx23)
+            .unwrap()
+            .with_password_hash("any-password-hash")
+    }
+
+    #[tokio::test]
+    async fn a_destroy_leaves_the_resources_of_someone_else_alone() {
+        let (mock, api) = foreign_web().await;
+        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+
+        let error = web()
+            .destroy_registry(&provider, true)
+            .unwrap()
+            .destroy_all()
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "server 'web'"),
+            "{error}"
+        );
+        // neither deleted nor unprotected, detached or unassigned
+        assert_eq!(writes(&mock).await, Vec::<String>::new());
+    }
+
+    #[tokio::test]
+    async fn a_plan_stops_at_a_resource_of_someone_else_before_anything_is_created() {
+        let (mock, api) = foreign_web().await;
+        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+
+        let error = web()
+            .registry(&provider)
+            .unwrap()
+            .diff_all()
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "ssh key 'web'"),
+            "{error}"
+        );
+        assert_eq!(writes(&mock).await, Vec::<String>::new());
+        // nor does an apply take it over
+        let mut registry = web().registry(&provider).unwrap();
+        assert!(matches!(
+            registry.apply_all(true).await,
+            Err(Error::NotOwned { .. })
+        ));
+        assert_eq!(writes(&mock).await, Vec::<String>::new());
+    }
+
+    #[tokio::test]
+    async fn a_resource_with_the_name_label_but_another_password_hash_is_not_owned_either() {
+        let (_mock, api) = mock_api_all(&[(
+            "ssh_keys",
+            vec![key(
+                7,
+                "web",
+                json!({ NAME_LABEL: "web", PASSWORD_HASH_LABEL: "another-hash" }),
+            )],
+        )])
+        .await;
+        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let spec = web();
+
+        let error = crate::api::LookupProvider::lookup(
+            &*provider.ssh_keys(),
+            &spec.ssh_key().as_lookup(),
+            &LookupProviders::new(),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "ssh key 'web' exists and does not belong to this deployment: its label 'sak.pelle.io/password-hash' has another value"
+        );
     }
 
     #[tokio::test]

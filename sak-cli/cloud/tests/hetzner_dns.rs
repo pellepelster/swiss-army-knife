@@ -5,6 +5,7 @@
 
 mod support;
 
+use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{
     DiffStatus, Listable, Lookup, LookupProvider, LookupProviders, Provisioner, Resource,
 };
@@ -166,12 +167,7 @@ async fn dns_flow() {
                 Some("<known after apply>")
             );
 
-            assert!(
-                records
-                    .destroy(&record.as_lookup(), &context)
-                    .await
-                    .unwrap()
-            );
+            assert!(destroy_resource(&records, &record, &context).await.unwrap());
             assert!(
                 records
                     .lookup(&record.as_lookup(), &context)
@@ -179,13 +175,8 @@ async fn dns_flow() {
                     .unwrap()
                     .is_none()
             );
-            assert!(
-                !records
-                    .destroy(&record.as_lookup(), &context)
-                    .await
-                    .unwrap()
-            );
-            assert!(zones.destroy(&zone.as_lookup(), &context).await.unwrap());
+            assert!(!destroy_resource(&records, &record, &context).await.unwrap());
+            assert!(destroy_resource(&*zones, &zone, &context).await.unwrap());
             assert!(
                 zones
                     .lookup(&zone.as_lookup(), &context)

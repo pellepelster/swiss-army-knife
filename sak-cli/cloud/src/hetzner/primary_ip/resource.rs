@@ -9,6 +9,9 @@ use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime
 #[derive(Clone, Debug)]
 pub struct HetznerPrimaryIp {
     pub name: String,
+    /// the labels that, with the name, identify it: written with the labels, checked on every
+    /// lookup (`api::identity`); a resource of the name without them is left alone
+    pub identity: Labels,
     pub ip_type: PrimaryIpType,
     pub location: Location,
     /// delete protection at hetzner, on by default; destroy lifts it
@@ -20,6 +23,7 @@ impl HetznerPrimaryIp {
     pub fn new(name: &str, ip_type: PrimaryIpType, location: Location) -> Self {
         HetznerPrimaryIp {
             name: name.to_string(),
+            identity: Labels::new(),
             ip_type,
             location,
             protected: true,
@@ -40,6 +44,13 @@ impl HetznerPrimaryIp {
         self
     }
 
+    /// the identity labels, also written as labels: a lookup of it checks them
+    pub fn with_identity(mut self, identity: Labels) -> Self {
+        self.labels.extend(identity.clone());
+        self.identity = identity;
+        self
+    }
+
     pub fn with_protected(mut self, protected: bool) -> Self {
         self.protected = protected;
         self
@@ -55,7 +66,7 @@ impl Resource for HetznerPrimaryIp {
     }
 
     fn as_lookup(&self) -> HetznerPrimaryIpLookup {
-        HetznerPrimaryIpLookup::new(&self.name)
+        HetznerPrimaryIpLookup::new(&self.name).with_identity(self.identity.clone())
     }
 }
 

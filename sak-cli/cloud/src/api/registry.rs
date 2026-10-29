@@ -4,8 +4,10 @@
 use crate::api::context::LookupProviders;
 use crate::api::diff::{DiffStatus, ResourceDiff};
 use crate::api::error::{Error, Result};
+use crate::api::identity;
+use crate::api::lookup::Lookup;
 use crate::api::provisioner::Provisioner;
-use crate::api::resource::{Resource, ResourceRef};
+use crate::api::resource::{Labels, Resource, ResourceRef};
 use async_trait::async_trait;
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
@@ -46,7 +48,22 @@ trait ErasedProvisioner: Send + Sync {
 
     async fn apply(&self, resource: &dyn AnyResource, context: &LookupProviders) -> Result<()>;
 
-    async fn destroy(&self, resource: &dyn AnyResource, context: &LookupProviders) -> Result<bool>;
+    /// looks the resource up, checks it against the owner labels and destroys it; `false`
+    /// when nothing has the name
+    async fn destroy(
+        &self,
+        resource: &dyn AnyResource,
+        context: &LookupProviders,
+        owner: &Labels,
+    ) -> Result<bool>;
+
+    /// a lookup of the resource for its identity alone: a resource of the name that belongs to
+    /// someone else fails here, also when the resource itself is not diffed yet
+    async fn check_owned(
+        &self,
+        resource: &dyn AnyResource,
+        context: &LookupProviders,
+    ) -> Result<()>;
 }
 
 struct Erased<R, P> {
@@ -82,10 +99,31 @@ impl<R: Resource, P: Provisioner<R> + 'static> ErasedProvisioner for Erased<R, P
         Ok(())
     }
 
-    async fn destroy(&self, resource: &dyn AnyResource, context: &LookupProviders) -> Result<bool> {
-        self.provisioner
-            .destroy(&self.downcast(resource).as_lookup(), context)
-            .await
+    async fn destroy(
+        &self,
+        resource: &dyn AnyResource,
+        context: &LookupProviders,
+        owner: &Labels,
+    ) -> Result<bool> {
+        let lookup = self.downcast(resource).as_lookup();
+        // the lookup checks the identity of the lookup, the owner labels of the run are checked
+        // once more: a resource declared without its identity is not removed either
+        let found = self.provisioner.lookup(&lookup, context).await?;
+        let Some(runtime) = identity::check(found, owner, &lookup.log_text())? else {
+            return Ok(false);
+        };
+        self.provisioner.destroy(&runtime, context).await?;
+        Ok(true)
+    }
+
+    async fn check_owned(
+        &self,
+        resource: &dyn AnyResource,
+        context: &LookupProviders,
+    ) -> Result<()> {
+        let lookup = self.downcast(resource).as_lookup();
+        self.provisioner.lookup(&lookup, context).await?;
+        Ok(())
     }
 }
 
@@ -121,6 +159,9 @@ pub struct Registry {
     context: LookupProviders,
     provisioners: HashMap<TypeId, Box<dyn ErasedProvisioner>>,
     resources: Vec<Box<dyn AnyResource>>,
+    /// the labels a resource must carry to be destroyed by this registry, e.g. the sak name and
+    /// the password hash of a deployment; nothing is destroyed without them
+    owner: Option<Labels>,
 }
 
 impl Registry {
@@ -138,6 +179,25 @@ impl Registry {
                 resource: PhantomData,
             }),
         );
+    }
+
+    /// the labels a resource must carry so this registry destroys it, on a destroy and before a
+    /// recreate; they must not be empty
+    pub fn owned_by(mut self, owner: Labels) -> Self {
+        self.owner = Some(owner);
+        self
+    }
+
+    /// the owner labels, or why nothing may be destroyed
+    fn owner(&self) -> Result<&Labels> {
+        self.owner
+            .as_ref()
+            .filter(|owner| !owner.is_empty())
+            .ok_or_else(|| {
+                Error::message(
+                    "nothing is destroyed without the owner labels of the resources (owned_by)",
+                )
+            })
     }
 
     /// the lookup providers of the run, for lookups outside a diff or apply
@@ -182,6 +242,11 @@ impl Registry {
                     .any(|diff| diff.resource == *dependency && diff.status == DiffStatus::Missing)
             });
             let diff = if parent_missing {
+                // not diffed, but a resource of its name that belongs to someone else stops the
+                // plan here, before anything is created
+                self.provisioner_of(resource)?
+                    .check_owned(resource, &self.context)
+                    .await?;
                 ResourceDiff {
                     resource: reference.clone(),
                     status: DiffStatus::ParentMissing,
@@ -243,7 +308,9 @@ impl Registry {
                         )));
                     }
                     info!("recreating {reference}: {diff}");
-                    provisioner.destroy(resource, &self.context).await?;
+                    provisioner
+                        .destroy(resource, &self.context, self.owner()?)
+                        .await?;
                     provisioner.apply(resource, &self.context).await?;
                     Applied::Recreated
                 }
@@ -273,6 +340,7 @@ impl Registry {
         &mut self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ResourceRef>> {
+        let owner = self.owner()?.clone();
         let mut destroyed = Vec::new();
         for index in self.order()?.into_iter().rev() {
             let resource = self.resources[index].as_ref();
@@ -281,7 +349,7 @@ impl Registry {
             on_event(ApplyEvent::Started(reference.clone()));
             let gone = self
                 .provisioner_of(resource)?
-                .destroy(resource, &self.context)
+                .destroy(resource, &self.context, &owner)
                 .await?;
             on_event(ApplyEvent::Destroyed(reference.clone(), gone));
             if gone {
@@ -364,16 +432,44 @@ mod tests {
     /// date when the versions match, a version change needs a recreate when `strict`
     #[derive(Default)]
     struct Cloud {
-        existing: Mutex<HashMap<String, u32>>,
+        /// the version and the labels of each thing that exists
+        existing: Mutex<HashMap<String, (u32, Labels)>>,
+        /// names whose lookup fails as someone else's, like a lookup with an identity does
+        foreign: Mutex<HashSet<String>>,
         log: Mutex<Vec<String>>,
+    }
+
+    impl Cloud {
+        /// a thing of the name that someone else created: without the owner label
+        fn plant(&self, name: &str, version: u32) {
+            self.existing
+                .lock()
+                .unwrap()
+                .insert(name.to_string(), (version, Labels::new()));
+        }
+    }
+
+    /// what every thing this registry creates carries, and what it destroys by
+    fn owner() -> Labels {
+        Labels::from([("owner".to_string(), "me".to_string())])
     }
 
     #[derive(Clone)]
     struct ThingLookup(String);
 
-    struct ThingRuntime(u32);
+    struct ThingRuntime {
+        name: String,
+        version: u32,
+        labels: Labels,
+    }
 
     impl Runtime for ThingRuntime {}
+
+    impl crate::api::resource::Labeled for ThingRuntime {
+        fn labels(&self) -> &Labels {
+            &self.labels
+        }
+    }
 
     impl Lookup for ThingLookup {
         type Runtime = ThingRuntime;
@@ -430,12 +526,22 @@ mod tests {
             lookup: &ThingLookup,
             _: &dyn LookupContext,
         ) -> Result<Option<ThingRuntime>> {
+            if self.foreign.lock().unwrap().contains(&lookup.0) {
+                return Err(Error::NotOwned {
+                    resource: lookup.log_text(),
+                    reason: "it has no label 'owner'".to_string(),
+                });
+            }
             Ok(self
                 .existing
                 .lock()
                 .unwrap()
                 .get(&lookup.0)
-                .map(|version| ThingRuntime(*version)))
+                .map(|(version, labels)| ThingRuntime {
+                    name: lookup.0.clone(),
+                    version: *version,
+                    labels: labels.clone(),
+                }))
         }
     }
 
@@ -456,11 +562,11 @@ mod tests {
                 return Ok(ResourceDiff::missing(resource));
             };
             let mut changes = Vec::new();
-            if runtime.0 != resource.version {
+            if runtime.version != resource.version {
                 changes.push(if resource.strict {
-                    DiffItem::recreate("version", resource.version, runtime.0)
+                    DiffItem::recreate("version", resource.version, runtime.version)
                 } else {
-                    DiffItem::changed("version", resource.version, runtime.0)
+                    DiffItem::changed("version", resource.version, runtime.version)
                 });
             }
             Ok(ResourceDiff::from_changes(resource, changes))
@@ -474,21 +580,26 @@ mod tests {
             self.existing
                 .lock()
                 .unwrap()
-                .insert(resource.name.clone(), resource.version);
-            Ok(ThingRuntime(resource.version))
+                .insert(resource.name.clone(), (resource.version, owner()));
+            Ok(ThingRuntime {
+                name: resource.name.clone(),
+                version: resource.version,
+                labels: owner(),
+            })
         }
 
-        async fn destroy(&self, lookup: &ThingLookup, _: &dyn DestroyContext) -> Result<bool> {
+        async fn destroy(&self, runtime: &ThingRuntime, _: &dyn DestroyContext) -> Result<()> {
             self.log
                 .lock()
                 .unwrap()
-                .push(format!("destroy {}", lookup.0));
-            Ok(self.existing.lock().unwrap().remove(&lookup.0).is_some())
+                .push(format!("destroy {}", runtime.name));
+            self.existing.lock().unwrap().remove(&runtime.name);
+            Ok(())
         }
     }
 
     fn registry(cloud: &Arc<Cloud>) -> Registry {
-        let mut registry = Registry::new();
+        let mut registry = Registry::new().owned_by(owner());
         registry.register::<Thing, Cloud>(cloud.clone());
         registry
     }
@@ -550,7 +661,11 @@ mod tests {
     #[tokio::test]
     async fn diff_all_marks_changed_dependencies_pending_and_missing_parents() {
         let cloud = Arc::new(Cloud::default());
-        cloud.existing.lock().unwrap().insert("key".to_string(), 1);
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("key".to_string(), (1, owner()));
         let mut registry = registry(&cloud)
             .with(thing("key", 2, &[]))
             .unwrap()
@@ -582,7 +697,11 @@ mod tests {
     #[tokio::test]
     async fn a_recreate_is_refused_unless_allowed() {
         let cloud = Arc::new(Cloud::default());
-        cloud.existing.lock().unwrap().insert("key".to_string(), 1);
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("key".to_string(), (1, owner()));
         let strict = Thing {
             strict: true,
             ..thing("key", 2, &[])
@@ -607,6 +726,80 @@ mod tests {
                 "destroy key",
                 "apply key"
             ]
+        );
+    }
+
+    #[tokio::test]
+    async fn nothing_is_destroyed_without_owner_labels() {
+        let cloud = Arc::new(Cloud::default());
+        let mut registry = Registry::new();
+        registry.register::<Thing, Cloud>(cloud.clone());
+        let mut registry = registry.with(thing("key", 1, &[])).unwrap();
+        registry.apply_all(false).await.unwrap();
+        log(&cloud);
+
+        let error = registry.destroy_all().await.unwrap_err();
+
+        assert!(error.to_string().contains("owner labels"), "{error}");
+        assert!(log(&cloud).is_empty());
+        // empty owner labels are none either
+        let mut empty = Registry::new().owned_by(Labels::new());
+        empty.register::<Thing, Cloud>(cloud.clone());
+        assert!(
+            empty
+                .with(thing("key", 1, &[]))
+                .unwrap()
+                .destroy_all()
+                .await
+                .is_err()
+        );
+        assert!(cloud.existing.lock().unwrap().contains_key("key"));
+    }
+
+    #[tokio::test]
+    async fn a_thing_without_the_owner_labels_is_neither_destroyed_nor_recreated() {
+        let cloud = Arc::new(Cloud::default());
+        cloud.plant("key", 1);
+        let mut destroying = registry(&cloud).with(thing("key", 1, &[])).unwrap();
+
+        let error = destroying.destroy_all().await.unwrap_err();
+
+        assert!(
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "thing 'key'"),
+            "{error}"
+        );
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));
+
+        let mut strict = thing("key", 2, &[]);
+        strict.strict = true;
+        let mut changed = registry(&cloud).with(strict).unwrap();
+        assert!(matches!(
+            changed.apply_all(true).await,
+            Err(Error::NotOwned { .. })
+        ));
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));
+        assert_eq!(cloud.existing.lock().unwrap()["key"].0, 1);
+        // nothing of the name: nothing to destroy, no error
+        cloud.existing.lock().unwrap().clear();
+        assert!(destroying.destroy_all().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_thing_of_someone_else_stops_the_plan_also_when_its_parent_is_missing() {
+        let cloud = Arc::new(Cloud::default());
+        cloud.foreign.lock().unwrap().insert("server".to_string());
+        let mut registry = registry(&cloud)
+            .with(thing("key", 1, &[]))
+            .unwrap()
+            .with(thing("server", 1, &["key"]))
+            .unwrap();
+
+        // the key is missing, so the server is not diffed; its lookup still runs
+        let error = registry.diff_all().await.unwrap_err();
+
+        assert!(
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "thing 'server'"),
+            "{error}"
         );
     }
 

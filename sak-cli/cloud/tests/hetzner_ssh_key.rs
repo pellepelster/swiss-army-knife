@@ -4,6 +4,7 @@
 
 mod support;
 
+use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{
     DiffStatus, LookupContextExt, LookupProvider, LookupProviders, Provisioner, Resource,
 };
@@ -116,8 +117,7 @@ async fn ssh_key_flow() {
             assert_eq!(diff.status, DiffStatus::UpToDate);
 
             assert!(
-                provisioner
-                    .destroy(&resource.as_lookup(), &context)
+                destroy_resource(&provisioner, &resource, &context)
                     .await
                     .unwrap()
             );
@@ -129,8 +129,7 @@ async fn ssh_key_flow() {
                     .is_none()
             );
             assert!(
-                !provisioner
-                    .destroy(&resource.as_lookup(), &context)
+                !destroy_resource(&provisioner, &resource, &context)
                     .await
                     .unwrap()
             );

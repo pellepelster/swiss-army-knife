@@ -16,3 +16,4 @@ maintenance workflow.
 | [FDR-001](FDR-001-dns-mode.md)                              | DNS mode                              | Active       | 2026-10-28    |
 | [FDR-002](FDR-002-sqlite-encryption.md)                     | SQLite database encryption            | Planned      | 2026-10-28    |
 | [FDR-003](FDR-003-html-login-emails.md)                     | HTML login e-mails                    | Planned      | 2026-10-28    |
+| [FDR-004](FDR-004-maintenance-cleanup.md)                   | Maintenance cleanup                   | Planned      | 2026-10-29    |

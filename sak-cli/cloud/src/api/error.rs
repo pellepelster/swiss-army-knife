@@ -18,6 +18,11 @@ pub enum Error {
     #[error("invalid label: {0}")]
     InvalidLabel(String),
 
+    /// a resource of the declared name exists, but its identity labels say it belongs to
+    /// someone else; it is left as it is
+    #[error("{resource} exists and does not belong to this deployment: {reason}")]
+    NotOwned { resource: String, reason: String },
+
     /// the api of a provider failed, the error is the provider's own
     #[error("{0}")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),

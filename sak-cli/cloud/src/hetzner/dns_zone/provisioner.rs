@@ -1,3 +1,5 @@
+use crate::api::Lookup as _;
+use crate::api::identity;
 use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Listable, LookupContext, LookupProvider,
     Provisioner, Resource, ResourceDiff, Result,
@@ -28,8 +30,12 @@ impl HetznerDnsZoneProvisioner {
         HetznerDnsZoneProvisioner { api }
     }
 
-    async fn find(&self, name: &str) -> Result<Option<HetznerDnsZoneRuntime>> {
-        Ok(self.api.zones().get(name).await?.map(Into::into))
+    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
+    /// of the lookup
+    async fn find(&self, lookup: &HetznerDnsZoneLookup) -> Result<Option<HetznerDnsZoneRuntime>> {
+        let found: Result<Option<HetznerDnsZoneRuntime>> =
+            { Ok(self.api.zones().get(&lookup.name).await?.map(Into::into)) };
+        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 
     /// every zone of the project with its rrsets, by the name of the zone
@@ -55,7 +61,7 @@ impl LookupProvider<HetznerDnsZoneLookup> for HetznerDnsZoneProvisioner {
         lookup: &HetznerDnsZoneLookup,
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerDnsZoneRuntime>> {
-        self.find(&lookup.name).await
+        self.find(lookup).await
     }
 }
 
@@ -76,7 +82,7 @@ impl Listable<HetznerDnsZoneLookup> for HetznerDnsZoneProvisioner {
 #[async_trait]
 impl Provisioner<HetznerDnsZone> for HetznerDnsZoneProvisioner {
     async fn diff(&self, resource: &HetznerDnsZone, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.name).await? else {
+        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
             return Ok(ResourceDiff::missing(resource));
         };
 
@@ -97,7 +103,7 @@ impl Provisioner<HetznerDnsZone> for HetznerDnsZoneProvisioner {
         _: &dyn ApplyContext,
     ) -> Result<HetznerDnsZoneRuntime> {
         let zones = self.api.zones();
-        let runtime = match self.find(&resource.name).await? {
+        let runtime = match self.find(&resource.as_lookup()).await? {
             Some(runtime) => runtime,
             None => {
                 info!("{} not found, creating", resource.log_text());
@@ -129,22 +135,16 @@ impl Provisioner<HetznerDnsZone> for HetznerDnsZoneProvisioner {
     }
 
     /// deletes the zone with every rrset in it
-    async fn destroy(&self, lookup: &HetznerDnsZoneLookup, _: &dyn DestroyContext) -> Result<bool> {
-        let Some(runtime) = self.find(&lookup.name).await? else {
-            return Ok(false);
-        };
+    async fn destroy(&self, runtime: &HetznerDnsZoneRuntime, _: &dyn DestroyContext) -> Result<()> {
         let zones = self.api.zones();
         if runtime.delete_protected {
-            let action = zones.change_protection(&lookup.name, false).await?;
+            let action = zones.change_protection(&runtime.name, false).await?;
             zones.wait_for_action(&action).await?;
         }
-        match zones.delete(&lookup.name).await? {
-            Some(action) => {
-                zones.wait_for_action(&action).await?;
-                Ok(true)
-            }
-            None => Ok(false),
+        if let Some(action) = zones.delete(&runtime.name).await? {
+            zones.wait_for_action(&action).await?;
         }
+        Ok(())
     }
 }
 

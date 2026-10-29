@@ -165,6 +165,13 @@ mod tests {
 
     impl Runtime for KeyRuntime {}
 
+    impl crate::api::resource::Labeled for KeyRuntime {
+        fn labels(&self) -> &crate::api::resource::Labels {
+            static NONE: crate::api::resource::Labels = crate::api::resource::Labels::new();
+            &NONE
+        }
+    }
+
     impl Lookup for KeyLookup {
         type Runtime = KeyRuntime;
 

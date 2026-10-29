@@ -36,6 +36,9 @@ impl RecordValue {
 pub struct HetznerDnsRecord {
     /// relative to the zone, lower case, `@` for the zone itself
     pub name: String,
+    /// the labels that, with the name, identify it: written with the labels, checked on every
+    /// lookup (`api::identity`); a resource of the name without them is left alone
+    pub identity: Labels,
     pub zone: HetznerDnsZoneLookup,
     pub rr_type: RRType,
     /// seconds, the zone's default when none
@@ -53,6 +56,7 @@ impl HetznerDnsRecord {
     ) -> Self {
         HetznerDnsRecord {
             name: name.to_string(),
+            identity: Labels::new(),
             zone,
             rr_type,
             ttl: None,
@@ -75,6 +79,13 @@ impl HetznerDnsRecord {
         self.labels = labels;
         self
     }
+
+    /// the identity labels, also written as labels: a lookup of it checks them
+    pub fn with_identity(mut self, identity: Labels) -> Self {
+        self.labels.extend(identity.clone());
+        self.identity = identity;
+        self
+    }
 }
 
 impl Resource for HetznerDnsRecord {
@@ -87,6 +98,7 @@ impl Resource for HetznerDnsRecord {
 
     fn as_lookup(&self) -> HetznerDnsRecordLookup {
         HetznerDnsRecordLookup::new(&self.name, self.zone.clone(), self.rr_type)
+            .with_identity(self.identity.clone())
     }
 
     fn depends_on(&self) -> Vec<ResourceRef> {

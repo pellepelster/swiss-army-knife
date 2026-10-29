@@ -7,8 +7,9 @@ use std::hash::{Hash, Hasher};
 /// the labels of a resource as declared and as the provider reports them
 pub type Labels = BTreeMap<String, String>;
 
-/// what a declared resource looks like at the provider, the result of a lookup or apply
-pub trait Runtime: Send + Sync + 'static {}
+/// what a declared resource looks like at the provider, the result of a lookup or apply;
+/// its labels are what identity and ownership are checked against
+pub trait Runtime: Labeled + Send + Sync + 'static {}
 
 /// resources and runtimes that carry labels, the label diff works on them
 pub trait Labeled {
