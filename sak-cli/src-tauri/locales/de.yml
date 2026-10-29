@@ -127,6 +127,7 @@ ui:
       server: "Server"
       dns_record: "DNS-Eintrag"
     missing: "fehlt"
+    address: "Adresse"
   deployment:
     deploy: "Ausrollen"
     destroy: "Zerstören"

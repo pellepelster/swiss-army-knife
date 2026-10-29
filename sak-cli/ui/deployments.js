@@ -43,12 +43,15 @@ export function resource(state) {
   return item;
 }
 
-// the frontend of a deployment as a link in its card, opened by rust in the browser of the system
-// (the window itself never leaves the wizard)
+// the frontend of a deployment as `Address: <link>` at the bottom of its card, opened by rust in
+// the browser of the system (the window itself never leaves the wizard)
 function frontendLink(url) {
   const line = document.createElement('div');
   line.className = 'card-body deployment-link';
   line.hidden = !url;
+  const label = document.createElement('span');
+  label.className = 'deployment-address';
+  label.textContent = `${text('ui.deployments.address')}: `;
   const link = document.createElement('a');
   link.className = 'deployment-url sak-mono';
   link.href = url ?? '';
@@ -59,7 +62,7 @@ function frontendLink(url) {
       status.textContent = String(error);
     });
   });
-  line.append(link);
+  line.append(label, link);
   return line;
 }
 
@@ -92,7 +95,7 @@ function deployment(data) {
   // where its frontend is, opened in the browser of the system; none for a deployment without a
   // root domain on its resources
   const link = frontendLink(data.frontendUrl);
-  item.append(header, link, group);
+  item.append(header, group, link);
   return item;
 }
 

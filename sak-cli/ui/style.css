@@ -223,7 +223,12 @@ body {
 /* the state of the deployment, the led pill at the right end of the card header */
 /* where the frontend of the deployment is, a link above its resources */
 .deployment-link {
-  padding-bottom: 0;
+  padding-top: 0;
+}
+
+.deployment-address {
+  color: var(--sak-muted);
+  font-size: 0.875rem;
 }
 
 .deployment-url {
@@ -239,16 +244,18 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sak-space-1);
+  display: grid;
+  /* the led, the kind, the name and the detail, aligned across the resources */
+  grid-template-columns: 1.25rem max-content max-content 1fr;
+  column-gap: 0.6rem;
+  row-gap: var(--sak-space-1);
 }
 
-/* the led, the kind and name, the detail; the changes beneath */
+/* one line each: the led, the kind, the name and the detail next to it; the changes beneath */
 .resource {
   display: grid;
-  grid-template-columns: 1.25rem auto 1fr;
-  column-gap: 0.6rem;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: baseline;
 }
 
@@ -273,10 +280,17 @@ body {
 
 .resource-detail,
 .resource-change {
-  grid-column: 3;
   color: var(--sak-muted);
   font-size: var(--sak-text-sm);
   overflow-wrap: anywhere;
+}
+
+.resource-detail {
+  grid-column: 4;
+}
+
+.resource-change {
+  grid-column: 3 / -1;
 }
 
 .resource[data-status="missing"] .resource-detail,
