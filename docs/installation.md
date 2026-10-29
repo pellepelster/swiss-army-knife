@@ -22,42 +22,44 @@ program.
 
 ## Download
 
-sakctl is built for each change on the main branch. The downloads are the artifacts of the build:
+sakctl is built for each change on the main branch, and published on the
+[release page](https://github.com/pellepelster/swiss-army-knife/releases) of the repository. The commands below
+download the program of your system, check its SHA-256 checksum and extract it. When the checksum does not match,
+the commands stop: do not use the file.
 
-1. Open the [builds of the main branch](https://github.com/pellepelster/swiss-army-knife/actions/workflows/swiss-army-knife.yml?query=branch%3Amain+is%3Asuccess)
-   (you must be signed in to GitHub).
-2. Open the newest build.
-3. Below **Artifacts**, download the file of your system: `sak-cli-linux-<version>.zip`,
-   `sak-cli-macos-<version>.zip` or `sak-cli-windows-<version>.zip`. Each has one program, `sakctl` (`sakctl.exe` on
-   Windows).
-
-The program is not signed. macOS and Windows warn about this on the first start. Started without a command, sakctl
-opens its window; `sakctl --help` shows the commands of its command line.
+The program is not signed. Started without a command, sakctl opens its window; `sakctl --help` shows the commands of
+its command line.
 
 ## Linux
 
-1. Extract `sakctl` from the zip file, e.g. to `~/.local/bin`.
-2. The window needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
-   libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedora).
-3. Start `sakctl`.
+The window needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
+libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedora). Then, in a terminal:
+
+{{< install platform="linux" >}}
+
+Start `sakctl`. When the shell does not find it, add `~/.local/bin` to your `PATH`.
 
 ## macOS
 
-The program works on Apple silicon and on Intel.
+The program works on Apple silicon and on Intel. In the Terminal:
 
-1. Extract `sakctl` from the zip file, e.g. to `/usr/local/bin`.
-2. Start `sakctl` in the Terminal. macOS refuses the first start, because the program is not signed by a known
-   developer.
-3. Open **System Settings**, **Privacy & Security**. Below **Security**, click **Open Anyway** next to sakctl, and
-   confirm. Then start `sakctl` again.
+{{< install platform="macos" >}}
 
-macOS asks this only once.
+Start `~/.local/bin/sakctl`. A program that `curl` downloads starts without the warning of macOS about an unknown
+developer.
+
+When you download the zip file in a browser instead, macOS refuses the first start. Open **System Settings**,
+**Privacy & Security**. Below **Security**, click **Open Anyway** next to sakctl, and confirm. macOS asks this only
+once.
 
 ## Windows
 
-1. Extract `sakctl.exe` from the zip file, e.g. to a folder in your user directory.
-2. Start `sakctl.exe`. Windows SmartScreen can warn that the program is not known. Click **More info**, then **Run
-   anyway**.
+In PowerShell:
+
+{{< install platform="windows" >}}
+
+Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. Windows SmartScreen can warn that the program is not known.
+Click **More info**, then **Run anyway**.
 
 On Windows, use the window: the command line of `sakctl.exe` does not show its output. The window needs the Microsoft
 Edge WebView2 runtime, which Windows 10 and 11 have.

@@ -1,0 +1,21 @@
+{{- /* the commands that download sakctl for a platform from the github pre-release of its version,
+   check its sha-256 and extract it only when it matches, also when they are pasted line by line; the version and the checksums come from data/sakctl.yaml
+   (mise run docs:data), a platform without a checksum shows <sha256> */ -}}
+{{- $platform := .Get "platform" }}
+{{- $version := hugo.Data.sakctl.version | default "latest" }}
+{{- $checksum := (index (hugo.Data.sakctl.checksums | default dict) $platform) | default "<sha256>" }}
+{{- $zip := printf "sak-cli-%s-%s.zip" $platform $version }}
+{{- $url := printf "%s/%s/%s" site.Params.sakctlDownloads $version $zip }}
+{{- $code := "" }}
+{{- $language := "sh" }}
+{{- if eq $platform "linux" }}
+{{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | sha256sum --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
+{{- else if eq $platform "macos" }}
+{{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | shasum -a 256 --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
+{{- else if eq $platform "windows" }}
+{{- $language = "powershell" }}
+{{- $code = printf "Invoke-WebRequest %s -OutFile %s\nif ((Get-FileHash %s -Algorithm SHA256).Hash -eq \"%s\") {\n  Expand-Archive %s \"$env:LOCALAPPDATA\\Programs\\sakctl\" -Force\n} else {\n  Write-Error \"The checksum of %s does not match.\"\n}" $url $zip $zip $checksum $zip $zip }}
+{{- else }}
+{{- errorf "install: the platform %q is not linux, macos or windows" $platform }}
+{{- end }}
+{{- highlight $code $language }}

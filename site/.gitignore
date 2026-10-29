@@ -2,3 +2,5 @@
 .hugo_build.lock
 public/
 resources/_gen/
+# written by mise run docs:data
+data/sakctl.yaml

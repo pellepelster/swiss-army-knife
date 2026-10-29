@@ -109,8 +109,8 @@ jobs:
 
   # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
   # one native binary with the page built in, no installers, zipped as
-  # sak-cli-<platform>-<VERSION>.zip and uploaded as that file (docs/installation.md). Nothing is
-  # signed: macOS and windows warn on the first start
+  # sak-cli-<platform>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
+  # (<zip>.sha256). Nothing is signed: macOS and windows warn on the first start
   sakctl:
     name: sakctl (${{ matrix.platform }})
     strategy:
@@ -151,10 +151,17 @@ jobs:
           path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip
           archive: false
           if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip.sha256
+          archive: false
+          if-no-files-found: error
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
-  # a pull request too. The address of the pages is its base url
-  docs:
+  # a pull request too. The address of the pages is its base url, the installation gets the
+  # checksums of the zips of sakctl (mise run docs:data)
+  docs-build:
+    needs: sakctl
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -162,6 +169,11 @@ jobs:
       - uses: jdx/mise-action@v5
         with:
           install_args: hugo-extended go
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: sak-cli-*.sha256
+          path: sak-cli/build
+          merge-multiple: true
       - id: pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
@@ -173,12 +185,16 @@ jobs:
         with:
           path: build/site
 
-  # the images of the jobs before, pushed as <VERSION>-rc, as <VERSION> (mise run release), from main
-  # only and when all of them are built
+  # from main only, when all images and all zips of sakctl are built: the images pushed as
+  # <VERSION>-rc as <VERSION> (mise run release), the zips and their checksums as the github
+  # pre-release <VERSION> (mise run cli:release), where the installation downloads them
   release:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [sak-backend-images, sak-cli-images]
+    needs: [sak-backend-images, sak-cli-images, sakctl]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
@@ -190,11 +206,20 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run release
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: sak-cli-*
+          path: sak-cli/build
+          merge-multiple: true
+      - run: mise run cli:release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # the site of the job docs as the github pages of the repository, from main only, after the release
-  publish-documentation:
+  # the site of the job docs-build as the github pages of the repository, from main only, after the
+  # release
+  docs-publish:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [docs, release]
+    needs: [docs-build, release]
     runs-on: ubuntu-24.04
     permissions:
       pages: write

@@ -74,6 +74,9 @@ block = true
 [params]
 # where a link to a file outside of docs/ goes (layouts/_default/_markup/render-link.html)
 repositoryFiles = 'https://github.com/pellepelster/swiss-army-knife/blob/main'
+# where the zips of sakctl are, below the release of their version (mise run cli:release,
+# layouts/shortcodes/install.html)
+sakctlDownloads = 'https://github.com/pellepelster/swiss-army-knife/releases/download'
 # light or dark as the system prefers, the same as the apps; no choice of other colors
 themeVariant = [
   { identifier = 'sak-auto', name = 'SAK', auto = ['sak-light', 'sak-dark'] },

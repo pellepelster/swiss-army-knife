@@ -155,8 +155,9 @@ dir = "{{config_root}}/sak-cli"
 run = "tauri build"
 
 # sakctl as one native binary for a platform, without installers, zipped with its executable bit
-# to sak-cli/build/sak-cli-<platform>-<VERSION>.zip; each runs on its own platform (the workflow,
-# job sakctl). macOS gets one universal binary for apple silicon and intel
+# to sak-cli/build/sak-cli-<platform>-<VERSION>.zip, its sha-256 next to it in <zip>.sha256; each
+# runs on its own platform (the workflow, job sakctl). macOS gets one universal binary for apple
+# silicon and intel
 [tasks."cli:build:linux"]
 description = "Build sakctl for linux into sak-cli/build/sak-cli-linux-<VERSION>.zip"
 depends = ["cli:theme"]
@@ -166,6 +167,7 @@ tauri build --no-bundle
 mkdir -p build
 rm -f "build/sak-cli-linux-${VERSION}.zip"
 zip -j "build/sak-cli-linux-${VERSION}.zip" src-tauri/target/release/sakctl
+(cd build && sha256sum "sak-cli-linux-${VERSION}.zip" > "sak-cli-linux-${VERSION}.zip.sha256")
 """
 
 [tasks."cli:build:macos"]
@@ -178,6 +180,7 @@ tauri build --target universal-apple-darwin --no-bundle
 mkdir -p build
 rm -f "build/sak-cli-macos-${VERSION}.zip"
 zip -j "build/sak-cli-macos-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakctl
+(cd build && shasum -a 256 "sak-cli-macos-${VERSION}.zip" > "sak-cli-macos-${VERSION}.zip.sha256")
 """
 
 # in git bash, which has no zip; 7-Zip is there instead
@@ -191,6 +194,26 @@ tauri build --no-bundle
 mkdir -p build
 rm -f "build/sak-cli-windows-${VERSION}.zip"
 7z a -tzip "build/sak-cli-windows-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe
+(cd build && sha256sum "sak-cli-windows-${VERSION}.zip" > "sak-cli-windows-${VERSION}.zip.sha256")
+"""
+
+# the zips of all platforms and their checksums (sak-cli/build/, from cli:build:<platform>) as the
+# assets of the github pre-release <VERSION>, made anew each time, so the addresses of the
+# installation stay the same: .../releases/download/<VERSION>/sak-cli-<platform>-<VERSION>.zip.
+# Needs gh and GH_TOKEN with contents: write (the workflow, job release)
+[tasks."cli:release"]
+description = "Publish the zips of sakctl in sak-cli/build as the github pre-release <VERSION>"
+dir = "{{config_root}}/sak-cli"
+run = """
+set -eu
+files=""
+for platform in linux macos windows; do
+  zip="build/sak-cli-${platform}-${VERSION}.zip"
+  [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
+  files="$files $zip $zip.sha256"
+done
+gh release delete "$VERSION" --cleanup-tag --yes 2>/dev/null || true
+gh release create "$VERSION" --prerelease --target "$(git rev-parse HEAD)"   --title "sakctl $VERSION" --notes "sakctl for linux, macOS and windows, built from $(git rev-parse --short=12 HEAD)."   $files
 """
 
 # the checks run real containers with the docker or podman installed, skipped without one
@@ -376,16 +399,38 @@ depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
+# the version of sakctl and the checksums of its zips in sak-cli/build/ (cli:build:<platform>, in
+# the workflow those of all platforms) for the installation, as site/data/sakctl.yaml; a platform
+# without a zip shows <sha256>
+[tasks."docs:data"]
+description = "Write the version and the checksums of sakctl for the installation of the documentation"
+dir = "{{config_root}}/site"
+run = """
+set -eu
+mkdir -p data
+{
+  echo "version: '$VERSION'"
+  echo "checksums:"
+  for platform in linux macos windows; do
+    checksum="../sak-cli/build/sak-cli-${platform}-${VERSION}.zip.sha256"
+    [ -f "$checksum" ] && echo "  $platform: '$(cut -d ' ' -f 1 "$checksum")'"
+  done
+  true
+} > data/sakctl.yaml
+"""
+
 # the documents of docs/ as a site with the theme relearn in the look of sak-theme (site/),
 # reloaded on every change: http://localhost:1313
 [tasks."docs:serve"]
 description = "Serve the documentation of docs/ as a site, reloaded when a document changes"
+depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo server"
 
 # the same site as files in build/site; a link that does not resolve fails it
 [tasks."docs:build"]
 description = "Build the documentation of docs/ as a site into build/site"
+depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
