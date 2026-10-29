@@ -28,7 +28,7 @@ pub fn run() {
             deployments::list_deployments,
             deployments::deployment_defaults,
             deployments::check_name,
-            deployments::running_config,
+            deployments::detected_settings,
             deployments::locations,
             deployments::open_url,
             deployments::root_domains,

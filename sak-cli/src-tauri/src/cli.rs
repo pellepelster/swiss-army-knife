@@ -13,7 +13,8 @@ use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager,
     Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
     SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE,
-    SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, key, parse_flag,
+    SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, complete, key,
+    parse_flag, resource_status,
 };
 use crate::core::error::{EXIT_OK, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
@@ -261,39 +262,6 @@ fn password(
     Ok((first, second))
 }
 
-/// the settings of multiple users not given taken from the running deployment: the admin and the
-/// mail server with its password; a password given (SAK_SMTP_PASSWORD) wins. A backend of before
-/// answers no password, then one the mail server has must be given, a deploy without it would take
-/// it away
-fn with_running(
-    mut deployment: NewDeployment,
-    running: &crate::core::config::RunningConfig,
-    smtp_password: &str,
-) -> Result<NewDeployment, WizardError> {
-    if deployment.admin_email.is_none() {
-        deployment.admin_email = running.admins.first().cloned();
-    }
-    if deployment.smtp.is_none()
-        && let Some(smtp) = &running.smtp
-    {
-        let password = match (smtp_password, &smtp.password) {
-            ("", Some(running)) => running.clone(),
-            ("", None) if smtp.password_set => {
-                return Err(WizardError::new(t!("cli.smtp_password_needed"), EXIT_USAGE));
-            }
-            (given, _) => given.to_string(),
-        };
-        deployment.smtp = Some(Smtp {
-            host: smtp.host.clone(),
-            port: smtp.port,
-            username: smtp.username.clone().unwrap_or_default(),
-            password,
-            starttls: smtp.starttls,
-        });
-    }
-    Ok(deployment)
-}
-
 /// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed on the terminal
 /// without echo; none without either. Never an argument, which every process of the machine can
 /// read
@@ -311,6 +279,12 @@ fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, WizardEr
 /// SAK_SMTP_PASSWORD of the environment of the process
 fn smtp_password_variable() -> Option<String> {
     std::env::var(SMTP_PASSWORD_VARIABLE).ok()
+}
+
+/// a resource as the command line names it: its kind in the language of the command line and its
+/// name, `ssh key 'sak-alpha'`, `SSH-Key 'sak-alpha'`
+fn title(kind: &str, name: &str) -> String {
+    format!("{} '{name}'", t!(format!("ui.deployments.resource.{kind}")))
 }
 
 /// SAK_PASSWORD of the environment of the process
@@ -444,14 +418,16 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             deployment,
         } => {
             let mut new = deployment.deployment(Intent::Deploy, false, password, &smtp_password);
-            // multiple users without all of their settings: the running deployment has them
-            if new.user_mode == Some(UserMode::Multi)
-                && (new.smtp.is_none() || new.admin_email.is_none())
-                && let Ok((_, running)) = manager
-                    .running_config(provider.tokens(), &new.name, &new.password)
+            // what is not given the deployment has: its user mode and, for multiple users, the
+            // admin and the mail server, detected as the window does
+            let incomplete = new.user_mode != Some(UserMode::Single)
+                && (new.user_mode.is_none() || new.smtp.is_none() || new.admin_email.is_none());
+            if incomplete
+                && let Ok(detected) = manager
+                    .detected(provider.tokens(), &new.name, &new.password)
                     .await
             {
-                new = with_running(new, &running, &smtp_password)?;
+                new = complete(new, &detected, &smtp_password)?;
             }
             deploy(&manager, &provider, &new, &runtime, deployment.show_log).await
         }
@@ -495,13 +471,18 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), Wi
             .trim_end(),
         );
         for resource in deployment.resources {
-            let kind = t!(format!("ui.deployments.resource.{}", key(&resource.kind)));
-            let detail = match resource.status {
-                DiffStatus::Missing => t!("ui.deployments.missing").to_string(),
-                _ => resource.detail.unwrap_or_default(),
-            };
-            let resource_name = format!("{kind} '{}'", resource.name);
-            log(Level::Info, format!("{resource_name} {detail}"));
+            let resource_name = title(&key(&resource.kind), &resource.name);
+            // its status, then what there is to know of it
+            let status = t!(format!(
+                "ui.resource_status.{}",
+                resource_status(resource.status)
+            ));
+            let detail = resource
+                .detail
+                .filter(|_| resource_status(resource.status) != "missing")
+                .map(|detail| format!(", {detail}"))
+                .unwrap_or_default();
+            log(Level::Info, format!("{resource_name} {status}{detail}"));
             for change in resource.changes {
                 log(Level::Warn, format!("{resource_name} {change}"));
             }
@@ -568,27 +549,40 @@ async fn deploy(
         Intent::Destroy => t!("ui.plan.intro_destroy"),
     };
     log(Level::Info, format!("{intro} {}", plan.name));
+    // each resource by its kind and name in the language of the command line
+    let titles: HashMap<String, String> = plan
+        .resources
+        .iter()
+        .map(|resource| {
+            (
+                resource.resource.clone(),
+                title(&resource.kind, &resource.name),
+            )
+        })
+        .collect();
+    let titled = |resource: &str| {
+        titles
+            .get(resource)
+            .cloned()
+            .unwrap_or_else(|| resource.to_string())
+    };
     for resource in &plan.resources {
-        let what = match deployment.intent {
-            _ if resource.remove => "will_destroy".to_string(),
-            Intent::Destroy if resource.keep => "keep".to_string(),
-            Intent::Destroy if resource.status == DiffStatus::Missing => "gone".to_string(),
-            Intent::Destroy => "will_destroy".to_string(),
-            _ if resource.recreate => "recreate".to_string(),
-            _ => key(&resource.status),
-        };
+        // its status, then what the plan does to it
+        let status = t!(format!("ui.resource_status.{}", resource.resource_status));
+        let action = resource
+            .action
+            .map(|action| format!(", {}", t!(format!("ui.plan.{action}"))))
+            .unwrap_or_default();
         // what a destroy takes away is worth a second look
-        let level = if what == "will_destroy" {
+        let level = if resource.action == Some("will_destroy") {
             Level::Warn
         } else {
             Level::Info
         };
-        log(
-            level,
-            format!("{} {}", resource.resource, t!(format!("ui.plan.{what}"))),
-        );
+        let title = titled(&resource.resource);
+        log(level, format!("{title} {status}{action}"));
         for change in &resource.changes {
-            log(Level::Warn, format!("{} {change}", resource.resource));
+            log(Level::Warn, format!("{title} {change}"));
         }
     }
 
@@ -605,20 +599,20 @@ async fn deploy(
     let mut report = |event: CreateEvent| match event {
         CreateEvent::Started { resource } => {
             let key = working.get(&resource).copied().unwrap_or("cli.working");
-            log(Level::Info, t!(key, resource = resource))
+            log(Level::Info, t!(key, resource = titled(&resource)))
         }
         CreateEvent::Applied { resource, applied } => log(
             Level::Info,
             t!(
                 format!("cli.applied.{}", key(&applied)),
-                resource = resource
+                resource = titled(&resource)
             ),
         ),
         CreateEvent::Destroyed { resource, gone } => {
             let what = if gone { "destroyed" } else { "gone" };
             log(
                 Level::Info,
-                t!(format!("cli.applied.{what}"), resource = resource),
+                t!(format!("cli.applied.{what}"), resource = titled(&resource)),
             )
         }
         CreateEvent::Provisioning { message } => log(Level::Info, message),
@@ -871,87 +865,6 @@ mod tests {
         assert!(!shown.contains(password) && !shown.contains(&token) && !shown.contains("sak_"));
         // nor the password of the mail server, which the backend answers for a redeploy
         assert!(!shown.contains("the-smtp-password"));
-    }
-
-    #[test]
-    fn a_multi_user_deploy_takes_what_it_lacks_from_the_running_deployment() {
-        let running = |password_set| crate::core::config::RunningConfig {
-            smtp: Some(crate::core::config::RunningSmtp {
-                host: "smtp.example.org".into(),
-                port: 465,
-                username: Some("user".into()),
-                password_set,
-                password: None,
-                from: "noreply@pelle.io".into(),
-                tls: true,
-                starttls: false,
-            }),
-            admins: vec!["admin@example.org".into()],
-        };
-        let given = || NewDeployment {
-            name: "alpha".into(),
-            password: "p".into(),
-            password_repeat: "p".into(),
-            location: Location::nbg1,
-            dns_mode: None,
-            root_domain: None,
-            intent: Intent::Deploy,
-            delete_data: false,
-            user_mode: Some(UserMode::Multi),
-            smtp: None,
-            admin_email: None,
-        };
-
-        let filled = with_running(given(), &running(false), "").unwrap();
-        assert_eq!(filled.admin_email.as_deref(), Some("admin@example.org"));
-        let smtp = filled.smtp.unwrap();
-        assert_eq!(
-            (
-                smtp.host.as_str(),
-                smtp.port,
-                smtp.username.as_str(),
-                smtp.starttls
-            ),
-            ("smtp.example.org", 465, "user", false)
-        );
-        // the password of the mail server never comes back, it has to be given again
-        assert_eq!(
-            with_running(given(), &running(true), "")
-                .err()
-                .map(|error| error.exit_code),
-            Some(EXIT_USAGE)
-        );
-        // a backend that answers it: taken over
-        let mut with_password = running(true);
-        if let Some(smtp) = with_password.smtp.as_mut() {
-            smtp.password = Some("running secret".into());
-        }
-        assert_eq!(
-            with_running(given(), &with_password, "")
-                .unwrap()
-                .smtp
-                .unwrap()
-                .password,
-            "running secret"
-        );
-        assert_eq!(
-            with_running(given(), &running(true), "secret")
-                .unwrap()
-                .smtp
-                .unwrap()
-                .password,
-            "secret"
-        );
-        // what is given stays
-        let mut own = given();
-        own.admin_email = Some("other@example.org".into());
-        assert_eq!(
-            with_running(own, &running(false), "")
-                .unwrap()
-                .admin_email
-                .as_deref(),
-            Some("other@example.org")
-        );
     }
 
     #[test]

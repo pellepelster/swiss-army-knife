@@ -30,6 +30,10 @@ pub const PASSWORD_HASH_LABEL: &str = "sak.pelle.io/password-hash";
 /// the dns mode of a deployment, `domain` or `subdomain`, on every resource of it
 pub const DNS_MODE_LABEL: &str = "sak.pelle.io/dns-mode";
 
+/// who signs in to a deployment, `single` or `multi` (the user mode of sakctl), on every resource
+/// of it: a deploy keeps it unless told otherwise
+pub const USER_MODE_LABEL: &str = "sak.pelle.io/user-mode";
+
 /// the root domain of a deployment, `pelle.io`, on every resource of it
 pub const ROOT_DOMAIN_LABEL: &str = "sak.pelle.io/root-domain";
 

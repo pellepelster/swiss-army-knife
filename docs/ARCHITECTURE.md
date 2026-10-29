@@ -130,8 +130,8 @@ and the health of the domains.
 - **Identity.** The name label and the password hash label are the identity of a resource. Every lookup checks
   them: a resource of the declared name without them belongs to someone else, and nothing changes or removes it. A
   destroy removes only resources with both labels; a resource without the password hash label is never removed.
-- **The settings of a deployment** are labels too: `sak.pelle.io/dns-mode` and `sak.pelle.io/root-domain`. A deploy
-  reads them back; a change of either is a label change, never a recreate. The dns mode on a DNS record tells which
+- **The settings of a deployment** are labels too: `sak.pelle.io/dns-mode`, `sak.pelle.io/root-domain` and
+  `sak.pelle.io/user-mode`. A deploy reads them back; a change of one is a label change, never a recreate. The dns mode on a DNS record tells which
   deployments use a root domain.
 - **Own prefix.** Labels of SAK are under `sak.pelle.io/`, labels of the user never are.
 - **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the data volume

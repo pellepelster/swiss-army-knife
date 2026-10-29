@@ -17,8 +17,9 @@ use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
-    ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records, discover,
-    foreign_records, remove_records, root_domains, set_server_label, stale_records, state,
+    ResourceKind, ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records,
+    discover, foreign_records, remove_records, root_domains, set_server_label, stale_records,
+    state,
 };
 use sak_cloud::hetzner::dns_record::{HetznerDnsRecordLookup, first_address};
 use sak_cloud::hetzner::labels::HetznerLabels;
@@ -173,8 +174,17 @@ pub struct PlanResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlannedResource {
-    /// `server 'alpha'`
+    /// `server 'alpha'`, what the events of the creation name it by
     pub(crate) resource: String,
+    /// what kind of resource it is, `ssh_key`, `volume`, …, `provisioning`, and its name at the
+    /// provider: the page and the command line name it with them, in their language
+    pub(crate) kind: String,
+    pub(crate) name: String,
+    /// `up_to_date`, `missing` or `has_changes`, the resource status of the glossary
+    pub(crate) resource_status: &'static str,
+    /// what the plan does to it, `will_create`, `will_update`, `will_destroy`, `will_keep`,
+    /// `already_deleted` or `will_run`; none for a resource that stays as it is
+    pub(crate) action: Option<&'static str>,
     pub(crate) status: DiffStatus,
     pub(crate) recreate: bool,
     /// a destroy leaves it: the data volume, unless asked to delete it
@@ -648,6 +658,133 @@ impl Prepared {
     }
 }
 
+/// what a deploy of an existing deployment takes from it unless told otherwise (`detected`)
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Detected {
+    pub user_mode: Option<UserMode>,
+    pub admin_email: Option<String>,
+    pub smtp: Option<DetectedSmtp>,
+}
+
+/// the mail server of the running configuration; its password where the backend answers it
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectedSmtp {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: Option<String>,
+    pub password_set: bool,
+    pub starttls: bool,
+}
+
+/// the user mode of the label, else of the running configuration (a mail server makes it multi
+/// user); the admin and the mail server only for multiple users
+fn detect(
+    label: Option<UserMode>,
+    running: Option<&crate::core::config::RunningConfig>,
+) -> Detected {
+    let user_mode = label.or_else(|| {
+        running.map(|config| match config.smtp {
+            Some(_) => UserMode::Multi,
+            None => UserMode::Single,
+        })
+    });
+    let Some(running) = running.filter(|_| user_mode == Some(UserMode::Multi)) else {
+        return Detected {
+            user_mode,
+            ..Detected::default()
+        };
+    };
+    Detected {
+        user_mode,
+        admin_email: running.admins.first().cloned(),
+        smtp: running.smtp.as_ref().map(|smtp| DetectedSmtp {
+            host: smtp.host.clone(),
+            port: smtp.port,
+            username: smtp.username.clone().unwrap_or_default(),
+            password: smtp.password.clone(),
+            password_set: smtp.password_set,
+            starttls: smtp.starttls,
+        }),
+    }
+}
+
+/// a deploy with what it was not told taken from `detected`: the user mode, and for multiple users
+/// the admin and the mail server; `smtp_password` given wins over the detected one. A mail server
+/// with a password the backend does not answer (one of before) needs it given, a deploy without it
+/// would take it away
+pub fn complete(
+    mut deployment: NewDeployment,
+    detected: &Detected,
+    smtp_password: &str,
+) -> Result<NewDeployment, WizardError> {
+    if deployment.user_mode.is_none() {
+        deployment.user_mode = detected.user_mode;
+    }
+    if deployment.user_mode != Some(UserMode::Multi) {
+        return Ok(deployment);
+    }
+    if deployment.admin_email.is_none() {
+        deployment.admin_email = detected.admin_email.clone();
+    }
+    if deployment.smtp.is_none()
+        && let Some(smtp) = &detected.smtp
+    {
+        let password = match (smtp_password, &smtp.password) {
+            ("", Some(running)) => running.clone(),
+            ("", None) if smtp.password_set => {
+                return Err(WizardError::new(
+                    t!("deployments.smtp_password_needed"),
+                    crate::core::error::EXIT_USAGE,
+                ));
+            }
+            (given, _) => given.to_string(),
+        };
+        deployment.smtp = Some(Smtp {
+            host: smtp.host.clone(),
+            port: smtp.port,
+            username: smtp.username.clone(),
+            password,
+            starttls: smtp.starttls,
+        });
+    }
+    Ok(deployment)
+}
+
+/// the resource status of the glossary for a status of a diff: a resource whose parent is missing
+/// is missing itself, one found under another name stops the plan before (NotOwned)
+pub fn resource_status(status: DiffStatus) -> &'static str {
+    match status {
+        DiffStatus::UpToDate => "up_to_date",
+        DiffStatus::Missing | DiffStatus::ParentMissing => "missing",
+        DiffStatus::HasChanges | DiffStatus::Duplicate => "has_changes",
+    }
+}
+
+/// what the plan does to a resource, after its status: a destroy keeps the data volume unless
+/// asked to delete it and leaves what is gone, a dns record of the old mode or root domain goes; a
+/// create or deploy creates what is missing or has to be created anew, updates what has changes
+fn action(
+    intent: Intent,
+    status: DiffStatus,
+    recreate: bool,
+    keep: bool,
+    remove: bool,
+) -> Option<&'static str> {
+    let missing = matches!(status, DiffStatus::Missing | DiffStatus::ParentMissing);
+    match intent {
+        _ if remove => Some("will_destroy"),
+        Intent::Destroy if keep => Some("will_keep"),
+        Intent::Destroy if missing => Some("already_deleted"),
+        Intent::Destroy => Some("will_destroy"),
+        _ if missing || recreate => Some("will_create"),
+        _ if status == DiffStatus::UpToDate => None,
+        _ => Some("will_update"),
+    }
+}
+
 /// what the plan says of the provisioning, which a deploy always runs: missing for a server created
 /// (anew) or never provisioned, changes for a server that changes or another configuration, up to
 /// date only with the label of this configuration on a server that stays as it is
@@ -866,6 +1003,44 @@ impl DeploymentManager {
         Ok(deployments)
     }
 
+    /// what a deploy of an existing deployment can take from it, the window and the command line
+    /// alike: the user mode on its labels and, for multiple users, the admin and the mail server of
+    /// its running configuration (read with the admin api token of the password). A deployment
+    /// without the label is multi user when its backend has a mail server. Nothing that cannot be
+    /// read: a deployment that is not running gives only its label
+    pub async fn detected(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<Detected, String> {
+        let name = checked_name(name).map_err(|error| error.message)?;
+        let Some((provider, token)) = tokens
+            .iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+            .cloned()
+        else {
+            return Err(t!("deployments.no_provider").to_string());
+        };
+        let label = discover(&HetznerApi::new(&token))
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .and_then(|deployment| deployment.user_mode())
+            .and_then(|mode| UserMode::parse(&mode));
+        // a single user deployment has nothing more to tell
+        let running = match label {
+            Some(UserMode::Single) => None,
+            _ => self
+                .running_config(tokens, name, password)
+                .await
+                .ok()
+                .map(|(_, config)| config),
+        };
+        Ok(detect(label, running.as_ref()))
+    }
+
     /// the running configuration of a deployment, read from its backend at `api.<base domain>`
     /// with the admin api token of the password; the password is checked against the deployment
     /// first
@@ -953,6 +1128,25 @@ impl DeploymentManager {
         if password != password_repeat {
             return Err(t!("deployments.password_mismatch").to_string().into());
         }
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("deployments.no_provider").to_string().into());
+        };
+        let api = Arc::new(HetznerApi::new(&token));
+        let existing = discover(&api)
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name);
+        // the user mode given, else the one the deployment carries (a deploy keeps it)
+        let user_mode = user_mode.or_else(|| {
+            existing
+                .as_ref()
+                .and_then(DiscoveredDeployment::user_mode)
+                .and_then(|mode| UserMode::parse(&mode))
+        });
         // multi user needs the mail server and the admin's address, single user takes neither
         let (smtp, admin_email) = match (intent, user_mode) {
             (Intent::Destroy, _) => (None, None),
@@ -972,18 +1166,6 @@ impl DeploymentManager {
                 (Some(smtp), Some(admin_email))
             }
         };
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("deployments.no_provider").to_string().into());
-        };
-        let api = Arc::new(HetznerApi::new(&token));
-        let existing = discover(&api)
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name);
         let (dns_mode, root_domain) = resolve_dns(
             name,
             intent,
@@ -1075,6 +1257,12 @@ impl DeploymentManager {
         if let Some(root_domain) = &root_domain {
             spec = spec.with_root_domain(root_domain);
         }
+        // on every resource, so a deploy keeps it
+        if intent != Intent::Destroy
+            && let Some(user_mode) = user_mode
+        {
+            spec = spec.with_user_mode(user_mode.as_str());
+        }
         spec.user_data = user_data(&host_key);
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
         // a name of the deployment that another owner uses, with a record of any type, stops it
@@ -1134,26 +1322,45 @@ impl DeploymentManager {
             public_key: prepared.spec.public_key.clone(),
             resources: diffs
                 .iter()
-                .map(|diff| PlannedResource {
-                    resource: diff.resource.log_text.clone(),
-                    status: diff.status,
-                    recreate: diff.needs_recreate(),
-                    keep: deployment.intent == Intent::Destroy
+                .map(|diff| {
+                    let keep = deployment.intent == Intent::Destroy
                         && !deployment.delete_data
-                        && diff.resource.name == volume,
-                    remove: false,
-                    // everything goes on a destroy, what would change is of no interest
-                    changes: match deployment.intent {
-                        Intent::Destroy => Vec::new(),
-                        Intent::Create | Intent::Deploy => diff
-                            .changes
-                            .iter()
-                            .map(|change| change.log_text())
-                            .collect(),
-                    },
+                        && diff.resource.name == volume;
+                    PlannedResource {
+                        resource: diff.resource.log_text.clone(),
+                        kind: ResourceKind::of(&diff.resource)
+                            .map(|kind| key(&kind))
+                            .unwrap_or_default(),
+                        name: diff.resource.name.clone(),
+                        resource_status: resource_status(diff.status),
+                        action: action(
+                            deployment.intent,
+                            diff.status,
+                            diff.needs_recreate(),
+                            keep,
+                            false,
+                        ),
+                        status: diff.status,
+                        recreate: diff.needs_recreate(),
+                        keep,
+                        remove: false,
+                        // everything goes on a destroy, what would change is of no interest
+                        changes: match deployment.intent {
+                            Intent::Destroy => Vec::new(),
+                            Intent::Create | Intent::Deploy => diff
+                                .changes
+                                .iter()
+                                .map(|change| change.log_text())
+                                .collect(),
+                        },
+                    }
                 })
                 .chain(prepared.stale_records.iter().map(|record| PlannedResource {
                     resource: record.log_text(),
+                    kind: key(&ResourceKind::DnsRecord),
+                    name: record.resource_ref().name,
+                    resource_status: resource_status(DiffStatus::UpToDate),
+                    action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
                     status: DiffStatus::UpToDate,
                     recreate: false,
                     keep: false,
@@ -1174,6 +1381,11 @@ impl DeploymentManager {
                     PlannedResource {
                         resource: t!("provision.resource", name = prepared.spec.resource_name())
                             .to_string(),
+                        kind: "provisioning".to_string(),
+                        name: prepared.spec.resource_name(),
+                        resource_status: resource_status(status),
+                        // the playbook runs on every create and deploy
+                        action: Some("will_run"),
                         status,
                         recreate: false,
                         keep: false,
@@ -1550,6 +1762,114 @@ mod tests {
             ),
             Some(CreateEvent::TaskStarted { task, .. }) if task == "Install nftables"
         ));
+    }
+
+    fn running(
+        smtp_password: Option<&str>,
+        password_set: bool,
+    ) -> crate::core::config::RunningConfig {
+        crate::core::config::RunningConfig {
+            smtp: Some(crate::core::config::RunningSmtp {
+                host: "smtp.example.org".into(),
+                port: 465,
+                username: Some("user".into()),
+                password_set,
+                password: smtp_password.map(String::from),
+                from: "noreply@pelle.io".into(),
+                tls: true,
+                starttls: false,
+            }),
+            admins: vec!["admin@example.org".into()],
+        }
+    }
+
+    fn deploy() -> NewDeployment {
+        NewDeployment {
+            name: "alpha".into(),
+            password: "p".into(),
+            password_repeat: "p".into(),
+            location: Location::nbg1,
+            dns_mode: None,
+            root_domain: None,
+            intent: Intent::Deploy,
+            delete_data: false,
+            user_mode: None,
+            smtp: None,
+            admin_email: None,
+        }
+    }
+
+    #[test]
+    fn the_user_mode_is_detected_from_the_label_else_from_the_running_configuration() {
+        // the label wins
+        assert_eq!(
+            detect(Some(UserMode::Single), Some(&running(None, false))).user_mode,
+            Some(UserMode::Single)
+        );
+        // without it: a mail server makes it multi user, none single user, nothing running nothing
+        let multi = detect(None, Some(&running(Some("secret"), true)));
+        assert_eq!(multi.user_mode, Some(UserMode::Multi));
+        assert_eq!(multi.admin_email.as_deref(), Some("admin@example.org"));
+        assert_eq!(multi.smtp.unwrap().password.as_deref(), Some("secret"));
+        let without_mail = crate::core::config::RunningConfig {
+            smtp: None,
+            admins: vec![],
+        };
+        assert_eq!(
+            detect(None, Some(&without_mail)).user_mode,
+            Some(UserMode::Single)
+        );
+        assert_eq!(detect(None, None), Detected::default());
+        // single user: no admin and no mail server even when the backend has them
+        assert_eq!(
+            detect(Some(UserMode::Single), Some(&running(None, false))).smtp,
+            None
+        );
+    }
+
+    #[test]
+    fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
+        let detected = detect(Some(UserMode::Multi), Some(&running(Some("secret"), true)));
+
+        let completed = complete(deploy(), &detected, "").unwrap();
+        assert_eq!(completed.user_mode, Some(UserMode::Multi));
+        assert_eq!(completed.admin_email.as_deref(), Some("admin@example.org"));
+        let smtp = completed.smtp.unwrap();
+        assert_eq!(
+            (
+                smtp.host.as_str(),
+                smtp.port,
+                smtp.username.as_str(),
+                smtp.password.as_str()
+            ),
+            ("smtp.example.org", 465, "user", "secret")
+        );
+        // what is given wins: the mode, the admin, the password of the mail server
+        let mut single = deploy();
+        single.user_mode = Some(UserMode::Single);
+        assert!(complete(single, &detected, "").unwrap().smtp.is_none());
+        let mut own = deploy();
+        own.admin_email = Some("other@example.org".into());
+        assert_eq!(
+            complete(own, &detected, "").unwrap().admin_email.as_deref(),
+            Some("other@example.org")
+        );
+        assert_eq!(
+            complete(deploy(), &detected, "given")
+                .unwrap()
+                .smtp
+                .unwrap()
+                .password,
+            "given"
+        );
+        // a backend of before tells no password: it has to be given
+        let before = detect(Some(UserMode::Multi), Some(&running(None, true)));
+        assert_eq!(
+            complete(deploy(), &before, "")
+                .err()
+                .map(|error| error.exit_code),
+            Some(crate::core::error::EXIT_USAGE)
+        );
     }
 
     #[test]

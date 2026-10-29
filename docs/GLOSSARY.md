@@ -19,3 +19,11 @@ user interface. Use the same term for the same thing every time.
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>`.
 - **root domain** (`root_domain`): The domain under which a deployment serves its apps. The
   production deployment uses `pelle.io`. A local deployment uses `localhost`.
+- **resource status**: What a plan or the state of a deployment says of one of its resources, compared with what the
+  deployment declares. It is one of three: **up-to-date** (aktuell, the resource exists as declared), **missing**
+  (fehlt, it does not exist, also when a resource it depends on does not) or **has changes** (hat Änderungen, it
+  exists but differs). Messages use these words and no others for it, in the window and on the command line, the
+  status first and then what is done to the resource: `volume 'sak-alpha-data' missing, will be created`. A resource
+  found under another name is no status but an error that stops the plan.
+- **deployment status**: The state of a whole deployment: **up-to-date** (aktuell) when every resource is,
+  **incomplete** (unvollständig) when one is missing, else **has changes** (hat Änderungen).

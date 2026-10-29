@@ -53,9 +53,9 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   the deployment is, never at a default location.
 - **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user ticks a box
   to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
-- **A redeploy takes over what runs.** With the password at hand, a redeploy of a running deployment with multiple
-  users fills the empty fields of the users from it: the admin and the whole mail server. On the command line,
-  `--user-mode multi` takes what is not given the same way.
+- **A redeploy takes over what runs.** With the password at hand, a redeploy fills the empty fields of the users the
+  same way in the window and on the command line: the user mode from the labels of the deployment, the admin and the
+  whole mail server from its running configuration. What is given wins.
 
 ## sakctl command line
 

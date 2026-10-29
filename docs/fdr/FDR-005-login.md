@@ -29,6 +29,9 @@ created or deployed:
   password tells nothing but that it is wrong.
 - **sakctl** asks for the user mode, in the window and on the command line (`--user-mode single|multi`). Multi
   user requires the e-mail address of the admin and the mail server; single user asks for neither.
+- **A deploy keeps the user mode.** Every resource carries it as a label. A deploy that is not told the mode takes
+  it from the label, or for a deployment of before from its backend (a mail server makes it multi user); the admin
+  and the mail server come from the running configuration. The window and the command line detect it alike.
 
 ## Design Decisions
 
@@ -92,5 +95,3 @@ password session `admin`. The data of the multi user admin hangs on the address 
 
 - How does a password rotation reach the admin password? It is the deployment password, so a rotation changes
   both.
-- A deploy does not know the user mode a deployment was created with; deploying a multi user deployment as single
-  user removes its e-mail login. Should the mode be kept as a label, like the dns mode?

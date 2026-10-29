@@ -12,6 +12,10 @@ const status = document.getElementById('deployments-status');
 
 // the state of a deployment as the led pill shows it, the diff status of a resource as its led
 export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
+// the resource status of the glossary for the diff status of a resource: one whose parent is
+// missing is missing itself
+const RESOURCE_STATUS = { up_to_date: 'up_to_date', missing: 'missing', parent_missing: 'missing', has_changes: 'has_changes', duplicate: 'has_changes' };
+
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
@@ -32,7 +36,9 @@ export function resource(state) {
   item.append(mark, kind, name);
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  detail.textContent = state.status === 'missing' ? text('ui.deployments.missing') : (state.detail ?? '');
+  // its status (up-to-date, missing, has changes), then what there is to know of it
+  const status = text(`ui.resource_status.${RESOURCE_STATUS[state.status] ?? 'has_changes'}`);
+  detail.textContent = state.detail && RESOURCE_STATUS[state.status] !== 'missing' ? `${status}, ${state.detail}` : status;
   item.append(detail);
   for (const change of state.changes) {
     const line = document.createElement('span');

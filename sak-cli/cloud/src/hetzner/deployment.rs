@@ -18,6 +18,7 @@ use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyR
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeRuntime};
 use crate::hetzner::{
     DNS_MODE_LABEL, NAME_LABEL, PASSWORD_HASH_LABEL, ROOT_DOMAIN_LABEL, USER_DATA_LABEL,
+    USER_MODE_LABEL,
 };
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,12 @@ impl DiscoveredDeployment {
     /// the root domain on its resources, the server's first; none when no resource carries one
     pub fn root_domain(&self) -> Option<String> {
         self.label(ROOT_DOMAIN_LABEL).cloned()
+    }
+
+    /// the user mode on its resources, `single` or `multi`; none for a deployment created before
+    /// it was kept
+    pub fn user_mode(&self) -> Option<String> {
+        self.label(USER_MODE_LABEL).cloned()
     }
 
     /// where its frontend is, `https://sak.<base domain>`; none without a root domain on its
@@ -460,7 +467,7 @@ pub enum ResourceKind {
 
 impl ResourceKind {
     /// the kind of a declared resource, by the lookup type of its reference
-    fn of(resource: &crate::api::ResourceRef) -> Option<ResourceKind> {
+    pub fn of(resource: &crate::api::ResourceRef) -> Option<ResourceKind> {
         use std::any::TypeId;
         let kinds = [
             (TypeId::of::<HetznerSshKeyLookup>(), ResourceKind::SshKey),
@@ -724,6 +731,8 @@ pub struct DeploymentSpec {
     pub dns_mode: DnsMode,
     /// on every resource, the dns zone the deployment's names are in; none for a destroy
     pub root_domain: Option<String>,
+    /// on every resource, who signs in (`single`, `multi`); none for a destroy
+    pub user_mode: Option<String>,
     /// on every resource, for the wizard to check a password against
     pub password_hash: Option<String>,
     /// on every resource, next to the name label
@@ -751,6 +760,7 @@ impl DeploymentSpec {
             user_data: USER_DATA.to_string(),
             dns_mode: DnsMode::default(),
             root_domain: None,
+            user_mode: None,
             password_hash: None,
             labels: Labels::new(),
             user_data_hash: None,
@@ -782,6 +792,7 @@ impl DeploymentSpec {
         if let Some(root_domain) = deployment.root_domain() {
             spec = spec.with_root_domain(&root_domain);
         }
+        spec.user_mode = deployment.user_mode();
         if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
             spec = spec.with_password_hash(hash);
         }
@@ -808,6 +819,11 @@ impl DeploymentSpec {
         self
     }
 
+    pub fn with_user_mode(mut self, user_mode: &str) -> Self {
+        self.user_mode = Some(user_mode.to_string());
+        self
+    }
+
     pub fn with_root_domain(mut self, root_domain: &str) -> Self {
         self.root_domain = Some(root_domain.to_string());
         self
@@ -830,6 +846,9 @@ impl DeploymentSpec {
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
+        if let Some(user_mode) = &self.user_mode {
+            labels.insert(USER_MODE_LABEL.to_string(), user_mode.clone());
+        }
         if let Some(root_domain) = &self.root_domain {
             labels.insert(ROOT_DOMAIN_LABEL.to_string(), root_domain.clone());
         }

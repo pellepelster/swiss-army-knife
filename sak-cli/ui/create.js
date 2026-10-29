@@ -86,9 +86,10 @@ function newDeployment() {
   };
 }
 
-// a redeploy of a running multi user deployment takes over the running configuration, read with
-// the password: the users, the admin and the mail server with its password (an accepted risk, see
-// docs/ARCHITECTURE.md); only fields still empty, asked once for each password
+// a redeploy takes what rust detects of the deployment, as the command line does: the user mode on
+// its labels and, for multiple users, the admin and the mail server with its password of the
+// running configuration (an accepted risk, see docs/ARCHITECTURE.md); only fields still empty,
+// asked once for each password
 const smtpPasswordHint = document.getElementById('create-smtp-password-hint');
 let runningAsked = null;
 
@@ -97,32 +98,36 @@ async function prefillFromRunning() {
     return;
   }
   runningAsked = passwordInput.value;
-  let config;
+  let detected;
   try {
-    config = await invoke('running_config', { name: existing.name, password: passwordInput.value });
+    detected = await invoke('detected_settings', { name: existing.name, password: passwordInput.value });
   } catch {
-    // not running, not reachable or another password: nothing to take over
+    // another password or the provider not reachable: nothing to take over
     return;
   }
-  if (!config.smtp) {
-    return;
+  if (detected.userMode) {
+    form.elements['user-mode'].value = detected.userMode;
   }
-  form.elements['user-mode'].value = 'multi';
-  if (!adminEmailInput.value && config.admins.length > 0) {
-    adminEmailInput.value = config.admins[0];
+  if (!adminEmailInput.value && detected.adminEmail) {
+    adminEmailInput.value = detected.adminEmail;
+  }
+  const smtp = detected.smtp;
+  if (!smtp) {
+    showUserMode();
+    return;
   }
   if (!smtpInputs.host.value) {
-    smtpInputs.host.value = config.smtp.host;
-    smtpInputs.port.value = config.smtp.port;
-    smtpInputs.username.value = config.smtp.username ?? '';
-    smtpInputs.starttls.checked = config.smtp.starttls;
+    smtpInputs.host.value = smtp.host;
+    smtpInputs.port.value = smtp.port;
+    smtpInputs.username.value = smtp.username;
+    smtpInputs.starttls.checked = smtp.starttls;
   }
-  if (!smtpInputs.password.value && config.smtp.password) {
-    smtpInputs.password.value = config.smtp.password;
+  if (!smtpInputs.password.value && smtp.password) {
+    smtpInputs.password.value = smtp.password;
   }
   // a backend of before answers no password: then it has to be typed again, a redeploy without it
   // would leave the mail server of the backend without its password
-  const typeAgain = config.smtp.passwordSet && !smtpInputs.password.value;
+  const typeAgain = smtp.passwordSet && !smtpInputs.password.value;
   smtpPasswordHint.hidden = !typeAgain;
   smtpInputs.password.required = typeAgain;
   showUserMode();
@@ -310,19 +315,9 @@ const rows = new Map();
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
-// what the plan does to a resource: a destroy keeps the data volume unless asked to delete it
-// and leaves what is gone; a dns record of the old mode or root domain goes
-function plannedText(state, recreate, keep, remove) {
-  if (remove) {
-    return 'will_destroy';
-  }
-  if (intent === 'destroy') {
-    return keep ? 'keep' : state === 'missing' ? 'gone' : 'will_destroy';
-  }
-  return recreate ? 'recreate' : state;
-}
-
-function planned({ resource, status: state, recreate, keep, remove, changes }) {
+// a resource of the plan: its kind and name, its status (up-to-date, missing, has changes), then
+// what the plan does to it, which rust decides
+function planned({ kind, name: resourceName, resourceStatus, action, status: state, recreate, remove, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
   item.dataset.status = state;
@@ -332,13 +327,17 @@ function planned({ resource, status: state, recreate, keep, remove, changes }) {
   mark.className = 'resource-state sak-led';
   mark.dataset.sakState = LEDS[state] ?? 'neutral';
   mark.setAttribute('aria-hidden', 'true');
+  const kindLabel = document.createElement('span');
+  kindLabel.className = 'resource-kind';
+  kindLabel.textContent = text(`ui.deployments.resource.${kind}`);
   const name = document.createElement('span');
   name.className = 'resource-name';
-  name.textContent = resource;
+  name.textContent = resourceName;
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  detail.textContent = text(`ui.plan.${plannedText(state, recreate, keep, remove)}`);
-  item.append(mark, name, detail);
+  const status = text(`ui.resource_status.${resourceStatus}`);
+  detail.textContent = action ? `${status}, ${text(`ui.plan.${action}`)}` : status;
+  item.append(mark, kindLabel, name, detail);
   for (const change of changes) {
     const line = document.createElement('span');
     line.className = 'resource-change';
@@ -573,7 +572,7 @@ function onCreateEvent(message) {
     detail.textContent = text(`ui.plan.done.${message.applied}`);
   } else if (message.event === 'destroyed') {
     led.dataset.sakState = 'neutral';
-    detail.textContent = text(message.gone ? 'ui.plan.done.destroyed' : 'ui.plan.gone');
+    detail.textContent = text(message.gone ? 'ui.plan.done.destroyed' : 'ui.plan.already_deleted');
   }
 }
 
@@ -582,6 +581,22 @@ function onOutput(line) {
   planOutput.hidden = false;
   planOutput.textContent += `${line}\n`;
   planOutput.scrollTop = planOutput.scrollHeight;
+}
+
+// a deployment just created: its page, as the list of the deployments finds it now; without it the
+// plan stays, it says the deployment is up-to-date
+async function showCreated(name) {
+  try {
+    const deployments = await invoke('list_deployments');
+    const created = deployments.find((deployment) => deployment.name === name);
+    if (created) {
+      resetForm();
+      const { showDeployment } = await import('./deployment.js');
+      showDeployment(created);
+    }
+  } catch {
+    // the plan with its status stays
+  }
 }
 
 applyButton.addEventListener('click', async () => {
@@ -601,6 +616,9 @@ applyButton.addEventListener('click', async () => {
   try {
     await invoke('create_deployment', { deployment: newDeployment(), onEvent });
     setPlanStatus(text(intent === 'destroy' ? `ui.plan.destroyed${withData}` : 'ui.plan.provisioned'));
+    if (intent === 'create') {
+      await showCreated(nameInput.value.trim());
+    }
   } catch (error) {
     setPlanStatus(String(error), true);
   } finally {
@@ -632,6 +650,13 @@ form.addEventListener('submit', async (event) => {
 
 // cancel, from the form or from the plan: what was typed is forgotten, back from the plan keeps it
 async function backToDeployments() {
+  resetForm();
+  const { showDeployments } = await import('./deployments.js');
+  await showDeployments();
+}
+
+// what was typed is forgotten, the form is the one of a new deployment again
+function resetForm() {
   form.reset();
   repeatInput.classList.remove('is-invalid');
   nameInput.readOnly = false;
@@ -647,8 +672,6 @@ async function backToDeployments() {
   existing = null;
   intent = 'create';
   setStatus('');
-  const { showDeployments } = await import('./deployments.js');
-  await showDeployments();
 }
 
 document.getElementById('create-cancel').addEventListener('click', backToDeployments);
