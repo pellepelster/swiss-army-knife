@@ -37,3 +37,5 @@ The tests create, provision and destroy real servers, so a run takes long and co
   `SAK_E2E_DOMAIN_ZONE` and `SAK_E2E_SUBDOMAIN_ZONE` select other zones.
 - At the end, every deployment is destroyed with `--delete-data`, and no resource of them may remain.
 - `SAK_E2E_SAKCTL` selects another sakctl binary than the one of `cargo build`.
+- The servers are created in `hel1`, `SAK_E2E_LOCATION` selects another location (a server type can be sold out in
+  one for a while). Every deployment gets its certificates from the staging CA of Let's Encrypt (`--acme-ca staging`).

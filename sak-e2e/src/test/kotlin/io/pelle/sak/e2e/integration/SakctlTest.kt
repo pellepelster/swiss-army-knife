@@ -32,6 +32,9 @@ private val MULTI_USER = arrayOf("--user-mode", "multi", "--admin-email", "e2e@e
 // sakctl trusts its roots when it talks to the deployment
 private val STAGING_CA = arrayOf("--acme-ca", "staging")
 
+// where the servers of the tests are created; a server type can be sold out in a location for a while
+private val LOCATION = System.getenv("SAK_E2E_LOCATION") ?: "hel1"
+
 // the deployments of the tests are `test-<id>`, everything else in the project stays untouched
 private const val TEST_PREFIX = "test-"
 
@@ -67,7 +70,8 @@ class SakctlTest {
         dnsMode: String,
         rootDomain: String,
         vararg users: String = SINGLE_USER,
-    ): Int = sakctl.run("create", name, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain, *STAGING_CA)
+    ): Int =
+        sakctl.run("create", name, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain, "--location", LOCATION, *STAGING_CA)
 
     // `config show` once the backend answers, it starts after the provisioning: the lines it printed
     private fun configShow(name: String): List<String> {

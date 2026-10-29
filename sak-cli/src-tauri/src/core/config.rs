@@ -101,6 +101,12 @@ async fn fetch_from(
 /// the client of the api of a deployment: no redirect followed, plain http only for the tests;
 /// the roots of the staging ca of let's encrypt trusted for a deployment with its certificates
 fn client(https_only: bool, trust: Trust) -> Result<Client, String> {
+    client_builder(https_only, trust)?
+        .build()
+        .map_err(|error| error.to_string())
+}
+
+fn client_builder(https_only: bool, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
         .user_agent(concat!("sakctl/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
@@ -114,7 +120,7 @@ fn client(https_only: bool, trust: Trust) -> Result<Client, String> {
             );
         }
     }
-    builder.build().map_err(|error| error.to_string())
+    Ok(builder)
 }
 
 /// an error with every cause under it, so a failed request says why it failed (no name, no
@@ -137,26 +143,37 @@ pub fn with_causes(error: &dyn std::error::Error) -> String {
 pub const API_WAIT: Duration = Duration::from_secs(300);
 
 /// waits until `GET <api>/v1/info`, the endpoint of a deployment that needs no login, answers:
-/// through its ingress, with its certificate, the way a user reaches it. Asked every `interval`;
-/// after `timeout` the cause of the last failure
+/// through its ingress, with its certificate, the way a user reaches it. The host of the api is
+/// reached at `address`, the server just provisioned: a resolver of this machine may still know
+/// the address of a server the name had before. Asked every `interval`; after `timeout` the cause
+/// of the last failure
 pub async fn wait_for_api(
     api: &str,
+    address: Option<std::net::IpAddr>,
     trust: Trust,
     timeout: Duration,
     interval: Duration,
 ) -> Result<(), String> {
-    wait_from(api, timeout, interval, Transport::HttpsOnly, trust).await
+    wait_from(api, address, timeout, interval, Transport::HttpsOnly, trust).await
 }
 
 async fn wait_from(
     api: &str,
+    address: Option<std::net::IpAddr>,
     timeout: Duration,
     interval: Duration,
     transport: Transport,
     trust: Trust,
 ) -> Result<(), String> {
     let url = format!("{api}/v1/info");
-    let client = client(transport == Transport::HttpsOnly, trust)?;
+    let mut builder = client_builder(transport == Transport::HttpsOnly, trust)?;
+    if let Some(address) = address
+        && let Ok(parsed) = url::Url::parse(&url)
+        && let (Some(host), Some(port)) = (parsed.host_str(), parsed.port_or_known_default())
+    {
+        builder = builder.resolve(host, std::net::SocketAddr::new(address, port));
+    }
+    let client = builder.build().map_err(|error| error.to_string())?;
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
         let last = match client.get(&url).send().await {
@@ -399,6 +416,7 @@ mod tests {
 
         let waited = wait_from(
             &server.uri(),
+            None,
             Duration::from_secs(5),
             Duration::from_millis(10),
             Transport::PlainHttp,
@@ -414,6 +432,7 @@ mod tests {
     async fn the_wait_gives_up_with_the_cause() {
         let error = wait_from(
             "http://127.0.0.1:1",
+            None,
             Duration::from_millis(50),
             Duration::from_millis(10),
             Transport::PlainHttp,
@@ -434,5 +453,34 @@ mod tests {
             assert!(reqwest::Certificate::from_pem(root.as_bytes()).is_ok());
         }
         assert!(client(true, Trust::LetsEncryptStaging).is_ok());
+    }
+
+    #[tokio::test]
+    async fn the_wait_reaches_the_host_at_the_address_of_the_server() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v1/info"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+        let port = server.address().port();
+
+        // a name no resolver knows, reached at the address given
+        let waited = wait_from(
+            &format!("http://api.sak-test.invalid:{port}"),
+            Some(std::net::IpAddr::from([127, 0, 0, 1])),
+            Duration::from_secs(5),
+            Duration::from_millis(10),
+            Transport::PlainHttp,
+            Trust::Public,
+        )
+        .await;
+
+        assert_eq!(waited, Ok(()));
+        let request = &server.received_requests().await.unwrap()[0];
+        assert_eq!(
+            request.headers.get("host").unwrap(),
+            &format!("api.sak-test.invalid:{port}")
+        );
     }
 }

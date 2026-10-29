@@ -1576,6 +1576,8 @@ impl DeploymentManager {
             .find(|volume| volume.name == volume_name)
             .map(|volume| volume.device.clone())
             .ok_or_else(|| t!("provision.no_volume", name = prepared.spec.name).to_string())?;
+        // the server just provisioned, where the wait for the deployment reaches it
+        let address = host.parse::<std::net::IpAddr>().ok();
         let run = ProvisionRun {
             name: prepared.spec.name.clone(),
             dns_mode: prepared.spec.dns_mode,
@@ -1653,6 +1655,7 @@ impl DeploymentManager {
             });
             crate::core::config::wait_for_api(
                 &api,
+                address,
                 prepared.acme_ca.trust(),
                 crate::core::config::API_WAIT,
                 std::time::Duration::from_secs(5),
