@@ -153,6 +153,45 @@ depends = ["cli:theme", "cli:image:build", "cli:canary:build"]
 dir = "{{config_root}}/sak-cli"
 run = "tauri build"
 
+# sakctl as one native binary for a platform, without installers, zipped with its executable bit
+# to sak-cli/build/sak-cli-<platform>-<VERSION>.zip; each runs on its own platform (the workflow,
+# job sakctl). macOS gets one universal binary for apple silicon and intel
+[tasks."cli:build:linux"]
+description = "Build sakctl for linux into sak-cli/build/sak-cli-linux-<VERSION>.zip"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli"
+run = """
+tauri build --no-bundle
+mkdir -p build
+rm -f "build/sak-cli-linux-${VERSION}.zip"
+zip -j "build/sak-cli-linux-${VERSION}.zip" src-tauri/target/release/sakctl
+"""
+
+[tasks."cli:build:macos"]
+description = "Build sakctl for macOS (apple silicon and intel) into sak-cli/build/sak-cli-macos-<VERSION>.zip"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli"
+run = """
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+tauri build --target universal-apple-darwin --no-bundle
+mkdir -p build
+rm -f "build/sak-cli-macos-${VERSION}.zip"
+zip -j "build/sak-cli-macos-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakctl
+"""
+
+# in git bash, which has no zip; 7-Zip is there instead
+[tasks."cli:build:windows"]
+description = "Build sakctl for windows into sak-cli/build/sak-cli-windows-<VERSION>.zip"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli"
+shell = "bash -c"
+run = """
+tauri build --no-bundle
+mkdir -p build
+rm -f "build/sak-cli-windows-${VERSION}.zip"
+7z a -tzip "build/sak-cli-windows-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe
+"""
+
 # the checks run real containers with the docker or podman installed, skipped without one
 [tasks."cli:test"]
 description = "Run the tests of sakctl"

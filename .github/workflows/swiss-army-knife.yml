@@ -102,10 +102,10 @@ jobs:
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: mise run cli:${{ matrix.image }}:push
 
-  # sakctl for each platform: the window and the command line in one native binary with the page
-  # built in, one artifact for each platform (docs/installation.md), no installers. macOS gets one
-  # universal binary for apple silicon and intel. Nothing is signed: macOS and windows warn on the
-  # first start
+  # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
+  # one native binary with the page built in, no installers, zipped as
+  # sak-cli-<platform>-<VERSION>.zip and uploaded as that file (docs/installation.md). Nothing is
+  # signed: macOS and windows warn on the first start
   sakctl:
     name: sakctl (${{ matrix.platform }})
     strategy:
@@ -114,16 +114,10 @@ jobs:
         include:
           - platform: linux
             runner: ubuntu-24.04
-            build: --no-bundle
-            binary: sak-cli/src-tauri/target/release/sakctl
           - platform: macos
             runner: macos-15
-            build: --target universal-apple-darwin --no-bundle
-            binary: sak-cli/src-tauri/target/universal-apple-darwin/release/sakctl
           - platform: windows
             runner: windows-2025
-            build: --no-bundle
-            binary: sak-cli/src-tauri/target/release/sakctl.exe
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -141,21 +135,16 @@ jobs:
           install: false
           cache_save_post: true
       - run: mise install rust node npm:@tauri-apps/cli
-      # the universal binary is the one of both architectures
-      - if: matrix.platform == 'macos'
-        run: mise exec -- rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sak-cli/src-tauri -> target
           key: ${{ matrix.platform }}
-      - run: mise run cli:theme
-      - name: Build sakctl
-        working-directory: sak-cli
-        run: mise exec -- tauri build ${{ matrix.build }}
+      - run: mise run cli:build:${{ matrix.platform }}
+      # the zip as it is, named like the file; a zip of the artifact would lose the executable bit
       - uses: actions/upload-artifact@v7
         with:
-          name: sakctl-${{ matrix.platform }}
-          path: ${{ matrix.binary }}
+          path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip
+          archive: false
           if-no-files-found: error
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
