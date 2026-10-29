@@ -113,16 +113,21 @@ impl DiscoveredDeployment {
         Ok(Some(*location))
     }
 
-    /// the value of `key` on the first of its resources that has it: the server, the ssh key,
-    /// the firewall, the primary ips, the volumes
-    fn label(&self, key: &str) -> Option<&String> {
+    /// the labels of each of its resources: the server, the ssh key, the firewall, the primary
+    /// ips, the volumes
+    pub fn labels(&self) -> Vec<&Labels> {
         let mut labels: Vec<&Labels> = Vec::new();
         labels.extend(self.server.iter().map(|server| &server.labels));
         labels.extend(self.ssh_key.iter().map(|key| &key.labels));
         labels.extend(self.firewall.iter().map(|firewall| &firewall.labels));
         labels.extend(self.primary_ips.iter().map(|ip| &ip.labels));
         labels.extend(self.volumes.iter().map(|volume| &volume.labels));
-        labels.into_iter().find_map(|labels| labels.get(key))
+        labels
+    }
+
+    /// the value of `key` on the first of its resources that has it, in the order of `labels`
+    fn label(&self, key: &str) -> Option<&String> {
+        self.labels().into_iter().find_map(|labels| labels.get(key))
     }
 }
 

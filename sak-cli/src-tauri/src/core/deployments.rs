@@ -972,13 +972,8 @@ pub fn checked_name(name: &str) -> Result<&str, WizardError> {
 /// what a password can be checked against: the password hashes on the resources and the public
 /// key of the ssh key. Both are empty when only resources without labels are left
 fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&str>) {
-    let mut labels = Vec::new();
-    labels.extend(deployment.server.iter().map(|server| &server.labels));
-    labels.extend(deployment.ssh_key.iter().map(|key| &key.labels));
-    labels.extend(deployment.firewall.iter().map(|firewall| &firewall.labels));
-    labels.extend(deployment.volumes.iter().map(|volume| &volume.labels));
-    labels.extend(deployment.primary_ips.iter().map(|ip| &ip.labels));
-    let hashes: Vec<String> = labels
+    let hashes: Vec<String> = deployment
+        .labels()
         .into_iter()
         .filter_map(|raw| {
             HetznerLabels::from_raw(raw.clone())
