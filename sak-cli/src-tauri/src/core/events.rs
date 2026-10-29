@@ -63,6 +63,15 @@ pub struct HostStats {
     pub ignored: u32,
 }
 
+/// a task as it is shown: without the role ansible puts before the task of a role,
+/// `pelle_io.sak.controller : Install the backend` is `Install the backend`
+pub fn task_name(task: &str) -> String {
+    task.split_once(" : ")
+        .map_or(task, |(_, name)| name)
+        .trim()
+        .to_string()
+}
+
 /// the largest event taken, an event is a few hundred bytes
 const MAX_BODY: usize = 64 * 1024;
 

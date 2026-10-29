@@ -6,7 +6,7 @@
 //! endpoint of the run (`core::events`) go to the caller
 
 use crate::core::container::{self, ContainerRuntime};
-use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer};
+use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer, task_name};
 use crate::core::keys::DerivedKey;
 use rust_i18n::t;
 use std::io::{BufRead, BufReader};
@@ -289,7 +289,7 @@ fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
             ignore_errors: false,
             ..
         }
-        | AnsibleEvent::Unreachable { task, msg, .. } => Some((task.clone(), msg.clone())),
+        | AnsibleEvent::Unreachable { task, msg, .. } => Some((task_name(task), msg.clone())),
         _ => None,
     }
 }

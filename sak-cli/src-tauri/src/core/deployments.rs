@@ -7,7 +7,7 @@ use crate::core::error::{
     EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, EXIT_USAGE,
     WizardError,
 };
-use crate::core::events::AnsibleEvent;
+use crate::core::events::{AnsibleEvent, task_name};
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
 use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
@@ -252,7 +252,7 @@ fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
     let done = |task: String, outcome, message| {
         Some(CreateEvent::TaskDone {
             resource: resource.to_string(),
-            task,
+            task: task_name(&task),
             outcome,
             message,
         })
@@ -260,7 +260,7 @@ fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
     match event {
         AnsibleEvent::TaskStart { task } => Some(CreateEvent::TaskStarted {
             resource: resource.to_string(),
-            task,
+            task: task_name(&task),
         }),
         AnsibleEvent::Ok { task, changed, .. } => done(
             task,
@@ -1532,6 +1532,24 @@ mod tests {
                 "{wrong}"
             );
         }
+    }
+
+    #[test]
+    fn a_task_is_shown_without_its_role() {
+        assert_eq!(
+            task_name("pelle_io.sak.controller : Install the backend"),
+            "Install the backend"
+        );
+        assert_eq!(task_name("Gathering Facts"), "Gathering Facts");
+        assert!(matches!(
+            task_event(
+                "row",
+                AnsibleEvent::TaskStart {
+                    task: "pelle_io.sak.common : Install nftables".into()
+                }
+            ),
+            Some(CreateEvent::TaskStarted { task, .. }) if task == "Install nftables"
+        ));
     }
 
     #[test]
