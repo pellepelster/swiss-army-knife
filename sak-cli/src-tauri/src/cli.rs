@@ -11,8 +11,9 @@ use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager,
     Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
-    SMTP_FROM_VARIABLE, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
-    SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, key, parse_flag,
+    SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
+    SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, USER_MODE_VARIABLE, UserMode, key,
+    parse_flag,
 };
 use crate::core::error::{EXIT_OK, WizardError};
 use crate::core::providers::ProviderType;
@@ -138,12 +139,15 @@ pub struct DeploymentArgs {
     /// not create it
     #[arg(long)]
     root_domain: Option<String>,
-    /// The e-mail address of the admin: signs in with the password of the deployment, and is the
-    /// first admin of the e-mail login; needed by create and deploy
+    /// Who signs in, needed by create and deploy: single, one user, the admin, who signs in with
+    /// the password of the deployment; multi, users sign in by e-mail and the admin also with the
+    /// password, needs --admin-email and --smtp-host
+    #[arg(long, env = USER_MODE_VARIABLE, value_parser = parse_user_mode)]
+    user_mode: Option<UserMode>,
+    /// The e-mail address of the admin, the first user of the e-mail login (multi user)
     #[arg(long, env = ADMIN_EMAIL_VARIABLE)]
     admin_email: Option<String>,
-    /// The mail server the backend sends its login links with. Without it there is only one user:
-    /// the admin, who signs in with the password of the deployment
+    /// The mail server the backend sends its login links with (multi user)
     #[arg(long, env = SMTP_HOST_VARIABLE)]
     smtp_host: Option<String>,
     /// The port of the mail server
@@ -159,9 +163,6 @@ pub struct DeploymentArgs {
     #[arg(long,
         action = clap::ArgAction::Set, env = SMTP_STARTTLS_VARIABLE, default_value_t = DEFAULT_SMTP_STARTTLS, value_parser = parse_flag)]
     smtp_starttls: bool,
-    /// The sender of the login mails, noreply@<root domain> when not given
-    #[arg(long, env = SMTP_FROM_VARIABLE)]
-    smtp_from: Option<String>,
     /// Stream the output of ansible while it provisions the server, each line prefixed with
     /// [ansible]
     #[arg(long)]
@@ -177,6 +178,13 @@ fn parse_location(value: &str) -> Result<Location, String> {
             let known: Vec<String> = LOCATIONS.iter().map(|location| key(&location.id)).collect();
             format!("one of {}", known.join(", "))
         })
+}
+
+fn parse_user_mode(value: &str) -> Result<UserMode, String> {
+    UserMode::parse(value).ok_or_else(|| {
+        let known: Vec<&str> = UserMode::ALL.iter().map(|mode| mode.as_str()).collect();
+        format!("one of {}", known.join(", "))
+    })
 }
 
 fn parse_dns_mode(value: &str) -> Result<DnsMode, String> {
@@ -233,13 +241,13 @@ impl DeploymentArgs {
             root_domain: self.root_domain.clone(),
             intent,
             delete_data,
+            user_mode: self.user_mode,
             smtp: self.smtp_host.as_ref().map(|host| Smtp {
                 host: host.clone(),
                 port: self.smtp_port,
                 username: self.smtp_username.clone(),
                 password: self.smtp_password.clone(),
                 starttls: self.smtp_starttls,
-                from: self.smtp_from.clone(),
             }),
             admin_email: self.admin_email.clone(),
         }
@@ -772,6 +780,8 @@ mod tests {
             "domain",
             "--root-domain",
             "pelle.io",
+            "--user-mode",
+            "multi",
             "--smtp-host",
             "smtp.example.org",
             "--smtp-port",
@@ -794,6 +804,10 @@ mod tests {
                 .root_domain
                 .as_deref(),
             Some("pelle.io")
+        );
+        assert_eq!(
+            deployment.deployment(Intent::Create, false).user_mode,
+            Some(UserMode::Multi)
         );
         let smtp = deployment.deployment(Intent::Create, false).smtp.unwrap();
         assert_eq!(

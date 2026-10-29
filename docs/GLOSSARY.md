@@ -9,7 +9,11 @@ user interface. Use the same term for the same thing every time.
   [ARCHITECTURE.md](ARCHITECTURE.md)).
 - **dns mode** (`dns_mode`): How SAK sets up DNS for a deployment. The mode `domain` manages `<root domain>` and
   `*.<root domain>`. The mode `subdomain` manages `<sak name>.<root domain>` and `*.<sak name>.<root domain>`. The
-  default is `subdomain` (refer to [FDR-001](docs/fdr/FDR-001-dns-mode.md)).
+  default is `subdomain` (refer to [FDR-001](fdr/FDR-001-dns-mode.md)).
+- **user mode** (`user_mode`): Who signs in to a deployment. The mode `single` has one user, the admin, who
+  signs in with the password of the deployment. The mode `multi` has users who sign in with a link by e-mail;
+  the admin also signs in with the password. It needs a mail server and the address of the admin (refer to
+  [FDR-005](fdr/FDR-005-login.md)).
 - **base domain**: The domain the hosts of a deployment are below: the root domain in dns mode
   `domain`, `<sak name>.<root domain>` in dns mode `subdomain`. The frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>`.

@@ -23,7 +23,7 @@ import { InstallService } from '../install.service';
           <i class="fa-solid fa-download" aria-hidden="true"></i> Install
         </button>
       }
-      <span class="small text-body-secondary text-truncate" data-testid="email">{{ email() }}</span>
+      <span class="small text-body-secondary text-truncate" data-testid="username">{{ username() }}</span>
       <button type="button" class="btn btn-outline-secondary" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
@@ -73,13 +73,13 @@ export class Home {
   protected readonly apps = APPS;
 
   // the signed in address as the backend takes the session, not as the browser stored it
-  protected readonly email = signal<string | null>(null);
+  protected readonly username = signal<string | null>(null);
 
   constructor() {
     this.auth
       .whoAmI()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((whoAmI) => this.email.set(whoAmI.email));
+      .subscribe((whoAmI) => this.username.set(whoAmI.username));
   }
 
   protected signOut(): void {

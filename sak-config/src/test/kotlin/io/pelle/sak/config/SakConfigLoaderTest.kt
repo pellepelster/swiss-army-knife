@@ -55,6 +55,7 @@ class SakConfigLoaderTest {
                 data_dir: /data
                 root_domain: example.org
                 auth:
+                  admins: [admin@example.org]
                   smtp:
                     host: smtp.example.org
                     username: login
@@ -90,12 +91,11 @@ class SakConfigLoaderTest {
     fun `smtp defaults to starttls on port 587 and the frontend url can be overridden`() {
         val config =
             load(
-                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  frontend_url: http://localhost:4200\n  smtp:\n    host: localhost\n    from: login@example.org\n",
+                "data_dir: /data\n${ROOT_DOMAIN}auth:\n  frontend_url: http://localhost:4200\n  admins: [admin@example.org]\n  smtp:\n    host: localhost\n    from: login@example.org\n",
             )
 
         config.frontendUrl shouldBe "http://localhost:4200"
-        config.auth!!.admins shouldBe emptyList()
-        config.auth.smtp!!.port shouldBe 587
+        config.auth!!.smtp!!.port shouldBe 587
         config.auth.smtp!!.tls shouldBe false
         config.auth.smtp!!.starttls shouldBe true
     }
@@ -223,7 +223,7 @@ class SakConfigLoaderTest {
         try {
             val auth = load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [Admin@example.org]\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n").auth!!
             auth.adminPassword shouldBe "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n"
-            auth.admin shouldBe "admin@example.org"
+            auth.admins shouldBe listOf("Admin@example.org")
             auth.smtp shouldBe null
             auth.toString() shouldNotContain "o63n"
         } finally {
@@ -232,13 +232,17 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `auth needs a way to sign in, and the password login needs an admin`() {
+    fun `auth needs a way to sign in, and the e-mail login needs an admin`() {
         // neither a mail server nor an admin password
         shouldThrow<IllegalArgumentException> { load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [admin@example.org]\n") }
+        // a mail server without an admin to send the first link to
+        shouldThrow<IllegalArgumentException> {
+            load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  smtp:\n    host: localhost\n    from: login@example.org\n")
+        }
         System.setProperty("SAK_TEST_ADMIN_PASSWORD", "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n")
         try {
-            // a password without an admin to sign in as
-            shouldThrow<IllegalArgumentException> { load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n") }
+            // single user: the password alone, the admin has no address
+            load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n").auth!!.admins shouldBe emptyList()
         } finally {
             System.clearProperty("SAK_TEST_ADMIN_PASSWORD")
         }

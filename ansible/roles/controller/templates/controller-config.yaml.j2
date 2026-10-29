@@ -1,6 +1,7 @@
 ---
 # the configuration of sak-backend, rendered by the controller role from the inventory sakctl writes
-# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256, sak_admin_email, sak_smtp_*);
+# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256, sak_admin_email, sak_smtp_*); the login
+# mails come from noreply@<root domain>;
 # the secrets come from backend.env: a value starting with $ is an environment variable
 ktor:
   deployment:
@@ -12,19 +13,19 @@ sak:
   data_dir: /storage/data/backend/data
   root_domain: {{ sak_root_domain }}
   auth:
-    # the admin signs in with the password of the deployment, and is the first admin of the
-    # e-mail login
-    admins:
-      - {{ sak_admin_email }}
+    # the admin signs in with the password of the deployment
     admin_password: $SAK_ADMIN_PASSWORD_HASH
 {% if sak_smtp_enabled | bool %}
-    # the e-mail login; without a mail server there is only the admin's password login
+    # multi user: the e-mail login, the admin is its first user; without a mail server the
+    # deployment is single user, only the admin signs in, with the password
+    admins:
+      - {{ sak_admin_email }}
     smtp:
       host: $SAK_SMTP_HOST
       port: $SAK_SMTP_PORT
       username: $SAK_SMTP_USERNAME
       password: $SAK_SMTP_PASSWORD
-      from: {{ sak_smtp_from }}
+      from: noreply@{{ sak_root_domain }}
       tls: {{ sak_smtp_tls | bool | lower }}
       starttls: {{ sak_smtp_starttls | bool | lower }}
 {% endif %}

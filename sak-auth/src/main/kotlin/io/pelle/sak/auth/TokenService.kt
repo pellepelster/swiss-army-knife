@@ -23,6 +23,8 @@ data class SessionToken(
     val email: String,
     val expiresAt: Instant,
     val roles: Set<Role>,
+    // signed in with the admin password, not with a link by e-mail
+    val withPassword: Boolean = false,
 )
 
 private val logger = KotlinLogging.logger {}
@@ -93,13 +95,15 @@ class TokenService(
     fun issueSessionToken(
         email: String,
         roles: Set<Role>,
+        withPassword: Boolean = false,
     ): SessionToken {
         val expiresAt = clock.instant().plus(sessionTokenTtl)
         val token =
             sign(email, SESSION, sessionTokenTtl)
                 .withArrayClaim(ROLES, roles.map { it.key }.toTypedArray())
+                .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
                 .sign(algorithm)
-        return SessionToken(token, email, expiresAt, roles)
+        return SessionToken(token, email, expiresAt, roles, withPassword)
     }
 
     private fun sign(
@@ -134,6 +138,13 @@ class TokenService(
 
         // the roles of a session token, unknown ones are ignored
         const val ROLES = "roles"
+
+        // how the session was signed in, password or email; sessions from before it are e-mail ones
+        const val LOGIN_METHOD = "login_method"
+
+        const val PASSWORD = "password"
+
+        private const val EMAIL = "email"
 
         fun roles(claim: List<String>?) = claim.orEmpty().mapNotNull { Role.of(it) }.toSet()
     }

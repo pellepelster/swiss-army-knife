@@ -16,8 +16,9 @@ The `storage` role needs `storage_device`, the data volume's device (sakctl sets
 The `controller` role pulls its images (`controller_image`, `controller_ingress_image` and the two
 log images) on every run, so a run always brings the newest `latest` of main. It needs
 `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_token_sha256`
-(the sha-256 of the admin api token, never the token), `sak_admin_email` and, for the e-mail login,
-`sak_smtp_enabled`, `sak_smtp_from`, `sak_smtp_tls` and `sak_smtp_starttls`. It writes them into the
+(the sha-256 of the admin api token, never the token), and, for the e-mail login (multi user),
+`sak_smtp_enabled`, `sak_admin_email`, `sak_smtp_tls` and `sak_smtp_starttls`; the login mails come from
+`noreply@<root domain>`. It writes them into the
 controller configuration it renders from `templates/controller-config.yaml.j2`; the frontend is then
 at `sak.<base domain>`, the api at `api.<base domain>`. It also needs `controller_env_src`, the
 environment file of the backend: `SAK_ADMIN_PASSWORD_HASH`, `SAK_IPV4`, `SAK_IPV6` and, with a mail

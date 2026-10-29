@@ -1,6 +1,7 @@
 package io.pelle.sak.backend
 
 import io.ktor.http.HttpHeaders
+import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -118,7 +119,10 @@ fun Application.apps(
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
     val adminPassword = auth.adminPassword?.let(::AdminPassword)
-    val admins = auth.admins.map { it.trim().lowercase() }.toSet()
+    // the admin of the password login: the first of the admins, the same user as by e-mail (multi
+    // user), or ADMIN_USERNAME without admins (single user)
+    val admin = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
+    val admins = auth.admins.map { it.trim().lowercase() }.toSet() + admin
     val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
 
     install(Authentication) {
@@ -156,7 +160,7 @@ fun Application.apps(
                                 login(tokens, mailSender, loginApp(config), rolesOf)
                             }
                             if (adminPassword != null) {
-                                passwordLogin(tokens, requireNotNull(auth.admin), adminPassword, rolesOf)
+                                passwordLogin(tokens, admin, adminPassword, rolesOf)
                             }
                             loginMethods(email = mailSender != null, password = adminPassword != null)
                         }

@@ -25,9 +25,9 @@ export interface LoginMethods {
   password: boolean;
 }
 
-// who the backend takes the session for
+// who the backend takes the session for: admin for the password login, else the e-mail address
 export interface WhoAmI {
-  email: string;
+  username: string;
 }
 
 export const SESSION_STORAGE_KEY = 'sak.session';

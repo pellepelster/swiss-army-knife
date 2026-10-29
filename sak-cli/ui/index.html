@@ -178,6 +178,19 @@
           </div>
           <div class="form-text" id="create-dns-mode-hint"></div>
         </fieldset>
+        <fieldset id="create-user-mode">
+          <legend class="form-label fs-6" data-text="ui.create.user_mode"></legend>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="user-mode" id="create-user-mode-single" value="single" checked>
+            <label class="form-check-label" for="create-user-mode-single" data-text="ui.create.user_mode_single"></label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="user-mode" id="create-user-mode-multi" value="multi">
+            <label class="form-check-label" for="create-user-mode-multi" data-text="ui.create.user_mode_multi"></label>
+          </div>
+          <div class="form-text" id="create-user-mode-hint"></div>
+        </fieldset>
+        <!-- multi user only: the admin's address and the mail server -->
         <div id="create-admin-email-group">
           <label class="form-label" for="create-admin-email" data-text="ui.create.admin_email"></label>
           <input class="form-control" id="create-admin-email" type="email" autocomplete="email" spellcheck="false">
@@ -202,10 +215,6 @@
             <div>
               <label class="form-label" for="create-smtp-password" data-text="ui.create.smtp_password"></label>
               <input class="form-control" id="create-smtp-password" type="password" autocomplete="off">
-            </div>
-            <div>
-              <label class="form-label" for="create-smtp-from" data-text="ui.create.smtp_from"></label>
-              <input class="form-control" id="create-smtp-from" type="email" autocomplete="off" spellcheck="false" placeholder="noreply@<root domain>">
             </div>
           </div>
           <div class="form-check">

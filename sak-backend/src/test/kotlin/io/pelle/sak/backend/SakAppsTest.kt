@@ -70,6 +70,7 @@ class SakAppsTest {
         apiToken: Boolean = true,
         smtp: Boolean = true,
         adminPassword: Boolean = true,
+        admins: Boolean = true,
     ): SakConfig {
         // like backend.env holds it: a value starting with $ in the file is an environment variable
         System.setProperty("SAK_TEST_ADMIN_PASSWORD_HASH", ADMIN_PASSWORD_HASH)
@@ -90,10 +91,8 @@ class SakAppsTest {
                         """
                         auth:
                           frontend_url: $frontendUrl
-                          admins:
-                            - Admin@example.org
-                            - second@example.org
                         """.trimIndent().prependIndent("  ") +
+                        (if (admins) "\n    admins:\n      - Admin@example.org\n      - second@example.org" else "") +
                         (if (adminPassword) "\n    admin_password: \$SAK_TEST_ADMIN_PASSWORD_HASH" else "") +
                         if (smtp) {
                             "\n" +
@@ -225,7 +224,7 @@ class SakAppsTest {
 
             val me = get(port, "/api/v1/auth/who-am-i", session.string("sessionToken"))
             me.statusCode() shouldBe 200
-            me.json().string("email") shouldBe "admin@example.org"
+            me.json().string("username") shouldBe "admin@example.org"
 
             // the link only works once
             post(port, "/api/v1/auth/login/exchange", """{"token":"${link.getValue("token")}"}""").statusCode() shouldBe 401
@@ -972,17 +971,18 @@ class SakAppsTest {
     ) = post(port, "/api/v1/auth/login/password", """{"password":"$password","redirect":"/notes"}""")
 
     @Test
-    fun `the admin signs in with the password, as the first of the admins`() {
+    fun `the admin signs in with the password, who-am-i names the session admin`() {
         withServer { port ->
             val login = passwordLogin(port)
             login.statusCode() shouldBe 200
             login.headers().firstValue("Cache-Control").get() shouldBe "no-store"
             val body = login.json()
+            // the same user as by e-mail, the data stays the same
             body.string("email") shouldBe "admin@example.org"
             body.getValue("roles").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
             body.string("redirect") shouldBe "/notes"
             val session = body.string("sessionToken")
-            get(port, "/api/v1/auth/who-am-i", session).json().string("email") shouldBe "admin@example.org"
+            get(port, "/api/v1/auth/who-am-i", session).json().string("username") shouldBe "admin"
 
             // a wrong one, an empty one: 401 and nothing more
             passwordLogin(port, "a password of sixteeN").statusCode() shouldBe 401
@@ -991,7 +991,17 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the admin is the same user with the password and the e-mail login`() {
+    fun `a single user deployment has one user, the admin without an address`() {
+        withServer(config(smtp = false, admins = false)) { port ->
+            val body = passwordLogin(port).json()
+            body.getValue("roles").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
+            get(port, "/api/v1/auth/who-am-i", body.string("sessionToken")).json().string("username") shouldBe "admin"
+            post(port, "/api/v1/auth/login/link", """{"email":"admin"}""").statusCode() shouldBe 404
+        }
+    }
+
+    @Test
+    fun `the admin sees the same data with the password and the e-mail login`() {
         withServer { port ->
             val byMail = signIn(port)
             post(port, "/api/v1/notes", """{"text":"Buy milk","color":"yellow","labels":[]}""", byMail).statusCode() shouldBe 201

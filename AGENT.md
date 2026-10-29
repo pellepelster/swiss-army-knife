@@ -5,7 +5,7 @@ Read this file first. It contains rules for the complete repository.
 ## Prime Directives
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public
-  documentation!) Find the canonical vocabulary in [`GLOSSARY.md`](GLOSSARY.md).
+  documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
@@ -34,7 +34,7 @@ for every change of a ui.
 
 How the system is built (its parts, the server of a deployment, the layers, the persistence model, the api contract,
 sakctl, the cloud resources and their labels, the privacy boundaries, the accepted risks) is in
-[ARCHITECTURE.md](ARCHITECTURE.md). Every change keeps to it; a change that has to break it changes ARCHITECTURE.md
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Every change keeps to it; a change that has to break it changes ARCHITECTURE.md
 in the same commit and says why.
 
 ## Persistence (`sak-model`)
@@ -135,5 +135,5 @@ in the same commit and says why.
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — how the system is built.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the system is built.
 - `docs/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.

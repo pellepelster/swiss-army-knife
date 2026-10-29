@@ -64,6 +64,8 @@ data class SessionPrincipal(
     val email: String,
     val expiresAt: Instant,
     val roles: Set<Role>,
+    // signed in with the admin password, not with a link by e-mail
+    val withPassword: Boolean = false,
 )
 
 // the address of the signed in user, for routes behind authenticate(SESSION_AUTH)
@@ -90,7 +92,8 @@ fun AuthenticationConfig.session(
             val expiresAt = credential.expiresAt
             val tokenRoles = TokenService.roles(credential.payload.getClaim(TokenService.ROLES).asList(String::class.java))
             val roles = email?.let { tokenRoles intersect rolesOf(it) }.orEmpty()
-            if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles) else null
+            val withPassword = credential.payload.getClaim(TokenService.LOGIN_METHOD).asString() == TokenService.PASSWORD
+            if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles, withPassword) else null
         }
         challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
     }
@@ -220,8 +223,12 @@ fun Route.login(
 
 }
 
+// who-am-i names a password session so, and the admin of a single user deployment is so; no e-mail
+// address, so no login link is ever sent for it
+const val ADMIN_USERNAME = "admin"
+
 // the password login of the admin: the admin password (the deployment password) for a session token
-// of the admin, the first of the admins. The check is slow on purpose (argon2id), so the limits
+// of the admin, the same user as by e-mail. The check is slow on purpose (argon2id), so the limits
 // come first: a client and the server altogether try only a few passwords an hour, a request over
 // the limit is refused before any hashing. A wrong password tells nothing but 401
 @OptIn(ExperimentalKtorApi::class)
@@ -250,7 +257,7 @@ fun Route.passwordLogin(
                 call.respond(HttpStatusCode.Unauthorized)
                 return@post
             }
-            val session = tokens.issueSessionToken(admin, roles)
+            val session = tokens.issueSessionToken(admin, roles, withPassword = true)
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(
                 ExchangeResponse(session.token, session.email, session.expiresAt.toString(), roles.keys(), safeRedirect(request.redirect)),
@@ -314,7 +321,8 @@ fun Route.whoAmI() {
     get("/who-am-i") {
         val principal = call.principal<SessionPrincipal>()!!
         call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respond(WhoAmIResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
+        val username = if (principal.withPassword) ADMIN_USERNAME else principal.email
+        call.respond(WhoAmIResponse(username, principal.expiresAt.toString(), principal.roles.keys()))
     }.describe {
         tag(AUTH_TAG)
         summary = "The signed in user"

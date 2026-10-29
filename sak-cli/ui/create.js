@@ -26,9 +26,12 @@ const createView = document.getElementById('view-create');
 const confirmDialog = document.getElementById('destroy-confirm');
 // a destroy asks for the name and the password alone
 const adminEmailInput = document.getElementById('create-admin-email');
-const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
+const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-user-mode'].map((id) => document.getElementById(id));
+// what only multiple users need: the admin's address and the mail server
+const multiUserGroups = ['create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
+const userModeHint = document.getElementById('create-user-mode-hint');
 const smtpInputs = Object.fromEntries(
-  ['host', 'port', 'username', 'password', 'starttls', 'from'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
+  ['host', 'port', 'username', 'password', 'starttls'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
 );
 
 // deleting the data volume is the one thing that cannot be undone, the form says so in red
@@ -74,15 +77,42 @@ function newDeployment() {
     rootDomain: rootDomainInput.value || null,
     intent,
     deleteData: intent === 'destroy' && deleteDataInput.checked,
+    userMode: intent === 'destroy' ? null : userMode(),
     smtp: smtp(),
-    adminEmail: intent === 'destroy' ? null : adminEmailInput.value.trim(),
+    adminEmail: multiUser() ? adminEmailInput.value.trim() : null,
   };
 }
 
-// the mail server as rust takes it, none without a host; a destroy needs none
+// the user mode chosen, single unless multi is
+function userMode() {
+  return form.elements['user-mode'].value || 'single';
+}
+
+// multiple users for a create or a deploy, a destroy needs no users
+function multiUser() {
+  return intent !== 'destroy' && userMode() === 'multi';
+}
+
+// the fields of multiple users show and are required only for them
+function showUserMode() {
+  const multi = multiUser();
+  for (const element of multiUserGroups) {
+    element.hidden = !multi;
+  }
+  adminEmailInput.required = multi;
+  smtpInputs.host.required = multi;
+  smtpInputs.port.required = multi;
+  userModeHint.textContent = text(`ui.create.user_mode_hint_${userMode()}`);
+}
+
+for (const input of form.elements['user-mode']) {
+  input.addEventListener('change', showUserMode);
+}
+
+// the mail server as rust takes it, only for multiple users
 function smtp() {
   const host = smtpInputs.host.value.trim();
-  if (intent === 'destroy' || !host) {
+  if (!multiUser()) {
     return null;
   }
   return {
@@ -91,21 +121,22 @@ function smtp() {
     username: smtpInputs.username.value,
     password: smtpInputs.password.value,
     starttls: smtpInputs.starttls.checked,
-    from: smtpInputs.from.value.trim() || null,
   };
 }
 
-// the fields of the mail server still empty take what the environment proposes, SAK_SMTP_HOST,
-// SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and SAK_SMTP_STARTTLS; nothing of it is
-// kept with a deployment, a deploy asks again
-function prefillSmtp(defaults) {
+// the fields of the users still empty take what the environment proposes, SAK_USER_MODE,
+// SAK_ADMIN_EMAIL, SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and
+// SAK_SMTP_STARTTLS
+function prefillUsers(defaults) {
+  if (defaults.userMode && !adminEmailInput.value && !smtpInputs.host.value) {
+    form.elements['user-mode'].value = defaults.userMode;
+  }
   if (!adminEmailInput.value) {
     adminEmailInput.value = defaults.adminEmail ?? '';
   }
   if (smtpInputs.host.value) {
     return;
   }
-  smtpInputs.from.value = defaults.smtpFrom ?? '';
   smtpInputs.host.value = defaults.smtpHost ?? '';
   smtpInputs.port.value = defaults.smtpPort ?? '587';
   smtpInputs.username.value = defaults.smtpUsername ?? '';
@@ -277,7 +308,7 @@ async function loadLocations(chosen) {
 // from the environment
 async function prefill(back) {
   const defaults = await invoke('deployment_defaults');
-  prefillSmtp(defaults);
+  prefillUsers(defaults);
   if (existing) {
     nameInput.value = existing.name;
     await loadLocations(existing.location);
@@ -324,14 +355,14 @@ export async function showCreate(options = {}) {
   for (const element of destroyHidden) {
     element.hidden = intent === 'destroy';
   }
-  // a destroy needs no admin, its hidden field must not stop the form
-  adminEmailInput.required = intent !== 'destroy';
   showDeleteData();
   try {
     await prefill(Boolean(options.back));
   } catch (error) {
     setStatus(String(error), true);
   }
+  // a destroy needs no users, their hidden fields must not stop the form
+  showUserMode();
   show('view-create');
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }

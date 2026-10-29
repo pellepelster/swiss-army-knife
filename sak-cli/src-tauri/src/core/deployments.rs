@@ -241,9 +241,10 @@ pub struct DeploymentDefaults {
     smtp_username: Option<String>,
     smtp_password: Option<String>,
     smtp_starttls: Option<bool>,
-    smtp_from: Option<String>,
     /// the admin of SAK_ADMIN_EMAIL
     admin_email: Option<String>,
+    /// the user mode of SAK_USER_MODE
+    user_mode: Option<UserMode>,
 }
 
 /// the variables a new deployment takes its name, password and location from, the pages
@@ -259,19 +260,45 @@ pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
 pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
 pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
 pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
-pub const SMTP_FROM_VARIABLE: &str = "SAK_SMTP_FROM";
 /// the variable the address of the admin is taken from, the page and the command line alike
 pub const ADMIN_EMAIL_VARIABLE: &str = "SAK_ADMIN_EMAIL";
+/// the variable the user mode is taken from, the page and the command line alike
+pub const USER_MODE_VARIABLE: &str = "SAK_USER_MODE";
+
+/// who signs in to a deployment: single, one user, the admin, with the password of the
+/// deployment; multi, users by e-mail, the admin also with the password, which needs a mail
+/// server and the admin's address
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UserMode {
+    Single,
+    Multi,
+}
+
+impl UserMode {
+    pub const ALL: [UserMode; 2] = [UserMode::Single, UserMode::Multi];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            UserMode::Single => "single",
+            UserMode::Multi => "multi",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<UserMode> {
+        UserMode::ALL
+            .into_iter()
+            .find(|mode| mode.as_str() == value.trim().to_lowercase())
+    }
+}
 
 /// the port and the starttls of a mail server unless told, the ones of the backend
 pub const DEFAULT_SMTP_PORT: u16 = 587;
 pub const DEFAULT_SMTP_STARTTLS: bool = true;
 
 /// the mail server the backend sends its login links with; no Debug, the password never shows
-/// up in a log. Checked, but not yet handed on: the provisioning does not run the controller
-/// role, which would write it into the environment of the backend
+/// up in a log
 #[derive(Clone, Deserialize)]
-#[allow(dead_code)]
 #[serde(rename_all = "camelCase")]
 pub struct Smtp {
     pub host: String,
@@ -281,9 +308,6 @@ pub struct Smtp {
     #[serde(default)]
     pub password: String,
     pub starttls: bool,
-    /// the sender of the login mails, `noreply@<root domain>` when none is given
-    #[serde(default)]
-    pub from: Option<String>,
 }
 
 /// a host and a port: the host a name without blanks, the port not 0; no value with a line
@@ -296,11 +320,9 @@ fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     if smtp.port == 0 {
         return Err(t!("deployments.invalid_smtp_port").to_string());
     }
-    let from = smtp.from.as_deref().unwrap_or("noreply@example.org");
-    if [smtp.username.as_str(), smtp.password.as_str(), from]
+    if [smtp.username.as_str(), smtp.password.as_str()]
         .iter()
         .any(|value| value.contains(['\n', '\r']))
-        || !is_address(from)
     {
         return Err(t!("deployments.invalid_smtp_value").to_string());
     }
@@ -400,8 +422,8 @@ pub fn defaults() -> DeploymentDefaults {
         smtp_username: variable(SMTP_USERNAME_VARIABLE),
         smtp_password: variable(SMTP_PASSWORD_VARIABLE),
         smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
-        smtp_from: variable(SMTP_FROM_VARIABLE),
         admin_email: variable(ADMIN_EMAIL_VARIABLE),
+        user_mode: variable(USER_MODE_VARIABLE).and_then(|value| UserMode::parse(&value)),
     }
 }
 
@@ -453,12 +475,14 @@ pub struct NewDeployment {
     /// a destroy deletes the data volume too, it keeps it otherwise
     #[serde(default)]
     pub delete_data: bool,
-    /// the mail server of the backend, none when none was given; without it only the admin signs
-    /// in, with the password. A destroy needs none
+    /// who signs in, needed by a create and a deploy; a destroy needs none
+    #[serde(default)]
+    pub user_mode: Option<UserMode>,
+    /// the mail server of the e-mail login, needed by multi user, not used by single user
     #[serde(default)]
     pub smtp: Option<Smtp>,
-    /// the address of the admin: the user of the password login and the first admin of the e-mail
-    /// login; needed by a create and a deploy
+    /// the address of the admin, the first user of the e-mail login; needed by multi user, not
+    /// used by single user
     #[serde(default)]
     pub admin_email: Option<String>,
 }
@@ -715,6 +739,7 @@ impl DeploymentManager {
             root_domain,
             intent,
             delete_data: _,
+            user_mode,
             smtp,
             admin_email,
         } = deployment;
@@ -729,19 +754,24 @@ impl DeploymentManager {
         if password != password_repeat {
             return Err(t!("deployments.password_mismatch").to_string().into());
         }
-        if let (Intent::Create | Intent::Deploy, Some(smtp)) = (intent, smtp) {
-            check_smtp(smtp)?;
-        }
-        let admin_email = match intent {
-            Intent::Destroy => None,
-            Intent::Create | Intent::Deploy => Some(
-                admin_email
+        // multi user needs the mail server and the admin's address, single user takes neither
+        let (smtp, admin_email) = match (intent, user_mode) {
+            (Intent::Destroy, _) => (None, None),
+            (_, None) => return Err(t!("deployments.no_user_mode").to_string().into()),
+            (_, Some(UserMode::Single)) => (None, None),
+            (_, Some(UserMode::Multi)) => {
+                let smtp = smtp
+                    .clone()
+                    .ok_or_else(|| t!("deployments.invalid_smtp_host").to_string())?;
+                check_smtp(&smtp)?;
+                let admin_email = admin_email
                     .as_deref()
                     .map(str::trim)
                     .filter(|address| is_address(address))
                     .map(str::to_lowercase)
-                    .ok_or_else(|| t!("deployments.invalid_admin_email").to_string())?,
-            ),
+                    .ok_or_else(|| t!("deployments.invalid_admin_email").to_string())?;
+                (Some(smtp), Some(admin_email))
+            }
         };
         let Some((provider, token)) = tokens
             .into_iter()
@@ -1314,7 +1344,6 @@ mod tests {
             username: "user".to_string(),
             password: "secret".to_string(),
             starttls: true,
-            from: None,
         }
     }
 
@@ -1345,19 +1374,20 @@ mod tests {
     }
 
     #[test]
-    fn a_value_with_a_line_break_or_another_sender_is_refused() {
+    fn a_user_mode_is_single_or_multi() {
+        assert_eq!(UserMode::parse("single"), Some(UserMode::Single));
+        assert_eq!(UserMode::parse(" Multi "), Some(UserMode::Multi));
+        assert_eq!(UserMode::parse("many"), None);
+    }
+
+    #[test]
+    fn a_value_with_a_line_break_is_refused() {
         let mut with_break = smtp("smtp.example.org", 587);
         with_break.password = "secret\nSAK_ADMIN_PASSWORD_HASH=x".to_string();
         assert_eq!(
             check_smtp(&with_break),
             Err(t!("deployments.invalid_smtp_value").to_string())
         );
-        let mut bad_from = smtp("smtp.example.org", 587);
-        bad_from.from = Some("not an address".to_string());
-        assert!(check_smtp(&bad_from).is_err());
-        let mut good_from = smtp("smtp.example.org", 587);
-        good_from.from = Some("login@example.org".to_string());
-        assert!(check_smtp(&good_from).is_ok());
     }
 
     #[test]
@@ -1397,10 +1427,11 @@ mod tests {
             smtp_username: Some("user".to_string()),
             smtp_password: Some("secret".to_string()),
             smtp_starttls: Some(false),
-            smtp_from: None,
             admin_email: Some("admin@example.org".to_string()),
+            user_mode: Some(UserMode::Multi),
         };
         let json = serde_json::to_value(&defaults).unwrap();
+        assert_eq!(json["userMode"], "multi");
         assert_eq!(json["smtpHost"], "smtp.example.org");
         assert_eq!(json["smtpPort"], "465");
         assert_eq!(json["smtpStarttls"], false);

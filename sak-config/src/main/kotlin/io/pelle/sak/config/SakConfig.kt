@@ -107,11 +107,11 @@ data class SakConfig(
     @Serializable
     data class AuthConfig(
         // the addresses that may sign in to sak-frontend, as admins, compared case-insensitively; no
-        // other address gets a login link. The first one is the admin who also signs in with the
-        // password (admin_password)
+        // other address gets a login link. The first one is the admin. Needed with a mail
+        // server (multi user), none without
         val admins: List<String> = emptyList(),
-        // the mail server of the login links; without it there is no e-mail login, only the admin
-        // signs in, with the password
+        // the mail server of the login links (multi user); without it there is no e-mail login,
+        // only the admin signs in, with the password (single user)
         val smtp: SmtpConfig? = null,
         // the argon2id hash (phc string) of the admin password, the deployment password sakctl
         // derives it from; without it there is no password login
@@ -125,16 +125,14 @@ data class SakConfig(
             require(smtp != null || adminPassword != null) {
                 "auth needs a way to sign in: smtp for the e-mail login, admin_password for the password login, or both"
             }
-            require(adminPassword == null || admins.isNotEmpty()) {
-                "auth.admin_password needs the address of the admin, the first of auth.admins"
+            require(smtp == null || admins.isNotEmpty()) {
+                "auth.smtp needs the address of the admin, the first of auth.admins"
             }
             require(adminPassword == null || adminPassword.startsWith("\$argon2id\$")) {
                 "auth.admin_password is no argon2id hash (\$argon2id\$…)"
             }
         }
 
-        // the admin of the password login: the first of the admins
-        val admin: String? get() = admins.firstOrNull()?.trim()?.lowercase()
 
         // the hash never shows, e.g. in a log line
         override fun toString() =

@@ -110,7 +110,7 @@ class SakCaddyTest {
     @Test
     fun `proxies sak-frontend to the controller when the login is configured`() {
         val withAuth =
-            config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
+            config.copy(auth = SakConfig.AuthConfig(admins = listOf("admin@example.org"), smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
         val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080))).json()["apps"]!!
             .jsonObject["http"]!!
@@ -178,7 +178,7 @@ class SakCaddyTest {
     @Test
     fun `the root domain leads to sak-frontend unless a bucket is served at it or it is redirected`() {
         val withAuth =
-            config.copy(auth = SakConfig.AuthConfig(smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
+            config.copy(auth = SakConfig.AuthConfig(admins = listOf("admin@example.org"), smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
         fun routes(
             bucketDomains: Map<String, List<String>>,
             redirects: Map<String, String> = emptyMap(),

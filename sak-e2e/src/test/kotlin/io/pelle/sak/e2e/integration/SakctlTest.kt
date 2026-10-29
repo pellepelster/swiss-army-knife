@@ -53,7 +53,7 @@ class SakctlTest {
         name: String,
         dnsMode: String,
         rootDomain: String,
-    ): Int = sakctl.run("create", name, "--password", password, "--dns-mode", dnsMode, "--root-domain", rootDomain)
+    ): Int = sakctl.run("create", name, "--password", password, "--user-mode", "single", "--dns-mode", dnsMode, "--root-domain", rootDomain)
 
     private fun destroy(
         name: String,
@@ -70,7 +70,7 @@ class SakctlTest {
             create(domain, "domain", DOMAIN_ZONE) shouldBe EXIT_OK
             // a deploy without --dns-mode and --root-domain keeps both: the records of the domain mode
             // stay, nothing switches it to a subdomain deployment
-            sakctl.run("deploy", domain, "--password", password) shouldBe EXIT_OK
+            sakctl.run("deploy", domain, "--password", password, "--user-mode", "single") shouldBe EXIT_OK
             project
                 .resources { it == domain }
                 .filter { it.kind == "dns record" }

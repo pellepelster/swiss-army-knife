@@ -1,8 +1,8 @@
 # Architecture
 
 How SwissArmyKnife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
-code is in [AGENT.md](AGENT.md), how the apps look and behave in [docs/UI-UX.md](docs/UI-UX.md), the words in
-[GLOSSARY.md](GLOSSARY.md), and each feature in [docs/fdr/INDEX.md](docs/fdr/INDEX.md).
+code is in [AGENT.md](../AGENT.md), how the apps look and behave in [docs/UI-UX.md](UI-UX.md), the words in
+[GLOSSARY.md](GLOSSARY.md), and each feature in [docs/fdr/INDEX.md](fdr/INDEX.md).
 
 ## Overview
 
@@ -56,7 +56,7 @@ and the health of the domains.
   caddy and the logs.
 - The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of the
   buckets and the redirects.
-- The hosts depend on the **dns mode** (refer to [FDR-001](docs/fdr/FDR-001-dns-mode.md)): the frontend is at
+- The hosts depend on the **dns mode** (refer to [FDR-001](fdr/FDR-001-dns-mode.md)): the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
   base domain is the root domain (`domain`) or `<sak name>.<root domain>` (`subdomain`).
 
@@ -71,7 +71,7 @@ and the health of the domains.
 
 - **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips such rows.
   A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken until it is
-  purged (refer to [FDR-004](docs/fdr/FDR-004-maintenance-cleanup.md), the only planned purge).
+  purged (refer to [FDR-004](fdr/FDR-004-maintenance-cleanup.md), the only planned purge).
 - **Every row records its time.** When it was created, last updated and deleted, set by the repository from one
   clock.
 - **Secrets stay with what they belong to.** The secret key of a bucket is stored with the bucket, but is never part
@@ -80,7 +80,7 @@ and the health of the domains.
 - **Settings.** A setting is one value for a name and a scope; the scope is the system or a user. Their one service
   hands the values out as they are; whoever uses a setting that is a secret keeps it from showing. A secret never
   shows in a log line. The values are plain; the whole
-  database is to be encrypted ([FDR-002](docs/fdr/FDR-002-sqlite-encryption.md)).
+  database is to be encrypted ([FDR-002](fdr/FDR-002-sqlite-encryption.md)).
 
 ## API
 
@@ -90,8 +90,8 @@ and the health of the domains.
 - **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
   response class.
 - **Authentication:** a session token, or the admin api token of sakctl (its sha-256 in the configuration). A
-  session comes from the password login of the admin (always there) or from the e-mail login (only with a mail
-  server); refer to [FDR-005](docs/fdr/FDR-005-login.md). Without a session or the token, only the login and
+  session comes from the password login of the admin (always there) or from the e-mail login (only in the multi
+  user mode, with a mail server); refer to [FDR-005](fdr/FDR-005-login.md). Without a session or the token, only the login and
   `GET /api/v1/info` answer.
 
 ## sakctl
@@ -164,7 +164,7 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
 
 - **The database is not encrypted at rest.** All data in it, the secrets included, is plain in the SQLite file on
   the data volume, against the rule to encrypt all data at rest. Accepted until
-  [FDR-002](docs/fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
+  [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
   alone was removed in favor of it.
 
 - **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The

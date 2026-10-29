@@ -117,7 +117,6 @@ class SakBackendTest {
                 .replace("{{ sak_root_domain }}", "pelle.io")
                 .replace("{{ sak_api_token_sha256 }}", "ab".repeat(32))
                 .replace("{{ sak_admin_email }}", "admin@example.org")
-                .replace("{{ sak_smtp_from }}", "noreply@pelle.io")
                 .replace("{{ sak_smtp_tls | bool | lower }}", "true")
                 .replace("{{ sak_smtp_starttls | bool | lower }}", "false")
         rendered shouldNotContain "{{"
@@ -161,7 +160,7 @@ class SakBackendTest {
         config.name shouldBe "alpha"
         config.dnsMode shouldBe DnsMode.DOMAIN
         config.frontendUrl shouldBe "https://sak.pelle.io"
-        config.auth!!.admin shouldBe "admin@example.org"
+        config.auth!!.admins shouldBe listOf("admin@example.org")
         config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"
         config.auth!!.smtp shouldBe
             SakConfig.SmtpConfig(
@@ -178,11 +177,11 @@ class SakBackendTest {
     }
 
     @Test
-    fun `the deployed configuration without a mail server has only the password login`() {
+    fun `the deployed configuration without a mail server is single user, only the password login`() {
         val config = withBackendEnv(smtp = false) { SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, renderTemplate(smtp = false).toString())) }
 
         config.auth!!.smtp shouldBe null
-        config.auth!!.admin shouldBe "admin@example.org"
+        config.auth!!.admins shouldBe emptyList()
         config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"
     }
 

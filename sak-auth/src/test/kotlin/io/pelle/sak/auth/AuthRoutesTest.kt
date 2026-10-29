@@ -116,7 +116,7 @@ class AuthRoutesTest {
 
             val me = client.get("/api/v1/auth/who-am-i") { bearerAuth(session.string("sessionToken")) }
             me.status shouldBe HttpStatusCode.OK
-            me.bodyAsText().json().string("email") shouldBe "admin@example.org"
+            me.bodyAsText().json().string("username") shouldBe "admin@example.org"
             me.bodyAsText().json()["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
 
             client.exchange(token).status shouldBe HttpStatusCode.Unauthorized

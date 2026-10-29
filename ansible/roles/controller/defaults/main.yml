@@ -18,14 +18,15 @@ sak_root_domain: ""
 # the sha-256 (hex) of the admin api token sakctl derives from the password (required), never the
 # token itself
 sak_api_token_sha256: ""
-# the admin (required): signs in with the password of the deployment (its hash is
-# SAK_ADMIN_PASSWORD_HASH of backend.env), and is the first admin of the e-mail login
+# the admin signs in with the password of the deployment (its hash is SAK_ADMIN_PASSWORD_HASH of
+# backend.env). Multi user (sak_smtp_enabled): the admin's address (required) is also the first of
+# the e-mail login; single user: the admin has no address
 sak_admin_email: ""
-# the mail server of the e-mail login; without it there is only the admin's password login. Its
+# the mail server of the e-mail login, multi user; without it single user, only the admin's
+# password login. Its
 # host, port, user name and password are SAK_SMTP_* of backend.env; without starttls the
 # connection is implicit tls
 sak_smtp_enabled: false
-sak_smtp_from: ""
 sak_smtp_tls: false
 sak_smtp_starttls: true
 # environment of the controller container, holds the s3 credentials the configuration references
