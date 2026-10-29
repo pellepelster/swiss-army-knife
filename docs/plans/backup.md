@@ -52,8 +52,10 @@ standard error. `<recipient>` is the public half of the backup key (`age1…`), 
    `PRAGMA integrity_check` on the copy; a copy that is not `ok` stops the backup.
 3. **The logs.** A copy of `vector/` into the staging directory, then a snapshot of victorialogs (refer to "The
    logs" below). victorialogs and vector continue to run.
-4. **The manifest.** `<staging>/backup.json`: the version of the format (`1`), the name, the time (UTC), the image
-   digest of the backend and the size of the data before compression.
+4. **The manifest.** `<staging>/backup.json`: the version of the format (`1`), the version of SAK that made the
+   backup (`version`, always `latest` until the artifacts have versions,
+   [#127](https://github.com/pellepelster/swiss-army-knife/issues/127)), the name, the time (UTC), the image digest
+   of the backend and the size of the data before compression.
 5. **The archive.** One `tar` stream, compressed with `zstd` (`tar --zstd`, level 3, all cores) and encrypted with
    `age -r <recipient>`, paths relative to `/storage/data/<name>`, with the numeric owner and the modes:
    - first `backup.json`, then `backend/data/sak.db` from the staging directory;
@@ -239,5 +241,5 @@ for a lost or a deleted volume, or to go back to an earlier state.
 - **FDR-002 (database encryption).** With an encrypted database, `sqlite3` on the server must be a build with the
   same cipher and needs the key for `VACUUM INTO`. The backup could then copy the encrypted pages as they are.
 - **A newer backup on an older backend.** The backend migrates an older database on its start (Liquibase). A backup
-  from a newer backend has changesets that the older one does not know. Should the restore refuse it, by the image
-  digest or a schema version in the manifest?
+  from a newer backend has changesets that the older one does not know. The restore does not compare `version` yet;
+  [#128](https://github.com/pellepelster/swiss-army-knife/issues/128) adds the check after #127.
