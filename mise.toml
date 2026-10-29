@@ -319,16 +319,16 @@ depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
-# the documents of docs/development/ as a site with the theme relearn in the look of sak-theme
-# (site/), reloaded on every change: http://localhost:1313
+# the documents of docs/ as a site with the theme relearn in the look of sak-theme (site/),
+# reloaded on every change: http://localhost:1313
 [tasks."docs:serve"]
-description = "Serve the documentation of docs/development/ as a site, reloaded when a document changes"
+description = "Serve the documentation of docs/ as a site, reloaded when a document changes"
 dir = "{{config_root}}/site"
 run = "hugo server"
 
 # the same site as files in build/site; a link that does not resolve fails it
 [tasks."docs:build"]
-description = "Build the documentation of docs/development/ as a site into build/site"
+description = "Build the documentation of docs/ as a site into build/site"
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 

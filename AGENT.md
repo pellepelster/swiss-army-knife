@@ -6,7 +6,7 @@ Read this file first. It contains rules for the complete repository.
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public
   documentation!) Find the canonical vocabulary in [`docs/development/GLOSSARY.md`](docs/development/GLOSSARY.md).
-- Every document below `docs/development/` starts with front matter (`title`, `description`, `weight`, a short
+- Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short
   `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
   A link between documents that does not resolve fails `mise run docs:build`.
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
