@@ -1,5 +1,5 @@
 ---
-# the configuration of sak-backend, rendered by the controller role from the inventory sakctl writes
+# the configuration of sak-backend, rendered by the backend role from the inventory sakctl writes
 # (sak_name, sak_dns_mode, sak_root_domain, sak_api_public_key, sak_admin_email, sak_smtp_*); the login
 # mails come from noreply@<root domain>;
 # the secrets come from backend.env: a value starting with $ is an environment variable
@@ -10,7 +10,7 @@ sak:
   name: {{ sak_name }}
   dns_mode: {{ sak_dns_mode }}
   api_public_key: {{ sak_api_public_key | to_json }}
-  data_dir: /storage/data/backend/data
+  data_dir: {{ backend_data_path }}
   root_domain: {{ sak_root_domain }}
 {% if sak_acme_ca | default('', true) | length > 0 %}
   # the acme ca caddy gets its certificates from, the staging ca of let's encrypt for tests

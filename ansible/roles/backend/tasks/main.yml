@@ -7,8 +7,8 @@
       - sak_root_domain | default('') | length > 0
       - sak_api_public_key is match('^[A-Za-z0-9+/]{43}=$')
       - not (sak_smtp_enabled | bool) or (sak_admin_email | default('', true) | length > 0)
-      - controller_env_src | length > 0
-    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_public_key (32 bytes as base64), sak_admin_email (with sak_smtp_enabled) and controller_env_src must be set"
+      - backend_env_src | length > 0
+    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_public_key (32 bytes as base64), sak_admin_email (with sak_smtp_enabled) and backend_env_src must be set"
     quiet: true
 
 - name: Install podman
@@ -21,73 +21,81 @@
 
 - name: Create the sak group
   ansible.builtin.group:
-    name: "{{ controller_group }}"
-    gid: "{{ controller_gid }}"
+    name: "{{ backend_group }}"
+    gid: "{{ backend_gid }}"
     system: true
+
+- name: Create the data directory of the deployment
+  ansible.builtin.file:
+    path: "{{ sak_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Create the sak user
   ansible.builtin.user:
-    name: "{{ controller_user }}"
-    uid: "{{ controller_uid }}"
-    group: "{{ controller_group }}"
+    name: "{{ backend_user }}"
+    uid: "{{ backend_uid }}"
+    group: "{{ backend_group }}"
     system: true
-    home: "{{ controller_base_path }}"
+    home: "{{ backend_base_path }}"
     create_home: false
     shell: /usr/sbin/nologin
 
-- name: Create the controller directory
+- name: Create the backend directory
   ansible.builtin.file:
-    path: "{{ controller_base_path }}"
+    path: "{{ backend_base_path }}"
     state: directory
     owner: root
-    group: "{{ controller_group }}"
+    group: "{{ backend_group }}"
     mode: "0750"
 
 - name: Create the data directory
   ansible.builtin.file:
-    path: "{{ controller_data_path }}"
+    path: "{{ backend_data_path }}"
     state: directory
-    owner: "{{ controller_user }}"
-    group: "{{ controller_group }}"
+    owner: "{{ backend_user }}"
+    group: "{{ backend_group }}"
     mode: "0750"
 
 # the ingress runs as the same user and serves the buckets at their domains, it gets the
 # directory mounted and never needs to traverse the directories above it
 - name: Create the s3 data directory
   ansible.builtin.file:
-    path: "{{ controller_s3_data_path }}"
+    path: "{{ backend_s3_data_path }}"
     state: directory
-    owner: "{{ controller_user }}"
-    group: "{{ controller_group }}"
+    owner: "{{ backend_user }}"
+    group: "{{ backend_group }}"
     mode: "0750"
 
 - name: Create the ingress data directory
   ansible.builtin.file:
-    path: "{{ controller_ingress_data_path }}"
+    path: "{{ backend_ingress_data_path }}"
     state: directory
-    owner: "{{ controller_user }}"
-    group: "{{ controller_group }}"
+    owner: "{{ backend_user }}"
+    group: "{{ backend_group }}"
     mode: "0700"
 
 # caddy writes its logs here, vector gets the directory mounted before caddy may have created it
 - name: Create the ingress log directory
   ansible.builtin.file:
-    path: "{{ controller_ingress_data_path }}/log"
+    path: "{{ backend_ingress_data_path }}/log"
     state: directory
-    owner: "{{ controller_user }}"
-    group: "{{ controller_group }}"
+    owner: "{{ backend_user }}"
+    group: "{{ backend_group }}"
     mode: "0700"
 
 - name: Create the log data directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ controller_user }}"
-    group: "{{ controller_group }}"
+    owner: "{{ backend_user }}"
+    group: "{{ backend_group }}"
     mode: "0700"
   loop:
-    - "{{ controller_victorialogs_data_path }}"
-    - "{{ controller_vector_data_path }}"
+    - "{{ backend_victorialogs_data_path }}"
+    - "{{ backend_vector_data_path }}"
 
 # every run pulls every image: sak-backend and sak-ingress at the tag CI pushes from main
 # (latest), the log images at their pinned tags. A pull that brings another image than the one
@@ -102,14 +110,14 @@
       [ "$before" = "$after" ] || echo "pulled $after"
     executable: /bin/bash
   loop:
-    - { name: sak-backend, image: "{{ controller_image }}" }
-    - { name: sak-ingress, image: "{{ controller_ingress_image }}" }
-    - { name: sak-victorialogs, image: "{{ controller_victorialogs_image }}" }
-    - { name: sak-vector, image: "{{ controller_vector_image }}" }
+    - { name: sak-backend, image: "{{ backend_image }}" }
+    - { name: sak-ingress, image: "{{ backend_ingress_image }}" }
+    - { name: sak-victorialogs, image: "{{ backend_victorialogs_image }}" }
+    - { name: sak-vector, image: "{{ backend_vector_image }}" }
   loop_control:
     label: "{{ item.image }}"
-  register: controller_pulls
-  changed_when: controller_pulls.stdout is search('pulled')
+  register: backend_pulls
+  changed_when: backend_pulls.stdout is search('pulled')
   # a pull changes the server, check mode only looks
   when: not ansible_check_mode
   notify:
@@ -119,27 +127,27 @@
 - name: Upload the vector configuration
   ansible.builtin.copy:
     src: vector.yaml
-    dest: "{{ controller_vector_config_file }}"
+    dest: "{{ backend_vector_config_file }}"
     owner: root
     group: root
     mode: "0644"
-    validate: podman run --rm --network none --volume %s:/etc/vector/vector.yaml:ro {{ controller_vector_image }} validate --no-environment /etc/vector/vector.yaml
+    validate: podman run --rm --network none --volume %s:/etc/vector/vector.yaml:ro {{ backend_vector_image }} validate --no-environment /etc/vector/vector.yaml
   notify: Restart sak-vector
 
-- name: Write the controller configuration
+- name: Write the backend configuration
   ansible.builtin.template:
-    src: controller-config.yaml.j2
-    dest: "{{ controller_config_file }}"
+    src: backend-config.yaml.j2
+    dest: "{{ backend_config_file }}"
     owner: root
-    group: "{{ controller_group }}"
+    group: "{{ backend_group }}"
     mode: "0640"
   notify: Restart sak-backend
 
-# read by podman (as root) only, the controller gets the credentials via its environment
-- name: Upload the controller environment
+# read by podman (as root) only, the backend gets the credentials via its environment
+- name: Upload the backend environment
   ansible.builtin.copy:
-    src: "{{ controller_env_src }}"
-    dest: "{{ controller_env_file }}"
+    src: "{{ backend_env_src }}"
+    dest: "{{ backend_env_file }}"
     owner: root
     group: root
     mode: "0600"
@@ -159,9 +167,9 @@
     state: absent
   loop:
     - /etc/containers/systemd/sak-controller.container
-    - "{{ controller_base_path }}/sak-controller-image.tar.gz"
-    - "{{ controller_base_path }}/sak-backend-image.tar.gz"
-    - "{{ controller_base_path }}/sak-ingress-image.tar.gz"
+    - "{{ backend_base_path }}/sak-controller-image.tar.gz"
+    - "{{ backend_base_path }}/sak-backend-image.tar.gz"
+    - "{{ backend_base_path }}/sak-ingress-image.tar.gz"
 
 - name: Install the quadlets
   ansible.builtin.template:

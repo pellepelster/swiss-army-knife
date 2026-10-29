@@ -52,8 +52,8 @@ and the health of the domains.
 
 - Four containers run as podman quadlets, all as the user `sak`: the backend, caddy, victorialogs and vector.
   Ansible pulls their images on each run; a new image restarts its container.
-- All data is on the data volume, mounted at `/storage/data`: the database, the files, the buckets, the state of
-  caddy and the logs.
+- All data is on the data volume, mounted at `/storage/data`, below a directory named like the deployment
+  (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
 - The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of the
   buckets and the redirects.
 - The hosts depend on the **dns mode** (refer to [FDR-001](fdr/FDR-001-dns-mode.md)): the frontend is at
@@ -114,7 +114,7 @@ and the health of the domains.
   one place they are looked up, created, changed and removed.
 - **Provisioning** runs `ansible-playbook` in a container image of the tools against the server, with the inventory,
   the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail server) in
-  a private directory for the run. It sets up the base system, the data volume and the controller: the backend, its
+  a private directory for the run. It sets up the base system, the data volume and the backend, its
   configuration and the containers next to it.
 - **Every deploy provisions.** A deploy always runs the whole playbook, so the server is as the deployment declares
   it whatever happened to it. After a provisioning succeeded the server carries a label that stands for the

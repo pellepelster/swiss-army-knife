@@ -22,10 +22,10 @@ export const FIXTURE_OBJECT = 'hello world';
 mkdirSync(join(DATA_DIR, 's3/buckets/e2e-hosting/data'), { recursive: true });
 writeFileSync(join(DATA_DIR, 's3/buckets/e2e-hosting/data/fixture.txt'), FIXTURE_OBJECT);
 
-// the images the controller role deploys
-const roleDefaults = readFileSync(resolve(__dirname, '../ansible/roles/controller/defaults/main.yml'), 'utf8');
+// the images the backend role deploys
+const roleDefaults = readFileSync(resolve(__dirname, '../ansible/roles/backend/defaults/main.yml'), 'utf8');
 const image = (name: string) => roleDefaults.match(new RegExp(`^${name}: (\\S+)$`, 'm'))![1];
-const vectorConfig = resolve(__dirname, '../ansible/roles/controller/files/vector.yaml');
+const vectorConfig = resolve(__dirname, '../ansible/roles/backend/files/vector.yaml');
 
 // docker passes the signal on to the container, killing the docker client would leave it running
 const gracefulShutdown = { signal: 'SIGTERM', timeout: 10_000 } as const;
@@ -51,7 +51,7 @@ export default defineConfig({
       gracefulShutdown,
     },
     {
-      command: `docker run --rm --name sak-frontend-e2e-victorialogs -p 127.0.0.1:19428:9428 ${image('controller_victorialogs_image')} -httpListenAddr=:9428 -storageDataPath=/tmp/victoria-logs-data`,
+      command: `docker run --rm --name sak-frontend-e2e-victorialogs -p 127.0.0.1:19428:9428 ${image('backend_victorialogs_image')} -httpListenAddr=:9428 -storageDataPath=/tmp/victoria-logs-data`,
       url: `${VICTORIALOGS_URL}/health`,
       timeout: 120_000,
       reuseExistingServer: !process.env['CI'],
@@ -62,14 +62,14 @@ export default defineConfig({
       command:
         `docker run --rm --name sak-frontend-e2e-vector --network container:sak-frontend-e2e-victorialogs ` +
         `--volume ${ACCESS_LOG_DIR}:/var/log/caddy:ro --volume ${vectorConfig}:/etc/vector/vector.yaml:ro ` +
-        `--tmpfs /var/lib/vector ${image('controller_vector_image')} --config /etc/vector/vector.yaml`,
+        `--tmpfs /var/lib/vector ${image('backend_vector_image')} --config /etc/vector/vector.yaml`,
       wait: { stderr: /Vector has started/ },
       timeout: 120_000,
       reuseExistingServer: !process.env['CI'],
       gracefulShutdown,
     },
     {
-      command: '../sak-backend/build/install/sak-backend/bin/sak-backend -config=e2e/controller-config.yaml',
+      command: '../sak-backend/build/install/sak-backend/bin/sak-backend -config=e2e/backend-config.yaml',
       url: `${APPS_URL}/`,
       timeout: 60_000,
       reuseExistingServer: !process.env['CI'],

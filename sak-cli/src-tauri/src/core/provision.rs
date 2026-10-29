@@ -32,11 +32,11 @@ const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45 * 60)
 pub struct ProvisionRun {
     /// the name of the deployment: the host in the inventory and `sak_name`
     pub name: String,
-    /// `sak_dns_mode` of the controller configuration
+    /// `sak_dns_mode` of the backend configuration
     pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,
-    /// `sak_root_domain` of the controller configuration
+    /// `sak_root_domain` of the backend configuration
     pub root_domain: String,
-    /// `sak_api_public_key` of the controller configuration: the public half of the api key the
+    /// `sak_api_public_key` of the backend configuration: the public half of the api key the
     /// requests of sakctl are signed with, 32 bytes as base64
     pub api_public_key: String,
     /// the public ipv4 of the server
@@ -66,7 +66,7 @@ impl ProvisionRun {
              ansible_ssh_common_args: -F {dir}/ssh_config\n      \
              storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_public_key: \"{api_public_key}\"\n      sak_admin_email: {admin_email}\n      \
              sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_tls: {smtp_tls}\n      \
-             sak_smtp_starttls: {smtp_starttls}\n      controller_env_src: {dir}/backend.env\n",
+             sak_smtp_starttls: {smtp_starttls}\n      backend_env_src: {dir}/backend.env\n",
             name = self.name,
             host = self.host,
             dir = RUN_DIR,
@@ -412,13 +412,29 @@ pub fn stop_runs() {
         .map(|mut runs| std::mem::take(&mut *runs))
         .unwrap_or_default();
     for (path, runtime, container) in runs {
-        let _ = std::fs::remove_dir_all(&path);
+        if !path.as_os_str().is_empty() {
+            let _ = std::fs::remove_dir_all(&path);
+        }
         remove_container(&runtime, &container);
     }
 }
 
+/// a container without a directory of its own that `stop_runs` removes too, e.g. the one of an ssh
+/// session; `untrack_container` when it is gone
+pub(crate) fn track_container(runtime: &str, name: &str) {
+    if let Ok(mut runs) = RUNS.lock() {
+        runs.push((PathBuf::new(), runtime.to_string(), name.to_string()));
+    }
+}
+
+pub(crate) fn untrack_container(name: &str) {
+    if let Ok(mut runs) = RUNS.lock() {
+        runs.retain(|(_, _, container)| container != name);
+    }
+}
+
 /// stops and removes the container of a run, whatever state it is in
-fn remove_container(runtime: &str, name: &str) {
+pub(crate) fn remove_container(runtime: &str, name: &str) {
     let _ = container::command(runtime)
         .args(["rm", "--force", name])
         .stdin(Stdio::null())
@@ -500,7 +516,7 @@ fn alive(_pid: u32) -> bool {
     true
 }
 
-fn random_hex() -> Result<String, String> {
+pub(crate) fn random_hex() -> Result<String, String> {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes).map_err(|e| e.to_string())?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
@@ -584,7 +600,7 @@ mod tests {
     }
 
     #[test]
-    fn the_inventory_tells_the_controller_role_the_admin_and_the_mail_server() {
+    fn the_inventory_tells_the_backend_role_the_admin_and_the_mail_server() {
         let inventory = run().inventory();
         assert!(inventory.contains("      sak_admin_email: admin@example.org\n"));
         assert!(inventory.contains(
@@ -593,7 +609,7 @@ mod tests {
         assert!(inventory.contains("      sak_smtp_enabled: true\n"));
         // without starttls implicit tls, never plain text
         assert!(inventory.contains("      sak_smtp_tls: true\n      sak_smtp_starttls: false\n"));
-        assert!(inventory.contains("      controller_env_src: /run/sak/backend.env\n"));
+        assert!(inventory.contains("      backend_env_src: /run/sak/backend.env\n"));
 
         let mut given = run();
         if let Some(smtp) = given.smtp.as_mut() {
@@ -614,7 +630,7 @@ mod tests {
     fn the_inventory_names_the_host_its_key_and_its_volume() {
         let inventory = run().inventory();
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
-        // what the controller role writes into the configuration of the backend
+        // what the backend role writes into the configuration of the backend
         assert!(inventory.contains(
             "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n      sak_api_public_key: \"PUBLIC+KEY/=\"\n"
         ));

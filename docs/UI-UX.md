@@ -69,6 +69,9 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   integration tests use it.
 - **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show the
   running configuration) with the same rules and texts. Without a command, the window opens.
+- **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `-- <command>`
+  runs a command there. It runs in the image of the tools like the provisioning: the key derived from the password
+  goes to an ssh-agent in the container and is never written, the server is checked against its derived host key.
 - **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists
   them all.
 - **No surprise by default.** A deploy keeps the settings of the deployment (for example its DNS mode and root

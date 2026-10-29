@@ -5,16 +5,16 @@ After=sak-victorialogs.service
 
 [Container]
 ContainerName=sak-vector
-Image={{ controller_vector_image }}
+Image={{ backend_vector_image }}
 Pull=missing
 # victorialogs only listens on localhost
 Network=host
 # the ingress writes its access log readable by its own user only
-User={{ controller_uid }}
-Group={{ controller_gid }}
-Volume={{ controller_ingress_data_path }}/log:/var/log/caddy:ro
-Volume={{ controller_vector_data_path }}:/var/lib/vector
-Volume={{ controller_vector_config_file }}:/etc/vector/vector.yaml:ro
+User={{ backend_uid }}
+Group={{ backend_gid }}
+Volume={{ backend_ingress_data_path }}/log:/var/log/caddy:ro
+Volume={{ backend_vector_data_path }}:/var/lib/vector
+Volume={{ backend_vector_config_file }}:/etc/vector/vector.yaml:ro
 Exec=--config /etc/vector/vector.yaml
 ReadOnly=true
 NoNewPrivileges=true

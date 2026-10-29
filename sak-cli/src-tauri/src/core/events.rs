@@ -64,7 +64,7 @@ pub struct HostStats {
 }
 
 /// a task as it is shown: without the role ansible puts before the task of a role,
-/// `pelle_io.sak.controller : Install the backend` is `Install the backend`
+/// `pelle_io.sak.backend : Install the backend` is `Install the backend`
 pub fn task_name(task: &str) -> String {
     task.split_once(" : ")
         .map_or(task, |(_, name)| name)

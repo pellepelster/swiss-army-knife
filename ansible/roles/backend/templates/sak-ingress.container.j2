@@ -4,15 +4,15 @@ Description=sak-ingress
 
 [Container]
 ContainerName=sak-ingress
-Image={{ controller_ingress_image }}
+Image={{ backend_ingress_image }}
 Pull=never
 # serves 80 and 443 and the admin api on localhost, where sak-backend reaches it
 Network=host
-User={{ controller_uid }}
-Group={{ controller_gid }}
-Volume={{ controller_ingress_data_path }}:/data
+User={{ backend_uid }}
+Group={{ backend_gid }}
+Volume={{ backend_ingress_data_path }}:/data
 # mounted at the same path, sak-backend configures the file servers with host paths
-Volume={{ controller_s3_data_path }}:{{ controller_s3_data_path }}:ro
+Volume={{ backend_s3_data_path }}:{{ backend_s3_data_path }}:ro
 ReadOnly=true
 # NoNewPrivileges would keep the caddy binary from gaining cap_net_bind_service
 DropCapability=all

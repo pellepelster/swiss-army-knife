@@ -1,4 +1,4 @@
-# the controller of the end-to-end tests, see playwright.config.ts
+# the backend of the end-to-end tests, see playwright.config.ts
 ktor:
   deployment:
     port: 18080

@@ -104,10 +104,10 @@ class SakBackendTest {
         sakConfig().dataDir shouldBe dataDir
     }
 
-    // the template of the controller role rendered as ansible renders it, with the inventory sakctl
+    // the template of the backend role rendered as ansible renders it, with the inventory sakctl
     // writes: its variables, its filters and its one condition; anything else left is an error
     private fun renderTemplate(smtp: Boolean): Path {
-        val template = Files.readString(Path.of("../ansible/roles/controller/templates/controller-config.yaml.j2"))
+        val template = Files.readString(Path.of("../ansible/roles/backend/templates/backend-config.yaml.j2"))
         val block = Regex("""\{% if sak_smtp_enabled \| bool %}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)
         val rendered =
             template
@@ -115,6 +115,7 @@ class SakBackendTest {
                 .replace(Regex("""\{% if sak_acme_ca [^%]*%}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)) { it.groupValues[1] }
                 .replace("{{ sak_acme_ca }}", "https://acme-staging-v02.api.letsencrypt.org/directory")
                 .replace("{{ sak_name }}", "alpha")
+                .replace("{{ backend_data_path }}", "/storage/data/alpha/backend/data")
                 .replace("{{ sak_dns_mode }}", "domain")
                 .replace("{{ sak_root_domain }}", "pelle.io")
                 .replace("{{ sak_api_public_key | to_json }}", "\"zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ=\"")
@@ -123,7 +124,7 @@ class SakBackendTest {
                 .replace("{{ sak_smtp_starttls | bool | lower }}", "false")
         rendered shouldNotContain "{{"
         rendered shouldNotContain "{%"
-        return tempDir.resolve("controller-config.yaml").also { Files.writeString(it, rendered) }
+        return tempDir.resolve("backend-config.yaml").also { Files.writeString(it, rendered) }
     }
 
     // backend.env as sakctl writes it, as the environment the backend reads
@@ -156,10 +157,11 @@ class SakBackendTest {
     }
 
     @Test
-    fun `the deployed configuration, the template of the controller role, is valid with a mail server`() {
+    fun `the deployed configuration, the template of the backend role, is valid with a mail server`() {
         val config = withBackendEnv(smtp = true) { SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, renderTemplate(smtp = true).toString())) }
 
         config.name shouldBe "alpha"
+        config.dataDir shouldBe Path.of("/storage/data/alpha/backend/data")
         config.dnsMode shouldBe DnsMode.DOMAIN
         // the staging ca of the integration tests, caddy takes it as its issuer
         config.acmeCa shouldBe "https://acme-staging-v02.api.letsencrypt.org/directory"

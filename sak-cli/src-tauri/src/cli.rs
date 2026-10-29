@@ -79,6 +79,23 @@ pub enum Command {
     /// The configuration of a running sak deployment
     #[command(subcommand)]
     Config(ConfigCommand),
+    /// Open an ssh session as root on the server of a sak deployment, or run a command there
+    /// (after --). It runs in the image of the tools with the key derived from the password, the
+    /// server verified by its derived host key; the key is never written
+    #[command(after_help = EXIT_CODES)]
+    Ssh {
+        #[command(flatten)]
+        provider: Provider,
+        /// The name of the deployment
+        #[arg(env = NAME_VARIABLE)]
+        name: String,
+        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        #[arg(long)]
+        password: bool,
+        /// A command to run on the server instead of a session
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
     /// Destroy a sak deployment: its DNS records, server, addresses, firewall and ssh key are
     /// removed, the data volume stays unless --delete-data is given. A deployment that is gone
     /// is destroyed already
@@ -226,6 +243,7 @@ pub fn is_command_line(args: &[String]) -> bool {
                 | "deploy"
                 | "destroy"
                 | "config"
+                | "ssh"
                 | "--help"
                 | "-h"
                 | "--version"
@@ -419,9 +437,8 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         Command::Deploy { deployment, .. } | Command::Destroy { deployment, .. } => {
             Some(password(deployment.password, false, password_variable())?)
         }
-        Command::Config(ConfigCommand::Show { password: ask, .. }) => {
-            Some(password(*ask, false, password_variable())?)
-        }
+        Command::Config(ConfigCommand::Show { password: ask, .. })
+        | Command::Ssh { password: ask, .. } => Some(password(*ask, false, password_variable())?),
     };
     let password = password.unwrap_or_default();
     let smtp_password = match &command {
@@ -435,7 +452,8 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         | Command::Create { provider, .. }
         | Command::Deploy { provider, .. }
         | Command::Destroy { provider, .. }
-        | Command::Config(ConfigCommand::Show { provider, .. }) => provider,
+        | Command::Config(ConfigCommand::Show { provider, .. })
+        | Command::Ssh { provider, .. } => provider,
     };
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
@@ -443,6 +461,9 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         Command::List(_) => list(&manager, &token).await,
         Command::Config(ConfigCommand::Show { name, .. }) => {
             show_config(&manager, &token, &name, &password.0).await
+        }
+        Command::Ssh { name, command, .. } => {
+            ssh(&manager, &token, &runtime, &name, &password.0, &command).await
         }
         Command::Create { deployment, .. } => {
             deploy(
@@ -533,6 +554,44 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
 }
 
 /// prints the running configuration of the deployment, one line for each setting
+/// a session on the server, or its command; the exit code of ssh is the exit code of sakctl
+async fn ssh(
+    manager: &DeploymentManager,
+    provider: &HetznerToken,
+    runtime: &ContainerRuntime,
+    name: &str,
+    password: &str,
+    command: &[String],
+) -> Result<(), WizardError> {
+    let target = manager
+        .ssh_target(provider.tokens(), name, password)
+        .await?;
+    let runtime = runtime
+        .get()
+        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    log(
+        Level::Info,
+        t!(
+            "cli.ssh_connecting",
+            name = name.trim(),
+            host = target.host.as_str()
+        ),
+    );
+    let command = command.to_vec();
+    let code = tokio::task::spawn_blocking(move || {
+        crate::core::ssh::open_session(runtime, &target, &command)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    match code {
+        0 => Ok(()),
+        code => Err(WizardError::new(
+            t!("cli.ssh_ended", code = code).to_string(),
+            code,
+        )),
+    }
+}
+
 async fn show_config(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -873,6 +932,29 @@ mod tests {
         assert!(!shown.contains(password) && !shown.contains(&key.public_key()));
         // nor the password of the mail server, which the backend answers for a redeploy
         assert!(!shown.contains("the-smtp-password"));
+    }
+
+    #[test]
+    fn ssh_takes_the_name_and_a_command_after_two_dashes() {
+        assert!(is_command_line(&["ssh".to_string()]));
+        let Some(Command::Ssh {
+            name,
+            command,
+            password,
+            ..
+        }) = parse(&["ssh", "alpha", "--", "uptime", "-p"])
+            .unwrap()
+            .command
+        else {
+            panic!("no ssh command");
+        };
+        assert_eq!(name, "alpha");
+        assert_eq!(command, ["uptime", "-p"]);
+        assert!(!password);
+        let Some(Command::Ssh { command, .. }) = parse(&["ssh", "alpha"]).unwrap().command else {
+            panic!("no ssh command");
+        };
+        assert!(command.is_empty());
     }
 
     #[test]

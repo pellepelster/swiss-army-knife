@@ -1177,6 +1177,46 @@ impl DeploymentManager {
         verify_password(&deployment, name, password)
     }
 
+    /// the server of the deployment `name` and the keys of `password` to reach it, the password
+    /// checked against the deployment first
+    pub async fn ssh_target(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<crate::core::ssh::SshTarget, String> {
+        let name = checked_name(name).map_err(|error| error.message)?;
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("shared.deployments.no_provider").to_string());
+        };
+        let deployment = discover(&HetznerApi::new(&token))
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
+        verify_password(&deployment, name, password)?;
+        let server = deployment
+            .server
+            .as_ref()
+            .ok_or_else(|| t!("cli.ssh_no_server", name = name).to_string())?;
+        Ok(crate::core::ssh::SshTarget {
+            host: server
+                .public_ipv4
+                .clone()
+                .ok_or_else(|| t!("shared.provision.no_address", name = name).to_string())?,
+            host_ipv6: server
+                .public_ipv6
+                .clone()
+                .map(|network| first_address(&network)),
+            client_key: crate::core::keys::derive_key(name, password)?,
+            host_key: crate::core::keys::derive_host_key(name, password)?,
+        })
+    }
+
     pub async fn running_config(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -2038,7 +2078,7 @@ mod tests {
     #[test]
     fn a_task_is_shown_without_its_role() {
         assert_eq!(
-            task_name("pelle_io.sak.controller : Install the backend"),
+            task_name("pelle_io.sak.backend : Install the backend"),
             "Install the backend"
         );
         assert_eq!(task_name("Gathering Facts"), "Gathering Facts");

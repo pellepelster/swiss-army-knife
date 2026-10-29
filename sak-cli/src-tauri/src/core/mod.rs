@@ -13,6 +13,7 @@ pub mod i18n;
 pub mod keys;
 pub mod providers;
 pub mod provision;
+pub mod ssh;
 
 #[cfg(test)]
 mod tests {

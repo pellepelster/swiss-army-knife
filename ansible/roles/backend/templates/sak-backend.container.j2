@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+[Unit]
+Description=sak-backend
+
+[Container]
+ContainerName=sak-backend
+Image={{ backend_image }}
+Pull=never
+# the backend configures caddy via its admin api on localhost, caddy proxies to the
+# backend on localhost
+Network=host
+User={{ backend_uid }}
+Group={{ backend_gid }}
+EnvironmentFile={{ backend_env_file }}
+Volume={{ backend_config_file }}:/etc/sak/config.yaml:ro
+Volume={{ backend_data_path }}:{{ backend_data_path }}
+# the image's /data volume is not used, the data lives in the mounted backend_data_path
+PodmanArgs=--image-volume=ignore
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=on-failure
+RestartSec=5
+# the jvm exits with 143 on SIGTERM
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

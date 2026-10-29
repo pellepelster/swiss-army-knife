@@ -21,7 +21,7 @@ const IPV4: &str = "203.0.113.10";
 const IPV6: &str = "2001:db8:1::1";
 
 /// the tasks of the playbook `pelle_io.sak.server` as its callback names them, in their order:
-/// the pre tasks, then the roles common, storage and controller (ansible/roles/*/tasks/main.yml)
+/// the pre tasks, then the roles common, storage and backend (ansible/roles/*/tasks/main.yml)
 const TASKS: &[&str] = &[
     "Wait for the server to accept ssh",
     "Gather facts",
@@ -42,8 +42,9 @@ const TASKS: &[&str] = &[
     "Check that the required variables are set",
     "Install podman",
     "Create the sak group",
+    "Create the data directory of the deployment",
     "Create the sak user",
-    "Create the controller directory",
+    "Create the backend directory",
     "Create the data directory",
     "Create the s3 data directory",
     "Create the ingress data directory",
@@ -51,8 +52,8 @@ const TASKS: &[&str] = &[
     "Create the log data directories",
     "Pull the images",
     "Upload the vector configuration",
-    "Write the controller configuration",
-    "Upload the controller environment",
+    "Write the backend configuration",
+    "Upload the backend environment",
     "Stop the sak-controller container",
     "Remove the sak-controller quadlet and the image archives",
     "Install the quadlets",

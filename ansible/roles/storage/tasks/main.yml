@@ -21,7 +21,7 @@
 
 - name: Create the mount point
   ansible.builtin.file:
-    path: "{{ storage_mount_path }}"
+    path: "{{ sak_mount_dir }}"
     state: directory
     owner: root
     group: root
@@ -30,7 +30,7 @@
 - name: Mount the data volume
   ansible.posix.mount:
     src: "{{ storage_device }}"
-    path: "{{ storage_mount_path }}"
+    path: "{{ sak_mount_dir }}"
     fstype: "{{ storage_fstype }}"
     opts: "{{ storage_mount_options }}"
     state: mounted

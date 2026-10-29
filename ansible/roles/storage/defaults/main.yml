@@ -2,7 +2,7 @@
 # block device of the data volume, e.g. /dev/disk/by-id/scsi-0HC_Volume_12345678 (required)
 storage_device: ""
 # path the data volume is mounted at
-storage_mount_path: /storage/data
+sak_mount_dir: /storage/data
 # filesystem the data volume is formatted with if it has none yet
 storage_fstype: ext4
 storage_mount_options: defaults,nofail,discard

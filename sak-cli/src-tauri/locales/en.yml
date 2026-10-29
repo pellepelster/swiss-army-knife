@@ -18,6 +18,10 @@ cli:
   no_hcloud_token: "No Hetzner Cloud token: set HCLOUD_TOKEN, or run the command in a terminal to type it."
   hcloud_token_prompt: "API token of the Hetzner Cloud project: "
   done: "The deployment %{name} is up-to-date."
+  ssh_connecting: "Connecting to root@%{host}, the server of %{name}…"
+  ssh_ended: "ssh ended with exit code %{code}."
+  ssh_no_server: "The deployment %{name} has no server."
+  ssh_not_started: "%{runtime} could not start the container of the ssh session: %{error}"
 shared:
   checks:
     not_finished: "A check did not finish: %{error}"

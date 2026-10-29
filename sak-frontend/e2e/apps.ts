@@ -7,7 +7,7 @@ import { loginLinkFor } from './mailpit';
 export const ADMIN = 'admin@example.org';
 
 // signs in with the link e-mailed to the address on the way to the page, ends on it; every spec
-// signs in with an address of its own (e2e/controller-config.yaml), the controller sends at
+// signs in with an address of its own (e2e/backend-config.yaml), the controller sends at
 // most five links an hour to each
 export async function signIn(
   page: Page,

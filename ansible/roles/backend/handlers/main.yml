@@ -28,5 +28,5 @@
 - name: Remove replaced images
   ansible.builtin.command:
     cmd: podman image prune --force
-  register: controller_image_prune
-  changed_when: controller_image_prune.stdout | length > 0
+  register: backend_image_prune
+  changed_when: backend_image_prune.stdout | length > 0

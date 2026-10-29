@@ -50,22 +50,22 @@ tasks.distZip {
     enabled = false
 }
 
-// SakBackendTest validates the deployed configuration, the template of the controller role
+// SakBackendTest validates the deployed configuration, the template of the backend role
 tasks.test {
-    inputs.file(rootProject.file("ansible/roles/controller/templates/controller-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootProject.file("ansible/roles/backend/templates/backend-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-// the unit tests of the vector configuration the controller role deploys, run with the image
+// the unit tests of the vector configuration the backend role deploys, run with the image
 // the role deploys (needs docker, so not part of check; the console's e2eTest depends on it)
 val vectorTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Run the unit tests of the vector configuration in docker"
-    val files = rootProject.file("ansible/roles/controller/files")
+    val files = rootProject.file("ansible/roles/backend/files")
     val image =
         rootProject
-            .file("ansible/roles/controller/defaults/main.yml")
+            .file("ansible/roles/backend/defaults/main.yml")
             .readLines()
-            .single { it.startsWith("controller_vector_image:") }
+            .single { it.startsWith("backend_vector_image:") }
             .substringAfter(":")
             .trim()
     inputs.dir(files)

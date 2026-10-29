@@ -4,7 +4,7 @@ version: 0.1.0
 readme: README.md
 authors:
   - Christian 'Pelle' Pelster <pelle@pelle.io>
-description: Provisioning for the swiss-army-knife controller server
+description: Provisioning for the swiss-army-knife backend server
 license:
   - MIT
 tags:

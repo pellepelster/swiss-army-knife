@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+[Unit]
+Description=sak-victorialogs
+
+[Container]
+ContainerName=sak-victorialogs
+Image={{ backend_victorialogs_image }}
+Pull=missing
+# listens on localhost only, vector ships to it and the backend queries it there
+Network=host
+User={{ backend_uid }}
+Group={{ backend_gid }}
+Volume={{ backend_victorialogs_data_path }}:/victoria-logs-data
+Exec=-storageDataPath=/victoria-logs-data -httpListenAddr=127.0.0.1:9428 -retentionPeriod={{ backend_victorialogs_retention }} -retention.maxDiskSpaceUsageBytes={{ backend_victorialogs_max_disk_usage }}
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

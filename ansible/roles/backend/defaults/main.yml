@@ -1,16 +1,20 @@
 ---
-# the controller, pulled on every run: CI pushes it from main
-controller_image: ghcr.io/pellepelster/sak-backend:latest
-# everything of the backend lives below this path on the data volume
-controller_base_path: /storage/data/backend
-# mounted at the same path into the container, the controller hands caddy paths below it
-controller_data_path: "{{ controller_base_path }}/data"
+# the backend, pulled on every run: CI pushes it from main
+backend_image: ghcr.io/pellepelster/sak-backend:latest
+# path the data volume is mounted at, the same default as the storage role
+sak_mount_dir: /storage/data
+# everything of the deployment lives below this path on the data volume
+sak_data_dir: "{{ sak_mount_dir }}/{{ sak_name }}"
+# everything of the backend lives below this path
+backend_base_path: "{{ sak_data_dir }}/backend"
+# mounted at the same path into the container, the backend hands caddy paths below it
+backend_data_path: "{{ backend_base_path }}/data"
 # the s3 api stores the buckets here (always s3 below sak.data_dir), caddy serves buckets
 # with domains from it
-controller_s3_data_path: "{{ controller_data_path }}/s3"
-controller_config_file: "{{ controller_base_path }}/config.yaml"
+backend_s3_data_path: "{{ backend_data_path }}/s3"
+backend_config_file: "{{ backend_base_path }}/config.yaml"
 # the name of the deployment (required), its dns mode and its root domain (required), written
-# into the controller configuration (templates/controller-config.yaml.j2); sakctl sets them in the
+# into the backend configuration (templates/backend-config.yaml.j2); sakctl sets them in the
 # inventory of the run
 sak_name: ""
 sak_dns_mode: subdomain
@@ -32,28 +36,28 @@ sak_admin_email: ""
 sak_smtp_enabled: false
 sak_smtp_tls: false
 sak_smtp_starttls: true
-# environment of the controller container, holds the s3 credentials the configuration references
-controller_env_file: "{{ controller_base_path }}/backend.env"
+# environment of the backend container, holds the s3 credentials the configuration references
+backend_env_file: "{{ backend_base_path }}/backend.env"
 # local path of the environment file (required)
-controller_env_src: ""
-controller_user: sak
-controller_group: sak
+backend_env_src: ""
+backend_user: sak
+backend_group: sak
 # the user all images run as, the host user and group are identical so the files the
 # containers write belong to them
-controller_uid: 10000
-controller_gid: 10000
-# the ingress (caddy), pulled on every run like the controller
-controller_ingress_image: ghcr.io/pellepelster/sak-ingress:latest
+backend_uid: 10000
+backend_gid: 10000
+# the ingress (caddy), pulled on every run like the backend
+backend_ingress_image: ghcr.io/pellepelster/sak-ingress:latest
 # caddy keeps its certificates and acme state here
-controller_ingress_data_path: /storage/data/ingress
+backend_ingress_data_path: "{{ sak_data_dir }}/ingress"
 # victorialogs keeps the ingress access logs the console computes the metrics of the sites
 # from, it only listens on localhost; both log images are pulled at a pinned tag
-controller_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0
-controller_victorialogs_data_path: /storage/data/victorialogs
+backend_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0
+backend_victorialogs_data_path: "{{ sak_data_dir }}/victorialogs"
 # longer than the longest range the console shows (30 days)
-controller_victorialogs_retention: 35d
-controller_victorialogs_max_disk_usage: 10GiB
+backend_victorialogs_retention: 35d
+backend_victorialogs_max_disk_usage: 10GiB
 # vector ships the access log from the ingress data directory to victorialogs
-controller_vector_image: docker.io/timberio/vector:0.60.0-alpine
-controller_vector_data_path: /storage/data/vector
-controller_vector_config_file: "{{ controller_base_path }}/vector.yaml"
+backend_vector_image: docker.io/timberio/vector:0.60.0-alpine
+backend_vector_data_path: "{{ sak_data_dir }}/vector"
+backend_vector_config_file: "{{ backend_base_path }}/vector.yaml"
