@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { apiErrorMessage } from '../shared/api';
@@ -122,7 +122,7 @@ import { BucketsService } from './buckets.service';
     }
   `,
 })
-export class BucketView implements OnInit {
+export class BucketView {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
@@ -136,8 +136,12 @@ export class BucketView implements OnInit {
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
 
-  ngOnInit(): void {
-    this.store.load(this.name());
+  constructor() {
+    // the bucket of the route, again when the route names another one
+    effect(() => {
+      const name = this.name();
+      untracked(() => this.store.load(name));
+    });
   }
 
   // its objects stay, the name stays taken

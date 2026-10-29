@@ -221,6 +221,36 @@ describe('Hosting', () => {
     expect(text('bytes')).toBe('2.5 MB');
   });
 
+  it('follows the bucket of the route, the counting of the one before asks no more', async () => {
+    await open('/static-hosting/site');
+    http
+      .expectOne('/api/v1/static-hosting/site')
+      .flush(bucket('site', ['example.org'], { computing: true, failed: false }));
+    await harness.fixture.whenStable();
+
+    // only the parameter changes, the page stays
+    await open('/static-hosting/other');
+    http.expectOne('/api/v1/static-hosting/other').flush(bucket('other', ['example.com']));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('h1')?.textContent).toBe('other');
+    expect(text('domains')).toBe('https://example.com/');
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    http.expectNone('/api/v1/static-hosting/site');
+  });
+
+  it('edits the bucket the route names, again when it names another', async () => {
+    await open('/static-hosting/site/edit');
+    http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
+    await harness.fixture.whenStable();
+
+    await open('/static-hosting/other/edit');
+    http.expectOne('/api/v1/static-hosting/other').flush(bucket('other', ['example.com']));
+    await harness.fixture.whenStable();
+    expect(page().querySelector<HTMLInputElement>('#edit-bucket-name')!.value).toBe('other');
+    expect(page().querySelector<HTMLInputElement>('#domain-0')!.value).toBe('example.com');
+  });
+
   it('reports an unknown bucket', async () => {
     await open('/static-hosting/missing');
     http

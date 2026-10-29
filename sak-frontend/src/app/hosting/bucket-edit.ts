@@ -1,4 +1,13 @@
-import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { errorMessages } from '../shared/api';
@@ -66,7 +75,7 @@ import { DomainList } from './domain-list';
     }
   `,
 })
-export class BucketEdit implements OnInit {
+export class BucketEdit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
@@ -81,11 +90,17 @@ export class BucketEdit implements OnInit {
   protected readonly saveErrors = signal<string[]>([]);
   protected readonly valid = computed(() => validDomains(this.domains()));
 
-  ngOnInit(): void {
-    this.service
-      .bucket(this.name())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
+  constructor() {
+    // the bucket of the route, again when the route names another one; a late answer for the
+    // bucket before never fills the form
+    effect((onCleanup) => {
+      const name = this.name();
+      untracked(() => {
+        this.loaded.set(false);
+        this.error.set(null);
+        this.saveErrors.set([]);
+      });
+      const subscription = this.service.bucket(name).subscribe({
         next: (bucket) => {
           this.domains.set([...bucket.domains]);
           this.loaded.set(true);
@@ -93,6 +108,8 @@ export class BucketEdit implements OnInit {
         error: (error: unknown) =>
           this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
       });
+      onCleanup(() => subscription.unsubscribe());
+    });
   }
 
   protected save(): void {

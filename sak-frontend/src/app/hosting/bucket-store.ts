@@ -1,7 +1,7 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { apiErrorMessage } from '../shared/api';
-import { timer } from 'rxjs';
+import { Subscription, timer } from 'rxjs';
 import { Bucket, BucketSecret, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
 
 // the bucket of a bucket's page, shared by the page and its tabs; provided by the page
@@ -19,44 +19,59 @@ export class BucketStore {
   readonly retrievingSecret = signal(false);
   readonly secretError = signal<string | null>(null);
 
+  // the load going on, its request or the timer before it asks again; a new load ends it
+  private loading = new Subscription();
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.loading.unsubscribe());
+  }
+
   // the key pair is fetched once for all the tabs
   retrieveSecret(): void {
     if (this.secret() || this.retrievingSecret()) return;
+    const name = this.name();
     this.retrievingSecret.set(true);
     this.secretError.set(null);
     this.service
-      .secret(this.name())
+      .secret(name)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
+        // the key pair of a bucket the page has left is not shown for the next
         next: (secret) => {
+          if (name !== this.name()) return;
           this.retrievingSecret.set(false);
           this.secret.set(secret);
         },
         error: (error: unknown) => {
+          if (name !== this.name()) return;
           this.retrievingSecret.set(false);
           this.secretError.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
         },
       });
   }
 
-  // asks again after a while as long as the bucket is still being counted
+  // asks again after a while as long as the bucket is still being counted; the load of the
+  // bucket before ends, what was shown of another bucket goes
   load(name: string): void {
+    if (name !== this.name()) {
+      this.bucket.set(null);
+      this.error.set(null);
+      this.secret.set(null);
+      this.secretError.set(null);
+      this.retrievingSecret.set(false);
+    }
     this.name.set(name);
-    this.service
-      .bucket(name)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (bucket) => {
-          this.bucket.set(bucket);
-          if (bucket.statistics.computing) {
-            timer(POLL_INTERVAL_MS)
-              .pipe(takeUntilDestroyed(this.destroyRef))
-              .subscribe(() => this.load(name));
-          }
-        },
-        error: (error: unknown) =>
-          this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
-      });
+    this.loading.unsubscribe();
+    this.loading = this.service.bucket(name).subscribe({
+      next: (bucket) => {
+        this.bucket.set(bucket);
+        if (bucket.statistics.computing) {
+          this.loading = timer(POLL_INTERVAL_MS).subscribe(() => this.load(name));
+        }
+      },
+      error: (error: unknown) =>
+        this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
+    });
   }
 }
 
