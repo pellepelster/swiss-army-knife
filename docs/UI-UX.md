@@ -63,6 +63,9 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
   password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`). An argument
   would show in the list of processes.
+- **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
+  Encrypt, which has none of the limits of the production one; the deployment keeps it, sakctl trusts its roots. The
+  integration tests use it.
 - **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show the
   running configuration) with the same rules and texts. Without a command, the window opens.
 - **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists

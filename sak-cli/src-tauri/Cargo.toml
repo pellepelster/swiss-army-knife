@@ -24,7 +24,7 @@ futures-util = "0.3"
 sak-cloud = { path = "../cloud" }
 argon2 = "0.5.3"
 clap = { version = "4", features = ["derive", "env"] }
-tokio = { version = "1", features = ["rt", "sync"] }
+tokio = { version = "1", features = ["rt", "sync", "time"] }
 anstream = "1"
 anstyle = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

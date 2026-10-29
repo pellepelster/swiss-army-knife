@@ -43,6 +43,7 @@ fun caddyConfig(
     port: Int,
 ): CaddyConfig =
     caddyConfig {
+        config.acmeCa?.let { acmeCa(it) }
         server("sak") {
             listen(":80", ":443")
             // the ingress writes the access log to the file its caddyfile configures

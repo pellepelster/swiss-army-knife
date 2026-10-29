@@ -41,6 +41,10 @@ data class SakConfig(
     // the public addresses of the server the backend runs on, none e.g. locally
     val addresses: AddressesConfig = AddressesConfig(),
     val dns: DnsConfig = DnsConfig(),
+    // the directory of the acme ca caddy gets the certificates from, e.g. the staging ca of let's
+    // encrypt for tests; caddy's default issuers without
+    @SerialName("acme_ca")
+    val acmeCa: String? = null,
 ) {
     init {
         require(apiTokenSha256 == null || SHA256_HEX.matches(apiTokenSha256)) { "the api_token_sha256 is no sha-256 in hex" }

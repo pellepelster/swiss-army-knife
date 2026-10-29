@@ -10,11 +10,11 @@
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    ADMIN_EMAIL_VARIABLE, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentManager,
-    Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment, PASSWORD_VARIABLE,
-    SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE,
-    SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, complete, key,
-    parse_flag, resource_status,
+    ADMIN_EMAIL_VARIABLE, AcmeCa, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS,
+    DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment,
+    PASSWORD_VARIABLE, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
+    SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE,
+    UserMode, complete, key, parse_flag, resource_status,
 };
 use crate::core::error::{EXIT_OK, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
@@ -160,6 +160,11 @@ pub struct DeploymentArgs {
     /// The user name at the mail server
     #[arg(long, env = SMTP_USERNAME_VARIABLE, default_value = "")]
     smtp_username: String,
+    /// Where the certificates of the deployment come from: production, or staging, the staging ca
+    /// of let's encrypt for test deployments (sakctl then trusts its roots). Not given: the
+    /// deployment's own for a deploy, production for a create
+    #[arg(long, value_parser = parse_acme_ca)]
+    acme_ca: Option<AcmeCa>,
     /// Ask for the password at the mail server on the terminal, even when SAK_SMTP_PASSWORD is
     /// set. It is never an argument: it comes from SAK_SMTP_PASSWORD or is typed, without echo;
     /// without either the mail server has none, a redeploy takes over the running one
@@ -184,6 +189,13 @@ fn parse_location(value: &str) -> Result<Location, String> {
             let known: Vec<String> = LOCATIONS.iter().map(|location| key(&location.id)).collect();
             format!("one of {}", known.join(", "))
         })
+}
+
+fn parse_acme_ca(value: &str) -> Result<AcmeCa, String> {
+    AcmeCa::parse(value).ok_or_else(|| {
+        let known: Vec<&str> = AcmeCa::ALL.iter().map(|ca| ca.as_str()).collect();
+        format!("one of {}", known.join(", "))
+    })
 }
 
 fn parse_user_mode(value: &str) -> Result<UserMode, String> {
@@ -310,6 +322,7 @@ impl DeploymentArgs {
             intent,
             delete_data,
             user_mode: self.user_mode,
+            acme_ca: self.acme_ca,
             smtp: self.smtp_host.as_ref().map(|host| Smtp {
                 host: host.clone(),
                 port: self.smtp_port,

@@ -41,6 +41,8 @@ data class CaddyTlsPolicy(
 data class CaddyIssuer(
     val module: String = "acme",
     val email: String? = null,
+    // the directory of the acme ca, let's encrypt unless given
+    val ca: String? = null,
 )
 
 @Serializable

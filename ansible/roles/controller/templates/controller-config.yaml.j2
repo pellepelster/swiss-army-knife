@@ -12,6 +12,10 @@ sak:
   api_token_sha256: {{ sak_api_token_sha256 }}
   data_dir: /storage/data/backend/data
   root_domain: {{ sak_root_domain }}
+{% if sak_acme_ca | default('', true) | length > 0 %}
+  # the acme ca caddy gets its certificates from, the staging ca of let's encrypt for tests
+  acme_ca: {{ sak_acme_ca }}
+{% endif %}
   auth:
     # the admin signs in with the password of the deployment
     admin_password: $SAK_ADMIN_PASSWORD_HASH

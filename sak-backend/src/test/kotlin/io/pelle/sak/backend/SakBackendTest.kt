@@ -112,6 +112,8 @@ class SakBackendTest {
         val rendered =
             template
                 .replace(block) { if (smtp) it.groupValues[1] else "" }
+                .replace(Regex("""\{% if sak_acme_ca [^%]*%}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)) { it.groupValues[1] }
+                .replace("{{ sak_acme_ca }}", "https://acme-staging-v02.api.letsencrypt.org/directory")
                 .replace("{{ sak_name }}", "alpha")
                 .replace("{{ sak_dns_mode }}", "domain")
                 .replace("{{ sak_root_domain }}", "pelle.io")
@@ -159,6 +161,10 @@ class SakBackendTest {
 
         config.name shouldBe "alpha"
         config.dnsMode shouldBe DnsMode.DOMAIN
+        // the staging ca of the integration tests, caddy takes it as its issuer
+        config.acmeCa shouldBe "https://acme-staging-v02.api.letsencrypt.org/directory"
+        caddyConfig(config, emptyMap(), emptyMap(), 8080).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe
+            "https://acme-staging-v02.api.letsencrypt.org/directory"
         config.frontendUrl shouldBe "https://sak.pelle.io"
         config.auth!!.admins shouldBe listOf("admin@example.org")
         config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"

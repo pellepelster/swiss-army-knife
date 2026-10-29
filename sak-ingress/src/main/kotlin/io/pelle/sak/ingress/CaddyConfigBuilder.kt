@@ -42,6 +42,7 @@ annotation class CaddyDsl
 class CaddyConfigBuilder {
     private val servers = linkedMapOf<String, CaddyServer>()
     private var acmeEmail: String? = null
+    private var acmeCa: String? = null
     private var accessLog: CaddyLog? = null
 
     fun server(
@@ -59,6 +60,12 @@ class CaddyConfigBuilder {
         acmeEmail = email
     }
 
+    // the certificates from the acme ca of this directory, e.g. the staging ca of let's encrypt
+    // for tests, instead of caddy's default issuers
+    fun acmeCa(directory: String) {
+        acmeCa = directory
+    }
+
     fun build(): CaddyConfig =
         CaddyConfig(
             logging =
@@ -74,8 +81,10 @@ class CaddyConfigBuilder {
                 CaddyApps(
                     http = CaddyHttpApp(servers.toMap()),
                     tls =
-                        acmeEmail?.let {
-                            CaddyTlsApp(CaddyTlsAutomation(listOf(CaddyTlsPolicy(listOf(CaddyIssuer(email = it))))))
+                        if (acmeEmail != null || acmeCa != null) {
+                            CaddyTlsApp(CaddyTlsAutomation(listOf(CaddyTlsPolicy(listOf(CaddyIssuer(email = acmeEmail, ca = acmeCa))))))
+                        } else {
+                            null
                         },
                 ),
         )

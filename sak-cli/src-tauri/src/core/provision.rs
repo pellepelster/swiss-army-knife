@@ -47,6 +47,8 @@ pub struct ProvisionRun {
     pub smtp: Option<crate::core::deployments::Smtp>,
     /// `SAK_ADMIN_PASSWORD_HASH` of `backend.env`, the argon2id hash of the admin password
     pub admin_password_hash: String,
+    /// `sak_acme_ca`: the acme directory caddy gets the certificates from, none for its default
+    pub acme_ca: Option<String>,
 }
 
 impl ProvisionRun {
@@ -54,7 +56,7 @@ impl ProvisionRun {
         format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
              ansible_ssh_private_key_file: {dir}/id_ed25519\n      ansible_ssh_common_args: -F {dir}/ssh_config\n      \
-             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_api_token_sha256: {api_token_sha256}\n      sak_admin_email: {admin_email}\n      \
+             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_token_sha256: {api_token_sha256}\n      sak_admin_email: {admin_email}\n      \
              sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_tls: {smtp_tls}\n      \
              sak_smtp_starttls: {smtp_starttls}\n      controller_env_src: {dir}/backend.env\n",
             name = self.name,
@@ -63,6 +65,7 @@ impl ProvisionRun {
             device = self.storage_device,
             dns_mode = self.dns_mode,
             root_domain = self.root_domain,
+            acme_ca = self.acme_ca.as_deref().unwrap_or_default(),
             api_token_sha256 = self.api_token_sha256,
             admin_email = self.admin_email,
             smtp_enabled = self.smtp.is_some(),
@@ -359,6 +362,7 @@ mod tests {
                 starttls: false,
             }),
             admin_password_hash: "$argon2id$v=19$m=19456,t=2,p=1$salt$hash".to_string(),
+            acme_ca: Some("https://acme-staging-v02.api.letsencrypt.org/directory".to_string()),
         }
     }
 
@@ -414,6 +418,9 @@ mod tests {
     fn the_inventory_tells_the_controller_role_the_admin_and_the_mail_server() {
         let inventory = run().inventory();
         assert!(inventory.contains("      sak_admin_email: admin@example.org\n"));
+        assert!(inventory.contains(
+            "      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n"
+        ));
         assert!(inventory.contains("      sak_smtp_enabled: true\n"));
         // without starttls implicit tls, never plain text
         assert!(inventory.contains("      sak_smtp_tls: true\n      sak_smtp_starttls: false\n"));
@@ -440,7 +447,7 @@ mod tests {
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
         // what the controller role writes into the configuration of the backend
         assert!(inventory.contains(
-            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_api_token_sha256: abab"
+            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n      sak_api_token_sha256: abab"
         ));
         assert!(inventory.contains("ansible_ssh_private_key_file: /run/sak/id_ed25519"));
         assert!(inventory.contains("storage_device: /dev/disk/by-id/scsi-0HC_Volume_1"));

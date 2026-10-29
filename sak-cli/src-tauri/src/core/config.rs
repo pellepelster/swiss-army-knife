@@ -41,9 +41,24 @@ pub fn api_url(base_domain: &str) -> String {
 /// `GET <api>/v1/config` with the token as bearer; a refused token says the backend does not
 /// know the token of this password (yet). The token goes over https only and to the api alone:
 /// a plain http api is refused before any request, a redirect is not followed but fails
-pub async fn fetch(api: &str, token: &str) -> Result<RunningConfig, String> {
-    fetch_from(api, token, Transport::HttpsOnly).await
+pub async fn fetch(api: &str, token: &str, trust: Trust) -> Result<RunningConfig, String> {
+    fetch_from(api, token, Transport::HttpsOnly, trust).await
 }
+
+/// whose certificates a deployment has: of a public ca, or of the staging ca of let's encrypt,
+/// whose roots are trusted then as well (a deployment of the tests)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Trust {
+    Public,
+    LetsEncryptStaging,
+}
+
+/// the roots of the staging ca of let's encrypt, `(STAGING) Pretend Pear X1` and `(STAGING) Bogus
+/// Broccoli X2`, as letsencrypt.org/certs/staging serves them
+const STAGING_ROOTS: [&str; 2] = [
+    include_str!("../../certs/letsencrypt-stg-root-x1.pem"),
+    include_str!("../../certs/letsencrypt-stg-root-x2.pem"),
+];
 
 /// whether plain http is refused; only the tests talk to their mock backend over http
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -53,26 +68,24 @@ enum Transport {
     PlainHttp,
 }
 
-async fn fetch_from(api: &str, token: &str, transport: Transport) -> Result<RunningConfig, String> {
+async fn fetch_from(
+    api: &str,
+    token: &str,
+    transport: Transport,
+    trust: Trust,
+) -> Result<RunningConfig, String> {
     let url = format!("{api}/v1/config");
     let https_only = transport == Transport::HttpsOnly;
     if https_only && !api.starts_with("https://") {
         return Err(t!("config.not_https", url = api).to_string());
     }
-    let client = Client::builder()
-        .user_agent(concat!("sakctl/", env!("CARGO_PKG_VERSION")))
-        .timeout(Duration::from_secs(30))
-        .redirect(Policy::none())
-        .https_only(https_only)
-        .build()
-        .map_err(|error| error.to_string())?;
-    let response = client
+    let response = client(https_only, trust)?
         .get(&url)
         .bearer_auth(token)
         .send()
         .await
         .map_err(|error| {
-            t!("config.unreachable", url = url, error = error.to_string()).to_string()
+            t!("config.unreachable", url = url, error = with_causes(&error)).to_string()
         })?;
     match response.status() {
         status if status.is_success() => response
@@ -82,6 +95,85 @@ async fn fetch_from(api: &str, token: &str, transport: Transport) -> Result<Runn
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(t!("config.refused").to_string()),
         // a redirect too: the token goes to the api and nowhere else
         status => Err(t!("config.failed", url = url, status = status.to_string()).to_string()),
+    }
+}
+
+/// the client of the api of a deployment: no redirect followed, plain http only for the tests;
+/// the roots of the staging ca of let's encrypt trusted for a deployment with its certificates
+fn client(https_only: bool, trust: Trust) -> Result<Client, String> {
+    let mut builder = Client::builder()
+        .user_agent(concat!("sakctl/", env!("CARGO_PKG_VERSION")))
+        .timeout(Duration::from_secs(30))
+        .redirect(Policy::none())
+        .https_only(https_only);
+    if trust == Trust::LetsEncryptStaging {
+        for root in STAGING_ROOTS {
+            builder = builder.add_root_certificate(
+                reqwest::Certificate::from_pem(root.as_bytes())
+                    .map_err(|error| error.to_string())?,
+            );
+        }
+    }
+    builder.build().map_err(|error| error.to_string())
+}
+
+/// an error with every cause under it, so a failed request says why it failed (no name, no
+/// connection, no certificate): `error sending request: … : invalid peer certificate`
+pub fn with_causes(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        let cause_text = cause.to_string();
+        if !text.contains(&cause_text) {
+            text.push_str(": ");
+            text.push_str(&cause_text);
+        }
+        source = cause.source();
+    }
+    text
+}
+
+/// how long a new deployment has to answer at its public endpoint, its certificate included
+pub const API_WAIT: Duration = Duration::from_secs(300);
+
+/// waits until `GET <api>/v1/info`, the endpoint of a deployment that needs no login, answers:
+/// through its ingress, with its certificate, the way a user reaches it. Asked every `interval`;
+/// after `timeout` the cause of the last failure
+pub async fn wait_for_api(
+    api: &str,
+    trust: Trust,
+    timeout: Duration,
+    interval: Duration,
+) -> Result<(), String> {
+    wait_from(api, timeout, interval, Transport::HttpsOnly, trust).await
+}
+
+async fn wait_from(
+    api: &str,
+    timeout: Duration,
+    interval: Duration,
+    transport: Transport,
+    trust: Trust,
+) -> Result<(), String> {
+    let url = format!("{api}/v1/info");
+    let client = client(transport == Transport::HttpsOnly, trust)?;
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        let last = match client.get(&url).send().await {
+            Ok(response) if response.status().is_success() => return Ok(()),
+            Ok(response) => response.status().to_string(),
+            Err(error) => with_causes(&error),
+        };
+        if tokio::time::Instant::now() + interval > deadline {
+            return Err(t!(
+                "config.api_not_answering",
+                url = url,
+                seconds = timeout.as_secs(),
+                error = last
+            )
+            .to_string());
+        }
+        tokio::time::sleep(interval).await;
     }
 }
 
@@ -118,19 +210,29 @@ mod tests {
         )
         .await;
 
-        let config = fetch_from(&server.uri(), "sak_token", Transport::PlainHttp)
-            .await
-            .unwrap();
+        let config = fetch_from(
+            &server.uri(),
+            "sak_token",
+            Transport::PlainHttp,
+            Trust::Public,
+        )
+        .await
+        .unwrap();
 
         let smtp = config.smtp.unwrap();
         assert_eq!((smtp.host.as_str(), smtp.port), ("smtp.example.org", 465));
         assert!(smtp.password_set && smtp.tls && !smtp.starttls);
         let none = backend(200, serde_json::json!({ "smtp": null })).await;
         assert_eq!(
-            fetch_from(&none.uri(), "sak_token", Transport::PlainHttp)
-                .await
-                .unwrap()
-                .smtp,
+            fetch_from(
+                &none.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await
+            .unwrap()
+            .smtp,
             None
         );
     }
@@ -140,27 +242,48 @@ mod tests {
         let server = backend(200, serde_json::json!({})).await;
         // the mock knows only the right token, any other gets a 404
         assert!(
-            fetch_from(&server.uri(), "sak_other", Transport::PlainHttp)
-                .await
-                .is_err()
+            fetch_from(
+                &server.uri(),
+                "sak_other",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await
+            .is_err()
         );
         let refused = backend(401, serde_json::json!({})).await;
         assert_eq!(
-            fetch_from(&refused.uri(), "sak_token", Transport::PlainHttp).await,
+            fetch_from(
+                &refused.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await,
             Err(t!("config.refused").to_string())
         );
         let failing = backend(500, serde_json::json!({})).await;
         assert!(
-            fetch_from(&failing.uri(), "sak_token", Transport::PlainHttp)
-                .await
-                .unwrap_err()
-                .contains("500")
+            fetch_from(
+                &failing.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await
+            .unwrap_err()
+            .contains("500")
         );
         assert!(
-            fetch_from("http://127.0.0.1:1", "sak_token", Transport::PlainHttp)
-                .await
-                .unwrap_err()
-                .contains("127.0.0.1:1")
+            fetch_from(
+                "http://127.0.0.1:1",
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await
+            .unwrap_err()
+            .contains("127.0.0.1:1")
         );
     }
 
@@ -168,7 +291,13 @@ mod tests {
     async fn a_forbidden_answer_is_refused_like_an_unauthorized_one() {
         let forbidden = backend(403, serde_json::json!({})).await;
         assert_eq!(
-            fetch_from(&forbidden.uri(), "sak_token", Transport::PlainHttp).await,
+            fetch_from(
+                &forbidden.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public
+            )
+            .await,
             Err(t!("config.refused").to_string())
         );
     }
@@ -178,7 +307,7 @@ mod tests {
         let server = backend(200, serde_json::json!({ "smtp": null })).await;
 
         assert_eq!(
-            fetch(&server.uri(), "sak_token").await,
+            fetch(&server.uri(), "sak_token", Trust::Public).await,
             Err(t!("config.not_https", url = server.uri()).to_string())
         );
         assert!(server.received_requests().await.unwrap().is_empty());
@@ -203,7 +332,7 @@ mod tests {
             .mount(&api)
             .await;
 
-        let error = fetch_from(&api.uri(), "sak_token", Transport::PlainHttp)
+        let error = fetch_from(&api.uri(), "sak_token", Transport::PlainHttp, Trust::Public)
             .await
             .unwrap_err();
 
@@ -224,14 +353,86 @@ mod tests {
         let failing = backend(500, serde_json::json!({})).await;
         let unreadable = backend(200, serde_json::json!({ "smtp": "no config" })).await;
         let errors = [
-            fetch_from("http://127.0.0.1:1", "sak_token", Transport::PlainHttp).await,
-            fetch_from(&failing.uri(), "sak_token", Transport::PlainHttp).await,
-            fetch_from(&unreadable.uri(), "sak_token", Transport::PlainHttp).await,
-            fetch("http://api.example.org", "sak_token").await,
+            fetch_from(
+                "http://127.0.0.1:1",
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public,
+            )
+            .await,
+            fetch_from(
+                &failing.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public,
+            )
+            .await,
+            fetch_from(
+                &unreadable.uri(),
+                "sak_token",
+                Transport::PlainHttp,
+                Trust::Public,
+            )
+            .await,
+            fetch("http://api.example.org", "sak_token", Trust::Public).await,
         ];
         for error in errors {
             let error = error.unwrap_err();
             assert!(!error.contains("sak_token"), "{error}");
         }
+    }
+
+    #[tokio::test]
+    async fn the_wait_ends_when_the_public_endpoint_answers() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v1/info"))
+            .respond_with(ResponseTemplate::new(503))
+            .up_to_n_times(2)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/info"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let waited = wait_from(
+            &server.uri(),
+            Duration::from_secs(5),
+            Duration::from_millis(10),
+            Transport::PlainHttp,
+            Trust::Public,
+        )
+        .await;
+
+        assert_eq!(waited, Ok(()));
+        assert_eq!(server.received_requests().await.unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_wait_gives_up_with_the_cause() {
+        let error = wait_from(
+            "http://127.0.0.1:1",
+            Duration::from_millis(50),
+            Duration::from_millis(10),
+            Transport::PlainHttp,
+            Trust::Public,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.contains("http://127.0.0.1:1/v1/info"), "{error}");
+        // the cause under the request error: the connection was refused
+        assert!(error.to_lowercase().contains("connect"), "{error}");
+    }
+
+    #[test]
+    fn the_roots_of_the_staging_ca_are_certificates() {
+        for root in STAGING_ROOTS {
+            assert!(root.contains("BEGIN CERTIFICATE"));
+            assert!(reqwest::Certificate::from_pem(root.as_bytes()).is_ok());
+        }
+        assert!(client(true, Trust::LetsEncryptStaging).is_ok());
     }
 }

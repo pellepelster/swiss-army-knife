@@ -34,6 +34,10 @@ pub const DNS_MODE_LABEL: &str = "sak.pelle.io/dns-mode";
 /// of it: a deploy keeps it unless told otherwise
 pub const USER_MODE_LABEL: &str = "sak.pelle.io/user-mode";
 
+/// the acme ca the certificates of a deployment come from, `staging` for the staging ca of let's
+/// encrypt (tests), none for the default; on every resource of it, a deploy keeps it
+pub const ACME_CA_LABEL: &str = "sak.pelle.io/acme-ca";
+
 /// the root domain of a deployment, `pelle.io`, on every resource of it
 pub const ROOT_DOMAIN_LABEL: &str = "sak.pelle.io/root-domain";
 

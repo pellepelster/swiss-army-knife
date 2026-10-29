@@ -27,6 +27,11 @@ private val SINGLE_USER = arrayOf("--user-mode", "single")
 private const val FAKE_SMTP_HOST = "smtp.example.org"
 private val MULTI_USER = arrayOf("--user-mode", "multi", "--admin-email", "e2e@example.org", "--smtp-host", FAKE_SMTP_HOST)
 
+// every deployment of the tests gets its certificates from the staging ca of let's encrypt, which
+// has none of the limits of the production one; a deploy and a destroy keep it from the labels,
+// sakctl trusts its roots when it talks to the deployment
+private val STAGING_CA = arrayOf("--acme-ca", "staging")
+
 // the deployments of the tests are `test-<id>`, everything else in the project stays untouched
 private const val TEST_PREFIX = "test-"
 
@@ -62,7 +67,7 @@ class SakctlTest {
         dnsMode: String,
         rootDomain: String,
         vararg users: String = SINGLE_USER,
-    ): Int = sakctl.run("create", name, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain)
+    ): Int = sakctl.run("create", name, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain, *STAGING_CA)
 
     // `config show` once the backend answers, it starts after the provisioning: the lines it printed
     private fun configShow(name: String): List<String> {
@@ -86,17 +91,12 @@ class SakctlTest {
             // a deployment that is not there is destroyed already
             destroy(domain) shouldBe EXIT_OK
 
-            create(domain, "domain", DOMAIN_ZONE, *MULTI_USER) shouldBe EXIT_OK
-            // the admin api token sakctl derives is the one whose hash the provisioning wrote: the
-            // backend answers its running configuration, without a secret in it
-            configShow(domain).let { lines ->
-                lines.any { it.contains("smtp.host $FAKE_SMTP_HOST") } shouldBe true
-                lines.none { it.contains(password) || it.contains("sak_") } shouldBe true
-            }
-            // a deploy without --dns-mode and --root-domain keeps both: the records of the domain mode
-            // stay, nothing switches it to a subdomain deployment
-            // a deploy runs the whole playbook again, task by task
-            sakctl.output("deploy", domain, *MULTI_USER).let { (exit, lines) ->
+            // a create waits until the deployment answers at its public endpoint
+            create(domain, "domain", DOMAIN_ZONE) shouldBe EXIT_OK
+            // a deploy without --dns-mode, --root-domain and --user-mode keeps all three from the
+            // labels: the records of the domain mode stay, nothing switches it to a subdomain
+            // deployment; it runs the whole playbook again, task by task
+            sakctl.output("deploy", domain).let { (exit, lines) ->
                 exit shouldBe EXIT_OK
                 lines.any { it.contains("[ok] ") || it.contains("[changed] ") } shouldBe true
             }
@@ -105,7 +105,14 @@ class SakctlTest {
                 .filter { it.kind == "dns record" }
                 .map { it.name }
                 .shouldContainAll("@.$DOMAIN_ZONE/A", "*.$DOMAIN_ZONE/A", "@.$DOMAIN_ZONE/AAAA", "*.$DOMAIN_ZONE/AAAA")
-            create(subdomain, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_OK
+            // multi user below a name of its own for each run
+            create(subdomain, "subdomain", SUBDOMAIN_ZONE, *MULTI_USER) shouldBe EXIT_OK
+            // the admin api token sakctl derives is the one whose hash the provisioning wrote: the
+            // backend answers its running configuration, without a secret in it
+            configShow(subdomain).let { lines ->
+                lines.any { it.contains("smtp.host $FAKE_SMTP_HOST") } shouldBe true
+                lines.none { it.contains(password) || it.contains("sak_") } shouldBe true
+            }
 
             // the domain deployment manages the whole root domain: neither a second domain
             // deployment nor a subdomain deployment can use it, each with its own exit code

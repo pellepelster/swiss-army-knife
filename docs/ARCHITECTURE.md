@@ -118,6 +118,12 @@ and the health of the domains.
   configuration it was provisioned with, keyed by the password, so it tells nothing of the configuration; the plan
   tells from it whether the configuration changed. The label goes before a provisioning starts, so one that failed
   shows as missing.
+- **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the staging
+  ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots sakctl
+  then trusts). The integration tests use the staging ca, so they never run into the limits of the production one.
+- **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
+  (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
+  one that does not answer within some minutes fails, with the cause.
 
 ## Cloud resources
 

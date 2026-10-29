@@ -366,6 +366,50 @@ pub enum UserMode {
     Multi,
 }
 
+/// the acme ca the certificates of a deployment come from: production (caddy's default issuers)
+/// or the staging ca of let's encrypt, for the deployments of the tests, which runs into none of
+/// the limits of the production one
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AcmeCa {
+    #[default]
+    Production,
+    Staging,
+}
+
+impl AcmeCa {
+    pub const ALL: [AcmeCa; 2] = [AcmeCa::Production, AcmeCa::Staging];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AcmeCa::Production => "production",
+            AcmeCa::Staging => "staging",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<AcmeCa> {
+        AcmeCa::ALL
+            .into_iter()
+            .find(|ca| ca.as_str() == value.trim().to_lowercase())
+    }
+
+    /// the acme directory caddy gets the certificates from, none for its default issuers
+    pub fn directory(self) -> Option<&'static str> {
+        match self {
+            AcmeCa::Production => None,
+            AcmeCa::Staging => Some("https://acme-staging-v02.api.letsencrypt.org/directory"),
+        }
+    }
+
+    /// what sakctl trusts when it talks to such a deployment
+    pub fn trust(self) -> crate::core::config::Trust {
+        match self {
+            AcmeCa::Production => crate::core::config::Trust::Public,
+            AcmeCa::Staging => crate::core::config::Trust::LetsEncryptStaging,
+        }
+    }
+}
+
 impl UserMode {
     pub const ALL: [UserMode; 2] = [UserMode::Single, UserMode::Multi];
 
@@ -577,6 +621,10 @@ pub struct NewDeployment {
     /// who signs in, needed by a create and a deploy; a destroy needs none
     #[serde(default)]
     pub user_mode: Option<UserMode>,
+    /// where the certificates come from; none: the deployment's own for a deploy, production for a
+    /// create
+    #[serde(default)]
+    pub acme_ca: Option<AcmeCa>,
     /// the mail server of the e-mail login, needed by multi user, not used by single user
     #[serde(default)]
     pub smtp: Option<Smtp>,
@@ -640,6 +688,8 @@ struct Prepared {
     /// The plan tells from it whether the configuration changed; a deploy always provisions
     provisioned_config: String,
     provisioned: Option<String>,
+    /// where the certificates come from, what sakctl trusts when it waits for the deployment
+    acme_ca: AcmeCa,
 }
 
 impl Prepared {
@@ -654,7 +704,7 @@ impl Prepared {
             self.admin_email.as_deref().unwrap_or_default(),
             self.smtp.as_ref(),
             &self.admin_password_hash,
-        )
+        ) + &format!("\nacme_ca {}", self.acme_ca.as_str())
     }
 }
 
@@ -1065,7 +1115,12 @@ impl DeploymentManager {
             .find(|deployment| deployment.name == name)
             .ok_or_else(|| t!("deployments.not_found", name = name).to_string())?;
         let (url, token) = config_endpoint(&deployment, name, password)?;
-        let config = crate::core::config::fetch(&url, &token).await?;
+        let trust = deployment
+            .acme_ca()
+            .and_then(|ca| AcmeCa::parse(&ca))
+            .unwrap_or_default()
+            .trust();
+        let config = crate::core::config::fetch(&url, &token, trust).await?;
         Ok((url, config))
     }
 
@@ -1115,6 +1170,7 @@ impl DeploymentManager {
             intent,
             delete_data: _,
             user_mode,
+            acme_ca,
             smtp,
             admin_email,
         } = deployment;
@@ -1147,6 +1203,15 @@ impl DeploymentManager {
                 .and_then(DiscoveredDeployment::user_mode)
                 .and_then(|mode| UserMode::parse(&mode))
         });
+        // the acme ca given, else the deployment's own, else production
+        let acme_ca = acme_ca
+            .or_else(|| {
+                existing
+                    .as_ref()
+                    .and_then(DiscoveredDeployment::acme_ca)
+                    .and_then(|ca| AcmeCa::parse(&ca))
+            })
+            .unwrap_or_default();
         // multi user needs the mail server and the admin's address, single user takes neither
         let (smtp, admin_email) = match (intent, user_mode) {
             (Intent::Destroy, _) => (None, None),
@@ -1263,6 +1328,9 @@ impl DeploymentManager {
         {
             spec = spec.with_user_mode(user_mode.as_str());
         }
+        if intent != Intent::Destroy {
+            spec = spec.with_acme_ca(acme_ca.as_str());
+        }
         spec.user_data = user_data(&host_key);
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
         // a name of the deployment that another owner uses, with a record of any type, stops it
@@ -1293,6 +1361,7 @@ impl DeploymentManager {
             smtp,
             provisioned_config: String::new(),
             provisioned,
+            acme_ca,
         };
         if intent != Intent::Destroy {
             prepared.provisioned_config =
@@ -1517,6 +1586,7 @@ impl DeploymentManager {
             admin_email: prepared.admin_email.clone().unwrap_or_default(),
             smtp: prepared.smtp.clone(),
             admin_password_hash: prepared.admin_password_hash.clone(),
+            acme_ca: prepared.acme_ca.directory().map(String::from),
             host,
             host_ipv6: server
                 .public_ipv6
@@ -1570,6 +1640,25 @@ impl DeploymentManager {
             return Err(message.into());
         }
         on_event(CreateEvent::Provisioned { resource });
+        // done when the deployment answers where its users reach it: through its ingress, with
+        // its certificate; a backend that did not start, a certificate not to be had, stop it here
+        if let Some(root_domain) = &prepared.spec.root_domain {
+            let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
+                &prepared.spec.name,
+                prepared.spec.dns_mode,
+                root_domain,
+            ));
+            on_event(CreateEvent::Provisioning {
+                message: t!("deployments.waiting_for_api", url = api.as_str()).to_string(),
+            });
+            crate::core::config::wait_for_api(
+                &api,
+                prepared.acme_ca.trust(),
+                crate::core::config::API_WAIT,
+                std::time::Duration::from_secs(5),
+            )
+            .await?;
+        }
         set_server_label(
             &api,
             server_id,
@@ -1794,6 +1883,7 @@ mod tests {
             intent: Intent::Deploy,
             delete_data: false,
             user_mode: None,
+            acme_ca: None,
             smtp: None,
             admin_email: None,
         }
