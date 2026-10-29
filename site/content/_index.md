@@ -7,6 +7,6 @@ description: "The documentation of SwissArmyKnife (SAK): how it is built, how it
 
 ## Documentation
 
-The documentation of SwissArmyKnife (SAK), from the files below `docs/` of the repository.
+How SwissArmyKnife is built and why.
 
 {{% pages description="true" display="tree" %}}
