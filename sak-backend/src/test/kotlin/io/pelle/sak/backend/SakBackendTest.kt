@@ -123,7 +123,7 @@ class SakBackendTest {
             // rendered as ansible renders it, with the sak name and the dns mode of the inventory
             val template = Path.of("../ansible/roles/controller/templates/controller-config.yaml.j2")
             val rendered = tempDir.resolve("controller-config.yaml")
-            Files.writeString(rendered, Files.readString(template).replace("{{ sak_name }}", "alpha").replace("{{ sak_dns_mode }}", "domain").replace("{{ sak_root_domain }}", "pelle.io"))
+            Files.writeString(rendered, Files.readString(template).replace("{{ sak_name }}", "alpha").replace("{{ sak_dns_mode }}", "domain").replace("{{ sak_root_domain }}", "pelle.io").replace("{{ sak_api_token_sha256 }}", "ab".repeat(32)))
             val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, rendered.toString()))
 
             config.name shouldBe "alpha"

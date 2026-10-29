@@ -3,6 +3,7 @@
 //! tauri or clap
 
 pub mod checks;
+pub mod config;
 pub mod container;
 pub mod deployments;
 pub mod error;
@@ -27,6 +28,7 @@ mod tests {
                 "checks/provider_tokens.rs",
                 include_str!("checks/provider_tokens.rs"),
             ),
+            ("config.rs", include_str!("config.rs")),
             ("container.rs", include_str!("container.rs")),
             ("deployments.rs", include_str!("deployments.rs")),
             ("error.rs", include_str!("error.rs")),

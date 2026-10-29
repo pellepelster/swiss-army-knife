@@ -425,6 +425,8 @@ struct Prepared {
     stale_records: Vec<HetznerDnsRecordLookup>,
     client_key: DerivedKey,
     host_key: DerivedKey,
+    /// the sha-256 of the admin api token, what the backend compares a bearer token with
+    api_token_sha256: String,
 }
 
 /// the password of an existing deployment, checked before anything of it is changed: against
@@ -527,6 +529,44 @@ impl DeploymentManager {
             }
         }
         Ok(deployments)
+    }
+
+    /// the running configuration of a deployment, read from its backend at `api.<base domain>`
+    /// with the admin api token of the password; the password is checked against the deployment
+    /// first
+    pub async fn running_config(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<(String, crate::core::config::RunningConfig), String> {
+        let name = name.trim();
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("deployments.no_provider").to_string());
+        };
+        let api_client = HetznerApi::new(&token);
+        let deployment = discover(&api_client)
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| t!("deployments.not_found", name = name).to_string())?;
+        verify_password(&deployment, name, password)?;
+        let root_domain = deployment
+            .root_domain()
+            .ok_or_else(|| t!("config.no_root_domain", name = name).to_string())?;
+        let base = sak_cloud::hetzner::deployment::base_domain(
+            name,
+            deployment.dns_mode().unwrap_or_default(),
+            &root_domain,
+        );
+        let url = crate::core::config::api_url(&base);
+        let token = crate::core::keys::api_token(name, password)?;
+        let config = crate::core::config::fetch(&url, &token).await?;
+        Ok((url, config))
     }
 
     /// the dns zones of the first hetzner project, each with the dns modes the deployment
@@ -658,6 +698,8 @@ impl DeploymentManager {
         let host_key = crate::core::keys::derive_host_key(name, password)?;
         let public_key = client_key.public_key();
         let password_hash = crate::core::keys::password_hash(name, password)?;
+        let api_token_sha256 =
+            crate::core::keys::api_token_sha256(&crate::core::keys::api_token(name, password)?);
         let mut spec = DeploymentSpec::new(
             name,
             &public_key,
@@ -691,6 +733,7 @@ impl DeploymentManager {
             stale_records,
             client_key,
             host_key,
+            api_token_sha256,
         })
     }
 
@@ -839,6 +882,7 @@ impl DeploymentManager {
             dns_mode: prepared.spec.dns_mode,
             // a create or deploy has one, prepare checked it
             root_domain: prepared.spec.root_domain.clone().unwrap_or_default(),
+            api_token_sha256: prepared.api_token_sha256.clone(),
             host,
             host_ipv6: server
                 .public_ipv6

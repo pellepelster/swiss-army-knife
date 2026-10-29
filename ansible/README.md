@@ -15,7 +15,8 @@ deployment right after creating it: it waits for ssh, then `common` and `storage
 The `storage` role needs `storage_device`, the data volume's device (sakctl sets it in the inventory of the run).
 The `controller` role pulls its images (`controller_image`, `controller_ingress_image` and the two
 log images) on every run, so a run always brings the newest `latest` of main. It needs
-`sak_name`, `sak_dns_mode` (`domain` or `subdomain`) and `sak_root_domain`, which it writes into the controller
+`sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain` and `sak_api_token_sha256`
+(the sha-256 of the admin api token, never the token), which it writes into the controller
 configuration it renders from `templates/controller-config.yaml.j2` (sakctl sets both in the
 inventory of the run; the frontend is then at `sak.<base domain>`, the api at `api.<base domain>`),
 and `controller_env_src`,

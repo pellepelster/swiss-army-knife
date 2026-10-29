@@ -20,16 +20,19 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.backend.secrets.SecretType
 import io.pelle.sak.auth.Role
+import io.pelle.sak.auth.API_TOKEN_AUTH
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.login
 import io.pelle.sak.auth.me
+import io.pelle.sak.auth.apiToken
 import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
+import io.pelle.sak.backend.config.config
 import io.pelle.sak.backend.info.info
 import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
@@ -113,7 +116,10 @@ fun Application.apps(
     val admins = auth.admins.map { it.trim().lowercase() }.toSet()
     val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
 
-    install(Authentication) { session(tokens, rolesOf) }
+    install(Authentication) {
+        session(tokens, rolesOf)
+        apiToken(config.apiTokenSha256)
+    }
 
     // the session travels in the authorization header, never in a cookie, so no credentials
     install(CORS) {
@@ -143,11 +149,11 @@ fun Application.apps(
                         route("/login") {
                             login(tokens, mailSender, loginApp(config), rolesOf)
                         }
-                        authenticate(SESSION_AUTH) {
+                        authenticate(SESSION_AUTH, API_TOKEN_AUTH) {
                             me()
                         }
                     }
-                    authenticate(SESSION_AUTH) {
+                    authenticate(SESSION_AUTH, API_TOKEN_AUTH) {
                         route("/static-hosting") {
                             requireRole(Role.ADMIN)
                             buckets(bucketService, statistics)
@@ -172,6 +178,10 @@ fun Application.apps(
                         route("/notes") {
                             requireRole(Role.ADMIN)
                             notes(noteService)
+                        }
+                        route("/config") {
+                            requireRole(Role.ADMIN)
+                            config(config)
                         }
                         route("/health") {
                             requireRole(Role.ADMIN)

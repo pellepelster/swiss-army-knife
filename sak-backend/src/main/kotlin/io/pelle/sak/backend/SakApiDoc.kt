@@ -13,6 +13,8 @@ import io.ktor.server.routing.openapi.plus
 import io.ktor.server.routing.routingRoot
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.auth.SESSION_AUTH
+import io.pelle.sak.auth.API_TOKEN_AUTH
+import io.pelle.sak.auth.apiTokenSecurityScheme
 import io.pelle.sak.auth.sessionSecurityScheme
 import kotlinx.serialization.json.Json
 
@@ -35,7 +37,7 @@ fun apiDoc(application: Application): OpenApiDoc =
             ),
     ) +
         application.routingRoot.descendants().filter { it.toString().startsWith("$API_PATH_PREFIX$API_VERSION/") } +
-        mapOf(SESSION_AUTH to ReferenceOr.Value(sessionSecurityScheme))
+        mapOf(SESSION_AUTH to ReferenceOr.Value(sessionSecurityScheme), API_TOKEN_AUTH to ReferenceOr.Value(apiTokenSecurityScheme))
 
 // the openapi document and swagger ui; the document is built on the first request, once every
 // route exists, and kept, the routes do not change

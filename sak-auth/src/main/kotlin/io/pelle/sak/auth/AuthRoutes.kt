@@ -10,6 +10,7 @@ import io.ktor.openapi.HttpSecurityScheme
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.AuthenticationConfig
+import io.ktor.server.auth.bearer
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -25,7 +26,9 @@ import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.security.MessageDigest
 import java.time.Instant
+import java.util.HexFormat
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
 import io.pelle.sak.auth.model.LoginRequest
@@ -42,6 +45,13 @@ val sessionSecurityScheme =
         scheme = "bearer",
         bearerFormat = "JWT",
         description = "The session token the apps get for a login link, see POST /api/v1/auth/login/exchange.",
+    )
+
+// the security scheme of the admin api token in the openapi document, named like its provider
+val apiTokenSecurityScheme =
+    HttpSecurityScheme(
+        scheme = "bearer",
+        description = "The admin api token sakctl derives from the password of the deployment, see sakctl config show.",
     )
 
 private const val AUTH_TAG = "auth"
@@ -79,6 +89,28 @@ fun AuthenticationConfig.session(
             if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles) else null
         }
         challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
+    }
+}
+
+const val API_TOKEN_AUTH = "api-token"
+
+// who acts with the admin api token: no e-mail address, what the token creates is its own
+const val API_TOKEN_IDENTITY = "sakctl"
+
+// the admin api token of sakctl, derived from the password of the deployment: a bearer token
+// whose sha-256 is configured (api_token_sha256), compared in constant time; it acts as an admin
+// that never expires. Without a configured sha-256 every token is refused
+fun AuthenticationConfig.apiToken(sha256: String?) {
+    val expected = sha256?.let { HexFormat.of().parseHex(it) }
+    bearer(API_TOKEN_AUTH) {
+        authenticate { credential ->
+            val actual = MessageDigest.getInstance("SHA-256").digest(credential.token.toByteArray())
+            if (expected != null && MessageDigest.isEqual(expected, actual)) {
+                SessionPrincipal(API_TOKEN_IDENTITY, Instant.MAX, setOf(Role.ADMIN))
+            } else {
+                null
+            }
+        }
     }
 }
 

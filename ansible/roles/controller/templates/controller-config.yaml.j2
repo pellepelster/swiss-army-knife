@@ -1,12 +1,14 @@
 ---
-# the configuration of sak-backend, rendered by the controller role: the sak name, the dns mode and
-# the root domain come from the inventory sakctl writes (sak_name, sak_dns_mode, sak_root_domain)
+# the configuration of sak-backend, rendered by the controller role: the sak name, the dns mode, the
+# root domain and the sha-256 of the admin api token come from the inventory sakctl writes
+# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256)
 ktor:
   deployment:
     port: 8080
 sak:
   name: {{ sak_name }}
   dns_mode: {{ sak_dns_mode }}
+  api_token_sha256: {{ sak_api_token_sha256 }}
   data_dir: /storage/data/backend/data
   root_domain: {{ sak_root_domain }}
   # the keys the secrets are encrypted with by their version, the highest encrypts; the

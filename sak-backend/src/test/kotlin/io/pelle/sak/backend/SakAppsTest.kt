@@ -32,6 +32,9 @@ import software.amazon.awssdk.services.s3.S3Client
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.io.TempDir
 import java.net.URI
+import io.kotest.matchers.collections.shouldNotContain
+import java.util.HexFormat
+import java.security.MessageDigest
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import com.sun.net.httpserver.HttpServer
@@ -63,6 +66,7 @@ class SakAppsTest {
     private fun config(
         auth: Boolean = true,
         frontendUrl: String = FRONTEND_URL,
+        apiToken: Boolean = true,
     ): SakConfig {
         val configFile = tempDir.resolve("config.yaml")
         Files.writeString(
@@ -72,6 +76,7 @@ class SakAppsTest {
             sak:
               name: alpha
               dns_mode: domain
+              ${if (apiToken) "api_token_sha256: ${sha256Hex(API_TOKEN)}" else ""}
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
               secret_keys:
@@ -827,6 +832,7 @@ class SakAppsTest {
                         "/api/v1/auth/login/exchange",
                         "/api/v1/info",
                         "/api/v1/auth/me",
+                        "/api/v1/config",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
                         "/api/v1/static-hosting/{bucket}/domains",
@@ -846,13 +852,16 @@ class SakAppsTest {
                         "/api/v1/files/{id}/discover/text",
                         "/api/v1/health",
                     )
-                // the routes behind the login require the session token, the login itself does not
+                // the routes behind the login require the session token or the admin api token, the
+                // login itself does not
                 val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject
-                me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"))
+                me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-token"))
                 paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
-                doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue("session").jsonObject.let {
-                    it.string("type") shouldBe "http"
-                    it.string("scheme") shouldBe "bearer"
+                listOf("session", "api-token").forEach { scheme ->
+                    doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue(scheme).jsonObject.let {
+                        it.string("type") shouldBe "http"
+                        it.string("scheme") shouldBe "bearer"
+                    }
                 }
             }
 
@@ -907,6 +916,38 @@ class SakAppsTest {
     }
 
     @Test
+    fun `admins read the running configuration, without the password of the mail server`() {
+        withServer { port ->
+            get(port, "/api/v1/config").statusCode() shouldBe 401
+            val session = signIn(port)
+            val config = get(port, "/api/v1/config", session)
+            config.statusCode() shouldBe 200
+            val smtp = config.json().getValue("smtp").jsonObject
+            smtp.string("host") shouldBe "localhost"
+            smtp.getValue("port").jsonPrimitive.content shouldBe greenMail.smtp.port.toString()
+            smtp.string("from") shouldBe "login@example.org"
+            smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "false"
+            smtp.keys shouldNotContain "password"
+        }
+    }
+
+    @Test
+    fun `the admin api token of sakctl reaches the api like an admin session`() {
+        withServer { port ->
+            get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 200
+            get(port, "/api/v1/notes", API_TOKEN).statusCode() shouldBe 200
+            get(port, "/api/v1/auth/me", API_TOKEN).statusCode() shouldBe 200
+            // another token, or the right one changed by a character, is refused
+            get(port, "/api/v1/config", "sak_another-token").statusCode() shouldBe 401
+            get(port, "/api/v1/config", API_TOKEN.dropLast(1) + "x").statusCode() shouldBe 401
+        }
+        // without its sha-256 in the configuration, no token is taken
+        withServer(config(apiToken = false)) { port ->
+            get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 401
+        }
+    }
+
+    @Test
     fun `without auth configuration there are neither apps nor login`() {
         withServer(config(auth = false)) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -918,6 +959,11 @@ class SakAppsTest {
     }
 
     companion object {
+        // the admin api token of the tests, its sha-256 in the configuration
+        private const val API_TOKEN = "sak_test-api-token"
+
+        private fun sha256Hex(value: String) = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
+
         private const val FRONTEND_URL = "https://sak.example.org"
     }
 }

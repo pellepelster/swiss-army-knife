@@ -5,8 +5,9 @@
       - sak_name | default('') | length > 0
       - sak_dns_mode in ['domain', 'subdomain']
       - sak_root_domain | default('') | length > 0
+      - sak_api_token_sha256 is match('^[0-9a-f]{64}$')
       - controller_env_src | length > 0
-    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain and controller_env_src must be set"
+    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_token_sha256 (sha-256 in hex) and controller_env_src must be set"
     quiet: true
 
 - name: Install podman

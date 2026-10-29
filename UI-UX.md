@@ -76,9 +76,11 @@ How the apps look and behave for whoever uses them: the web ui (`sak-frontend`),
 
 ## Wizard command line (`sak-cli`)
 
-- `sakctl list`, `create [<sak name>]`, `deploy <sak name>` and `destroy <sak name>` run on
-  the command line; without a command the window opens. The token comes from `--hcloud-token` or
-  `HCLOUD_TOKEN`, the name, password and location from the arguments or `SAK_NAME`,
+- `sakctl list`, `create [<sak name>]`, `deploy <sak name>`, `destroy <sak name>` and
+  `config show <sak name>` run on the command line; `config show` reads the running configuration
+  from the backend with the admin api token derived from the password, no secret of it is shown;
+  without a command the window opens. The token comes from `--hcloud-token` or `HCLOUD_TOKEN`,
+  the name, password and location from the arguments or `SAK_NAME`,
   `SAK_PASSWORD` and `SAK_LOCATION`, the dns mode from `--dns-mode` (`subdomain` when not
   given, also on a deploy), the root domain from `--root-domain` (a dns zone of the project,
   needed by create and deploy), the mail server from `--smtp-host`, `--smtp-port`,

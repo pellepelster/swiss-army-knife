@@ -3,7 +3,7 @@
 
 use argon2::Argon2;
 use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 
 /// an ed25519 key derived from the password of a deployment: the client key the server
@@ -72,6 +72,25 @@ pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
         .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut hash)
         .map_err(|e| e.to_string())?;
     Ok(hash.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+/// the admin api token of a deployment: argon2id over the password with a salt of its own (the
+/// version in it lets a new token follow without a new password), 32 bytes as `sak_<base64url>`.
+/// The server keeps only its sha-256 (`api_token_sha256`), the token travels as a bearer token
+/// and is never written anywhere
+pub fn api_token(name: &str, password: &str) -> Result<String, String> {
+    let salt = format!("sak.pelle.io/api-token/v1/{name}");
+    let mut token = [0u8; 32];
+    Argon2::default()
+        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut token)
+        .map_err(|e| e.to_string())?;
+    Ok(format!("sak_{}", URL_SAFE_NO_PAD.encode(token)))
+}
+
+/// the sha-256 of the api token in hex, what the backend compares a bearer token with; the token
+/// has 256 bits of its own, a fast hash is enough
+pub fn api_token_sha256(token: &str) -> String {
+    sak_cloud::hetzner::labels::sha256_hex(token)
 }
 
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
@@ -219,6 +238,30 @@ mod tests {
         assert_ne!(
             password_hash("alpha", "another password here").unwrap(),
             hash
+        );
+    }
+
+    #[test]
+    fn the_api_token_is_its_own_and_the_server_gets_its_hash() {
+        let (name, password) = ("alpha", "a password of sixteen");
+        let token = api_token(name, password).unwrap();
+        // the same on every machine, 32 bytes as base64url after the prefix
+        assert_eq!(token, api_token(name, password).unwrap());
+        assert!(token.starts_with("sak_"));
+        assert_eq!(token.len(), 4 + 43);
+        assert!(!token[4..].contains(['+', '/', '=']));
+        // another name or password, another token; nothing of the password hash in it
+        assert_ne!(token, api_token("beta", password).unwrap());
+        assert_ne!(token, api_token(name, "another password here").unwrap());
+        assert!(!password_hash(name, password).unwrap().contains(&token[4..]));
+        // what the backend compares with: the sha-256 in hex
+        let hash = api_token_sha256(&token);
+        assert_eq!(hash.len(), 64);
+        assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        // a known vector of sha-256
+        assert_eq!(
+            api_token_sha256("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
 

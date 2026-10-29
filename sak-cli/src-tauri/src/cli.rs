@@ -71,6 +71,9 @@ pub enum Command {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
+    /// The configuration of a running sak deployment
+    #[command(subcommand)]
+    Config(ConfigCommand),
     /// Destroy a sak deployment: its DNS records, server, addresses, firewall and ssh key are
     /// removed, the data volume stays unless --delete-data is given. A deployment that is gone
     /// is destroyed already
@@ -83,6 +86,23 @@ pub enum Command {
         /// Delete the data volume too, with everything stored on it
         #[arg(long)]
         delete_data: bool,
+    },
+}
+
+#[derive(Subcommand, Debug, PartialEq, Eq)]
+pub enum ConfigCommand {
+    /// Show the running configuration of a deployment, read from its backend with the admin api
+    /// token derived from the password; no secret of it is shown
+    #[command(after_help = EXIT_CODES)]
+    Show {
+        #[command(flatten)]
+        provider: Provider,
+        /// The sak name of the deployment
+        #[arg(env = NAME_VARIABLE)]
+        name: String,
+        /// The password of the deployment
+        #[arg(long, env = PASSWORD_VARIABLE, hide_env_values = true)]
+        password: String,
     },
 }
 
@@ -157,7 +177,17 @@ fn parse_dns_mode(value: &str) -> Result<DnsMode, String> {
 pub fn is_command_line(args: &[String]) -> bool {
     matches!(
         args.first().map(String::as_str),
-        Some("list" | "create" | "deploy" | "destroy" | "--help" | "-h" | "--version" | "-V")
+        Some(
+            "list"
+                | "create"
+                | "deploy"
+                | "destroy"
+                | "config"
+                | "--help"
+                | "-h"
+                | "--version"
+                | "-V"
+        )
     )
 }
 
@@ -249,11 +279,17 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         Command::List(provider)
         | Command::Create { provider, .. }
         | Command::Deploy { provider, .. }
-        | Command::Destroy { provider, .. } => provider,
+        | Command::Destroy { provider, .. }
+        | Command::Config(ConfigCommand::Show { provider, .. }) => provider,
     };
     let runtime = check(provider).await?;
     match command {
         Command::List(provider) => list(&manager, &provider).await,
+        Command::Config(ConfigCommand::Show {
+            provider,
+            name,
+            password,
+        }) => show_config(&manager, &provider, &name, &password).await,
         Command::Create {
             provider,
             deployment,
@@ -333,6 +369,45 @@ async fn list(manager: &DeploymentManager, provider: &Provider) -> Result<(), Wi
         }
     }
     Ok(())
+}
+
+/// the running configuration of the deployment, a line for each setting
+async fn show_config(
+    manager: &DeploymentManager,
+    provider: &Provider,
+    name: &str,
+    password: &str,
+) -> Result<(), WizardError> {
+    let (url, config) = manager
+        .running_config(provider.tokens(), name, password)
+        .await?;
+    log(
+        Level::Info,
+        t!("config.shown", name = name.trim(), url = url.as_str()),
+    );
+    for line in config_lines(&config) {
+        log(Level::Info, line);
+    }
+    Ok(())
+}
+
+/// `smtp.host smtp.example.org`, … : the settings as `<key> <value>`, no secret among them
+fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
+    let Some(smtp) = &config.smtp else {
+        return vec![t!("config.no_smtp").to_string()];
+    };
+    vec![
+        format!("smtp.host {}", smtp.host),
+        format!("smtp.port {}", smtp.port),
+        format!("smtp.username {}", smtp.username.as_deref().unwrap_or("-")),
+        format!(
+            "smtp.password {}",
+            if smtp.password_set { "set" } else { "-" }
+        ),
+        format!("smtp.from {}", smtp.from),
+        format!("smtp.tls {}", smtp.tls),
+        format!("smtp.starttls {}", smtp.starttls),
+    ]
 }
 
 /// plans, prints the plan and applies it, each resource printed as it is done: what the
@@ -556,6 +631,45 @@ mod tests {
         assert_eq!(
             parse(&["create", "--moon"]).unwrap_err().exit_code(),
             EXIT_USAGE
+        );
+    }
+
+    #[test]
+    fn config_show_takes_the_name_and_password_and_prints_no_secret() {
+        let cli = parse(&[
+            "config",
+            "show",
+            "alpha",
+            "--hcloud-token",
+            "t",
+            "--password",
+            "p",
+        ])
+        .unwrap();
+        let Some(Command::Config(ConfigCommand::Show { name, password, .. })) = cli.command else {
+            panic!("config show");
+        };
+        assert_eq!((name.as_str(), password.as_str()), ("alpha", "p"));
+        assert!(is_command_line(&["config".to_string()]));
+
+        let config = crate::core::config::RunningConfig {
+            smtp: Some(crate::core::config::RunningSmtp {
+                host: "smtp.example.org".to_string(),
+                port: 465,
+                username: None,
+                password_set: true,
+                from: "noreply@example.org".to_string(),
+                tls: true,
+                starttls: false,
+            }),
+        };
+        let lines = config_lines(&config);
+        assert!(lines.contains(&"smtp.host smtp.example.org".to_string()));
+        assert!(lines.contains(&"smtp.username -".to_string()));
+        assert!(lines.contains(&"smtp.password set".to_string()));
+        assert_eq!(
+            config_lines(&crate::core::config::RunningConfig { smtp: None }),
+            vec![t!("config.no_smtp").to_string()]
         );
     }
 

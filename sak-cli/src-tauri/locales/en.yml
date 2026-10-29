@@ -79,6 +79,14 @@ deployments:
   domain_taken: "The deployment %{by} manages %{domain} in domain mode already. A root domain has one domain deployment only."
   domain_mixed: "The deployment %{by} manages %{domain} in domain mode. A subdomain deployment cannot use %{domain}, a root domain has one domain deployment or only subdomain deployments."
   subdomain_only: "Subdomain deployments use %{domain} already (%{by}). Only the subdomain mode is possible."
+config:
+  unreachable: "The backend at %{url} could not be reached: %{error}"
+  unreadable: "The backend answered something that is no configuration: %{error}"
+  refused: "The backend refused the admin api token of this password. Deploy the deployment, so the backend knows the token."
+  failed: "The backend at %{url} answered %{status}."
+  no_root_domain: "The deployment %{name} has no root domain on its resources, deploy it with --root-domain first."
+  shown: "The running configuration of %{name} at %{url}"
+  no_smtp: "No mail server"
 ui:
   quit: "Quit"
   providers:

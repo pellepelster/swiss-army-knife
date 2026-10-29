@@ -15,6 +15,9 @@ controller_config_file: "{{ controller_base_path }}/config.yaml"
 sak_name: ""
 sak_dns_mode: subdomain
 sak_root_domain: ""
+# the sha-256 (hex) of the admin api token sakctl derives from the password (required), never the
+# token itself
+sak_api_token_sha256: ""
 # environment of the controller container, holds the s3 credentials the configuration references
 controller_env_file: "{{ controller_base_path }}/backend.env"
 # local path of the environment file (required)
