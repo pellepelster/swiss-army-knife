@@ -42,7 +42,6 @@ import io.pelle.sak.backend.info.info
 import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
-import io.pelle.sak.backend.redirects.domains
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.files.FileService

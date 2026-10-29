@@ -22,6 +22,9 @@ fun bucketObjectsDir(
     bucket: String,
 ): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
 
+// the domains the controller serves itself, no bucket is served at them and none is redirected
+fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
+
 // the base domain (the root domain or <name>.<root_domain>, by the dns mode) leads to
 // sak-frontend, unless a bucket is served at it or it is redirected elsewhere; sak-frontend is
 // only served when the login is configured

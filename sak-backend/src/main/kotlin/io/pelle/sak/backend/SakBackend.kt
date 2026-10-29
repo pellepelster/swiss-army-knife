@@ -13,9 +13,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.backend.hosting.BucketStatisticsCache
 import io.pelle.sak.backend.hosting.InvalidatingS3StorageBackend
-import io.pelle.sak.backend.redirects.domains
-import io.pelle.sak.backend.redirects.locations
-import io.pelle.sak.backend.redirects.reservedDomains
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase

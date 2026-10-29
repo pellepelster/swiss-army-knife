@@ -7,8 +7,11 @@ import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.model.ingress.RedirectRepository
 import io.pelle.sak.model.ingress.RedirectTarget
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
+
+private val logger = KotlinLogging.logger {}
 
 sealed interface CreateRedirectResult {
     data class Created(
@@ -78,6 +81,16 @@ class RedirectService(
             is RedirectTarget.Domain -> target.domain
             is RedirectTarget.Bucket -> buckets.byName(target.bucket)?.let { buckets.servedDomains(it).firstOrNull() }
         }
+
+    // every redirected domain with the domain it leads to, what caddy redirects; a bucket no
+    // longer served at a domain leads nowhere, its redirect is left out
+    fun locations(): Map<String, String> =
+        all()
+            .mapNotNull { redirect ->
+                val location = location(redirect.target)
+                if (location == null) logger.warn { "the redirect of '${redirect.sourceDomain}' leads nowhere, it is left out" }
+                location?.let { redirect.sourceDomain to it }
+            }.toMap()
 
     fun create(
         sourceDomain: String,

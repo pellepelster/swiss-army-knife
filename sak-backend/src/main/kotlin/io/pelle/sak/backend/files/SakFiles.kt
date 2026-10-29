@@ -25,7 +25,7 @@ import io.pelle.sak.backend.API_PATH_PREFIX
 import io.pelle.sak.backend.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
 import io.pelle.sak.backend.files.model.FileResponse
-import io.pelle.sak.backend.labels.idParameter
+import io.pelle.sak.api.idParameter
 import io.pelle.sak.backend.files.DiscoverTextResult
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService

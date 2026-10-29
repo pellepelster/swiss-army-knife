@@ -104,6 +104,9 @@ class S3BucketService(
     // the domains of the bucket, then its subdomain of the base domain
     fun servedDomains(bucket: S3Bucket): List<String> = (bucket.domains + listOfNotNull(subdomain(bucket.name))).distinct()
 
+    // the domains every bucket is served at, what caddy serves them at
+    fun domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }
+
     // a bucket with a new key pair for it alone, served at the domains
     fun create(
         name: String,

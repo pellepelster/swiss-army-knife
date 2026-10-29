@@ -11,7 +11,6 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.request.receive
@@ -23,34 +22,14 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.redirects.CreateRedirectResult
 import io.pelle.sak.backend.redirects.DeleteRedirectResult
 import io.pelle.sak.backend.redirects.UpdateRedirectResult
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.model.ingress.RedirectTarget as TargetOfRedirect
-import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private val logger = KotlinLogging.logger {}
-
-// the domains the controller serves itself, no bucket is served at them and none is redirected
-fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
-
-// the domains every bucket is served at
-fun S3BucketService.domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }
-
-// every redirected domain with the domain it leads to; a bucket no longer served at a domain
-// leads nowhere, its redirect is left out
-fun RedirectService.locations(): Map<String, String> =
-    all()
-        .mapNotNull { redirect ->
-            val location = location(redirect.target)
-            if (location == null) logger.warn { "the redirect of '${redirect.sourceDomain}' leads nowhere, it is left out" }
-            location?.let { redirect.sourceDomain to it }
-        }.toMap()
 
 private const val INGRESS_TAG = "ingress"
 

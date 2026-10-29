@@ -5,7 +5,7 @@ import io.pelle.sak.backend.files.fileUrl
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.files.thumbnailUrl
 import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
-import io.pelle.sak.backend.labels.idParameter
+import io.pelle.sak.api.idParameter
 import io.pelle.sak.backend.labels.response
 import io.pelle.sak.backend.notes.model.NoteResponse
 import io.pelle.sak.backend.notes.model.PhotoResponse

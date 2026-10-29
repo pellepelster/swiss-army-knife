@@ -11,7 +11,6 @@ import io.ktor.openapi.jsonSchema
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.RoutingCall
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
@@ -20,6 +19,7 @@ import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
+import io.pelle.sak.api.idParameter
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
@@ -37,13 +37,6 @@ const val INVALID_LABEL_NAME = "A label name must have 1 to ${LabelService.MAX_N
 private const val LABEL_EXISTS = "A label of the name exists."
 
 fun Label.response() = LabelResponse(id, name, createdAt.apiTime(), updatedAt?.apiTime())
-
-// the id of the path, null after answering 404 when it is no number
-suspend fun RoutingCall.idParameter(): Int? =
-    parameters["id"]?.toIntOrNull() ?: run {
-        respond(HttpStatusCode.NotFound)
-        null
-    }
 
 // the labels of the signed in user, which every application attaches to its entities, meant to
 // be mounted behind the authentication
