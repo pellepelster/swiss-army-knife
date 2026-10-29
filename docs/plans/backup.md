@@ -13,8 +13,8 @@ sakctl makes a backup of a deployment and restores it:
 - `sakctl restore <name> <file>` puts the data of such a file back on the server of the deployment.
 - The backup goes through ssh, the same connection as `sakctl ssh`. No other port, service or third party.
 - The SQLite database in the backup is consistent, also while the backend runs and writes to it.
-- The backup file is encrypted before sakctl writes a byte of it to disk. Only the name and the password of the
-  deployment decrypt it ("No local state", ARCHITECTURE.md).
+- The server encrypts the backup before it leaves the server. The server has only the public half of the key; only
+  the name and the password of the deployment decrypt it ("No local state", ARCHITECTURE.md).
 
 ## Where we are
 
@@ -42,7 +42,8 @@ are versioned with the role; every deploy provisions, so the server always has t
 
 ### `sak-backup`
 
-Writes the archive to its standard output and nothing else; messages go to standard error.
+`sak-backup <recipient>` writes the encrypted archive to its standard output and nothing else; messages go to
+standard error. `<recipient>` is the public half of the backup key (`age1…`), which sakctl gives on each call.
 
 1. Takes a lock (`flock` on `/run/sak-backup.lock`), so only one backup or restore runs at a time.
 2. **The database.** `sqlite3 sak.db "VACUUM INTO '<staging>/sak.db'"` as the user `sak`, in a staging directory
@@ -53,8 +54,8 @@ Writes the archive to its standard output and nothing else; messages go to stand
    logs" below). victorialogs and vector continue to run.
 4. **The manifest.** `<staging>/backup.json`: the version of the format (`1`), the name, the time (UTC), the image
    digest of the backend and the size of the data before compression.
-5. **The archive.** One `tar` stream, compressed with `zstd` (`tar --zstd`, level 3, all cores), paths relative to
-   `/storage/data/<name>`, with the numeric owner and the modes:
+5. **The archive.** One `tar` stream, compressed with `zstd` (`tar --zstd`, level 3, all cores) and encrypted with
+   `age -r <recipient>`, paths relative to `/storage/data/<name>`, with the numeric owner and the modes:
    - first `backup.json`, then `backend/data/sak.db` from the staging directory;
    - then `vector/` from the staging directory and the snapshots of victorialogs, each as
      `victorialogs/partitions/<day>/` (`tar --transform`);
@@ -125,12 +126,17 @@ stops the restore at step 2, before anything changes.
 
 - **Compression on the server.** `zstd` on the server compresses before the data goes through ssh, so less goes
   through the network. Data that is already compressed (photos, recordings) gets no smaller, but costs little time.
-- **Encryption in sakctl.** sakctl encrypts the stream with [age](https://age-encryption.org) (the `age` crate) while
-  it reads it from ssh, and writes only the encrypted bytes. The key never goes to the server. The data is plain only
-  in the ssh connection (encrypted by ssh) and in the memory of sakctl.
-- **The key.** A new derived value, purpose `backup`: 32 bytes of the master key as an age X25519 identity, its
-  recipient the public half. It joins the table of derived values in ARCHITECTURE.md, "Security". The same name and
-  password decrypt the backup on every machine; nothing is stored.
+- **Encryption on the server.** `sak-backup` pipes the compressed stream through
+  [age](https://age-encryption.org) (the Debian package `age`) with the recipient that sakctl gives. Only encrypted
+  bytes leave the server: the plain data is not in the ssh connection, not in the container of the tools and not in
+  sakctl.
+- **The key.** A new derived value, purpose `backup`: 32 bytes of the master key as an age X25519 identity. The
+  recipient (its public half) goes to the server as an argument; it is public and decrypts nothing. The identity
+  stays in sakctl. It joins the table of derived values in ARCHITECTURE.md, "Security". The same name and password
+  decrypt the backup on every machine; nothing is stored.
+- **A check while it arrives.** sakctl writes the encrypted bytes to the file as they are, and decrypts a copy of
+  the stream in memory with the identity (the `age` crate): it reads `backup.json`, checks the name, and reads the
+  `tar` to its end. A backup that does not decrypt or is not complete fails, and no file is left.
 - **Damage and truncation.** age authenticates each chunk of 64 KiB and marks the last one, so a changed or a
   truncated file fails on decryption, not after the restore.
 - **The file.** `sak-<name>-<UTC time>.tar.zst.age`, e.g. `sak-alpha-20261029T080000Z.tar.zst.age`, in the current
@@ -146,8 +152,10 @@ stops the restore at step 2, before anything changes.
   (backup) or standard input (restore) is a stream that the core reads or writes, not the terminal. Standard error
   goes to the log of sakctl. Same container, agent and host key check as the session.
 - `core/backup.rs`, a `BackupManager` (the one place that makes and restores backups):
-  - `backup(target, keys, output)`: runs `sak-backup`, encrypts, writes the file, answers its path and size;
-  - `restore(target, keys, file)`: decrypts the file while it streams it into `sak-restore`. Before it sends
+  - `backup(target, keys, output)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks a
+    decrypted copy of the stream, answers the path and the size of the file;
+  - `restore(target, keys, file)`: decrypts the file while it streams it into `sak-restore` (refer to "Decryption on
+    restore" in the decisions). Before it sends
     anything, it decrypts the first chunk and reads `backup.json`, so a wrong password or another deployment fails
     before the server changes;
   - events for the window and the command line: the bytes transferred, the steps of the scripts (lines on standard
@@ -176,10 +184,12 @@ for a lost or a deleted volume, or to go back to an earlier state.
 ## 5. Tests
 
 - `sak-cli` (`cargo test`): the file name, the derived identity (the same for the same name and password, different
-  for another purpose), encrypt and decrypt round trip of a stream, a truncated or a changed file fails, the manifest
-  check refuses another name.
+  for another purpose), its recipient is what `age-keygen -y` gives for it, a stream that the `age` command encrypts
+  to the recipient decrypts with the crate, a truncated or a changed file fails, the manifest check refuses another
+  name.
 - `ansible`: the scripts against a container with a data directory and a database that a writer changes during the
-  backup. The copy of the database passes `integrity_check`; a restore of the archive gives the same rows and files.
+  backup. The archive decrypts only with the identity of the recipient; the copy of the database passes
+  `integrity_check`; a restore of the archive gives the same rows and files.
   A restore that fails at extraction leaves the data as it was. A victorialogs that receives lines during the backup:
   after the restore it answers the lines of the snapshot, and no snapshot is left on the server.
 - `sak-e2e` integration (real cloud project): create, write a note with a photo and a bucket, backup, destroy with
@@ -187,7 +197,7 @@ for a lost or a deleted volume, or to go back to an earlier state.
 
 ## Steps
 
-1. The role `backend`: install `sqlite3`, `zstd` and `curl`; the key of `-partitionManageAuthKey` and
+1. The role `backend`: install `sqlite3`, `zstd`, `age` and `curl`; the key of `-partitionManageAuthKey` and
    `-snapshotsMaxAge=1d` for victorialogs; the scripts `sak-backup` and `sak-restore`, their tests.
 2. `keys.rs`: the derived backup identity; ARCHITECTURE.md, "Security": its row in the table.
 3. `core/ssh.rs`: the run with a stream on standard output or standard input.
@@ -201,9 +211,13 @@ for a lost or a deleted volume, or to go back to an earlier state.
 
 - **Through ssh, pulled by sakctl.** No backup target on the server, no S3 or other third party, no credentials of a
   storage service. The user keeps the file where they want it.
-- **Encrypted on the user's machine, with a derived key.** The server never has the key, and the user has no key to
-  keep beyond the password. Tradeoff: a backup is only as safe as the password, and a backup made with an old password
-  needs the old password.
+- **Encrypted on the server, to a derived public key.** The plain data never leaves the server, and the server never
+  has the secret half of the key. The user has no key to keep beyond the password. Tradeoff: a backup is only as safe
+  as the password, and a backup made with an old password needs the old password.
+- **Decryption on restore in sakctl.** To decrypt on the server, the secret half of the key would have to go to the
+  server for the restore. sakctl decrypts and sends the plain `tar` stream through ssh, so the secret stays on the
+  user's machine; the plain data is then in the ssh connection (encrypted by ssh) and in the memory of sakctl. The
+  server already has all plain data, so the restore gives it nothing new.
 - **`VACUUM INTO`, not a copy of the file.** A copy of `sak.db` while the backend writes can be inconsistent, and the
   WAL file belongs to it. `VACUUM INTO` is one consistent snapshot without a stop of the backend; the copy is also
   compacted. The sqlite3 `.backup` command would also work; `VACUUM INTO` needs no second step for the WAL.
