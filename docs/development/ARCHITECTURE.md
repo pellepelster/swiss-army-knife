@@ -7,8 +7,8 @@ weight: 10
 # Architecture
 
 How SwissArmyKnife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
-code is in [AGENT.md](../AGENT.md), how the apps look and behave in [docs/UI-UX.md](UI-UX.md), the words in
-[GLOSSARY.md](GLOSSARY.md), and each feature in [docs/fdr/INDEX.md](fdr/INDEX.md).
+code is in [AGENT.md](../../AGENT.md), how the apps look and behave in [UI-UX.md](UI-UX.md), the words in
+[GLOSSARY.md](GLOSSARY.md), and each feature in [fdr/INDEX.md](fdr/INDEX.md).
 
 ## Overview
 

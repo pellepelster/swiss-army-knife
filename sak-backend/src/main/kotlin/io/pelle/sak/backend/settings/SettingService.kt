@@ -6,7 +6,7 @@ import java.time.Clock
 
 // every setting of the controller, the only way to them; the values are handed out as they are, a
 // consumer of a setting that is a secret masks it. The values are plain in the table; the whole
-// database is to be encrypted (docs/fdr/FDR-002-sqlite-encryption.md)
+// database is to be encrypted (docs/development/fdr/FDR-002-sqlite-encryption.md)
 class SettingService(
     private val repository: SettingRepository,
 ) {

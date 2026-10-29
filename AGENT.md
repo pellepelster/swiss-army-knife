@@ -5,10 +5,10 @@ Read this file first. It contains rules for the complete repository.
 ## Prime Directives
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public
-  documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
-- Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short `linkTitle` where
-  the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it. A link between
-  documents that does not resolve fails `mise run docs:build`.
+  documentation!) Find the canonical vocabulary in [`docs/development/GLOSSARY.md`](docs/development/GLOSSARY.md).
+- Every document below `docs/development/` starts with front matter (`title`, `description`, `weight`, a short
+  `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
+  A link between documents that does not resolve fails `mise run docs:build`.
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
@@ -30,15 +30,15 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in [docs/UI-UX.md](docs/UI-UX.md), follow it
-for every change of a ui.
+How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in
+[docs/development/UI-UX.md](docs/development/UI-UX.md), follow it for every change of a ui.
 
 ## Architecture
 
 How the system is built (its parts, the server of a deployment, the layers, the persistence model, the api contract,
 sakctl, the cloud resources and their labels, the privacy boundaries, the accepted risks) is in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Every change keeps to it; a change that has to break it changes ARCHITECTURE.md
-in the same commit and says why.
+[docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md). Every change keeps to it; a change that has to
+break it changes ARCHITECTURE.md in the same commit and says why.
 
 ## Persistence (`sak-model`)
 
@@ -96,7 +96,7 @@ in the same commit and says why.
     - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
       with `firstValueFrom`; everything else subscribes.
 
-- The look follows [docs/UI-UX.md](docs/UI-UX.md); the code rules behind it:
+- The look follows [docs/development/UI-UX.md](docs/development/UI-UX.md); the code rules behind it:
     - Lists are paginated with the shared `app-pagination` (`shared/pagination.ts`), `PAGE_SIZE`
       items a page, the page in the `offset` query parameter; only choices and suggestions (a
       select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts`).
@@ -153,5 +153,5 @@ in the same commit and says why.
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the system is built.
-- `docs/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.
+- [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md) — how the system is built.
+- `docs/development/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.

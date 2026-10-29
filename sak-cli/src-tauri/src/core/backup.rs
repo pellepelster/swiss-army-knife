@@ -1,4 +1,4 @@
-//! the backups of a deployment (docs/plans/backup.md). `sak-backup` on the server writes all data
+//! the backups of a deployment (docs/development/plans/backup.md). `sak-backup` on the server writes all data
 //! of the deployment as one tar stream, compressed with zstd and encrypted with age to the
 //! recipient of the backup key; sakctl stores the bytes as they come, in
 //! `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`, and decrypts them once to check them. A

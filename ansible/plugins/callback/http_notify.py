@@ -1,5 +1,5 @@
 # Posts one JSON event for every play, task start and task result to the endpoint sakctl serves
-# for the run, so sakctl can follow the provisioning task by task (docs/fdr/FDR-006). Enabled with
+# for the run, so sakctl can follow the provisioning task by task (docs/development/fdr/FDR-006). Enabled with
 # ANSIBLE_CALLBACKS_ENABLED=pelle_io.sak.http_notify; the endpoint is SAK_EVENTS_URL, the token of
 # the run is read from the file SAK_EVENTS_TOKEN_FILE, so it is in no environment. A post that fails
 # is a warning, never a failure of the run.

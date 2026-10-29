@@ -1,5 +1,5 @@
-{{- /* the documents of docs/ start with their own h1, as github shows them; only a page without
-   one gets the title as its h1 */ -}}
+{{- /* the documents of docs/development/ start with their own h1, as github shows them; only a
+   page without one gets the title as its h1 */ -}}
 {{- if not (strings.HasPrefix (strings.TrimSpace .RawContent) "# ") }}
 {{- $title := partial "title.gotmpl" (dict "page" .) }}
 <h1 id="{{ $title | plainify | anchorize }}">{{ $title }}</h1>

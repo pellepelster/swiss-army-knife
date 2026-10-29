@@ -1,5 +1,5 @@
 //! the answers of the window's commands for the screenshots and the video of sakctl's window
-//! (`sak-e2e`, `docs/plans/screenshots.md`): what rust sends for a create of `example1` on
+//! (`sak-e2e`, `docs/development/plans/screenshots.md`): what rust sends for a create of `example1` on
 //! `krawallbu.de` in domain mode, built from the real types, texts and resources so the window
 //! shows nothing rust would not send. Not a test of its own: `mise run docs:screenshots` and
 //! `docs:videos` run it (`cargo test window_fixtures -- --ignored`) and the run writes

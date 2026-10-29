@@ -13,7 +13,7 @@ behaviorally, what design decisions shaped it, and the rationale behind those de
 FDRs are siblings of the Architecture Decision Records (ADRs); the repository has none yet. ADRs cover cross-cutting architectural
 choices; FDRs cover individual features and the design decisions specific to them.
 
-See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the FDR template, writing style, and
+See [`.agents/skills/fdr/SKILL.md`](../../../.agents/skills/fdr/SKILL.md) for the FDR template, writing style, and
 maintenance workflow.
 
 ## Features

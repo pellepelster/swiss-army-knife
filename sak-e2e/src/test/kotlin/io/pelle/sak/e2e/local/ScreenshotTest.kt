@@ -20,7 +20,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 
-// where the screenshots go, docs/screenshots/ by e2eScreenshots
+// where the screenshots go, docs/development/screenshots/ by e2eScreenshots
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 
 // the sizes a page is shown at, each screenshot is taken in both

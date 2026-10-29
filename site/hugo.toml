@@ -1,5 +1,5 @@
-# the documentation of SAK as a site: the markdown of docs/ as it is in the repository, mounted
-# below, with the theme relearn (a hugo module, pinned in go.mod) in the colors and fonts of
+# the documentation of SAK as a site: the markdown of docs/development/ as it is in the
+# repository, mounted below, with the theme relearn (a hugo module, pinned in go.mod) in the colors and fonts of
 # sak-theme. `mise run docs:serve` serves it; nothing is loaded from outside
 title = 'SwissArmyKnife'
 baseURL = '/'
@@ -12,23 +12,24 @@ enableGitInfo = false
 [[module.imports]]
 path = 'github.com/McShelby/hugo-theme-relearn'
 
-# the content of this directory: the home page and the sections that docs/ has no index for
+# the content of this directory: the home page and the sections that docs/development/ has no
+# index for
 [[module.mounts]]
 source = 'content'
 target = 'content'
 
 [[module.mounts]]
-source = '../docs'
+source = '../docs/development'
 target = 'content'
 files = ['! fdr/INDEX.md', '! screenshots/**', '! design/**']
 
 # the index of the feature decision records is the page of its section
 [[module.mounts]]
-source = '../docs/fdr/INDEX.md'
+source = '../docs/development/fdr/INDEX.md'
 target = 'content/fdr/_index.md'
 
 [[module.mounts]]
-source = '../docs/screenshots'
+source = '../docs/development/screenshots'
 target = 'static/screenshots'
 
 # the tokens and the fonts of sak-theme, linked by layouts/partials/custom-header.html
@@ -67,7 +68,8 @@ noClasses = false
 block = true
 
 [params]
-# where a link to a file outside of docs/ goes (layouts/_default/_markup/render-link.html)
+# where a link to a file outside of docs/development/ goes
+# (layouts/_default/_markup/render-link.html)
 repositoryFiles = 'https://github.com/pellepelster/swiss-army-knife/blob/main'
 # light or dark as the system prefers, the same as the apps; no choice of other colors
 themeVariant = [

@@ -1,6 +1,6 @@
 //! the events the playbook posts while it provisions a server (the callback `http_notify` of the
 //! collection pelle_io.sak): a small http server on the loopback for one run, which takes an event
-//! only with the token of the run (docs/fdr/FDR-006-provisioning-events.md)
+//! only with the token of the run (docs/development/fdr/FDR-006-provisioning-events.md)
 
 use serde::Deserialize;
 use std::collections::BTreeMap;

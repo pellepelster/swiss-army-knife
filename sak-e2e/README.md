@@ -20,7 +20,7 @@ its chromium on the first run.
 
 ## Screenshots
 
-The screenshots of `docs/screenshots/` and the videos of `build/videos/`, taken in chromium. They
+The screenshots of `docs/development/screenshots/` and the videos of `build/videos/`, taken in chromium. They
 do not run with the local tests. The videos are not committed.
 
 ```sh

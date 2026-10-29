@@ -1,5 +1,5 @@
 // only the main create action of a page has the plus sign of sak-theme, the other add actions show
-// what they add as its icon (docs/UI-UX.md, "Only the main create action has a plus"); checked in
+// what they add as its icon (docs/development/UI-UX.md, "Only the main create action has a plus"); checked in
 // every template of the app
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';

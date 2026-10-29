@@ -8,7 +8,7 @@ weight: 20
 
 How the apps look and behave for the people who use them: the web ui, and sakctl in its window and on the command
 line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the code does it in
-[AGENT.md](../AGENT.md).
+[AGENT.md](../../AGENT.md).
 
 ## All apps
 

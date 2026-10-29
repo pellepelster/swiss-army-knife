@@ -88,7 +88,7 @@ fails the run.
    page of the new deployment;
 6. a deploy of a deployment with changes, and a destroy with the danger zone of "delete the data volume".
 
-Screenshots go to `docs/screenshots/window-<step>[-dark].png`. The video (steps 1 to 5) goes to
+Screenshots go to `docs/development/screenshots/window-<step>[-dark].png`. The video (steps 1 to 5) goes to
 `build/videos/window.mp4` and `window.gif`.
 
 ### Not done: the real app
@@ -102,8 +102,8 @@ bridge shows the same page with the same texts; the integration tests already te
 - `mise run docs:screenshots`: the web and the window screenshots (needs `local:run` for the web).
 - `mise run docs:video`: the tours of the web and of the window, then ffmpeg to `.mp4` and `.gif`.
 - Both stay out of `gradle test`, `gradle build` and `e2e:test:local`, by their tags.
-- `docs/screenshots/`: committed. `build/videos/`: never committed.
-- The README and `docs/UI-UX.md` show a screenshot of each app and the gif of the window.
+- `docs/development/screenshots/`: committed. `build/videos/`: never committed.
+- The README and `docs/development/UI-UX.md` show a screenshot of each app and the gif of the window.
 
 ## Steps
 
@@ -112,7 +112,7 @@ bridge shows the same page with the same texts; the integration tests already te
 3. The fixtures test in Rust and its call from the mise tasks.
 4. The fake bridge and the routing of `sak-cli/ui` in `sak-e2e`.
 5. `WindowScreenshotTest`, then `WindowVideoTest`.
-6. The screenshots and the gifs in the README and in `docs/UI-UX.md`.
+6. The screenshots and the gifs in the README and in `docs/development/UI-UX.md`.
 
 ## Decisions
 

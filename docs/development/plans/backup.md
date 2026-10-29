@@ -216,7 +216,7 @@ for a lost or a deleted volume, or to go back to an earlier state.
 4. `core/backup.rs`: `BackupManager`, the encryption, the manifest check, the events.
 5. `cli.rs`: `backup` and `restore`, the texts, the parse tests.
 6. The integration test in `sak-e2e`.
-7. An FDR for backup and restore (behavior and the decisions below), `docs/fdr/INDEX.md`; the README.
+7. An FDR for backup and restore (behavior and the decisions below), `docs/development/fdr/INDEX.md`; the README.
 8. Later: the window.
 
 ## Decisions

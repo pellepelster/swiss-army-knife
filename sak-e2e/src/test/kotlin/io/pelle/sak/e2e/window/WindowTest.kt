@@ -110,7 +110,7 @@ private object EnabledTimeout {
             .setTimeout(180_000.0)
 }
 
-// the screenshots of the window in docs/screenshots/window-<view>[-dark].png, light and dark
+// the screenshots of the window in docs/development/screenshots/window-<view>[-dark].png, light and dark
 @Tag("screenshots")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WindowScreenshotTest {

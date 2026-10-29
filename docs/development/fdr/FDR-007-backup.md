@@ -14,7 +14,7 @@ weight: 7
 
 A deployment keeps all its data on the data volume of its server. sakctl makes a backup of this data on the user's
 machine, and restores it into the deployment of the same name, for example after the server or the data volume is
-lost. The plan with the details is [docs/plans/backup.md](../plans/backup.md).
+lost. The plan with the details is [docs/development/plans/backup.md](../plans/backup.md).
 
 ## Behavior
 

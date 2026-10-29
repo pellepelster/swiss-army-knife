@@ -339,7 +339,7 @@ databaseChangeLog:
         # the settings of the controller, each of a name and a scope: 'system' for the controller
         # itself or the e-mail address of a user. Some are secrets (e.g. AUTH_SIGNING_KEY); the
         # values are plain, the whole database is to be encrypted
-        # (docs/fdr/FDR-002-sqlite-encryption.md). A setting replaced or deleted stays as a row
+        # (docs/development/fdr/FDR-002-sqlite-encryption.md). A setting replaced or deleted stays as a row
         # with deleted_at set, one setting per name and scope is not deleted
         - createTable:
             tableName: settings

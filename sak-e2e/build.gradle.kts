@@ -49,8 +49,8 @@ fun Test.window() {
     systemProperty("sak.e2e.window.fixtures", rootDir.resolve("build/ui-fixtures/window.json").path)
 }
 
-e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the window of sakctl") {
-    systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
+e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/development/screenshots/: the apps against the environment of mise run local:run, the window of sakctl") {
+    systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/development/screenshots").path)
     window()
 }
 

@@ -15,7 +15,7 @@ weight: 2
 The backend keeps its data in one SQLite database file on the data volume of the server. Today all data in it is
 plain text: the secrets (the S3 keys of the buckets, the signing key of the login), email addresses and the content of
 the apps. A separate encryption of the secrets was removed in favor of this feature. This feature encrypts the complete database file, so that all data in it is encrypted at rest, as
-[AGENT.md](../../AGENT.md) requires.
+[AGENT.md](../../../AGENT.md) requires.
 
 ## Behavior
 
