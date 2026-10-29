@@ -11,8 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import io.pelle.sak.api.testing.testClock
-import io.pelle.sak.backend.secrets.SecretType
-import io.pelle.sak.backend.testSecrets
 
 class S3BucketServiceTest {
     @TempDir
@@ -24,12 +22,9 @@ class S3BucketServiceTest {
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
-    private val secrets by lazy { testSecrets(database) }
-
     private val service by lazy {
         S3BucketService(
             database,
-            secrets,
             clock,
             reservedNames = setOf("console"),
             domains = domains(database, "console.example.org"),
@@ -56,9 +51,8 @@ class S3BucketServiceTest {
         firstSecret.length shouldBe 40
         first.accessKeyId shouldNotBe second.accessKeyId
         firstSecret shouldNotBe service.keyPair("backups")!!.second.value
-        // kept encrypted with the secrets, sigv4 gets it from there
+        // sigv4 finds it by the access key id
         service.secretAccessKey(first.accessKeyId)!!.value shouldBe firstSecret
-        secrets.get(SecretType.S3_SECRET_ACCESS_KEY, "pelle-io")!!.value shouldBe firstSecret
 
         service.all().map { it.name } shouldBe listOf("backups", "pelle-io")
         service.byName("pelle-io") shouldBe first
@@ -83,7 +77,6 @@ class S3BucketServiceTest {
             SakDatabase.open(tempDir.resolve("root.db")).let { database ->
                 S3BucketService(
                 database,
-                testSecrets(database),
                 clock,
                 baseDomain = "example.org",
                 reservedNames = setOf("sak"),

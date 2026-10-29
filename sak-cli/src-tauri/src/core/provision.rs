@@ -39,6 +39,12 @@ pub struct ProvisionRun {
     pub host_key: DerivedKey,
     /// the block device of the data volume, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
     pub storage_device: String,
+    /// `sak_admin_email`: the admin, of the password login and the first of the e-mail login
+    pub admin_email: String,
+    /// the mail server of the e-mail login, none: only the password login
+    pub smtp: Option<crate::core::deployments::Smtp>,
+    /// `SAK_ADMIN_PASSWORD_HASH` of `backend.env`, the argon2id hash of the admin password
+    pub admin_password_hash: String,
 }
 
 impl ProvisionRun {
@@ -46,15 +52,49 @@ impl ProvisionRun {
         format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
              ansible_ssh_private_key_file: {dir}/id_ed25519\n      ansible_ssh_common_args: -F {dir}/ssh_config\n      \
-             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_api_token_sha256: {api_token_sha256}\n",
+             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_api_token_sha256: {api_token_sha256}\n      sak_admin_email: {admin_email}\n      \
+             sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_from: {smtp_from}\n      sak_smtp_tls: {smtp_tls}\n      \
+             sak_smtp_starttls: {smtp_starttls}\n      controller_env_src: {dir}/backend.env\n",
             name = self.name,
             host = self.host,
             dir = RUN_DIR,
             device = self.storage_device,
             dns_mode = self.dns_mode,
             root_domain = self.root_domain,
-            api_token_sha256 = self.api_token_sha256
+            api_token_sha256 = self.api_token_sha256,
+            admin_email = self.admin_email,
+            smtp_enabled = self.smtp.is_some(),
+            smtp_from = self.smtp_from(),
+            // without starttls the connection is implicit tls (smtps), never plain text
+            smtp_tls = self.smtp.as_ref().is_some_and(|smtp| !smtp.starttls),
+            smtp_starttls = self.smtp.as_ref().is_some_and(|smtp| smtp.starttls),
         )
+    }
+
+    /// the sender of the login mails: given, else `noreply@<root domain>`
+    fn smtp_from(&self) -> String {
+        self.smtp
+            .as_ref()
+            .and_then(|smtp| smtp.from.clone())
+            .unwrap_or_else(|| format!("noreply@{}", self.root_domain))
+    }
+
+    /// the environment of the backend (`backend.env`), one `KEY=value` a line as podman reads it:
+    /// the hash of the admin password, the addresses of the server and,
+    /// with a mail server, its settings. Secret, written for the run only
+    fn backend_env(&self) -> String {
+        let mut lines = vec![
+            format!("SAK_ADMIN_PASSWORD_HASH={}", self.admin_password_hash),
+            format!("SAK_IPV4={}", self.host),
+            format!("SAK_IPV6={}", self.host_ipv6.clone().unwrap_or_default()),
+        ];
+        if let Some(smtp) = &self.smtp {
+            lines.push(format!("SAK_SMTP_HOST={}", smtp.host.trim()));
+            lines.push(format!("SAK_SMTP_PORT={}", smtp.port));
+            lines.push(format!("SAK_SMTP_USERNAME={}", smtp.username));
+            lines.push(format!("SAK_SMTP_PASSWORD={}", smtp.password));
+        }
+        lines.join("\n") + "\n"
     }
 
     fn ssh_config(&self) -> String {
@@ -96,6 +136,7 @@ impl ProvisionManager {
         dir.write("ssh_config", &run.ssh_config(), false)?;
         dir.write("known_hosts", &run.known_hosts(), false)?;
         dir.write("id_ed25519", &run.client_key.private_key(), true)?;
+        dir.write("backend.env", &run.backend_env(), true)?;
 
         let mut command = container::command(runtime);
         command.args(["run", "--rm"]);
@@ -231,7 +272,65 @@ mod tests {
             client_key: derive_key("alpha", "a password of sixteen").unwrap(),
             host_key: derive_host_key("alpha", "a password of sixteen").unwrap(),
             storage_device: "/dev/disk/by-id/scsi-0HC_Volume_1".to_string(),
+            admin_email: "admin@example.org".to_string(),
+            smtp: Some(crate::core::deployments::Smtp {
+                host: "smtp.example.org".to_string(),
+                port: 465,
+                username: "user".to_string(),
+                password: "p@$$ w0rd#!".to_string(),
+                starttls: false,
+                from: None,
+            }),
+            admin_password_hash: "$argon2id$v=19$m=19456,t=2,p=1$salt$hash".to_string(),
         }
+    }
+
+    #[test]
+    fn the_backend_gets_the_admin_password_hash_the_addresses_and_the_mail_server() {
+        let env = run().backend_env();
+        assert_eq!(
+            env,
+            "SAK_ADMIN_PASSWORD_HASH=$argon2id$v=19$m=19456,t=2,p=1$salt$hash\n\
+             SAK_IPV4=203.0.113.1\nSAK_IPV6=2001:db8::1\n\
+             SAK_SMTP_HOST=smtp.example.org\nSAK_SMTP_PORT=465\nSAK_SMTP_USERNAME=user\n\
+             SAK_SMTP_PASSWORD=p@$$ w0rd#!\n"
+        );
+        // no key of any secret: the database is plain until it is encrypted as a whole
+        assert!(!env.contains("SECRET_KEY"));
+
+        let without_smtp = ProvisionRun {
+            smtp: None,
+            ..run()
+        };
+        assert!(!without_smtp.backend_env().contains("SAK_SMTP"));
+    }
+
+    #[test]
+    fn the_inventory_tells_the_controller_role_the_admin_and_the_mail_server() {
+        let inventory = run().inventory();
+        assert!(inventory.contains("      sak_admin_email: admin@example.org\n"));
+        assert!(inventory.contains("      sak_smtp_enabled: true\n"));
+        // the sender: noreply@<root domain> unless given
+        assert!(inventory.contains("      sak_smtp_from: noreply@pelle.io\n"));
+        // without starttls implicit tls, never plain text
+        assert!(inventory.contains("      sak_smtp_tls: true\n      sak_smtp_starttls: false\n"));
+        assert!(inventory.contains("      controller_env_src: /run/sak/backend.env\n"));
+
+        let mut given = run();
+        if let Some(smtp) = given.smtp.as_mut() {
+            smtp.from = Some("login@example.org".to_string());
+            smtp.starttls = true;
+        }
+        let inventory = given.inventory();
+        assert!(inventory.contains("      sak_smtp_from: login@example.org\n"));
+        assert!(inventory.contains("      sak_smtp_tls: false\n      sak_smtp_starttls: true\n"));
+
+        let without_smtp = ProvisionRun {
+            smtp: None,
+            ..run()
+        }
+        .inventory();
+        assert!(without_smtp.contains("      sak_smtp_enabled: false\n"));
     }
 
     #[test]

@@ -41,7 +41,7 @@ class SakDatabase private constructor(
         fun open(file: Path): SakDatabase {
             Files.createDirectories(file.toAbsolutePath().parent)
             if (!Files.exists(file)) {
-                // the secrets of the buckets are in it
+                // the secrets of the buckets and the settings are in it
                 Files.createFile(file, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
             }
 

@@ -2,9 +2,7 @@ package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.secrets.Secret
-import io.pelle.sak.backend.secrets.SecretService
-import io.pelle.sak.backend.secrets.SecretType
+import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.model.s3.S3BucketRepository
@@ -54,8 +52,6 @@ sealed interface UpdateDomainsResult {
 // <name>.<base_domain> when the root domain is given
 class S3BucketService(
     private val repository: S3BucketRepository,
-    // the secret of each bucket's key pair
-    private val secrets: SecretService,
     // the domain the buckets get their subdomain of, the base domain of the deployment
     private val baseDomain: String?,
     // names that are no buckets, e.g. the controller's own sites
@@ -65,12 +61,11 @@ class S3BucketService(
 ) {
     constructor(
         database: SakDatabase,
-        secrets: SecretService,
         clock: Clock = Clock.systemUTC(),
         baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(database),
-    ) : this(S3BucketRepository(database, clock), secrets, baseDomain, reservedNames, domains)
+    ) : this(S3BucketRepository(database, clock), baseDomain, reservedNames, domains)
 
     private val random = SecureRandom()
 
@@ -88,14 +83,10 @@ class S3BucketService(
 
     // the secret of the key pair, for sigv4 to verify the requests signed with it
     fun secretAccessKey(accessKeyId: String): Secret? =
-        repository.byAccessKeyId(accessKeyId)?.let { secrets.get(SecretType.S3_SECRET_ACCESS_KEY, it.name) }
+        repository.secretAccessKey(accessKeyId)?.let(::Secret)
 
     // the key pair of the bucket, null for an unknown one
-    fun keyPair(name: String): Pair<String, Secret>? {
-        val bucket = repository.byName(name) ?: return null
-        val secret = secrets.get(SecretType.S3_SECRET_ACCESS_KEY, name) ?: return null
-        return bucket.accessKeyId to secret
-    }
+    fun keyPair(name: String): Pair<String, Secret>? = repository.keyPair(name)?.let { (accessKeyId, secret) -> accessKeyId to Secret(secret) }
 
     // the bucket served at the domain, one of its own or its subdomain of the base domain
     fun bucketOfDomain(domain: String): String? {
@@ -134,9 +125,8 @@ class S3BucketService(
                 is DomainCheck.Valid -> checked.domains
             }
         val bucket =
-            repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), normalized)
+            repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized)
                 ?: return CreateBucketResult.NameTaken
-        secrets.put(SecretType.S3_SECRET_ACCESS_KEY, name, key(SECRET_ALPHABET, 40))
         if (servedDomains(bucket).isNotEmpty()) changed()
         return CreateBucketResult.Created(bucket)
     }
@@ -164,7 +154,6 @@ class S3BucketService(
     // stays taken and its objects stay in the storage until it is purged
     fun delete(name: String): DeleteBucketResult {
         if (!repository.delete(name)) return DeleteBucketResult.NotFound
-        secrets.delete(SecretType.S3_SECRET_ACCESS_KEY, name)
         changed()
         return DeleteBucketResult.Deleted
     }

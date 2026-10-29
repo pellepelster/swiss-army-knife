@@ -21,7 +21,7 @@ test('documents the api in swagger ui, which tries it out with the session of th
   }
 
   // the session of the apps authorizes the requests
-  await page.getByText('/api/v1/auth/me', { exact: true }).click();
+  await page.getByText('/api/v1/auth/who-am-i', { exact: true }).click();
   await page.getByRole('button', { name: 'Try it out' }).click();
   await page.getByRole('button', { name: 'Execute' }).click();
   const response = page.locator('.live-responses-table');

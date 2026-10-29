@@ -41,6 +41,23 @@ class S3BucketRepository(
             .fetchOne()
             ?.let { it.toBucket(domainsByBucket(database.dsl, it.name)[it.name].orEmpty()) }
 
+    // the secret of a live bucket's key pair, never part of S3Bucket so it can't reach the api
+    fun secretAccessKey(accessKeyId: String): String? =
+        database.dsl
+            .select(S3_BUCKETS.SECRET_ACCESS_KEY)
+            .from(S3_BUCKETS)
+            .where(S3_BUCKETS.ACCESS_KEY_ID.eq(accessKeyId), S3_BUCKETS.DELETED_AT.isNull)
+            .fetchOne(S3_BUCKETS.SECRET_ACCESS_KEY)
+
+    // the access key id and the secret of a live bucket's key pair
+    fun keyPair(name: String): Pair<String, String>? =
+        database.dsl
+            .select(S3_BUCKETS.ACCESS_KEY_ID, S3_BUCKETS.SECRET_ACCESS_KEY)
+            .from(S3_BUCKETS)
+            .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
+            .fetchOne()
+            ?.let { it.value1()!! to it.value2()!! }
+
     // the bucket served at the domain
     fun bucketOfDomain(domain: String): String? =
         database.dsl
@@ -49,11 +66,11 @@ class S3BucketRepository(
             .where(S3_BUCKETS_DOMAINS.DOMAIN.eq(domain), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
             .fetchOne(S3_BUCKETS_DOMAINS.BUCKET_NAME)
 
-    // null when the name, also the one of a deleted bucket, or one of the domains is taken; the
-    // secret of the key pair is kept with the secrets
+    // null when the name, also the one of a deleted bucket, or one of the domains is taken
     fun insert(
         name: String,
         accessKeyId: String,
+        secretAccessKey: String,
         domains: List<String> = emptyList(),
     ): S3Bucket? =
         try {
@@ -64,6 +81,7 @@ class S3BucketRepository(
                     .insertInto(S3_BUCKETS)
                     .set(S3_BUCKETS.NAME, bucket.name)
                     .set(S3_BUCKETS.ACCESS_KEY_ID, bucket.accessKeyId)
+                    .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
                     .set(S3_BUCKETS.CREATED_AT, bucket.createdAt)
                     .execute()
                 bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt) }
@@ -188,7 +206,7 @@ class S3BucketRepository(
 }
 
 // domains are where caddy serves the bucket's objects, in their order; the secret of the key pair
-// is one of the secrets
+// is left out, only secretAccessKey and keyPair of the repository read it
 data class S3Bucket(
     val name: String,
     val accessKeyId: String,

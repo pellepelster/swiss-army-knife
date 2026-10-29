@@ -38,10 +38,6 @@ data class SakConfig(
     val logs: LogsConfig = LogsConfig(),
     // the text discovery in the photos and recordings of notes is only offered when configured
     val openrouter: OpenRouterConfig? = null,
-    // the keys the secrets are encrypted with (the secrets table) by their version, the highest
-    // encrypts; each is at least 32 random bytes, base64. The backend refuses to start without one
-    @SerialName("secret_keys")
-    val secretKeys: Map<Int, String> = emptyMap(),
     // the public addresses of the server the backend runs on, none e.g. locally
     val addresses: AddressesConfig = AddressesConfig(),
     val dns: DnsConfig = DnsConfig(),
@@ -56,7 +52,7 @@ data class SakConfig(
     // the secret keys never show, e.g. in a log line
     override fun toString() =
         "SakConfig(name=$name, dnsMode=$dnsMode, dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
-            "openrouter=$openrouter, secretKeys=versions ${secretKeys.keys.sorted()}, addresses=$addresses, dns=$dns)"
+            "openrouter=$openrouter, addresses=$addresses, dns=$dns)"
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
@@ -111,13 +107,39 @@ data class SakConfig(
     @Serializable
     data class AuthConfig(
         // the addresses that may sign in to sak-frontend, as admins, compared case-insensitively; no
-        // other address gets a login link
+        // other address gets a login link. The first one is the admin who also signs in with the
+        // password (admin_password)
         val admins: List<String> = emptyList(),
-        val smtp: SmtpConfig,
+        // the mail server of the login links; without it there is no e-mail login, only the admin
+        // signs in, with the password
+        val smtp: SmtpConfig? = null,
+        // the argon2id hash (phc string) of the admin password, the deployment password sakctl
+        // derives it from; without it there is no password login
+        @SerialName("admin_password")
+        val adminPassword: String? = null,
         // overrides https://sak.<base_domain>, e.g. for local tests
         @SerialName("frontend_url")
         val frontendUrl: String? = null,
-    )
+    ) {
+        init {
+            require(smtp != null || adminPassword != null) {
+                "auth needs a way to sign in: smtp for the e-mail login, admin_password for the password login, or both"
+            }
+            require(adminPassword == null || admins.isNotEmpty()) {
+                "auth.admin_password needs the address of the admin, the first of auth.admins"
+            }
+            require(adminPassword == null || adminPassword.startsWith("\$argon2id\$")) {
+                "auth.admin_password is no argon2id hash (\$argon2id\$…)"
+            }
+        }
+
+        // the admin of the password login: the first of the admins
+        val admin: String? get() = admins.firstOrNull()?.trim()?.lowercase()
+
+        // the hash never shows, e.g. in a log line
+        override fun toString() =
+            "AuthConfig(admins=$admins, smtp=$smtp, adminPassword=${if (adminPassword == null) "none" else "set"}, frontendUrl=$frontendUrl)"
+    }
 
     @Serializable
     data class OpenRouterConfig(

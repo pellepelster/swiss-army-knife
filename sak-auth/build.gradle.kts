@@ -15,6 +15,8 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.angus.mail)
+    // argon2id, the admin password is checked against its hash
+    implementation(libs.bouncycastle)
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(testFixtures(project(":sak-api")))

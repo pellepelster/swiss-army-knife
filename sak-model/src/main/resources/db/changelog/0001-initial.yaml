@@ -11,9 +11,8 @@ databaseChangeLog:
       id: 0001-initial
       author: sak
       changes:
-        # the buckets of the s3 api, each with the key pair that may access it; the secret of the
-        # pair is one of the secrets (secrets). A deleted bucket stays as a row with deleted_at set,
-        # its name stays taken until it is purged
+        # the buckets of the s3 api, each with the key pair that may access it. A deleted bucket
+        # stays as a row with deleted_at set, its name stays taken until it is purged
         - createTable:
             tableName: s3_buckets
             columns:
@@ -30,6 +29,11 @@ databaseChangeLog:
                     nullable: false
                     unique: true
                     uniqueConstraintName: s3_buckets_access_key_id_key
+              - column:
+                  name: secret_access_key
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
               - column:
                   name: created_at
                   type: timestamp
@@ -332,13 +336,13 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX notes_files_file_key ON notes_files (note_id, file_id) WHERE deleted_at IS NULL
 
-        # every secret of the controller, encrypted with AES-256-GCM under the configured secret key
-        # of key_version (sak.secret_keys); no other table holds a secret. The type and scope (e.g.
-        # S3_SECRET_ACCESS_KEY of a bucket's name, '' for the controller itself) are part of what
-        # is authenticated, a value moved to another row does not decrypt. A secret replaced or
-        # deleted stays as a row with deleted_at set, one secret per type and scope is not deleted
+        # the settings of the controller, each of a name and a scope: 'system' for the controller
+        # itself or the e-mail address of a user. Some are secrets (e.g. AUTH_SIGNING_KEY); the
+        # values are plain, the whole database is to be encrypted
+        # (docs/fdr/FDR-002-sqlite-encryption.md). A setting replaced or deleted stays as a row
+        # with deleted_at set, one setting per name and scope is not deleted
         - createTable:
-            tableName: secrets
+            tableName: settings
             columns:
               - column:
                   name: id
@@ -347,28 +351,18 @@ databaseChangeLog:
                     primaryKey: true
                     nullable: false
               - column:
-                  name: type
+                  name: name
                   type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: value
+                  type: varchar(16384)
                   constraints:
                     nullable: false
               - column:
                   name: scope
                   type: varchar(255)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: key_version
-                  type: int
-                  constraints:
-                    nullable: false
-              - column:
-                  name: nonce
-                  type: varchar(32)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: ciphertext
-                  type: varchar(16384)
                   constraints:
                     nullable: false
               - column:
@@ -384,4 +378,4 @@ databaseChangeLog:
                   type: timestamp
         - sql:
             dbms: sqlite
-            sql: CREATE UNIQUE INDEX secrets_type_scope_key ON secrets (type, scope) WHERE deleted_at IS NULL
+            sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL

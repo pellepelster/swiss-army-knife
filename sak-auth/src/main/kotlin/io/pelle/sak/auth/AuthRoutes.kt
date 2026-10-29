@@ -20,19 +20,23 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import io.ktor.utils.io.ExperimentalKtorApi
 import jakarta.mail.internet.AddressException
 import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.HexFormat
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
+import io.pelle.sak.auth.model.LoginMethodsResponse
 import io.pelle.sak.auth.model.LoginRequest
-import io.pelle.sak.auth.model.MeResponse
+import io.pelle.sak.auth.model.PasswordLoginRequest
+import io.pelle.sak.auth.model.WhoAmIResponse
 
 private val logger = KotlinLogging.logger {}
 
@@ -216,23 +220,108 @@ fun Route.login(
 
 }
 
+// the password login of the admin: the admin password (the deployment password) for a session token
+// of the admin, the first of the admins. The check is slow on purpose (argon2id), so the limits
+// come first: a client and the server altogether try only a few passwords an hour, a request over
+// the limit is refused before any hashing. A wrong password tells nothing but 401
+@OptIn(ExperimentalKtorApi::class)
+fun Route.passwordLogin(
+    tokens: TokenService,
+    admin: String,
+    password: AdminPassword,
+    rolesOf: (email: String) -> Set<Role>,
+    attemptsPerClient: RateLimiter = RateLimiter(10, Duration.ofHours(1)),
+    attemptsPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
+) {
+    route("/password") {
+        installApi()
+
+        post {
+            val request = call.receive<PasswordLoginRequest>()
+            if (!attemptsPerClient.tryAcquire(call.clientAddress()) || !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
+                call.respond(HttpStatusCode.TooManyRequests)
+                return@post
+            }
+            val matches = withContext(Dispatchers.Default) { password.matches(request.password) }
+            val roles = rolesOf(admin)
+            if (!matches || roles.isEmpty()) {
+                // neither the password nor the address of the client
+                logger.info { "rejected a password login" }
+                call.respond(HttpStatusCode.Unauthorized)
+                return@post
+            }
+            val session = tokens.issueSessionToken(admin, roles)
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respond(
+                ExchangeResponse(session.token, session.email, session.expiresAt.toString(), roles.keys(), safeRedirect(request.redirect)),
+            )
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "Sign in as the admin with the admin password"
+            description =
+                "The admin password is the password of the deployment. The session token is valid for " +
+                "${tokens.sessionTokenTtl.toDays()} days. Only a few attempts an hour are answered."
+            requestBody {
+                required = true
+                schema = jsonSchema<PasswordLoginRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The session token of the admin and where the login started"
+                    schema = jsonSchema<ExchangeResponse>()
+                }
+                HttpStatusCode.Unauthorized { description = "The password is not the admin password" }
+                HttpStatusCode.TooManyRequests { description = "Too many attempts from this client or altogether" }
+            }
+        }
+    }
+}
+
+// how a user can sign in, without a session: what the login page offers
+@OptIn(ExperimentalKtorApi::class)
+fun Route.loginMethods(
+    email: Boolean,
+    password: Boolean,
+) {
+    route("/methods") {
+        installApi()
+
+        get {
+            call.respond(LoginMethodsResponse(email, password))
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "How a user can sign in"
+            description = "Whether the e-mail login (a mail server is configured) and the password login of the admin are offered."
+            responses {
+                HttpStatusCode.OK {
+                    description = "The login methods"
+                    schema = jsonSchema<LoginMethodsResponse>()
+                }
+            }
+        }
+    }
+}
+
+// the key of the limit of all clients together
+private const val ALL_CLIENTS = "*"
+
 // the signed in user, meant to be mounted behind authenticate(SESSION_AUTH) with
 // authentication { session(tokens, rolesOf) }
 @OptIn(ExperimentalKtorApi::class)
-fun Route.me() {
+fun Route.whoAmI() {
     installApi()
 
-    get("/me") {
+    get("/who-am-i") {
         val principal = call.principal<SessionPrincipal>()!!
         call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respond(MeResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
+        call.respond(WhoAmIResponse(principal.email, principal.expiresAt.toString(), principal.roles.keys()))
     }.describe {
         tag(AUTH_TAG)
         summary = "The signed in user"
         responses {
             HttpStatusCode.OK {
                 description = "The address, its roles and when the session expires"
-                schema = jsonSchema<MeResponse>()
+                schema = jsonSchema<WhoAmIResponse>()
             }
             HttpStatusCode.Unauthorized { description = "No valid session token" }
         }

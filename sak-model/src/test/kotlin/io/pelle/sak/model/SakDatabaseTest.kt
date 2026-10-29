@@ -25,6 +25,7 @@ class SakDatabaseTest {
         .insertInto(S3_BUCKETS)
         .set(S3_BUCKETS.NAME, name)
         .set(S3_BUCKETS.ACCESS_KEY_ID, accessKeyId)
+        .set(S3_BUCKETS.SECRET_ACCESS_KEY, "secret")
         .set(S3_BUCKETS.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
         .execute()
 

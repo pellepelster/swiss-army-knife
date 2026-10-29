@@ -1,13 +1,13 @@
 # FDR-002: SQLite Database Encryption
 
 **Status:** Planned
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
-The backend keeps its data in one SQLite database file on the data volume of the server. Today only the secrets in
-the database are encrypted. All other data, for example email addresses and the content of the apps, is plain text
-in the file. This feature encrypts the complete database file, so that all data in it is encrypted at rest, as
+The backend keeps its data in one SQLite database file on the data volume of the server. Today all data in it is
+plain text: the secrets (the S3 keys of the buckets, the signing key of the login), email addresses and the content of
+the apps. A separate encryption of the secrets was removed in favor of this feature. This feature encrypts the complete database file, so that all data in it is encrypted at rest, as
 [AGENT.md](../../AGENT.md) requires.
 
 ## Behavior
@@ -28,11 +28,14 @@ in the file. This feature encrypts the complete database file, so that all data 
 forget to encrypt a field.
 **Tradeoff:** The standard SQLite driver has no encryption. SAK must use a SQLite build with an encryption extension.
 
-### 2. Keep the encryption of the secrets
+### 2. No separate encryption of the secrets
 
-**Decision:** The secrets stay encrypted in their table (`SecretService`), also in the encrypted database.
-**Why:** Two layers. A secret stays encrypted in an export or a dump of the decrypted database.
-**Tradeoff:** A secret is encrypted twice.
+**Decision:** The secrets are plain in their tables (the signing key in `settings`, the secret key of a bucket in
+`s3_buckets`); the encryption of the database file protects
+them with all other data.
+**Why:** One key and one mechanism instead of two. A separate encryption of single columns protected only the
+secrets and left all other user data plain.
+**Tradeoff:** A secret is plain in an export or a dump of the decrypted database.
 
 ## Related
 
@@ -43,8 +46,8 @@ forget to encrypt a field.
 
 - Which encryption extension does SAK use (for example SQLCipher or SQLite3 Multiple Ciphers), and which JDBC
   driver supports it?
-- Where does the key come from: a new value next to `sak.secret_keys` in the server configuration, or a key derived
-  from the secret keys?
+- Where does the key come from: a value in `backend.env` that sakctl writes, derived from the deployment password,
+  or a key that the server keeps on its own?
 - How does SAK change the key (key rotation)?
 - How does SAK encrypt an existing database that is not encrypted, on the first start of the new version?
 - Does SAK also encrypt the complete data volume (for example with LUKS)? The volume also holds data that is not in

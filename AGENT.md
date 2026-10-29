@@ -49,9 +49,9 @@ in the same commit and says why.
 - The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
   fields and answer the row as it is stored.
-- A secret is read and written only through `SecretService` (sak-backend) and handed out as `Secret`, whose
-  `toString()` never shows the value. Configuration and value classes holding a secret override `toString()` the
-  same way.
+- `SettingService` hands the values out as they are; the consumer of a setting that is a secret keeps it out of logs,
+  e.g. by wrapping it in `Secret`, whose `toString()` never shows the value. Configuration and value classes holding a
+  secret override `toString()` the same way.
 - `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
   only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
   `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.

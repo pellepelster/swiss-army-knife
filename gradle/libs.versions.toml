@@ -1,6 +1,7 @@
 [versions]
 angus-mail = "2.0.5"
 awssdk = "2.57.3"
+bouncycastle = "1.86"
 caffeine = "3.3.1"
 dnsjava = "3.6.3"
 greenmail = "2.1.15"
@@ -20,6 +21,7 @@ sqlite-jdbc = "3.53.4.0"
 [libraries]
 angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angus-mail" }
 awssdk-bom = { module = "software.amazon.awssdk:bom", version.ref = "awssdk" }
+bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 awssdk-apache-client = { module = "software.amazon.awssdk:apache-client" }
 awssdk-s3 = { module = "software.amazon.awssdk:s3" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }

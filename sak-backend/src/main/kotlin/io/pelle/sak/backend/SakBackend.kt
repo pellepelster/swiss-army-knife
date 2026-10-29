@@ -19,7 +19,7 @@ import io.pelle.sak.backend.redirects.reservedDomains
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.secrets.SecretService
+import io.pelle.sak.backend.settings.SettingService
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
@@ -70,7 +70,7 @@ fun Application.module() {
 // every service of the backend, made once by sak(); the routes of the apps use them, the caddy
 // reconciler hears of the changes of the buckets and the redirects
 class SakServices(
-    val secrets: SecretService,
+    val settings: SettingService,
     val statistics: BucketStatisticsCache,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
@@ -84,7 +84,7 @@ class SakServices(
 )
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the
-// notes, the records of the files and the secrets
+// notes, the records of the files and the settings
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
 // the content of the file storage, below the first two characters of its sha-256
@@ -96,12 +96,12 @@ fun Application.sak(config: SakConfig): SakServices {
 
     val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
     val database = SakDatabase.open(databaseFile(config))
-    // every secret, encrypted under sak.secret_keys; the ones under an older key move to the newest
-    val secrets = SecretService(database, config.secretKeys, config.rootDomain)
-    secrets.reencryptUnderNewestKey()
+    // the settings, the signing key of the login among them, plain in the database until the
+    // whole database is encrypted (FDR-002)
+    val settings = SettingService(database)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(database, reservedDomains(config))
-    val bucketService = S3BucketService(database, secrets, baseDomain = config.baseDomain, reservedNames = RESERVED_SITES, domains = domains)
+    val bucketService = S3BucketService(database, baseDomain = config.baseDomain, reservedNames = RESERVED_SITES, domains = domains)
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
@@ -122,7 +122,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val domainCheck = DomainDnsCheck(config.dns.servers.map { DnsjavaNameServer(it) })
     val services =
         SakServices(
-            secrets,
+            settings,
             statistics,
             bucketService,
             redirectService,

@@ -56,7 +56,7 @@ class AuthRoutesTest {
             install(Authentication) { session(tokens, rolesOf) }
             routing {
                 route("/api/v1/auth") {
-                    authenticate(SESSION_AUTH) { me() }
+                    authenticate(SESSION_AUTH) { whoAmI() }
                 }
                 route("/api/v1/auth/login") {
                     login(
@@ -114,7 +114,7 @@ class AuthRoutesTest {
             session["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
             session.string("redirect") shouldBe "/buckets?tab=1"
 
-            val me = client.get("/api/v1/auth/me") { bearerAuth(session.string("sessionToken")) }
+            val me = client.get("/api/v1/auth/who-am-i") { bearerAuth(session.string("sessionToken")) }
             me.status shouldBe HttpStatusCode.OK
             me.bodyAsText().json().string("email") shouldBe "admin@example.org"
             me.bodyAsText().json()["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
@@ -172,9 +172,9 @@ class AuthRoutesTest {
     @Test
     fun `the api rejects requests without a valid session token`() =
         authTest {
-            client.get("/api/v1/auth/me").status shouldBe HttpStatusCode.Unauthorized
-            client.get("/api/v1/auth/me") { bearerAuth("garbage") }.status shouldBe HttpStatusCode.Unauthorized
-            client.get("/api/v1/auth/me") { bearerAuth(tokens.issueLoginToken("admin@example.org", "/")) }.status shouldBe
+            client.get("/api/v1/auth/who-am-i").status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/who-am-i") { bearerAuth("garbage") }.status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(tokens.issueLoginToken("admin@example.org", "/")) }.status shouldBe
                 HttpStatusCode.Unauthorized
             client.exchange("garbage").status shouldBe HttpStatusCode.Unauthorized
         }
@@ -185,7 +185,7 @@ class AuthRoutesTest {
             client.exchange(tokens.issueLoginToken("removed@example.org", "/")).status shouldBe HttpStatusCode.Unauthorized
 
             val session = tokens.issueSessionToken("removed@example.org", setOf(Role.ADMIN)).token
-            client.get("/api/v1/auth/me") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
         }
 
     @Test

@@ -18,15 +18,18 @@ import io.ktor.server.routing.openapi.hide
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
-import io.pelle.sak.backend.secrets.SecretType
+import io.pelle.sak.backend.settings.SettingName
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.API_TOKEN_AUTH
+import io.pelle.sak.auth.AdminPassword
+import io.pelle.sak.auth.loginMethods
+import io.pelle.sak.auth.passwordLogin
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.login
-import io.pelle.sak.auth.me
+import io.pelle.sak.auth.whoAmI
 import io.pelle.sak.auth.apiToken
 import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
@@ -106,13 +109,15 @@ fun Application.apps(
     auth: SakConfig.AuthConfig,
     services: SakServices,
 ) = with(services) {
-    // generated once and kept with the secrets, so sessions survive restarts
-    val signingKey = secrets.getOrCreate(SecretType.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
-    val tokens = TokenService(SigningKey.fromPem(signingKey.value), config.frontendUrl)
+    // generated once and kept in the settings, so sessions survive restarts
+    val signingKey = settings.getOrCreate(SettingName.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
+    val tokens = TokenService(SigningKey.fromPem(signingKey), config.frontendUrl)
+    // the e-mail login only with a mail server, the password login only with an admin password
     val mailSender =
-        with(auth.smtp) {
+        auth.smtp?.run {
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
+    val adminPassword = auth.adminPassword?.let(::AdminPassword)
     val admins = auth.admins.map { it.trim().lowercase() }.toSet()
     val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
 
@@ -147,10 +152,16 @@ fun Application.apps(
                     }
                     route("/auth") {
                         route("/login") {
-                            login(tokens, mailSender, loginApp(config), rolesOf)
+                            if (mailSender != null) {
+                                login(tokens, mailSender, loginApp(config), rolesOf)
+                            }
+                            if (adminPassword != null) {
+                                passwordLogin(tokens, requireNotNull(auth.admin), adminPassword, rolesOf)
+                            }
+                            loginMethods(email = mailSender != null, password = adminPassword != null)
                         }
                         authenticate(SESSION_AUTH, API_TOKEN_AUTH) {
-                            me()
+                            whoAmI()
                         }
                     }
                     authenticate(SESSION_AUTH, API_TOKEN_AUTH) {

@@ -33,6 +33,10 @@ describe('Home', () => {
   it('lists the apps, and opens the notes at /notes', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/v1/auth/who-am-i')
+      .flush({ email: 'pelle@pelle.io', expiresAt: '2099-01-01T00:00:00Z', roles: ['admin'] });
+    await harness.fixture.whenStable();
     const page = harness.routeNativeElement!;
     expect(page.querySelector('[data-testid=email]')?.textContent).toBe('pelle@pelle.io');
     const tiles = (section: string) =>
@@ -60,6 +64,21 @@ describe('Home', () => {
     expect(
       http.expectOne('/api/v1/notes?offset=0&limit=50').request.headers.get('Authorization'),
     ).toBe('Bearer session-token');
+  });
+
+  it('shows the address the backend takes the session for, not the stored one', async () => {
+    signIn();
+    const harness = await RouterTestingHarness.create('/');
+    const page = harness.routeNativeElement!;
+    // nothing until the backend answered
+    expect(page.querySelector('[data-testid=email]')?.textContent).toBe('');
+
+    const request = TestBed.inject(HttpTestingController).expectOne('/api/v1/auth/who-am-i');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer session-token');
+    request.flush({ email: 'admin@example.org', expiresAt: '2099-01-01T00:00:00Z', roles: ['admin'] });
+    await harness.fixture.whenStable();
+
+    expect(page.querySelector('[data-testid=email]')?.textContent).toBe('admin@example.org');
   });
 
   it('signs out', async () => {

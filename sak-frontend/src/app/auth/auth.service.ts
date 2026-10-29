@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
 
@@ -19,10 +19,15 @@ interface ExchangeResponse {
   redirect: string;
 }
 
-interface Me {
+// how a user can sign in: with a link by e-mail, with the admin password, or both
+export interface LoginMethods {
+  email: boolean;
+  password: boolean;
+}
+
+// who the backend takes the session for
+export interface WhoAmI {
   email: string;
-  expiresAt: string;
-  roles: string[];
 }
 
 export const SESSION_STORAGE_KEY = 'sak.session';
@@ -58,8 +63,6 @@ export class AuthService {
 
   private readonly session = signal<Session | null>(loadSession());
 
-  readonly email = computed(() => this.session()?.email ?? null);
-
   // null when signed out or the session expired
   token(): string | null {
     const session = this.session();
@@ -80,9 +83,32 @@ export class AuthService {
       .pipe(map(() => undefined));
   }
 
+  // what the login page offers: the e-mail login only with a mail server, the password login only
+  // with an admin password
+  loginMethods(): Observable<LoginMethods> {
+    return this.http.get<LoginMethods>('/api/v1/auth/login/methods');
+  }
+
   // trades the login token from the e-mailed link for a session, emits where to go next
   signIn(loginToken: string): Observable<string> {
-    return this.http.post<ExchangeResponse>('/api/v1/auth/login/exchange', { token: loginToken }).pipe(
+    return this.start(
+      this.http.post<ExchangeResponse>('/api/v1/auth/login/exchange', { token: loginToken }),
+    );
+  }
+
+  // the admin signs in with the admin password, emits where to go next
+  signInWithPassword(password: string, redirect: string | null): Observable<string> {
+    return this.start(
+      this.http.post<ExchangeResponse>('/api/v1/auth/login/password', {
+        password,
+        redirect: safeRedirect(redirect),
+      }),
+    );
+  }
+
+  // a session the backend answered: stored, then where to go next
+  private start(login: Observable<ExchangeResponse>): Observable<string> {
+    return login.pipe(
       tap((response) =>
         this.store({
           token: response.sessionToken,
@@ -95,8 +121,8 @@ export class AuthService {
     );
   }
 
-  me(): Observable<Me> {
-    return this.http.get<Me>('/api/v1/auth/me');
+  whoAmI(): Observable<WhoAmI> {
+    return this.http.get<WhoAmI>('/api/v1/auth/who-am-i');
   }
 
   logout(): void {

@@ -50,7 +50,8 @@ import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
-import io.pelle.sak.backend.secrets.SecretType
+import io.pelle.sak.backend.settings.SettingName
+import io.pelle.sak.backend.settings.SettingScope
 
 // the api of the apps and their e-mail login end to end: the controller sends the login links
 // through smtp to a greenmail sink, the test follows them like the signin page of the apps does
@@ -67,7 +68,11 @@ class SakAppsTest {
         auth: Boolean = true,
         frontendUrl: String = FRONTEND_URL,
         apiToken: Boolean = true,
+        smtp: Boolean = true,
+        adminPassword: Boolean = true,
     ): SakConfig {
+        // like backend.env holds it: a value starting with $ in the file is an environment variable
+        System.setProperty("SAK_TEST_ADMIN_PASSWORD_HASH", ADMIN_PASSWORD_HASH)
         val configFile = tempDir.resolve("config.yaml")
         Files.writeString(
             configFile,
@@ -79,8 +84,6 @@ class SakAppsTest {
               ${if (apiToken) "api_token_sha256: ${sha256Hex(API_TOKEN)}" else ""}
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
-              secret_keys:
-                1: ${TEST_SECRET_KEYS.getValue(1)}
             """.trimIndent() +
                 if (auth) {
                     "\n" +
@@ -90,12 +93,20 @@ class SakAppsTest {
                           admins:
                             - Admin@example.org
                             - second@example.org
-                          smtp:
-                            host: localhost
-                            port: ${greenMail.smtp.port}
-                            from: login@example.org
-                            starttls: false
-                        """.trimIndent().prependIndent("  ")
+                        """.trimIndent().prependIndent("  ") +
+                        (if (adminPassword) "\n    admin_password: \$SAK_TEST_ADMIN_PASSWORD_HASH" else "") +
+                        if (smtp) {
+                            "\n" +
+                                """
+                                smtp:
+                                  host: localhost
+                                  port: ${greenMail.smtp.port}
+                                  from: login@example.org
+                                  starttls: false
+                                """.trimIndent().prependIndent("    ")
+                        } else {
+                            ""
+                        }
                 } else {
                     ""
                 },
@@ -103,11 +114,11 @@ class SakAppsTest {
         return SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, configFile.toString()))
     }
 
-    // the key the server signs the tokens with, kept with its secrets
-    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSecrets(it).get(SecretType.AUTH_SIGNING_KEY) }
+    // the key the server signs the tokens with, kept in its settings
+    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSettings(it).get(SettingName.AUTH_SIGNING_KEY) }
 
-    // the buckets of the server's database, with the secrets it reads
-    private fun buckets(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { S3BucketService(it, testSecrets(it)) }
+    // the buckets of the server's database
+    private fun buckets(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { S3BucketService(it) }
 
     private fun withServer(
         config: SakConfig = config(),
@@ -201,7 +212,7 @@ class SakAppsTest {
     @Test
     fun `signs in with the link e-mailed to an allowed address`() {
         withServer { port ->
-            get(port, "/api/v1/auth/me").statusCode() shouldBe 401
+            get(port, "/api/v1/auth/who-am-i").statusCode() shouldBe 401
 
             val link = requestLoginLink(port)
             link.keys shouldBe setOf("token")
@@ -212,7 +223,7 @@ class SakAppsTest {
             session.string("email") shouldBe "admin@example.org"
             session.string("redirect") shouldBe "/buckets?tab=1"
 
-            val me = get(port, "/api/v1/auth/me", session.string("sessionToken"))
+            val me = get(port, "/api/v1/auth/who-am-i", session.string("sessionToken"))
             me.statusCode() shouldBe 200
             me.json().string("email") shouldBe "admin@example.org"
 
@@ -705,7 +716,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sessions survive a restart because the signing key is kept with the secrets`() {
+    fun `sessions survive a restart because the signing key is kept in the settings`() {
         val config = config()
         var sessionToken = ""
         withServer(config) { port ->
@@ -716,7 +727,7 @@ class SakAppsTest {
         signingKey(config) shouldNotBe null
         Files.exists(config.dataDir.resolve("auth")) shouldBe false
         withServer(config) { port ->
-            get(port, "/api/v1/auth/me", sessionToken).statusCode() shouldBe 200
+            get(port, "/api/v1/auth/who-am-i", sessionToken).statusCode() shouldBe 200
         }
     }
 
@@ -735,8 +746,8 @@ class SakAppsTest {
             get(port, "/$script").headers().firstValue("Content-Type").get() shouldContain "javascript"
 
             get(port, "/api/v1/unknown").statusCode() shouldBe 404
-            get(port, "/api/v2/auth/me").statusCode() shouldBe 404
-            get(port, "/api/v1/auth/me").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
+            get(port, "/api/v2/auth/who-am-i").statusCode() shouldBe 404
+            get(port, "/api/v1/auth/who-am-i").headers().firstValue("Content-Security-Policy").isPresent shouldBe true
         }
     }
 
@@ -790,7 +801,13 @@ class SakAppsTest {
                     status != 401
                 }
             public shouldBe
-                listOf("get" to "/api/v1/info", "post" to "/api/v1/auth/login/link", "post" to "/api/v1/auth/login/exchange")
+                listOf(
+                    "get" to "/api/v1/info",
+                    "post" to "/api/v1/auth/login/link",
+                    "post" to "/api/v1/auth/login/exchange",
+                    "post" to "/api/v1/auth/login/password",
+                    "get" to "/api/v1/auth/login/methods",
+                )
         }
     }
 
@@ -811,7 +828,7 @@ class SakAppsTest {
             // an inlined critical css loads the rest of the styles with an inline onload, which the
             // content security policy blocks
             getWithHost(port, "sak.example.org", "/") shouldNotContain "media=\"print\""
-            getWithHost(port, "sak.example.org", "/api/v1/auth/me") shouldStartWith "HTTP/1.1 401"
+            getWithHost(port, "sak.example.org", "/api/v1/auth/who-am-i") shouldStartWith "HTTP/1.1 401"
         }
     }
 
@@ -830,8 +847,10 @@ class SakAppsTest {
                     setOf(
                         "/api/v1/auth/login/link",
                         "/api/v1/auth/login/exchange",
+                        "/api/v1/auth/login/password",
+                        "/api/v1/auth/login/methods",
                         "/api/v1/info",
-                        "/api/v1/auth/me",
+                        "/api/v1/auth/who-am-i",
                         "/api/v1/config",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
@@ -854,7 +873,7 @@ class SakAppsTest {
                     )
                 // the routes behind the login require the session token or the admin api token, the
                 // login itself does not
-                val me = paths.getValue("/api/v1/auth/me").jsonObject.getValue("get").jsonObject
+                val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
                 me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-token"))
                 paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
                 listOf("session", "api-token").forEach { scheme ->
@@ -896,11 +915,11 @@ class SakAppsTest {
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
         Files.createDirectories(config.dataDir)
-        SakDatabase.open(databaseFile(config)).let { testSecrets(it).put(SecretType.AUTH_SIGNING_KEY, "", "not a key") }
+        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SettingScope.System, "not a key") }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
-            get(port, "/api/v1/auth/me").statusCode() shouldBe 404
+            get(port, "/api/v1/auth/who-am-i").statusCode() shouldBe 404
             get(port, "/s3/bucket1/hello.txt").statusCode() shouldBe 403
         }
     }
@@ -936,7 +955,7 @@ class SakAppsTest {
         withServer { port ->
             get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 200
             get(port, "/api/v1/notes", API_TOKEN).statusCode() shouldBe 200
-            get(port, "/api/v1/auth/me", API_TOKEN).statusCode() shouldBe 200
+            get(port, "/api/v1/auth/who-am-i", API_TOKEN).statusCode() shouldBe 200
             // another token, or the right one changed by a character, is refused
             get(port, "/api/v1/config", "sak_another-token").statusCode() shouldBe 401
             get(port, "/api/v1/config", API_TOKEN.dropLast(1) + "x").statusCode() shouldBe 401
@@ -944,6 +963,72 @@ class SakAppsTest {
         // without its sha-256 in the configuration, no token is taken
         withServer(config(apiToken = false)) { port ->
             get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 401
+        }
+    }
+
+    private fun passwordLogin(
+        port: Int,
+        password: String = ADMIN_PASSWORD,
+    ) = post(port, "/api/v1/auth/login/password", """{"password":"$password","redirect":"/notes"}""")
+
+    @Test
+    fun `the admin signs in with the password, as the first of the admins`() {
+        withServer { port ->
+            val login = passwordLogin(port)
+            login.statusCode() shouldBe 200
+            login.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+            val body = login.json()
+            body.string("email") shouldBe "admin@example.org"
+            body.getValue("roles").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
+            body.string("redirect") shouldBe "/notes"
+            val session = body.string("sessionToken")
+            get(port, "/api/v1/auth/who-am-i", session).json().string("email") shouldBe "admin@example.org"
+
+            // a wrong one, an empty one: 401 and nothing more
+            passwordLogin(port, "a password of sixteeN").statusCode() shouldBe 401
+            passwordLogin(port, "").statusCode() shouldBe 401
+        }
+    }
+
+    @Test
+    fun `the admin is the same user with the password and the e-mail login`() {
+        withServer { port ->
+            val byMail = signIn(port)
+            post(port, "/api/v1/notes", """{"text":"Buy milk","color":"yellow","labels":[]}""", byMail).statusCode() shouldBe 201
+
+            val byPassword = passwordLogin(port).json().string("sessionToken")
+
+            get(port, "/api/v1/notes", byPassword).body() shouldContain "Buy milk"
+        }
+    }
+
+    @Test
+    fun `only a few passwords an hour are tried, the limit answers before any hash`() {
+        withServer { port ->
+            repeat(10) { passwordLogin(port, "wrong password $it").statusCode() shouldBe 401 }
+            // over the limit of the client: also the right password is not tried
+            passwordLogin(port).statusCode() shouldBe 429
+        }
+    }
+
+    @Test
+    fun `the login page learns which ways to sign in there are`() {
+        withServer { port ->
+            get(port, "/api/v1/auth/login/methods").json() shouldBe
+                JsonObject(mapOf("email" to JsonPrimitive(true), "password" to JsonPrimitive(true)))
+        }
+        // without a mail server only the admin signs in, with the password
+        withServer(config(smtp = false)) { port ->
+            get(port, "/api/v1/auth/login/methods").json() shouldBe
+                JsonObject(mapOf("email" to JsonPrimitive(false), "password" to JsonPrimitive(true)))
+            post(port, "/api/v1/auth/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
+            passwordLogin(port).statusCode() shouldBe 200
+        }
+        // without an admin password only the e-mail login
+        withServer(config(adminPassword = false)) { port ->
+            get(port, "/api/v1/auth/login/methods").json() shouldBe
+                JsonObject(mapOf("email" to JsonPrimitive(true), "password" to JsonPrimitive(false)))
+            passwordLogin(port).statusCode() shouldBe 404
         }
     }
 
@@ -959,6 +1044,12 @@ class SakAppsTest {
     }
 
     companion object {
+        // the hash of the admin password `a password of sixteen`, the vector of sakctl
+        // (ADMIN_PASSWORD_VECTOR in sak-cli/src-tauri/src/core/keys.rs)
+        private const val ADMIN_PASSWORD_HASH =
+            "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK767nINg0KkEtAqKeQDg\$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8"
+        private const val ADMIN_PASSWORD = "a password of sixteen"
+
         // the admin api token of the tests, its sha-256 in the configuration
         private const val API_TOKEN = "sak_test-api-token"
 

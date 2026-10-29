@@ -62,22 +62,25 @@ and the health of the domains.
 
 ## Backend layers
 
-- **Routes → services → repositories.** All business logic is in a service (`<entity>Service`) next to the routes of
+- **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes of
   its app. A service uses only other services and its own repository. A repository is used only by its service;
   routes use services, never repositories.
-- **The database is only in `sak-model`.** Only the repository of an entity touches jOOQ and the generated tables.
+- **The database is only in `sak-model`.** Only the repository of an entity touches the database.
 
 ## Persistence
 
-- **Soft delete only.** No row is ever deleted for real. A delete sets `deleted_at`; every read skips such rows.
+- **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips such rows.
   A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken until it is
   purged (refer to [FDR-004](docs/fdr/FDR-004-maintenance-cleanup.md), the only planned purge).
-- **Every row records its time.** `created_at`, `updated_at` and `deleted_at` on every table, set by the repository
-  from one clock.
-- **All secrets in one place.** Every secret (the secret key of a bucket, the signing key of the login, …) is in the
-  `secrets` table and nowhere else. `SecretService` is the only way to them: it encrypts with AES-256-GCM under the
-  versioned keys of the configuration (the newest encrypts, older values are encrypted again on start) and binds
-  each value to its type and scope. A secret never shows in a log line.
+- **Every row records its time.** When it was created, last updated and deleted, set by the repository from one
+  clock.
+- **Secrets stay with what they belong to.** The secret key of a bucket is stored with the bucket, but is never part
+  of the bucket that reaches the api. Secrets that belong to no entity, such as the signing key of the login, are
+  settings.
+- **Settings.** A setting is one value for a name and a scope; the scope is the system or a user. Their one service
+  hands the values out as they are; whoever uses a setting that is a secret keeps it from showing. A secret never
+  shows in a log line. The values are plain; the whole
+  database is to be encrypted ([FDR-002](docs/fdr/FDR-002-sqlite-encryption.md)).
 
 ## API
 
@@ -86,8 +89,10 @@ and the health of the domains.
   and `limit`; `limit` is 50 by default and at most 100.
 - **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
   response class.
-- **Authentication:** a session token from the e-mail login, or the admin api token of sakctl (its sha-256 in the
-  configuration). Without either, only the login and `GET /api/v1/info` answer.
+- **Authentication:** a session token, or the admin api token of sakctl (its sha-256 in the configuration). A
+  session comes from the password login of the admin (always there) or from the e-mail login (only with a mail
+  server); refer to [FDR-005](docs/fdr/FDR-005-login.md). Without a session or the token, only the login and
+  `GET /api/v1/info` answer.
 
 ## sakctl
 
@@ -95,16 +100,16 @@ and the health of the domains.
   keys, the providers) knows neither the window nor the command line; both are thin layers on it.
 - **No local state.** Everything sakctl needs is derived from the name and password of a deployment, or read back
   from the labels of its resources. Two machines with the same password manage the same deployment.
-- **Derived keys.** The ssh client key, the ssh host key, the password hash and the admin api token are derived
-  from the password with argon2id, each with a salt of its own. The host key is installed by cloud-init, so the first
-  ssh connection is verified.
+- **Derived keys.** The keys of a deployment are derived from its password (refer to [Security](#security)).
 - **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies them in the
   order of their dependencies. A plan stops before anything changes when a resource belongs to someone else or would
   have to be created anew though it must stay. Only the server and its ssh key may be created anew.
 - **One manager for each kind of external resource** (the deployments, the provisioning, the container runtime): the
   one place they are looked up, created, changed and removed.
 - **Provisioning** runs `ansible-playbook` in a container image of the tools against the server, with the inventory,
-  the keys and the known host key in a private directory for the run.
+  the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail server) in
+  a private directory for the run. It sets up the base system, the data volume and the controller: the backend, its
+  configuration and the containers next to it.
 
 ## Cloud resources
 
@@ -132,9 +137,35 @@ and the health of the domains.
 - **User data stays.** User data leaves the backend only when the user asks for it (for example text discovery), and
   only to providers that do not collect it.
 
+## Security
+
+- **One secret to keep: the password of the deployment.** sakctl derives the keys of a deployment from its name and
+  password with argon2id, each with a salt of its own:
+
+  | Derived | Used for |
+  |---|---|
+  | ssh client key | sakctl's ssh connection to the server |
+  | ssh host key | the server's ssh identity, installed by cloud-init, so the first connection is verified |
+  | password hash | the `sak.pelle.io/password-hash` label that proves a resource belongs to the deployment |
+  | admin api token | sakctl's access to the api; the backend has only its sha-256 |
+  | admin password hash | the password login of the admin; the backend has only the hash |
+
+  Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
+  nothing, and anybody with the password has all of it. The password itself is stored nowhere.
+- **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its database:
+  the signing key of the login (a setting) and the secret key of each bucket. They are not derived
+  from the password, so changing the password does not change them. The user also supplies some credentials: the
+  token of the cloud provider, given to sakctl for each run and never stored by it, and the mail server credentials,
+  which sakctl writes to the server's environment for the backend.
+
 ## Accepted risks
 
 Known weaknesses that are kept on purpose. A change that touches one keeps the trade-off or revisits it here.
+
+- **The database is not encrypted at rest.** All data in it, the secrets included, is plain in the SQLite file on
+  the data volume, against the rule to encrypt all data at rest. Accepted until
+  [FDR-002](docs/fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
+  alone was removed in favor of it.
 
 - **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
   login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by

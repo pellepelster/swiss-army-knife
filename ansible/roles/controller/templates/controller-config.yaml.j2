@@ -1,7 +1,7 @@
 ---
-# the configuration of sak-backend, rendered by the controller role: the sak name, the dns mode, the
-# root domain and the sha-256 of the admin api token come from the inventory sakctl writes
-# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256)
+# the configuration of sak-backend, rendered by the controller role from the inventory sakctl writes
+# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256, sak_admin_email, sak_smtp_*);
+# the secrets come from backend.env: a value starting with $ is an environment variable
 ktor:
   deployment:
     port: 8080
@@ -11,26 +11,24 @@ sak:
   api_token_sha256: {{ sak_api_token_sha256 }}
   data_dir: /storage/data/backend/data
   root_domain: {{ sak_root_domain }}
-  # the keys the secrets are encrypted with by their version, the highest encrypts; the
-  # provisioning of the server creates them and writes them to backend.env
-  secret_keys:
-    1: $SAK_SECRET_KEY_1
   auth:
+    # the admin signs in with the password of the deployment, and is the first admin of the
+    # e-mail login
     admins:
-      - pelle@pelle.io
+      - {{ sak_admin_email }}
+    admin_password: $SAK_ADMIN_PASSWORD_HASH
+{% if sak_smtp_enabled | bool %}
+    # the e-mail login; without a mail server there is only the admin's password login
     smtp:
       host: $SAK_SMTP_HOST
       port: $SAK_SMTP_PORT
       username: $SAK_SMTP_USERNAME
       password: $SAK_SMTP_PASSWORD
-      from: noreply@mail.pelle.io
-      # implicit tls on port 465
-      tls: true
-  # reads the text in the photos of notes, the token comes from pass (openrouter/pelle/api-key)
-  openrouter:
-    api_token: $SAK_OPENROUTER_API_TOKEN
-  # the public addresses of the server, each a comma separated list; the provisioning of the
-  # server writes them to backend.env
+      from: {{ sak_smtp_from }}
+      tls: {{ sak_smtp_tls | bool | lower }}
+      starttls: {{ sak_smtp_starttls | bool | lower }}
+{% endif %}
+  # the public addresses of the server, each a comma separated list, from backend.env
   addresses:
     ipv4: $SAK_IPV4
     ipv6: $SAK_IPV6

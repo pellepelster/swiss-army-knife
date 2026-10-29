@@ -15,14 +15,14 @@ deployment right after creating it: it waits for ssh, then `common` and `storage
 The `storage` role needs `storage_device`, the data volume's device (sakctl sets it in the inventory of the run).
 The `controller` role pulls its images (`controller_image`, `controller_ingress_image` and the two
 log images) on every run, so a run always brings the newest `latest` of main. It needs
-`sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain` and `sak_api_token_sha256`
-(the sha-256 of the admin api token, never the token), which it writes into the controller
-configuration it renders from `templates/controller-config.yaml.j2` (sakctl sets both in the
-inventory of the run; the frontend is then at `sak.<base domain>`, the api at `api.<base domain>`),
-and `controller_env_src`,
-the environment file with the s3 credentials the configuration references (`$SAK_S3_ACCESS_KEY_ID`,
-`$SAK_S3_SECRET_ACCESS_KEY`), the secret keys, the smtp and openrouter credentials and the addresses of the server;
-sakctl does not write it yet.
+`sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_token_sha256`
+(the sha-256 of the admin api token, never the token), `sak_admin_email` and, for the e-mail login,
+`sak_smtp_enabled`, `sak_smtp_from`, `sak_smtp_tls` and `sak_smtp_starttls`. It writes them into the
+controller configuration it renders from `templates/controller-config.yaml.j2`; the frontend is then
+at `sak.<base domain>`, the api at `api.<base domain>`. It also needs `controller_env_src`, the
+environment file of the backend: `SAK_ADMIN_PASSWORD_HASH`, `SAK_IPV4`, `SAK_IPV6` and, with a mail
+server, `SAK_SMTP_HOST`, `SAK_SMTP_PORT`, `SAK_SMTP_USERNAME` and `SAK_SMTP_PASSWORD`. sakctl writes
+the inventory and this file for each run and runs the `server` playbook, which includes the role.
 
 ```yaml
 - hosts: controller

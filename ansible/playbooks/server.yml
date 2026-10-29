@@ -1,7 +1,7 @@
 ---
-# the server of a deployment as sakctl creates it: reached as soon as it accepts ssh,
-# then the base setup and the data volume; the controller follows once its images and
-# configuration are there
+# the server of a deployment as sakctl creates it: reached as soon as it accepts ssh, then the
+# base setup, the data volume and the controller (sak-backend, caddy, the logs) with the
+# configuration and backend.env sakctl hands over
 - name: Provision the server of a deployment
   hosts: all
   become: true
@@ -15,3 +15,4 @@
   roles:
     - pelle_io.sak.common
     - pelle_io.sak.storage
+    - pelle_io.sak.controller

@@ -30,7 +30,6 @@ class SakConfigLoaderTest {
         config.rootDomain shouldBe "example.org"
         config.caddyAdminUrl shouldBe "http://localhost:3019"
         config.s3DataDir shouldBe Path.of("/something/s3")
-        config.secretKeys.keys shouldBe setOf(1, 2)
         // the sak name and the dns mode of a backend that is no deployment: local, subdomain
         config.frontendUrl shouldBe "https://sak.local.example.org"
         config.auth shouldBe
@@ -55,9 +54,6 @@ class SakConfigLoaderTest {
                 """
                 data_dir: /data
                 root_domain: example.org
-                secret_keys:
-                  1: the-first-secret-key
-                  2: the-second-secret-key
                 auth:
                   smtp:
                     host: smtp.example.org
@@ -71,11 +67,10 @@ class SakConfigLoaderTest {
 
         // e.g. in a log line or a failing assertion
         listOf(config.toString(), "$config", config.auth.toString(), config.openrouter.toString()).forEach { printed ->
-            listOf("the-first-secret-key", "the-second-secret-key", "the-smtp-password", "the-openrouter-token").forEach {
+            listOf("the-smtp-password", "the-openrouter-token").forEach {
                 printed shouldNotContain it
             }
         }
-        config.toString() shouldContain "secretKeys=versions [1, 2]"
         config.toString() shouldContain "smtp.example.org"
     }
 
@@ -100,9 +95,9 @@ class SakConfigLoaderTest {
 
         config.frontendUrl shouldBe "http://localhost:4200"
         config.auth!!.admins shouldBe emptyList()
-        config.auth.smtp.port shouldBe 587
-        config.auth.smtp.tls shouldBe false
-        config.auth.smtp.starttls shouldBe true
+        config.auth.smtp!!.port shouldBe 587
+        config.auth.smtp!!.tls shouldBe false
+        config.auth.smtp!!.starttls shouldBe true
     }
 
     @Test
@@ -218,6 +213,44 @@ class SakConfigLoaderTest {
         subdomain.frontendHost shouldBe "sak.alpha.example.org"
         subdomain.apiHost shouldBe "api.alpha.example.org"
         subdomain.frontendUrl shouldBe "https://sak.alpha.example.org"
+    }
+
+    @Test
+    fun `the admin password comes from the environment, a hash starting with a dollar`() {
+        // a value starting with $ in the file is an environment variable to ktor, the hash is
+        // therefore always given through the environment (backend.env)
+        System.setProperty("SAK_TEST_ADMIN_PASSWORD", "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n")
+        try {
+            val auth = load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [Admin@example.org]\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n").auth!!
+            auth.adminPassword shouldBe "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n"
+            auth.admin shouldBe "admin@example.org"
+            auth.smtp shouldBe null
+            auth.toString() shouldNotContain "o63n"
+        } finally {
+            System.clearProperty("SAK_TEST_ADMIN_PASSWORD")
+        }
+    }
+
+    @Test
+    fun `auth needs a way to sign in, and the password login needs an admin`() {
+        // neither a mail server nor an admin password
+        shouldThrow<IllegalArgumentException> { load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [admin@example.org]\n") }
+        System.setProperty("SAK_TEST_ADMIN_PASSWORD", "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n")
+        try {
+            // a password without an admin to sign in as
+            shouldThrow<IllegalArgumentException> { load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n") }
+        } finally {
+            System.clearProperty("SAK_TEST_ADMIN_PASSWORD")
+        }
+        // no argon2id hash
+        System.setProperty("SAK_TEST_ADMIN_PASSWORD", "plain-password")
+        try {
+            shouldThrow<IllegalArgumentException> {
+                load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [admin@example.org]\n  admin_password: \$SAK_TEST_ADMIN_PASSWORD\n")
+            }
+        } finally {
+            System.clearProperty("SAK_TEST_ADMIN_PASSWORD")
+        }
     }
 
     @Test

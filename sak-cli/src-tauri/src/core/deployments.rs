@@ -241,6 +241,9 @@ pub struct DeploymentDefaults {
     smtp_username: Option<String>,
     smtp_password: Option<String>,
     smtp_starttls: Option<bool>,
+    smtp_from: Option<String>,
+    /// the admin of SAK_ADMIN_EMAIL
+    admin_email: Option<String>,
 }
 
 /// the variables a new deployment takes its name, password and location from, the pages
@@ -256,6 +259,9 @@ pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
 pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
 pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
 pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
+pub const SMTP_FROM_VARIABLE: &str = "SAK_SMTP_FROM";
+/// the variable the address of the admin is taken from, the page and the command line alike
+pub const ADMIN_EMAIL_VARIABLE: &str = "SAK_ADMIN_EMAIL";
 
 /// the port and the starttls of a mail server unless told, the ones of the backend
 pub const DEFAULT_SMTP_PORT: u16 = 587;
@@ -275,9 +281,13 @@ pub struct Smtp {
     #[serde(default)]
     pub password: String,
     pub starttls: bool,
+    /// the sender of the login mails, `noreply@<root domain>` when none is given
+    #[serde(default)]
+    pub from: Option<String>,
 }
 
-/// a host and a port: the host a name without blanks, the port not 0
+/// a host and a port: the host a name without blanks, the port not 0; no value with a line
+/// break, `backend.env` has one line for each value
 fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.contains(char::is_whitespace) {
@@ -286,7 +296,34 @@ fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     if smtp.port == 0 {
         return Err(t!("deployments.invalid_smtp_port").to_string());
     }
+    let from = smtp.from.as_deref().unwrap_or("noreply@example.org");
+    if [smtp.username.as_str(), smtp.password.as_str(), from]
+        .iter()
+        .any(|value| value.contains(['\n', '\r']))
+        || !is_address(from)
+    {
+        return Err(t!("deployments.invalid_smtp_value").to_string());
+    }
     Ok(())
+}
+
+/// an e-mail address as far as a deployment needs it: a local part of letters, digits and
+/// `._%+-`, one `@`, a domain with a dot; nothing that breaks a line of `backend.env` or yaml
+pub fn is_address(address: &str) -> bool {
+    let mut parts = address.trim().split('@');
+    let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    !local.is_empty()
+        && local
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._%+-".contains(c))
+        && domain.contains('.')
+        && !domain.starts_with(['.', '-'])
+        && !domain.ends_with(['.', '-'])
+        && domain
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || ".-".contains(c))
 }
 
 /// `true`, `false` (also `1`/`0`, `yes`/`no`, `on`/`off`), as a variable or an argument gives it
@@ -363,6 +400,8 @@ pub fn defaults() -> DeploymentDefaults {
         smtp_username: variable(SMTP_USERNAME_VARIABLE),
         smtp_password: variable(SMTP_PASSWORD_VARIABLE),
         smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
+        smtp_from: variable(SMTP_FROM_VARIABLE),
+        admin_email: variable(ADMIN_EMAIL_VARIABLE),
     }
 }
 
@@ -414,9 +453,14 @@ pub struct NewDeployment {
     /// a destroy deletes the data volume too, it keeps it otherwise
     #[serde(default)]
     pub delete_data: bool,
-    /// the mail server of the backend, none when none was given; a destroy needs none
+    /// the mail server of the backend, none when none was given; without it only the admin signs
+    /// in, with the password. A destroy needs none
     #[serde(default)]
     pub smtp: Option<Smtp>,
+    /// the address of the admin: the user of the password login and the first admin of the e-mail
+    /// login; needed by a create and a deploy
+    #[serde(default)]
+    pub admin_email: Option<String>,
 }
 
 /// the dns mode and the root domain of a deployment: what was given, else for a deploy what the
@@ -462,6 +506,12 @@ struct Prepared {
     host_key: DerivedKey,
     /// the sha-256 of the admin api token, what the backend compares a bearer token with
     api_token_sha256: String,
+    /// the admin of the backend and the argon2id hash of the admin password (the deployment
+    /// password); none on a destroy
+    admin_email: Option<String>,
+    admin_password_hash: String,
+    /// the mail server of the e-mail login, none: only the password login
+    smtp: Option<Smtp>,
 }
 
 /// the password of an existing deployment, checked before anything of it is changed: against
@@ -666,6 +716,7 @@ impl DeploymentManager {
             intent,
             delete_data: _,
             smtp,
+            admin_email,
         } = deployment;
         let (location, intent) = (*location, *intent);
         let name = name.trim();
@@ -681,6 +732,17 @@ impl DeploymentManager {
         if let (Intent::Create | Intent::Deploy, Some(smtp)) = (intent, smtp) {
             check_smtp(smtp)?;
         }
+        let admin_email = match intent {
+            Intent::Destroy => None,
+            Intent::Create | Intent::Deploy => Some(
+                admin_email
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|address| is_address(address))
+                    .map(str::to_lowercase)
+                    .ok_or_else(|| t!("deployments.invalid_admin_email").to_string())?,
+            ),
+        };
         let Some((provider, token)) = tokens
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
@@ -789,6 +851,9 @@ impl DeploymentManager {
             client_key,
             host_key,
             api_token_sha256,
+            admin_email,
+            admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
+            smtp: smtp.clone(),
         })
     }
 
@@ -946,6 +1011,10 @@ impl DeploymentManager {
             // a create or deploy has one, prepare checked it
             root_domain: prepared.spec.root_domain.clone().unwrap_or_default(),
             api_token_sha256: prepared.api_token_sha256.clone(),
+            // a create or deploy has them, prepare checked them
+            admin_email: prepared.admin_email.clone().unwrap_or_default(),
+            smtp: prepared.smtp.clone(),
+            admin_password_hash: prepared.admin_password_hash.clone(),
             host,
             host_ipv6: server
                 .public_ipv6
@@ -1245,7 +1314,50 @@ mod tests {
             username: "user".to_string(),
             password: "secret".to_string(),
             starttls: true,
+            from: None,
         }
+    }
+
+    #[test]
+    fn an_address_is_plain_enough_for_backend_env_and_yaml() {
+        for address in [
+            "admin@example.org",
+            "first.last+sak@mail.example.co.uk",
+            " a@b.de ",
+        ] {
+            assert!(is_address(address), "{address}");
+        }
+        for address in [
+            "",
+            "admin",
+            "@example.org",
+            "admin@",
+            "admin@example",
+            "a@b@example.org",
+            "admin@.example.org",
+            "admin@example.org.",
+            "ad min@example.org",
+            "admin@example.org\nSAK_X=1",
+            "admin:x@example.org",
+        ] {
+            assert!(!is_address(address), "{address:?}");
+        }
+    }
+
+    #[test]
+    fn a_value_with_a_line_break_or_another_sender_is_refused() {
+        let mut with_break = smtp("smtp.example.org", 587);
+        with_break.password = "secret\nSAK_ADMIN_PASSWORD_HASH=x".to_string();
+        assert_eq!(
+            check_smtp(&with_break),
+            Err(t!("deployments.invalid_smtp_value").to_string())
+        );
+        let mut bad_from = smtp("smtp.example.org", 587);
+        bad_from.from = Some("not an address".to_string());
+        assert!(check_smtp(&bad_from).is_err());
+        let mut good_from = smtp("smtp.example.org", 587);
+        good_from.from = Some("login@example.org".to_string());
+        assert!(check_smtp(&good_from).is_ok());
     }
 
     #[test]
@@ -1285,6 +1397,8 @@ mod tests {
             smtp_username: Some("user".to_string()),
             smtp_password: Some("secret".to_string()),
             smtp_starttls: Some(false),
+            smtp_from: None,
+            admin_email: Some("admin@example.org".to_string()),
         };
         let json = serde_json::to_value(&defaults).unwrap();
         assert_eq!(json["smtpHost"], "smtp.example.org");

@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { APPS } from '../apps';
 import { AuthService } from '../auth/auth.service';
@@ -22,9 +23,7 @@ import { InstallService } from '../install.service';
           <i class="fa-solid fa-download" aria-hidden="true"></i> Install
         </button>
       }
-      <span class="small text-body-secondary text-truncate" data-testid="email">{{
-        auth.email()
-      }}</span>
+      <span class="small text-body-secondary text-truncate" data-testid="email">{{ email() }}</span>
       <button type="button" class="btn btn-outline-secondary" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
@@ -66,11 +65,22 @@ import { InstallService } from '../install.service';
   `,
 })
 export class Home {
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly auth = inject(AuthService);
   protected readonly installer = inject(InstallService);
   private readonly router = inject(Router);
 
   protected readonly apps = APPS;
+
+  // the signed in address as the backend takes the session, not as the browser stored it
+  protected readonly email = signal<string | null>(null);
+
+  constructor() {
+    this.auth
+      .whoAmI()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((whoAmI) => this.email.set(whoAmI.email));
+  }
 
   protected signOut(): void {
     this.auth.logout();

@@ -93,6 +93,26 @@ pub fn api_token_sha256(token: &str) -> String {
     sak_cloud::hetzner::labels::sha256_hex(token)
 }
 
+/// the hash of the admin password (the deployment password) the backend checks a password login
+/// against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`). The salt is
+/// derived from the sak name, so the same password gives the same hash on every deploy and the
+/// configuration of the backend does not change; its purpose is its own, so the hash shares nothing
+/// with the password hash label or the keys
+pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {
+    use argon2::password_hash::{PasswordHasher, SaltString};
+    let digest =
+        sak_cloud::hetzner::labels::sha256_hex(&format!("sak.pelle.io/admin-password/v1/{name}"));
+    // 16 bytes of salt, the recommended length
+    let salt_bytes: Vec<u8> = (0..16)
+        .map(|index| u8::from_str_radix(&digest[index * 2..index * 2 + 2], 16).unwrap_or_default())
+        .collect();
+    let salt = SaltString::encode_b64(&salt_bytes).map_err(|e| e.to_string())?;
+    Ok(Argon2::default()
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| e.to_string())?
+        .to_string())
+}
+
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
 pub fn encode_public_key(key: &VerifyingKey, comment: &str) -> String {
     format!(
@@ -263,6 +283,28 @@ mod tests {
             api_token_sha256("abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+
+    /// the hash of the admin password of `alpha` with `a password of sixteen`: the same constant is
+    /// in the tests of the backend (`AdminPasswordTest`), which checks a password against it
+    pub const ADMIN_PASSWORD_VECTOR: &str = "$argon2id$v=19$m=19456,t=2,p=1$qEK767nINg0KkEtAqKeQDg$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8";
+
+    #[test]
+    fn the_admin_password_hash_is_a_stable_argon2id_phc_string() {
+        let hash = admin_password_hash("alpha", "a password of sixteen").unwrap();
+        assert!(
+            hash.starts_with("$argon2id$v=19$m=19456,t=2,p=1$"),
+            "{hash}"
+        );
+        assert_eq!(
+            hash,
+            admin_password_hash("alpha", "a password of sixteen").unwrap()
+        );
+        assert_ne!(
+            hash,
+            admin_password_hash("beta", "a password of sixteen").unwrap()
+        );
+        assert_eq!(hash, ADMIN_PASSWORD_VECTOR);
     }
 
     #[test]

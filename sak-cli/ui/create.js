@@ -25,9 +25,10 @@ const deleteDataInput = document.getElementById('create-delete-data');
 const createView = document.getElementById('view-create');
 const confirmDialog = document.getElementById('destroy-confirm');
 // a destroy asks for the name and the password alone
-const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-smtp'].map((id) => document.getElementById(id));
+const adminEmailInput = document.getElementById('create-admin-email');
+const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
 const smtpInputs = Object.fromEntries(
-  ['host', 'port', 'username', 'password', 'starttls'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
+  ['host', 'port', 'username', 'password', 'starttls', 'from'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
 );
 
 // deleting the data volume is the one thing that cannot be undone, the form says so in red
@@ -74,6 +75,7 @@ function newDeployment() {
     intent,
     deleteData: intent === 'destroy' && deleteDataInput.checked,
     smtp: smtp(),
+    adminEmail: intent === 'destroy' ? null : adminEmailInput.value.trim(),
   };
 }
 
@@ -89,6 +91,7 @@ function smtp() {
     username: smtpInputs.username.value,
     password: smtpInputs.password.value,
     starttls: smtpInputs.starttls.checked,
+    from: smtpInputs.from.value.trim() || null,
   };
 }
 
@@ -96,9 +99,13 @@ function smtp() {
 // SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and SAK_SMTP_STARTTLS; nothing of it is
 // kept with a deployment, a deploy asks again
 function prefillSmtp(defaults) {
+  if (!adminEmailInput.value) {
+    adminEmailInput.value = defaults.adminEmail ?? '';
+  }
   if (smtpInputs.host.value) {
     return;
   }
+  smtpInputs.from.value = defaults.smtpFrom ?? '';
   smtpInputs.host.value = defaults.smtpHost ?? '';
   smtpInputs.port.value = defaults.smtpPort ?? '587';
   smtpInputs.username.value = defaults.smtpUsername ?? '';
@@ -317,6 +324,8 @@ export async function showCreate(options = {}) {
   for (const element of destroyHidden) {
     element.hidden = intent === 'destroy';
   }
+  // a destroy needs no admin, its hidden field must not stop the form
+  adminEmailInput.required = intent !== 'destroy';
   showDeleteData();
   try {
     await prefill(Boolean(options.back));

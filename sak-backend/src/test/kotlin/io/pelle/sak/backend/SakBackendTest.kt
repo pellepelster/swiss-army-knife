@@ -2,6 +2,8 @@ package io.pelle.sak.backend
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldStartWith
+import io.kotest.matchers.string.shouldNotContain
 import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.ConfigLoader
 import io.ktor.server.engine.embeddedServer
@@ -28,7 +30,6 @@ import software.amazon.awssdk.services.s3.model.S3Exception
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
-import io.pelle.sak.backend.secrets.SecretCipher
 
 class SakBackendTest {
     @TempDir
@@ -45,8 +46,6 @@ class SakBackendTest {
             sak:
               data_dir: $dataDir
               root_domain: example.org
-              secret_keys:
-                1: ${TEST_SECRET_KEYS.getValue(1)}
             """.trimIndent(),
         )
         return ConfigLoader.loadAll(BUNDLED_CONFIG, configFile.toString())
@@ -57,7 +56,7 @@ class SakBackendTest {
     // bucket1 with its key pair, bucket2 with one that may not access bucket1
     private val keys by lazy {
         val database = SakDatabase.open(databaseFile(sakConfig()))
-        val buckets = S3BucketService(database, testSecrets(database))
+        val buckets = S3BucketService(database)
         listOf("bucket1", "bucket2").associateWith {
             (buckets.create(it) as CreateBucketResult.Created).bucket.let { bucket ->
                 AwsBasicCredentials.create(bucket.accessKeyId, buckets.keyPair(bucket.name)!!.second.value)
@@ -105,48 +104,86 @@ class SakBackendTest {
         sakConfig().dataDir shouldBe dataDir
     }
 
-    @Test
-    fun `the deployed configuration, the template of the controller role, is valid`() {
+    // the template of the controller role rendered as ansible renders it, with the inventory sakctl
+    // writes: its variables, its filters and its one condition; anything else left is an error
+    private fun renderTemplate(smtp: Boolean): Path {
+        val template = Files.readString(Path.of("../ansible/roles/controller/templates/controller-config.yaml.j2"))
+        val block = Regex("""\{% if sak_smtp_enabled \| bool %}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)
+        val rendered =
+            template
+                .replace(block) { if (smtp) it.groupValues[1] else "" }
+                .replace("{{ sak_name }}", "alpha")
+                .replace("{{ sak_dns_mode }}", "domain")
+                .replace("{{ sak_root_domain }}", "pelle.io")
+                .replace("{{ sak_api_token_sha256 }}", "ab".repeat(32))
+                .replace("{{ sak_admin_email }}", "admin@example.org")
+                .replace("{{ sak_smtp_from }}", "noreply@pelle.io")
+                .replace("{{ sak_smtp_tls | bool | lower }}", "true")
+                .replace("{{ sak_smtp_starttls | bool | lower }}", "false")
+        rendered shouldNotContain "{{"
+        rendered shouldNotContain "{%"
+        return tempDir.resolve("controller-config.yaml").also { Files.writeString(it, rendered) }
+    }
+
+    // backend.env as sakctl writes it, as the environment the backend reads
+    private fun <T> withBackendEnv(
+        smtp: Boolean,
+        block: () -> T,
+    ): T {
         val environment =
             mapOf(
-                "SAK_SMTP_HOST" to "smtp.example.org",
-                "SAK_SMTP_PORT" to "465",
-                "SAK_SMTP_USERNAME" to "smtp-user",
-                "SAK_SMTP_PASSWORD" to "smtp-password",
-                "SAK_OPENROUTER_API_TOKEN" to "openrouter-token",
-                "SAK_SECRET_KEY_1" to TEST_SECRET_KEYS.getValue(1),
+                "SAK_ADMIN_PASSWORD_HASH" to "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK767nINg0KkEtAqKeQDg\$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8",
                 "SAK_IPV4" to "203.0.113.1",
                 "SAK_IPV6" to "2001:db8::1",
-            )
+            ) +
+                if (smtp) {
+                    mapOf(
+                        "SAK_SMTP_HOST" to "smtp.example.org",
+                        "SAK_SMTP_PORT" to "465",
+                        "SAK_SMTP_USERNAME" to "smtp-user",
+                        "SAK_SMTP_PASSWORD" to "smtp-password",
+                    )
+                } else {
+                    emptyMap()
+                }
         environment.forEach { (name, value) -> System.setProperty(name, value) }
         try {
-            // rendered as ansible renders it, with the sak name and the dns mode of the inventory
-            val template = Path.of("../ansible/roles/controller/templates/controller-config.yaml.j2")
-            val rendered = tempDir.resolve("controller-config.yaml")
-            Files.writeString(rendered, Files.readString(template).replace("{{ sak_name }}", "alpha").replace("{{ sak_dns_mode }}", "domain").replace("{{ sak_root_domain }}", "pelle.io").replace("{{ sak_api_token_sha256 }}", "ab".repeat(32)))
-            val config = SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, rendered.toString()))
-
-            config.name shouldBe "alpha"
-            config.dnsMode shouldBe DnsMode.DOMAIN
-
-            config.frontendUrl shouldBe "https://sak.pelle.io"
-            config.auth!!.smtp shouldBe
-                SakConfig.SmtpConfig(
-                    host = "smtp.example.org",
-                    port = 465,
-                    username = "smtp-user",
-                    password = "smtp-password",
-                    from = "noreply@mail.pelle.io",
-                    tls = true,
-                )
-            config.openrouter shouldBe SakConfig.OpenRouterConfig(apiToken = "openrouter-token")
-            config.secretKeys shouldBe TEST_SECRET_KEYS
-            config.addresses shouldBe SakConfig.AddressesConfig(listOf("203.0.113.1"), listOf("2001:db8::1"))
-            // the keys of backend.env are taken for the domain of the deployment
-            SecretCipher(config.secretKeys, config.rootDomain).activeVersion shouldBe 1
+            return block()
         } finally {
             environment.keys.forEach { System.clearProperty(it) }
         }
+    }
+
+    @Test
+    fun `the deployed configuration, the template of the controller role, is valid with a mail server`() {
+        val config = withBackendEnv(smtp = true) { SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, renderTemplate(smtp = true).toString())) }
+
+        config.name shouldBe "alpha"
+        config.dnsMode shouldBe DnsMode.DOMAIN
+        config.frontendUrl shouldBe "https://sak.pelle.io"
+        config.auth!!.admin shouldBe "admin@example.org"
+        config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"
+        config.auth!!.smtp shouldBe
+            SakConfig.SmtpConfig(
+                host = "smtp.example.org",
+                port = 465,
+                username = "smtp-user",
+                password = "smtp-password",
+                from = "noreply@pelle.io",
+                tls = true,
+                starttls = false,
+            )
+        config.openrouter shouldBe null
+        config.addresses shouldBe SakConfig.AddressesConfig(listOf("203.0.113.1"), listOf("2001:db8::1"))
+    }
+
+    @Test
+    fun `the deployed configuration without a mail server has only the password login`() {
+        val config = withBackendEnv(smtp = false) { SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, renderTemplate(smtp = false).toString())) }
+
+        config.auth!!.smtp shouldBe null
+        config.auth!!.admin shouldBe "admin@example.org"
+        config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"
     }
 
     @Test
