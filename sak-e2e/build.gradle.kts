@@ -43,6 +43,10 @@ fun e2e(
 
 e2e("e2eLocal", "local", "Runs the local tests: the apps against the environment of mise run local:run")
 
+e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/ against the environment of mise run local:run") {
+    systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
+}
+
 e2e("e2eIntegration", "integration", "Runs the integration tests: the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN") {
     // the binary of `cargo build` in sak-cli/src-tauri, SAK_E2E_SAKCTL points elsewhere
     systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)

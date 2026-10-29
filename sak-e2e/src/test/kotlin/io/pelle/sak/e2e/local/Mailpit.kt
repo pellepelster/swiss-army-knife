@@ -62,6 +62,10 @@ object Mailpit {
             ?: error("no link to $FRONTEND_URL/signin in the mail")
     }
 
+    // the id of the newest mail to the address, for its page in the web ui of mailpit
+    fun lastMessageId(address: String): String =
+        messagesTo(address).firstOrNull()?.getValue("ID")?.jsonPrimitive?.content ?: error("no mail to $address")
+
     // how many mails went to the address
     fun mailsTo(address: String): Int = messagesTo(address).size
 }

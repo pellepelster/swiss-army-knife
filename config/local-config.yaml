@@ -18,6 +18,9 @@ sak:
     # every login link lands in mailpit, none leaves the machine
     admins:
       - admin@localhost
+    # the hash of the local admin password `a password of sixteen`, set by mise run
+    # local:backend:run (a value starting with $ here would be read as a variable)
+    admin_password: $SAK_LOCAL_ADMIN_PASSWORD_HASH
     smtp:
       host: localhost
       port: 1025

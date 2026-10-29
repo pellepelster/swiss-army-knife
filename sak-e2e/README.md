@@ -18,6 +18,23 @@ keeps that count in memory. A run asks for one link. Restart the backend to run 
 `SAK_E2E_FRONTEND_URL` and `SAK_E2E_MAILPIT_URL` point the tests elsewhere. Playwright downloads
 its chromium on the first run.
 
+## Screenshots
+
+The screenshots of `docs/screenshots/`, taken in chromium against the local environment. They
+do not run with the local tests.
+
+```sh
+mise run local:run              # in one terminal
+mise run docs:screenshots       # in another one
+```
+
+Every page is taken on a desktop (1280×800) and on a phone (390×844), without the browser
+around it: the login with the password and by e-mail (the mail in mailpit too), the apps in the
+light and the dark theme, the notes app (text notes in each color, a note with a photo and one
+with a recording), static hosting and redirects. The run signs in with the local admin password
+(`SAK_LOCAL_ADMIN_PASSWORD_HASH` of `mise.toml`) and asks for two login links. It creates its own
+notes, a bucket and two redirects; other data of the local environment stays and can show.
+
 ## Integration tests
 
 The command line of sakctl, against the Hetzner Cloud project of `HCLOUD_TOKEN` (from pass

@@ -278,6 +278,8 @@ description = "Run sak-backend on http://localhost:8080, its ingress, victorialo
 env = {
     SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data",
     SAK_IPV4 = "192.0.2.1",
+    # the argon2id hash of `a password of sixteen`, the password login of the local backend
+    SAK_LOCAL_ADMIN_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=1$al/AGZtQJD5CTnS21yvIXg$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4",
     SAK_OPENROUTER_API_TOKEN = "{{ get_env(name='SAK_OPENROUTER_API_TOKEN', default=exec(command='pass show openrouter/pelle/api-key | head -n1')) }}"
 }
 run = """
@@ -303,6 +305,13 @@ npx ng serve
 description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
+
+# the screenshots of docs/screenshots/, taken in chromium against the environment of
+# `mise run local:run`; every page on a desktop and on a phone
+[tasks."docs:screenshots"]
+description = "Take the screenshots of docs/screenshots/ against the environment of mise run local:run"
+dir = "{{config_root}}"
+run = "./gradlew :sak-e2e:e2eScreenshots"
 
 # the integration tests of sak-e2e: the command line of sakctl, built first, against the Hetzner
 # Cloud project of HCLOUD_TOKEN (from pass unless set). They create and destroy real servers
