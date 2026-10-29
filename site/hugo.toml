@@ -44,6 +44,11 @@ target = 'static/sak/fonts.css'
 source = '../sak-theme/fonts'
 target = 'static/sak/fonts'
 
+# the README.md of the repository, the content of the home page (layouts/shortcodes/readme.html)
+[[module.mounts]]
+source = '../README.md'
+target = 'assets/readme.md'
+
 # the knife of the apps and of sakctl: relearn takes images/logo.* as the logo next to the title
 # and as the favicon
 [[module.mounts]]

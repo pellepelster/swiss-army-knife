@@ -1,0 +1,6 @@
+{{- /* the README.md of the repository (mounted as assets/readme.md), without its h1: the page has
+   the same title */ -}}
+{{- with resources.Get "readme.md" }}
+{{- $markdown := replaceRE `\A#\s[^\n]*\n` "" .Content }}
+{{- $.Page.RenderString (dict "display" "block") $markdown }}
+{{- end }}
