@@ -30,6 +30,13 @@ Read this file first. It contains rules for the complete repository.
 How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in [docs/UI-UX.md](docs/UI-UX.md), follow it
 for every change of a ui.
 
+## Architecture
+
+How the system is built (its parts, the server of a deployment, the layers, the persistence model, the api contract,
+sakctl, the cloud resources and their labels, the privacy boundaries, the accepted risks) is in
+[ARCHITECTURE.md](ARCHITECTURE.md). Every change keeps to it; a change that has to break it changes ARCHITECTURE.md
+in the same commit and says why.
+
 ## Persistence (`sak-model`)
 
 - Every table, link tables included, has `created_at`, `updated_at` and `deleted_at` (`SchemaTest`
@@ -37,39 +44,30 @@ for every change of a ui.
     - `created_at` is set when the row is inserted, never null;
     - `updated_at` is null until the row really changes, an insert never sets it;
     - `deleted_at` is null until the row is deleted, a delete sets nothing else.
-- Every entity supports soft delete only, no row is ever deleted for real: every read skips the
-  rows with `deleted_at` set, a value unique among the live rows has a partial unique index
-  (`WHERE deleted_at IS NULL`). A deleted bucket keeps its name taken until it is purged.
-- The repository sets them, from the `Clock` it is constructed with (the service hands its own on);
+- Soft delete (ARCHITECTURE.md, "Persistence"): every read skips the rows with `deleted_at` set, a value unique among
+  the live rows has a partial unique index (`WHERE deleted_at IS NULL`).
+- The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
   fields and answer the row as it is stored.
-- Every secret (a bucket's secret key, the signing key of the login, …) lives in the `secrets`
-  table and nowhere else, no other table and no file holds one. `SecretService` (sak-backend) is
-  the only way to them: it encrypts with AES-256-GCM under the keys of `sak.secret_keys`
-  (versioned, the newest encrypts, older ones are encrypted anew on start; the provisioning of the server creates them),
-  authenticates the type and scope with each value and hands them out as `Secret`, whose
-  `toString()` never shows the value. Configuration and value classes holding a secret override
-  `toString()` the same way.
+- A secret is read and written only through `SecretService` (sak-backend) and handed out as `Secret`, whose
+  `toString()` never shows the value. Configuration and value classes holding a secret override `toString()` the
+  same way.
 - `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
   only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
   `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.
 
 ## Services (`sak-backend`)
 
-- All business logic lives in `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the
-  app's routes. A service talks only to other services and its own repository, a repository is
-  used only by its service; routes use services, never repositories.
+- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are in ARCHITECTURE.md,
+  "Backend layers".
 
 ## API (`/api`)
 
-- Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation.
-- Errors (400 validation, 409 conflict, malformed body, …) answer
-  `{"errors": [{"message": "..."}]}` (`call.respondErrors`), one readable sentence per problem.
-- Lists are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for
-  with the `offset` and `limit` query parameters; `limit` is 50 by default and at most 100 (`MAX_LIMIT`, `sak-api`).
+- The contract (errors, pagination, request and response classes) is in ARCHITECTURE.md, "API". In the code:
+- Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation; errors are answered with
+  `call.respondErrors`; the largest `limit` is `MAX_LIMIT` (`sak-api`).
 - Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
-  in them (e.g. `PageResponse`, `SiteMetricsResponse`); a domain class is mapped to its response
-  class, it never crosses the api itself.
+  in them (e.g. `PageResponse`, `SiteMetricsResponse`).
 - Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in
   `io.pelle.sak.backend.<app>.model`, one class per file named like the class. The other modules
   answering on `/api` keep theirs the same way in `io.pelle.sak.<module>.model` (`sak-api`,
@@ -113,59 +111,29 @@ for every change of a ui.
   place its resources are looked up, created, changed and removed from; the rest of the code
   asks it and holds no client of its own.
 
-## Resource labeling (cloud resources)
+## Cloud resources (`sak-cli/cloud`)
 
-- Every cloud resource (server, volume, primary ip, firewall, ssh key, dns zone and record, …)
-  carries the label `sak.pelle.io/name=<sak name>`, `<sak name>` being the unique name of the
-  swiss army knife deployment the resource belongs to (see [GLOSSARY.md](GLOSSARY.md)). Whatever creates
-  resources (`sak-cli/cloud`) sets it on creation; the label tells the resources
-  of one deployment from those of another and from everything else in the cloud project.
-- SAK removes only resources that carry the label `sak.pelle.io/name=<sak name>` of the deployment. A resource
-  without this label, or with the label of another deployment, is never removed, also when its name agrees. SAK
-  also removes a resource only when its label `sak.pelle.io/password-hash=<hash>` matches the password the user
-  gave. A resource without the password hash label is never removed. For this reason, the password hash label
-  is always attached to all resources of a deployment, the DNS records included; a resource without it is a
-  defect.
-- The name label and the password hash label are the identity of a resource (`with_identity`, `api::identity` in
-  `sak-cli/cloud`). Every lookup checks them: a resource of the declared name without them is someone else's, and
-  no diff, apply, recreate or destroy changes it (`Error::NotOwned`, exit code 5 of `sakctl`). A registry also
-  destroys nothing without its owner labels (`Registry::owned_by`).
-- Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
-  user declares never does. Every resource of a deployment also carries
-  `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in
-  `sak-cli`, 30 bytes as hex), so the wizard can check a password
-  against a deployment before it touches it: a deploy or destroy stops when the hash on any of
-  its resources differs (the firewall selects its servers by the name label alone); the
-  password itself is nowhere.
-- Every resource of a deployment also carries `sak.pelle.io/dns-mode=<mode>`, the dns mode of the deployment
-  (`domain` or `subdomain`, see [GLOSSARY.md](GLOSSARY.md)), and `sak.pelle.io/root-domain=<root domain>`. The
-  wizard reads them back for a deploy; a change of either is a label change, never a recreate. The dns mode on a
-  zone or record tells the wizard which deployments use a root domain (`RootDomain`, `sak-cli/cloud`).
+- The labels, the identity and what must stay are in ARCHITECTURE.md, "Cloud resources". In the code:
+- Whatever creates resources sets the name label and the password hash label on creation, and declares them as the
+  identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
+- A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
+  created anew are `Registry::recreatable`.
+- The password hash is `keys::password_hash` in `sak-cli` (argon2id, 30 bytes as hex); the firewall selects its
+  servers by the name label alone.
 
-## Privacy
+## Privacy in the code
 
-- Nothing is loaded from outside `<root_domain>` (no cdn, font service, analytics or other third
-  party); everything is bundled (e.g. `@fontsource`, `swagger-ui-dist`) or served by the backend.
-  The content security policy (`contentSecurityPolicy`) allows only the page's own origin and
-  `api.<base domain>`, it is never widened beyond `<root_domain>`.
-- User data leaves the backend only on the user's explicit request (e.g. text discovery) and only to
-  providers that do not collect it (openrouter `provider.data_collection: deny`).
+- The boundaries are in ARCHITECTURE.md, "Privacy". In the code: fonts and libraries are bundled (e.g.
+  `@fontsource`, `swagger-ui-dist`), the content security policy is `contentSecurityPolicy` and is never widened
+  beyond `<root_domain>`, and calls to openrouter send `provider.data_collection: deny`.
 
 ## Accepted risks
 
-Known weaknesses that are kept on purpose; a change that touches them keeps the trade-off or
-revisits it here.
-
-- The login link budget can be used up ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). `login`
-  (`sak-auth`,
-  `AuthRoutes.kt`) sends at most 60 links an hour altogether (`linksPerHour`), and at most 5 an hour
-  to an address from one client (`loginsPerAddress`, keyed by address and client ip). Someone who
-  knows an allowed address and has 12 client ips can use up the hour's links, and no allowed
-  address gets a link until the hour is over. Accepted: the global ceiling is what keeps the
-  server from being used to send mail, an outage of the login for an hour is the price, and the
-  apps have few allowed addresses whose sessions last 30 days.
+- The known weaknesses kept on purpose are in ARCHITECTURE.md, "Accepted risks". A change that touches one keeps the
+  trade-off or revisits it there.
 
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the system is built.
 - `docs/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.
