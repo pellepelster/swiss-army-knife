@@ -60,6 +60,9 @@
   --MAIN-TITLES-H4-font-variation-settings: normal;
   --MAIN-TITLES-H4-font-weight: 600;
   --CODE-font: var( --sak-font-mono );
+  /* the title next to the knife fits the width of the menu in one line */
+  --LOGO-font-size: 0.8em;
+  --LOGO-font-weight: 600;
   --CODE-theme: relearn-dark;
   --BROWSER-theme: dark;
   --MERMAID-theme: dark;
