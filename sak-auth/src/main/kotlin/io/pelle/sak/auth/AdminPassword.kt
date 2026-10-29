@@ -3,6 +3,7 @@ package io.pelle.sak.auth
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
 import java.security.MessageDigest
+import java.text.Normalizer
 import java.util.Base64
 
 // the admin password, checked against its argon2id hash in the phc string format
@@ -35,7 +36,8 @@ class AdminPassword(
         hash = decoder.decode(parts[5])
     }
 
-    // whether the password has the hash; compared in constant time
+    // whether the password has the hash, the password as nfc like sakctl hashes it, so it does not
+    // matter how it was typed; compared in constant time
     fun matches(password: String): Boolean {
         val parameters =
             Argon2Parameters
@@ -47,7 +49,7 @@ class AdminPassword(
                 .withSalt(salt)
                 .build()
         val actual = ByteArray(hash.size)
-        Argon2BytesGenerator().apply { init(parameters) }.generateBytes(password.toByteArray(), actual)
+        Argon2BytesGenerator().apply { init(parameters) }.generateBytes(Normalizer.normalize(password, Normalizer.Form.NFC).toByteArray(), actual)
         return MessageDigest.isEqual(hash, actual)
     }
 

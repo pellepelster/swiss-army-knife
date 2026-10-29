@@ -127,7 +127,7 @@ in the same commit and says why.
   identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
 - A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
   created anew are `Registry::recreatable`.
-- The password hash is `keys::password_hash` in `sak-cli` (argon2id, 30 bytes as hex); the firewall selects its
+- The password hash is `keys::password_hash` in `sak-cli` (30 bytes of the master key as hex); the firewall selects its
   servers by the name label alone.
 
 ## Privacy in the code

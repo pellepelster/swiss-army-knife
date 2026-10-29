@@ -79,6 +79,7 @@ provision:
 deployments:
   invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
   short_password: "Das Passwort braucht mindestens %{min} Zeichen."
+  weak_password: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen."
   password_mismatch: "Die Passwörter stimmen nicht überein."
   plan_failed: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"
   create_failed: "Das Deployment konnte bei %{provider} nicht erstellt werden: %{error}"

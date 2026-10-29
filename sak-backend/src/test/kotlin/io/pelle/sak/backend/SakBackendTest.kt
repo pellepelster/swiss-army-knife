@@ -133,7 +133,7 @@ class SakBackendTest {
     ): T {
         val environment =
             mapOf(
-                "SAK_ADMIN_PASSWORD_HASH" to "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK767nINg0KkEtAqKeQDg\$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8",
+                "SAK_ADMIN_PASSWORD_HASH" to "\$argon2id\$v=19\$m=65536,t=3,p=1\$al/AGZtQJD5CTnS21yvIXg\$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4",
                 "SAK_IPV4" to "203.0.113.1",
                 "SAK_IPV6" to "2001:db8::1",
             ) +

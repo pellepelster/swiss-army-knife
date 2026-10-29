@@ -131,7 +131,7 @@ and the health of the domains.
   record) carries `sak.pelle.io/name=<name>`. It tells the resources of one deployment from those of another
   and from everything else in the project.
 - **The password hash label.** Every resource of a deployment, the DNS records included, also carries
-  `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the password. sakctl checks a password against it before
+  `sak.pelle.io/password-hash=<hash>`, a hash derived from the password. sakctl checks a password against it before
   it changes anything. The password itself is nowhere.
 - **Identity.** The name label and the password hash label are the identity of a resource. Every lookup checks
   them: a resource of the declared name without them belongs to someone else, and nothing changes or removes it. A
@@ -153,8 +153,12 @@ and the health of the domains.
 
 ## Security
 
-- **One secret to keep: the password of the deployment.** sakctl derives the keys of a deployment from its name and
-  password with argon2id, each with a salt of its own:
+- **One secret to keep: the password of the deployment.** sakctl derives one master key from the name and password
+  of a deployment with a strong argon2id (256 MiB, 3 passes), the password taken as NFC so the way it was typed does
+  not matter. Every value of the deployment is expanded from the master key with a purpose of its own, so none gives
+  away another and none can be guessed more cheaply than the master key. The admin password hash is the exception:
+  the backend checks a typed password against it, so it is an argon2id of the password itself (64 MiB, 3 passes, a
+  salt derived from the name):
 
   | Derived | Used for |
   |---|---|
@@ -192,6 +196,14 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   while the run lasts, against the rule to encrypt all data at rest. Accepted: only the user reads them, they live
   for the minutes of the run in a directory with a random name, and a killed sakctl leaves them only until its next
   run; whoever reads the user's files can read the user's terminal too.
+
+- **The password can be guessed offline.** Whoever reads the cloud project, a read-only token included, sees the
+  password hash label and the public keys of a deployment, and can check guesses of the password against them
+  without asking anybody; whoever reads the server can do the same with the admin password hash. Accepted: every
+  guess costs the strong argon2id of the master key (or of the admin password hash), and a new password that is easy
+  to guess is refused (a strength estimate, not only its length), which leaves too many guesses to try. The salt is
+  the name of the deployment, not unique across users of the same name: a salt the user would have to keep would
+  break "no local state", and the cost of every guess keeps a table for a common name out of reach.
 
 - **The hashes in labels are shortened.** A label value holds at most 63 characters, so the hashes a server keeps in
   its labels (of its user data and of its ssh keys) are cut to 240 of their 256 bits to fit one label each. Two

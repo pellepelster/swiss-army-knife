@@ -667,8 +667,9 @@ fn resolve_dns(
 }
 
 /// a deployment checked and ready: where it goes, what it consists of, whether a resource
-/// may be created anew
-struct Prepared {
+/// may be created anew. The command line plans and applies with one, the project read once; the
+/// window prepares again for the apply, the user may have waited a while on the plan
+pub struct Prepared {
     provider: ProviderType,
     runtime: HetznerProviderRuntime,
     spec: DeploymentSpec,
@@ -1183,7 +1184,7 @@ impl DeploymentManager {
     /// password (long enough, typed twice the same) and, but for a destroy, the root domain
     /// (a zone of the project the dns mode is possible in), derives the ssh key and the
     /// password hash and lays out the resource group at the first hetzner project
-    async fn prepare(
+    pub async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
         deployment: &NewDeployment,
@@ -1211,6 +1212,15 @@ impl DeploymentManager {
         }
         if password != password_repeat {
             return Err(t!("deployments.password_mismatch").to_string().into());
+        }
+        // a new password has to hold out against guessing: the label and the public keys of the
+        // deployment let whoever reads the project try guesses offline
+        if intent == Intent::Create
+            && let Some(hint) = crate::core::keys::weak_password(name, password)
+        {
+            return Err(t!("deployments.weak_password", hint = hint)
+                .to_string()
+                .into());
         }
         let Some((provider, token)) = tokens
             .into_iter()
@@ -1405,6 +1415,15 @@ impl DeploymentManager {
         deployment: &NewDeployment,
     ) -> Result<PlanResponse, WizardError> {
         let prepared = self.prepare(tokens, deployment).await?;
+        self.plan_prepared(&prepared, deployment).await
+    }
+
+    /// the plan of a deployment prepared already
+    pub async fn plan_prepared(
+        &self,
+        prepared: &Prepared,
+        deployment: &NewDeployment,
+    ) -> Result<PlanResponse, WizardError> {
         let volume = prepared.spec.data_volume().name;
         let mut registry = prepared
             .spec
@@ -1511,6 +1530,17 @@ impl DeploymentManager {
         on_event: &mut (dyn FnMut(CreateEvent) + Send),
     ) -> Result<(), WizardError> {
         let prepared = self.prepare(tokens, deployment).await?;
+        self.apply(prepared, deployment, container, on_event).await
+    }
+
+    /// creates, deploys or destroys a deployment prepared already, as `create`
+    pub async fn apply(
+        &self,
+        prepared: Prepared,
+        deployment: &NewDeployment,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(CreateEvent) + Send),
+    ) -> Result<(), WizardError> {
         if deployment.intent == Intent::Destroy {
             self.remove_records(&prepared, on_event)
                 .await

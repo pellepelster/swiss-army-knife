@@ -570,7 +570,9 @@ async fn deploy(
     runtime: &ContainerRuntime,
     show_log: bool,
 ) -> Result<(), WizardError> {
-    let plan = manager.plan(provider.tokens(), deployment).await?;
+    // the project is read once, for the plan and the apply
+    let prepared = manager.prepare(provider.tokens(), deployment).await?;
+    let plan = manager.plan_prepared(&prepared, deployment).await?;
     let intro = match deployment.intent {
         Intent::Create => t!("ui.plan.intro"),
         Intent::Deploy => t!("ui.plan.intro_deploy"),
@@ -679,7 +681,7 @@ async fn deploy(
         CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
     };
     manager
-        .create(provider.tokens(), deployment, runtime, &mut report)
+        .apply(prepared, deployment, runtime, &mut report)
         .await?;
     let done = match deployment.intent {
         Intent::Destroy if deployment.delete_data => {

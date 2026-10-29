@@ -1195,14 +1195,14 @@ class SakAppsTest {
         // the hash of the admin password `a password of sixteen`, the vector of sakctl
         // (ADMIN_PASSWORD_VECTOR in sak-cli/src-tauri/src/core/keys.rs)
         private const val ADMIN_PASSWORD_HASH =
-            "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK767nINg0KkEtAqKeQDg\$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8"
+            "\$argon2id\$v=19\$m=65536,t=3,p=1\$al/AGZtQJD5CTnS21yvIXg\$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4"
         private const val ADMIN_PASSWORD = "a password of sixteen"
 
         // the admin api token sakctl derives for `alpha` with `a password of sixteen` and its sha-256,
         // the vectors of sakctl (API_TOKEN_VECTOR and API_TOKEN_SHA256_VECTOR in
         // sak-cli/src-tauri/src/core/keys.rs): what sakctl sends is what the configuration accepts
-        private const val API_TOKEN = "sak_LWhis5wtozfbH7Zn7v-4sWwBsUp6s59mHcxyAhN0Nvc"
-        private const val API_TOKEN_SHA256 = "aece066898558c7b3ad19725bc43a3f4cf2db34b6f860d4ddc85994c33513a3b"
+        private const val API_TOKEN = "sak_fy9g9PlIfmsjA_n5cBFUhDxd-nxvSlLGjG9cLDFPmts"
+        private const val API_TOKEN_SHA256 = "6328ee98555bca54d75c1a21da7330cfe6450adba466ed116238960f43f0eeb5"
 
         private fun sha256Hex(value: String) = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
 

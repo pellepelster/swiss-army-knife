@@ -1,10 +1,91 @@
-//! the ssh key of a deployment, derived from its name and password: the same name and
-//! password give the same key on every machine, so nothing has to be kept
+//! everything a deployment derives from its password: the ssh keys, the password hash label, the
+//! admin api token, the admin password hash and the provisioned-config label. The same name and
+//! password give the same values on every machine, so nothing has to be kept.
+//!
+//! One argon2id of the password, strong (`MASTER_PARAMS`), gives the master key of the
+//! deployment; each value is expanded from it with hkdf-sha256 and a purpose of its own, so none
+//! gives away another and a run pays for the argon2id once. Whoever reads the project (the label,
+//! the public keys) pays it for every guess. The admin password hash is the exception: the
+//! backend checks a typed password against it, so it is an argon2id of the password itself
 
-use argon2::Argon2;
+use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use hkdf::Hkdf;
+use sha2::{Digest, Sha256};
+use std::sync::Mutex;
+use unicode_normalization::UnicodeNormalization;
+
+/// the argon2id of the master key: 256 MiB, 3 passes, one lane; about half a second
+const MASTER_PARAMS: (u32, u32, u32) = (256 * 1024, 3, 1);
+
+/// the argon2id of the admin password hash: 64 MiB, 3 passes, one lane; the backend computes it for
+/// every password login on a small server, so less than the master key
+const ADMIN_PASSWORD_PARAMS: (u32, u32, u32) = (64 * 1024, 3, 1);
+
+/// what the salts and purposes start with; a new version gives every value anew
+const VERSION: &str = "sak.pelle.io/v2";
+
+fn argon2((memory, passes, lanes): (u32, u32, u32)) -> Result<Argon2<'static>, String> {
+    let params = Params::new(memory, passes, lanes, None).map_err(|e| e.to_string())?;
+    Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
+}
+
+/// the password as nfc: the same characters give the same bytes, typed on whatever system
+fn normalized(password: &str) -> String {
+    password.nfc().collect()
+}
+
+/// the master keys this process derived, by the name and the sha-256 of the password: a run asks
+/// for several values of the same deployment, the argon2id runs once for them
+#[allow(clippy::type_complexity)]
+static MASTER_KEYS: Mutex<Vec<(String, [u8; 32], [u8; 32])>> = Mutex::new(Vec::new());
+
+/// the master keys kept at most, the deployments of one listing
+const MASTER_KEYS_KEPT: usize = 16;
+
+fn master_key(name: &str, password: &str) -> Result<[u8; 32], String> {
+    let password = normalized(password);
+    let id: [u8; 32] = Sha256::digest(format!("{VERSION}/master-key-id/{name}\0{password}")).into();
+    if let Some((.., key)) = MASTER_KEYS
+        .lock()
+        .ok()
+        .and_then(|keys| keys.iter().find(|(n, i, _)| n == name && *i == id).cloned())
+    {
+        return Ok(key);
+    }
+    let mut key = [0u8; 32];
+    argon2(MASTER_PARAMS)?
+        .hash_password_into(
+            password.as_bytes(),
+            format!("{VERSION}/master-key/{name}").as_bytes(),
+            &mut key,
+        )
+        .map_err(|e| e.to_string())?;
+    if let Ok(mut keys) = MASTER_KEYS.lock() {
+        if keys.len() >= MASTER_KEYS_KEPT {
+            keys.remove(0);
+        }
+        keys.push((name.to_string(), id, key));
+    }
+    Ok(key)
+}
+
+/// `N` bytes of the master key for `purpose`
+fn expand<const N: usize>(name: &str, password: &str, purpose: &str) -> Result<[u8; N], String> {
+    let master = master_key(name, password)?;
+    let mut out = [0u8; N];
+    Hkdf::<Sha256>::from_prk(&master)
+        .map_err(|e| e.to_string())?
+        .expand(format!("{VERSION}/{purpose}/{name}").as_bytes(), &mut out)
+        .map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
 
 /// an ed25519 key derived from the password of a deployment: the client key the server
 /// is created with, or the host key the server identifies itself with
@@ -25,25 +106,17 @@ impl DerivedKey {
     }
 }
 
-fn derive(password: &str, salt: &str, comment: &str) -> Result<DerivedKey, String> {
-    let mut seed = [0u8; 32];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut seed)
-        .map_err(|e| e.to_string())?;
+fn derive(name: &str, password: &str, purpose: &str, comment: &str) -> Result<DerivedKey, String> {
     Ok(DerivedKey {
-        key: SigningKey::from_bytes(&seed),
+        key: SigningKey::from_bytes(&expand::<32>(name, password, purpose)?),
         comment: comment.to_string(),
     })
 }
 
-/// the client key of a deployment, derived from the password with argon2id, the name its
-/// salt; the server is created with its public half, the wizard logs in with the private
+/// the client key of a deployment; the server is created with its public half, sakctl logs in
+/// with the private
 pub fn derive_key(name: &str, password: &str) -> Result<DerivedKey, String> {
-    derive(
-        password,
-        &format!("sak.pelle.io/{name}"),
-        &format!("sak-{name}"),
-    )
+    derive(name, password, "client-key", &format!("sak-{name}"))
 }
 
 /// the public key, `ssh-ed25519 <base64> sak-<name>`, of the client key
@@ -51,40 +124,26 @@ pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
     Ok(derive_key(name, password)?.public_key())
 }
 
-/// the host key of the server of a deployment, derived like the client key with a salt of
-/// its own: cloud-init installs it, so the server is known before it ever boots and the
-/// first connection is verified
+/// the host key of the server of a deployment: cloud-init installs it, so the server is known
+/// before it ever boots and the first connection is verified
 pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String> {
-    derive(
-        password,
-        &format!("sak.pelle.io/host-key/{name}"),
-        &format!("sak-{name}-host"),
-    )
+    derive(name, password, "host-key", &format!("sak-{name}-host"))
 }
 
-/// the hash of the password that goes on the server of the deployment as the label
-/// sak.pelle.io/password-hash: argon2id over the password with a salt of its own, 30 bytes
-/// as hex, short enough for one label value. The wizard checks a password against it
+/// the hash of the password that goes on the resources of the deployment as the label
+/// sak.pelle.io/password-hash: 30 bytes as hex, short enough for one label value. sakctl checks a
+/// password against it
 pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
-    let salt = format!("sak.pelle.io/password-hash/{name}");
-    let mut hash = [0u8; 30];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut hash)
-        .map_err(|e| e.to_string())?;
-    Ok(hash.iter().map(|byte| format!("{byte:02x}")).collect())
+    Ok(hex(&expand::<30>(name, password, "password-hash")?))
 }
 
-/// the admin api token of a deployment: argon2id over the password with a salt of its own (the
-/// version in it lets a new token follow without a new password), 32 bytes as `sak_<base64url>`.
-/// The server keeps only its sha-256 (`api_token_sha256`), the token travels as a bearer token
-/// and is never written anywhere
+/// the admin api token of a deployment, 32 bytes as `sak_<base64url>`. The server keeps only its
+/// sha-256 (`api_token_sha256`), the token travels as a bearer token and is never written anywhere
 pub fn api_token(name: &str, password: &str) -> Result<String, String> {
-    let salt = format!("sak.pelle.io/api-token/v1/{name}");
-    let mut token = [0u8; 32];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut token)
-        .map_err(|e| e.to_string())?;
-    Ok(format!("sak_{}", URL_SAFE_NO_PAD.encode(token)))
+    Ok(format!(
+        "sak_{}",
+        URL_SAFE_NO_PAD.encode(expand::<32>(name, password, "api-token")?)
+    ))
 }
 
 /// the sha-256 of the api token in hex, what the backend compares a bearer token with; the token
@@ -93,41 +152,47 @@ pub fn api_token_sha256(token: &str) -> String {
     sak_cloud::hetzner::labels::sha256_hex(token)
 }
 
-/// the hash of the admin password (the deployment password) the backend checks a password login
-/// against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`). The salt is
-/// derived from the name, so the same password gives the same hash on every deploy and the
-/// configuration of the backend does not change; its purpose is its own, so the hash shares nothing
-/// with the password hash label or the keys
+/// the hash of the admin password (the deployment password, as nfc) the backend checks a password
+/// login against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`). The salt
+/// is derived from the name, so the same password gives the same hash on every deploy and the
+/// configuration of the backend does not change
 pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {
     use argon2::password_hash::{PasswordHasher, SaltString};
-    let digest =
-        sak_cloud::hetzner::labels::sha256_hex(&format!("sak.pelle.io/admin-password/v1/{name}"));
     // 16 bytes of salt, the recommended length
-    let salt_bytes: Vec<u8> = (0..16)
-        .map(|index| u8::from_str_radix(&digest[index * 2..index * 2 + 2], 16).unwrap_or_default())
-        .collect();
-    let salt = SaltString::encode_b64(&salt_bytes).map_err(|e| e.to_string())?;
-    Ok(Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+    let digest = Sha256::digest(format!("{VERSION}/admin-password/{name}"));
+    let salt = SaltString::encode_b64(&digest[..16]).map_err(|e| e.to_string())?;
+    Ok(argon2(ADMIN_PASSWORD_PARAMS)?
+        .hash_password(normalized(password).as_bytes(), &salt)
         .map_err(|e| e.to_string())?
         .to_string())
 }
 
-/// the label `sak.pelle.io/provisioned-config` of the server: argon2id over the password with a
-/// salt made of the name and the sha-256 of `config`, the configuration the playbook writes, 30
-/// bytes as hex, one label value. The same configuration gives the same value on every machine,
-/// another one another value; without the password nobody can tell from it what the configuration
-/// is, not even a weak password of the mail server in it
+/// the label `sak.pelle.io/provisioned-config` of the server: hmac-sha256 with a key of the
+/// master key over `config`, the configuration the playbook writes, 30 bytes as hex, one label
+/// value. The same configuration gives the same value on every machine, another one another value;
+/// without the password nobody can tell from it what the configuration is, not even a weak password
+/// of the mail server in it
 pub fn provisioned_config(name: &str, password: &str, config: &str) -> Result<String, String> {
-    let salt = format!(
-        "sak.pelle.io/provisioned-config/v1/{name}/{}",
-        sak_cloud::hetzner::labels::sha256_hex(config)
-    );
-    let mut hash = [0u8; 30];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt.as_bytes(), &mut hash)
-        .map_err(|e| e.to_string())?;
-    Ok(hash.iter().map(|byte| format!("{byte:02x}")).collect())
+    use hmac::{Hmac, Mac};
+    let key = expand::<32>(name, password, "provisioned-config")?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&key).map_err(|e| e.to_string())?;
+    mac.update(config.as_bytes());
+    Ok(hex(&mac.finalize().into_bytes()[..30]))
+}
+
+/// the least zxcvbn score of a new password, of 0 to 4: 3 holds out about 10^10 guesses
+const MIN_PASSWORD_SCORE: u8 = 3;
+
+/// whether a new password is too easy to guess, with what zxcvbn suggests: the name of the
+/// deployment counts as known
+pub fn weak_password(name: &str, password: &str) -> Option<String> {
+    let estimate = zxcvbn::zxcvbn(password, &[name, "sak", "pelle"]);
+    (u8::from(estimate.score()) < MIN_PASSWORD_SCORE).then(|| {
+        estimate
+            .feedback()
+            .and_then(|feedback| feedback.suggestions().first().map(|s| s.to_string()))
+            .unwrap_or_default()
+    })
 }
 
 /// the openssh form of a public key, `ssh-ed25519 <base64 blob> <comment>`
@@ -304,9 +369,9 @@ mod tests {
     /// the admin api token of `alpha` with `a password of sixteen` and its sha-256: the same
     /// constants are in the tests of the backend (`SakAppsTest`), which signs in with the token and
     /// configures the hash
-    pub const API_TOKEN_VECTOR: &str = "sak_LWhis5wtozfbH7Zn7v-4sWwBsUp6s59mHcxyAhN0Nvc";
+    pub const API_TOKEN_VECTOR: &str = "sak_fy9g9PlIfmsjA_n5cBFUhDxd-nxvSlLGjG9cLDFPmts";
     pub const API_TOKEN_SHA256_VECTOR: &str =
-        "aece066898558c7b3ad19725bc43a3f4cf2db34b6f860d4ddc85994c33513a3b";
+        "6328ee98555bca54d75c1a21da7330cfe6450adba466ed116238960f43f0eeb5";
 
     /// a change of a salt, a parameter or an encoding changes these, and every deployment would
     /// be locked out of its servers, its labels and its api: pinned, so such a change fails here
@@ -317,15 +382,15 @@ mod tests {
         assert_eq!(api_token_sha256(API_TOKEN_VECTOR), API_TOKEN_SHA256_VECTOR);
         assert_eq!(
             password_hash(name, password).unwrap(),
-            "8a5de384627e8403fca59205abcc53f887ef0e101a73b9fe212990aee3f3"
+            "f626bbc390d38eadf6ee6576b4a717f76e323180e1c88656fede1d6265d0"
         );
         assert_eq!(
             derive_public_key(name, password).unwrap(),
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMez2i9SS5TFJSYlA+23H5liX9/hLZ4JHND4AS1IGp45 sak-alpha"
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBiDxOhcFnVmeF0YFh/GLVuXgpwr90d5my8JgIIHY8Lv sak-alpha"
         );
         assert_eq!(
             derive_host_key(name, password).unwrap().public_key(),
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOEQis05sH25xqsL2BjyezE5R9qMLIb3cy3jXLdpqx8b sak-alpha-host"
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEzpXNtaORpHCLULOXhT2P1xI/Rfz5sO8QWnF8s60izX sak-alpha-host"
         );
     }
 
@@ -359,13 +424,13 @@ mod tests {
 
     /// the hash of the admin password of `alpha` with `a password of sixteen`: the same constant is
     /// in the tests of the backend (`AdminPasswordTest`), which checks a password against it
-    pub const ADMIN_PASSWORD_VECTOR: &str = "$argon2id$v=19$m=19456,t=2,p=1$qEK767nINg0KkEtAqKeQDg$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8";
+    pub const ADMIN_PASSWORD_VECTOR: &str = "$argon2id$v=19$m=65536,t=3,p=1$al/AGZtQJD5CTnS21yvIXg$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4";
 
     #[test]
     fn the_admin_password_hash_is_a_stable_argon2id_phc_string() {
         let hash = admin_password_hash("alpha", "a password of sixteen").unwrap();
         assert!(
-            hash.starts_with("$argon2id$v=19$m=19456,t=2,p=1$"),
+            hash.starts_with("$argon2id$v=19$m=65536,t=3,p=1$"),
             "{hash}"
         );
         assert_eq!(
@@ -402,6 +467,57 @@ mod tests {
         );
         // it is no plain hash of the configuration
         assert!(!sak_cloud::hetzner::labels::sha256_hex("sak_name: alpha").starts_with(&value));
+    }
+
+    /// the same characters give the same values, composed or with combining marks (as macos may
+    /// type them); the backend takes a password login as nfc too (`AdminPasswordTest`)
+    #[test]
+    fn the_password_counts_as_nfc() {
+        let (composed, combining) = (
+            "Gr\u{fc}\u{df}e aus dem S\u{fc}den, sechzehn",
+            "Gru\u{308}\u{df}e aus dem Su\u{308}den, sechzehn",
+        );
+        assert_eq!(
+            derive_public_key("alpha", composed).unwrap(),
+            derive_public_key("alpha", combining).unwrap()
+        );
+        assert_eq!(
+            admin_password_hash("alpha", composed).unwrap(),
+            admin_password_hash("alpha", combining).unwrap()
+        );
+        assert_eq!(
+            admin_password_hash("alpha", composed).unwrap(),
+            "$argon2id$v=19$m=65536,t=3,p=1$al/AGZtQJD5CTnS21yvIXg$SpIVgiuAa4G3pa2GALp3BEwmy4mqb2K4iHx7SxgijdA"
+        );
+    }
+
+    #[test]
+    fn a_password_easy_to_guess_is_weak_the_name_counts_as_known() {
+        assert!(weak_password("alpha", "a password of sixteen").is_none());
+        assert!(weak_password("alpha", "correct horse battery staple").is_none());
+        for weak in [
+            "aaaaaaaaaaaaaaaa",
+            "password12345678",
+            "alphaalphaalpha1",
+            "1234567890123456",
+        ] {
+            assert!(weak_password("alpha", weak).is_some(), "{weak}");
+        }
+    }
+
+    /// one argon2id for every value of a deployment, however many are asked for
+    #[test]
+    fn the_master_key_is_derived_once() {
+        let password = "a password only this test uses";
+        let start = std::time::Instant::now();
+        derive_key("gamma", password).unwrap();
+        let first = start.elapsed();
+        let start = std::time::Instant::now();
+        for _ in 0..5 {
+            password_hash("gamma", password).unwrap();
+            api_token("gamma", password).unwrap();
+        }
+        assert!(start.elapsed() < first, "{:?} {first:?}", start.elapsed());
     }
 
     #[test]

@@ -79,6 +79,7 @@ provision:
 deployments:
   invalid_name: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
   short_password: "The password needs at least %{min} characters."
+  weak_password: "The password is too easy to guess, choose a longer one of unrelated words or random characters. %{hint}"
   password_mismatch: "The passwords do not match."
   plan_failed: "The deployment could not be planned at %{provider}: %{error}"
   create_failed: "The deployment could not be created at %{provider}: %{error}"
