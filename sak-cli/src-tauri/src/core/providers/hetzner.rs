@@ -97,7 +97,9 @@ mod tests {
     use super::*;
     use base64::Engine;
     use base64::engine::general_purpose::STANDARD;
+    use sak_cloud::hetzner::api::Backoff;
     use serde_json::json;
+    use std::time::Duration;
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
@@ -127,10 +129,12 @@ mod tests {
             .and(path("/ssh_keys/42"))
             .and(header("authorization", format!("Bearer {TOKEN}")))
             .respond_with(delete)
-            .expect(..=1)
+            // a failed delete is sent once again
+            .expect(..=2)
             .mount(&server)
             .await;
-        let api = HetznerApi::with_base_url(TOKEN, &server.uri());
+        let fast = Backoff::new(2, Duration::from_millis(1), Duration::from_millis(2));
+        let api = HetznerApi::with_base_url(TOKEN, &server.uri()).with_retry(fast);
         (server, api)
     }
 

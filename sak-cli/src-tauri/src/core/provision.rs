@@ -24,6 +24,10 @@ const RUN_DIR: &str = "/run/sak";
 /// the playbook of the collection a server is provisioned with
 pub const PLAYBOOK: &str = "pelle_io.sak.server";
 
+/// the longest a run may take; a run takes some minutes, one that hangs (a server that does not
+/// answer a task) is stopped then
+const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45 * 60);
+
 /// a server to provision and what ansible needs to reach and set it up
 pub struct ProvisionRun {
     /// the name of the deployment: the host in the inventory and `sak_name`
@@ -255,6 +259,8 @@ impl ProvisionManager {
         // the loop ends when both streams are read to the end: the endpoint holds a sender until
         // it stops, so the channel does not close before
         let mut failed = None;
+        let started = std::time::Instant::now();
+        let mut timed_out = false;
         let readers_done = std::thread::spawn(move || {
             for reader in readers {
                 let _ = reader.join();
@@ -268,7 +274,14 @@ impl ProvisionManager {
                     }
                     on_output(output);
                 }
-                Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {}
+                Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {
+                    // the streams end once the container is gone
+                    if !timed_out && started.elapsed() > RUN_TIMEOUT {
+                        timed_out = true;
+                        remove_container(runtime, &dir.container);
+                        let _ = child.kill();
+                    }
+                }
                 Err(_) => break,
             }
         }
@@ -282,6 +295,11 @@ impl ProvisionManager {
             on_output(output);
         }
         drop(dir);
+        if timed_out {
+            return Err(
+                t!("provision.timed_out", minutes = RUN_TIMEOUT.as_secs() / 60).to_string(),
+            );
+        }
         match (status.success(), failed) {
             (true, _) => Ok(()),
             (false, Some((task, message))) => Err(t!(
@@ -332,8 +350,11 @@ impl RunDir {
             .unwrap_or_else(std::env::temp_dir);
         remove_left_behind(&base);
         let name = format!("{RUN_PREFIX}{}-{}", std::process::id(), random_hex()?);
-        let path = base.join(&name);
-        // fails when anything exists there, also a link of someone else; private from the start
+        Self::create_at(base.join(&name), runtime, name)
+    }
+
+    /// fails when anything exists at `path`, also a link of someone else; private from the start
+    fn create_at(path: PathBuf, runtime: &str, name: String) -> Result<Self, String> {
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {
@@ -388,13 +409,18 @@ pub fn stop_runs() {
         .unwrap_or_default();
     for (path, runtime, container) in runs {
         let _ = std::fs::remove_dir_all(&path);
-        let _ = container::command(&runtime)
-            .args(["rm", "--force", &container])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        remove_container(&runtime, &container);
     }
+}
+
+/// stops and removes the container of a run, whatever state it is in
+fn remove_container(runtime: &str, name: &str) {
+    let _ = container::command(runtime)
+        .args(["rm", "--force", name])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 /// stops the runs on ctrl+c, a termination or a hangup (unix), then ends the process with 130
@@ -632,6 +658,24 @@ mod tests {
         assert!(other.path.exists());
         stop_runs();
         assert!(!other.path.exists());
+    }
+
+    #[test]
+    fn a_run_dir_is_never_created_where_something_is() {
+        let base = std::env::temp_dir().join(format!("sakctl-test-{}", random_hex().unwrap()));
+        std::fs::create_dir(&base).unwrap();
+        let taken = base.join("taken");
+        std::fs::create_dir(&taken).unwrap();
+        assert!(RunDir::create_at(taken.clone(), "true", "taken".into()).is_err());
+        // a link another user put there, to a directory of the victim
+        #[cfg(unix)]
+        {
+            let link = base.join("link");
+            std::os::unix::fs::symlink(&taken, &link).unwrap();
+            assert!(RunDir::create_at(link, "true", "link".into()).is_err());
+            assert_eq!(std::fs::read_dir(&taken).unwrap().count(), 0);
+        }
+        std::fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]

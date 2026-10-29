@@ -257,14 +257,15 @@ impl HetznerToken {
 /// Never an argument, because every process of the machine can read the arguments. Without a token
 /// and a terminal, a usage error
 fn hcloud_token(ask: bool, from_env: Option<String>) -> Result<HetznerToken, WizardError> {
+    // a token copied with a line break or a space around it is the token
     if !ask && let Some(token) = from_env.filter(|token| !token.trim().is_empty()) {
-        return Ok(HetznerToken(token));
+        return Ok(HetznerToken(token.trim().to_string()));
     }
     if !std::io::stdin().is_terminal() {
         return Err(WizardError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
     }
     rpassword::prompt_password(t!("cli.hcloud_token_prompt").as_ref())
-        .map(HetznerToken)
+        .map(|token| HetznerToken(token.trim().to_string()))
         .map_err(|error| error.to_string().into())
 }
 
@@ -858,6 +859,11 @@ mod tests {
     fn the_hcloud_token_comes_from_hcloud_token_or_is_typed_never_from_an_argument() {
         assert_eq!(
             hcloud_token(false, Some("token".into())).unwrap().0,
+            "token"
+        );
+        // the api gets the token without what was copied around it
+        assert_eq!(
+            hcloud_token(false, Some(" token\n".into())).unwrap().0,
             "token"
         );
         if !std::io::stdin().is_terminal() {

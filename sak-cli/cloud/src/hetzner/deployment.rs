@@ -1767,18 +1767,23 @@ mod tests {
 
     /// a project with a `web` server, ssh key, firewall, data volume and primary ips without
     /// labels, protected where hetzner allows it: no deployment created them
-    async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
-        let volume = json!({
+    fn foreign_volume() -> Value {
+        json!({
             "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
             "protection": { "delete": true }, "server": null, "status": "available",
             "location": { "id": 2, "name": "hel1" }, "labels": {}
-        });
-        let ip = |id: u64, name: &str, ip_type: &str| {
-            json!({
-                "id": id, "name": name, "ip": "1.2.3.4", "type": ip_type, "assignee_id": null, "assignee_type": "unassigned",
-                "auto_delete": false, "protection": { "delete": true }, "location": { "id": 3, "name": "hel1" }, "labels": {}
-            })
-        };
+        })
+    }
+
+    fn foreign_ip(id: u64, name: &str, ip_type: &str) -> Value {
+        json!({
+            "id": id, "name": name, "ip": "1.2.3.4", "type": ip_type, "assignee_id": null, "assignee_type": "unassigned",
+            "auto_delete": false, "protection": { "delete": true }, "location": { "id": 3, "name": "hel1" }, "labels": {}
+        })
+    }
+
+    async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
+        let (volume, ip) = (foreign_volume(), foreign_ip);
         mock_api_all(&[
             ("servers", vec![server(1, "sak-web", json!({}))]),
             ("ssh_keys", vec![key(7, "sak-web", json!({}))]),
@@ -1831,6 +1836,51 @@ mod tests {
         );
         // nothing was deleted, unprotected, detached or unassigned
         assert_eq!(writes(&mock).await, Vec::<String>::new());
+    }
+
+    /// a server, ssh key, firewall, volume or primary ip of the declared name without the labels of
+    /// the deployment stops the plan, each on its own, and nothing is written
+    #[tokio::test]
+    async fn each_kind_of_resource_of_someone_else_stops_the_plan() {
+        let kinds = ["servers", "ssh_keys", "firewalls", "volumes", "primary_ips"];
+        for (kind, foreign, name) in [
+            ("servers", server(1, "sak-web", json!({})), "'sak-web'"),
+            ("ssh_keys", key(7, "sak-web", json!({})), "'sak-web'"),
+            ("firewalls", firewall(5, "sak-web", json!({})), "'sak-web'"),
+            ("volumes", foreign_volume(), "'sak-web-data'"),
+            (
+                "primary_ips",
+                foreign_ip(11, "sak-web-ipv4", "ipv4"),
+                "'sak-web-ipv4'",
+            ),
+        ] {
+            let lists: Vec<(&str, Vec<Value>)> = kinds
+                .iter()
+                .map(|listed| {
+                    let items = if *listed == kind {
+                        vec![foreign.clone()]
+                    } else {
+                        Vec::new()
+                    };
+                    (*listed, items)
+                })
+                .collect();
+            let (mock, api) = mock_api_all(&lists).await;
+            let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+
+            let error = web()
+                .registry(&provider)
+                .unwrap()
+                .diff_all()
+                .await
+                .unwrap_err();
+
+            assert!(
+                matches!(&error, Error::NotOwned { resource, .. } if resource.contains(name)),
+                "{kind}: {error}"
+            );
+            assert_eq!(writes(&mock).await, Vec::<String>::new(), "{kind}");
+        }
     }
 
     #[tokio::test]

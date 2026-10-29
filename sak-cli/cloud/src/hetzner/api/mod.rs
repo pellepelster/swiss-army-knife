@@ -18,7 +18,7 @@ pub use model::{Action, ActionStatus, ListQuery, Location, ServerType};
 
 use error::ErrorResponse;
 use model::{ActionResponse, ListPage};
-use reqwest::{Client, RequestBuilder, Response, StatusCode};
+use reqwest::{Client, Method, RequestBuilder, Response, StatusCode};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::future::Future;
@@ -31,6 +31,42 @@ const API: &str = "https://api.hetzner.cloud/v1";
 const PAGE_SIZE: u32 = 50;
 
 pub type Result<T> = std::result::Result<T, ApiError>;
+
+/// the longest wait for the rate limit to reset
+const MAX_RATE_LIMIT_WAIT: Duration = Duration::from_secs(60);
+
+/// how long to wait on a rate limit: until `RateLimit-Reset` (unix seconds) when hetzner says
+/// it, at least `backoff`, at most `MAX_RATE_LIMIT_WAIT`
+fn rate_limit_delay(response: &Response, backoff: Duration) -> Duration {
+    let reset = response
+        .headers()
+        .get("ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().parse::<u64>().ok());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|now| now.as_secs())
+        .unwrap_or_default();
+    reset
+        .map(|reset| Duration::from_secs(reset.saturating_sub(now)))
+        .unwrap_or_default()
+        .max(backoff)
+        .min(MAX_RATE_LIMIT_WAIT)
+}
+
+/// whether an error answer has the error code `code`; the answer is read for it, so it comes
+/// back built again from what was read
+async fn has_code(response: Response, code: ErrorCode) -> (Response, bool) {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = response.bytes().await.unwrap_or_default();
+    let found =
+        serde_json::from_slice::<ErrorResponse>(&body).is_ok_and(|error| error.error.code == code);
+    let mut rebuilt = http::Response::new(body);
+    *rebuilt.status_mut() = status;
+    *rebuilt.headers_mut() = headers;
+    (Response::from(rebuilt), found)
+}
 
 /// how often to try again and how long to wait between the attempts, e.g. for a rate limited
 /// request or a running action. The delay doubles up to `max_delay`
@@ -62,7 +98,7 @@ pub struct HetznerApi {
     client: Client,
     base: String,
     token: String,
-    /// for a request that the api rate limited
+    /// for a request that failed for a moment (`send`)
     retry: Backoff,
     /// for a running action and for `wait_until`
     wait: Backoff,
@@ -268,28 +304,61 @@ impl HetznerApi {
         unreachable!("the wait has at least one attempt")
     }
 
-    /// sends the request; when the api rate limits it, waits and sends it again
+    /// sends the request, and again after a while when it failed for a moment: every request on
+    /// a rate limit (429, until `RateLimit-Reset`) and on a resource locked by a running action
+    /// (423 `locked`, 409 `conflict`); a request that can be sent twice (GET, PUT, DELETE) also on
+    /// a connection error, a timeout and a server error (5xx). A POST is not sent twice after an
+    /// error that may have come after hetzner took it, it could create a resource twice
     async fn send(&self, path: &str, request: RequestBuilder) -> Result<Response> {
         let request = request.bearer_auth(&self.token);
+        let idempotent = request
+            .try_clone()
+            .and_then(|request| request.build().ok())
+            .is_some_and(|request| {
+                matches!(
+                    *request.method(),
+                    Method::GET | Method::PUT | Method::DELETE | Method::HEAD
+                )
+            });
         for attempt in 0..self.retry.attempts {
+            let last = attempt + 1 == self.retry.attempts;
             let attempt_request = request
                 .try_clone()
                 .expect("the requests have no stream bodies");
             debug!("{path}");
-            let response = attempt_request
-                .send()
-                .await
-                .map_err(|source| ApiError::Request {
-                    path: path.to_string(),
-                    source,
-                })?;
-            if response.status() != StatusCode::TOO_MANY_REQUESTS
-                || attempt + 1 == self.retry.attempts
-            {
-                return Ok(response);
+            let response = match attempt_request.send().await {
+                Ok(response) => response,
+                Err(source) if idempotent && !last && !source.is_builder() => {
+                    info!("{path} failed ({source}), sending it again");
+                    tokio::time::sleep(self.retry.delay(attempt)).await;
+                    continue;
+                }
+                Err(source) => {
+                    return Err(ApiError::Request {
+                        path: path.to_string(),
+                        source,
+                    });
+                }
+            };
+            let status = response.status();
+            let (response, delay) = if status == StatusCode::TOO_MANY_REQUESTS {
+                let delay = rate_limit_delay(&response, self.retry.delay(attempt));
+                (response, Some(delay))
+            } else if status == StatusCode::LOCKED || (idempotent && status.is_server_error()) {
+                (response, Some(self.retry.delay(attempt)))
+            } else if status == StatusCode::CONFLICT {
+                let (response, conflict) = has_code(response, ErrorCode::Conflict).await;
+                (response, conflict.then(|| self.retry.delay(attempt)))
+            } else {
+                (response, None)
+            };
+            match delay {
+                Some(delay) if !last => {
+                    info!("{path} answered {status}, sending it again");
+                    tokio::time::sleep(delay).await;
+                }
+                _ => return Ok(response),
             }
-            info!("rate limited on {path}, waiting");
-            tokio::time::sleep(self.retry.delay(attempt)).await;
         }
         unreachable!("the retry has at least one attempt")
     }

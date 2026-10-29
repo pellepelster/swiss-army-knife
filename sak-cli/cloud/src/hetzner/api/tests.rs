@@ -286,6 +286,166 @@ async fn a_request_rate_limited_for_good_is_an_error() {
     assert_eq!(error.code(), Some(ErrorCode::RateLimitExceeded));
 }
 
+fn error(status: u16, code: &str) -> ResponseTemplate {
+    ResponseTemplate::new(status)
+        .set_body_json(json!({ "error": { "code": code, "message": "busy" } }))
+}
+
+fn create_request() -> SshKeyCreate {
+    SshKeyCreate {
+        name: "admin".to_string(),
+        public_key: "ssh-ed25519 AAAA".to_string(),
+        labels: None,
+    }
+}
+
+#[tokio::test]
+async fn a_read_is_sent_again_after_a_server_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/ssh_keys/7"))
+        .respond_with(ResponseTemplate::new(503).set_body_string("unavailable"))
+        .up_to_n_times(2)
+        .expect(2)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/ssh_keys/7"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({ "ssh_key": ssh_key(7, "admin") })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    assert_eq!(
+        api(&server).ssh_keys().get(7).await.unwrap().unwrap().name,
+        "admin"
+    );
+}
+
+#[tokio::test]
+async fn a_create_is_not_sent_again_after_a_server_error() {
+    // hetzner may have created the key before it failed, a second create would make another
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/ssh_keys"))
+        .respond_with(ResponseTemplate::new(503).set_body_string("unavailable"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let error = api(&server)
+        .ssh_keys()
+        .create(&create_request())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, ApiError::Unexpected { status: 503, .. }),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_request_on_a_locked_or_conflicting_resource_is_sent_again() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/ssh_keys"))
+        .respond_with(error(423, "locked"))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/ssh_keys"))
+        .respond_with(error(409, "conflict"))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/ssh_keys"))
+        .respond_with(
+            ResponseTemplate::new(201).set_body_json(json!({ "ssh_key": ssh_key(7, "admin") })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let key = api(&server)
+        .ssh_keys()
+        .create(&create_request())
+        .await
+        .unwrap();
+    assert_eq!(key.name, "admin");
+}
+
+#[tokio::test]
+async fn a_conflict_of_another_kind_is_an_error_at_once() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/ssh_keys"))
+        .respond_with(error(409, "uniqueness_error"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let error = api(&server)
+        .ssh_keys()
+        .create(&create_request())
+        .await
+        .unwrap_err();
+    // the answer read for its code is the error, its message too
+    assert_eq!(error.code(), Some(ErrorCode::UniquenessError));
+    assert!(error.to_string().contains("busy"), "{error}");
+}
+
+#[tokio::test]
+async fn a_read_is_sent_again_after_a_connection_error() {
+    // nothing listens there: every attempt fails to connect, the last one is the error
+    let api = HetznerApi::with_base_url(TOKEN, "http://127.0.0.1:1").with_retry(Backoff::new(
+        3,
+        Duration::from_millis(1),
+        Duration::from_millis(2),
+    ));
+    let error = api.ssh_keys().get(7).await.unwrap_err();
+    assert!(matches!(error, ApiError::Request { .. }), "{error}");
+}
+
+#[test]
+fn a_rate_limit_waits_until_its_reset_within_bounds() {
+    let response = |reset: Option<u64>| {
+        let mut response = http::Response::new(String::new());
+        *response.status_mut() = http::StatusCode::TOO_MANY_REQUESTS;
+        if let Some(reset) = reset {
+            response
+                .headers_mut()
+                .insert("ratelimit-reset", reset.to_string().parse().unwrap());
+        }
+        reqwest::Response::from(response)
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let backoff = Duration::from_secs(1);
+    // in 5 seconds; about now, at least the backoff; far away, at most a minute; none, the backoff
+    let in_five = super::rate_limit_delay(&response(Some(now + 5)), backoff);
+    assert!(
+        in_five > Duration::from_secs(3) && in_five <= Duration::from_secs(5),
+        "{in_five:?}"
+    );
+    assert_eq!(
+        super::rate_limit_delay(&response(Some(now)), backoff),
+        backoff
+    );
+    assert_eq!(
+        super::rate_limit_delay(&response(Some(now + 3600)), backoff),
+        Duration::from_secs(60)
+    );
+    assert_eq!(super::rate_limit_delay(&response(None), backoff), backoff);
+}
+
 #[tokio::test]
 async fn wait_for_action_polls_until_success() {
     let server = MockServer::start().await;

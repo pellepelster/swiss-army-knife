@@ -70,6 +70,7 @@ provision:
   running: "Richte Server %{name} (%{host}) ein…"
   not_started: "%{runtime} konnte das Image der Werkzeuge nicht starten: %{error}"
   failed: "Ansible ist fehlgeschlagen (Exit-Code %{status})."
+  timed_out: "Ansible ist nicht innerhalb von %{minutes} Minuten fertig geworden und wurde gestoppt. Rolle erneut aus, ein Deploy macht dort weiter, wo er aufgehört hat."
   task_failed: "Ansible ist bei der Aufgabe '%{task}' fehlgeschlagen: %{message}"
   no_address: "Der Server von %{name} hat keine öffentliche Adresse."
   no_volume: "Das Datenvolume von %{name} ist nicht angehängt."
