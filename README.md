@@ -18,3 +18,11 @@ small groups: a few people who know and trust each other.
 - **Single user mode** One user, the admin, signs in with the password of the deployment. No mail server is needed.
 - **Multi user mode** Users sign in with a link by e-mail; the admin can also sign in with the password of the
   deployment. It needs a mail server and the e-mail address of the admin as well as all other users.
+
+## Apps
+
+- **Notes** Post-its from text, photos and voice recordings, sorted with labels and in colors. When activated, the
+  text in a photo or a recording is written into the note on request.
+- **Static hosting** Websites from S3 buckets, at their own domain or a subdomain of the deployment. Each site shows
+  its requests and its traffic.
+- **Redirects** Domains that lead to another address.
