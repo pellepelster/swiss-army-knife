@@ -110,6 +110,8 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 [tasks."cli:theme"]
 description = "Copy sak-theme into ui/theme/ for the page of sakctl"
 dir = "{{config_root}}/sak-cli"
+# bash on windows too (git bash), where mise would run cmd
+shell = "bash -c"
 run = """
 (cd ../sak-theme && npm ci --no-audit --no-fund)
 rm -rf ui/theme

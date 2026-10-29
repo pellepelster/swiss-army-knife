@@ -130,26 +130,71 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run cli:test
       - run: mise run cli:cloud:test
-      # sakctl, the window and the command line in one binary, with the page built in
+
+  # sakctl for each platform: the window and the command line in one binary with the page built in,
+  # and its installers, one artifact for each platform (docs/installation.md). macOS gets one
+  # universal binary for apple silicon and intel. Nothing is signed: macOS and windows warn on the
+  # first start
+  sakctl:
+    name: sakctl (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+            build: --bundles deb,rpm,appimage
+            artifacts: |
+              sak-cli/src-tauri/target/release/sakctl
+              sak-cli/src-tauri/target/release/bundle/deb/*.deb
+              sak-cli/src-tauri/target/release/bundle/rpm/*.rpm
+              sak-cli/src-tauri/target/release/bundle/appimage/*.AppImage
+          - platform: macos
+            runner: macos-15
+            build: --target universal-apple-darwin --bundles app,dmg
+            artifacts: |
+              sak-cli/src-tauri/target/universal-apple-darwin/release/sakctl
+              sak-cli/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - platform: windows
+            runner: windows-2025
+            build: --bundles msi,nsis
+            artifacts: |
+              sak-cli/src-tauri/target/release/sakctl.exe
+              sak-cli/src-tauri/target/release/bundle/msi/*.msi
+              sak-cli/src-tauri/target/release/bundle/nsis/*.exe
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - if: matrix.platform == 'linux'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          version: 1
+      # the tools are installed after the action, saved to its cache in its post step
+      - uses: jdx/mise-action@v5
+        with:
+          install: false
+          cache_save_post: true
+      - run: mise install rust node npm:@tauri-apps/cli
+      # the universal binary is the one of both architectures
+      - if: matrix.platform == 'macos'
+        run: mise exec -- rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sak-cli/src-tauri -> target
+          key: ${{ matrix.platform }}
       - run: mise run cli:theme
-      - name: Build sakctl
+      - name: Build sakctl and its installers
         working-directory: sak-cli
-        run: mise exec -- tauri build --no-bundle
+        run: mise exec -- tauri build ${{ matrix.build }}
       - uses: actions/upload-artifact@v7
         with:
-          name: sakctl-linux
-          path: sak-cli/src-tauri/target/release/sakctl
-      # the linux installers of the same binary, the images were built by the jobs before
-      - name: Bundle the installers
-        working-directory: sak-cli
-        run: mise exec -- tauri bundle
-      - uses: actions/upload-artifact@v7
-        with:
-          name: sakctl-installers-linux
-          path: |
-            sak-cli/src-tauri/target/release/bundle/deb/*.deb
-            sak-cli/src-tauri/target/release/bundle/rpm/*.rpm
-            sak-cli/src-tauri/target/release/bundle/appimage/*.AppImage
+          name: sakctl-${{ matrix.platform }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
   # a pull request too. The address of the pages is its base url
