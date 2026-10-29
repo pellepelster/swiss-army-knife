@@ -237,6 +237,8 @@ pub fn is_command_line(args: &[String]) -> bool {
 
 /// runs the command, the exit code of the process
 pub fn run(command: Command) -> i32 {
+    // ctrl+c stops a provisioning and removes what it wrote
+    crate::core::provision::stop_runs_on_signal();
     match tauri::async_runtime::block_on(execute(command)) {
         Ok(()) => EXIT_OK,
         Err(error) => {

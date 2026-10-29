@@ -9,8 +9,9 @@ pub mod providers;
 use crate::core::deployments::DeploymentManager;
 use crate::core::providers::ProviderTokens;
 
-/// runs the window until it is closed
+/// runs the window until it is closed; a provisioning going on stops then, what it wrote goes
 pub fn run() {
+    crate::core::provision::stop_runs_on_signal();
     tauri::Builder::default()
         .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())
@@ -35,8 +36,13 @@ pub fn run() {
             deployments::plan_deployment,
             deployments::create_deployment
         ])
-        .run(tauri::generate_context!())
-        .expect("sakctl failed to start");
+        .build(tauri::generate_context!())
+        .expect("sakctl failed to start")
+        .run(|_, event| {
+            if let tauri::RunEvent::Exit = event {
+                crate::core::provision::stop_runs();
+            }
+        });
 }
 
 #[cfg(test)]

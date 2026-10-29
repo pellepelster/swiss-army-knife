@@ -166,6 +166,12 @@ and the health of the domains.
 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
+- **The ssh client key is never written.** The provisioning hands the private key to an ssh agent inside the
+  container through its standard input; ansible connects through the agent. What the run needs as files (the
+  inventory, the ssh configuration, the public keys, the environment of the backend) sits in a directory of the run
+  with a random name that only the user can read, below the user's runtime directory where there is one. It goes
+  when the run ends, is interrupted (Ctrl+C, a termination) or the window closes; one that a killed sakctl left
+  behind goes with the next run.
 - **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its database:
   the signing key of the login (a setting) and the secret key of each bucket. They are not derived
   from the password, so changing the password does not change them. The user also supplies some credentials: the
@@ -180,6 +186,12 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   the data volume, against the rule to encrypt all data at rest. Accepted until
   [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
   alone was removed in favor of it.
+
+- **The files of a provisioning run hold the password of the mail server.** The environment of the backend, the
+  password of the mail server in it, and the token of the events endpoint are plain files on the user's machine
+  while the run lasts, against the rule to encrypt all data at rest. Accepted: only the user reads them, they live
+  for the minutes of the run in a directory with a random name, and a killed sakctl leaves them only until its next
+  run; whoever reads the user's files can read the user's terminal too.
 
 - **The hashes in labels are shortened.** A label value holds at most 63 characters, so the hashes a server keeps in
   its labels (of its user data and of its ssh keys) are cut to 240 of their 256 bits to fit one label each. Two
