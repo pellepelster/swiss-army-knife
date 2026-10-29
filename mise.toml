@@ -77,16 +77,16 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --push sak-backend
 """
 
-[tasks."ingress:image:build"]
+[tasks."ingress:docker:build"]
 description = "Build the image of sak-ingress, the caddy in front of the controller"
 run = """
 docker buildx build --load --tag {{vars.ingress_image}}:latest \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache sak-ingress
 """
 
-[tasks."ingress:image:test"]
+[tasks."ingress:docker:test"]
 description = "Check that the image of sak-ingress runs caddy with its Caddyfile as sak (10000)"
-depends = ["ingress:image:build"]
+depends = ["ingress:docker:build"]
 run = """
 set -e
 image={{vars.ingress_image}}:latest
@@ -96,7 +96,7 @@ docker run --rm "$image" validate --config /etc/caddy/Caddyfile --adapter caddyf
 echo "the image of sak-ingress works"
 """
 
-[tasks."ingress:image:push"]
+[tasks."ingress:docker:push"]
 description = "Build the image of sak-ingress for amd64 and arm64 and push it to ghcr.io"
 run = """
 docker buildx build --platform linux/amd64,linux/arm64 \
