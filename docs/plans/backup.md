@@ -23,7 +23,11 @@ sakctl makes a backup of a deployment and restores it:
   - `backend/data/…` the files of the notes and `backend/data/s3/…` the buckets. The backend writes each file to a
     temporary file and moves it into place (an atomic move), so a copy never has half a file;
   - `ingress/` the certificates and the acme state of caddy, and the access log;
-  - `victorialogs/` the access logs as victorialogs keeps them, `vector/` the checkpoints of vector.
+  - `victorialogs/` the access logs as victorialogs keeps them, one directory for each day
+    (`partitions/YYYYMMDD/{datadb,indexdb}`), and `vector/` the checkpoints of vector.
+- victorialogs (v1.53.0) listens on `127.0.0.1:9428` of the server and has its data at `/victoria-logs-data` in
+  its container. Its parts are immutable files, but it merges them and drops old days while it runs, so a plain copy
+  of its directory is not consistent.
 - The provisioning writes `backend/config.yaml`, `backend/backend.env` and `backend/vector.yaml` on each deploy. They
   come from the deployment and are no data.
 - `sakctl ssh <name> -- <command>` runs a command on the server as root, through the container of the tools with the
@@ -45,23 +49,56 @@ Writes the archive to its standard output and nothing else; messages go to stand
    on the data volume (`/storage/data/.backup-<name>`, mode `0700`). `VACUUM INTO` reads one consistent snapshot in
    one read transaction; the backend continues to write (WAL mode lets readers and writers run together). Then
    `PRAGMA integrity_check` on the copy; a copy that is not `ok` stops the backup.
-3. **The logs.** Stops `sak-vector` and `sak-victorialogs` for the backup, and starts them again at the end, also
-   when the backup fails (`trap`). A copy of victorialogs while it writes is not consistent. Caddy continues to
-   write its access log, and vector continues from its checkpoint, so no line is lost. Only the metrics in the console
-   are not available while the backup runs.
+3. **The logs.** A copy of `vector/` into the staging directory, then a snapshot of victorialogs (refer to "The
+   logs" below). victorialogs and vector continue to run.
 4. **The manifest.** `<staging>/backup.json`: the version of the format (`1`), the name, the time (UTC), the image
    digest of the backend and the size of the data before compression.
 5. **The archive.** One `tar` stream, compressed with `zstd` (`tar --zstd`, level 3, all cores), paths relative to
    `/storage/data/<name>`, with the numeric owner and the modes:
    - first `backup.json`, then `backend/data/sak.db` from the staging directory;
-   - then everything else below `/storage/data/<name>`, without `sak.db`, `sak.db-wal`, `sak.db-shm` and the
-     three files of the provisioning.
-6. Removes the staging directory and the lock.
+   - then `vector/` from the staging directory and the snapshots of victorialogs, each as
+     `victorialogs/partitions/<day>/` (`tar --transform`);
+   - then everything else below `/storage/data/<name>`, without `sak.db`, `sak.db-wal`, `sak.db-shm`, the live
+     directories `vector/` and `victorialogs/` and the three files of the provisioning.
+6. Deletes the snapshots of victorialogs (also when the backup fails, `trap`), removes the staging directory and the
+   lock.
 
 The database is copied before the files. A row in the copy of the database can only refer to a file that already
 existed, and no file is deleted for real (soft delete), so the files of the archive hold every file that the
 database refers to. A file that is uploaded during the backup can be in the archive without its row; it is an
 orphan, and it does no harm.
+
+### The logs
+
+`vmbackup` and `vmrestore` are tools of VictoriaMetrics; their documentation does not include VictoriaLogs.
+VictoriaLogs has its own snapshots of its partitions (refer to "Backup and restore" in the VictoriaLogs
+documentation), and SAK uses them:
+
+- **Snapshot.** `POST http://127.0.0.1:9428/internal/partition/snapshot/create` without `partition_prefix` makes a
+  snapshot of each day that victorialogs has, and answers their paths as JSON, e.g.
+  `["/victoria-logs-data/partitions/20261029/snapshots/20261029203400-18E31A5377B7B4E3"]`. The script replaces
+  `/victoria-logs-data` with the path on the server (`backend_victorialogs_data_path`). A snapshot has the
+  `datadb/` and `indexdb/` of its day.
+- **Delete.** `POST …/internal/partition/snapshot/delete?path=<path>` for each path, after the archive. If a killed
+  script does not delete its snapshots, `-snapshotsMaxAge=1d` on victorialogs deletes them.
+- **Restore.** The directory of a snapshot is a complete day: `datadb/` and `indexdb/` into
+  `partitions/<day>/` of a victorialogs that is stopped, then started.
+- **Access.** `-partitionManageAuthKey` protects the endpoints, because other endpoints of the same group detach and
+  delete days. The provisioning makes a random key once in `backend_base_path` (mode `0400`, owner `sak`), mounts it
+  read-only into the container and gives its path to the flag; the script reads it as root and sends it as
+  `authKey`.
+
+Tried with `victoria-logs:v1.53.0` in docker (2026-10-29):
+
+- The snapshot includes the lines received just before it; there is no flush to call first.
+- The files of a snapshot are hard links to the parts of the day (the same inode, two links), so a snapshot needs
+  no space on the volume until victorialogs merges or drops the parts.
+- A new victorialogs with the snapshot copied to `partitions/<day>/` answers the lines of the snapshot.
+- `snapshot/delete` answers `204` and the snapshot is gone.
+
+The checkpoint of vector (its position in the access log) is copied before the snapshot, so it is never ahead of
+the snapshot. After a restore, vector sends again the lines of the moment between the copy and the snapshot: a line
+in the console can occur twice, but no line is lost. A checkpoint copied after the snapshot would lose those lines.
 
 ### `sak-restore`
 
@@ -75,7 +112,9 @@ Reads an archive from its standard input.
    `PRAGMA integrity_check` of `sak.db` is `ok`.
 4. Stops all four units (`sak-backend`, `sak-ingress`, `sak-vector`, `sak-victorialogs`).
 5. Replaces the data: each directory of the archive (`backend/data`, `ingress`, `victorialogs`, `vector`) moves into
-   place (a `rename` on the same volume), the current one moves to `/storage/data/.replaced-<name>`. The files of
+   place (a `rename` on the same volume), the current one moves to `/storage/data/.replaced-<name>`. The
+   `victorialogs/` of the archive has only `partitions/<day>/{datadb,indexdb}`; victorialogs makes the rest on its
+   start. The files of
    the provisioning stay as they are. Sets the owner `sak:sak` (uid and gid `10000`).
 6. Starts the four units, then removes `.replaced-<name>`.
 
@@ -141,13 +180,15 @@ for a lost or a deleted volume, or to go back to an earlier state.
   check refuses another name.
 - `ansible`: the scripts against a container with a data directory and a database that a writer changes during the
   backup. The copy of the database passes `integrity_check`; a restore of the archive gives the same rows and files.
-  A restore that fails at extraction leaves the data as it was.
+  A restore that fails at extraction leaves the data as it was. A victorialogs that receives lines during the backup:
+  after the restore it answers the lines of the snapshot, and no snapshot is left on the server.
 - `sak-e2e` integration (real cloud project): create, write a note with a photo and a bucket, backup, destroy with
   `--delete-data`, create, restore, the note, the photo and the bucket are there.
 
 ## Steps
 
-1. The role `backend`: install `sqlite3` and `zstd`, the scripts `sak-backup` and `sak-restore`, their tests.
+1. The role `backend`: install `sqlite3`, `zstd` and `curl`; the key of `-partitionManageAuthKey` and
+   `-snapshotsMaxAge=1d` for victorialogs; the scripts `sak-backup` and `sak-restore`, their tests.
 2. `keys.rs`: the derived backup identity; ARCHITECTURE.md, "Security": its row in the table.
 3. `core/ssh.rs`: the run with a stream on standard output or standard input.
 4. `core/backup.rs`: `BackupManager`, the encryption, the manifest check, the events.
@@ -166,12 +207,18 @@ for a lost or a deleted volume, or to go back to an earlier state.
 - **`VACUUM INTO`, not a copy of the file.** A copy of `sak.db` while the backend writes can be inconsistent, and the
   WAL file belongs to it. `VACUUM INTO` is one consistent snapshot without a stop of the backend; the copy is also
   compacted. The sqlite3 `.backup` command would also work; `VACUUM INTO` needs no second step for the WAL.
-- **The backend runs during the backup; the logs stop.** The apps stay available. Only victorialogs and vector stop
-  for the time of the backup.
+- **Nothing stops during the backup.** The backend, caddy, victorialogs and vector continue to run; the database is
+  copied with `VACUUM INTO`, victorialogs with its own snapshots.
+- **The snapshots of victorialogs, not `vmbackup`.** `vmbackup` and `vmrestore` are for VictoriaMetrics, not for
+  VictoriaLogs, and write to a storage (S3, GCS, Azure, a directory) instead of a stream. The snapshots of
+  VictoriaLogs need only its http api and go into the same `tar` stream as the rest.
 - **Restore through a staging directory.** The data is replaced only after the archive is complete and checked; a
   restore that fails before that changes nothing.
 - **The files of the provisioning are not in the backup.** The deploy writes them from the deployment; a restore keeps
   those of the current provisioning.
+- **A restore only into the same name.** `backup.json` must have the name of the deployment; the paths and the key
+  contain the name.
+- **No backups on a schedule.** A backup runs only when the user starts it with sakctl.
 
 ## Open Questions
 
@@ -180,10 +227,3 @@ for a lost or a deleted volume, or to go back to an earlier state.
 - **A newer backup on an older backend.** The backend migrates an older database on its start (Liquibase). A backup
   from a newer backend has changesets that the older one does not know. Should the restore refuse it, by the image
   digest or a schema version in the manifest?
-- **victorialogs without a stop.** Does victorialogs have a snapshot of its partitions that the backup can copy while
-  it runs?
-- **Restore to another name.** The paths and the key contain the name. Is a restore into a deployment with another
-  name necessary (a copy for tests)?
-- **Backups on a schedule.** A timer on the server cannot encrypt without the key. A server-side backup could
-  encrypt to the public half of the backup identity (age recipient) and keep the files for sakctl to fetch. Out of
-  scope for now.
