@@ -143,7 +143,11 @@ for every change of a ui.
   resources (`sak-cli/cloud`) sets it on creation; the label tells the resources
   of one deployment from those of another and from everything else in the cloud project.
 - SAK removes only resources that carry the label `sak.pelle.io/name=<sak name>` of the deployment. A resource
-  without this label, or with the label of another deployment, is never removed, also when its name agrees.
+  without this label, or with the label of another deployment, is never removed, also when its name agrees. SAK
+  also removes a resource only when its label `sak.pelle.io/password-hash=<hash>` matches the password the user
+  gave. A resource without the password hash label is never removed. For this reason, the password hash label
+  is always attached to all resources of a deployment, the DNS records included; a resource without it is a
+  defect.
 - Labels sak keeps for itself live under the `sak.pelle.io/` prefix, nowhere else; a label a
   user declares never does. Every resource of a deployment also carries
   `sak.pelle.io/password-hash=<hash>`, the argon2id hash of the deployment's password (`keys::password_hash` in
