@@ -1,11 +1,11 @@
-//! what the resource apis share: locations and server types, pagination, list queries,
-//! actions and protection
+//! the types that all resource apis use: locations and server types, pagination, list
+//! queries, actions and protection
 
 use crate::api::Labels;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// the locations servers and volumes are created in
+/// the locations of servers and volumes
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 #[allow(non_camel_case_types)]
@@ -86,14 +86,14 @@ pub struct Pagination {
     pub total_entries: Option<u32>,
 }
 
-/// one page of a list response, every list endpoint has its own wrapper key
+/// one page of a list response; each list endpoint has its own wrapper key
 pub trait ListPage: serde::de::DeserializeOwned {
     type Item;
 
     fn into_parts(self) -> (Vec<Self::Item>, Meta);
 }
 
-/// the wrapper of a list endpoint, `list_page!(SshKeysPage, ssh_keys, SshKey)` for
+/// declares the page of a list endpoint: `list_page!(SshKeysPage, ssh_keys, SshKey)` reads
 /// `{ "ssh_keys": [...], "meta": {...} }`
 macro_rules! list_page {
     ($page:ident, $key:ident, $item:ty) => {
@@ -143,13 +143,13 @@ impl ListQuery {
         self
     }
 
-    /// resources carrying the label `key`, whatever its value
+    /// resources with the label `key`, with any value
     pub fn label_exists(mut self, key: &str) -> Self {
         self.label_selectors.push(key.to_string());
         self
     }
 
-    /// all of `labels` set
+    /// resources with all of `labels`
     pub fn labels(self, labels: &Labels) -> Self {
         labels
             .iter()
@@ -190,7 +190,7 @@ pub struct ActionResource {
     pub resource_type: String,
 }
 
-/// a change the api runs in the background, `wait_for_action` polls it until it ended
+/// a change that the api runs in the background; `wait_for_action` polls it until it ends
 #[derive(Clone, Debug, Deserialize)]
 pub struct Action {
     pub id: u64,

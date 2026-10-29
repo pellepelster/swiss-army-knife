@@ -1,11 +1,11 @@
 use crate::api::resource::{Labels, ResourceRef, Runtime};
 use std::any::Any;
 
-/// the identity of a lookup without identity labels
+/// the identity of a lookup that has no identity labels
 static NO_IDENTITY: Labels = Labels::new();
 
-/// refers to a resource by name, declared here or not: the data source of this crate. A
-/// lookup provider turns it into the runtime, resources hold lookups of what they need
+/// refers to a resource by name, declared in this run or not (the data source of this crate).
+/// A lookup provider resolves it to the runtime. A resource holds lookups of what it needs
 pub trait Lookup: Clone + Send + Sync + 'static {
     type Runtime: Runtime;
 
@@ -15,12 +15,14 @@ pub trait Lookup: Clone + Send + Sync + 'static {
     fn log_text(&self) -> String;
 
     /// the labels that, with the name, identify the resource (`api::identity`): a resource of
-    /// the name without them is someone else's. None by default, the name alone then
+    /// the name without them belongs to someone else. Empty by default: then the name alone
+    /// identifies it
     fn identity(&self) -> &Labels {
         &NO_IDENTITY
     }
 
-    /// what must exist before this lookup resolves, for lookups of nested resources
+    /// what must exist before this lookup resolves, for a lookup of a nested resource. No
+    /// lookup of this crate overrides it
     fn depends_on(&self) -> Vec<ResourceRef> {
         Vec::new()
     }
@@ -30,7 +32,7 @@ pub trait Lookup: Clone + Send + Sync + 'static {
     }
 }
 
-/// a lookup with its type erased, the contexts route it to the provider of its type
+/// a lookup with its type erased; the context routes it to the provider of its type
 pub trait AnyLookup: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 

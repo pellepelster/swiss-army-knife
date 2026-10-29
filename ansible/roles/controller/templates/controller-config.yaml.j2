@@ -1,6 +1,6 @@
 ---
 # the configuration of sak-backend, rendered by the controller role from the inventory sakctl writes
-# (sak_name, sak_dns_mode, sak_root_domain, sak_api_token_sha256, sak_admin_email, sak_smtp_*); the login
+# (sak_name, sak_dns_mode, sak_root_domain, sak_api_public_key, sak_admin_email, sak_smtp_*); the login
 # mails come from noreply@<root domain>;
 # the secrets come from backend.env: a value starting with $ is an environment variable
 ktor:
@@ -9,7 +9,7 @@ ktor:
 sak:
   name: {{ sak_name }}
   dns_mode: {{ sak_dns_mode }}
-  api_token_sha256: {{ sak_api_token_sha256 }}
+  api_public_key: {{ sak_api_public_key | to_json }}
   data_dir: /storage/data/backend/data
   root_domain: {{ sak_root_domain }}
 {% if sak_acme_ca | default('', true) | length > 0 %}

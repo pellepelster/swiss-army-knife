@@ -42,8 +42,7 @@ impl HetznerSshKeyProvisioner {
         HetznerSshKeyProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
     async fn find(&self, lookup: &HetznerSshKeyLookup) -> Result<Option<HetznerSshKeyRuntime>> {
         let found: Result<Option<HetznerSshKeyRuntime>> = {
             Ok(self
@@ -88,7 +87,7 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
         let expected = fingerprint(&resource.public_key)?;
 
         let Some(runtime) = self.find(&resource.as_lookup()).await? else {
-            // hetzner refuses a second key with the same fingerprint, whatever its name
+            // hetzner refuses a second key with the same fingerprint, also under another name
             let duplicate = self
                 .api
                 .ssh_keys()

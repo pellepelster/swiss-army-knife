@@ -30,7 +30,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-frontend` | The web ui of the apps (Angular, installable on a phone). |
 | `sak-model` | The database: schema (Liquibase changelog), entities and their repositories (jOOQ on SQLite). |
 | `sak-api` | What every part of the api shares: the error answer, pagination, health. |
-| `sak-auth` | The e-mail login, the session tokens and the admin api token, the roles. |
+| `sak-auth` | The e-mail login, the session tokens, the signed requests of sakctl, the roles. |
 | `sak-config` | The configuration of the backend and how it is read. |
 | `sak-s3` | The S3 api of the buckets and their storage on the data volume. |
 | `sak-ingress` | The configuration model of caddy and the client of its admin api. |
@@ -92,9 +92,12 @@ and the health of the domains.
   the logs and the metrics). Something that never ends has no time rather than one far away.
 - **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
   response class.
-- **Authentication:** a session token, or the admin api token of sakctl (its sha-256 in the configuration). A
+- **Authentication:** a session token, or a request sakctl signs with the api key of the deployment (its public
+  half in the configuration). A signed request holds for the host of the backend, its method and path, a time no more
+  than two minutes away and a nonce taken once; it carries no body and no secret, so a request that went to another
+  host or is replayed gets nothing. A
   session comes from the password login of the admin (always there) or from the e-mail login (only in the multi
-  user mode, with a mail server); refer to [FDR-005](fdr/FDR-005-login.md). Without a session or the token, only the login and
+  user mode, with a mail server); refer to [FDR-005](fdr/FDR-005-login.md). Without a session or a signature, only the login and
   `GET /api/v1/info` answer.
 
 ## sakctl
@@ -165,7 +168,7 @@ and the health of the domains.
   | ssh client key | sakctl's ssh connection to the server |
   | ssh host key | the server's ssh identity, installed by cloud-init, so the first connection is verified |
   | password hash | the `sak.pelle.io/password-hash` label that proves a resource belongs to the deployment |
-  | admin api token | sakctl's access to the api; the backend has only its sha-256 |
+  | api key | the signatures of sakctl's requests to the api; the backend has only the public half |
   | admin password hash | the password login of the admin; the backend has only the hash |
 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
@@ -219,11 +222,17 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   run as the user of SAK, on the network of the server), is refused by the firewall of the server; and root on the
   server, or someone with the cloud project, has everything the host key would give anyway.
 
-- **The running configuration answers the password of the mail server.** An admin, and sakctl with the admin api
-  token, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
+- **The running configuration answers the password of the mail server.** An admin, and sakctl with a signed
+  request, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
   again. A comfort feature: whoever holds the password of the deployment or an admin session can read the password of
   the mail server, and send mail with it from elsewhere. Accepted: the same people can already read it on the server,
   and the account at the mail server is meant for the login mails of this deployment alone.
+
+- **A signed request can be relayed while it is fresh.** Whoever controls the DNS zone of the deployment (it is in
+  the cloud project) and gets a certificate for `api.<base domain>` can take a request of sakctl and hand it on to the
+  backend within its two minutes, once. Accepted: that is one request, the one sakctl meant to make, and nothing that
+  lasts; the signature holds for the backend's own host, so forged labels that send sakctl elsewhere get nothing
+  usable at all.
 
 - **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
   login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by

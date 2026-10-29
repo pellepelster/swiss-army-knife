@@ -21,8 +21,7 @@ impl HetznerVolumeProvisioner {
         HetznerVolumeProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
     async fn find(&self, lookup: &HetznerVolumeLookup) -> Result<Option<HetznerVolumeRuntime>> {
         let found: Result<Option<HetznerVolumeRuntime>> = {
             Ok(self
@@ -76,8 +75,8 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
                 runtime.location,
             ));
         }
-        // a volume only grows: one larger than declared (e.g. grown in the console) is up to
-        // date, one smaller would have to be created anew
+        // a volume only grows: a volume larger than declared (e.g. grown in the console) is up
+        // to date, a smaller volume needs a recreate
         if resource.size_gb > runtime.size_gb {
             changes.push(DiffItem::recreate(
                 "size",
@@ -143,7 +142,7 @@ impl Provisioner<HetznerVolume> for HetznerVolumeProvisioner {
             .into())
     }
 
-    /// lifts the delete protection and detaches the volume first
+    /// removes the delete protection and detaches the volume first
     async fn destroy(&self, runtime: &HetznerVolumeRuntime, _: &dyn DestroyContext) -> Result<()> {
         if runtime.delete_protected {
             let action = self
@@ -217,7 +216,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_volume_grown_beyond_its_declared_size_is_up_to_date() {
-        // grown in the console from the declared 16 to 32 GB: a volume never shrinks
+        // grown in the console from the declared 16 to 32 GB; a volume does not shrink
         let (_server, provisioner) =
             provisioner_with(vec![volume("data", 32, true, json!({}))]).await;
 

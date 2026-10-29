@@ -1,11 +1,10 @@
-//! the wizard on the command line: `list`, `create` and `deploy` as the first argument run
-//! without a window, on the same DeploymentManager, deployments and texts as the pages; this
-//! file only parses the arguments and prints. The token comes from --hcloud-token or HCLOUD_TOKEN, a
-//! deployment's name and location from the argument or SAK_NAME and SAK_LOCATION, its password from
-//! SAK_PASSWORD or typed on the terminal (`--password` asks for it), never from an argument; the
-//! same variables the pages take their proposals from. Every line it prints
-//! is `<date> <level> <message>`, the level coloured on a terminal, nothing indented. The exit
-//! code tells a root domain that cannot be used from any other failure (`core::error`)
+//! The command line of sakctl. A command as the first argument (`list`, `create`, `deploy`,
+//! `destroy`, `config`) runs without a window, on the same core and texts as the window. This file
+//! only parses the arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
+//! (`--hcloud-token`). The name and the location of a deployment come from the argument or from
+//! SAK_NAME and SAK_LOCATION. The password comes from SAK_PASSWORD or is typed (`--password`),
+//! never from an argument. Every line it prints is `<date> <level> <message>`, the level in color
+//! on a terminal. The exit code tells the failures apart (`core::error`)
 
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
@@ -27,7 +26,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::IsTerminal;
 
-/// the exit codes, at the end of the help; a test keeps them those of `core::error`
+/// the exit codes at the end of the help; a test makes sure they are those of `core::error`
 const EXIT_CODES: &str = "Exit codes:
   0  The command did what it should.
   1  The command failed.
@@ -40,8 +39,8 @@ const EXIT_CODES: &str = "Exit codes:
   6  The data volume or a primary IP would have to be created anew, which would remove its
      data or address. Nothing was changed.";
 
-/// SwissArmyKnife: the deployments of a Hetzner Cloud project, listed, created and
-/// deployed. Without a command the window opens.
+/// SwissArmyKnife: list, create, deploy and destroy the deployments of a Hetzner Cloud project,
+/// and show their running configuration. Without a command the window opens.
 #[derive(Parser, Debug)]
 #[command(
     name = "sakctl",
@@ -60,7 +59,7 @@ pub enum Command {
     #[command(after_help = EXIT_CODES)]
     List(Provider),
     /// Create a sak deployment: an ssh key, a data volume, a primary ipv4 and ipv6, a
-    /// firewall and the server
+    /// firewall, the server and its DNS records, then provision the server
     #[command(after_help = EXIT_CODES)]
     Create {
         #[command(flatten)]
@@ -68,8 +67,8 @@ pub enum Command {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
-    /// Deploy a sak deployment: bring it to what the wizard declares, its server created
-    /// anew when it must be, the data volume and the addresses stay
+    /// Deploy a sak deployment: bring it to what it declares and provision the server again.
+    /// The server is created anew when it must be; the data volume and the addresses stay
     #[command(after_help = EXIT_CODES)]
     Deploy {
         #[command(flatten)]
@@ -97,8 +96,8 @@ pub enum Command {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum ConfigCommand {
-    /// Show the running configuration of a deployment, read from its backend with the admin api
-    /// token derived from the password; no secret of it is shown
+    /// Show the running configuration of a deployment, read from its backend with a request signed
+    /// with the key derived from the password; no secret of it is shown
     #[command(after_help = EXIT_CODES)]
     Show {
         #[command(flatten)]
@@ -121,7 +120,7 @@ pub struct Provider {
     hcloud_token: bool,
 }
 
-/// the API token of the Hetzner Cloud project the command acts on; no Debug, it never shows
+/// the API token of the Hetzner Cloud project of the command. No Debug, the token never shows
 pub struct HetznerToken(String);
 
 #[derive(Args, Debug, PartialEq, Eq)]
@@ -216,8 +215,8 @@ fn parse_dns_mode(value: &str) -> Result<DnsMode, String> {
     })
 }
 
-/// whether the arguments ask for the command line: a command, help or the version as the
-/// first argument; anything else (nothing, what a desktop passes) opens the window
+/// whether the arguments ask for the command line: a command, help or the version as the first
+/// argument. Anything else (nothing, or what a desktop passes) opens the window
 pub fn is_command_line(args: &[String]) -> bool {
     matches!(
         args.first().map(String::as_str),
@@ -235,9 +234,9 @@ pub fn is_command_line(args: &[String]) -> bool {
     )
 }
 
-/// runs the command, the exit code of the process
+/// runs the command and gives the exit code of the process
 pub fn run(command: Command) -> i32 {
-    // ctrl+c stops a provisioning and removes what it wrote
+    // ctrl+c stops a provisioning and removes the files of its run
     crate::core::provision::stop_runs_on_signal();
     match tauri::async_runtime::block_on(execute(command)) {
         Ok(()) => EXIT_OK,
@@ -255,7 +254,8 @@ impl HetznerToken {
 }
 
 /// the token of the project: HCLOUD_TOKEN unless `ask`, else typed on the terminal without echo.
-/// Never an argument, which every process of the machine can read; without either a usage error
+/// Never an argument, because every process of the machine can read the arguments. Without a token
+/// and a terminal, a usage error
 fn hcloud_token(ask: bool, from_env: Option<String>) -> Result<HetznerToken, WizardError> {
     if !ask && let Some(token) = from_env.filter(|token| !token.trim().is_empty()) {
         return Ok(HetznerToken(token));
@@ -269,8 +269,8 @@ fn hcloud_token(ask: bool, from_env: Option<String>) -> Result<HetznerToken, Wiz
 }
 
 /// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed on the
-/// terminal without echo, twice for a create. Never an argument, which every process of the
-/// machine can read; without a terminal and SAK_PASSWORD a usage error
+/// terminal without echo, two times for a create. Never an argument, because every process of the
+/// machine can read the arguments. Without SAK_PASSWORD and a terminal, a usage error
 fn password(
     ask: bool,
     twice: bool,
@@ -295,8 +295,8 @@ fn password(
 }
 
 /// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed on the terminal
-/// without echo; none without either. Never an argument, which every process of the machine can
-/// read
+/// without echo; empty when the variable is not set. Never an argument, because every process of
+/// the machine can read the arguments
 fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, WizardError> {
     if !ask {
         return Ok(from_env.unwrap_or_default());
@@ -355,7 +355,8 @@ impl DeploymentArgs {
     }
 }
 
-/// the checks the window runs on startup, each logged, the tokens checked those of the command
+/// the checks the window runs on startup, each one logged; the token checked is the one of the
+/// command
 async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     let tokens = ProviderTokensCheck::new(vec![(
         ProviderType::Hetzner,
@@ -363,7 +364,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
         "HCLOUD_TOKEN",
     )]);
     let found = tokio::task::spawn_blocking(move || {
-        // the progress of a pull ten times a second is for the eye, the log takes each tenth
+        // the window shows the progress of a pull ten times a second; the log shows each tenth
         let mut logged = 0;
         checks::run(checks::checks(tokens), &mut |event| {
             match event {
@@ -381,7 +382,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
                     logged = 0;
                     log(Level::Info, t!(format!("checks.{id}.done"), text = text))
                 }
-                // the failure itself ends the command, the error is logged once by run
+                // the failure ends the command; `run` logs the error one time
                 CheckEvent::Failed { .. }
                 | CheckEvent::Listed { .. }
                 | CheckEvent::Finished { .. } => {}
@@ -400,7 +401,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
 
 async fn execute(command: Command) -> Result<(), WizardError> {
     let manager = DeploymentManager;
-    // asked before the checks, which take a while
+    // asked before the checks, because they take some time
     let password = match &command {
         Command::List(_) => None,
         Command::Create { deployment, .. } => {
@@ -446,8 +447,8 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         }
         Command::Deploy { deployment, .. } => {
             let mut new = deployment.deployment(Intent::Deploy, false, password, &smtp_password);
-            // what is not given the deployment has: its user mode and, for multiple users, the
-            // admin and the mail server, detected as the window does
+            // what is not given comes from the deployment: its user mode and, for multi user,
+            // the admin and the mail server, detected as the window does
             let incomplete = new.user_mode != Some(UserMode::Single)
                 && (new.user_mode.is_none() || new.smtp.is_none() || new.admin_email.is_none());
             if incomplete
@@ -500,7 +501,7 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
         );
         for resource in deployment.resources {
             let resource_name = title(&key(&resource.kind), &resource.name);
-            // its status, then what there is to know of it
+            // its status, then its detail
             let status = t!(format!(
                 "ui.resource_status.{}",
                 resource_status(resource.status)
@@ -519,7 +520,7 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
     Ok(())
 }
 
-/// the running configuration of the deployment, a line for each setting
+/// prints the running configuration of the deployment, one line for each setting
 async fn show_config(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -535,14 +536,15 @@ async fn show_config(
     Ok(())
 }
 
-/// what `config show` prints: where it asked, then the settings; neither the password nor the token
+/// what `config show` prints: where it asked, then the settings; no secret
 fn shown_lines(name: &str, url: &str, config: &crate::core::config::RunningConfig) -> Vec<String> {
     std::iter::once(t!("config.shown", name = name.trim(), url = url).to_string())
         .chain(config_lines(config))
         .collect()
 }
 
-/// `smtp.host smtp.example.org`, … : the settings as `<key> <value>`, no secret among them
+/// `smtp.host smtp.example.org`, … : the settings as `<key> <value>`; the password of the mail
+/// server only as `set` or `-`
 fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
     let Some(smtp) = &config.smtp else {
         return vec![t!("config.no_smtp").to_string()];
@@ -561,8 +563,8 @@ fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
     ]
 }
 
-/// plans, prints the plan and applies it, each resource printed as it is done: what the
-/// plan page and its create do; the output of ansible only with `show_log`
+/// plans, prints the plan and applies it, as the plan page of the window does. Prints each
+/// resource when it is done; the output of ansible only with `show_log`
 async fn deploy(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -603,7 +605,7 @@ async fn deploy(
             .action
             .map(|action| format!(", {}", t!(format!("ui.plan.{action}"))))
             .unwrap_or_default();
-        // what a destroy takes away is worth a second look
+        // a resource that the apply removes is a warning
         let level = if resource.action == Some("will_destroy") {
             Level::Warn
         } else {
@@ -616,13 +618,13 @@ async fn deploy(
         }
     }
 
-    // what is done to a resource, the verb first: `created server 'alpha'`
-    // what is being done to a resource as its apply starts, after what the plan found
+    // what the apply does to a resource when it starts, from what the plan found
     let working: HashMap<String, &str> = plan
         .resources
         .iter()
         .map(|resource| (resource.resource.clone(), resource.working))
         .collect();
+    // what is done to a resource, the verb first: `created server 'alpha'`
     let mut report = |event: CreateEvent| match event {
         CreateEvent::Started { resource } => {
             let key = working.get(&resource).copied().unwrap_or("working");
@@ -646,13 +648,13 @@ async fn deploy(
             )
         }
         CreateEvent::Provisioning { message } => log(Level::Info, message),
-        // ansible indents and spaces out its output, the log keeps only what it says
+        // the log keeps the text of a line of ansible without its spaces and empty lines
         CreateEvent::Output { line } => {
             if show_log && !line.trim().is_empty() {
                 log(Level::Info, format!("[ansible] {}", line.trim()))
             }
         }
-        // each task of the playbook as it ends, one line each; a failure as an error
+        // one line for each task of the playbook when it ends; a failure as an error
         CreateEvent::TaskDone {
             task,
             outcome,
@@ -677,7 +679,7 @@ async fn deploy(
             Level::Info,
             t!("cli.provisioned", name = deployment.name.trim()),
         ),
-        // the error of the run says what failed, the command ends with it
+        // the error of the run tells what failed, the command ends with it
         CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
     };
     manager
@@ -694,11 +696,11 @@ async fn deploy(
     Ok(())
 }
 
-/// how much a line of the log matters, its colour on a terminal
+/// the level of a line of the log, with its colour on a terminal
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Level {
     Info,
-    /// a change the plan found
+    /// a change the plan found, a resource the apply removes, an ignored failure of a task
     Warn,
     /// the command failed
     Error,
@@ -729,8 +731,8 @@ fn log_line(date: &str, level: Level, message: impl Display) -> String {
     format!("{date} {style}{}{style:#} {message}", level.name())
 }
 
-/// prints a line of the log, an error to stderr; anstream drops the colour when the output
-/// is no terminal or NO_COLOR is set
+/// prints a line of the log, an error to stderr. anstream removes the colour when the output is
+/// not a terminal or NO_COLOR is set
 fn log(level: Level, message: impl Display) {
     let date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let line = log_line(&date, level, message);
@@ -842,12 +844,12 @@ mod tests {
             vec![t!("config.no_smtp").to_string()]
         );
 
-        // all that is printed holds neither the password nor the token of it
+        // the output has no password and no part of the api key
         let password = "a password of sixteen";
-        let token = crate::core::keys::api_token("alpha", password).unwrap();
+        let key = crate::core::keys::api_key("alpha", password).unwrap();
         let shown = shown_lines(" alpha ", "https://api.pelle.io", &config).join("\n");
         assert!(shown.contains("https://api.pelle.io"), "{shown}");
-        assert!(!shown.contains(password) && !shown.contains(&token) && !shown.contains("sak_"));
+        assert!(!shown.contains(password) && !shown.contains(&key.public_key()));
         // nor the password of the mail server, which the backend answers for a redeploy
         assert!(!shown.contains("the-smtp-password"));
     }
@@ -882,7 +884,7 @@ mod tests {
             smtp_password(false, Some("secret".into())).unwrap(),
             "secret"
         );
-        // none: a mail server without a login, or a redeploy takes over the running one
+        // empty: a mail server without a login, or a redeploy takes over the running password
         assert_eq!(smtp_password(false, None).unwrap(), "");
         if !std::io::stdin().is_terminal() {
             assert_eq!(

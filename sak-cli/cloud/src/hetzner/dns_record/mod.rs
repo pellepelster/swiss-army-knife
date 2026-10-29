@@ -1,5 +1,5 @@
-//! a dns record set, the records of one name and type in a zone: the resource, its
-//! lookup and runtime, the provisioner
+//! a dns record set, the records of one name and type in a zone: the resource, its lookup and
+//! runtime, the provisioner
 
 mod lookup;
 mod provisioner;

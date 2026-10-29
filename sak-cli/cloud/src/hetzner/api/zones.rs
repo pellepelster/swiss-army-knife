@@ -1,5 +1,5 @@
-//! dns: zones and their rrsets (one name and type with its records). Every change runs
-//! as an action, polled at `zones/actions/<id>`
+//! dns: zones and their rrsets (the records of one name and type). Every change runs as an
+//! action, polled at `zones/actions/<id>`
 
 use crate::api::Labels;
 use crate::hetzner::api::model::{
@@ -20,7 +20,7 @@ pub enum ZoneMode {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AuthoritativeNameservers {
-    /// the nameservers hetzner assigned, to set at the registrar
+    /// the nameservers that hetzner assigned; set them at the registrar
     #[serde(default)]
     pub assigned: Vec<String>,
 }
@@ -31,7 +31,7 @@ pub struct Zone {
     /// `pelle.io`, lower case, no trailing dot
     pub name: String,
     pub mode: ZoneMode,
-    /// the default ttl of the rrsets, seconds
+    /// the default ttl of the rrsets, in seconds
     pub ttl: u64,
     pub protection: Protection,
     /// `ok`, `updating`, `error`
@@ -65,7 +65,7 @@ struct ZoneResponse {
     zone: Zone,
 }
 
-/// the create answers with the zone and the action setting it up
+/// the answer to a create: the zone and the action that sets it up
 #[derive(Debug, Deserialize)]
 pub struct ZoneCreated {
     pub zone: Zone,
@@ -109,7 +109,7 @@ impl<'a> ZonesApi<'a> {
             .zone)
     }
 
-    /// the action deleting the zone with its rrsets, `None` when there is no such zone
+    /// the action that deletes the zone with its rrsets; `None` when the zone does not exist
     pub async fn delete(&self, zone: &str) -> Result<Option<Action>> {
         self.api.delete_with_action(&format!("zones/{zone}")).await
     }
@@ -208,7 +208,7 @@ pub struct RRSet {
     pub name: String,
     #[serde(rename = "type")]
     pub rr_type: RRType,
-    /// seconds, the zone's default when none
+    /// in seconds; `None` for the default of the zone
     pub ttl: Option<u64>,
     pub protection: ChangeProtection,
     #[serde(default)]
@@ -247,7 +247,7 @@ struct RRSetResponse {
     rrset: RRSet,
 }
 
-/// the create answers with the rrset and the action publishing it
+/// the answer to a create: the rrset and the action that publishes it
 #[derive(Debug, Deserialize)]
 pub struct RRSetCreated {
     pub rrset: RRSet,
@@ -295,14 +295,14 @@ impl RRSetsApi<'_> {
             .rrset)
     }
 
-    /// the action deleting the rrset, `None` when there is no such rrset
+    /// the action that deletes the rrset; `None` when the rrset does not exist
     pub async fn delete(&self, name: &str, rr_type: RRType) -> Result<Option<Action>> {
         self.api
             .delete_with_action(&self.path(&format!("/{name}/{rr_type}")))
             .await
     }
 
-    /// replaces every record
+    /// replaces all records
     pub async fn set_records(
         &self,
         name: &str,

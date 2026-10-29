@@ -1,5 +1,5 @@
-//! a dns zone: the resource, its lookup and runtime, the provisioner. A zone that exists
-//! already is used by its lookup alone, without declaring it
+//! a dns zone: the resource, its lookup and runtime, the provisioner. An existing zone can be
+//! used through its lookup alone, without a declaration
 
 mod lookup;
 mod provisioner;

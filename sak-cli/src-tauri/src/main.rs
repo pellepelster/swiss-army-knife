@@ -1,5 +1,5 @@
-// no console window next to the app in windows release builds; the commands of cli.rs print
-// nothing there then
+// no console window next to the app in windows release builds; there the commands of cli.rs
+// print nothing
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 //! sakctl: the window (gui) or, with a command as the first argument, the command line
@@ -14,7 +14,7 @@ mod gui;
 
 fn main() {
     core::i18n::init();
-    // list, create or deploy as the first argument: the command line, no window
+    // a command as the first argument: the command line, without a window
     let args: Vec<String> = std::env::args().skip(1).collect();
     if cli::is_command_line(&args) {
         use clap::Parser;

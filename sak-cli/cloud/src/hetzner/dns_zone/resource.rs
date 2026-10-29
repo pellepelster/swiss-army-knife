@@ -1,13 +1,13 @@
 use crate::api::{Labeled, Labels, Resource};
 use crate::hetzner::dns_zone::{HetznerDnsZoneLookup, HetznerDnsZoneRuntime};
 
-/// a primary dns zone hosted at hetzner, the registrar of the name must point at the
-/// nameservers the runtime reports
+/// a primary dns zone at hetzner. The registrar of the name must point to the nameservers
+/// that the runtime reports
 #[derive(Clone, Debug)]
 pub struct HetznerDnsZone {
     /// `example.de`, lower case, a registrable name (no subdomain)
     pub name: String,
-    /// the default ttl of the rrsets in seconds, hetzner's default when none
+    /// the default ttl of the rrsets in seconds; `None` for the default of hetzner
     pub ttl: Option<u64>,
     pub labels: Labels,
 }

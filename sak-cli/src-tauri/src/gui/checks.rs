@@ -1,6 +1,6 @@
-//! the checks of core on the splash screen: each event sent to it, what they found put into the
-//! state of the window. A failing one is shown on the splash screen, in its row or, when no check
-//! failed, as the error of the command; quitting is all that is left then
+//! the checks of core on the splash screen: each event goes to the splash screen, what the checks
+//! find goes into the state of the window. A failure shows on the splash screen, in the row of its
+//! check or, when no check failed, as the error of the command; then the user can only quit
 
 use crate::core::checks::{self, CheckEvent, Next, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
@@ -41,7 +41,7 @@ fn send(on_event: &Channel<CheckEvent>, event: CheckEvent) -> Result<(), String>
         .map_err(|e| t!("checks.splash_not_updated", error = e).to_string())
 }
 
-/// the quit of the splash screen: with exit code 1 after a check failed, 0 otherwise
+/// the quit of the splash screen: exit code 1 after a check failed, else 0
 #[tauri::command]
 pub fn quit(app: AppHandle, failed: bool) {
     app.exit(if failed { 1 } else { 0 });

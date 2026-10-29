@@ -21,11 +21,11 @@ data class SakConfig(
     // subdomain unless told, as sakctl creates a deployment
     @SerialName("dns_mode")
     val dnsMode: DnsMode = DnsMode.SUBDOMAIN,
-    // the sha-256 (hex) of the admin api token sakctl derives from the password of the
-    // deployment, written by the provisioning of the server; the token itself is nowhere on the
-    // server. Without it, the api takes sessions only
-    @SerialName("api_token_sha256")
-    val apiTokenSha256: String? = null,
+    // the public half of the ed25519 key sakctl signs its requests to the api with, 32 bytes as
+    // base64, derived from the password of the deployment and written by the provisioning of the
+    // server; the key itself is nowhere on the server. Without it, the api takes sessions only
+    @SerialName("api_public_key")
+    val apiPublicKey: String? = null,
     @SerialName("data_dir")
     @Serializable(with = PathSerializer::class)
     val dataDir: Path,
@@ -47,7 +47,9 @@ data class SakConfig(
     val acmeCa: String? = null,
 ) {
     init {
-        require(apiTokenSha256 == null || SHA256_HEX.matches(apiTokenSha256)) { "the api_token_sha256 is no sha-256 in hex" }
+        require(apiPublicKey == null || runCatching { java.util.Base64.getDecoder().decode(apiPublicKey) }.getOrNull()?.size == 32) {
+            "the api_public_key is no ed25519 public key, 32 bytes as base64"
+        }
         require(SAK_NAME.matches(name)) {
             "the name '$name' is no valid name: 1 to $MAX_NAME_LENGTH lower case letters, digits and dashes, starting and ending with a letter or digit"
         }
@@ -189,7 +191,6 @@ data class SakConfig(
         // the name of a backend that is no deployment, e.g. the one of `mise run local:run`
         const val DEFAULT_NAME = "local"
 
-        private val SHA256_HEX = Regex("[0-9a-f]{64}")
 
         // the prefix and the longest suffix of the cloud names of a deployment, sak-<name>-data
         // (RESOURCE_PREFIX and DATA_VOLUME_SUFFIX in sak-cli/cloud)

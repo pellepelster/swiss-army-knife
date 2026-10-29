@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use thiserror::Error;
 
-/// the error codes of the hetzner cloud api, `Unknown` for one this crate has not seen
+/// the error codes of the hetzner cloud api; `Unknown` for a code this crate does not know
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
@@ -48,7 +48,8 @@ pub(crate) struct ErrorBody {
 
 #[derive(Debug, Error)]
 pub enum ApiError {
-    /// the request never got an answer: no connection, timeout, a body that is no json
+    /// the request failed or its answer could not be read: no connection, a timeout, a body
+    /// that is not json
     #[error("request {path} failed: {source}")]
     Request {
         path: String,
@@ -72,7 +73,7 @@ pub enum ApiError {
         body: String,
     },
 
-    /// an action the api ran for a request ended in an error
+    /// an action that the api ran for a request ended with an error
     #[error("action '{command}' ({id}) failed: {message}")]
     ActionFailed {
         id: u64,
@@ -83,13 +84,13 @@ pub enum ApiError {
     #[error("action '{command}' ({id}) did not finish in time")]
     ActionTimeout { id: u64, command: String },
 
-    /// a state the api was polled for did not come in time
+    /// the api did not get to the polled state in time
     #[error("timed out waiting for {what}")]
     Timeout { what: String },
 }
 
 impl ApiError {
-    /// the code of an api error, to react to one like [ErrorCode::UniquenessError]
+    /// the code of an api error, e.g. to handle [ErrorCode::UniquenessError]
     pub fn code(&self) -> Option<ErrorCode> {
         match self {
             ApiError::Api { code, .. } => Some(*code),

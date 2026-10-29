@@ -22,7 +22,7 @@ pub enum RuleProtocol {
 }
 
 impl fmt::Display for RuleProtocol {
-    /// `TCP`, as the rules read in a diff
+    /// `TCP`, as in the log text of a rule
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             RuleProtocol::Tcp => "TCP",
@@ -35,13 +35,13 @@ impl fmt::Display for RuleProtocol {
     }
 }
 
-/// one rule of a firewall; equal rules compare equal whatever order the api returns them
-/// in, a diff compares rule sets
+/// one rule of a firewall. A diff compares the rules as sets, so the order in which the api
+/// returns them has no effect
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct FirewallRule {
     pub direction: RuleDirection,
     pub protocol: RuleProtocol,
-    /// a port or a range `80-85`, none for icmp, esp and gre
+    /// a port or a range `80-85`; none for icmp, esp and gre
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
     /// cidrs, for `In`
@@ -55,7 +55,7 @@ pub struct FirewallRule {
 }
 
 impl FirewallRule {
-    /// `'0.0.0.0/0', '::/0' -> Tcp/80`
+    /// `'0.0.0.0/0', '::/0' -> TCP/80`
     pub fn log_text(&self) -> String {
         let quoted = |ips: &[String]| {
             ips.iter()
@@ -92,11 +92,11 @@ pub struct ServerReference {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LabelSelector {
-    /// `env==prod,app==sak`
+    /// `app=sak,env=prod`
     pub selector: String,
 }
 
-/// what a firewall is applied to: a server or every server matching a label selector
+/// what a firewall is applied to: a server, or every server that matches a label selector
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FirewallResource {
     #[serde(rename = "type")]
@@ -181,7 +181,7 @@ struct FirewallResponse {
     firewall: Firewall,
 }
 
-/// the create answers with the firewall and the actions applying it to resources
+/// the answer to a create: the firewall and the actions that apply it to resources
 #[derive(Debug, Deserialize)]
 pub struct FirewallCreated {
     pub firewall: Firewall,
@@ -229,7 +229,7 @@ impl FirewallsApi<'_> {
         self.api.delete(&format!("firewalls/{id}")).await
     }
 
-    /// replaces every rule, one action per server the firewall is applied to
+    /// replaces all rules; one action per server that the firewall is applied to
     pub async fn set_rules(&self, id: u64, rules: &[FirewallRule]) -> Result<Vec<Action>> {
         let request = SetRulesRequest { rules };
         Ok(self
@@ -282,7 +282,7 @@ impl FirewallsApi<'_> {
         self.api.wait_for_action("firewalls", action.id).await
     }
 
-    /// every action, the first error ends the wait
+    /// waits for each action; the first error stops the wait
     pub async fn wait_for_actions(&self, actions: &[Action]) -> Result<()> {
         for action in actions {
             self.wait_for_action(action).await?;

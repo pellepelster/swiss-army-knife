@@ -2,16 +2,14 @@ use crate::api::{Labeled, Labels, Resource};
 use crate::hetzner::api::firewalls::{FirewallRule, RuleDirection, RuleProtocol};
 use crate::hetzner::firewall::{HetznerFirewallLookup, HetznerFirewallRuntime};
 
-/// a firewall at hetzner: its rules, and the servers it applies to, selected by labels
+/// a firewall at hetzner: its rules and the labels that select its servers
 #[derive(Clone, Debug)]
 pub struct HetznerFirewall {
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     pub rules: Vec<FirewallRule>,
-    /// the firewall applies to every server carrying all of these labels, none for a
-    /// firewall applied to nothing
+    /// the firewall applies to each server with all of these labels; empty for no server
     pub applied_to_labels: Labels,
     pub labels: Labels,
 }
@@ -32,7 +30,7 @@ impl HetznerFirewall {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

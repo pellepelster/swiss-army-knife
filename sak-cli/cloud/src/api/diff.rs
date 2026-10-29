@@ -7,7 +7,7 @@ pub struct DiffItem {
     /// what differs, e.g. `image` or `label 'foo'`
     pub name: String,
     pub changed: bool,
-    /// the provider cannot change this in place, the resource must be destroyed and created
+    /// the provider cannot change this in place: the resource must be destroyed and created
     pub triggers_recreate: bool,
     pub missing: bool,
     pub expected: Option<String>,
@@ -31,7 +31,7 @@ impl DiffItem {
         }
     }
 
-    /// a value that can only change by recreating the resource
+    /// a value that only a recreate of the resource can change
     pub fn recreate(
         name: impl Into<String>,
         expected: impl ToString,
@@ -43,7 +43,7 @@ impl DiffItem {
         }
     }
 
-    /// something declared the runtime does not have
+    /// something declared that the runtime does not have
     pub fn missing(name: impl Into<String>) -> Self {
         DiffItem {
             name: name.into(),
@@ -107,11 +107,12 @@ impl DiffItem {
 pub enum DiffStatus {
     /// the resource does not exist at the provider
     Missing,
-    /// a resource this one depends on does not exist, nothing can be said about this one
+    /// a resource that this one depends on does not exist; this one is not diffed
     ParentMissing,
     UpToDate,
     HasChanges,
-    /// the resource does not exist under its name, but another one with its identity does
+    /// the resource does not exist under its name, but one with the same content does under
+    /// another name (an ssh key with the same fingerprint)
     Duplicate,
 }
 
@@ -121,7 +122,7 @@ pub struct ResourceDiff {
     pub resource: ResourceRef,
     pub status: DiffStatus,
     pub changes: Vec<DiffItem>,
-    /// which resource is the duplicate, for [DiffStatus::Duplicate]
+    /// the message that names the duplicate, for [DiffStatus::Duplicate]
     pub duplicate_message: Option<String>,
 }
 
@@ -150,7 +151,7 @@ impl ResourceDiff {
         }
     }
 
-    /// up to date without changes, otherwise the changes
+    /// up to date without changes, else has changes
     pub fn from_changes(resource: &impl Resource, changes: Vec<DiffItem>) -> Self {
         if changes.is_empty() {
             ResourceDiff::new(resource, DiffStatus::UpToDate)
@@ -191,7 +192,7 @@ impl fmt::Display for ResourceDiff {
 }
 
 /// the diffs of a run as a report: the changed resources with their changes, then the
-/// missing ones
+/// missing resources
 pub fn log_text(diffs: &[ResourceDiff]) -> String {
     let mut text = String::new();
     writeln!(text, "changed resources:").unwrap();
@@ -211,9 +212,9 @@ pub fn log_text(diffs: &[ResourceDiff]) -> String {
     text
 }
 
-/// the labels declared against the live ones: missing, changed and no longer declared;
-/// labels whose key starts with one of `ignored_prefixes` are left out on both sides,
-/// those are the labels the provisioners keep for themselves (hashes of user data etc.)
+/// compares the declared labels with the live labels: missing, changed and not declared.
+/// Keys that start with one of `ignored_prefixes` are ignored on both sides: these are the
+/// labels that the provisioners keep for themselves (e.g. the hash of the user data)
 pub fn label_diff(declared: &Labels, live: &Labels, ignored_prefixes: &[&str]) -> Vec<DiffItem> {
     let ignored = |key: &String| {
         ignored_prefixes

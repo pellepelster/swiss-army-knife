@@ -25,7 +25,7 @@ pub struct Volume {
     pub id: u64,
     pub name: String,
     pub format: Option<VolumeFormat>,
-    /// the device the volume shows up as on the server, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
+    /// the device of the volume on the server, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
     pub linux_device: String,
     /// in GB
     pub size: u64,
@@ -92,7 +92,7 @@ impl VolumesApi<'_> {
         Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
     }
 
-    /// the volume, its creation runs on as an action in the api
+    /// the volume; the api continues the creation in an action
     pub async fn create(&self, request: &VolumeCreate) -> Result<Volume> {
         Ok(self
             .api

@@ -1,5 +1,5 @@
-//! a server with its ssh keys, volumes and primary ips, created from an image with
-//! cloud-init user data: the resource, its lookup and runtime, the provisioner
+//! a server with its ssh keys, volumes and primary ips, created from an image with cloud-init
+//! user data: the resource, its lookup and runtime, the provisioner
 
 mod lookup;
 mod provisioner;

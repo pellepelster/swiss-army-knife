@@ -1,12 +1,13 @@
-//! the provisioning of the server of a deployment: ansible in the image of the tools, run
-//! by the container runtime, against the server with the roles of the pelle_io.sak
-//! collection the image holds. The private client key is never written: it goes to an ssh-agent
-//! in the container through its standard input. The inventory, the ssh configuration, the public
-//! client key and the known host key are written to a directory of their own for the run, with
-//! a random name and only for the user, and mounted into the container read-only; the directory
-//! goes when the run ends, is interrupted or the window closes, one a killed sakctl left behind
-//! with the next run. Every line ansible prints and every event its callback posts to the endpoint
-//! of the run (`core::events`) go to the caller
+//! the provisioning of the server of a deployment: the container runtime runs ansible in the
+//! image of the tools, with the roles of the pelle_io.sak collection in the image.
+//!
+//! sakctl never writes the private client key: it goes to an ssh-agent in the container through
+//! the standard input. The other files of a run (inventory, ssh configuration, public client key,
+//! known host key, environment of the backend, token of the events endpoint) go into a directory
+//! of the run. The directory has a random name, only the user can read it, and the container
+//! mounts it read-only. The directory goes when the run ends, is interrupted or the window closes;
+//! the next run removes one that a killed sakctl left. Every line ansible prints and every event
+//! its callback posts to the endpoint of the run (`core::events`) go to the caller
 
 use crate::core::container::{self, ContainerRuntime};
 use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer, task_name};
@@ -25,28 +26,28 @@ pub const PLAYBOOK: &str = "pelle_io.sak.server";
 
 /// a server to provision and what ansible needs to reach and set it up
 pub struct ProvisionRun {
-    /// the name, the host in the inventory and `sak_name` of the controller configuration
+    /// the name of the deployment: the host in the inventory and `sak_name`
     pub name: String,
     /// `sak_dns_mode` of the controller configuration
     pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,
     /// `sak_root_domain` of the controller configuration
     pub root_domain: String,
-    /// `sak_api_token_sha256` of the controller configuration: the sha-256 of the admin api
-    /// token, never the token
-    pub api_token_sha256: String,
+    /// `sak_api_public_key` of the controller configuration: the public half of the api key the
+    /// requests of sakctl are signed with, 32 bytes as base64
+    pub api_public_key: String,
     /// the public ipv4 of the server
     pub host: String,
     /// the public ipv6 of the server, when it has one
     pub host_ipv6: Option<String>,
-    /// the key the server was created with, root logs in with it
+    /// the key the server was created with; root logs in with it
     pub client_key: DerivedKey,
-    /// the host key cloud-init installed, the connection is verified against it
+    /// the host key cloud-init installed; ssh verifies the connection against it
     pub host_key: DerivedKey,
     /// the block device of the data volume, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
     pub storage_device: String,
     /// `sak_admin_email`: the admin of a multi user deployment, empty for a single user one
     pub admin_email: String,
-    /// the mail server of the e-mail login, none: only the password login
+    /// the mail server of the e-mail login; none for the password login only
     pub smtp: Option<crate::core::deployments::Smtp>,
     /// `SAK_ADMIN_PASSWORD_HASH` of `backend.env`, the argon2id hash of the admin password
     pub admin_password_hash: String,
@@ -59,7 +60,7 @@ impl ProvisionRun {
         format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
              ansible_ssh_common_args: -F {dir}/ssh_config\n      \
-             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_token_sha256: {api_token_sha256}\n      sak_admin_email: {admin_email}\n      \
+             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_public_key: \"{api_public_key}\"\n      sak_admin_email: {admin_email}\n      \
              sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_tls: {smtp_tls}\n      \
              sak_smtp_starttls: {smtp_starttls}\n      controller_env_src: {dir}/backend.env\n",
             name = self.name,
@@ -69,7 +70,7 @@ impl ProvisionRun {
             dns_mode = self.dns_mode,
             root_domain = self.root_domain,
             acme_ca = self.acme_ca.as_deref().unwrap_or_default(),
-            api_token_sha256 = self.api_token_sha256,
+            api_public_key = self.api_public_key,
             admin_email = self.admin_email,
             smtp_enabled = self.smtp.is_some(),
             // without starttls the connection is implicit tls (smtps), never plain text
@@ -78,9 +79,9 @@ impl ProvisionRun {
         )
     }
 
-    /// the environment of the backend (`backend.env`), one `KEY=value` a line as podman reads it:
-    /// the hash of the admin password, the addresses of the server and,
-    /// with a mail server, its settings. Secret, written for the run only
+    /// the environment of the backend (`backend.env`), one `KEY=value` on each line as podman reads
+    /// it: the hash of the admin password, the addresses of the server and the settings of the mail
+    /// server. Secret, written for the run only
     fn backend_env(&self) -> String {
         let mut lines = vec![
             format!("SAK_ADMIN_PASSWORD_HASH={}", self.admin_password_hash),
@@ -96,7 +97,7 @@ impl ProvisionRun {
         lines.join("\n") + "\n"
     }
 
-    /// the key of the agent alone: its public half names it, the private half is in the agent
+    /// ssh uses only the key of the agent that the public key file names
     fn ssh_config(&self) -> String {
         format!(
             "Host *\n  IdentitiesOnly yes\n  IdentityFile {dir}/id_ed25519.pub\n  UserKnownHostsFile {dir}/known_hosts\n  \
@@ -122,9 +123,9 @@ pub enum ProvisionOutput {
     Event(AnsibleEvent),
 }
 
-/// how the container reaches the endpoint of the run on the loopback of the machine: on linux it
-/// shares the network of the machine, docker desktop and a podman machine (macos, windows) give
-/// the machine a name of its own; the arguments of `run` and the host of the url
+/// the arguments of `run` and the host of the url with which the container reaches the endpoint
+/// of the run on the loopback of the machine. On linux the container shares the network of the
+/// machine; docker desktop and a podman machine (macos, windows) give the machine a name
 fn events_host(runtime: &str) -> (Vec<&'static str>, &'static str) {
     if cfg!(target_os = "linux") {
         (vec!["--network", "host"], "127.0.0.1")
@@ -135,14 +136,14 @@ fn events_host(runtime: &str) -> (Vec<&'static str>, &'static str) {
     }
 }
 
-/// manages the provisioning of servers: one run of the playbook per call, in the image
-/// of the tools
+/// manages the provisioning of servers: one run of the playbook for each call, in the image of
+/// the tools
 pub struct ProvisionManager;
 
 impl ProvisionManager {
-    /// runs the playbook against the server, every line of ansible's output and every event of
-    /// its callback to `on_output` in the order they come; an error when ansible failed, naming the
-    /// task that failed when the events told it, or when the container could not run
+    /// runs the playbook against the server and gives every line of ansible and every event of
+    /// its callback to `on_output`, in the order they come. An error when the container did not
+    /// run or ansible failed; it names the failed task when the events tell it
     pub fn provision(
         &self,
         runtime: &ContainerRuntime,
@@ -159,8 +160,8 @@ impl ProvisionManager {
         dir.write("id_ed25519.pub", &run.client_key.public_key())?;
         dir.write("backend.env", &run.backend_env())?;
 
-        // the lines of ansible and the events of its callback go into one channel, in the order
-        // they arrive; the endpoint lives as long as the run
+        // the lines and the events go into one channel in the order they arrive; the endpoint
+        // lives as long as the run
         let (sender, receiver) = mpsc::channel();
         let events = {
             let sender = sender.clone();
@@ -172,9 +173,9 @@ impl ProvisionManager {
         let (network, host) = events_host(runtime);
 
         let mut command = container::command(runtime);
-        // a name of its own, so an interrupted run can stop it
+        // a name of its own, so that `stop_runs` can stop it
         command.args(["run", "--rm", "-i", "--name", &dir.container]);
-        // the files are the user's, the container reads them as that user
+        // the files belong to the user, the container reads them as that user
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
@@ -220,13 +221,13 @@ impl ProvisionManager {
         let mut child = command
             .spawn()
             .map_err(|e| t!("provision.not_started", runtime = runtime, error = e).to_string())?;
-        // the key, then the end of the input: ssh-add reads until there
+        // the key, then the end of the input (the drop of `stdin`): ssh-add reads until there
         if let Some(mut stdin) = child.stdin.take() {
             let key = run.client_key.private_key();
-            // a container that ended at once tells why in its output
+            // the error is ignored: a container that stopped at once tells why in its output
             let _ = stdin.write_all(key.as_bytes());
         }
-        // both streams line by line into the channel
+        // both output streams line by line into the channel
         let mut readers = Vec::new();
         for stream in [
             child
@@ -251,7 +252,8 @@ impl ProvisionManager {
             }));
         }
         drop(sender);
-        // the channel ends with the output of ansible; the endpoint holds a sender until it stops
+        // the loop ends when both streams are read to the end: the endpoint holds a sender until
+        // it stops, so the channel does not close before
         let mut failed = None;
         let readers_done = std::thread::spawn(move || {
             for reader in readers {
@@ -271,7 +273,7 @@ impl ProvisionManager {
             }
         }
         let status = child.wait().map_err(|e| e.to_string())?;
-        // the events posted after the last line, then no more
+        // stop the endpoint, then pass on the events it got after the last line
         drop(events);
         for output in receiver.try_iter() {
             if let ProvisionOutput::Event(event) = &output {
@@ -295,8 +297,8 @@ impl ProvisionManager {
     }
 }
 
-/// the task of a failure that stops the run and what ansible says about it; a failure that is
-/// ignored is none
+/// the task of a failure that stops the run and what ansible says about it; none for an ignored
+/// failure
 fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
     match event {
         AnsibleEvent::Failed {
@@ -310,12 +312,13 @@ fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
     }
 }
 
-/// the runs going on, what `stop_runs` stops and removes: the directory and the container
+/// the runs going on, as `stop_runs` stops and removes them: the directory, the runtime and the
+/// container
 static RUNS: Mutex<Vec<(PathBuf, String, String)>> = Mutex::new(Vec::new());
 
-/// the directory of a run and the name of its container: the user's alone, a random name below
-/// the runtime directory of the user (a tmpfs only the user reads) or else the temporary one,
-/// gone with the run
+/// the directory of a run and the name of its container. The directory has a random name below
+/// the runtime directory of the user (a tmpfs only the user reads), else below the temporary
+/// directory. Only the user can read it, and it goes with the run
 struct RunDir {
     path: PathBuf,
     container: String,
@@ -330,7 +333,7 @@ impl RunDir {
         remove_left_behind(&base);
         let name = format!("{RUN_PREFIX}{}-{}", std::process::id(), random_hex()?);
         let path = base.join(&name);
-        // fails on anything that exists, a link of someone else included; private from the start
+        // fails when anything exists there, also a link of someone else; private from the start
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {
@@ -347,7 +350,7 @@ impl RunDir {
         })
     }
 
-    /// a new file only the user reads, the container reads it as the user
+    /// a new file only the user can read; the container reads it as the user
     fn write(&self, name: &str, content: &str) -> Result<(), String> {
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create_new(true);
@@ -373,11 +376,11 @@ impl Drop for RunDir {
     }
 }
 
-/// what the directories of the runs start with, then the process id of their sakctl
+/// the start of the name of a run directory; the process id of its sakctl follows
 const RUN_PREFIX: &str = "sakctl-run-";
 
 /// stops the containers of the runs going on and removes their directories: on ctrl+c, a
-/// termination or the window closing, when no `Drop` runs any more
+/// termination, a hangup or when the window closes, when no `Drop` runs any more
 pub fn stop_runs() {
     let runs = RUNS
         .lock()
@@ -394,9 +397,9 @@ pub fn stop_runs() {
     }
 }
 
-/// stops the runs on ctrl+c or a termination, then ends the process with 130
+/// stops the runs on ctrl+c, a termination or a hangup (unix), then ends the process with 130
 pub fn stop_runs_on_signal() {
-    // a runtime of its own, the listener lives as long as the process
+    // a runtime of its own: the listener lives as long as the process
     let Ok(listener) = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -430,8 +433,8 @@ pub fn stop_runs_on_signal() {
     });
 }
 
-/// the directories of runs whose sakctl is gone without removing them (killed): theirs the
-/// process id in the name names no process any more
+/// removes the run directories that a killed sakctl left: the process id in their name names no
+/// live process. Only on unix; elsewhere every process counts as alive
 fn remove_left_behind(base: &Path) {
     let Ok(entries) = std::fs::read_dir(base) else {
         return;
@@ -483,7 +486,7 @@ mod tests {
             name: "alpha".to_string(),
             dns_mode: sak_cloud::hetzner::deployment::DnsMode::Domain,
             root_domain: "pelle.io".to_string(),
-            api_token_sha256: "ab".repeat(32),
+            api_public_key: "PUBLIC+KEY/=".to_string(),
             host: "203.0.113.1".to_string(),
             host_ipv6: Some("2001:db8::1".to_string()),
             client_key: derive_key("alpha", "a password of sixteen").unwrap(),
@@ -540,7 +543,7 @@ mod tests {
              SAK_SMTP_HOST=smtp.example.org\nSAK_SMTP_PORT=465\nSAK_SMTP_USERNAME=user\n\
              SAK_SMTP_PASSWORD=p@$$ w0rd#!\n"
         );
-        // no key of any secret: the database is plain until it is encrypted as a whole
+        // no key of a secret: the database is plain until it is encrypted as a whole
         assert!(!env.contains("SECRET_KEY"));
 
         let without_smtp = ProvisionRun {
@@ -583,7 +586,7 @@ mod tests {
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
         // what the controller role writes into the configuration of the backend
         assert!(inventory.contains(
-            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n      sak_api_token_sha256: abab"
+            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n      sak_api_public_key: \"PUBLIC+KEY/=\"\n"
         ));
         // no private key file, the key is in the agent of the container
         assert!(!inventory.contains("private_key_file"));
@@ -635,7 +638,7 @@ mod tests {
     fn a_run_dir_a_killed_sakctl_left_behind_goes_with_the_next_run() {
         let base = std::env::temp_dir().join(format!("sakctl-test-{}", random_hex().unwrap()));
         std::fs::create_dir(&base).unwrap();
-        // no process has this id, pid_max is far below
+        // no process has this id, pid_max is much lower
         let gone = base.join(format!("{RUN_PREFIX}4294967294-ab"));
         let running = base.join(format!("{RUN_PREFIX}{}-ab", std::process::id()));
         let foreign = base.join("other-1-ab");

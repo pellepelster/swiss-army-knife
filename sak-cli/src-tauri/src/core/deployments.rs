@@ -1,6 +1,6 @@
-//! the sak deployments found at the providers: everything labeled with a name, grouped by
-//! it and diffed against the resource group a deployment consists of; and a new one, planned
-//! and created from its name and password
+//! the sak deployments at the providers: every resource with a name label, grouped by the name
+//! and diffed against the resource group of a deployment. A create, deploy or destroy of a
+//! deployment, planned and applied from its name and password
 
 use crate::core::container::ContainerRuntime;
 use crate::core::error::{
@@ -64,8 +64,8 @@ impl DeploymentResponse {
     }
 }
 
-/// a dns zone of the project as the page offers it as root domain: the dns modes the
-/// deployment can use it in, none when another deployment manages it in domain mode, and why
+/// a dns zone of the project as the page offers it as root domain: the dns modes the deployment
+/// can use it in (none when another deployment manages it in domain mode), and why
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RootDomainResponse {
@@ -88,7 +88,7 @@ fn root_domain_response(domain: &RootDomain, name: &str) -> RootDomainResponse {
     }
 }
 
-/// the deployments using a root domain, `beta, gamma`; one without a name as such
+/// the deployments that use a root domain, `beta, gamma`; one without a name as such
 fn by_text(by: &[Option<String>]) -> String {
     by.iter()
         .map(|name| match name {
@@ -122,8 +122,8 @@ fn conflict_exit_code(conflict: &RootDomainConflict) -> i32 {
     }
 }
 
-/// the root domain `chosen` checked for the deployment `name` in `dns_mode`: one of the
-/// zones of the project, and no conflict with the deployments using it
+/// checks the root domain `chosen` for the deployment `name` in `dns_mode`: it is a zone of the
+/// project and has no conflict with the deployments that use it
 fn check_root_domain(
     domains: &[RootDomain],
     chosen: Option<&str>,
@@ -163,7 +163,7 @@ fn check_root_domain(
     Ok(domain.name.clone())
 }
 
-/// the plan of a new deployment: what creating it would do, resource by resource
+/// the plan of a create, deploy or destroy: what the apply does, resource by resource
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanResponse {
@@ -175,10 +175,10 @@ pub struct PlanResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlannedResource {
-    /// `server 'alpha'`, what the events of the creation name it by
+    /// `server 'alpha'`, the name the events of the apply use for it
     pub(crate) resource: String,
-    /// what kind of resource it is, `ssh_key`, `volume`, …, `provisioning`, and its name at the
-    /// provider: the page and the command line name it with them, in their language
+    /// the kind of resource, `ssh_key`, `volume`, …, `provisioning`, and its name at the
+    /// provider: the page and the command line show the resource with them, in their language
     pub(crate) kind: String,
     pub(crate) name: String,
     /// `up_to_date`, `missing` or `has_changes`, the resource status of the glossary
@@ -186,18 +186,18 @@ pub struct PlannedResource {
     /// what the plan does to it, `will_create`, `will_update`, `will_destroy`, `will_keep`,
     /// `already_deleted` or `will_run`; none for a resource that stays as it is
     pub(crate) action: Option<&'static str>,
-    /// what is being done to it as its apply starts, `working`, `working_update`,
-    /// `working_recreate`, `working_check` or `working_destroy`: the command line says it with
-    /// `cli.<working>`, the window with `ui.plan.<working>`
+    /// what the apply does to it when it starts, `working`, `working_update`, `working_recreate`,
+    /// `working_check` or `working_destroy`: the command line shows `cli.<working>`, the window
+    /// `ui.plan.<working>`
     pub(crate) working: &'static str,
     pub(crate) status: DiffStatus,
-    /// a destroy leaves it: the data volume, unless asked to delete it
+    /// a destroy keeps it: the data volume, unless `delete_data` is set
     pub(crate) keep: bool,
     pub(crate) changes: Vec<String>,
 }
 
-/// what creating a deployment reports as it goes: a resource taken up, a resource done; the
-/// command itself answers when everything is done or failed
+/// what an apply reports while it runs: a resource started, a resource done, the provisioning.
+/// The command itself answers when everything is done or failed
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum CreateEvent {
@@ -208,12 +208,12 @@ pub enum CreateEvent {
         resource: String,
         applied: Applied,
     },
-    /// by a destroy: the resource is gone, or was gone already
+    /// a resource removed (`gone` false: it was gone already)
     Destroyed {
         resource: String,
         gone: bool,
     },
-    /// the provisioning of the server begins, what the wizard says about it
+    /// a message about the provisioning: it starts, or sakctl waits for the api
     Provisioning {
         message: String,
     },
@@ -226,18 +226,18 @@ pub enum CreateEvent {
         resource: String,
         task: String,
     },
-    /// a task of the playbook ended on the server, with what ansible says when it failed
+    /// a task of the playbook ended on the server; `message` is what ansible says when it failed
     TaskDone {
         resource: String,
         task: String,
         outcome: TaskOutcome,
         message: Option<String>,
     },
-    /// the playbook ran through
+    /// the playbook ran to its end
     Provisioned {
         resource: String,
     },
-    /// the playbook failed, at the task when the events told it
+    /// the playbook failed; `task` when the events tell it
     ProvisionFailed {
         resource: String,
         task: Option<String>,
@@ -252,13 +252,13 @@ pub enum TaskOutcome {
     Ok,
     Changed,
     Skipped,
-    /// failed, and the playbook goes on all the same
+    /// failed, but the playbook continues
     Ignored,
     Failed,
     Unreachable,
 }
 
-/// the event of the deploy for an event of the playbook, none for what the deploy does not show
+/// the event of the apply for an event of the playbook; none for an event the apply does not show
 fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
     let done = |task: String, outcome, message| {
         Some(CreateEvent::TaskDone {
@@ -302,8 +302,8 @@ fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
     }
 }
 
-/// the cloud-init of the server: the host key derived from the password installed before
-/// sshd first starts, and only that one, so the first connection is verified against it
+/// the cloud-init of the server: it installs the derived host key, and no other, before sshd
+/// first starts, so sakctl verifies the first connection against it
 pub fn user_data(host_key: &DerivedKey) -> String {
     let private = host_key
         .private_key()
@@ -317,17 +317,16 @@ pub fn user_data(host_key: &DerivedKey) -> String {
     )
 }
 
-/// what the environment proposes for a new deployment: SAK_NAME, SAK_PASSWORD and
-/// SAK_LOCATION, so a scripted run types nothing; no Debug, the password never shows up
-/// in a log
+/// the values the environment proposes for a new deployment, so a script types nothing. No Debug,
+/// the passwords never show in a log
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentDefaults {
     name: Option<String>,
     password: Option<String>,
     location: Option<String>,
-    /// the mail server of SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD
-    /// and SAK_SMTP_STARTTLS
+    /// the mail server of SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and
+    /// SAK_SMTP_STARTTLS
     smtp_host: Option<String>,
     smtp_port: Option<String>,
     smtp_username: Option<String>,
@@ -339,27 +338,26 @@ pub struct DeploymentDefaults {
     user_mode: Option<UserMode>,
 }
 
-/// the variables a new deployment takes its name, password and location from, the pages
-/// and the command line alike
+/// the variables of the name, the password and the location of a deployment, for the window and
+/// the command line
 pub const NAME_VARIABLE: &str = "SAK_NAME";
 pub const PASSWORD_VARIABLE: &str = "SAK_PASSWORD";
 pub const LOCATION_VARIABLE: &str = "SAK_LOCATION";
 
-/// the variables the mail server of a deployment is taken from, the pages and the command line
-/// alike
+/// the variables of the mail server of a deployment, for the window and the command line
 pub const SMTP_HOST_VARIABLE: &str = "SAK_SMTP_HOST";
 pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
 pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
 pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
 pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
-/// the variable the address of the admin is taken from, the page and the command line alike
+/// the variable of the address of the admin, for the window and the command line
 pub const ADMIN_EMAIL_VARIABLE: &str = "SAK_ADMIN_EMAIL";
-/// the variable the user mode is taken from, the page and the command line alike
+/// the variable of the user mode, for the window and the command line
 pub const USER_MODE_VARIABLE: &str = "SAK_USER_MODE";
 
-/// who signs in to a deployment: single, one user, the admin, with the password of the
-/// deployment; multi, users by e-mail, the admin also with the password, which needs a mail
-/// server and the admin's address
+/// the user mode: who signs in to a deployment. `Single`: one user, the admin, with the password
+/// of the deployment. `Multi`: users with a link by e-mail, the admin also with the password; it
+/// needs a mail server and the address of the admin
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UserMode {
@@ -367,9 +365,9 @@ pub enum UserMode {
     Multi,
 }
 
-/// the acme ca the certificates of a deployment come from: production (caddy's default issuers)
-/// or the staging ca of let's encrypt, for the deployments of the tests, which runs into none of
-/// the limits of the production one
+/// the acme ca the certificates of a deployment come from: production (the default issuers of
+/// caddy), or the staging ca of let's encrypt for the deployments of the tests, because it does not
+/// have the rate limits of production
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AcmeCa {
@@ -402,7 +400,7 @@ impl AcmeCa {
         }
     }
 
-    /// what sakctl trusts when it talks to such a deployment
+    /// the roots sakctl trusts when it talks to such a deployment
     pub fn trust(self) -> crate::core::config::Trust {
         match self {
             AcmeCa::Production => crate::core::config::Trust::Public,
@@ -428,17 +426,17 @@ impl UserMode {
     }
 }
 
-/// the longest host name of a mail server and the longest e-mail address, as dns and smtp allow
-/// them; the page limits its fields to them as well
+/// the longest host name of a mail server and the longest e-mail address that dns and smtp
+/// allow; the fields of the page have the same limits
 pub const MAX_HOST_LEN: usize = 253;
 pub const MAX_ADDRESS_LEN: usize = 254;
 
-/// the port and the starttls of a mail server unless told, the ones of the backend
+/// the port and the starttls of a mail server when none is given, the defaults of the backend
 pub const DEFAULT_SMTP_PORT: u16 = 587;
 pub const DEFAULT_SMTP_STARTTLS: bool = true;
 
-/// the mail server the backend sends its login links with; no Debug, the password never shows
-/// up in a log
+/// the mail server the backend sends its login links with. No Debug, the password never shows in
+/// a log
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Smtp {
@@ -451,8 +449,8 @@ pub struct Smtp {
     pub starttls: bool,
 }
 
-/// a host and a port: the host a name without blanks, the port not 0; no value with a line
-/// break, `backend.env` has one line for each value
+/// checks the mail server: a host name without spaces, a port that is not 0, and no line break in
+/// a value, because `backend.env` has one line for each value
 fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
@@ -470,8 +468,9 @@ fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     Ok(())
 }
 
-/// an e-mail address as far as a deployment needs it: a local part of letters, digits and
-/// `._%+-`, one `@`, a domain with a dot; nothing that breaks a line of `backend.env` or yaml
+/// whether `address` is an e-mail address as a deployment needs it: a local part of letters,
+/// digits and `._%+-`, one `@`, a domain with a dot. Nothing that breaks a line of `backend.env`
+/// or of yaml
 pub fn is_address(address: &str) -> bool {
     if address.trim().len() > MAX_ADDRESS_LEN {
         return false;
@@ -492,7 +491,7 @@ pub fn is_address(address: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || ".-".contains(c))
 }
 
-/// `true`, `false` (also `1`/`0`, `yes`/`no`, `on`/`off`), as a variable or an argument gives it
+/// `true` or `false` (also `1`/`0`, `yes`/`no`, `on`/`off`) of a variable or an argument
 pub fn parse_flag(value: &str) -> Result<bool, String> {
     match value.trim().to_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Ok(true),
@@ -509,7 +508,7 @@ pub struct LocationResponse {
     pub(crate) name: &'static str,
 }
 
-/// hetzner's locations; the first is the one proposed
+/// the locations of hetzner; the first is the one proposed
 pub(crate) const LOCATIONS: &[LocationResponse] = &[
     LocationResponse {
         id: Location::nbg1,
@@ -537,8 +536,8 @@ pub(crate) const LOCATIONS: &[LocationResponse] = &[
     },
 ];
 
-/// the server type of a deployment: cx23 where hetzner offers it, the european
-/// locations, cpx21 elsewhere
+/// the server type of a deployment: cx23 where hetzner offers it (the european locations), cpx21
+/// in the other locations
 fn server_type_for(location: Location) -> ServerType {
     match location {
         Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,
@@ -546,8 +545,8 @@ fn server_type_for(location: Location) -> ServerType {
     }
 }
 
-/// the name of a serialized enum value, `up_to_date`, `created`: what the page reads in the
-/// json, the command line in its texts
+/// the name of a serialized enum value, `up_to_date`, `created`: the page reads it in the json,
+/// the command line uses it as the key of its texts
 pub(crate) fn key<T: Serialize>(value: &T) -> String {
     serde_json::to_value(value)
         .ok()
@@ -583,22 +582,23 @@ fn variable(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-/// the password of a deployment, the ssh key is derived from it
+/// the least number of characters of a password; every key and label of a deployment is derived
+/// from it
 const MIN_PASSWORD_CHARS: usize = 16;
 
-/// what a plan or an apply is for: a deployment that does not exist yet, or one that does
-/// and is brought to what the wizard declares, its server created anew when it must be
+/// what a plan or an apply is for: `Create` a deployment that does not exist yet, `Deploy` an
+/// existing one to what it declares (its server created anew when necessary)
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {
     Create,
     Deploy,
-    /// every resource of the deployment removed, the data volume only when asked to; a
+    /// remove every resource of the deployment, the data volume only with `delete_data`. A
     /// deployment that is gone is destroyed already
     Destroy,
 }
 
-/// what the page sends for a deployment to plan or create
+/// a deployment to plan and apply, as the page sends it or the command line builds it
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewDeployment {
@@ -606,39 +606,37 @@ pub struct NewDeployment {
     pub password: String,
     pub password_repeat: String,
     pub location: Location,
-    /// how dns is set up for the deployment, kept on every resource; none given: subdomain for a
-    /// create, the deployment's own for a deploy (`resolve_dns`), a deploy changes it only when
-    /// it is given
+    /// the dns mode, kept on every resource. None: subdomain for a create, the mode of the
+    /// deployment for a deploy (`resolve_dns`)
     #[serde(default)]
     pub dns_mode: Option<DnsMode>,
-    /// the dns zone of the project the deployment's names are in, kept on every resource; none
-    /// given: the deployment's own for a deploy; a destroy needs none
+    /// the root domain, a dns zone of the project, kept on every resource. None: the root domain
+    /// of the deployment for a deploy; a destroy needs none
     #[serde(default)]
     pub root_domain: Option<String>,
     pub intent: Intent,
-    /// a destroy deletes the data volume too, it keeps it otherwise
+    /// a destroy also deletes the data volume; without it the volume stays
     #[serde(default)]
     pub delete_data: bool,
     /// who signs in, needed by a create and a deploy; a destroy needs none
     #[serde(default)]
     pub user_mode: Option<UserMode>,
-    /// where the certificates come from; none: the deployment's own for a deploy, production for a
-    /// create
+    /// where the certificates come from. None: the ca of the deployment for a deploy, production
+    /// for a create
     #[serde(default)]
     pub acme_ca: Option<AcmeCa>,
-    /// the mail server of the e-mail login, needed by multi user, not used by single user
+    /// the mail server of the e-mail login: needed for multi user, not used for single user
     #[serde(default)]
     pub smtp: Option<Smtp>,
-    /// the address of the admin, the first user of the e-mail login; needed by multi user, not
-    /// used by single user
+    /// the address of the admin, the first user of the e-mail login: needed for multi user, not
+    /// used for single user
     #[serde(default)]
     pub admin_email: Option<String>,
 }
 
-/// the dns mode and the root domain of a deployment: what was given, else for a deploy what the
-/// deployment carries on its labels, so a deploy keeps them unless told otherwise. A create
-/// without a mode is a subdomain one, a deploy of a deployment without the label too; a
-/// deploy without a root domain anywhere is refused. A destroy needs neither
+/// the dns mode and the root domain of a deployment: the given values, else for a deploy the
+/// values on the labels of the deployment. A create without a mode, and a deploy without a mode
+/// on the labels, use subdomain. A deploy without a root domain is refused. A destroy needs neither
 fn resolve_dns(
     name: &str,
     intent: Intent,
@@ -666,43 +664,44 @@ fn resolve_dns(
     }
 }
 
-/// a deployment checked and ready: where it goes, what it consists of, whether a resource
-/// may be created anew. The command line plans and applies with one, the project read once; the
-/// window prepares again for the apply, the user may have waited a while on the plan
+/// a deployment checked and ready to plan and apply: where it goes and what it consists of. The
+/// command line plans and applies with the same one, so it reads the project one time. The window
+/// prepares again for the apply, because the user can wait a long time on the plan
 pub struct Prepared {
     provider: ProviderType,
     runtime: HetznerProviderRuntime,
     spec: DeploymentSpec,
-    /// the dns records of the deployment that go
+    /// the dns records of the deployment that the apply removes
     stale_records: Vec<HetznerDnsRecordLookup>,
     client_key: DerivedKey,
     host_key: DerivedKey,
-    /// the sha-256 of the admin api token, what the backend compares a bearer token with
-    api_token_sha256: String,
-    /// the admin of the backend and the argon2id hash of the admin password (the deployment
-    /// password); none on a destroy
+    /// the public half of the api key; the backend checks a signed request with it
+    api_public_key: String,
+    /// the admin of a multi user deployment; none for single user and on a destroy
     admin_email: Option<String>,
+    /// the argon2id hash of the admin password (the deployment password)
     admin_password_hash: String,
-    /// the mail server of the e-mail login, none: only the password login
+    /// the mail server of the e-mail login; none for the password login only
     smtp: Option<Smtp>,
-    /// what the label `sak.pelle.io/provisioned-config` of the server is after a provisioning of
-    /// this configuration, and what it is now: none for a server never provisioned, or none at all.
-    /// The plan tells from it whether the configuration changed; a deploy always provisions
+    /// the label `sak.pelle.io/provisioned-config` of the server after a provisioning of this
+    /// configuration (empty on a destroy), and the label now (none when there is no server or it
+    /// was never provisioned). The plan compares them to find a changed configuration; a deploy
+    /// always provisions
     provisioned_config: String,
     provisioned: Option<String>,
-    /// where the certificates come from, what sakctl trusts when it waits for the deployment
+    /// where the certificates come from; it sets what sakctl trusts when it waits for the api
     acme_ca: AcmeCa,
 }
 
 impl Prepared {
-    /// the configuration the playbook writes, one line each, what the label of the server stands
-    /// for; the addresses and the device of the volume are left out, a deployment keeps them
+    /// the configuration the playbook writes, one value on each line, as the label of the server
+    /// stands for it. Without the addresses and the device of the volume, a deployment keeps them
     fn config(&self) -> String {
         config_text(
             &self.spec.name,
             self.spec.dns_mode,
             self.spec.root_domain.as_deref().unwrap_or_default(),
-            &self.api_token_sha256,
+            &self.api_public_key,
             self.admin_email.as_deref().unwrap_or_default(),
             self.smtp.as_ref(),
             &self.admin_password_hash,
@@ -710,7 +709,8 @@ impl Prepared {
     }
 }
 
-/// what a deploy of an existing deployment takes from it unless told otherwise (`detected`)
+/// the settings a deploy takes from the existing deployment when they are not given
+/// (`DeploymentManager::detected`)
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Detected {
@@ -719,8 +719,8 @@ pub struct Detected {
     pub smtp: Option<DetectedSmtp>,
 }
 
-/// the mail server of the running configuration; its password where the backend answers it. No
-/// derived Debug, the password never shows
+/// the mail server of the running configuration, with its password when the backend answers it.
+/// No derived Debug, the password never shows
 #[derive(Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DetectedSmtp {
@@ -745,8 +745,8 @@ impl fmt::Debug for DetectedSmtp {
     }
 }
 
-/// the user mode of the label, else of the running configuration (a mail server makes it multi
-/// user); the admin and the mail server only for multiple users
+/// the user mode of the label, else of the running configuration (multi user when it has a mail
+/// server); the admin and the mail server only for multi user
 fn detect(
     label: Option<UserMode>,
     running: Option<&crate::core::config::RunningConfig>,
@@ -777,10 +777,10 @@ fn detect(
     }
 }
 
-/// a deploy with what it was not told taken from `detected`: the user mode, and for multiple users
-/// the admin and the mail server; `smtp_password` given wins over the detected one. A mail server
-/// with a password the backend does not answer (one of before) needs it given, a deploy without it
-/// would take it away
+/// a deploy completed from `detected` where a value is not given: the user mode and, for multi
+/// user, the admin and the mail server. A given `smtp_password` wins over the detected one. An
+/// older backend does not answer the password; then the password must be given, because a deploy
+/// without it removes it
 pub fn complete(
     mut deployment: NewDeployment,
     detected: &Detected,
@@ -819,8 +819,8 @@ pub fn complete(
     Ok(deployment)
 }
 
-/// the resource status of the glossary for a status of a diff: a resource whose parent is missing
-/// is missing itself, one found under another name stops the plan before (NotOwned)
+/// the resource status of the glossary for a status of a diff. A resource whose parent is missing
+/// is missing too. A resource found under another name stops the plan before (NotOwned)
 pub fn resource_status(status: DiffStatus) -> &'static str {
     match status {
         DiffStatus::UpToDate => "up_to_date",
@@ -829,9 +829,9 @@ pub fn resource_status(status: DiffStatus) -> &'static str {
     }
 }
 
-/// what the plan does to a resource, after its status: a destroy keeps the data volume unless
-/// asked to delete it and leaves what is gone, a dns record of the old mode or root domain goes; a
-/// create or deploy creates what is missing or has to be created anew, updates what has changes
+/// what the plan does to a resource, from its status. A stale dns record (`remove`) goes. A
+/// destroy keeps the data volume (`keep`), leaves what is gone and removes the rest. A create or
+/// deploy creates what is missing or must be created anew and updates what has changes
 fn action(
     intent: Intent,
     status: DiffStatus,
@@ -851,9 +851,9 @@ fn action(
     }
 }
 
-/// what is being done to a resource as its apply starts, after what the plan found: creating what
-/// is missing, updating or recreating what changed, checking what is up to date, destroying on a
-/// destroy and what goes
+/// what the apply does to a resource when it starts, from what the plan found: it creates what is
+/// missing, checks what is up-to-date, updates or recreates what has changes, and destroys on a
+/// destroy and a stale dns record
 fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> &'static str {
     match (intent, status) {
         _ if remove => "working_destroy",
@@ -865,9 +865,10 @@ fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> 
     }
 }
 
-/// what the plan says of the provisioning, which a deploy always runs: missing for a server created
-/// (anew) or never provisioned, changes for a server that changes or another configuration, up to
-/// date only with the label of this configuration on a server that stays as it is
+/// the status of the provisioning in the plan; a create or deploy always runs it. Missing for a
+/// server that is created (anew) or was never provisioned. Has changes for a server with changes
+/// or another configuration. Up-to-date only for a server that stays as it is and has the label
+/// of this configuration
 fn provisioning_status(
     provisioned: Option<&str>,
     expected: &str,
@@ -890,13 +891,13 @@ fn provisioning_status(
     }
 }
 
-/// what the playbook writes onto the server, the values `ProvisionRun` hands it: a change of any
-/// of them is a change of the configuration
+/// the values `ProvisionRun` gives the playbook to write onto the server; a change of one of them
+/// is a change of the configuration
 fn config_text(
     name: &str,
     dns_mode: DnsMode,
     root_domain: &str,
-    api_token_sha256: &str,
+    api_public_key: &str,
     admin_email: &str,
     smtp: Option<&Smtp>,
     admin_password_hash: &str,
@@ -905,7 +906,7 @@ fn config_text(
         format!("name {name}"),
         format!("dns_mode {dns_mode}"),
         format!("root_domain {root_domain}"),
-        format!("api_token_sha256 {api_token_sha256}"),
+        format!("api_public_key {api_public_key}"),
         format!("admin_email {admin_email}"),
         format!("admin_password_hash {admin_password_hash}"),
     ];
@@ -919,9 +920,9 @@ fn config_text(
     lines.join("\n")
 }
 
-/// the password of an existing deployment, checked before anything of it is changed: against
-/// the hash on each of its resources, every one that carries it has to match; without a hash on
-/// any of them (created before every resource carried it), against the key derived from it
+/// checks the password of an existing deployment before anything changes: against the hash label
+/// on its resources, where every hash must match. Without a hash on a resource (created before
+/// every resource carried it), against the public client key
 fn verify_password(
     deployment: &DiscoveredDeployment,
     name: &str,
@@ -931,14 +932,14 @@ fn verify_password(
     check_password(&hashes, key, name, password)
 }
 
-/// where `config show` asks and with what: the api of the base domain on the labels of the
-/// deployment and the admin api token of the password. The password is checked first, so the token
-/// of a wrong password never leaves
+/// where `config show` asks and with which key: the api of the base domain on the labels of the
+/// deployment, and the api key of the password. sakctl checks the password first, so it signs
+/// nothing with the key of a wrong password
 fn config_endpoint(
     deployment: &DiscoveredDeployment,
     name: &str,
     password: &str,
-) -> Result<(String, String), String> {
+) -> Result<(String, crate::core::keys::ApiKey), String> {
     verify_password(deployment, name, password)?;
     let root_domain = deployment
         .root_domain()
@@ -949,13 +950,14 @@ fn config_endpoint(
         &root_domain,
     );
     let url = crate::core::config::api_url(&base);
-    let token = crate::core::keys::api_token(name, password)?;
-    Ok((url, token))
+    let key = crate::core::keys::api_key(name, password)?;
+    Ok((url, key))
 }
 
 /// a name as sakctl takes it, trimmed: 1 to MAX_NAME_LEN lower case letters, digits and dashes,
-/// what hetzner and dns take with the prefix and suffix of the cloud names. The one check of a
-/// name, the window asks it when the field is left; a wrong name is a usage error (`EXIT_USAGE`)
+/// so hetzner and dns take it with the prefix and suffix of the cloud names. The only check of a
+/// name; the window calls it when the user leaves the field. A wrong name is a usage error
+/// (`EXIT_USAGE`)
 pub fn checked_name(name: &str) -> Result<&str, WizardError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
@@ -968,7 +970,7 @@ pub fn checked_name(name: &str) -> Result<&str, WizardError> {
 }
 
 /// what a password can be checked against: the password hashes on the resources and the public
-/// key of the ssh key; both empty for a deployment of which only unlabeled resources are left
+/// key of the ssh key. Both are empty when only resources without labels are left
 fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&str>) {
     let mut labels = Vec::new();
     labels.extend(deployment.server.iter().map(|server| &server.labels));
@@ -992,8 +994,9 @@ fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&s
     (hashes, key)
 }
 
-/// `hashes` the password hashes found on the resources, `key` the public key of the ssh key. With
-/// neither, no password can be told from another: refused, rather than taking every password
+/// `hashes` are the password hashes on the resources, `key` is the public key of the ssh key.
+/// When there is no hash and no key, sakctl cannot check the password and refuses it, so it does
+/// not take every password
 fn check_password(
     hashes: &[String],
     key: Option<&str>,
@@ -1023,8 +1026,9 @@ fn failed(provider: ProviderType, error: impl ToString) -> String {
     message("deployments.failed", provider, error)
 }
 
-/// a failure of the provider while planning, creating or destroying: a resource of a declared
-/// name that belongs to someone else has an exit code of its own, nothing of it was changed
+/// a failure of the provider in a plan or an apply. A resource of a declared name that belongs
+/// to someone else, and a resource that must stay but would be created anew, each have an exit
+/// code of their own; nothing of them was changed
 fn cloud_failure(key: &str, provider: ProviderType, error: sak_cloud::api::Error) -> WizardError {
     match error {
         sak_cloud::api::Error::NotOwned { .. } => WizardError::new(
@@ -1039,15 +1043,14 @@ fn cloud_failure(key: &str, provider: ProviderType, error: sak_cloud::api::Error
     }
 }
 
-/// a message about the provider: `key` names what failed, listing, planning or creating
+/// a message about the provider: `key` names what failed (list, plan, apply)
 fn message(key: &str, provider: ProviderType, error: impl ToString) -> String {
     t!(key, provider = provider.name(), error = error.to_string()).to_string()
 }
 
-/// manages the sak deployments at the providers: finds them by the name label and diffs
-/// them against the resource group a deployment consists of, plans and creates new ones.
-/// The tokens come from the provider tokens of the app at every call, a token added later
-/// counts right away
+/// manages the sak deployments at the providers: finds them by the name label, diffs them
+/// against the resource group of a deployment, plans and applies a create, deploy or destroy.
+/// Every call gets the provider tokens, so a token added later counts immediately
 #[derive(Default)]
 pub struct DeploymentManager;
 
@@ -1082,11 +1085,11 @@ impl DeploymentManager {
         Ok(deployments)
     }
 
-    /// what a deploy of an existing deployment can take from it, the window and the command line
-    /// alike: the user mode on its labels and, for multiple users, the admin and the mail server of
-    /// its running configuration (read with the admin api token of the password). A deployment
-    /// without the label is multi user when its backend has a mail server. Nothing that cannot be
-    /// read: a deployment that is not running gives only its label
+    /// the settings a deploy can take from an existing deployment, for the window and the command
+    /// line: the user mode on its labels and, for multi user, the admin and the mail server of its
+    /// running configuration (read with a request signed with the api key). A deployment without
+    /// the label is multi user when its backend has a mail server. A deployment that does not
+    /// answer gives only its label
     pub async fn detected(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1108,7 +1111,7 @@ impl DeploymentManager {
             .find(|deployment| deployment.name == name)
             .and_then(|deployment| deployment.user_mode())
             .and_then(|mode| UserMode::parse(&mode));
-        // a single user deployment has nothing more to tell
+        // a single user deployment has no more settings
         let running = match label {
             Some(UserMode::Single) => None,
             _ => self
@@ -1120,9 +1123,9 @@ impl DeploymentManager {
         Ok(detect(label, running.as_ref()))
     }
 
-    /// the running configuration of a deployment, read from its backend at `api.<base domain>`
-    /// with the admin api token of the password; the password is checked against the deployment
-    /// first
+    /// the api url and the running configuration of a deployment, read from its backend at
+    /// `api.<base domain>` with a request signed with the api key. sakctl checks the password
+    /// against the deployment first
     pub async fn running_config(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1143,13 +1146,13 @@ impl DeploymentManager {
             .into_iter()
             .find(|deployment| deployment.name == name)
             .ok_or_else(|| t!("deployments.not_found", name = name).to_string())?;
-        let (url, token) = config_endpoint(&deployment, name, password)?;
+        let (url, key) = config_endpoint(&deployment, name, password)?;
         let trust = deployment
             .acme_ca()
             .and_then(|ca| AcmeCa::parse(&ca))
             .unwrap_or_default()
             .trust();
-        let config = crate::core::config::fetch(&url, &token, trust).await?;
+        let config = crate::core::config::fetch(&url, &key, trust).await?;
         Ok((url, config))
     }
 
@@ -1180,10 +1183,11 @@ impl DeploymentManager {
             .collect())
     }
 
-    /// checks the name (one no deployment of the project carries yet) and the
-    /// password (long enough, typed twice the same) and, but for a destroy, the root domain
-    /// (a zone of the project the dns mode is possible in), derives the ssh key and the
-    /// password hash and lays out the resource group at the first hetzner project
+    /// checks the name (free for a create, an existing deployment for a deploy), the password
+    /// (long enough, the same two times, hard to guess for a create, the one of the deployment
+    /// otherwise) and, but for a destroy, the root domain (a zone of the project that allows the
+    /// dns mode). Then derives the keys and labels and lays out the resource group at the first
+    /// hetzner project
     pub async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1213,8 +1217,8 @@ impl DeploymentManager {
         if password != password_repeat {
             return Err(t!("deployments.password_mismatch").to_string().into());
         }
-        // a new password has to hold out against guessing: the label and the public keys of the
-        // deployment let whoever reads the project try guesses offline
+        // a new password must be hard to guess: whoever reads the project can try guesses offline
+        // against the label and the public keys of the deployment
         if intent == Intent::Create
             && let Some(hint) = crate::core::keys::weak_password(name, password)
         {
@@ -1234,14 +1238,14 @@ impl DeploymentManager {
             .map_err(|error| failed(provider, error))?
             .into_iter()
             .find(|deployment| deployment.name == name);
-        // the user mode given, else the one the deployment carries (a deploy keeps it)
+        // the user mode given, else the one on the deployment (a deploy keeps it)
         let user_mode = user_mode.or_else(|| {
             existing
                 .as_ref()
                 .and_then(DiscoveredDeployment::user_mode)
                 .and_then(|mode| UserMode::parse(&mode))
         });
-        // the acme ca given, else the deployment's own, else production
+        // the acme ca given, else the one of the deployment, else production
         let acme_ca = acme_ca
             .or_else(|| {
                 existing
@@ -1250,7 +1254,7 @@ impl DeploymentManager {
                     .and_then(|ca| AcmeCa::parse(&ca))
             })
             .unwrap_or_default();
-        // multi user needs the mail server and the admin's address, single user takes neither
+        // multi user needs the mail server and the address of the admin, single user uses neither
         let (smtp, admin_email) = match (intent, user_mode) {
             (Intent::Destroy, _) => (None, None),
             (_, None) => return Err(t!("deployments.no_user_mode").to_string().into()),
@@ -1281,7 +1285,8 @@ impl DeploymentManager {
         )?;
         let runtime =
             HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
-        // one look at the zones: the root domains, the records of the deployment, those in the way
+        // one read of the zones gives the root domains, the records of the deployment and the
+        // records in the way
         let listings = runtime
             .dns_zones()
             .list_all()
@@ -1301,7 +1306,7 @@ impl DeploymentManager {
             (Intent::Deploy, None) => {
                 return Err(t!("deployments.not_found", name = name).to_string().into());
             }
-            // destroyed already, but for records left of it: its password checked against them
+            // destroyed already, maybe with records left: check the password against them
             (Intent::Destroy, None) => {
                 let hashes: Vec<String> = records
                     .iter()
@@ -1312,8 +1317,8 @@ impl DeploymentManager {
             }
             (Intent::Deploy | Intent::Destroy, Some(existing)) => {
                 verify_password(&existing, name, password)?;
-                // where the deployment is: its server, volume or addresses never move, the given
-                // location counts only when none of them exists
+                // the location of the deployment: its server, volume and addresses never move, so
+                // the given location counts only when none of them exists
                 existing
                     .location()
                     .map_err(|resources| {
@@ -1346,8 +1351,7 @@ impl DeploymentManager {
         let host_key = crate::core::keys::derive_host_key(name, password)?;
         let public_key = client_key.public_key();
         let password_hash = crate::core::keys::password_hash(name, password)?;
-        let api_token_sha256 =
-            crate::core::keys::api_token_sha256(&crate::core::keys::api_token(name, password)?);
+        let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
         let mut spec = DeploymentSpec::new(
             name,
             &public_key,
@@ -1360,7 +1364,7 @@ impl DeploymentManager {
         if let Some(root_domain) = &root_domain {
             spec = spec.with_root_domain(root_domain);
         }
-        // on every resource, so a deploy keeps it
+        // the user mode on every resource, so a deploy keeps it
         if intent != Intent::Destroy
             && let Some(user_mode) = user_mode
         {
@@ -1371,7 +1375,7 @@ impl DeploymentManager {
         }
         spec.user_data = user_data(&host_key);
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
-        // a name of the deployment that another owner uses, with a record of any type, stops it
+        // a record of another owner, of any type, on a name of the deployment stops the apply
         // here, before anything is created
         let in_the_way = foreign_records(&listings, &spec);
         if intent != Intent::Destroy && !in_the_way.is_empty() {
@@ -1393,7 +1397,7 @@ impl DeploymentManager {
             stale_records,
             client_key,
             host_key,
-            api_token_sha256,
+            api_public_key,
             admin_email,
             admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
             smtp,
@@ -1408,7 +1412,7 @@ impl DeploymentManager {
         Ok(prepared)
     }
 
-    /// what creating the deployment would do: its resources diffed against the project
+    /// prepares the deployment and plans it: its resources diffed against the project
     pub async fn plan(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1464,7 +1468,7 @@ impl DeploymentManager {
                         ),
                         status: diff.status,
                         keep,
-                        // everything goes on a destroy, what would change is of no interest
+                        // a destroy removes everything, so the changes are of no interest
                         changes: match deployment.intent {
                             Intent::Destroy => Vec::new(),
                             Intent::Create | Intent::Deploy => diff
@@ -1486,8 +1490,7 @@ impl DeploymentManager {
                     keep: false,
                     changes: Vec::new(),
                 }))
-                // a create or deploy provisions the server after its resources, unless it is
-                // provisioned with this configuration already
+                // a create or deploy provisions the server after its resources
                 .chain((deployment.intent != Intent::Destroy).then(|| {
                     let server = prepared.spec.resource_name();
                     let server = diffs.iter().find(|diff| diff.resource.name == server);
@@ -1515,13 +1518,13 @@ impl DeploymentManager {
         })
     }
 
-    /// creates or deploys the deployment: the resources applied in the order of their
-    /// dependencies, each reported to `on_event` as it is taken up and done, then the server
-    /// provisioned with ansible in the image of the tools, every line it prints reported too.
-    /// What exists already is left as it is, so a run that failed half way is finished by the
-    /// next. The dns records of the old dns mode or root domain go after the apply. A destroy
-    /// removes the dns records of the deployment, then every resource but the data volume
-    /// (that too with `delete_data`), dependents first
+    /// prepares the deployment and applies it. A create or deploy applies the resources in the
+    /// order of their dependencies, then removes the dns records of an old dns mode or root domain.
+    /// Then ansible provisions the server, sakctl waits for the api and sets the provisioned-config
+    /// label. Each resource, line and task goes to `on_event`. What is up-to-date stays as it is,
+    /// so the next run finishes a run that failed. A destroy removes the dns records of the
+    /// deployment, then every resource but the data volume (also that with `delete_data`),
+    /// dependents first
     pub async fn create(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1533,7 +1536,7 @@ impl DeploymentManager {
         self.apply(prepared, deployment, container, on_event).await
     }
 
-    /// creates, deploys or destroys a deployment prepared already, as `create`
+    /// applies a deployment prepared already, as `create` does
     pub async fn apply(
         &self,
         prepared: Prepared,
@@ -1601,7 +1604,7 @@ impl DeploymentManager {
                 cloud_failure("deployments.create_failed", prepared.provider, error)
             })?;
 
-        // what came out of it: the server's address and the device of its data volume
+        // the result: the address of the server and the device of its data volume
         let created = discover(&prepared.runtime.api)
             .await
             .map_err(|error| failed(prepared.provider, error))?
@@ -1612,16 +1615,15 @@ impl DeploymentManager {
             .server
             .as_ref()
             .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
-        // provisioned with this configuration already, by the label as the server has it now: a
-        // server created anew or with changed labels has none
-        // the provisioning as the plan names it, its events carry it; a deploy always runs the
-        // playbook, so the server is as the deployment declares it whatever happened to it
+        // the provisioning as the plan names it, its events carry it. A deploy always runs the
+        // playbook, so the server is as the deployment declares it, whatever happened to it
         let resource = t!("provision.resource", name = prepared.spec.resource_name()).to_string();
         let server_id = server.id;
         let provider = prepared.provider;
         let api = prepared.runtime.api.clone();
         let provisioned_config = prepared.provisioned_config.clone();
-        // a run that fails or is stopped leaves no label, the next deploy runs the playbook again
+        // remove the label first: after a run that fails or is stopped the plan shows the
+        // provisioning as missing
         set_server_label(&api, server_id, PROVISIONED_CONFIG_LABEL, None)
             .await
             .map_err(|error| failed(prepared.provider, error))?;
@@ -1636,14 +1638,14 @@ impl DeploymentManager {
             .find(|volume| volume.name == volume_name)
             .map(|volume| volume.device.clone())
             .ok_or_else(|| t!("provision.no_volume", name = prepared.spec.name).to_string())?;
-        // the server just provisioned, where the wait for the deployment reaches it
+        // the server just provisioned; the wait for the api goes to this address
         let address = host.parse::<std::net::IpAddr>().ok();
         let run = ProvisionRun {
             name: prepared.spec.name.clone(),
             dns_mode: prepared.spec.dns_mode,
             // a create or deploy has one, prepare checked it
             root_domain: prepared.spec.root_domain.clone().unwrap_or_default(),
-            api_token_sha256: prepared.api_token_sha256.clone(),
+            api_public_key: prepared.api_public_key.clone(),
             // a create or deploy has them, prepare checked them
             admin_email: prepared.admin_email.clone().unwrap_or_default(),
             smtp: prepared.smtp.clone(),
@@ -1667,7 +1669,7 @@ impl DeploymentManager {
             )
             .to_string(),
         });
-        // ansible runs as a process of its own, its lines come through a channel while it does
+        // ansible runs as a process of its own; its lines come through a channel while it runs
         let runtime = container.clone();
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
         let provisioning = tokio::task::spawn_blocking(move || {
@@ -1702,8 +1704,8 @@ impl DeploymentManager {
             return Err(message.into());
         }
         on_event(CreateEvent::Provisioned { resource });
-        // done when the deployment answers where its users reach it: through its ingress, with
-        // its certificate; a backend that did not start, a certificate not to be had, stop it here
+        // done when the deployment answers as its users reach it: through its ingress, with its
+        // certificate. A backend that did not start or a missing certificate stops the apply here
         if let Some(root_domain) = &prepared.spec.root_domain {
             let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
                 &prepared.spec.name,
@@ -1733,8 +1735,8 @@ impl DeploymentManager {
         Ok(())
     }
 
-    /// removes the stale dns records of the deployment, each reported as it is taken up and
-    /// done
+    /// removes the stale dns records of the deployment and reports each when it starts and when
+    /// it is done
     async fn remove_records(
         &self,
         prepared: &Prepared,
@@ -1865,11 +1867,13 @@ mod tests {
             serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "subdomain" }),
         );
 
-        let (url, token) = config_endpoint(&domain, "alpha", password).unwrap();
+        let (url, key) = config_endpoint(&domain, "alpha", password).unwrap();
         assert_eq!(url, "https://api.pelle.io");
         assert_eq!(
-            token,
-            crate::core::keys::api_token("alpha", password).unwrap()
+            key.public_key(),
+            crate::core::keys::api_key("alpha", password)
+                .unwrap()
+                .public_key()
         );
         assert_eq!(
             config_endpoint(&subdomain, "alpha", password).unwrap().0,
@@ -1883,10 +1887,10 @@ mod tests {
             "a password of sixteen",
             serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }),
         );
-        // no address and no token come out of it, so nothing is sent anywhere
+        // no address and no key come out of it, so nothing is sent
         assert_eq!(
-            config_endpoint(&deployment, "alpha", "another password here"),
-            Err(t!("deployments.wrong_password", name = "alpha").to_string())
+            config_endpoint(&deployment, "alpha", "another password here").err(),
+            Some(t!("deployments.wrong_password", name = "alpha").to_string())
         );
     }
 
@@ -1895,8 +1899,8 @@ mod tests {
         let password = "a password of sixteen";
         let deployment = deployment_with(password, serde_json::json!({ DNS_MODE_LABEL: "domain" }));
         assert_eq!(
-            config_endpoint(&deployment, "alpha", password),
-            Err(t!("config.no_root_domain", name = "alpha").to_string())
+            config_endpoint(&deployment, "alpha", password).err(),
+            Some(t!("config.no_root_domain", name = "alpha").to_string())
         );
     }
 
@@ -1907,8 +1911,8 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            config_endpoint(&deployment, "alpha", "a password of sixteen"),
-            Err(t!("deployments.unverifiable", name = "alpha").to_string())
+            config_endpoint(&deployment, "alpha", "a password of sixteen").err(),
+            Some(t!("deployments.unverifiable", name = "alpha").to_string())
         );
     }
 
@@ -2173,7 +2177,7 @@ mod tests {
             "name alpha",
             "dns_mode domain",
             "root_domain pelle.io",
-            "api_token_sha256 abc",
+            "api_public_key abc",
             "admin_email admin@example.org",
             "admin_password_hash $argon2id$hash",
             "smtp_host smtp.example.org",

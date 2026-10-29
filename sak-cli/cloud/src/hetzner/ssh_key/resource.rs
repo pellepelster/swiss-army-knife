@@ -1,13 +1,12 @@
 use crate::api::{Labeled, Labels, Resource};
 use crate::hetzner::ssh_key::{HetznerSshKeyLookup, HetznerSshKeyRuntime};
 
-/// a public ssh key stored at hetzner, servers are created with it in root's
-/// authorized keys
+/// a public ssh key at hetzner; a server created with it has it in the authorized keys of
+/// root
 #[derive(Clone, Debug)]
 pub struct HetznerSshKey {
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     /// `ssh-ed25519 AAAA... comment`
     pub public_key: String,
@@ -29,7 +28,7 @@ impl HetznerSshKey {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

@@ -20,7 +20,7 @@ pub enum ServerStatus {
     Unknown,
 }
 
-/// a public address of a server, the primary ip behind it by id
+/// a public address of a server, with the id of its primary ip
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct PublicIp {
     pub id: Option<u64>,
@@ -70,7 +70,7 @@ impl Server {
     }
 }
 
-/// the public addresses a server is created with: existing primary ips by id, or new ones
+/// the public addresses of a new server: existing primary ips by id, or new ones that
 /// hetzner creates and deletes with the server
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct PublicNetCreate {
@@ -125,7 +125,7 @@ struct ServerResponse {
     server: Server,
 }
 
-/// the create answers with the server and the action creating it
+/// the answer to a create: the server and the action that creates it
 #[derive(Debug, Deserialize)]
 pub struct ServerCreated {
     pub server: Server,
@@ -167,7 +167,7 @@ impl ServersApi<'_> {
             .server)
     }
 
-    /// the action deleting the server, `None` when there is no such server
+    /// the action that deletes the server; `None` when the server does not exist
     pub async fn delete(&self, id: u64) -> Result<Option<Action>> {
         self.api.delete_with_action(&format!("servers/{id}")).await
     }
@@ -191,7 +191,7 @@ impl ServersApi<'_> {
         self.action(id, "poweron").await
     }
 
-    /// the hard way, like pulling the plug; `shutdown` asks the os
+    /// turns the power off at once; `shutdown` asks the os to stop
     pub async fn power_off(&self, id: u64) -> Result<Action> {
         self.action(id, "poweroff").await
     }

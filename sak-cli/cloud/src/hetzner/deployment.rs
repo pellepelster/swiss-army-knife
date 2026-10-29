@@ -1,5 +1,5 @@
-//! the sak deployments of a cloud project: everything carrying the name label, grouped by
-//! its value, and the state of each against the resource group a deployment consists of
+//! the sak deployments of a cloud project: all resources with the name label, grouped by its
+//! value, and the state of each deployment compared with its declared resource group
 
 use crate::api::{DiffStatus, Error, Labels, Lookup, Registry, Resource, ResourceDiff, Result};
 use crate::hetzner::api::zones::RRType;
@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use tracing::warn;
 
-/// what the cloud holds of a deployment: the resources labeled with its name
+/// the resources of a deployment in the cloud: the resources with its name label
 #[derive(Clone, Debug, Default)]
 pub struct DiscoveredDeployment {
     pub name: String,
@@ -45,20 +45,21 @@ impl DiscoveredDeployment {
         }
     }
 
-    /// the dns mode on its resources, the server's first; none when no resource carries one
-    /// (created before the dns mode was kept) or the value is unknown
+    /// the dns mode on its resources, the label of the server first; none when no resource has
+    /// it (created before the label) or the value is unknown
     pub fn dns_mode(&self) -> Option<DnsMode> {
         self.label(DNS_MODE_LABEL)
             .and_then(|value| DnsMode::parse(value))
     }
 
-    /// the root domain on its resources, the server's first; none when no resource carries one
+    /// the root domain on its resources, the label of the server first; none when no resource
+    /// has it
     pub fn root_domain(&self) -> Option<String> {
         self.label(ROOT_DOMAIN_LABEL).cloned()
     }
 
     /// the user mode on its resources, `single` or `multi`; none for a deployment created before
-    /// it was kept
+    /// the label
     pub fn user_mode(&self) -> Option<String> {
         self.label(USER_MODE_LABEL).cloned()
     }
@@ -68,8 +69,8 @@ impl DiscoveredDeployment {
         self.label(ACME_CA_LABEL).cloned()
     }
 
-    /// where its frontend is, `https://sak.<base domain>`; none without a root domain on its
-    /// resources, a deployment without a dns mode is a subdomain one
+    /// the url of its frontend, `https://sak.<base domain>`; none without a root domain on its
+    /// resources. Without a dns mode it uses `subdomain`
     pub fn frontend_url(&self) -> Option<String> {
         let root_domain = self.root_domain()?;
         let dns_mode = self.dns_mode().unwrap_or_default();
@@ -79,9 +80,9 @@ impl DiscoveredDeployment {
         ))
     }
 
-    /// where it is: the location of its server, else of its volumes, else of its primary ips;
-    /// none when it has none of them. Resources in different locations are an error that names
-    /// them, a deploy must not guess
+    /// the location of its server, else of its volumes, else of its primary ips; none without
+    /// them. Resources in different locations are an error that names them: a deploy must not
+    /// guess
     pub fn location(&self) -> std::result::Result<Option<Location>, String> {
         let mut found: Vec<(String, Location)> = Vec::new();
         found.extend(
@@ -112,7 +113,8 @@ impl DiscoveredDeployment {
         Ok(Some(*location))
     }
 
-    /// the value of `key` on the first of its resources that carries it
+    /// the value of `key` on the first of its resources that has it: the server, the ssh key,
+    /// the firewall, the primary ips, the volumes
     fn label(&self, key: &str) -> Option<&String> {
         let mut labels: Vec<&Labels> = Vec::new();
         labels.extend(self.server.iter().map(|server| &server.labels));
@@ -124,8 +126,8 @@ impl DiscoveredDeployment {
     }
 }
 
-/// a dns zone of the project, a root domain a deployment can use, with the deployments
-/// that use it already: every entry (the zone or one of its rrsets) labeled with a dns mode
+/// a dns zone of the project: a root domain that a deployment can use, with the deployments
+/// that use it. A use is an entry (the zone or one of its rrsets) with a dns mode label
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RootDomain {
     /// `pelle.io`
@@ -136,7 +138,7 @@ pub struct RootDomain {
 /// a deployment found on the entries of a root domain
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DomainUse {
-    /// the name on the entry, none for an entry with a dns mode but no name
+    /// the name label of the entry; none for an entry with a dns mode but no name
     pub name: Option<String>,
     pub dns_mode: DnsMode,
 }
@@ -144,11 +146,12 @@ pub struct DomainUse {
 /// why a deployment cannot use a root domain in a dns mode
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RootDomainConflict {
-    /// domain mode asked, another deployment manages the root domain in domain mode already
+    /// domain mode is requested, but another deployment manages the root domain in domain
+    /// mode
     DomainTaken { by: Vec<Option<String>> },
-    /// the mode asked is not the one other deployments use the root domain in: subdomain on
-    /// the root domain of a domain deployment (`used` domain), domain on one of subdomain
-    /// deployments (`used` subdomain)
+    /// other deployments use the root domain in the other mode: subdomain requested on the root
+    /// domain of a domain deployment (`used` domain), or domain requested on the root domain of
+    /// subdomain deployments (`used` subdomain)
     MixedModes {
         used: DnsMode,
         by: Vec<Option<String>>,
@@ -177,7 +180,7 @@ impl RootDomain {
         }
     }
 
-    /// the deployments other than `name` using the root domain in `dns_mode`
+    /// the deployments other than `name` that use the root domain in `dns_mode`
     fn others(&self, name: &str, dns_mode: DnsMode) -> Vec<Option<String>> {
         self.uses
             .iter()
@@ -186,9 +189,9 @@ impl RootDomain {
             .collect()
     }
 
-    /// whether the deployment `name` can use the root domain in `dns_mode`: a root domain has
-    /// one domain deployment or any number of subdomain deployments; what the deployment
-    /// itself left on it does not count, so it can be deployed again and change its mode
+    /// whether the deployment `name` can use the root domain in `dns_mode`. A root domain has
+    /// one domain deployment or any number of subdomain deployments. The entries of the
+    /// deployment itself do not count, so it can deploy again and change its mode
     pub fn check(
         &self,
         name: &str,
@@ -214,7 +217,7 @@ impl RootDomain {
         Ok(())
     }
 
-    /// the dns modes the deployment `name` can use the root domain in, none when another
+    /// the dns modes in which the deployment `name` can use the root domain; none when another
     /// deployment manages it in domain mode
     pub fn dns_modes(&self, name: &str) -> Vec<DnsMode> {
         DnsMode::ALL
@@ -224,15 +227,15 @@ impl RootDomain {
     }
 }
 
-/// a dns record of a deployment, found in a zone of the project by the name label
+/// a dns record of a deployment, found by its name label in a zone of the project
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeploymentRecord {
     pub lookup: HetznerDnsRecordLookup,
     pub labels: Labels,
 }
 
-/// the dns records labeled with the name `name`, in the zones of the project
-/// (`list_all` of the dns zones): only these are the deployment's to remove
+/// the dns records with the name label `name` in the zones of the project (`list_all` of the
+/// dns zones). The deployment can remove only these records
 pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec<DeploymentRecord> {
     let mut records = Vec::new();
     for listing in listings {
@@ -249,11 +252,10 @@ pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec
     records
 }
 
-/// the records in the way of the records of `spec`, as their log texts: every rrset at a name the
-/// deployment manages that lacks a label of its identity, whatever its type, so a name another
-/// owner uses stops the plan before anything is created. At the zone apex (`@`, domain mode) only
-/// those that cannot stand next to the records of the deployment (A, AAAA, CNAME): the others
-/// there (SOA, NS, MX, TXT, CAA, …) belong to the zone and stay
+/// the records that block the records of `spec`, as log texts: each rrset of any type at a name
+/// that the deployment manages and without a label of its identity. So a name of another owner
+/// stops the plan before anything is created. At the zone apex (`@`, domain mode) only A, AAAA
+/// and CNAME block; the others there (SOA, NS, MX, TXT, CAA, …) belong to the zone and stay
 pub fn foreign_records(listings: &[HetznerDnsZoneListing], spec: &DeploymentSpec) -> Vec<String> {
     let Some(root_domain) = &spec.root_domain else {
         return Vec::new();
@@ -284,9 +286,9 @@ pub fn foreign_records(listings: &[HetznerDnsZoneListing], spec: &DeploymentSpec
         .collect()
 }
 
-/// the records of `found` not among `declared`: all of them on a destroy, those of the old
-/// dns mode or root domain on a deploy. Only records that carry every label of `identity` (the
-/// name and the password hash) are the deployment's to remove
+/// the records of `found` that are not in `declared`: all of them on a destroy, those of the
+/// old dns mode or root domain on a deploy. Only records with every label of `identity` (the
+/// name and the password hash) are included
 pub fn stale_records(
     found: &[DeploymentRecord],
     declared: &[HetznerDnsRecord],
@@ -308,7 +310,7 @@ pub fn stale_records(
         .collect()
 }
 
-/// removes the records, each reported to `on_removed` with whether it was there still
+/// removes the records and reports each to `on_removed`, with `false` when it was gone
 pub async fn remove_records(
     provider: &HetznerProviderRuntime,
     records: &[HetznerDnsRecordLookup],
@@ -328,7 +330,8 @@ pub async fn remove_records(
     Ok(())
 }
 
-/// the root domains of the project: every dns zone with the deployments using it, by name
+/// the root domains of the project: every dns zone with the deployments that use it, sorted by
+/// name
 pub async fn root_domains(provider: &HetznerProviderRuntime) -> Result<Vec<RootDomain>> {
     Ok(provider
         .dns_zones()
@@ -339,8 +342,8 @@ pub async fn root_domains(provider: &HetznerProviderRuntime) -> Result<Vec<RootD
         .collect())
 }
 
-/// the domain the hosts of a deployment are below: the root domain in domain mode,
-/// `<name>.<root domain>` in subdomain mode
+/// the base domain of a deployment: the root domain in domain mode, `<name>.<root domain>` in
+/// subdomain mode
 pub fn base_domain(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
     match dns_mode {
         DnsMode::Domain => root_domain.to_string(),
@@ -349,14 +352,14 @@ pub fn base_domain(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
 }
 
 /// the host of the frontend of a deployment, `sak.<base domain>`, as the backend derives it
-/// (`SakConfig.frontendHost`); its api is `api.<base domain>`
+/// (`SakConfig.frontendHost`); the api is at `api.<base domain>`
 pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String {
     format!("sak.{}", base_domain(name, dns_mode, root_domain))
 }
 
-/// how dns is set up for a deployment: `domain` manages `<root domain>` and
+/// how sak sets up dns for a deployment: `domain` manages `<root domain>` and
 /// `*.<root domain>`, `subdomain` (the default) manages `<name>.<root domain>` and
-/// `*.<name>.<root domain>`; a root domain has one domain deployment or any number of
+/// `*.<name>.<root domain>`. A root domain has one domain deployment or any number of
 /// subdomain deployments (docs/fdr/FDR-001-dns-mode.md)
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
@@ -369,7 +372,7 @@ pub enum DnsMode {
 impl DnsMode {
     pub const ALL: [DnsMode; 2] = [DnsMode::Domain, DnsMode::Subdomain];
 
-    /// the value of the label and the command line, `domain` or `subdomain`
+    /// the value in the label and on the command line, `domain` or `subdomain`
     pub fn as_str(self) -> &'static str {
         match self {
             DnsMode::Domain => "domain",
@@ -388,8 +391,8 @@ impl fmt::Display for DnsMode {
     }
 }
 
-/// the deployments of the project, by name; a deployment has one server, ssh key and
-/// firewall, a second one with the same name label is left out with a warning
+/// the deployments of the project, sorted by name. A deployment has one server, ssh key and
+/// firewall; a second one with the same name label is left out with a warning
 pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     let query = ListQuery::new().label_exists(NAME_LABEL);
     let mut deployments: BTreeMap<String, DiscoveredDeployment> = BTreeMap::new();
@@ -446,7 +449,7 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     Ok(deployments.into_values().collect())
 }
 
-/// the deployment the labels belong to, created on first sight; none without the name label
+/// the deployment of the labels, added when it is not there yet; none without the name label
 fn of<'a>(
     deployments: &'a mut BTreeMap<String, DiscoveredDeployment>,
     labels: &Labels,
@@ -507,9 +510,9 @@ pub struct ResourceState {
     pub kind: ResourceKind,
     pub name: String,
     pub status: DiffStatus,
-    /// the changes, as they read in a diff
+    /// the changes, as log texts of the diff
     pub changes: Vec<String>,
-    /// what there is to know at a glance: the address of a server, the fingerprint of a key
+    /// a short summary, e.g. the address of a server or the fingerprint of a key (`detail`)
     pub detail: Option<String>,
 }
 
@@ -524,22 +527,22 @@ pub enum DeploymentStatus {
     Changed,
 }
 
-/// a deployment against the resource group it consists of
+/// a deployment compared with its declared resource group
 #[derive(Clone, Debug, Serialize)]
 pub struct DeploymentState {
     pub name: String,
     pub status: DeploymentStatus,
-    /// the location of the server, none without one
+    /// the location of the server, else of a volume or a primary ip; none without them
     pub location: Option<Location>,
-    /// the dns mode on its resources, none without one
+    /// the dns mode on its resources; none without it
     pub dns_mode: Option<DnsMode>,
     pub resources: Vec<ResourceState>,
 }
 
-/// the diff of a deployment: every resource a deploy declares (ssh key, data volume, primary
-/// ips, firewall, server and dns records), declared from the labels and the settings the
-/// deployment carries (`DeploymentSpec::declared_by`) and diffed like a plan does. What a deploy
-/// would create shows as missing, what it would change with its changes
+/// the diff of a deployment: every resource that a deploy declares (ssh key, data volume,
+/// primary ips, firewall, server and dns records), declared from the labels and settings of the
+/// deployment (`DeploymentSpec::declared_by`) and diffed as a plan does. What a deploy would
+/// create is missing; what it would change shows its changes
 pub async fn state(
     provider: &HetznerProviderRuntime,
     deployment: &DiscoveredDeployment,
@@ -578,7 +581,7 @@ pub async fn state(
     Ok(DeploymentState {
         name: deployment.name.clone(),
         status,
-        // the server's, else the volume's or the addresses'; the first when they disagree
+        // of the server, else of a volume or a primary ip; the first when they differ
         location: deployment
             .server
             .as_ref()
@@ -590,9 +593,9 @@ pub async fn state(
     })
 }
 
-/// what there is to know of a resource at a glance: the fingerprint of the key, the size of the
-/// volume, the address of a primary ip, the rules of the firewall, the type, location and address
-/// of the server
+/// a short summary of a resource: the fingerprint of the key, the size of the volume, the
+/// address of a primary ip, the number of firewall rules, the type, location and address of the
+/// server
 fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> Option<String> {
     match kind {
         ResourceKind::SshKey => deployment
@@ -654,8 +657,8 @@ fn resource_state(
     }
 }
 
-/// sets the label `key` of the server `id` to `value`, or removes it without one; every other label
-/// of the server stays as it is
+/// sets the label `key` of the server `id` to `value`, or removes it when `value` is `None`;
+/// the other labels of the server stay
 pub async fn set_server_label(
     api: &HetznerApi,
     id: u64,
@@ -684,24 +687,26 @@ pub async fn set_server_label(
     Ok(())
 }
 
-/// the cloud-init a deployment's server is created with, until the install of sak is there
+/// the cloud-init of a new spec; sakctl replaces it with the cloud-init that installs the host key
 pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
 
 /// the prefix of the cloud name of every resource of a deployment, `sak-<name>`
 pub const RESOURCE_PREFIX: &str = "sak-";
 
-/// the suffix of the data volume's cloud name, `sak-<name>-data`, the longest cloud name of a
-/// resource
+/// the suffix of the cloud name of the data volume, `sak-<name>-data`: the longest cloud name
+/// of a resource
 pub const DATA_VOLUME_SUFFIX: &str = "-data";
 
-/// the longest a dns label, and so a hostname, may be
+/// the maximum length of a dns label, and so of a hostname label
 pub const DNS_LABEL_LEN: usize = 63;
 
-/// the longest name: the longest cloud name, `sak-<name>-data`, stays a dns label
+/// the maximum length of a name, so that the longest cloud name, `sak-<name>-data`, is a dns
+/// label
 pub const MAX_NAME_LEN: usize = DNS_LABEL_LEN - RESOURCE_PREFIX.len() - DATA_VOLUME_SUFFIX.len();
 
-/// a name: 1 to MAX_NAME_LEN lower case letters, digits and dashes, a letter or digit at both
-/// ends, what hetzner takes as a name and dns as a label, also with the prefix and a suffix
+/// checks a name: 1 to MAX_NAME_LEN lower case letters, digits and dashes, with a letter or
+/// digit at both ends. Hetzner accepts it as a name and dns as a label, also with the prefix
+/// and a suffix
 pub fn check_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
         && name.len() <= MAX_NAME_LEN
@@ -719,33 +724,33 @@ pub fn check_name(name: &str) -> Result<()> {
     }
 }
 
-/// what a deployment consists of, as the wizard creates it: an ssh key, a data volume, a
-/// primary ipv4 and ipv6, a firewall and the server made of them, every one labeled with
-/// the name
+/// the resources of a deployment, as sakctl creates them: an ssh key, a data volume, a primary
+/// ipv4 and ipv6, a firewall, the server made of them and its dns records, each with the name
+/// label
 #[derive(Clone, Debug)]
 pub struct DeploymentSpec {
     pub name: String,
-    /// the public key the server is created with, `ssh-ed25519 ...`
+    /// the public key of the new server, `ssh-ed25519 ...`
     pub public_key: String,
     pub location: Location,
     pub server_type: ServerType,
     pub image: String,
     pub data_volume_gb: u64,
     pub user_data: String,
-    /// on every resource, how dns is set up for the deployment
+    /// on every resource, how sak sets up dns for the deployment
     pub dns_mode: DnsMode,
-    /// on every resource, the dns zone the deployment's names are in; none for a destroy
+    /// on every resource, the dns zone of the names of the deployment; none for a destroy
     pub root_domain: Option<String>,
     /// on every resource, who signs in (`single`, `multi`); none for a destroy
     pub user_mode: Option<String>,
     /// on every resource, the acme ca of the certificates (`staging`); none for the default
     pub acme_ca: Option<String>,
-    /// on every resource, for the wizard to check a password against
+    /// on every resource; sakctl checks a password against it
     pub password_hash: Option<String>,
-    /// on every resource, next to the name label
+    /// on every resource, with the name label
     pub labels: Labels,
-    /// the hash of the user data instead of the user data itself, for a spec declared from a
-    /// server that exists (`declared_by`)
+    /// the hash of the user data instead of the text, for a spec declared from an existing
+    /// server (`declared_by`)
     pub user_data_hash: Option<String>,
 }
 
@@ -775,9 +780,9 @@ impl DeploymentSpec {
         })
     }
 
-    /// the spec a deployment was deployed with, as far as its resources tell: its key, location,
-    /// server type, image, volume size, user data and the dns mode, root domain and password hash
-    /// on its labels. What none of its resources tells takes the default of a new deployment
+    /// the spec of a deployment, as far as its resources tell: its key, location, server type,
+    /// image, volume size, user data hash, and the dns mode, root domain, user mode, acme ca and
+    /// password hash on its labels. The rest has the default of a new deployment
     pub fn declared_by(deployment: &DiscoveredDeployment) -> Result<Self> {
         let server = deployment.server.as_ref();
         let location = deployment
@@ -848,15 +853,16 @@ impl DeploymentSpec {
         self
     }
 
-    /// the labels every resource carries: the name label and the extra ones
+    /// the labels of every resource: the name label and `labels`
     pub fn labels(&self) -> Labels {
         let mut labels = self.labels.clone();
         labels.insert(NAME_LABEL.to_string(), self.name.clone());
         labels
     }
 
-    /// the labels a resource carries: those of `labels`, the dns mode, the root domain and the
-    /// password hash; the firewall selects its servers by `labels` alone
+    /// the labels of a resource: those of `labels()`, the dns mode, the user mode, the acme ca,
+    /// the root domain and the password hash. The firewall selects its servers by `labels()`
+    /// alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
@@ -875,8 +881,8 @@ impl DeploymentSpec {
         labels
     }
 
-    /// the cloud name of the deployment's resources, `sak-<name>`; the volume and the primary
-    /// ips add what they are, `sak-<name>-data`
+    /// the cloud name of the resources of the deployment, `sak-<name>`; the volume and the
+    /// primary ips add a suffix, e.g. `sak-<name>-data`
     pub fn resource_name(&self) -> String {
         format!("{RESOURCE_PREFIX}{}", self.name)
     }
@@ -949,8 +955,8 @@ impl DeploymentSpec {
         }
     }
 
-    /// an A record to the primary ipv4 and an AAAA record to the primary ipv6 for each
-    /// managed name, in the root domain; none without a root domain
+    /// for each managed name in the root domain, an A record to the primary ipv4 and an AAAA
+    /// record to the primary ipv6; none without a root domain
     pub fn dns_records(&self) -> Vec<HetznerDnsRecord> {
         let Some(root_domain) = &self.root_domain else {
             return Vec::new();
@@ -977,9 +983,9 @@ impl DeploymentSpec {
             .collect()
     }
 
-    /// what identifies a resource of the deployment: the name and the password hash. Every
-    /// resource carries them as labels and as identity, so a lookup refuses a resource of the
-    /// name without them, and the registries destroy nothing else
+    /// the identity of a resource of the deployment: the name and the password hash. Every
+    /// resource has them as labels and as identity, so a lookup refuses a resource of the name
+    /// without them and the registries destroy no other resource
     pub fn identity(&self) -> Labels {
         let mut identity = Labels::from([(NAME_LABEL.to_string(), self.name.clone())]);
         if let Some(hash) = &self.password_hash {
@@ -989,10 +995,10 @@ impl DeploymentSpec {
     }
 
     /// the resource group with its dns records in a registry of the provider, ready to diff
-    /// and apply. Only the server and the ssh key may be created anew (the key holds nothing,
-    /// a new key needs a new server anyway); the data volume and the primary ips never are, a
-    /// change that would need it stops the plan (`RecreateRefused`). A recreate removes only
-    /// resources with the identity of the deployment
+    /// and apply. Only the server and the ssh key are recreatable (the key holds no data, and a
+    /// new key needs a new server). A change that needs a recreate of the data volume or a
+    /// primary ip stops the plan (`RecreateRefused`). A recreate removes only resources with
+    /// the identity of the deployment
     pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
         let mut registry = provider
             .registry()
@@ -1011,9 +1017,9 @@ impl DeploymentSpec {
         Ok(registry)
     }
 
-    /// what a destroy removes: the resource group, the data volume only with `delete_data`, each
-    /// only with the identity of the deployment; the dns records are found by their labels
-    /// instead (`deployment_records`, `stale_records`)
+    /// what a destroy removes: the resource group, the data volume only with `delete_data`,
+    /// each only with the identity of the deployment. The dns records are not in it; they are
+    /// found by their labels (`deployment_records`, `stale_records`)
     pub fn destroy_registry(
         &self,
         provider: &HetznerProviderRuntime,
@@ -1134,7 +1140,7 @@ mod tests {
             HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
         let deployments = discover(&api).await.unwrap();
 
-        // beta has only its ssh key: everything else a deploy declares shows as missing
+        // beta has only its ssh key: all other resources that a deploy declares are missing
         let beta = state(&provider, &deployments[1]).await.unwrap();
         assert_eq!(beta.status, DeploymentStatus::Incomplete);
         let resources: Vec<(ResourceKind, &str, DiffStatus)> = beta
@@ -1234,7 +1240,7 @@ mod tests {
 
         let alpha = state(&provider, &deployments[0]).await.unwrap();
 
-        // the server shows that it was created with another key
+        // the labels of the server show that it was created with another key
         assert_eq!(
             alpha.status,
             DeploymentStatus::Changed,
@@ -1302,7 +1308,7 @@ mod tests {
         );
     }
 
-    /// the zone pelle.io with rrsets of the name, type and labels given
+    /// the zone pelle.io with rrsets of the given name, type and labels
     fn zone_with(rrsets: &[(&str, &str, Labels)]) -> Vec<HetznerDnsZoneListing> {
         vec![HetznerDnsZoneListing {
             zone: crate::hetzner::dns_zone::HetznerDnsZoneRuntime {
@@ -1335,7 +1341,7 @@ mod tests {
             .with_dns_mode(DnsMode::Subdomain)
             .with_root_domain("pelle.io")
             .with_password_hash("abc");
-        // of another owner at the names of the deployment: whatever the type, it stops the plan
+        // a record of another owner at a name of the deployment stops the plan, of any type
         for rr_type in ["CNAME", "MX", "TXT", "A"] {
             assert_eq!(
                 foreign_records(&zone_with(&[("www", rr_type, Labels::new())]), &subdomain),
@@ -1347,7 +1353,7 @@ mod tests {
             foreign_records(&zone_with(&[("*.www", "TXT", Labels::new())]), &subdomain).len(),
             1
         );
-        // the deployment's own records, and names it does not manage, are in nobody's way
+        // the records of the deployment itself and the names it does not manage do not block
         let own = subdomain.identity();
         assert!(
             foreign_records(
@@ -1356,7 +1362,7 @@ mod tests {
             )
             .is_empty()
         );
-        // a record with the name of the deployment but another password is someone else's
+        // a record with the name of the deployment but another password hash is not its own
         let mut other = own.clone();
         other.insert(PASSWORD_HASH_LABEL.to_string(), "xyz".to_string());
         assert_eq!(
@@ -1364,8 +1370,8 @@ mod tests {
             1
         );
 
-        // domain mode: the zone keeps its own records at the apex, a CNAME or an address there
-        // of another owner stops the plan
+        // domain mode: the zone keeps its own records at the apex; a CNAME or an address record
+        // of another owner there stops the plan
         let domain = subdomain.clone().with_dns_mode(DnsMode::Domain);
         let apex = zone_with(&[
             ("@", "SOA", Labels::new()),
@@ -1384,7 +1390,7 @@ mod tests {
         );
     }
 
-    /// labels of an entry: the dns mode and, when given, the name
+    /// the labels of an entry: the dns mode and, when given, the name
     fn entry(name: Option<&str>, mode: &str) -> Labels {
         let mut labels = Labels::from([(DNS_MODE_LABEL.to_string(), mode.to_string())]);
         if let Some(name) = name {
@@ -1472,16 +1478,16 @@ mod tests {
 
     #[test]
     fn the_entries_of_the_deployment_itself_do_not_count() {
-        // deployed again in domain mode, or changed to subdomain
+        // a deploy again in domain mode, or a change to subdomain
         let own_domain = domain(Labels::new(), vec![entry(Some("alpha"), "domain")]);
         assert_eq!(
             own_domain.dns_modes("alpha"),
             vec![DnsMode::Domain, DnsMode::Subdomain]
         );
-        // the only subdomain deployment changes to domain
+        // the only subdomain deployment can change to domain
         let own_subdomain = domain(Labels::new(), vec![entry(Some("alpha"), "subdomain")]);
         assert_eq!(own_subdomain.check("alpha", DnsMode::Domain), Ok(()));
-        // with another subdomain deployment next to it, it cannot
+        // with another subdomain deployment on the root domain, it cannot
         let shared = domain(
             Labels::new(),
             vec![
@@ -1578,7 +1584,7 @@ mod tests {
             spec.firewall().applied_to_labels.get(ROOT_DOMAIN_LABEL),
             None
         );
-        // without one, no label
+        // without a root domain, no label
         let without = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
         assert_eq!(without.server().labels.get(ROOT_DOMAIN_LABEL), None);
 
@@ -1634,7 +1640,7 @@ mod tests {
                 "dns record '*.alpha.pelle.io/AAAA'",
             ]
         );
-        // to the primary ips, by their name and the identity of the deployment
+        // the records point to the primary ips, by their name and the identity of the deployment
         assert_eq!(
             subdomain[0].values,
             vec![RecordValue::PrimaryIp(
@@ -1672,7 +1678,7 @@ mod tests {
             record("@", "pelle.io", &identity),
             record("alpha", "pelle.io", &identity),
             record("alpha", "example.com", &identity),
-            // the name label alone, or another password hash: not the deployment's to remove
+            // only the name label, or another password hash: the deployment does not remove these
             record(
                 "www",
                 "pelle.io",
@@ -1690,7 +1696,7 @@ mod tests {
             stale,
             vec![found[0].lookup.clone(), found[2].lookup.clone()]
         );
-        // a destroy declares none, everything with the identity goes
+        // a destroy declares no records: every record with the identity is stale
         assert_eq!(stale_records(&found, &[], &identity).len(), 3);
     }
 
@@ -1746,7 +1752,7 @@ mod tests {
             assert_eq!(Lookup::identity(&record.as_lookup()), &identity);
             assert_eq!(record.labels[PASSWORD_HASH_LABEL], "abc");
         }
-        // the server refers to its key, volume and addresses with the identity too
+        // the server also refers to its key, volume and addresses with the identity
         let server = spec.server();
         assert!(
             server
@@ -1754,13 +1760,13 @@ mod tests {
                 .iter()
                 .all(|key| Lookup::identity(key) == &identity)
         );
-        // without a password hash the name alone
+        // without a password hash, the identity is the name alone
         let unhashed = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
         assert_eq!(unhashed.identity().len(), 1);
     }
 
-    /// a project with an unlabeled `web` server, ssh key, firewall, data volume and primary ips,
-    /// all protected where hetzner allows it: none of it created by a deployment
+    /// a project with a `web` server, ssh key, firewall, data volume and primary ips without
+    /// labels, protected where hetzner allows it: no deployment created them
     async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
         let volume = json!({
             "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
@@ -1789,7 +1795,7 @@ mod tests {
         .await
     }
 
-    /// what the mock was asked to change: every request but a read
+    /// the requests to the mock that change something: all requests except reads
     async fn writes(server: &wiremock::MockServer) -> Vec<String> {
         server
             .received_requests()
@@ -1823,7 +1829,7 @@ mod tests {
             matches!(&error, Error::NotOwned { resource, .. } if resource == "server 'sak-web'"),
             "{error}"
         );
-        // neither deleted nor unprotected, detached or unassigned
+        // nothing was deleted, unprotected, detached or unassigned
         assert_eq!(writes(&mock).await, Vec::<String>::new());
     }
 
@@ -1844,7 +1850,7 @@ mod tests {
             "{error}"
         );
         assert_eq!(writes(&mock).await, Vec::<String>::new());
-        // nor does an apply take it over
+        // an apply does not take it over either
         let mut registry = web().registry(&provider).unwrap();
         assert!(matches!(
             registry.apply_all().await,
@@ -1883,8 +1889,8 @@ mod tests {
 
     #[tokio::test]
     async fn a_deploy_recreates_the_server_but_never_the_data_volume_or_the_addresses() {
-        // the deployment in nbg1, declared in hel1: the server and the key may follow, the
-        // volume and the addresses never
+        // the deployment is in nbg1 and declared in hel1: the server and the key can be
+        // recreated, the volume and the addresses cannot
         let labeled = || json!({ NAME_LABEL: "web", PASSWORD_HASH_LABEL: "any-password-hash" });
         let volume = json!({
             "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
@@ -1940,10 +1946,10 @@ mod tests {
         assert_eq!(deployment.location(), Ok(None));
         deployment.primary_ips = vec![ip("nbg1").into()];
         assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
-        // the server gone, the volume tells
+        // without a server, the volume gives the location
         deployment.volumes = vec![volume.into()];
         assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
-        // resources in two locations: no guess
+        // resources in two locations: an error, no guess
         deployment.primary_ips = vec![ip("hel1").into()];
         assert_eq!(
             deployment.location(),
@@ -1983,7 +1989,7 @@ mod tests {
         );
         assert_eq!(kept.len(), 5);
         assert!(deleted.contains(&"volume 'sak-alpha-data'".to_string()));
-        // the records are no part of it, they are found by their labels
+        // the records are not in it; they are found by their labels
         assert!(
             !deleted
                 .iter()
@@ -2007,7 +2013,7 @@ mod tests {
         let key = |labels: Value| -> crate::hetzner::api::ssh_keys::SshKey {
             serde_json::from_value(key(7, "alpha", labels)).unwrap()
         };
-        // without a dns mode on the resources, a subdomain deployment
+        // without a dns mode on the resources, the deployment uses subdomain
         deployment.ssh_key =
             Some(key(json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io" })).into());
         assert_eq!(
@@ -2027,7 +2033,7 @@ mod tests {
     #[test]
     fn a_name_is_a_lower_case_hostname_label_short_enough_for_its_resources() {
         assert!(check_name("alpha-1").is_ok());
-        // sak-<name>-data is 63 characters, the longest a dns label may be
+        // then sak-<name>-data has 63 characters, the maximum length of a dns label
         assert_eq!(MAX_NAME_LEN, 54);
         assert!(check_name(&"a".repeat(MAX_NAME_LEN)).is_ok());
         for name in [
@@ -2079,9 +2085,9 @@ mod tests {
             assert_eq!(labels[PASSWORD_HASH_LABEL], "abc");
             assert_eq!(labels[DNS_MODE_LABEL], "subdomain");
         }
-        // nor by the dns mode, a change of it leaves the firewall on its servers
+        // not by the dns mode: a change of it keeps the firewall on its servers
         assert_eq!(spec.firewall().applied_to_labels.get(DNS_MODE_LABEL), None);
-        // the firewall selects the servers by name, not by the hash
+        // not by the password hash: the firewall selects the servers by the name
         assert_eq!(
             spec.firewall().applied_to_labels.get(PASSWORD_HASH_LABEL),
             None

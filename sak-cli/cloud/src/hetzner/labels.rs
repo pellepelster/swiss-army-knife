@@ -2,10 +2,11 @@ use crate::api::error::{Error, Result};
 use crate::api::resource::Labels;
 use sha2::{Digest, Sha256};
 
-/// a hetzner label value holds at most 63 characters, longer values are chunked across
-/// indexed keys: `key_0`, `key_1`
+/// separates a key from the index of a chunk: `key_0`, `key_1`
 const DELIMITER: char = '_';
 
+/// the length of a chunk; a hetzner label value has at most 63 characters, a value of this
+/// length or longer is chunked
 const MAX_VALUE_LENGTH: usize = 62;
 
 const MAX_TOTAL_VALUE_LENGTH: usize = MAX_VALUE_LENGTH * 2;
@@ -15,13 +16,13 @@ pub fn sha256_hex(value: &str) -> String {
 }
 
 /// how many hex characters of a sha256 a hash label keeps: 240 of its 256 bits, so the hash fits
-/// one label value and is never chunked
+/// in one label value
 pub const LABEL_HASH_LEN: usize = 60;
 
 // a hash label is never chunked
 const _: () = assert!(LABEL_HASH_LEN < MAX_VALUE_LENGTH);
 
-/// the sha256 of `value` cut to LABEL_HASH_LEN, what a hash label holds (user data, ssh key
+/// the sha256 of `value` cut to LABEL_HASH_LEN: the value of a hash label (user data, ssh key
 /// fingerprints)
 pub fn label_hash(value: &str) -> String {
     let mut hash = sha256_hex(value);
@@ -38,10 +39,10 @@ pub struct HashComparison {
     pub actual: Option<String>,
 }
 
-/// the labels of a hetzner resource with values longer than a label allows: those are
-/// chunked across indexed keys when stored and reassembled when read. A hash label fits one
-/// value (`label_hash`); servers labeled before the hash was cut carry all 64 characters of
-/// it in two chunks
+/// the labels of a hetzner resource. A value longer than a label allows is chunked across
+/// indexed keys when stored and joined again when read. A hash label fits one value
+/// (`label_hash`); a server labeled before the hash was cut has all 64 characters in two
+/// chunks
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HetznerLabels {
     raw: Labels,
@@ -66,7 +67,7 @@ impl HetznerLabels {
         self.raw
     }
 
-    /// the labels with the chunks reassembled
+    /// the labels with the chunks joined
     pub fn labels(&self) -> Labels {
         let mut labels = Labels::new();
         for (key, value) in &self.raw {
@@ -78,7 +79,7 @@ impl HetznerLabels {
         labels
     }
 
-    /// `labels` added as they are, chunked when too long
+    /// adds `labels`, chunked when too long
     pub fn add_all(&mut self, labels: &Labels) -> Result<()> {
         labels
             .iter()
@@ -113,7 +114,7 @@ impl HetznerLabels {
         Ok(())
     }
 
-    /// stores the label hash of `value` under `key`, `hash_matches` compares it later
+    /// stores the label hash of `value` under `key`; `hash_matches` compares it later
     pub fn add_hashed(&mut self, key: &str, value: &str) -> Result<()> {
         self.add(key, &label_hash(value))
     }
@@ -122,8 +123,8 @@ impl HetznerLabels {
         self.matches_hash(key, &label_hash(value))
     }
 
-    /// like `hash_matches` with the hash of the value already in hand; the full sha256 of a
-    /// label from before the hash was cut matches as well, it starts with the cut one
+    /// `hash_matches` with the hash already made. A full sha256 from before the hash was cut
+    /// also matches when it starts with the cut hash
     pub fn matches_hash(&self, key: &str, expected: &str) -> HashComparison {
         let actual = self.labels().get(key).cloned();
         let expected = expected.to_string();
@@ -137,7 +138,7 @@ impl HetznerLabels {
     }
 }
 
-// `key_1` is the second chunk of `key`, a key whose suffix is no number is a key of its own
+// `key_1` is the second chunk of `key`; a key whose suffix is not a number is a key of its own
 fn key_of(raw_key: &str) -> &str {
     match raw_key.rsplit_once(DELIMITER) {
         Some((key, index)) if index.parse::<usize>().is_ok() => key,

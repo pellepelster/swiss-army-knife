@@ -5,15 +5,14 @@ use crate::hetzner::dns_zone::HetznerDnsZoneLookup;
 use crate::hetzner::primary_ip::HetznerPrimaryIpLookup;
 use crate::hetzner::server::HetznerServerLookup;
 
-/// where a record's value comes from
+/// the source of the value of a record
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RecordValue {
     /// as written, `203.0.113.1` or `mail.example.de.`
     Literal(String),
     /// the public ipv4 of the server, for an A record
     ServerIpv4(HetznerServerLookup),
-    /// the address of the primary ip; an ipv6 primary ip is a `/64`, its first address
-    /// is used
+    /// the address of the primary ip; for an ipv6 primary ip (a `/64`) its first address
     PrimaryIp(HetznerPrimaryIpLookup),
 }
 
@@ -36,12 +35,11 @@ impl RecordValue {
 pub struct HetznerDnsRecord {
     /// relative to the zone, lower case, `@` for the zone itself
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     pub zone: HetznerDnsZoneLookup,
     pub rr_type: RRType,
-    /// seconds, the zone's default when none
+    /// in seconds; `None` for the default of the zone
     pub ttl: Option<u64>,
     pub values: Vec<RecordValue>,
     pub labels: Labels,
@@ -80,7 +78,7 @@ impl HetznerDnsRecord {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

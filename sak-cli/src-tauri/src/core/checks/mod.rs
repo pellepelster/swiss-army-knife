@@ -1,7 +1,7 @@
-//! the checks of what sakctl needs on the machine it runs on, all run in order before the
-//! window or a command starts: the window lists them on its splash screen, the command line logs
-//! them; a failing one ends either. What they find, the container runtime and the valid provider
-//! tokens, is handed back to be used
+//! the checks of what sakctl needs on its machine. They run in order before the window or a
+//! command starts: the window lists them on its splash screen, the command line logs them. A
+//! failing check ends both. The checks give back what they find: the container runtime and the
+//! valid provider tokens
 
 mod container_runtime;
 mod image;
@@ -35,16 +35,16 @@ pub trait Check: Send + Sync {
     /// the name in the list, in the user's language
     fn name(&self) -> String;
 
-    /// a check not applying is not listed, e.g. one for a variable not set
+    /// a check that does not apply is not listed, e.g. one for a variable that is not set
     fn applies(&self) -> bool {
         true
     }
 
-    /// a check that never reports progress is shown with a bar that only moves
+    /// a check that never reports progress shows a bar that only moves
     fn run(&self, found: &mut Found, progress: &Progress) -> CheckResult;
 }
 
-/// the checks in the order they run, the tokens checked those of `tokens`
+/// the checks in the order they run; the token check checks `tokens`
 pub fn checks(tokens: ProviderTokensCheck) -> Vec<Box<dyn Check>> {
     vec![
         Box::new(container_runtime::ContainerRuntimeCheck),
@@ -61,7 +61,7 @@ pub struct Progress<'a> {
 }
 
 impl<'a> Progress<'a> {
-    // more often is lost on the eye and floods the channel
+    // more often does not help the eye and fills the channel
     const INTERVAL: Duration = Duration::from_millis(100);
 
     pub fn new(report: &'a dyn Fn(f64, &str)) -> Self {
@@ -71,7 +71,7 @@ impl<'a> Progress<'a> {
         }
     }
 
-    /// the fraction from 0 to 1, a smaller one than before is taken as the one before
+    /// the fraction from 0 to 1; a fraction smaller than the one before counts as the one before
     pub fn update(&self, fraction: f64, text: &str) {
         let Ok(mut last) = self.last.lock() else {
             return;
@@ -94,8 +94,8 @@ pub struct CheckItem {
     pub name: String,
 }
 
-/// the progress of the checks with their texts in the user's language: the list first, then
-/// each check started, its progress and passed or failed; the window ends with finished
+/// the progress of the checks with their texts in the user's language: the list first, then for
+/// each check started, its progress and passed or failed. The window ends with finished
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum CheckEvent {

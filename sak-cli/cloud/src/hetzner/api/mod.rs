@@ -1,5 +1,5 @@
-//! the hetzner cloud api, as far as the provisioners use it: one struct per resource
-//! with list, get, create, update and delete plus the actions of the resource
+//! the part of the hetzner cloud api that the provisioners use: one struct per resource with
+//! list, get, create, update, delete and the actions of the resource
 
 pub mod error;
 pub mod firewalls;
@@ -27,13 +27,13 @@ use tracing::{debug, info};
 
 const API: &str = "https://api.hetzner.cloud/v1";
 
-/// hetzner lists at most 50 per page
+/// hetzner lists at most 50 items per page
 const PAGE_SIZE: u32 = 50;
 
 pub type Result<T> = std::result::Result<T, ApiError>;
 
-/// how long to wait and how often to try again: a rate limited request, an action still
-/// running. The delay doubles up to `max_delay`
+/// how often to try again and how long to wait between the attempts, e.g. for a rate limited
+/// request or a running action. The delay doubles up to `max_delay`
 #[derive(Clone, Copy, Debug)]
 pub struct Backoff {
     pub attempts: u32,
@@ -62,9 +62,9 @@ pub struct HetznerApi {
     client: Client,
     base: String,
     token: String,
-    /// for requests the api rate limited
+    /// for a request that the api rate limited
     retry: Backoff,
-    /// for actions the api still runs
+    /// for a running action and for `wait_until`
     wait: Backoff,
 }
 
@@ -73,7 +73,7 @@ impl HetznerApi {
         Self::with_base_url(token, API)
     }
 
-    /// against another address, the mock api of the tests
+    /// an api at another address, e.g. the mock api of the tests
     pub fn with_base_url(token: &str, base: &str) -> Self {
         let client = Client::builder()
             .user_agent(concat!("sak-cloud/", env!("CARGO_PKG_VERSION")))
@@ -171,7 +171,7 @@ impl HetznerApi {
         }
     }
 
-    /// a delete the api answers with the action that runs it, `None` for a 404
+    /// a delete that the api answers with an action; `None` for a 404
     pub(crate) async fn delete_with_action(&self, path: &str) -> Result<Option<Action>> {
         let response = self.send(path, self.client.delete(self.url(path))).await?;
         Ok(self
@@ -206,8 +206,8 @@ impl HetznerApi {
         }
     }
 
-    /// polls `condition` with the wait backoff until it holds, for states the api reaches
-    /// after an action ended, e.g. the volumes of a deleted server detached
+    /// polls `condition` with the wait backoff until it is true. For a state that the api
+    /// gets to after an action ended, e.g. the volumes of a deleted server are detached
     pub(crate) async fn wait_until<F, Fut>(&self, what: &str, mut condition: F) -> Result<()>
     where
         F: FnMut() -> Fut,
@@ -225,8 +225,8 @@ impl HetznerApi {
         })
     }
 
-    /// polls the action at `v1/<resource>/actions/<id>` until it ended, an error of the
-    /// action is an error here
+    /// polls the action at `<resource>/actions/<id>` until it ends; a failed action is an
+    /// error
     pub(crate) async fn wait_for_action(&self, resource: &str, id: u64) -> Result<Action> {
         let path = format!("{resource}/actions/{id}");
         for attempt in 0..self.wait.attempts {
@@ -268,7 +268,7 @@ impl HetznerApi {
         unreachable!("the wait has at least one attempt")
     }
 
-    /// sends the request, again after a wait when the api rate limited it
+    /// sends the request; when the api rate limits it, waits and sends it again
     async fn send(&self, path: &str, request: RequestBuilder) -> Result<Response> {
         let request = request.bearer_auth(&self.token);
         for attempt in 0..self.retry.attempts {
@@ -336,5 +336,5 @@ impl HetznerApi {
 #[derive(Serialize)]
 pub(crate) struct Empty {}
 
-/// the body of a post without one
+/// no body, for a post without a body
 pub(crate) const NO_BODY: Option<&Empty> = None;

@@ -117,7 +117,7 @@ class SakBackendTest {
                 .replace("{{ sak_name }}", "alpha")
                 .replace("{{ sak_dns_mode }}", "domain")
                 .replace("{{ sak_root_domain }}", "pelle.io")
-                .replace("{{ sak_api_token_sha256 }}", "ab".repeat(32))
+                .replace("{{ sak_api_public_key | to_json }}", "\"zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ=\"")
                 .replace("{{ sak_admin_email }}", "admin@example.org")
                 .replace("{{ sak_smtp_tls | bool | lower }}", "true")
                 .replace("{{ sak_smtp_starttls | bool | lower }}", "false")

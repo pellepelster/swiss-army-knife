@@ -1,5 +1,5 @@
-/* the layout of the wizard; the look is bootstrap on the tokens of sak-theme (theme/, copied
-   there by mise run cli:theme). Every color is a var(--sak-…), no literal in here */
+/* the layout of the window; the look is bootstrap on the tokens of sak-theme (theme/, copied
+   there by mise run cli:theme). Every color is a var(--sak-…), never a literal */
 
 html, body {
   height: 100%;
@@ -53,7 +53,7 @@ body {
   gap: 0.6rem;
 }
 
-/* the led of the theme, the name and beneath it the progress bar and the detail */
+/* the led of the theme and the name; below them the progress bar and the detail */
 .check {
   display: grid;
   grid-template-columns: 1.25rem 1fr;
@@ -220,9 +220,8 @@ body {
   background: color-mix(in srgb, var(--sak-accent) 12%, var(--sak-raised));
 }
 
-/* the state of the deployment, the led pill at the right end of the card header */
-/* where the frontend of the deployment is: the last line of its resources, set off by a line,
-   centered, with as much space above it as below */
+/* the frontend of the deployment: the last line of its resources, below a rule, centered, with
+   the same space above and below */
 .deployment-link {
   grid-column: 1 / -1;
   margin-top: var(--sak-space-2);
@@ -241,6 +240,7 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* the state of the deployment, the led pill at the right end of the card header */
 .deployment-status {
   margin-left: auto;
 }
@@ -256,7 +256,7 @@ body {
   row-gap: var(--sak-space-1);
 }
 
-/* one line each: the led, the kind, the name and the detail next to it; the changes beneath */
+/* one line each: the led, the kind, the name and the detail; the changes below */
 .resource {
   display: grid;
   grid-column: 1 / -1;
@@ -352,8 +352,8 @@ body {
   font-size: 1.25rem;
 }
 
-/* the output of ansible on the plan page takes the height the resources leave, so it stays in
-   sight while a deploy runs */
+/* the output of ansible on the plan page fills the height below the resources, so it stays in
+   view while a deploy runs */
 .plan-output {
   flex: 1 1 0;
   min-height: 8rem;

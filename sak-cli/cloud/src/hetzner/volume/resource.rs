@@ -3,18 +3,18 @@ use crate::hetzner::api::Location;
 use crate::hetzner::api::volumes::VolumeFormat;
 use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
 
-/// a block volume in a location, attached to a server by the server resource
+/// a block volume in a location; the server resource attaches it to a server
 #[derive(Clone, Debug)]
 pub struct HetznerVolume {
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     pub location: Location,
-    /// in GB, 10 at least; a volume only grows, a smaller size is a recreate
+    /// in GB, at least 10. A volume larger than this is up to date; a smaller volume needs a
+    /// recreate
     pub size_gb: u64,
     pub format: VolumeFormat,
-    /// delete protection at hetzner, on by default; destroy lifts it
+    /// the delete protection at hetzner, on by default; destroy removes it
     pub protected: bool,
     pub labels: Labels,
 }
@@ -37,7 +37,7 @@ impl HetznerVolume {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

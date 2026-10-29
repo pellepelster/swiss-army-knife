@@ -1,5 +1,5 @@
-//! a set of declared resources and the provisioners for their types: diffed, applied and
-//! destroyed as a whole, in the order their dependencies allow
+//! a set of declared resources and the provisioners of their types. The registry diffs,
+//! applies and destroys the set as a whole, in the order of the dependencies
 
 use crate::api::context::LookupProviders;
 use crate::api::diff::{DiffStatus, ResourceDiff};
@@ -57,8 +57,8 @@ trait ErasedProvisioner: Send + Sync {
         owner: &Labels,
     ) -> Result<bool>;
 
-    /// a lookup of the resource for its identity alone: a resource of the name that belongs to
-    /// someone else fails here, also when the resource itself is not diffed yet
+    /// looks the resource up for the identity check only: a resource of the name that belongs
+    /// to someone else fails here, also when the resource is not diffed
     async fn check_owned(
         &self,
         resource: &dyn AnyResource,
@@ -106,8 +106,8 @@ impl<R: Resource, P: Provisioner<R> + 'static> ErasedProvisioner for Erased<R, P
         owner: &Labels,
     ) -> Result<bool> {
         let lookup = self.downcast(resource).as_lookup();
-        // the lookup checks the identity of the lookup, the owner labels of the run are checked
-        // once more: a resource declared without its identity is not removed either
+        // the lookup checks its identity labels; this checks the owner labels of the run too,
+        // so a resource declared without its identity is not removed either
         let found = self.provisioner.lookup(&lookup, context).await?;
         let Some(runtime) = identity::check(found, owner, &lookup.log_text())? else {
             return Ok(false);
@@ -143,7 +143,8 @@ pub struct ApplyResult {
     pub applied: Applied,
 }
 
-/// what `apply_all_with` reports as it goes: a resource taken up, a resource done
+/// what `apply_all_with` and `destroy_all_with` report while they run: a resource started, a
+/// resource done
 #[derive(Clone, Debug)]
 pub enum ApplyEvent {
     Started(ResourceRef),
@@ -152,18 +153,18 @@ pub enum ApplyEvent {
     Destroyed(ResourceRef, bool),
 }
 
-/// the resources declared for a run and the provisioners that reconcile them. A
-/// provisioner is registered once per resource type, a resource added once per name
+/// the resources declared for a run and the provisioners that reconcile them. There is one
+/// provisioner per resource type and one resource per type and name
 #[derive(Default)]
 pub struct Registry {
     context: LookupProviders,
     provisioners: HashMap<TypeId, Box<dyn ErasedProvisioner>>,
     resources: Vec<Box<dyn AnyResource>>,
-    /// the labels a resource must carry to be destroyed by this registry, e.g. the name and
-    /// the password hash of a deployment; nothing is destroyed without them
+    /// the labels a resource must have before this registry destroys it, e.g. the name and the
+    /// password hash of a deployment; without them nothing is destroyed
     owner: Option<Labels>,
-    /// the resources that may be destroyed and created again when their changes need it; every
-    /// other resource is never recreated, e.g. a volume with data or a primary ip
+    /// the resources that may be destroyed and created again when their changes need it. No
+    /// other resource is recreated, e.g. a volume with data or a primary ip
     recreatable: HashSet<ResourceRef>,
 }
 
@@ -172,7 +173,7 @@ impl Registry {
         Self::default()
     }
 
-    /// registers the provisioner of `R`, as the lookup provider of its lookups too
+    /// registers the provisioner of `R`, also as the lookup provider of its lookups
     pub fn register<R: Resource, P: Provisioner<R> + 'static>(&mut self, provisioner: Arc<P>) {
         self.context.register::<R::Lookup, P>(provisioner.clone());
         self.provisioners.insert(
@@ -184,15 +185,15 @@ impl Registry {
         );
     }
 
-    /// the labels a resource must carry so this registry destroys it, on a destroy and before a
-    /// recreate; they must not be empty
+    /// the labels a resource must have before this registry destroys it, on a destroy and before
+    /// a recreate; they must not be empty
     pub fn owned_by(mut self, owner: Labels) -> Self {
         self.owner = Some(owner);
         self
     }
 
-    /// lets the resource be destroyed and created again when its changes need it; a resource not
-    /// named here never is, a plan or apply that would need it fails with `RecreateRefused`
+    /// lets the resource be destroyed and created again when its changes need it. For any other
+    /// resource, a plan or apply that needs a recreate fails with `RecreateRefused`
     pub fn recreatable(mut self, resource: ResourceRef) -> Self {
         self.recreatable.insert(resource);
         self
@@ -255,8 +256,8 @@ impl Registry {
         Ok(self)
     }
 
-    /// the diff of every resource, dependencies first; a resource whose dependency is
-    /// missing is `ParentMissing`, one whose dependency has changes sees them as pending
+    /// the diff of every resource, dependencies first. A resource with a missing dependency is
+    /// `ParentMissing`. A resource sees each dependency that is not up to date as pending
     pub async fn diff_all(&mut self) -> Result<Vec<ResourceDiff>> {
         self.context.clear_pending();
         let mut diffs: Vec<ResourceDiff> = Vec::new();
@@ -295,21 +296,20 @@ impl Registry {
         Ok(diffs)
     }
 
-    /// applies every resource, dependencies first: created when missing, updated when
-    /// changed, left alone when up to date. A resource whose changes need a recreate is
-    /// destroyed and created again when it is recreatable (`recreatable`), refused otherwise;
-    /// a duplicate is refused
+    /// applies every resource, dependencies first: creates it when missing, updates it when
+    /// changed, leaves it when up to date. When its changes need a recreate, a recreatable
+    /// resource is destroyed and created again; any other fails. A duplicate fails
     pub async fn apply_all(&mut self) -> Result<Vec<ApplyResult>> {
         self.apply_all_with(&mut |_| {}).await
     }
 
-    /// `apply_all`, telling `on_event` about every resource as it is taken up and done
+    /// `apply_all` that tells `on_event` when each resource starts and is done
     pub async fn apply_all_with(
         &mut self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
         // the whole plan first: a refused recreate or a resource of someone else stops the apply
-        // before anything is created, never half way
+        // before anything is created, not half way
         self.diff_all().await?;
         self.context.clear_pending();
         let mut results = Vec::new();
@@ -357,12 +357,12 @@ impl Registry {
         Ok(results)
     }
 
-    /// destroys every resource, dependents first; the refs of the resources destroyed
+    /// destroys every resource, dependents first; returns the refs of the destroyed resources
     pub async fn destroy_all(&mut self) -> Result<Vec<ResourceRef>> {
         self.destroy_all_with(&mut |_| {}).await
     }
 
-    /// `destroy_all`, telling `on_event` about every resource as it is taken up and gone
+    /// `destroy_all` that tells `on_event` when each resource starts and is gone
     pub async fn destroy_all_with(
         &mut self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
@@ -398,8 +398,8 @@ impl Registry {
             })
     }
 
-    /// the resources in an order that has every dependency before its dependents, as
-    /// declared otherwise; a dependency not declared here is taken as existing already
+    /// the resources with every dependency before its dependents, else in declared order. A
+    /// dependency that is not declared here is taken as existing
     fn order(&self) -> Result<Vec<usize>> {
         let declared: HashMap<ResourceRef, usize> = self
             .resources
@@ -461,7 +461,7 @@ mod tests {
     struct Cloud {
         /// the version and the labels of each thing that exists
         existing: Mutex<HashMap<String, (u32, Labels)>>,
-        /// names whose lookup fails as someone else's, like a lookup with an identity does
+        /// names whose lookup fails with `NotOwned`, as a lookup with an identity does
         foreign: Mutex<HashSet<String>>,
         log: Mutex<Vec<String>>,
     }
@@ -778,7 +778,7 @@ mod tests {
 
         assert!(error.to_string().contains("owner labels"), "{error}");
         assert!(log(&cloud).is_empty());
-        // empty owner labels are none either
+        // empty owner labels count as none
         let mut empty = Registry::new().owned_by(Labels::new());
         empty.register::<Thing, Cloud>(cloud.clone());
         assert!(

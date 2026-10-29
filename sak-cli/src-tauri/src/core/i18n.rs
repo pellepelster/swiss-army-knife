@@ -1,9 +1,9 @@
-/// the language the texts are shown in, the system's when there are texts for it, english otherwise
+/// sets the language of the texts: the one of the system when there are texts for it, else english
 pub fn init() {
     rust_i18n::set_locale(&select_locale(sys_locale::get_locale()));
 }
 
-// "de-DE" (macos, windows) or "de_DE.UTF-8" (linux) is "de" unless there are texts for the region
+// "de-DE" (macos, windows) or "de_DE.UTF-8" (linux) is "de", unless there are texts for the region
 fn select_locale(system: Option<String>) -> String {
     let available = rust_i18n::available_locales!();
     let Some(system) = system else {

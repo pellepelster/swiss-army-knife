@@ -1,5 +1,5 @@
-// the provider tokens: the list, the selection of the provider for a new one and its entry;
-// rust validates a token before it is added and only ever answers it masked
+// the provider tokens: the list, the selection of the provider for a new token and the entry of
+// the token. Rust validates a token before it adds it, and gives it back only masked
 import { showDeployments } from './deployments.js';
 import { show, text } from './views.js';
 
@@ -39,7 +39,7 @@ export async function showProviders() {
     }),
   );
   document.getElementById('providers-empty').hidden = tokens.length > 0;
-  // every token listed is valid, rust adds none it could not validate
+  // every token in the list is valid: rust adds no token it could not validate
   document.getElementById('providers-next').disabled = tokens.length === 0;
   show('view-providers');
 }

@@ -16,12 +16,12 @@ pub struct HetznerDnsZoneProvisioner {
     api: Arc<HetznerApi>,
 }
 
-/// a zone of the project with its rrsets: what a deployment finds of the domains it can
-/// use, of the deployments that use them already and of its own records
+/// a zone of the project with its rrsets. From it sakctl finds the domains it can use, the
+/// deployments that use them and the records of a deployment
 #[derive(Clone, Debug)]
 pub struct HetznerDnsZoneListing {
     pub zone: HetznerDnsZoneRuntime,
-    /// every rrset of the zone, unlabeled ones included
+    /// every rrset of the zone, also the rrsets without labels
     pub rrsets: Vec<RRSet>,
 }
 
@@ -30,15 +30,14 @@ impl HetznerDnsZoneProvisioner {
         HetznerDnsZoneProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the zone of the name; a zone lookup has no identity labels, so any zone of the name
     async fn find(&self, lookup: &HetznerDnsZoneLookup) -> Result<Option<HetznerDnsZoneRuntime>> {
         let found: Result<Option<HetznerDnsZoneRuntime>> =
             { Ok(self.api.zones().get(&lookup.name).await?.map(Into::into)) };
         identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 
-    /// every zone of the project with its rrsets, by the name of the zone
+    /// every zone of the project with its rrsets, sorted by the name of the zone
     pub async fn list_all(&self) -> Result<Vec<HetznerDnsZoneListing>> {
         let zones = self.api.zones();
         let mut listings = Vec::new();
@@ -166,8 +165,8 @@ pub(crate) mod tests {
         json!({ "id": format!("{name}/A"), "name": name, "type": "A", "ttl": null, "protection": { "change": false }, "records": [{ "value": "1.2.3.4" }], "zone": zone, "labels": labels })
     }
 
-    /// a mock of the project: `zones` each with its rrsets. The server must stay alive with
-    /// the api
+    /// a mock of the project: `zones`, each with its rrsets. Keep the server while the api is
+    /// used
     pub(crate) async fn mock_zones(zones: &[(Value, Vec<Value>)]) -> (MockServer, Arc<HetznerApi>) {
         let server = MockServer::start().await;
         let all: Vec<Value> = zones.iter().map(|(zone, _)| zone.clone()).collect();

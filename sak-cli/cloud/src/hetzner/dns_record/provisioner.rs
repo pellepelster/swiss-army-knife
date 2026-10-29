@@ -38,7 +38,7 @@ impl HetznerDnsRecordProvisioner {
         .and_then(|found| identity::check(found, lookup.identity(), &lookup.log_text()))
     }
 
-    /// the values the records should have, resolved through the context
+    /// the declared values of the records, resolved through the context
     async fn values(
         &self,
         resource: &HetznerDnsRecord,
@@ -72,8 +72,8 @@ impl HetznerDnsRecordProvisioner {
     }
 }
 
-/// `2001:db8::/64` -> `2001:db8::1`: the address hetzner gives a server in its ipv6 network, what
-/// the AAAA records point to and what the backend is told
+/// `2001:db8::/64` -> `2001:db8::1`: the address that hetzner gives a server in its ipv6
+/// network. The AAAA records point to it and the backend gets it
 pub fn first_address(network: &str) -> String {
     let prefix = network.split('/').next().unwrap_or(network);
     match prefix.strip_suffix("::") {
@@ -309,13 +309,13 @@ mod tests {
 
     #[tokio::test]
     async fn a_record_of_the_user_or_another_deployment_is_never_taken_over() {
-        // the rrset of the mock carries no name label: the user's
+        // the rrset of the mock has no name label: it belongs to the user
         let (_server, api) = mock(Some(rrset(&["203.0.113.1"], None))).await;
         let provisioner = HetznerDnsRecordProvisioner::new(api.clone());
         let ours = resource(&["203.0.113.9"]).with_identity(labels(&[(NAME_LABEL, "alpha")]));
 
-        // the lookup, the diff and the apply refuse it alike; the mock has no route for a
-        // change, nothing was written
+        // the lookup, the diff and the apply all refuse it; the mock has no route for a
+        // change, so nothing was written
         for error in [
             provisioner
                 .lookup(&ours.as_lookup(), &context(&api))
@@ -339,7 +339,7 @@ mod tests {
             provisioner.apply(&ours, &context(&api)).await,
             Err(Error::NotOwned { .. })
         ));
-        // without an identity the record is taken by its name, as before
+        // without an identity, the lookup finds any record of the name
         assert!(
             provisioner
                 .lookup(&resource(&[]).as_lookup(), &context(&api))

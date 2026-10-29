@@ -1,6 +1,6 @@
-// the checks of src-tauri/src/checks/ as a list, each with its state, a progress bar while it runs
-// and what it found or why it failed below its name; the promise answers what follows the splash
-// screen. A failing check stays on the splash screen with its reason, quit is all that is left
+// the checks of src-tauri/src/core/checks/ as a list: each with its led, a progress bar while it
+// runs and below its name what it found or why it failed. The promise gives the view that follows
+// the splash screen. After a failure the splash screen stays, quit is the only action
 const { invoke, Channel } = window.__TAURI__.core;
 
 // the checkmarks stay a moment before the next view
@@ -10,13 +10,13 @@ const list = document.getElementById('checks');
 const errorText = document.getElementById('checks-error');
 const quitButton = document.getElementById('splash-quit');
 const rows = new Map();
-// a check failed: its row says why, the app can only quit
+// true after a failure: quit then ends with exit code 1
 let failed = false;
 
 quitButton.addEventListener('click', () => invoke('quit', { failed }));
 
-// the end of the checks: the reason inline (unless the row of the failed check has it), quit the
-// one action left
+// the checks stopped: shows the error unless the row of a failed check shows it, and makes quit
+// the primary button
 function fail(error) {
   failed = true;
   if (![...rows.values()].some((item) => item.dataset.state === 'failed')) {
@@ -27,7 +27,7 @@ function fail(error) {
   quitButton.focus();
 }
 
-// the led of the theme for the state of a check
+// the led of the theme for each state of a check
 const LEDS = { pending: 'neutral', running: 'busy', ok: 'ok', failed: 'danger' };
 
 function row(check) {
@@ -56,7 +56,7 @@ function update(id, state, detail) {
   return item;
 }
 
-// never settles after a failure: nothing follows the splash screen then
+// does not settle after a failure, so no view follows the splash screen
 export function runChecks() {
   return new Promise((resolve) => {
     const onEvent = new Channel();
@@ -69,7 +69,7 @@ export function runChecks() {
           list.replaceChildren(...rows.values());
           break;
         case 'started':
-          // without a value a progress bar only moves, until the check reports how far it is
+          // a progress bar without a value moves until the check reports how far it is
           update(message.id, 'running', '').querySelector('.check-progress').removeAttribute('value');
           break;
         case 'progress':

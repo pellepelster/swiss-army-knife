@@ -1,4 +1,4 @@
-//! a firewall with its rules, applied to the servers matching a label selector: the
+//! a firewall with its rules, applied to the servers that match a label selector: the
 //! resource, its lookup and runtime, the provisioner
 
 mod lookup;

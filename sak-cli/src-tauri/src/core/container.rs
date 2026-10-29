@@ -9,17 +9,17 @@ use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Mutex;
 
-// tried in this order, the first one working is used
+// tried in this order; sakctl uses the first one that works
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
-// a few kilobytes proving a runtime pulls and runs images (canary/Dockerfile), fully qualified,
-// podman refuses short names without a tty to pick the registry on
+// a small image that shows that a runtime pulls and runs images (canary/Dockerfile). The name
+// is fully qualified, because without a tty podman refuses a short name
 const CANARY: &str = "ghcr.io/pellepelster/sak-cli-docker-canary:latest";
 const CANARY_ANSWER: &str = "sak-cli-docker-canary";
 // the image of the tools (Dockerfile), pulled on every start so the latest one is used
 pub const IMAGE: &str = "ghcr.io/pellepelster/sak-cli-tools:latest";
-// the user of the image, only it answers to `id -un` with this
+// the user of the image; only this image answers `id -un` with it
 const IMAGE_USER: &str = "sak";
-// the timeout of each request to the docker api, the pull of the image is one
+// the timeout of each request to the docker api; the pull of the image is one request
 const API_TIMEOUT_SECONDS: u64 = 3600;
 
 /// the runtime found working on startup
@@ -48,7 +48,7 @@ impl ContainerRuntime {
     }
 }
 
-/// the first of the runtimes running the canary, with its version
+/// the first of `runtimes` that runs the canary, with its version
 pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String> {
     let mut errors = Vec::new();
     for runtime in runtimes {
@@ -64,8 +64,9 @@ pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String>
     ))
 }
 
-// docker answers its version only when its daemon does, podman needs none; the canary is pulled
-// every time, a runtime that can not reach ghcr.io fails here and not at the image of the tools
+// docker answers its version only when its daemon answers, podman has no daemon. The canary is
+// pulled every time, so a runtime that cannot reach ghcr.io fails here and not at the image of the
+// tools
 fn canary(runtime: &str) -> Result<String, String> {
     let not_working = |error: String| {
         t!(
@@ -92,8 +93,8 @@ fn canary(runtime: &str) -> Result<String, String> {
     Ok(version)
 }
 
-// runs the future to its end: on the runtime this thread belongs to (a blocking task of the
-// window's), or on one of its own (the command line, the tests)
+// runs the future to its end: on the runtime of this thread (a blocking task of the window or of
+// the command line), else on a runtime of its own (the tests)
 pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => handle.block_on(future),
@@ -105,8 +106,8 @@ pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
     }
 }
 
-/// pulls the image anew and proves it by running it; docker's api reports the bytes pulled, the
-/// command line of docker and podman nothing
+/// pulls the image again and runs it to prove it. The api of docker reports the bytes pulled, the
+/// command line of docker and podman reports nothing
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let pulled = runtime == "docker" && block_on(pull_with_api(on_progress)).is_ok();
     if !pulled {
@@ -141,7 +142,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     Ok(())
 }
 
-// any error falls back to the command line, its error is the one shown
+// on an error `pull` uses the command line, and shows its error
 async fn pull_with_api(on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let docker = docker_api().ok_or("no docker api")?;
     let (image, tag) = IMAGE.rsplit_once(':').ok_or("no tag")?;
@@ -196,8 +197,8 @@ fn docker_api() -> Option<Docker> {
     None
 }
 
-/// the bytes of the layers of a pull, downloading and extracting counting half each; layers
-/// already there do not count
+/// the bytes of the layers of a pull; the download and the extraction are each half. Layers that
+/// exist already do not count
 #[derive(Debug, Default)]
 struct PullProgress {
     layers: HashMap<String, Layer>,
@@ -316,8 +317,8 @@ mod tests {
         }
     }
 
-    // each runs the real runtime, skipped when it is not installed; they need the canary and the
-    // image published on ghcr.io
+    // each test runs the real runtime and is skipped when it is not installed; they need the
+    // canary and the image on ghcr.io
     #[test]
     fn docker_runs_the_canary() {
         if !installed("docker") {

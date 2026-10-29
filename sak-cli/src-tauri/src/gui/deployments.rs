@@ -14,7 +14,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
-/// the frontend urls of the deployments the last list answered: the only urls `open_url` opens
+/// the frontend urls of the deployments of the last list: the only urls `open_url` opens
 #[derive(Default)]
 pub struct FrontendUrls(Mutex<HashSet<String>>);
 
@@ -23,8 +23,8 @@ pub fn deployment_defaults() -> DeploymentDefaults {
     defaults()
 }
 
-/// opens the frontend of a deployment in the browser of the system: only a url the last list of
-/// deployments answered, the page gets no opener of its own
+/// opens the frontend of a deployment in the browser of the system: only a url of the last list
+/// of deployments. The page has no opener of its own
 #[tauri::command]
 pub fn open_url(app: AppHandle, known: State<'_, FrontendUrls>, url: String) -> Result<(), String> {
     let known = known.0.lock().map_err(|e| e.to_string())?;
@@ -34,7 +34,7 @@ pub fn open_url(app: AppHandle, known: State<'_, FrontendUrls>, url: String) -> 
         .map_err(|error| error.to_string())
 }
 
-/// the url when it is one of `known`, an https url with a host and no control character
+/// the url when it is one of `known` and an https url with a host and no control character
 fn checked_url(known: &HashSet<String>, url: &str) -> Result<Url, String> {
     let refused = || format!("'{}' is no frontend of a deployment", url.escape_debug());
     if url.chars().any(char::is_control) || !known.contains(url) {
@@ -47,7 +47,7 @@ fn checked_url(known: &HashSet<String>, url: &str) -> Result<Url, String> {
     Ok(parsed)
 }
 
-/// the check of a name, as the page asks it when its field is left: the message when it is none
+/// checks a name when the user leaves its field; the message when the name is not valid
 #[tauri::command]
 pub fn check_name(name: String) -> Result<(), String> {
     crate::core::deployments::checked_name(&name)
@@ -70,8 +70,8 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// what a redeploy takes from the deployment, as the command line does: its user mode and, for
-/// multiple users, the admin and the mail server
+/// the settings a redeploy takes from the deployment, as the command line does: its user mode
+/// and, for multi user, the admin and the mail server
 #[tauri::command]
 pub async fn detected_settings(
     manager: State<'_, DeploymentManager>,
@@ -102,7 +102,7 @@ pub async fn create_deployment(
     on_event: Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
     let tokens = tokens.tokens();
-    // a progress event that cannot be delivered is no reason to stop creating
+    // a progress event that cannot be sent is no reason to stop the apply
     manager
         .create(tokens, &deployment, &container, &mut |event| {
             let _ = on_event.send(event);
@@ -118,7 +118,7 @@ pub async fn list_deployments(
 ) -> Result<Vec<DeploymentResponse>, String> {
     let tokens = tokens.tokens();
     let deployments = manager.list(tokens).await?;
-    // what the page may open: the frontends of these deployments, no other url
+    // the page can open the frontends of these deployments and no other url
     *frontend_urls.0.lock().map_err(|e| e.to_string())? = deployments
         .iter()
         .filter_map(|deployment| deployment.frontend_url.clone())
@@ -140,7 +140,7 @@ mod tests {
             "https://sak.alpha.pelle.io/"
         );
         for url in [
-            // any other https site, also of the same root domain
+            // another https site, also of the same root domain
             "https://evil.example",
             "https://sak.beta.pelle.io",
             // the known one with something added, or another scheme

@@ -36,7 +36,7 @@ impl ProviderType {
         }
     }
 
-    /// the environment variable the token is taken from on startup, the one of the provider's own tools
+    /// the environment variable of the token on startup, the one the tools of the provider use
     pub fn token_variable(self) -> &'static str {
         match self {
             ProviderType::Hetzner => "HCLOUD_TOKEN",

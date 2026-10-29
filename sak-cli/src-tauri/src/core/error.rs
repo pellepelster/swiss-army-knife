@@ -1,6 +1,6 @@
-//! what failed, as the window shows it and the command line ends with: a message and the
-//! exit code of the process. A root domain that cannot be used has a code of its own, so a
-//! script can tell it from any other failure
+//! what failed, as the window shows it and the command line ends with: a message and the exit
+//! code of the process. Failures a script must tell apart (a root domain that cannot be used, a
+//! resource of someone else, a refused recreate) have a code of their own
 
 use serde::{Serialize, Serializer};
 use std::fmt;
@@ -9,17 +9,18 @@ use std::fmt;
 pub const EXIT_OK: i32 = 0;
 /// anything else failed: a check, a password, the provider, the provisioning
 pub const EXIT_FAILED: i32 = 1;
-/// the arguments are wrong: what the argument parser refuses, and a name that is none
+/// the arguments are wrong: what the argument parser refuses, a name that is not valid, a
+/// password or token missing without a terminal
 pub const EXIT_USAGE: i32 = 2;
-/// domain mode asked, another deployment manages the root domain in domain mode already
+/// domain mode asked, but another deployment manages the root domain in domain mode already
 pub const EXIT_DOMAIN_TAKEN: i32 = 3;
-/// the dns mode asked is not the one other deployments use the root domain in
+/// the dns mode asked is not the one the other deployments of the root domain use
 pub const EXIT_MIXED_DNS_MODES: i32 = 4;
-/// a resource of a name the deployment declares exists and belongs to someone else (it lacks
-/// the name or the password hash of the deployment); nothing of it was changed
+/// a resource with a name the deployment declares exists and belongs to someone else (it does
+/// not have the name label or the password hash of the deployment); nothing of it was changed
 pub const EXIT_NOT_OWNED: i32 = 5;
-/// a resource that must stay (the data volume, a primary ip) would have to be created anew,
-/// which would remove what it holds; nothing was changed
+/// a resource that must stay (the data volume, a primary ip) would have to be created anew and
+/// lose what it holds; nothing was changed
 pub const EXIT_RECREATE_REFUSED: i32 = 6;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,7 +50,7 @@ impl fmt::Display for WizardError {
     }
 }
 
-/// the page gets the message alone, as every error before
+/// the page gets only the message
 impl Serialize for WizardError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.message)

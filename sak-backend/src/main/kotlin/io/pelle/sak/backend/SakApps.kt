@@ -22,7 +22,8 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.backend.settings.SettingName
 import io.pelle.sak.auth.Role
-import io.pelle.sak.auth.API_TOKEN_AUTH
+import io.pelle.sak.auth.API_SIGNATURE_AUTH
+import io.pelle.sak.auth.ApiSignature
 import io.pelle.sak.auth.AdminPassword
 import io.pelle.sak.auth.loginMethods
 import io.pelle.sak.auth.passwordLogin
@@ -32,7 +33,7 @@ import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.login
 import io.pelle.sak.auth.whoAmI
-import io.pelle.sak.auth.apiToken
+import io.pelle.sak.auth.apiSignature
 import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
@@ -127,7 +128,7 @@ fun Application.apps(
 
     install(Authentication) {
         session(tokens, rolesOf)
-        apiToken(config.apiTokenSha256)
+        apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) })
     }
 
     // the session travels in the authorization header, never in a cookie, so no credentials
@@ -164,11 +165,11 @@ fun Application.apps(
                             }
                             loginMethods(email = mailSender != null, password = adminPassword != null)
                         }
-                        authenticate(SESSION_AUTH, API_TOKEN_AUTH) {
+                        authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                             whoAmI()
                         }
                     }
-                    authenticate(SESSION_AUTH, API_TOKEN_AUTH) {
+                    authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                         route("/static-hosting") {
                             requireRole(Role.ADMIN)
                             buckets(bucketService, statistics)

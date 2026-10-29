@@ -1,5 +1,5 @@
-// the splash screen with the checks first, the provider tokens next unless the environment had
-// them, the deployments last
+// the splash screen with the checks first. Then the provider tokens when there is none, else the
+// deployments
 import { runChecks } from './checks.js';
 import { showDeployments } from './deployments.js';
 import { showProviders } from './providers.js';

@@ -3,18 +3,17 @@ use crate::hetzner::api::Location;
 use crate::hetzner::api::primary_ips::PrimaryIpType;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
 
-/// a public address created on its own, in a location; a server resource takes it by
-/// lookup and is created with it, and gets it back when recreated. It is never deleted
-/// with its server (`auto_delete` stays off)
+/// a public address in a location, created without a server. A server resource refers to it
+/// by its lookup and is created with it, also when it is recreated. It is not deleted with
+/// its server (`auto_delete` stays off)
 #[derive(Clone, Debug)]
 pub struct HetznerPrimaryIp {
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     pub ip_type: PrimaryIpType,
     pub location: Location,
-    /// delete protection at hetzner, on by default; destroy lifts it
+    /// the delete protection at hetzner, on by default; destroy removes it
     pub protected: bool,
     pub labels: Labels,
 }
@@ -44,7 +43,7 @@ impl HetznerPrimaryIp {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

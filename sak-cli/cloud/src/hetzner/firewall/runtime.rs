@@ -6,9 +6,9 @@ pub struct HetznerFirewallRuntime {
     pub id: u64,
     pub name: String,
     pub rules: Vec<FirewallRule>,
-    /// the labels of the selectors the firewall is applied to, all of them merged
+    /// the labels of all label selectors of the firewall, merged
     pub applied_to_labels: Labels,
-    /// what the firewall is applied to as the api reports it, servers included
+    /// what the firewall is applied to, as the api reports it, also single servers
     pub applied_to: Vec<FirewallResource>,
     pub labels: Labels,
 }

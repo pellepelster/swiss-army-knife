@@ -3,8 +3,8 @@ use crate::hetzner::api::zones::RRType;
 use crate::hetzner::dns_record::HetznerDnsRecordRuntime;
 use crate::hetzner::dns_zone::HetznerDnsZoneLookup;
 
-/// a record set by its name, zone and type; the name alone is not unique, so the
-/// resource name carries all three: `www.example.de/A`
+/// a record set by its name, zone and type. The name alone is not unique, so the name of the
+/// lookup has all three: `www.example.de/A`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HetznerDnsRecordLookup {
     pub record: String,

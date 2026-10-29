@@ -23,8 +23,7 @@ impl HetznerPrimaryIpProvisioner {
         HetznerPrimaryIpProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
     async fn find(
         &self,
         lookup: &HetznerPrimaryIpLookup,
@@ -157,7 +156,7 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
             .into())
     }
 
-    /// lifts the delete protection and unassigns the ip first
+    /// removes the delete protection and unassigns the ip first
     async fn destroy(
         &self,
         runtime: &HetznerPrimaryIpRuntime,

@@ -112,13 +112,13 @@ deployments:
 config:
   unreachable: "Das Backend unter %{url} ist nicht erreichbar: %{error}"
   unreadable: "Das Backend hat etwas geantwortet, das keine Konfiguration ist: %{error}"
-  refused: "Das Backend hat das Admin-API-Token dieses Passworts abgelehnt. Rolle das Deployment aus, damit das Backend das Token kennt."
+  refused: "Das Backend hat die Signatur dieses Passworts abgelehnt. Rolle das Deployment aus, damit das Backend seinen Schlüssel kennt."
   failed: "Das Backend unter %{url} hat %{status} geantwortet."
   no_root_domain: "Das Deployment %{name} hat keine Root-Domain an seinen Ressourcen, rolle es zuerst mit --root-domain aus."
   shown: "Die laufende Konfiguration von %{name} unter %{url}"
   api_not_answering: "Das Deployment antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, vom Deployment geht nichts verloren."
   no_smtp: "Kein Mailserver"
-  not_https: "Die API %{url} ist keine https-Adresse, das Admin-API-Token wird nur über https gesendet."
+  not_https: "Die API %{url} ist keine https-Adresse, sakctl fragt die API nur über https."
 ui:
   # the resource status of the glossary
   resource_status:

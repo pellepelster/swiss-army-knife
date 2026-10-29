@@ -1,5 +1,5 @@
-//! the provider independent model: resources with their lookups and runtimes, the
-//! provisioners that reconcile them, the diff they report and the contexts they run in
+//! the provider-independent model: resources with their lookups and runtimes, the
+//! provisioners that reconcile them, the diffs they report and the contexts they run in
 
 pub mod context;
 pub mod diff;

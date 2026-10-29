@@ -112,13 +112,13 @@ deployments:
 config:
   unreachable: "The backend at %{url} could not be reached: %{error}"
   unreadable: "The backend answered something that is no configuration: %{error}"
-  refused: "The backend refused the admin api token of this password. Deploy the deployment, so the backend knows the token."
+  refused: "The backend refused the signature of this password. Deploy the deployment, so the backend knows its key."
   failed: "The backend at %{url} answered %{status}."
   no_root_domain: "The deployment %{name} has no root domain on its resources, deploy it with --root-domain first."
   shown: "The running configuration of %{name} at %{url}"
   api_not_answering: "The deployment does not answer at %{url} within %{seconds} seconds, the last time: %{error}. New DNS records and the TLS certificate can take a while to be in place: try again later with a deploy, nothing of the deployment is lost."
   no_smtp: "No mail server"
-  not_https: "The api %{url} is no https address, the admin api token is only sent over https."
+  not_https: "The api %{url} is no https address, sakctl asks the api over https only."
 ui:
   # the resource status of the glossary
   resource_status:

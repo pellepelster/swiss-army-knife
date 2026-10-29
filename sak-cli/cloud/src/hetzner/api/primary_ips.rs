@@ -23,8 +23,8 @@ impl fmt::Display for PrimaryIpType {
     }
 }
 
-/// a primary ip is only ever assigned to a server; `Unassigned` is what the api reports
-/// for one that is not
+/// a primary ip can only be assigned to a server; the api reports `Unassigned` for an ip
+/// without a server
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AssigneeType {
@@ -32,8 +32,8 @@ pub enum AssigneeType {
     Unassigned,
 }
 
-/// the public address of a server; with `auto_delete` false it outlives the server, a
-/// recreated server gets it back through `public_net` of its create request
+/// a public address of a server. With `auto_delete` false it stays when the server is deleted;
+/// a recreated server gets it again through `public_net` of its create request
 #[derive(Clone, Debug, Deserialize)]
 pub struct PrimaryIp {
     pub id: u64,
@@ -57,12 +57,12 @@ pub struct PrimaryIpCreate {
     pub name: String,
     #[serde(rename = "type")]
     pub ip_type: PrimaryIpType,
-    /// with `assignee_id`: created assigned to that server, in its location
+    /// with `assignee_id`: the ip is created assigned to that server, in its location
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_type: Option<AssigneeType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_id: Option<u64>,
-    /// created unassigned in this location, one of `assignee_id` and `location` is set
+    /// the location of an ip created without a server; set `assignee_id` or `location`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
     pub auto_delete: bool,
@@ -91,7 +91,7 @@ struct PrimaryIpResponse {
     primary_ip: PrimaryIp,
 }
 
-/// the create answers with the ip and, when created assigned, the action assigning it
+/// the answer to a create: the ip and, when it is created assigned, the action that assigns it
 #[derive(Debug, Deserialize)]
 pub struct PrimaryIpCreated {
     pub primary_ip: PrimaryIp,

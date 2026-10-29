@@ -20,7 +20,7 @@ pub struct HetznerServerProvisioner {
     api: Arc<HetznerApi>,
 }
 
-/// what a server is created from, resolved through the context
+/// the resources a server is created with, resolved through the context
 struct Dependencies {
     ssh_keys: Vec<HetznerSshKeyRuntime>,
     volumes: Vec<HetznerVolumeRuntime>,
@@ -43,8 +43,7 @@ impl HetznerServerProvisioner {
         HetznerServerProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
     async fn find(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
         let found: Result<Option<HetznerServerRuntime>> = {
             Ok(self
@@ -104,8 +103,8 @@ impl HetznerServerProvisioner {
         }
     }
 
-    /// the labels the server carries: the declared ones plus the hashes of what it was
-    /// created from
+    /// the labels of the server: the declared labels and the hashes of the ssh keys and the
+    /// user data it is created with
     fn labels(resource: &HetznerServer, dependencies: &Dependencies) -> Result<Labels> {
         let mut labels = HetznerLabels::new();
         labels.add_hashed(SSH_KEYS_LABEL, &dependencies.fingerprints())?;
@@ -114,7 +113,8 @@ impl HetznerServerProvisioner {
         Ok(labels.into_raw())
     }
 
-    /// assigns the primary ip to the server; hetzner only does that to a stopped server
+    /// assigns the primary ip to the server. Hetzner assigns it only to a stopped server, so
+    /// the server is stopped and started again
     async fn assign(
         &self,
         ip: &HetznerPrimaryIpRuntime,
@@ -186,8 +186,8 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
 
         let mut changes = Vec::new();
 
-        // an ssh key with changes pending gets a new fingerprint on apply, the server
-        // created with the old one must follow
+        // an ssh key that is not up to date can get a new fingerprint on apply; the server
+        // created with the old key must be recreated
         let ssh_keys = labels.hash_matches(SSH_KEYS_LABEL, &dependencies.fingerprints());
         if resource
             .ssh_keys
@@ -366,12 +366,12 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
         Ok(runtime)
     }
 
-    /// the volumes and primary ips of the server stay, they are resources of their own
+    /// the volumes and primary ips of the server stay: they are resources of their own
     async fn destroy(&self, runtime: &HetznerServerRuntime, _: &dyn DestroyContext) -> Result<()> {
         if let Some(action) = self.api.servers().delete(runtime.id).await? {
             self.api.servers().wait_for_action(&action).await?;
-            // hetzner detaches the volumes after the delete, a server created with them right
-            // away is refused
+            // hetzner detaches the volumes after the delete; until then it refuses a new
+            // server with them
             self.wait_for_detach(&runtime.volumes).await?;
         }
         Ok(())
@@ -398,8 +398,8 @@ impl HetznerServerProvisioner {
         Ok(())
     }
 
-    /// a volume still attached to a deleted server detaches in a moment, one attached to
-    /// a live server is a mistake in the declaration
+    /// waits until a volume attached to a deleted server is detached. A volume attached to an
+    /// existing server is an error in the declaration
     async fn wait_for_volumes(&self, volumes: &[HetznerVolumeRuntime]) -> Result<()> {
         for volume in volumes {
             let Some(other) = volume.server else { continue };
@@ -527,7 +527,7 @@ mod tests {
 
     #[tokio::test]
     async fn diff_of_an_up_to_date_server_ignores_the_hash_labels() {
-        // the label sakctl keeps after provisioning is no declared label either
+        // the label that sakctl sets after provisioning is not a declared label either
         let (_server, api) = mock(vec![server(
             "backend",
             "debian-13",

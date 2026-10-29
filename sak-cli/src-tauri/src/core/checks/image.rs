@@ -2,7 +2,7 @@ use super::{Check, CheckResult, Found, Progress};
 use crate::core::container;
 use rust_i18n::t;
 
-/// the image of the tools pulled anew, its progress the megabytes pulled
+/// pulls the image of the tools again; the progress is the megabytes pulled
 pub struct ImageCheck;
 
 impl Check for ImageCheck {
@@ -14,7 +14,7 @@ impl Check for ImageCheck {
         t!("checks.image.name").to_string()
     }
 
-    // runs after the container runtime check, which ended the checks when it found none
+    // runs after the container runtime check, which stops the checks when it finds no runtime
     fn run(&self, found: &mut Found, progress: &Progress) -> CheckResult {
         let runtime = found
             .runtime

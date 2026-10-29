@@ -24,8 +24,7 @@ impl HetznerFirewallProvisioner {
         HetznerFirewallProvisioner { api }
     }
 
-    /// the resource of the lookup's name, refused (`NotOwned`) when it lacks the identity labels
-    /// of the lookup
+    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
     async fn find(&self, lookup: &HetznerFirewallLookup) -> Result<Option<HetznerFirewallRuntime>> {
         let found: Result<Option<HetznerFirewallRuntime>> = {
             match self.api.firewalls().get_by_name(&lookup.name).await? {
@@ -170,7 +169,8 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
         })
     }
 
-    /// takes the firewall off every resource first, hetzner refuses to delete it otherwise
+    /// removes the firewall from all resources first, because hetzner does not delete a
+    /// firewall that is applied
     async fn destroy(
         &self,
         runtime: &HetznerFirewallRuntime,

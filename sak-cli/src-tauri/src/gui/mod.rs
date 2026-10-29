@@ -1,5 +1,5 @@
-//! the window: tauri with the pages of ui/, their commands and the checks of the splash
-//! screen; the commands call into core, this is where tauri lives
+//! the window: tauri with the pages of ui/, their commands and the checks of the splash screen.
+//! The commands call into core, which does not know tauri
 
 pub mod checks;
 pub mod deployments;
@@ -9,7 +9,7 @@ pub mod providers;
 use crate::core::deployments::DeploymentManager;
 use crate::core::providers::ProviderTokens;
 
-/// runs the window until it is closed; a provisioning going on stops then, what it wrote goes
+/// runs the window until it closes; then a provisioning that runs stops and its files go
 pub fn run() {
     crate::core::provision::stop_runs_on_signal();
     tauri::Builder::default()
@@ -47,7 +47,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    /// every color of the page is a token of sak-theme, the stylesheet names none itself
+    /// every color of the page is a token of sak-theme; the stylesheet has no color of its own
     #[test]
     fn the_stylesheet_has_no_color_of_its_own() {
         let css = include_str!("../../../ui/style.css");

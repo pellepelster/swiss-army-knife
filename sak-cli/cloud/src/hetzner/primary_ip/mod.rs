@@ -1,5 +1,5 @@
-//! a primary ip, the public address a server keeps across recreates: the resource, its
-//! lookup and runtime, the provisioner
+//! a primary ip, the public address that a server keeps when it is recreated: the resource,
+//! its lookup and runtime, the provisioner
 
 mod lookup;
 mod provisioner;

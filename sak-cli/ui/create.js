@@ -1,12 +1,13 @@
-// a new deployment: its name and password, from which rust derives the ssh key and plans the
-// resources; the plan lists what creating it would do and, on create, lights each resource up
-// as rust creates it, then the deployments show the new one. A deploy is the same for a
-// deployment that exists: its name and location are given, the password is the one it was
-// created with, and a server that must change is created anew; a destroy removes everything
-// of it but the data volume. The dns mode says under which names of the root domain (a dns
-// zone of the project) the apps of the deployment are reached, a deploy may change both; a
-// root domain another deployment manages in domain mode stops the form, one with subdomain
-// deployments takes only the subdomain mode
+// the form to create, deploy or destroy a deployment, and its plan. A create takes the name and
+// the password; rust derives every key of the deployment from them and plans the resources. The
+// plan lists what the apply will do and shows each resource while rust works on it. After a
+// create, the page of the new deployment opens. A deploy is the same for a deployment that
+// exists: its name and location are fixed, the password is the one it was created with, and a
+// server that must change is created anew. A destroy removes all of the deployment but the data
+// volume, unless the user ticks the box to delete it too. The dns mode tells under which names
+// of the root domain (a dns zone of the project) the apps are; a deploy can change both. A root
+// domain that another deployment manages in dns mode `domain` stops the plan; one with
+// deployments in dns mode `subdomain` allows only that mode
 import { show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
@@ -14,7 +15,8 @@ const { invoke, Channel } = window.__TAURI__.core;
 const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
 const nameInvalid = document.getElementById('create-name-invalid');
-// why rust refused the name when its field was left, none for a valid one: the plan waits for one
+// why rust refused the name when its field was left, null for a valid name; the plan waits for a
+// valid name
 let nameRefusal = null;
 const passwordInput = document.getElementById('create-password');
 const repeatInput = document.getElementById('create-password-repeat');
@@ -27,8 +29,8 @@ const deleteDataGroup = document.getElementById('create-delete-data-group');
 const deleteDataInput = document.getElementById('create-delete-data');
 const createView = document.getElementById('view-create');
 const confirmDialog = document.getElementById('destroy-confirm');
-// a destroy asks for the name and the password alone
 const adminEmailInput = document.getElementById('create-admin-email');
+// the fields a destroy hides: it asks only for the password and whether to delete the data volume
 const destroyHidden = ['create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-user-mode'].map((id) => document.getElementById(id));
 // what only multiple users need: the admin's address and the mail server
 const multiUserGroups = ['create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
@@ -37,14 +39,14 @@ const smtpInputs = Object.fromEntries(
   ['host', 'port', 'username', 'password', 'starttls'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
 );
 
-// deleting the data volume is the one thing that cannot be undone, the form says so in red
+// the data volume cannot be restored after a delete, so the form shows that in red
 function showDeleteData() {
   createView.classList.toggle('danger-zone', intent === 'destroy' && deleteDataInput.checked);
 }
 
 deleteDataInput.addEventListener('change', showDeleteData);
 
-// the last word before a destroy, true when it is to go ahead; Escape is no
+// the last confirmation before a destroy: true to continue; Escape cancels
 function confirmDestroy(name) {
   const withData = deleteDataInput.checked;
   document.getElementById('destroy-confirm-title').textContent = text('ui.confirm.title').replaceAll('%{name}', name);
@@ -59,12 +61,12 @@ function confirmDestroy(name) {
 const dnsModeHint = document.getElementById('create-dns-mode-hint');
 const repeatGroup = document.getElementById('create-repeat-group');
 const planApplyIcon = document.getElementById('plan-apply-icon');
-// the deployment deployed or destroyed, none for a new one, and what is done with it:
-// create, deploy or destroy
+// the deployment to deploy or destroy, null for a new one, and the intent: create, deploy or
+// destroy
 let existing = null;
 let intent = 'create';
 
-// the text of `key` for the intent: `ui.plan.intro` for a create, `ui.plan.intro_deploy`
+// the text of `key` for the intent: `<key>` for a create, `<key>_deploy` or `<key>_destroy` else
 function intentText(key) {
   return text(intent === 'create' ? key : `${key}_${intent}`);
 }
@@ -86,10 +88,10 @@ function newDeployment() {
   };
 }
 
-// a redeploy takes what rust detects of the deployment, as the command line does: the user mode on
-// its labels and, for multiple users, the admin and the mail server with its password of the
-// running configuration (an accepted risk, see docs/ARCHITECTURE.md); only fields still empty,
-// asked once for each password
+// a redeploy takes what rust detects of the deployment, as the command line does: the user mode
+// from its labels and, for multiple users, the admin and the mail server with its password from
+// the running configuration (an accepted risk, see docs/ARCHITECTURE.md). The user mode is always
+// set, the other fields only when they are empty. Rust is asked once for each password
 const smtpPasswordHint = document.getElementById('create-smtp-password-hint');
 let runningAsked = null;
 
@@ -102,7 +104,7 @@ async function prefillFromRunning() {
   try {
     detected = await invoke('detected_settings', { name: existing.name, password: passwordInput.value });
   } catch {
-    // another password or the provider not reachable: nothing to take over
+    // a wrong password or a provider that is not reachable: nothing to take
     return;
   }
   if (detected.userMode) {
@@ -125,8 +127,8 @@ async function prefillFromRunning() {
   if (!smtpInputs.password.value && smtp.password) {
     smtpInputs.password.value = smtp.password;
   }
-  // a backend of before answers no password: then it has to be typed again, a redeploy without it
-  // would leave the mail server of the backend without its password
+  // an older backend gives no password. Then the user must type it again, else the redeploy
+  // removes the password of the mail server
   const typeAgain = smtp.passwordSet && !smtpInputs.password.value;
   smtpPasswordHint.hidden = !typeAgain;
   smtpInputs.password.required = typeAgain;
@@ -135,17 +137,17 @@ async function prefillFromRunning() {
 
 passwordInput.addEventListener('blur', prefillFromRunning);
 
-// the user mode chosen, single unless multi is
+// the chosen user mode, single unless multi is chosen
 function userMode() {
   return form.elements['user-mode'].value || 'single';
 }
 
-// multiple users for a create or a deploy, a destroy needs no users
+// true for multiple users on a create or a deploy; a destroy needs no users
 function multiUser() {
   return intent !== 'destroy' && userMode() === 'multi';
 }
 
-// the fields of multiple users show and are required only for them
+// the fields of multiple users show and are required only for multiple users
 function showUserMode() {
   const multi = multiUser();
   for (const element of multiUserGroups) {
@@ -155,7 +157,7 @@ function showUserMode() {
   smtpInputs.host.required = multi;
   smtpInputs.port.required = multi;
   userModeHint.textContent = text(`ui.create.user_mode_hint_${userMode()}`);
-  // what the plan waits for changes with the mode
+  // the mode changes what the plan waits for
   applyRootDomain();
 }
 
@@ -163,8 +165,8 @@ for (const input of form.elements['user-mode']) {
   input.addEventListener('change', showUserMode);
 }
 
-// multiple users need the admin's address and the mail server, and its password where the running
-// deployment has one: without them the plan waits
+// true while multiple users miss the admin's address, the mail server, or its password where the
+// running deployment has one; the plan waits for them
 function multiUserIncomplete() {
   return (
     multiUser() &&
@@ -179,7 +181,7 @@ for (const input of [adminEmailInput, smtpInputs.host, smtpInputs.port, smtpInpu
   input.addEventListener('input', () => applyRootDomain());
 }
 
-// the mail server as rust takes it, only for multiple users
+// the mail server as rust takes it, null unless multiple users
 function smtp() {
   const host = smtpInputs.host.value.trim();
   if (!multiUser()) {
@@ -194,7 +196,7 @@ function smtp() {
   };
 }
 
-// the fields of the users still empty take what the environment proposes, SAK_USER_MODE,
+// the empty fields of the users take the values of the environment: SAK_USER_MODE,
 // SAK_ADMIN_EMAIL, SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and
 // SAK_SMTP_STARTTLS
 function prefillUsers(defaults) {
@@ -214,7 +216,7 @@ function prefillUsers(defaults) {
   smtpInputs.starttls.checked = defaults.smtpStarttls ?? true;
 }
 
-// the dns mode chosen, subdomain unless domain is
+// the chosen dns mode, subdomain unless domain is chosen
 function dnsMode() {
   return form.elements['dns-mode'].value || 'subdomain';
 }
@@ -224,8 +226,8 @@ function setDnsMode(mode) {
   showDnsModeHint();
 }
 
-// how the names of the apps are made in the chosen mode, with the name typed so far and the
-// root domain chosen
+// the names of the apps in the chosen dns mode, with the name typed so far and the chosen root
+// domain
 function showDnsModeHint() {
   const name = nameInput.value.trim() || '<name>';
   const hint = text(`ui.create.dns_mode_hint_${dnsMode()}`).replaceAll('%{name}', name);
@@ -234,8 +236,8 @@ function showDnsModeHint() {
 
 nameInput.addEventListener('input', showDnsModeHint);
 
-// the name of a new deployment is checked by rust when its field is left; a deploy or destroy
-// takes the name of the deployment as it is
+// rust checks the name of a new deployment when its field is left; a deploy or destroy uses the
+// name of the deployment as it is
 async function checkName() {
   nameRefusal = null;
   if (!existing) {
@@ -255,7 +257,7 @@ function showName() {
 }
 
 nameInput.addEventListener('blur', checkName);
-// typing again takes the refusal back until the field is left again
+// typing clears the refusal until the field is left again
 nameInput.addEventListener('input', () => {
   if (nameRefusal) {
     nameRefusal = null;
@@ -264,7 +266,7 @@ nameInput.addEventListener('input', () => {
 });
 dnsModeGroup.addEventListener('change', showDnsModeHint);
 
-// the zones of the project rust offers as root domains, each with the dns modes possible
+// the zones of the project that rust offers as root domains, each with its possible dns modes
 let rootDomains = [];
 
 async function loadRootDomains(chosen) {
@@ -283,9 +285,9 @@ async function loadRootDomains(chosen) {
   applyRootDomain();
 }
 
-// what the chosen root domain allows: no zone or a domain no other deployment can use stops
-// the plan, a domain with subdomain deployments leaves only the subdomain mode; a destroy
-// does not care
+// what the chosen root domain allows. A domain with no possible dns mode (or no zone at all)
+// disables the plan, a domain with deployments in dns mode `subdomain` disables `domain`. A
+// destroy ignores the root domain. A refused name or missing user fields also disable the plan
 function applyRootDomain() {
   const domain = rootDomains.find(({ name }) => name === rootDomainInput.value);
   const destroying = intent === 'destroy';
@@ -309,14 +311,15 @@ const planStatus = document.getElementById('plan-status');
 const planOutput = document.getElementById('plan-output');
 const applyButton = document.getElementById('plan-apply');
 const planButtons = ['plan-cancel', 'plan-back', 'plan-apply'].map((id) => document.getElementById(id));
-// the rows of the plan by the resource they show, for the events of the creation
+// the rows of the plan by their resource, for the events of the apply
 const rows = new Map();
 
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
-// a resource of the plan: its kind and name, its status (up-to-date, missing, has changes), then
-// what the plan does to it, which rust decides
+// a resource of the plan: its kind, name and resource status, then what the plan does to it.
+// Rust decides the action and the working text (`ui.plan.<working>`) that the row shows when
+// the apply starts
 function planned({ kind, name: resourceName, resourceStatus, action, working, status: state, changes }) {
   const item = document.createElement('li');
   item.className = 'resource';
@@ -351,8 +354,8 @@ function setStatus(message, failed = false) {
   status.classList.toggle('status-failed', failed);
 }
 
-// every field off while rust plans; back on, those the deployment and the root domain keep
-// off stay off
+// every field is disabled while rust plans. After the plan, the fields that the intent or the
+// root domain disable stay disabled
 function setBusy(busy) {
   for (const element of form.elements) {
     element.disabled = busy;
@@ -365,8 +368,9 @@ function setBusy(busy) {
   }
 }
 
-// the password typed twice: the second field is marked until both match, rust checks it again;
-// a deploy or destroy checks it against the deployment instead
+// a create needs the password twice: the repeat field is marked invalid until both match, and
+// rust checks it again. A deploy or destroy has no repeat; rust checks the password against the
+// deployment
 function passwordsMatch() {
   const match = existing ? true : passwordInput.value === repeatInput.value;
   repeatInput.classList.toggle('is-invalid', !match);
@@ -377,7 +381,7 @@ for (const input of [passwordInput, repeatInput]) {
   input.addEventListener('input', () => repeatInput.classList.remove('is-invalid'));
 }
 
-// the locations rust offers, the first one chosen unless the environment says otherwise
+// the locations that rust offers; `chosen` when it is one of them, else the first one
 async function loadLocations(chosen) {
   if (locationInput.options.length === 0) {
     const locations = await invoke('locations');
@@ -395,9 +399,9 @@ async function loadLocations(chosen) {
   }
 }
 
-// the fields still empty take what the environment proposes, SAK_NAME, SAK_PASSWORD and
-// SAK_LOCATION; a deploy or destroy has its name and location from the deployment, only the password
-// from the environment
+// the empty fields take the values of the environment: SAK_NAME, SAK_PASSWORD, SAK_LOCATION and
+// those of the users. A deploy or destroy takes its name, location, dns mode and root domain from
+// the deployment
 async function prefill(back) {
   const defaults = await invoke('deployment_defaults');
   prefillUsers(defaults);
@@ -405,10 +409,10 @@ async function prefill(back) {
     nameInput.value = existing.name;
     await loadLocations(existing.location);
     if (back) {
-      // back from the plan, what was chosen stays
+      // back from the plan: the chosen root domain stays
       await loadRootDomains(rootDomainInput.value);
     } else {
-      // a deployment created before the dns mode was kept is a subdomain one
+      // a deployment without a dns mode on its resources is in dns mode `subdomain`
       setDnsMode(existing.dnsMode ?? 'subdomain');
       await loadRootDomains(existing.rootDomain);
     }
@@ -419,7 +423,7 @@ async function prefill(back) {
       nameInput.value = defaults.name;
     }
   }
-  // a deploy or destroy has no repeat field, what it still holds of a create does not count
+  // a deploy or destroy has no repeat field; a value left in it from a create does not count
   if (!passwordInput.value && (existing || !repeatInput.value) && defaults.password) {
     passwordInput.value = defaults.password;
     repeatInput.value = defaults.password;
@@ -431,7 +435,7 @@ export async function showCreate(options = {}) {
   intent = existing ? options.intent : 'create';
   setStatus('');
   repeatInput.classList.remove('is-invalid');
-  // the password of another deployment does not stay, back from the plan it does
+  // the password stays only when the user comes back from the plan
   if (!options.back) {
     passwordInput.value = '';
     repeatInput.value = '';
@@ -444,10 +448,10 @@ export async function showCreate(options = {}) {
   repeatInput.required = !existing;
   nameInput.readOnly = Boolean(existing);
   locationInput.disabled = Boolean(existing);
-  // a destroy removes the deployment whatever its dns mode and root domain
+  // a destroy ignores the dns mode and the root domain
   dnsModeGroup.disabled = intent === 'destroy';
   rootDomainInput.disabled = intent === 'destroy';
-  // the submit of a destroy is a destructive button, red and named for what it leads to
+  // the submit button of a destroy is red and has the name of the destroy
   planButton.textContent = text(intent === 'destroy' ? 'ui.plan.destroy' : 'ui.create.plan');
   planButton.classList.toggle('btn-danger', intent === 'destroy');
   planButton.classList.toggle('btn-primary', intent !== 'destroy');
@@ -461,7 +465,7 @@ export async function showCreate(options = {}) {
   } catch (error) {
     setStatus(String(error), true);
   }
-  // a destroy needs no users, their hidden fields must not stop the form
+  // a destroy needs no users: their hidden fields must not stop the form
   showUserMode();
   if (!options.back) {
     runningAsked = null;
@@ -469,7 +473,7 @@ export async function showCreate(options = {}) {
     smtpInputs.password.required = false;
   }
   show('view-create');
-  // with the password at hand (SAK_PASSWORD), the running configuration right away
+  // with a password from SAK_PASSWORD, read the running configuration now
   prefillFromRunning();
   (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
 }
@@ -484,7 +488,7 @@ function showPlan(plan) {
   document.getElementById('plan-intro').textContent = intentText('ui.plan.intro');
   document.getElementById('plan-apply-text').textContent = text(intent === 'create' ? 'ui.plan.apply' : `ui.plan.${intent}`);
   planApplyIcon.hidden = intent !== 'create';
-  // a destroy is the one action that takes something away, its button says so
+  // the apply button of a destroy is red
   applyButton.classList.toggle('btn-danger', intent === 'destroy');
   applyButton.classList.toggle('btn-primary', intent !== 'destroy');
   rows.clear();
@@ -499,11 +503,12 @@ function showPlan(plan) {
   show('view-plan');
 }
 
-// a resource of the plan as its creation reports it: busy while rust works on it, ok when done
-// whether the playbook reported its tasks: then they show on the row of the provisioning, the raw
-// output of ansible only without them
+// true when the playbook reports its tasks: then they show on the row of the provisioning, and
+// the raw output of ansible shows only without them
 let tasksReported = false;
 
+// an event of the apply on the row of its resource: busy with the working text of the plan while
+// rust works on it, ok when done, neutral when destroyed
 function onCreateEvent(message) {
   if (message.event === 'provisioning') {
     onOutput(message.message);
@@ -521,7 +526,7 @@ function onCreateEvent(message) {
   }
   const led = row.querySelector('.resource-state');
   const detail = row.querySelector('.resource-detail');
-  // the task that runs on the label of the provisioning, at the end all ok or the failed task
+  // the task that runs shows on the row of the provisioning
   if (message.event === 'taskStarted' || message.event === 'taskDone') {
     if (!tasksReported) {
       tasksReported = true;
@@ -559,15 +564,15 @@ function onCreateEvent(message) {
   }
 }
 
-// what ansible prints while it provisions the server, line by line, the newest in sight
+// what ansible prints while it provisions the server, line by line; the newest line stays in view
 function onOutput(line) {
   planOutput.hidden = false;
   planOutput.textContent += `${line}\n`;
   planOutput.scrollTop = planOutput.scrollHeight;
 }
 
-// a deployment just created: its page, as the list of the deployments finds it now; without it the
-// plan stays, it says the deployment is up-to-date
+// opens the page of a new deployment, as the list of the deployments finds it now. When the list
+// does not have it, the plan stays and says that the deployment is up-to-date
 async function showCreated(name) {
   try {
     const deployments = await invoke('list_deployments');
@@ -578,7 +583,7 @@ async function showCreated(name) {
       showDeployment(created);
     }
   } catch {
-    // the plan with its status stays
+    // the plan stays with its status
   }
 }
 
@@ -631,14 +636,14 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
-// cancel, from the form or from the plan: what was typed is forgotten, back from the plan keeps it
+// cancel, from the form or from the plan: forgets what was typed
 async function backToDeployments() {
   resetForm();
   const { showDeployments } = await import('./deployments.js');
   await showDeployments();
 }
 
-// what was typed is forgotten, the form is the one of a new deployment again
+// forgets what was typed; the form is the form of a new deployment again
 function resetForm() {
   form.reset();
   repeatInput.classList.remove('is-invalid');
@@ -658,6 +663,6 @@ function resetForm() {
 }
 
 document.getElementById('create-cancel').addEventListener('click', backToDeployments);
-// back to the form of the same deployment and intent, what was typed stays
+// back to the form of the same deployment and intent; what was typed stays
 document.getElementById('plan-back').addEventListener('click', () => showCreate({ existing, intent, back: true }));
 document.getElementById('plan-cancel').addEventListener('click', backToDeployments);

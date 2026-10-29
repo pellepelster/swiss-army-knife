@@ -16,47 +16,47 @@ pub(crate) mod test_support;
 
 use crate::api::{DiffItem, Labeled, label_diff};
 
-/// the prefix of the labels sak keeps for itself on the resources
+/// the prefix of the labels of sak on the resources
 pub const LABEL_NAMESPACE: &str = "sak.pelle.io";
 
-/// the name, the unique name of the deployment a resource belongs to; every cloud
-/// resource of a deployment carries it
+/// the name of the deployment that a resource belongs to; every cloud resource of a deployment
+/// has it
 pub const NAME_LABEL: &str = "sak.pelle.io/name";
 
-/// the hash of the password of a deployment, on its server; the wizard checks a password
-/// against it before it touches a deployment
+/// the hash of the password of a deployment, on every resource of it; sakctl checks a password
+/// against it before it changes a deployment
 pub const PASSWORD_HASH_LABEL: &str = "sak.pelle.io/password-hash";
 
 /// the dns mode of a deployment, `domain` or `subdomain`, on every resource of it
 pub const DNS_MODE_LABEL: &str = "sak.pelle.io/dns-mode";
 
-/// who signs in to a deployment, `single` or `multi` (the user mode of sakctl), on every resource
-/// of it: a deploy keeps it unless told otherwise
+/// the user mode of a deployment, `single` or `multi`, on every resource of it; a deploy keeps
+/// it unless told otherwise
 pub const USER_MODE_LABEL: &str = "sak.pelle.io/user-mode";
 
-/// the acme ca the certificates of a deployment come from, `staging` for the staging ca of let's
-/// encrypt (tests), none for the default; on every resource of it, a deploy keeps it
+/// the acme ca of the certificates of a deployment: `staging` for the staging ca of let's
+/// encrypt (tests), none for the default. On every resource of it; a deploy keeps it
 pub const ACME_CA_LABEL: &str = "sak.pelle.io/acme-ca";
 
 /// the root domain of a deployment, `pelle.io`, on every resource of it
 pub const ROOT_DOMAIN_LABEL: &str = "sak.pelle.io/root-domain";
 
-/// the hash of the fingerprints of the ssh keys a server was created with
+/// the hash of the fingerprints of the ssh keys that a server was created with
 pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 
-/// the hash of the user data (cloud-init) a server was created with
+/// the hash of the user data (cloud-init) that a server was created with
 pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 
-/// on the ssh key sakctl creates and deletes to check a token: what a check left behind is found
-/// by it and removed by the next
+/// on the ssh key that sakctl creates and deletes to check a token; the next check finds a key
+/// that a check left and removes it
 pub const TOKEN_CHECK_LABEL: &str = "sak.pelle.io/token-check";
 
-/// the configuration the server was provisioned with, as a hash only sakctl can make (it is keyed
-/// by the password): set after a provisioning succeeded, removed before one starts; sakctl keeps it
-/// on the server, the declaration of the server has none
+/// the configuration that the server was provisioned with, as a hash only sakctl can make (keyed
+/// by the master key of the deployment). Set after a provisioning succeeded, removed before one
+/// starts. sakctl keeps it on the server; the declaration of the server does not have it
 pub const PROVISIONED_CONFIG_LABEL: &str = "sak.pelle.io/provisioned-config";
 
-/// whether a label is one the provisioners or sakctl keep on a resource beside its declared
+/// whether the provisioners or sakctl keep the label on a resource in addition to the declared
 /// labels, chunks included
 pub fn is_managed_label(key: &str) -> bool {
     key.starts_with(SSH_KEYS_LABEL)
@@ -64,7 +64,7 @@ pub fn is_managed_label(key: &str) -> bool {
         || key == PROVISIONED_CONFIG_LABEL
 }
 
-/// the label diff of a hetzner resource, without the labels the provisioners keep
+/// the label diff of a hetzner resource, without the labels that the provisioners keep
 pub(crate) fn hetzner_label_diff(resource: &impl Labeled, runtime: &impl Labeled) -> Vec<DiffItem> {
     label_diff(
         resource.labels(),

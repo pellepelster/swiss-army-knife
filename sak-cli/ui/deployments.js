@@ -1,6 +1,6 @@
-// the sak deployments found at the providers, each with the state of its resource group: the
-// ssh key, the firewall and the server, what is missing and what changed. A deployment opens
-// its page, create leads to a new deployment, back to the provider tokens
+// the sak deployments found at the providers, each with its state and the status of each
+// resource. The header of a deployment opens its page, create opens the form of a new deployment,
+// back opens the provider tokens
 import { showCreate } from './create.js';
 import { showDeployment } from './deployment.js';
 import { show, text } from './views.js';
@@ -10,10 +10,10 @@ const { invoke } = window.__TAURI__.core;
 const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
-// the state of a deployment as the led pill shows it, the diff status of a resource as its led
+// the led of the theme for the state of a deployment, on its pill
 export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
 // the resource status of the glossary for the diff status of a resource: one whose parent is
-// missing is missing itself
+// missing is missing itself, a duplicate has changes
 const RESOURCE_STATUS = { up_to_date: 'up_to_date', missing: 'missing', parent_missing: 'missing', has_changes: 'has_changes', duplicate: 'has_changes' };
 
 // the led of the theme for the diff status of a resource
@@ -36,7 +36,7 @@ export function resource(state) {
   item.append(mark, kind, name);
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  // its status (up-to-date, missing, has changes), then what there is to know of it
+  // its resource status, then its detail; a missing resource has no detail
   const status = text(`ui.resource_status.${RESOURCE_STATUS[state.status] ?? 'has_changes'}`);
   detail.textContent = state.detail && RESOURCE_STATUS[state.status] !== 'missing' ? `${status}, ${state.detail}` : status;
   item.append(detail);
@@ -49,8 +49,8 @@ export function resource(state) {
   return item;
 }
 
-// the frontend of a deployment as `Address: <link>` at the bottom of its card, opened by rust in
-// the browser of the system (the window itself never leaves the wizard)
+// the frontend of a deployment as `Address: <link>` at the bottom of its card. Rust opens the link
+// in the browser of the system, the window never leaves its pages
 function frontendLink(url) {
   const line = document.createElement('li');
   line.className = 'deployment-link';
@@ -98,9 +98,8 @@ function deployment(data) {
   const group = document.createElement('ul');
   group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));
-  // where its frontend is, opened in the browser of the system; none for a deployment without a
-  // root domain on its resources
-  // the last line of the list, so it starts where the resources start
+  // the last line of the list, so it starts where the resources start; hidden for a deployment
+  // without a root domain on its resources
   group.append(frontendLink(data.frontendUrl));
   item.append(header, group);
   return item;

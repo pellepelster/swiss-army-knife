@@ -6,12 +6,12 @@ use crate::hetzner::server::{HetznerServerLookup, HetznerServerRuntime};
 use crate::hetzner::ssh_key::HetznerSshKeyLookup;
 use crate::hetzner::volume::HetznerVolumeLookup;
 
-/// the cloud-init of a server: the text to create it with, or only the hash of it for a
-/// server that exists already, read from its labels
+/// the cloud-init of a server: the text to create it with, or only its hash, read from the
+/// labels of an existing server
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UserData {
     Text(String),
-    /// the sha256 of the text, a server cannot be created from it
+    /// the label hash of the text (`label_hash`); a server cannot be created from it
     Hash(String),
 }
 
@@ -20,7 +20,7 @@ impl UserData {
         UserData::Text(text.to_string())
     }
 
-    /// the label hash that goes into the label of the server
+    /// the value of the user data label of the server
     pub fn hash(&self) -> String {
         match self {
             UserData::Text(text) => label_hash(text),
@@ -29,14 +29,13 @@ impl UserData {
     }
 }
 
-/// a server created from an image with cloud-init user data. The user data and the
-/// ssh keys only count at creation, so their hashes are kept in labels and a change of
-/// either is a recreate; with primary ips the recreated server keeps its addresses
+/// a server created from an image with cloud-init user data. The user data and the ssh keys
+/// have an effect only at creation, so their hashes are kept in labels and a change of either
+/// needs a recreate. With primary ips, the recreated server keeps its addresses
 #[derive(Clone, Debug)]
 pub struct HetznerServer {
     pub name: String,
-    /// the labels that, with the name, identify it: written with the labels, checked on every
-    /// lookup (`api::identity`); a resource of the name without them is left alone
+    /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
     pub location: Location,
     pub server_type: ServerType,
@@ -46,7 +45,8 @@ pub struct HetznerServer {
     pub user_data: UserData,
     pub ssh_keys: Vec<HetznerSshKeyLookup>,
     pub volumes: Vec<HetznerVolumeLookup>,
-    /// the ipv4 primary ip; without one hetzner creates an address that goes with the server
+    /// the ipv4 primary ip; without it hetzner creates an address that is deleted with the
+    /// server
     pub ipv4: Option<HetznerPrimaryIpLookup>,
     pub ipv6: Option<HetznerPrimaryIpLookup>,
     pub labels: Labels,
@@ -99,7 +99,7 @@ impl HetznerServer {
         self
     }
 
-    /// the identity labels, also written as labels: a lookup of it checks them
+    /// sets the identity labels and adds them to the labels
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;

@@ -4,30 +4,31 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-/// the labels of a resource as declared and as the provider reports them
+/// the labels of a resource, as declared or as the provider reports them
 pub type Labels = BTreeMap<String, String>;
 
-/// what a declared resource looks like at the provider, the result of a lookup or apply;
-/// its labels are what identity and ownership are checked against
+/// a resource as it is at the provider, the result of a lookup or an apply. The identity and
+/// the owner are checked against its labels
 pub trait Runtime: Labeled + Send + Sync + 'static {}
 
-/// resources and runtimes that carry labels, the label diff works on them
+/// a resource or runtime with labels; the label diff compares them
 pub trait Labeled {
     fn labels(&self) -> &Labels;
 }
 
-/// a resource declared in code, the provisioner of its type reconciles it
+/// a resource declared in code; the provisioner of its type reconciles it
 pub trait Resource: Send + Sync + 'static {
     type Runtime: Runtime;
     type Lookup: Lookup<Runtime = Self::Runtime>;
 
-    /// the name the resource is looked up by at the provider, unique per type
+    /// the declared name. The name of its lookup identifies it and is unique per type; for a
+    /// dns record the lookup name also has the zone and the type
     fn name(&self) -> &str;
 
-    /// the lookup of this resource, other resources refer to it through this
+    /// the lookup of this resource; other resources refer to it through the lookup
     fn as_lookup(&self) -> Self::Lookup;
 
-    /// the resources this one needs applied first: every lookup it holds
+    /// the resources to apply before this one: every lookup it holds
     fn depends_on(&self) -> Vec<ResourceRef> {
         Vec::new()
     }
@@ -42,8 +43,8 @@ pub trait Resource: Send + Sync + 'static {
     }
 }
 
-/// identifies a resource across types: the type of its lookup and its name; the log text
-/// rides along for messages and takes no part in equality
+/// identifies a resource across types by the type of its lookup and its name. The log text is
+/// for messages only; equality and hash ignore it
 #[derive(Clone, Debug)]
 pub struct ResourceRef {
     pub type_id: TypeId,

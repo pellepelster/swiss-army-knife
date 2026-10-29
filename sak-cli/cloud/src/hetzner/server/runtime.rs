@@ -15,7 +15,7 @@ pub struct HetznerServerRuntime {
     pub volumes: Vec<u64>,
     pub public_ipv4: Option<String>,
     pub public_ipv6: Option<String>,
-    /// the ids of the primary ips behind the public addresses
+    /// the ids of the primary ips of the public addresses
     pub ipv4_id: Option<u64>,
     pub ipv6_id: Option<u64>,
     pub labels: Labels,

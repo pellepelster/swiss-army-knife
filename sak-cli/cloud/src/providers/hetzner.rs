@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 pub const HETZNER_PROVIDER_TYPE: &str = "hcloud";
 
-/// a hetzner cloud project, reached with an api token of it
+/// a hetzner cloud project and an api token of it
 #[derive(Clone, Debug)]
 pub struct HetznerProviderConfiguration {
     pub name: String,
@@ -50,7 +50,7 @@ impl ProviderConfiguration for HetznerProviderConfiguration {
     }
 }
 
-/// the validated configuration with its api client; the provisioners are all built on it
+/// the validated configuration with its api client; all provisioners use this client
 pub struct HetznerProviderRuntime {
     pub api: Arc<HetznerApi>,
     pub default_location: Location,
@@ -112,7 +112,7 @@ pub struct HetznerProviderManager;
 impl ProviderManager<HetznerProviderConfiguration> for HetznerProviderManager {
     type Runtime = HetznerProviderRuntime;
 
-    /// the token must read the project: a list of its ssh keys proves it
+    /// the token must be able to read the project: it lists the ssh keys to check this
     async fn validate(
         &self,
         configuration: &HetznerProviderConfiguration,
@@ -136,7 +136,7 @@ impl ProviderManager<HetznerProviderConfiguration> for HetznerProviderManager {
 }
 
 impl HetznerProviderRuntime {
-    /// a runtime from an api client already in hand, nothing is validated
+    /// a runtime from an existing api client, without validation
     pub fn from_api(
         api: Arc<HetznerApi>,
         default_location: Location,

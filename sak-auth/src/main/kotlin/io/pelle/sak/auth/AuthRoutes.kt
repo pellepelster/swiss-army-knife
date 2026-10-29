@@ -29,9 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
-import java.security.MessageDigest
 import java.time.Instant
-import java.util.HexFormat
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
 import io.pelle.sak.auth.model.LoginMethodsResponse
@@ -52,18 +50,11 @@ val sessionSecurityScheme =
         description = "The session token the apps get for a login link, see POST /api/v1/auth/login/exchange.",
     )
 
-// the security scheme of the admin api token in the openapi document, named like its provider
-val apiTokenSecurityScheme =
-    HttpSecurityScheme(
-        scheme = "bearer",
-        description = "The admin api token sakctl derives from the password of the deployment, see sakctl config show.",
-    )
-
 private const val AUTH_TAG = "auth"
 
 data class SessionPrincipal(
     val email: String,
-    // null for the admin api token, which never expires
+    // null for a signed request of sakctl, which has no session that expires
     val expiresAt: Instant?,
     val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
@@ -97,32 +88,10 @@ fun AuthenticationConfig.session(
             val withPassword = credential.payload.getClaim(TokenService.LOGIN_METHOD).asString() == TokenService.PASSWORD
             if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles, withPassword) else null
         }
-        // a 401 says how to authenticate, one bearer challenge for the session and the api token alike
+        // a 401 says how to authenticate, one bearer challenge for the session and a signed request alike
         challenge { _, _ ->
             call.response.header(HttpHeaders.WWWAuthenticate, "Bearer")
             call.respond(HttpStatusCode.Unauthorized)
-        }
-    }
-}
-
-const val API_TOKEN_AUTH = "api-token"
-
-// who acts with the admin api token: no e-mail address, what the token creates is its own
-const val API_TOKEN_IDENTITY = "sakctl"
-
-// the admin api token of sakctl, derived from the password of the deployment: a bearer token
-// whose sha-256 is configured (api_token_sha256), compared in constant time; it acts as an admin
-// that never expires. Without a configured sha-256 every token is refused
-fun AuthenticationConfig.apiToken(sha256: String?) {
-    val expected = sha256?.let { HexFormat.of().parseHex(it) }
-    bearer(API_TOKEN_AUTH) {
-        authenticate { credential ->
-            val actual = MessageDigest.getInstance("SHA-256").digest(credential.token.toByteArray())
-            if (expected != null && MessageDigest.isEqual(expected, actual)) {
-                SessionPrincipal(API_TOKEN_IDENTITY, null, setOf(Role.ADMIN))
-            } else {
-                null
-            }
         }
     }
 }
@@ -388,7 +357,7 @@ fun safeRedirect(redirect: String?): String {
 }
 
 // the controller is only reachable through caddy, which sets X-Forwarded-For to the client
-private fun ApplicationCall.clientAddress(): String =
+internal fun ApplicationCall.clientAddress(): String =
     request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
         ?: request.local.remoteAddress
 

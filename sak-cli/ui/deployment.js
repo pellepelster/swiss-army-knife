@@ -1,6 +1,5 @@
-// one deployment: its state and resources; deploy at the top right leads to the plan of
-// bringing it to what the wizard declares, destroy to the plan of removing everything but its
-// data volume, back to the deployments
+// the page of one deployment: its state, location and resources. Deploy and destroy at the top
+// right open the form for that intent; back opens the deployments
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
 import { show, text } from './views.js';

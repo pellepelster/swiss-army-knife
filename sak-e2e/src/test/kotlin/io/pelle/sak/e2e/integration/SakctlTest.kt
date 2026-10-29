@@ -111,8 +111,8 @@ class SakctlTest {
                 .shouldContainAll("@.$DOMAIN_ZONE/A", "*.$DOMAIN_ZONE/A", "@.$DOMAIN_ZONE/AAAA", "*.$DOMAIN_ZONE/AAAA")
             // multi user below a name of its own for each run
             create(subdomain, "subdomain", SUBDOMAIN_ZONE, *MULTI_USER) shouldBe EXIT_OK
-            // the admin api token sakctl derives is the one whose hash the provisioning wrote: the
-            // backend answers its running configuration, without a secret in it
+            // the api key sakctl derives is the one whose public half the provisioning wrote: the
+            // backend answers a signed request with its running configuration, without a secret in it
             configShow(subdomain).let { lines ->
                 lines.any { it.contains("smtp.host $FAKE_SMTP_HOST") } shouldBe true
                 lines.none { it.contains(password) || it.contains("sak_") } shouldBe true

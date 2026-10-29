@@ -1,14 +1,13 @@
 //! the identity of a resource: its name and the identity labels of its lookup. A resource
-//! with the name but other identity labels belongs to someone else, every lookup refuses it
-//! (`Error::NotOwned`) instead of treating it as the declared one, so no diff, apply or
-//! destroy ever touches it
+//! with the name but other identity labels belongs to someone else. Every lookup refuses it
+//! (`Error::NotOwned`), so no diff, apply or destroy touches it
 
 use crate::api::error::{Error, Result};
 use crate::api::resource::{Labeled, Labels};
 
-/// `found` when it carries every label of `identity` with the same value; `None` when nothing
-/// has the name; `NotOwned` for a resource of the name that misses one or has another value.
-/// An empty identity takes whatever has the name
+/// `found` when it has every label of `identity` with the same value; `None` when nothing has
+/// the name; `NotOwned` when a label is missing or has another value. An empty identity
+/// accepts any resource of the name
 pub fn check<R: Labeled>(found: Option<R>, identity: &Labels, log_text: &str) -> Result<Option<R>> {
     let Some(found) = found else {
         return Ok(None);
@@ -73,7 +72,7 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
-        // an empty identity takes whatever has the name
+        // an empty identity accepts any resource of the name
         assert!(
             check(
                 Some(Found(Labels::new())),

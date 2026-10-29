@@ -1,36 +1,36 @@
 use thiserror::Error as ThisError;
 
-/// every error a lookup, diff, apply or destroy can end with; the message says what and
-/// which resource, so it can be shown as is
+/// an error of a lookup, diff, apply or destroy. The message names the resource and the cause,
+/// so it can be shown as it is
 #[derive(Debug, ThisError)]
 pub enum Error {
     #[error("{0}")]
     Message(String),
 
-    /// a lookup the resource depends on found nothing
+    /// a lookup that the resource depends on found nothing
     #[error("{0} not found")]
     NotFound(String),
 
-    /// a lookup of a type no provider was registered for
+    /// no lookup provider is registered for the type of the lookup
     #[error("no lookup provider for {0}")]
     NoLookupProvider(String),
 
     #[error("invalid label: {0}")]
     InvalidLabel(String),
 
-    /// a resource of the declared name exists, but its identity labels say it belongs to
-    /// someone else; it is left as it is
+    /// a resource of the declared name exists, but its identity labels show that it belongs
+    /// to someone else; it stays as it is
     #[error("{resource} exists and does not belong to this deployment: {reason}")]
     NotOwned { resource: String, reason: String },
 
-    /// a resource would have to be destroyed and created again (`changes`), but it is not
-    /// declared recreatable, e.g. because it holds data or an address; nothing was changed
+    /// the `changes` need a destroy and a new create of the resource, but it is not
+    /// recreatable, e.g. because it holds data or an address; nothing was changed
     #[error(
         "{resource} would have to be created anew ({changes}), which would remove it with what it holds"
     )]
     RecreateRefused { resource: String, changes: String },
 
-    /// the api of a provider failed, the error is the provider's own
+    /// the api of a provider failed; the source is the error of the provider
     #[error("{0}")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),
 }

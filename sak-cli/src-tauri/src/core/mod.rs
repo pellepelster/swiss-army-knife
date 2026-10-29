@@ -1,6 +1,7 @@
-//! what the window and the command line share: the checks on startup, the deployments and their manager, the keys
-//! derived from a password, the providers and their tokens, the texts. Nothing in here knows
-//! tauri or clap
+//! what the window and the command line share: the checks on startup, the deployments and their
+//! manager, the provisioning, the container runtime, the keys derived from a password, the signed
+//! requests to the api, the providers and their tokens, the texts. Nothing in here knows tauri or
+//! clap
 
 pub mod checks;
 pub mod config;
@@ -15,7 +16,7 @@ pub mod provision;
 
 #[cfg(test)]
 mod tests {
-    /// the boundary: what the window and the command line share names neither of them
+    /// the boundary: the shared code names neither the window nor the command line
     #[test]
     fn core_knows_neither_tauri_nor_clap() {
         for (name, source) in [

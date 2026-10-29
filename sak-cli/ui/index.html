@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SwissArmyKnife</title>
-    <!-- the theme comes from ../../sak-theme, copied to theme/ by mise run cli:theme: bootstrap,
-         then the tokens, bootstrap mapped onto them, the components; style.css holds the layout -->
+    <!-- the theme of ../../sak-theme, copied to theme/ by mise run cli:theme: bootstrap, the
+         fonts, the tokens, bootstrap mapped onto the tokens, the components. style.css has the
+         layout -->
     <link rel="stylesheet" href="theme/bootstrap.min.css">
     <link rel="stylesheet" href="theme/fonts.css">
     <link rel="stylesheet" href="theme/tokens.css">
@@ -15,10 +16,10 @@
     <script type="module" src="app.js"></script>
   </head>
   <body>
-    <!-- one view at a time, app.js switches between them; data-text names the text of locales/.
-         Buttons moving through the wizard (next, back, cancel, plan, create) sit in the button
-         group at the bottom right, buttons acting on the data of the view (add a provider,
-         create a deployment) in the one at the top right of the page header -->
+    <!-- one view at a time, show() of views.js switches between them; data-text is the key of a
+         text of src-tauri/locales/. Buttons that move through the steps (next, back, cancel,
+         plan, create) are in the button group at the bottom right. Buttons that act on the data
+         of the view (add a provider, create a deployment) are at the top right of the header -->
     <main class="view splash" id="view-splash">
       <img class="splash-icon" src="icon.svg" alt="">
       <h1 class="splash-title">SwissArmyKnife</h1>
@@ -257,7 +258,7 @@
         </div>
       </div>
     </main>
-    <!-- the last word before a destroy: what goes, the data volume too when asked -->
+    <!-- the last confirmation before a destroy: what goes, with the data volume when asked -->
     <dialog class="confirm" id="destroy-confirm">
       <form method="dialog">
         <h2 class="confirm-title" id="destroy-confirm-title"></h2>

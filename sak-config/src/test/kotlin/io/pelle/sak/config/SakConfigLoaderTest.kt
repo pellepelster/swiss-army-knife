@@ -55,7 +55,7 @@ class SakConfigLoaderTest {
                 """
                 data_dir: /data
                 root_domain: example.org
-                api_token_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                api_public_key: zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ=
                 auth:
                   admins: [admin@example.org]
                   admin_password: ${'$'}SAK_TEST_ADMIN_PASSWORD
@@ -285,12 +285,14 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `an api_token_sha256 that is no sha-256 in lower case hex refuses to load`() {
-        val hash = "ab".repeat(32)
-        load("api_token_sha256: $hash\ndata_dir: /data\n$ROOT_DOMAIN").apiTokenSha256 shouldBe hash
-        load("data_dir: /data\n$ROOT_DOMAIN").apiTokenSha256 shouldBe null
-        listOf(hash.drop(1), hash.uppercase(), "zz".repeat(32), hash + "a").forEach { wrong ->
-            shouldThrow<IllegalArgumentException> { load("api_token_sha256: $wrong\ndata_dir: /data\n$ROOT_DOMAIN") }
+    fun `an api_public_key that is no ed25519 public key refuses to load`() {
+        val key = "zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ="
+        load("api_public_key: '$key'\ndata_dir: /data\n$ROOT_DOMAIN").apiPublicKey shouldBe key
+        load("data_dir: /data\n$ROOT_DOMAIN").apiPublicKey shouldBe null
+        // too short, too long, no base64
+        listOf(key.drop(4), "AAAA$key", "zz".repeat(32)).forEach { wrong ->
+            shouldThrow<IllegalArgumentException> { load("api_public_key: '$wrong'\ndata_dir: /data\n$ROOT_DOMAIN") }
+                .message shouldContain "api_public_key"
         }
     }
 

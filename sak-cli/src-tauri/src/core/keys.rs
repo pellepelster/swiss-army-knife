@@ -1,16 +1,16 @@
-//! everything a deployment derives from its password: the ssh keys, the password hash label, the
-//! admin api token, the admin password hash and the provisioned-config label. The same name and
-//! password give the same values on every machine, so nothing has to be kept.
+//! everything a deployment derives from its password: the ssh client key, the ssh host key, the
+//! password hash label, the api key, the admin password hash and the provisioned-config label.
+//! The same name and password give the same values on every machine, so sakctl keeps nothing.
 //!
-//! One argon2id of the password, strong (`MASTER_PARAMS`), gives the master key of the
-//! deployment; each value is expanded from it with hkdf-sha256 and a purpose of its own, so none
-//! gives away another and a run pays for the argon2id once. Whoever reads the project (the label,
-//! the public keys) pays it for every guess. The admin password hash is the exception: the
-//! backend checks a typed password against it, so it is an argon2id of the password itself
+//! One strong argon2id of the password (`MASTER_PARAMS`) gives the master key of the deployment.
+//! hkdf-sha256 expands each value from it with a purpose of its own, so no value gives away
+//! another, and a run computes the argon2id one time only. Whoever reads the project (the label,
+//! the public keys) must compute it for every guess. The admin password hash is the exception:
+//! the backend checks a typed password against it, so it is an argon2id of the password itself
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine;
-use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use hkdf::Hkdf;
 use sha2::{Digest, Sha256};
@@ -20,8 +20,8 @@ use unicode_normalization::UnicodeNormalization;
 /// the argon2id of the master key: 256 MiB, 3 passes, one lane; about half a second
 const MASTER_PARAMS: (u32, u32, u32) = (256 * 1024, 3, 1);
 
-/// the argon2id of the admin password hash: 64 MiB, 3 passes, one lane; the backend computes it for
-/// every password login on a small server, so less than the master key
+/// the argon2id of the admin password hash: 64 MiB, 3 passes, one lane. Less than the master key,
+/// because the backend computes it on a small server for every password login
 const ADMIN_PASSWORD_PARAMS: (u32, u32, u32) = (64 * 1024, 3, 1);
 
 /// what the salts and purposes start with; a new version gives every value anew
@@ -37,12 +37,12 @@ fn normalized(password: &str) -> String {
     password.nfc().collect()
 }
 
-/// the master keys this process derived, by the name and the sha-256 of the password: a run asks
-/// for several values of the same deployment, the argon2id runs once for them
+/// the master keys this process derived, by the name and a sha-256 of the password. A run asks for
+/// several values of the same deployment, the argon2id runs one time for all of them
 #[allow(clippy::type_complexity)]
 static MASTER_KEYS: Mutex<Vec<(String, [u8; 32], [u8; 32])>> = Mutex::new(Vec::new());
 
-/// the master keys kept at most, the deployments of one listing
+/// the most master keys kept; the oldest goes first
 const MASTER_KEYS_KEPT: usize = 16;
 
 fn master_key(name: &str, password: &str) -> Result<[u8; 32], String> {
@@ -87,8 +87,8 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// an ed25519 key derived from the password of a deployment: the client key the server
-/// is created with, or the host key the server identifies itself with
+/// an ed25519 ssh key derived from the master key: the client key the server is created with,
+/// or the host key the server identifies itself with
 pub struct DerivedKey {
     key: SigningKey,
     comment: String,
@@ -113,8 +113,8 @@ fn derive(name: &str, password: &str, purpose: &str, comment: &str) -> Result<De
     })
 }
 
-/// the client key of a deployment; the server is created with its public half, sakctl logs in
-/// with the private
+/// the client key of a deployment: the server is created with its public half, sakctl logs in
+/// with its private half through an ssh-agent (`core::provision`)
 pub fn derive_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "client-key", &format!("sak-{name}"))
 }
@@ -124,38 +124,47 @@ pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
     Ok(derive_key(name, password)?.public_key())
 }
 
-/// the host key of the server of a deployment: cloud-init installs it, so the server is known
-/// before it ever boots and the first connection is verified
+/// the host key of the server of a deployment: cloud-init installs it, so sakctl knows the key
+/// before the server first boots and verifies the first connection
 pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "host-key", &format!("sak-{name}-host"))
 }
 
-/// the hash of the password that goes on the resources of the deployment as the label
-/// sak.pelle.io/password-hash: 30 bytes as hex, short enough for one label value. sakctl checks a
-/// password against it
+/// the label sak.pelle.io/password-hash on every resource of the deployment: 30 bytes of the
+/// master key as hex, short enough for one label value. sakctl checks a password against it
 pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
     Ok(hex(&expand::<30>(name, password, "password-hash")?))
 }
 
-/// the admin api token of a deployment, 32 bytes as `sak_<base64url>`. The server keeps only its
-/// sha-256 (`api_token_sha256`), the token travels as a bearer token and is never written anywhere
-pub fn api_token(name: &str, password: &str) -> Result<String, String> {
-    Ok(format!(
-        "sak_{}",
-        URL_SAFE_NO_PAD.encode(expand::<32>(name, password, "api-token")?)
-    ))
+/// the ed25519 key sakctl signs its requests to the admin api of a deployment with
+/// (`config::signed_text`). The backend knows only its public half, so no request carries a
+/// secret. No Debug, the key never shows
+pub struct ApiKey(SigningKey);
+
+impl ApiKey {
+    /// the public half, 32 bytes as base64, as the configuration of the backend holds it
+    pub fn public_key(&self) -> String {
+        STANDARD.encode(self.0.verifying_key().as_bytes())
+    }
+
+    /// the ed25519 signature of `message`, its 64 bytes as base64
+    pub fn sign(&self, message: &[u8]) -> String {
+        use ed25519_dalek::Signer;
+        STANDARD.encode(self.0.sign(message).to_bytes())
+    }
 }
 
-/// the sha-256 of the api token in hex, what the backend compares a bearer token with; the token
-/// has 256 bits of its own, a fast hash is enough
-pub fn api_token_sha256(token: &str) -> String {
-    sak_cloud::hetzner::labels::sha256_hex(token)
+/// the key of the admin api of a deployment
+pub fn api_key(name: &str, password: &str) -> Result<ApiKey, String> {
+    Ok(ApiKey(SigningKey::from_bytes(&expand::<32>(
+        name, password, "api-key",
+    )?)))
 }
 
-/// the hash of the admin password (the deployment password, as nfc) the backend checks a password
-/// login against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`). The salt
-/// is derived from the name, so the same password gives the same hash on every deploy and the
-/// configuration of the backend does not change
+/// the hash of the admin password (the deployment password as nfc) that the backend checks a
+/// password login against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`).
+/// The salt comes from the name, so every deploy gives the same hash and the configuration of the
+/// backend does not change
 pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {
     use argon2::password_hash::{PasswordHasher, SaltString};
     // 16 bytes of salt, the recommended length
@@ -167,11 +176,11 @@ pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String>
         .to_string())
 }
 
-/// the label `sak.pelle.io/provisioned-config` of the server: hmac-sha256 with a key of the
-/// master key over `config`, the configuration the playbook writes, 30 bytes as hex, one label
-/// value. The same configuration gives the same value on every machine, another one another value;
-/// without the password nobody can tell from it what the configuration is, not even a weak password
-/// of the mail server in it
+/// the label `sak.pelle.io/provisioned-config` of the server: hmac-sha256 over `config` (the
+/// configuration the playbook writes) with a key from the master key, 30 bytes as hex. The same
+/// configuration gives the same value on every machine, another configuration another value.
+/// Without the password nobody can find the configuration from it, also not a weak password of
+/// the mail server in it
 pub fn provisioned_config(name: &str, password: &str, config: &str) -> Result<String, String> {
     use hmac::{Hmac, Mac};
     let key = expand::<32>(name, password, "provisioned-config")?;
@@ -180,11 +189,11 @@ pub fn provisioned_config(name: &str, password: &str, config: &str) -> Result<St
     Ok(hex(&mac.finalize().into_bytes()[..30]))
 }
 
-/// the least zxcvbn score of a new password, of 0 to 4: 3 holds out about 10^10 guesses
+/// the lowest zxcvbn score (0 to 4) of a new password: 3 needs at least 10^8 guesses
 const MIN_PASSWORD_SCORE: u8 = 3;
 
-/// whether a new password is too easy to guess, with what zxcvbn suggests: the name of the
-/// deployment counts as known
+/// what zxcvbn suggests when a new password is too easy to guess, none otherwise. The name of
+/// the deployment counts as known
 pub fn weak_password(name: &str, password: &str) -> Option<String> {
     let estimate = zxcvbn::zxcvbn(password, &[name, "sak", "pelle"]);
     (u8::from(estimate.score()) < MIN_PASSWORD_SCORE).then(|| {
@@ -216,13 +225,12 @@ fn public_blob(key: &VerifyingKey) -> Vec<u8> {
     blob
 }
 
-/// the openssh private key format (PROTOCOL.key of openssh), unencrypted: the magic, no
-/// cipher and kdf, one key, its public blob and the private section with the check
-/// values, the key, the comment and the padding
+/// the openssh private key format (PROTOCOL.key of openssh), unencrypted: the magic, no cipher
+/// and no kdf, one key, its public blob, then the private section with the check values, the key,
+/// the comment and the padding
 fn encode_private_key(key: &SigningKey, comment: &str) -> String {
     let public = key.verifying_key();
-    // the two check values only have to be equal, there is nothing to hide in a key that
-    // is derived anyway
+    // the two check values must only be equal; a derived key has nothing to hide with them
     let check = 0x5a5a_5a5au32.to_be_bytes();
     let mut private = Vec::new();
     private.extend_from_slice(&check);
@@ -344,42 +352,47 @@ mod tests {
     }
 
     #[test]
-    fn the_api_token_is_its_own_and_the_server_gets_its_hash() {
+    fn the_api_key_is_its_own_and_the_server_gets_its_public_half() {
         let (name, password) = ("alpha", "a password of sixteen");
-        let token = api_token(name, password).unwrap();
-        // the same on every machine, 32 bytes as base64url after the prefix
-        assert_eq!(token, api_token(name, password).unwrap());
-        assert!(token.starts_with("sak_"));
-        assert_eq!(token.len(), 4 + 43);
-        assert!(!token[4..].contains(['+', '/', '=']));
-        // another name or password, another token; nothing of the password hash in it
-        assert_ne!(token, api_token("beta", password).unwrap());
-        assert_ne!(token, api_token(name, "another password here").unwrap());
-        // what the backend compares with: the sha-256 in hex
-        let hash = api_token_sha256(&token);
-        assert_eq!(hash.len(), 64);
-        assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
-        // a known vector of sha-256
+        let key = api_key(name, password).unwrap();
+        // the same on every machine, 32 bytes as base64
         assert_eq!(
-            api_token_sha256("abc"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+            key.public_key(),
+            api_key(name, password).unwrap().public_key()
         );
+        assert_eq!(STANDARD.decode(key.public_key()).unwrap().len(), 32);
+        // another name or password, another key
+        assert_ne!(
+            key.public_key(),
+            api_key("beta", password).unwrap().public_key()
+        );
+        assert_ne!(
+            key.public_key(),
+            api_key(name, "another password here").unwrap().public_key()
+        );
+        // a signature the public half verifies, of 64 bytes
+        use ed25519_dalek::Verifier;
+        let signature = STANDARD.decode(key.sign(b"message")).unwrap();
+        let signature = ed25519_dalek::Signature::from_slice(&signature).unwrap();
+        assert!(key.0.verifying_key().verify(b"message", &signature).is_ok());
+        assert!(key.0.verifying_key().verify(b"other", &signature).is_err());
     }
 
-    /// the admin api token of `alpha` with `a password of sixteen` and its sha-256: the same
-    /// constants are in the tests of the backend (`SakAppsTest`), which signs in with the token and
-    /// configures the hash
-    pub const API_TOKEN_VECTOR: &str = "sak_fy9g9PlIfmsjA_n5cBFUhDxd-nxvSlLGjG9cLDFPmts";
-    pub const API_TOKEN_SHA256_VECTOR: &str =
-        "6328ee98555bca54d75c1a21da7330cfe6450adba466ed116238960f43f0eeb5";
+    /// the public half of the api key of `alpha` with `a password of sixteen`: the same constant
+    /// is in the tests of the backend (`ApiSignatureTest`), which checks the signature of
+    /// `SIGNATURE_VECTOR` in core/config.rs against it
+    pub const API_PUBLIC_KEY_VECTOR: &str = "zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ=";
 
-    /// a change of a salt, a parameter or an encoding changes these, and every deployment would
-    /// be locked out of its servers, its labels and its api: pinned, so such a change fails here
+    /// a change of a salt, a parameter or an encoding changes these values and locks every
+    /// deployment out of its servers, its labels and its api. The values are pinned, so such a
+    /// change fails here
     #[test]
     fn the_derived_values_are_pinned() {
         let (name, password) = ("alpha", "a password of sixteen");
-        assert_eq!(api_token(name, password).unwrap(), API_TOKEN_VECTOR);
-        assert_eq!(api_token_sha256(API_TOKEN_VECTOR), API_TOKEN_SHA256_VECTOR);
+        assert_eq!(
+            api_key(name, password).unwrap().public_key(),
+            API_PUBLIC_KEY_VECTOR
+        );
         assert_eq!(
             password_hash(name, password).unwrap(),
             "f626bbc390d38eadf6ee6576b4a717f76e323180e1c88656fede1d6265d0"
@@ -394,15 +407,12 @@ mod tests {
         );
     }
 
-    /// the token, the seeds of both keys and the password hash come from the same password: each
-    /// has a salt of its own, so none of them gives away another
+    /// the api key, the seeds of both ssh keys and the password hash come from the same master
+    /// key, each with a purpose of its own, so no value gives away another
     #[test]
-    fn the_api_token_shares_no_bytes_with_the_keys_or_the_hash() {
+    fn the_api_key_shares_no_bytes_with_the_ssh_keys_or_the_hash() {
         let (name, password) = ("alpha", "a password of sixteen");
-        let token = URL_SAFE_NO_PAD
-            .decode(&api_token(name, password).unwrap()[4..])
-            .unwrap();
-        assert_eq!(token.len(), 32);
+        let token = api_key(name, password).unwrap().0.to_bytes();
         let client = derive_key(name, password).unwrap().key.to_bytes();
         let host = derive_host_key(name, password).unwrap().key.to_bytes();
         let hash: Vec<u8> = (0..30)
@@ -505,7 +515,7 @@ mod tests {
         }
     }
 
-    /// one argon2id for every value of a deployment, however many are asked for
+    /// one argon2id for all values of a deployment, also when many values are asked for
     #[test]
     fn the_master_key_is_derived_once() {
         let password = "a password only this test uses";
@@ -515,7 +525,7 @@ mod tests {
         let start = std::time::Instant::now();
         for _ in 0..5 {
             password_hash("gamma", password).unwrap();
-            api_token("gamma", password).unwrap();
+            api_key("gamma", password).unwrap();
         }
         assert!(start.elapsed() < first, "{:?} {first:?}", start.elapsed());
     }

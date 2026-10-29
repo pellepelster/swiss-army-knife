@@ -9,8 +9,8 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-/// resolves the lookups a provisioner holds while it diffs or applies a resource; the
-/// typed `lookup` of [LookupContextExt] is the one to call, this method is its erased form
+/// resolves the lookups that a provisioner holds while it diffs, applies or destroys a resource.
+/// Call the typed `lookup` of [LookupContextExt]; this method is its erased form
 #[async_trait]
 pub trait LookupContext: Send + Sync {
     async fn lookup_erased(
@@ -19,7 +19,7 @@ pub trait LookupContext: Send + Sync {
     ) -> Result<Option<Box<dyn Any + Send + Sync>>>;
 }
 
-/// the typed lookup on every context, `context.lookup(&ssh_key)` gives the ssh key runtime
+/// the typed lookup on every context: `context.lookup(&ssh_key)` gives the ssh key runtime
 pub trait LookupContextExt {
     fn lookup<'a, L: Lookup>(
         &'a self,
@@ -44,8 +44,8 @@ impl<C: LookupContext + ?Sized> LookupContextExt for C {
     }
 }
 
-/// the context of a diff: lookups and the knowledge which resources diffed before this
-/// one have changes pending, a dependent resource then reports values as known after apply
+/// the context of a diff: the lookups, and which resources diffed before this one are not up
+/// to date. A dependent resource then reports their values as known after the apply
 pub trait DiffContext: LookupContext {
     fn has_pending_change(&self, resource: &ResourceRef) -> bool;
 }
@@ -88,8 +88,8 @@ impl<L: Lookup, P: LookupProvider<L> + 'static> ErasedLookupProvider for Erased<
     }
 }
 
-/// the lookup providers of a run, one per lookup type; it is the context the provisioners
-/// get, and the registry marks the resources with pending changes on it while it diffs
+/// the lookup providers of a run, one per lookup type. It is the context of the provisioners.
+/// While the registry diffs, it marks on it the resources that are not up to date
 #[derive(Default)]
 pub struct LookupProviders {
     providers: HashMap<TypeId, Box<dyn ErasedLookupProvider>>,
@@ -101,7 +101,7 @@ impl LookupProviders {
         Self::default()
     }
 
-    /// registers `provider` for the lookups of type `L`, replacing an earlier one
+    /// registers `provider` for the lookups of type `L`; it replaces an earlier one
     pub fn register<L: Lookup, P: LookupProvider<L> + 'static>(&mut self, provider: Arc<P>) {
         self.providers.insert(
             TypeId::of::<L>(),

@@ -18,9 +18,9 @@ sak_root_domain: ""
 # the directory of the acme ca caddy gets its certificates from, its default issuers when empty;
 # the staging ca of let's encrypt for tests
 sak_acme_ca: ""
-# the sha-256 (hex) of the admin api token sakctl derives from the password (required), never the
-# token itself
-sak_api_token_sha256: ""
+# the public half of the key sakctl signs its requests to the admin api with, 32 bytes as base64
+# (required); the key itself is nowhere
+sak_api_public_key: ""
 # the admin signs in with the password of the deployment (its hash is SAK_ADMIN_PASSWORD_HASH of
 # backend.env). Multi user (sak_smtp_enabled): the admin's address (required) is also the first of
 # the e-mail login; single user: the admin has no address

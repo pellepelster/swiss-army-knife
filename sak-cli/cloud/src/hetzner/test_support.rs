@@ -1,5 +1,5 @@
-//! a mock of the hetzner api for the unit tests of the provisioners: it lists the given
-//! resources and honors the name filter, the diffs then run without a cloud
+//! a mock of the hetzner api for the unit tests of the provisioners. It lists the given
+//! resources and applies the name filter, so the diffs run without a cloud
 
 use crate::api::Labels;
 use crate::hetzner::api::{Backoff, HetznerApi};
@@ -14,8 +14,8 @@ pub fn page(key: &str, items: Vec<Value>) -> Value {
     json!({ key: items, "meta": { "pagination": { "page": 1, "per_page": 50, "next_page": null, "total_entries": items.len() } } })
 }
 
-/// a mock listing `items` at `/<key>`: a request with a name filter gets the item of that
-/// name or nothing, one without every item. The server must stay alive with the api
+/// a mock that lists `items` at `/<key>`: a request with a name filter gets the item of that
+/// name or nothing, a request without it gets every item. Keep the server while the api is used
 pub async fn mock_api(key: &str, items: Vec<Value>) -> (MockServer, Arc<HetznerApi>) {
     mock_api_all(&[(key, items)]).await
 }

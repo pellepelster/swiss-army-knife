@@ -1,4 +1,4 @@
-// the views of index.html and their texts, which come translated from rust
+// the views of index.html and their texts; rust gives the texts in the language of the system
 const { invoke } = window.__TAURI__.core;
 
 let texts = {};
