@@ -1,3 +1,10 @@
+---
+title: "FDR-004: Maintenance Cleanup"
+linkTitle: "Maintenance Cleanup"
+description: "A maintenance task that marks unused data as deleted and removes soft-deleted data after a retention period."
+weight: 4
+---
+
 # FDR-004: Maintenance Cleanup
 
 **Status:** Planned

@@ -1,3 +1,10 @@
+---
+title: "FDR-001: DNS Mode"
+linkTitle: "DNS Mode"
+description: "How SAK sets up DNS for a deployment: a whole root domain or a subdomain of it."
+weight: 1
+---
+
 # FDR-001: DNS Mode
 
 **Status:** Active

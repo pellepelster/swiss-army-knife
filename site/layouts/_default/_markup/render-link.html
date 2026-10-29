@@ -1,0 +1,26 @@
+{{- /* the link hook of relearn, with one more case: a relative link of a document of docs/ to a
+   file outside of docs/ (AGENT.md, the code) goes to the file on github, as it does there */}}
+{{- $path := .Destination  }}
+{{- $htmlchars := dict
+  "&#34;" `"`
+  "&#39;" `'`
+  "&#43;" `+`
+  "&amp;" `&`
+}}
+{{- range $k, $v := $htmlchars }}
+  {{- $path = replace $path $k $v }}
+{{- end }}
+{{- $url := urls.Parse $path }}
+{{- if and (not $url.Scheme) (not (strings.HasPrefix $path "/")) (not (strings.HasPrefix $path "#")) .Page.File }}
+  {{- $file := path.Join "docs" (path.Dir .Page.File.Path) $url.Path }}
+  {{- if not (strings.HasPrefix $file "docs/") }}
+    {{- $path = printf "%s/%s" site.Params.repositoryFiles $file }}
+    {{- with $url.Fragment }}{{ $path = printf "%s#%s" $path . }}{{ end }}
+  {{- end }}
+{{- end }}
+{{- partial "shortcodes/link.html" (dict
+  "page" .Page
+  "url" $path
+  "title" .Title
+  "content" .Text
+) }}

@@ -1,3 +1,10 @@
+---
+title: "Feature Decision Records"
+linkTitle: "Features"
+description: "One record for each feature: what it does, and the decisions that shaped it."
+weight: 40
+---
+
 # Feature Decision Records
 
 This directory contains Feature Decision Records (FDRs) for SwissArmyKnife. Each FDR documents one feature: what it does

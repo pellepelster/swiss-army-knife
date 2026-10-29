@@ -1,3 +1,10 @@
+---
+title: "Plan: Backup and Restore of a Deployment"
+linkTitle: "Backup and Restore"
+description: "The plan of the backup and restore of a deployment."
+weight: 1
+---
+
 # Plan: Backup and Restore of a Deployment
 
 **Status:** Built; the integration test (`mise run e2e:test:integration`) has not run against a real project yet

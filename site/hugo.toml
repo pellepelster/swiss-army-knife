@@ -1,0 +1,79 @@
+# the documentation of SAK as a site: the markdown of docs/ as it is in the repository, mounted
+# below, with the theme relearn (a hugo module, pinned in go.mod) in the colors and fonts of
+# sak-theme. `mise run docs:serve` serves it; nothing is loaded from outside
+title = 'SwissArmyKnife'
+baseURL = '/'
+locale = 'en'
+# the files are named like on github, e.g. FDR-001-dns-mode.md
+disablePathToLower = true
+enableGitInfo = false
+
+[module]
+[[module.imports]]
+path = 'github.com/McShelby/hugo-theme-relearn'
+
+# the content of this directory: the home page and the sections that docs/ has no index for
+[[module.mounts]]
+source = 'content'
+target = 'content'
+
+[[module.mounts]]
+source = '../docs'
+target = 'content'
+files = ['! fdr/INDEX.md', '! screenshots/**', '! design/**']
+
+# the index of the feature decision records is the page of its section
+[[module.mounts]]
+source = '../docs/fdr/INDEX.md'
+target = 'content/fdr/_index.md'
+
+[[module.mounts]]
+source = '../docs/screenshots'
+target = 'static/screenshots'
+
+# the tokens and the fonts of sak-theme, linked by layouts/partials/custom-header.html
+[[module.mounts]]
+source = '../sak-theme/tokens.css'
+target = 'static/sak/tokens.css'
+
+[[module.mounts]]
+source = '../sak-theme/fonts.css'
+target = 'static/sak/fonts.css'
+
+[[module.mounts]]
+source = '../sak-theme/fonts'
+target = 'static/sak/fonts'
+
+[[module.mounts]]
+source = 'assets'
+target = 'assets'
+
+[[module.mounts]]
+source = 'layouts'
+target = 'layouts'
+
+# the code blocks get the classes of chroma, colored by the variant of relearn, no styles inline
+[markup.highlight]
+noClasses = false
+
+# the shortcodes of relearn set classes on the blocks they write
+[markup.goldmark.parser.attribute]
+block = true
+
+[params]
+# where a link to a file outside of docs/ goes (layouts/_default/_markup/render-link.html)
+repositoryFiles = 'https://github.com/pellepelster/swiss-army-knife/blob/main'
+# light or dark as the system prefers, the same as the apps; no choice of other colors
+themeVariant = [
+  { identifier = 'sak-auto', name = 'SAK', auto = ['sak-light', 'sak-dark'] },
+]
+disableLandingPageButton = true
+disableGeneratorVersion = true
+disableSeoHiddenPages = true
+# a link to a page or a file that is not there shows when the site is built
+link.errorlevel = 'warning'
+image.errorlevel = 'warning'
+alwaysopen = false
+collapsibleMenu = true
+# a code block scrolls instead of wrapping, so the diagrams of text keep their lines
+highlightWrap = false

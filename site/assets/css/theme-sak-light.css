@@ -1,0 +1,68 @@
+:root {
+  /* sak-light: the "paper" surface of sak-theme; tokens.css switches its surfaces with the scheme of the system, as relearn
+     switches between sak-light and sak-dark (themeVariant sak-auto in hugo.toml) */
+  /* sak-theme (tokens.css, linked by custom-header.html) onto relearn: no color of its own */
+  --PRIMARY-color: var( --sak-accent );
+  --PRIMARY-HOVER-color: var( --sak-accent );
+  --SECONDARY-color: var( --sak-ink );
+  --SECONDARY-HOVER-color: var( --sak-accent );
+  --ACCENT-color: var( --sak-accent-ring );
+  --MENU-BORDER-color: var( --sak-line );
+  --MENU-TOPBAR-SEPARATOR-color: var( --sak-line );
+  --MENU-HEADER-BG-color: var( --sak-raised );
+  --MENU-HEADER-color: var( --sak-ink );
+  --MENU-SEARCH-color: var( --sak-muted );
+  --MENU-SEARCH-BG-color: var( --sak-surface );
+  --MENU-SEARCH-BORDER-color: var( --sak-line );
+  --MENU-HOME-LINK-color: var( --sak-ink );
+  --MENU-HOME-LINK-HOVER-color: var( --sak-accent );
+  --MENU-HOME-TOP-SEPARATOR-color: var( --sak-line );
+  --MENU-HOME-SEPARATOR-color: var( --sak-line );
+  --MENU-HOME-BOTTOM-SEPARATOR-color: var( --sak-line );
+  --MENU-SECTIONS-BG-color: var( --sak-raised );
+  --MENU-SECTIONS-ACTIVE-BG-color: var( --sak-surface );
+  --MENU-SECTIONS-LINK-color: var( --sak-ink );
+  --MENU-SECTIONS-LINK-HOVER-color: var( --sak-ink );
+  --MENU-SECTION-ACTIVE-CATEGORY-color: var( --sak-ink );
+  --MENU-SECTION-ACTIVE-CATEGORY-BG-color: var( --sak-surface );
+  --MENU-SECTION-SEPARATOR-color: var( --sak-line );
+  --MENU-VISITED-color: var( --sak-accent );
+  --TOPBAR-BG-color: var( --sak-surface );
+  --MAIN-TOPBAR-BORDER-color: var( --sak-line );
+  --MAIN-BG-color: var( --sak-bg );
+  --MAIN-TEXT-color: var( --sak-ink );
+  --MAIN-TITLES-TEXT-color: var( --sak-ink );
+  --MAIN-LINK-color: var( --sak-ink );
+  --MAIN-LINK-HOVER-color: var( --sak-accent );
+  --CODE-BLOCK-color: var( --sak-ink );
+  --CODE-BLOCK-BG-color: var( --sak-surface );
+  --CODE-BLOCK-BORDER-color: var( --sak-line );
+  --CODE-INLINE-color: var( --sak-ink );
+  --CODE-INLINE-BG-color: var( --sak-raised );
+  --CODE-INLINE-BORDER-color: var( --sak-line );
+  --BOX-CAPTION-color: var( --sak-accent-ink );
+  --BOX-BG-color: var( --sak-surface );
+  --BOX-TEXT-color: var( --sak-ink );
+  --BOX-NEUTRAL-color: var( --sak-neutral );
+  --BOX-GREEN-color: var( --sak-ok );
+  --BOX-BLUE-color: var( --sak-neutral );
+  --BOX-ORANGE-color: var( --sak-info );
+  --BOX-RED-color: var( --sak-danger );
+  --BOX-YELLOW-color: var( --sak-warn );
+  --MAIN-font: var( --sak-font-sans );
+  --MAIN-font-variation-settings: normal;
+  --MAIN-font-weight: 400;
+  --MAIN-BOLD-font-weight: 600;
+  --MAIN-TITLES-font-variation-settings: normal;
+  --MAIN-TITLES-font-weight: 600;
+  --MAIN-TITLES-H1-font-variation-settings: normal;
+  --MAIN-TITLES-H1-font-weight: 600;
+  --MAIN-TITLES-H4-font-variation-settings: normal;
+  --MAIN-TITLES-H4-font-weight: 600;
+  --CODE-font: var( --sak-font-mono );
+  --CODE-theme: relearn-light;
+  --BROWSER-theme: light;
+  --MERMAID-theme: default;
+  --OPENAPI-theme: light;
+  --OPENAPI-CODE-theme: idea;
+}

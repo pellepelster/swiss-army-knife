@@ -1,3 +1,10 @@
+---
+title: "FDR-006: Provisioning Events"
+linkTitle: "Provisioning Events"
+description: "The playbook reports each step of a provisioning to sakctl as a structured event."
+weight: 6
+---
+
 # FDR-006: Provisioning Events
 
 **Status:** Planned

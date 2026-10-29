@@ -1,0 +1,12 @@
+{{- /* the tokens and the fonts of sak-theme; the variants sak-light and sak-dark map them onto
+   relearn */ -}}
+<link href="{{ "sak/fonts.css" | relURL }}" rel="stylesheet">
+<link href="{{ "sak/tokens.css" | relURL }}" rel="stylesheet">
+<style>
+  /* a link in the text is ink on the light surface, so it is underlined in the accent */
+  #R-body-inner a:not(.btn):not(.anchor) {
+    text-decoration: underline;
+    text-decoration-color: var(--sak-accent);
+    text-underline-offset: 0.2em;
+  }
+</style>

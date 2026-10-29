@@ -1,3 +1,10 @@
+---
+title: "Review: sak-cli (sakctl)"
+linkTitle: "sak-cli"
+description: "The review of sak-cli (sakctl)."
+weight: 1
+---
+
 # Review: sak-cli (sakctl)
 
 **Date:** 2026-10-29

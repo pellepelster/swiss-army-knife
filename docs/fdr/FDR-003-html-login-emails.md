@@ -1,3 +1,10 @@
+---
+title: "FDR-003: HTML Login E-Mails"
+linkTitle: "HTML Login E-Mails"
+description: "The login mail as HTML, with the plain text as a fallback."
+weight: 3
+---
+
 # FDR-003: HTML Login E-Mails
 
 **Status:** Planned
@@ -15,7 +22,7 @@ HTML, with the plain text as a fallback, so that the link is a clear button and 
 - The HTML part shows the name of the deployment, one button with the login link, how long the link is valid, and
   what to do when the user did not ask for the mail.
 - The link is also shown as text, for a client that does not show the button.
-- The subject does not change ("Sign in to <base domain>").
+- The subject does not change ("Sign in to `<base domain>`").
 
 ## Design Decisions
 

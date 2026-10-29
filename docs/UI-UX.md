@@ -1,3 +1,9 @@
+---
+title: "UI and UX"
+description: "How the apps, the window of sakctl and its command line look and behave."
+weight: 20
+---
+
 # UI and UX
 
 How the apps look and behave for the people who use them: the web ui, and sakctl in its window and on the command

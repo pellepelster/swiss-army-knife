@@ -1,3 +1,9 @@
+---
+title: "Glossary"
+description: "The canonical vocabulary of the repository."
+weight: 30
+---
+
 # Glossary
 
 The canonical vocabulary of this repository. Use these terms in code, documentation and the

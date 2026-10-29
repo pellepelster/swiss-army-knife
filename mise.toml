@@ -10,6 +10,9 @@ pipx = "1.17.2"
 # sak-cli/ui/; the tauri cli comes from npm as a prebuilt binary, node only runs it
 rust = "1.99.1"
 "npm:@tauri-apps/cli" = "2.12.4"
+# the documentation as a site (site/): hugo, and go for its modules (the theme relearn)
+"hugo-extended" = "0.168.0"
+go = "1.26.0"
 
 # the images of the server and of sakctl, built and pushed to ghcr.io: the tools sakctl runs in a
 # container (sak-cli/Dockerfile) and the canary proving a container runtime works on its start
@@ -318,6 +321,19 @@ run = "cargo test window_fixtures -- --ignored"
 
 # the screenshots of docs/screenshots/, taken in chromium: the apps against the environment of
 # `mise run local:run` (every page on a desktop and on a phone), the window of sakctl in light and dark
+# the documents of docs/ as a site with the theme relearn in the look of sak-theme (site/),
+# reloaded on every change: http://localhost:1313
+[tasks."docs:serve"]
+description = "Serve the documentation of docs/ as a site, reloaded when a document changes"
+dir = "{{config_root}}/site"
+run = "hugo server"
+
+# the same site as files in build/site; a link that does not resolve fails it
+[tasks."docs:build"]
+description = "Build the documentation of docs/ as a site into build/site"
+dir = "{{config_root}}/site"
+run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
+
 [tasks."docs:screenshots"]
 description = "Take the screenshots of docs/screenshots/: the apps against mise run local:run, the window of sakctl"
 depends = ["docs:window"]

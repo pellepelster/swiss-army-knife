@@ -1,3 +1,10 @@
+---
+title: "Plan: Screenshots and Videos of the UIs"
+linkTitle: "Screenshots and Videos"
+description: "The plan of the screenshots and videos of the UIs."
+weight: 2
+---
+
 # Plan: Screenshots and Videos of the UIs
 
 **Status:** Done

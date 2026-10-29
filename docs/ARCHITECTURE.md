@@ -1,3 +1,9 @@
+---
+title: "Architecture"
+description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security and the accepted risks."
+weight: 10
+---
+
 # Architecture
 
 How SwissArmyKnife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the

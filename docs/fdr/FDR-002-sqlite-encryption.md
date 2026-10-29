@@ -1,3 +1,10 @@
+---
+title: "FDR-002: SQLite Database Encryption"
+linkTitle: "SQLite Encryption"
+description: "The encryption of the complete database file at rest."
+weight: 2
+---
+
 # FDR-002: SQLite Database Encryption
 
 **Status:** Planned

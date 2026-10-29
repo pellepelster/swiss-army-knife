@@ -1,3 +1,10 @@
+---
+title: "FDR-007: Backup and Restore"
+linkTitle: "Backup and Restore"
+description: "A backup of all data of a deployment, encrypted on the server, and its restore."
+weight: 7
+---
+
 # FDR-007: Backup and Restore
 
 **Status:** Experimental

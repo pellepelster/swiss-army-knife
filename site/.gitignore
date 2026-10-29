@@ -1,0 +1,4 @@
+# what hugo writes while it builds or serves
+.hugo_build.lock
+public/
+resources/_gen/
