@@ -4,6 +4,8 @@ SwissArmyKnife is a self-hosted, privacy first micro-cloud offering various prod
 
 ## Features
 
+- **Privacy first.** Nothing sends data to a third party unless you activate it explicitly and agree to it first. The
+  apps load nothing from outside, and your data stays on your own server.
 - **Install, update and maintain with one tool.** `sakctl` creates a deployment, updates it and removes it, in a
   window or on the command line. It also opens an ssh session on the server. You keep only the name and the password
   of the deployment; sakctl derives all keys from them.

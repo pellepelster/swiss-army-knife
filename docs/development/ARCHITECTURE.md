@@ -161,6 +161,9 @@ and the health of the domains.
 - **Nothing from outside.** No page loads anything from outside the root domain: no CDN, font service, analytics or
   other third party. Everything is bundled or served by the backend. The content security policy allows only the
   page's own origin and `api.<base domain>`.
+- **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated (for
+  example the provider of text discovery in the configuration of the backend), and the user agrees before each
+  transfer and knows where the data goes. No default activates such a connection.
 - **User data stays.** User data leaves the backend only when the user asks for it (for example text discovery), and
   only to providers that do not collect it.
 

@@ -24,8 +24,9 @@ Read this file first. It contains rules for the complete repository.
 - Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
   defect; record it as a feature or an accepted risk until it is fixed.
 - Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
-  the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and
-  make necessary connections clear to the user.
+  the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections.
+  A connection that sends data to a third party is off by default: it needs an explicit activation, and the consent of
+  the user before data goes out, with the name of the receiver (ARCHITECTURE.md, "Privacy").
 - Keep comments terse and condensed, only add comments for non-obvious behavior
 
 ## UI/UX
