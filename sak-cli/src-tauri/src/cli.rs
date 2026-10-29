@@ -317,7 +317,10 @@ fn smtp_password_variable() -> Option<String> {
 /// a resource as the command line names it: its kind in the language of the command line and its
 /// name, `ssh key 'sak-alpha'`, `SSH-Key 'sak-alpha'`
 fn title(kind: &str, name: &str) -> String {
-    format!("{} '{name}'", t!(format!("ui.deployments.resource.{kind}")))
+    format!(
+        "{} '{name}'",
+        t!(format!("shared.deployments.resource.{kind}"))
+    )
 }
 
 /// SAK_PASSWORD of the environment of the process
@@ -352,6 +355,8 @@ impl DeploymentArgs {
                 starttls: self.smtp_starttls,
             }),
             admin_email: self.admin_email.clone(),
+            // the command line always runs the playbook of a deploy
+            force: true,
         }
     }
 }
@@ -370,7 +375,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
         checks::run(checks::checks(tokens), &mut |event| {
             match event {
                 CheckEvent::Started { id, .. } => {
-                    log(Level::Info, t!(format!("checks.{id}.running")))
+                    log(Level::Info, t!(format!("shared.checks.{id}.running")))
                 }
                 CheckEvent::Progress { fraction, text, .. } => {
                     let tenth = (fraction * 10.0).floor() as u32;
@@ -381,7 +386,10 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
                 }
                 CheckEvent::Passed { id, text, .. } => {
                     logged = 0;
-                    log(Level::Info, t!(format!("checks.{id}.done"), text = text))
+                    log(
+                        Level::Info,
+                        t!(format!("shared.checks.{id}.done"), text = text),
+                    )
                 }
                 // the failure ends the command; `run` logs the error one time
                 CheckEvent::Failed { .. }
@@ -481,7 +489,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
 async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<(), WizardError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
-        log(Level::Info, t!("ui.deployments.empty"));
+        log(Level::Info, t!("shared.deployments.empty"));
     }
     for deployment in deployments {
         let location = deployment
@@ -493,7 +501,10 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
             format!(
                 "{} {} {} {} {}",
                 deployment.name,
-                t!(format!("ui.deployments.status.{}", key(&deployment.status))),
+                t!(format!(
+                    "shared.deployments.status.{}",
+                    key(&deployment.status)
+                )),
                 location,
                 deployment.provider.name,
                 deployment.frontend_url.as_deref().unwrap_or_default()
@@ -504,7 +515,7 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
             let resource_name = title(&key(&resource.kind), &resource.name);
             // its status, then its detail
             let status = t!(format!(
-                "ui.resource_status.{}",
+                "shared.resource_status.{}",
                 resource_status(resource.status)
             ));
             let detail = resource
@@ -539,7 +550,7 @@ async fn show_config(
 
 /// what `config show` prints: where it asked, then the settings; no secret
 fn shown_lines(name: &str, url: &str, config: &crate::core::config::RunningConfig) -> Vec<String> {
-    std::iter::once(t!("config.shown", name = name.trim(), url = url).to_string())
+    std::iter::once(t!("shared.config.shown", name = name.trim(), url = url).to_string())
         .chain(config_lines(config))
         .collect()
 }
@@ -548,7 +559,7 @@ fn shown_lines(name: &str, url: &str, config: &crate::core::config::RunningConfi
 /// server only as `set` or `-`
 fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
     let Some(smtp) = &config.smtp else {
-        return vec![t!("config.no_smtp").to_string()];
+        return vec![t!("shared.config.no_smtp").to_string()];
     };
     vec![
         format!("smtp.host {}", smtp.host),
@@ -577,9 +588,9 @@ async fn deploy(
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
     let plan = manager.plan_prepared(&prepared, deployment).await?;
     let intro = match deployment.intent {
-        Intent::Create => t!("ui.plan.intro"),
-        Intent::Deploy => t!("ui.plan.intro_deploy"),
-        Intent::Destroy => t!("ui.plan.intro_destroy"),
+        Intent::Create => t!("shared.plan.intro"),
+        Intent::Deploy => t!("shared.plan.intro_deploy"),
+        Intent::Destroy => t!("shared.plan.intro_destroy"),
     };
     log(Level::Info, format!("{intro} {}", plan.name));
     // each resource by its kind and name in the language of the command line
@@ -601,10 +612,13 @@ async fn deploy(
     };
     for resource in &plan.resources {
         // its status, then what the plan does to it
-        let status = t!(format!("ui.resource_status.{}", resource.resource_status));
+        let status = t!(format!(
+            "shared.resource_status.{}",
+            resource.resource_status
+        ));
         let action = resource
             .action
-            .map(|action| format!(", {}", t!(format!("ui.plan.{action}"))))
+            .map(|action| format!(", {}", t!(format!("shared.plan.{action}"))))
             .unwrap_or_default();
         // a resource that the apply removes is a warning
         let level = if resource.action == Some("will_destroy") {
@@ -679,6 +693,10 @@ async fn deploy(
         CreateEvent::Provisioned { .. } => log(
             Level::Info,
             t!("cli.provisioned", name = deployment.name.trim()),
+        ),
+        CreateEvent::ProvisioningUpToDate { .. } => log(
+            Level::Info,
+            t!("cli.provisioning_up_to_date", name = deployment.name.trim()),
         ),
         // the error of the run tells what failed, the command ends with it
         CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
@@ -842,7 +860,7 @@ mod tests {
                 smtp: None,
                 admins: vec![]
             }),
-            vec![t!("config.no_smtp").to_string()]
+            vec![t!("shared.config.no_smtp").to_string()]
         );
 
         // the output has no password and no part of the api key

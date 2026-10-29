@@ -306,12 +306,37 @@ description = "Run the local end to end tests of sak-e2e against the environment
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
 
-# the screenshots of docs/screenshots/, taken in chromium against the environment of
-# `mise run local:run`; every page on a desktop and on a phone
+# the page of sakctl's window and the answers of rust for it, what the window screenshots and its
+# video show (sak-cli/src-tauri/src/core/deployments/window_fixtures.rs)
+[tasks."docs:window"]
+description = "Prepare the window of sakctl for its screenshots and video: its theme and the fixtures of rust"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli/src-tauri"
+run = "cargo test window_fixtures -- --ignored"
+
+# the screenshots of docs/screenshots/, taken in chromium: the apps against the environment of
+# `mise run local:run` (every page on a desktop and on a phone), the window of sakctl in light and dark
 [tasks."docs:screenshots"]
-description = "Take the screenshots of docs/screenshots/ against the environment of mise run local:run"
+description = "Take the screenshots of docs/screenshots/: the apps against mise run local:run, the window of sakctl"
+depends = ["docs:window"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eScreenshots"
+
+# the videos of build/videos/, never committed: the tour of the apps against the environment of
+# `mise run local:run` and the tour of the window of sakctl, each as .webm, .mp4 and .gif
+[tasks."docs:video"]
+description = "Record the videos of build/videos/: the apps against mise run local:run, the window of sakctl"
+depends = ["docs:window"]
+dir = "{{config_root}}"
+run = '''
+./gradlew :sak-e2e:e2eVideos
+for video in build/videos/*.webm; do
+  name="${video%.webm}"
+  ffmpeg -v error -y -i "$video" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$name.mp4"
+  ffmpeg -v error -y -i "$video" -vf "fps=10,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$name.gif"
+done
+ls -lh build/videos/*.mp4 build/videos/*.gif
+'''
 
 # the integration tests of sak-e2e: the command line of sakctl, built first, against the Hetzner
 # Cloud project of HCLOUD_TOKEN (from pass unless set). They create and destroy real servers

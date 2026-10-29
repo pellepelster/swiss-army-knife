@@ -43,7 +43,7 @@ impl Check for ProviderTokensCheck {
     }
 
     fn name(&self) -> String {
-        t!("checks.provider_tokens.name").to_string()
+        t!("shared.checks.provider_tokens.name").to_string()
     }
 
     fn applies(&self) -> bool {
@@ -55,7 +55,7 @@ impl Check for ProviderTokensCheck {
         for (provider, token, source) in &self.tokens {
             block_on(provider.validate(token)).map_err(|error| {
                 t!(
-                    "checks.provider_tokens.invalid",
+                    "shared.checks.provider_tokens.invalid",
                     variable = source,
                     provider = provider.name(),
                     error = error
@@ -66,7 +66,7 @@ impl Check for ProviderTokensCheck {
             sources.push(*source);
         }
         Ok(t!(
-            "checks.provider_tokens.passed",
+            "shared.checks.provider_tokens.passed",
             variables = sources.join(", ")
         )
         .to_string())

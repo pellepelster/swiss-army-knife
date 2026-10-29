@@ -20,9 +20,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import java.util.regex.Pattern
 
-// the admin of config/local-config.yaml; the backend sends 5 links an hour to an address, so
-// every run asks for one link only
-private const val ADMIN = "admin@localhost"
+// the backend sends 5 links an hour to an address (ADMIN), so every run asks for one link only
 
 // the login of the apps in chromium, one test after the other: they share the inbox of mailpit,
 // the rate limits of the backend and the link of the first test

@@ -32,7 +32,7 @@ impl ProviderType {
 
     fn token_hint(self) -> String {
         match self {
-            ProviderType::Hetzner => t!("providers.hetzner.token_hint").to_string(),
+            ProviderType::Hetzner => t!("shared.providers.hetzner.token_hint").to_string(),
         }
     }
 
@@ -93,7 +93,7 @@ impl ProviderTokens {
             .iter()
             .any(|known| known.provider == provider && known.token == token)
         {
-            return Err(t!("providers.duplicate").to_string());
+            return Err(t!("shared.providers.duplicate").to_string());
         }
         let token = ProviderToken {
             provider,
@@ -200,7 +200,7 @@ mod tests {
         tokens.add(ProviderType::Hetzner, TOKEN).unwrap();
         assert_eq!(
             tokens.add(ProviderType::Hetzner, TOKEN).unwrap_err(),
-            "This token was added already."
+            "This token was already added."
         );
     }
 }

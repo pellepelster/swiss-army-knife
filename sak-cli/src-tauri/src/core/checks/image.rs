@@ -11,15 +11,15 @@ impl Check for ImageCheck {
     }
 
     fn name(&self) -> String {
-        t!("checks.image.name").to_string()
+        t!("shared.checks.image.name").to_string()
     }
 
     // runs after the container runtime check, which stops the checks when it finds no runtime
     fn run(&self, found: &mut Found, progress: &Progress) -> CheckResult {
         let runtime = found
             .runtime
-            .ok_or_else(|| t!("checks.container_runtime.needed").to_string())?;
+            .ok_or_else(|| t!("shared.checks.container_runtime.needed").to_string())?;
         container::pull(runtime, &|fraction, text| progress.update(fraction, text))?;
-        Ok(t!("checks.image.passed", image = container::IMAGE).to_string())
+        Ok(t!("shared.checks.image.passed", image = container::IMAGE).to_string())
     }
 }

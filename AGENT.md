@@ -130,6 +130,12 @@ in the same commit and says why.
 - The password hash is `keys::password_hash` in `sak-cli` (30 bytes of the master key as hex); the firewall selects its
   servers by the name label alone.
 
+## Texts of sakctl (`sak-cli/src-tauri/locales/`)
+
+- `cli:` texts only the command line shows, `ui:` texts only the window shows, `shared:` texts both show (the
+  messages of core, the resource kinds and statuses, the actions of a plan). A text moves to `shared:` once both use
+  it. Every key is in `en.yml` and `de.yml`.
+
 ## Privacy in the code
 
 - The boundaries are in ARCHITECTURE.md, "Privacy". In the code: fonts and libraries are bundled (e.g.

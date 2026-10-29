@@ -25,7 +25,8 @@
       <h1 class="splash-title">SwissArmyKnife</h1>
       <ul class="checks" id="checks" aria-live="polite"></ul>
       <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
-      <div class="splash-footer btn-group" role="group">
+      <!-- quit only after a check failed -->
+      <div class="splash-footer btn-group" role="group" id="splash-footer" hidden>
         <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit"></button>
       </div>
     </main>
@@ -120,17 +121,53 @@
           </h1>
         </div>
         <div class="btn-group" role="group">
-          <button type="button" class="btn btn-outline-secondary" id="deployment-deploy" data-text="ui.deployment.deploy"></button>
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
         </div>
       </header>
       <p class="hint" id="deployment-location"></p>
       <ul class="resources" id="deployment-resources"></ul>
+      <p class="hint" id="deployment-message" aria-live="polite"></p>
+      <!-- the toolbar at the bottom: back to the list, or a plan of what a deploy would change -->
       <div class="page-footer">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
+          <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </div>
+    </main>
+
+    <!-- the password of a deployment before its page opens: next only with the right one -->
+    <main class="view page" id="view-password" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 data-text="ui.password.title"></h1>
+        </div>
+      </header>
+      <form class="page-form" id="password-form">
+        <p class="hint"><span data-text="ui.password.intro"></span> <strong class="sak-mono" id="password-name"></strong></p>
+        <div>
+          <label class="form-label" for="password-input" data-text="ui.password.label"></label>
+          <!-- the button at the end of the field shows the password as typed, and hides it again -->
+          <div class="input-group">
+            <input class="form-control" id="password-input" type="password" autocomplete="current-password" spellcheck="false">
+            <button type="button" class="btn btn-outline-secondary password-toggle" id="password-toggle" aria-pressed="false">
+              <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path class="password-eye-strike" d="M4 4l16 16"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p class="hint" id="password-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="password-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="password-next" data-text="ui.next" disabled></button>
+          </div>
+        </div>
+      </form>
     </main>
 
     <main class="view page" id="view-create" hidden>
@@ -147,7 +184,7 @@
           <div class="invalid-feedback" id="create-name-invalid"></div>
           <div class="form-text" data-text="ui.create.name_hint"></div>
         </div>
-        <div>
+        <div id="create-password-group">
           <label class="form-label" for="create-password" data-text="ui.create.password"></label>
           <input class="form-control" id="create-password" type="password" autocomplete="new-password" minlength="16" required>
           <div class="form-text" id="create-password-hint" data-text="ui.create.password_hint"></div>
@@ -246,15 +283,34 @@
           <h1 data-text="ui.plan.title"></h1>
         </div>
       </header>
-      <p class="hint"><span id="plan-intro" data-text="ui.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
+      <p class="hint"><span id="plan-intro" data-text="shared.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
       <ul class="resources" id="plan-resources"></ul>
       <p class="hint" id="plan-status" aria-live="polite"></p>
-      <pre class="sak-terminal plan-output" id="plan-output" hidden></pre>
       <div class="page-footer">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
-          <button type="button" class="btn btn-outline-secondary" id="plan-back" data-text="ui.back"></button>
-          <button type="button" class="btn btn-primary" id="plan-apply"><i class="sak-icon-plus" id="plan-apply-icon" aria-hidden="true"></i> <span id="plan-apply-text" data-text="ui.plan.apply"></span></button>
+          <button type="button" class="btn btn-outline-secondary" id="plan-force" data-text="ui.plan.force_deploy"></button>
+          <button type="button" class="btn btn-primary" id="plan-deploy" data-text="ui.plan.deploy_changes"></button>
+        </div>
+      </div>
+    </main>
+
+    <!-- an apply or a destroy as it runs, the resources as on the plan: done only when every
+         resource was done, cancel stops it -->
+    <main class="view page" id="view-run" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 id="run-title"></h1>
+        </div>
+      </header>
+      <p class="hint"><span id="run-intro"></span> <strong class="sak-mono" id="run-name"></strong></p>
+      <ul class="resources" id="run-resources"></ul>
+      <p class="hint" id="run-status" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="run-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-primary" id="run-done" data-text="ui.run.done" disabled></button>
         </div>
       </div>
     </main>

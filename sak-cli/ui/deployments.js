@@ -1,8 +1,8 @@
 // the sak deployments found at the providers, each with its state and the status of each
-// resource. The header of a deployment opens its page, create opens the form of a new deployment,
-// back opens the provider tokens
+// resource. The header of a deployment asks for its password, then opens its page; create opens
+// the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
-import { showDeployment } from './deployment.js';
+import { showPassword } from './password.js';
 import { show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -29,7 +29,7 @@ export function resource(state) {
   mark.setAttribute('aria-hidden', 'true');
   const kind = document.createElement('span');
   kind.className = 'resource-kind';
-  kind.textContent = text(`ui.deployments.resource.${state.kind}`);
+  kind.textContent = text(`shared.deployments.resource.${state.kind}`);
   const name = document.createElement('span');
   name.className = 'resource-name';
   name.textContent = state.name;
@@ -37,7 +37,7 @@ export function resource(state) {
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
   // its resource status, then its detail; a missing resource has no detail
-  const status = text(`ui.resource_status.${RESOURCE_STATUS[state.status] ?? 'has_changes'}`);
+  const status = text(`shared.resource_status.${RESOURCE_STATUS[state.status] ?? 'has_changes'}`);
   detail.textContent = state.detail && RESOURCE_STATUS[state.status] !== 'missing' ? `${status}, ${state.detail}` : status;
   item.append(detail);
   for (const change of state.changes) {
@@ -77,11 +77,11 @@ function deployment(data) {
   const item = document.createElement('li');
   item.className = 'card deployment';
   item.dataset.status = state;
-  // the header opens the deployment
+  // the header asks for the password of the deployment, then opens it
   const header = document.createElement('button');
   header.type = 'button';
   header.className = 'card-header deployment-header deployment-open provider';
-  header.addEventListener('click', () => showDeployment(data));
+  header.addEventListener('click', () => showPassword(data));
   const logo = document.createElement('img');
   logo.className = 'provider-logo';
   logo.src = provider.logo;
@@ -93,7 +93,7 @@ function deployment(data) {
   const badge = document.createElement('span');
   badge.className = 'deployment-status sak-status';
   badge.dataset.sakState = STATES[state] ?? 'neutral';
-  badge.textContent = text(`ui.deployments.status.${state}`);
+  badge.textContent = text(`shared.deployments.status.${state}`);
   header.append(logo, title, badge);
   const group = document.createElement('ul');
   group.className = 'resources card-body';
@@ -117,7 +117,7 @@ export async function showDeployments() {
   try {
     const deployments = await invoke('list_deployments');
     list.replaceChildren(...deployments.map(deployment));
-    setStatus(deployments.length === 0 ? text('ui.deployments.empty') : '');
+    setStatus(deployments.length === 0 ? text('shared.deployments.empty') : '');
   } catch (error) {
     setStatus(String(error), true);
   }

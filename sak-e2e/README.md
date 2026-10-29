@@ -20,13 +20,21 @@ its chromium on the first run.
 
 ## Screenshots
 
-The screenshots of `docs/screenshots/`, taken in chromium against the local environment. They
-do not run with the local tests.
+The screenshots of `docs/screenshots/` and the videos of `build/videos/`, taken in chromium. They
+do not run with the local tests. The videos are not committed.
 
 ```sh
 mise run local:run              # in one terminal
-mise run docs:screenshots       # in another one
+mise run docs:screenshots       # in another one: the apps and the window of sakctl
+mise run docs:video             # the tours of the apps and of the window, as .webm, .mp4 and .gif
 ```
+
+The window of sakctl (`sak-cli/ui`) runs without tauri and without a cloud project: Playwright
+serves its files, and a fake `window.__TAURI__` answers its commands with what rust sends for a
+create of `example1` on `krawallbu.de` in domain mode. A rust test writes these answers from the
+real types and texts (`core/deployments/window_fixtures.rs`, `mise run docs:window`). The window
+is shown at its own size, 736×686, in light and dark; its video shows the checks, a provider
+token, the create of `example1` with the provisioning and the page of the new deployment.
 
 Every page is taken on a desktop (1280×800) and on a phone (390×844), without the browser
 around it: the login with the password and by e-mail (the mail in mailpit too), the apps in the

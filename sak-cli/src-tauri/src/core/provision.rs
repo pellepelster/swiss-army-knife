@@ -156,7 +156,7 @@ impl ProvisionManager {
     ) -> Result<(), String> {
         let runtime = runtime
             .get()
-            .ok_or_else(|| t!("provision.no_runtime").to_string())?;
+            .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
         let dir = RunDir::create(runtime)?;
         dir.write("inventory.yml", &run.inventory())?;
         dir.write("ssh_config", &run.ssh_config())?;
@@ -222,9 +222,9 @@ impl ProvisionManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let mut child = command
-            .spawn()
-            .map_err(|e| t!("provision.not_started", runtime = runtime, error = e).to_string())?;
+        let mut child = command.spawn().map_err(|e| {
+            t!("shared.provision.not_started", runtime = runtime, error = e).to_string()
+        })?;
         // the key, then the end of the input (the drop of `stdin`): ssh-add reads until there
         if let Some(mut stdin) = child.stdin.take() {
             let key = run.client_key.private_key();
@@ -296,21 +296,25 @@ impl ProvisionManager {
         }
         drop(dir);
         if timed_out {
-            return Err(
-                t!("provision.timed_out", minutes = RUN_TIMEOUT.as_secs() / 60).to_string(),
-            );
+            return Err(t!(
+                "shared.provision.timed_out",
+                minutes = RUN_TIMEOUT.as_secs() / 60
+            )
+            .to_string());
         }
         match (status.success(), failed) {
             (true, _) => Ok(()),
             (false, Some((task, message))) => Err(t!(
-                "provision.task_failed",
+                "shared.provision.task_failed",
                 task = task,
                 message = message.unwrap_or_default()
             )
             .to_string()),
-            (false, None) => {
-                Err(t!("provision.failed", status = status.code().unwrap_or(-1)).to_string())
-            }
+            (false, None) => Err(t!(
+                "shared.provision.failed",
+                status = status.code().unwrap_or(-1)
+            )
+            .to_string()),
         }
     }
 }

@@ -43,8 +43,20 @@ fun e2e(
 
 e2e("e2eLocal", "local", "Runs the local tests: the apps against the environment of mise run local:run")
 
-e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/ against the environment of mise run local:run") {
+// the window of sakctl from its files and the fixtures of `cargo test window_fixtures -- --ignored`
+fun Test.window() {
+    systemProperty("sak.e2e.window.ui", rootDir.resolve("sak-cli/ui").path)
+    systemProperty("sak.e2e.window.fixtures", rootDir.resolve("build/ui-fixtures/window.json").path)
+}
+
+e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the window of sakctl") {
     systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
+    window()
+}
+
+e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the window of sakctl") {
+    systemProperty("sak.e2e.videos", rootDir.resolve("build/videos").path)
+    window()
 }
 
 e2e("e2eIntegration", "integration", "Runs the integration tests: the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN") {

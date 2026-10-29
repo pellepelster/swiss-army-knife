@@ -28,7 +28,7 @@ pub async fn validate(api: &HetznerApi) -> Result<(), String> {
         .map_err(refused)?;
     api.ssh_keys().delete(created.id).await.map_err(|error| {
         t!(
-            "providers.hetzner.not_deleted",
+            "shared.providers.hetzner.not_deleted",
             name = name,
             error = message(&error)
         )
@@ -56,15 +56,15 @@ fn refused(error: ApiError) -> String {
         ApiError::Api {
             code: ErrorCode::Unauthorized,
             ..
-        } => t!("providers.hetzner.unauthorized").to_string(),
+        } => t!("shared.providers.hetzner.unauthorized").to_string(),
         ApiError::Api {
             code: ErrorCode::Forbidden,
             ..
-        } => t!("providers.hetzner.forbidden").to_string(),
+        } => t!("shared.providers.hetzner.forbidden").to_string(),
         ApiError::Request { source, .. } => {
-            t!("providers.hetzner.unreachable", error = source).to_string()
+            t!("shared.providers.hetzner.unreachable", error = source).to_string()
         }
-        _ => t!("providers.hetzner.refused", error = message(&error)).to_string(),
+        _ => t!("shared.providers.hetzner.refused", error = message(&error)).to_string(),
     }
 }
 

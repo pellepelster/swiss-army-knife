@@ -93,7 +93,7 @@ fn by_text(by: &[Option<String>]) -> String {
     by.iter()
         .map(|name| match name {
             Some(name) => name.clone(),
-            None => t!("deployments.unnamed").to_string(),
+            None => t!("shared.deployments.unnamed").to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -101,15 +101,15 @@ fn by_text(by: &[Option<String>]) -> String {
 
 fn conflict_text(domain: &str, conflict: &RootDomainConflict) -> String {
     let (key, by) = match conflict {
-        RootDomainConflict::DomainTaken { by } => ("deployments.domain_taken", by),
+        RootDomainConflict::DomainTaken { by } => ("shared.deployments.domain_taken", by),
         RootDomainConflict::MixedModes {
             used: DnsMode::Domain,
             by,
-        } => ("deployments.domain_mixed", by),
+        } => ("shared.deployments.domain_mixed", by),
         RootDomainConflict::MixedModes {
             used: DnsMode::Subdomain,
             by,
-        } => ("deployments.subdomain_only", by),
+        } => ("shared.deployments.subdomain_only", by),
     };
     t!(key, domain = domain, by = by_text(by)).to_string()
 }
@@ -131,7 +131,7 @@ fn check_root_domain(
     dns_mode: DnsMode,
 ) -> Result<String, WizardError> {
     if domains.is_empty() {
-        return Err(t!("deployments.no_zones").to_string().into());
+        return Err(t!("shared.deployments.no_zones").to_string().into());
     }
     let known = || {
         domains
@@ -141,13 +141,13 @@ fn check_root_domain(
             .join(", ")
     };
     let Some(chosen) = chosen.map(str::trim).filter(|chosen| !chosen.is_empty()) else {
-        return Err(t!("deployments.no_root_domain", domains = known())
+        return Err(t!("shared.deployments.no_root_domain", domains = known())
             .to_string()
             .into());
     };
     let Some(domain) = domains.iter().find(|domain| domain.name == chosen) else {
         return Err(t!(
-            "deployments.unknown_root_domain",
+            "shared.deployments.unknown_root_domain",
             domain = chosen,
             domains = known()
         )
@@ -184,7 +184,7 @@ pub struct PlannedResource {
     /// `up_to_date`, `missing` or `has_changes`, the resource status of the glossary
     pub(crate) resource_status: &'static str,
     /// what the plan does to it, `will_create`, `will_update`, `will_destroy`, `will_keep`,
-    /// `already_deleted` or `will_run`; none for a resource that stays as it is
+    /// `already_deleted`, `will_run` or `runs_when_forced`; none for a resource that stays as it is
     pub(crate) action: Option<&'static str>,
     /// what the apply does to it when it starts, `working`, `working_update`, `working_recreate`,
     /// `working_check` or `working_destroy`: the command line shows `cli.<working>`, the window
@@ -235,6 +235,11 @@ pub enum CreateEvent {
     },
     /// the playbook ran to its end
     Provisioned {
+        resource: String,
+    },
+    /// the playbook did not run: the server was not changed and is provisioned with this
+    /// configuration, and the deploy was not forced
+    ProvisioningUpToDate {
         resource: String,
     },
     /// the playbook failed; `task` when the events tell it
@@ -319,7 +324,7 @@ pub fn user_data(host_key: &DerivedKey) -> String {
 
 /// the values the environment proposes for a new deployment, so a script types nothing. No Debug,
 /// the passwords never show in a log
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentDefaults {
     name: Option<String>,
@@ -454,16 +459,16 @@ pub struct Smtp {
 fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
-        return Err(t!("deployments.invalid_smtp_host").to_string());
+        return Err(t!("shared.deployments.invalid_smtp_host").to_string());
     }
     if smtp.port == 0 {
-        return Err(t!("deployments.invalid_smtp_port").to_string());
+        return Err(t!("shared.deployments.invalid_smtp_port").to_string());
     }
     if [smtp.username.as_str(), smtp.password.as_str()]
         .iter()
         .any(|value| value.contains(['\n', '\r']))
     {
-        return Err(t!("deployments.invalid_smtp_value").to_string());
+        return Err(t!("shared.deployments.invalid_smtp_value").to_string());
     }
     Ok(())
 }
@@ -632,6 +637,11 @@ pub struct NewDeployment {
     /// used for single user
     #[serde(default)]
     pub admin_email: Option<String>,
+    /// a create or deploy runs the playbook even when the provisioning is up to date: the server
+    /// was not changed and was provisioned with this configuration. Without it such a provisioning
+    /// is skipped
+    #[serde(default)]
+    pub force: bool,
 }
 
 /// the dns mode and the root domain of a deployment: the given values, else for a deploy the
@@ -654,7 +664,7 @@ fn resolve_dns(
         Intent::Create => Ok((given_mode.unwrap_or_default(), given_domain)),
         Intent::Deploy => {
             let domain = given_domain.or(labeled_domain).ok_or_else(|| {
-                t!("deployments.deploy_without_root_domain", name = name).to_string()
+                t!("shared.deployments.deploy_without_root_domain", name = name).to_string()
             })?;
             Ok((
                 given_mode.or(labeled_mode).unwrap_or_default(),
@@ -802,7 +812,7 @@ pub fn complete(
             ("", Some(running)) => running.clone(),
             ("", None) if smtp.password_set => {
                 return Err(WizardError::new(
-                    t!("deployments.smtp_password_needed"),
+                    t!("shared.deployments.smtp_password_needed"),
                     crate::core::error::EXIT_USAGE,
                 ));
             }
@@ -881,12 +891,12 @@ fn provisioning_status(
             return (DiffStatus::Missing, Vec::new());
         }
         Some(_) if server_recreated => return (DiffStatus::Missing, Vec::new()),
-        Some(DiffStatus::HasChanges) => return changed("provision.server_changes"),
+        Some(DiffStatus::HasChanges) => return changed("shared.provision.server_changes"),
         Some(_) => {}
     }
     match provisioned {
         None => (DiffStatus::Missing, Vec::new()),
-        Some(label) if label != expected => changed("provision.config_changed"),
+        Some(label) if label != expected => changed("shared.provision.config_changed"),
         Some(_) => (DiffStatus::UpToDate, Vec::new()),
     }
 }
@@ -943,7 +953,7 @@ fn config_endpoint(
     verify_password(deployment, name, password)?;
     let root_domain = deployment
         .root_domain()
-        .ok_or_else(|| t!("config.no_root_domain", name = name).to_string())?;
+        .ok_or_else(|| t!("shared.config.no_root_domain", name = name).to_string())?;
     let base = sak_cloud::hetzner::deployment::base_domain(
         name,
         deployment.dns_mode().unwrap_or_default(),
@@ -962,7 +972,7 @@ pub fn checked_name(name: &str) -> Result<&str, WizardError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
         WizardError::new(
-            t!("deployments.invalid_name", max = MAX_NAME_LEN),
+            t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
             EXIT_USAGE,
         )
     })?;
@@ -998,7 +1008,7 @@ fn check_password(
     name: &str,
     password: &str,
 ) -> Result<(), String> {
-    let wrong = || t!("deployments.wrong_password", name = name).to_string();
+    let wrong = || t!("shared.deployments.wrong_password", name = name).to_string();
     if !hashes.is_empty() {
         let hash = crate::core::keys::password_hash(name, password)?;
         return match hashes.iter().all(|found| *found == hash) {
@@ -1014,11 +1024,11 @@ fn check_password(
         }
         return Ok(());
     }
-    Err(t!("deployments.unverifiable", name = name).to_string())
+    Err(t!("shared.deployments.unverifiable", name = name).to_string())
 }
 
 fn failed(provider: ProviderType, error: impl ToString) -> String {
-    message("deployments.failed", provider, error)
+    message("shared.deployments.failed", provider, error)
 }
 
 /// a failure of the provider in a plan or an apply. A resource of a declared name that belongs
@@ -1027,11 +1037,14 @@ fn failed(provider: ProviderType, error: impl ToString) -> String {
 fn cloud_failure(key: &str, provider: ProviderType, error: sak_cloud::api::Error) -> WizardError {
     match error {
         sak_cloud::api::Error::NotOwned { .. } => WizardError::new(
-            t!("deployments.not_owned", error = error.to_string()),
+            t!("shared.deployments.not_owned", error = error.to_string()),
             EXIT_NOT_OWNED,
         ),
         sak_cloud::api::Error::RecreateRefused { .. } => WizardError::new(
-            t!("deployments.recreate_refused", error = error.to_string()),
+            t!(
+                "shared.deployments.recreate_refused",
+                error = error.to_string()
+            ),
             EXIT_RECREATE_REFUSED,
         ),
         error => message(key, provider, error).into(),
@@ -1097,7 +1110,7 @@ impl DeploymentManager {
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
             .cloned()
         else {
-            return Err(t!("deployments.no_provider").to_string());
+            return Err(t!("shared.deployments.no_provider").to_string());
         };
         let label = discover(&HetznerApi::new(&token))
             .await
@@ -1121,6 +1134,30 @@ impl DeploymentManager {
     /// the api url and the running configuration of a deployment, read from its backend at
     /// `api.<base domain>` with a request signed with the api key. sakctl checks the password
     /// against the deployment first
+    /// whether `password` is the one of the deployment `name`: checked against the password
+    /// hashes on its resources, or its ssh key; the window asks it while the password is typed
+    pub async fn check_password(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<(), String> {
+        let name = checked_name(name).map_err(|error| error.message)?;
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("shared.deployments.no_provider").to_string());
+        };
+        let deployment = discover(&HetznerApi::new(&token))
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
+        verify_password(&deployment, name, password)
+    }
+
     pub async fn running_config(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -1132,7 +1169,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
         else {
-            return Err(t!("deployments.no_provider").to_string());
+            return Err(t!("shared.deployments.no_provider").to_string());
         };
         let api_client = HetznerApi::new(&token);
         let deployment = discover(&api_client)
@@ -1140,7 +1177,7 @@ impl DeploymentManager {
             .map_err(|error| failed(provider, error))?
             .into_iter()
             .find(|deployment| deployment.name == name)
-            .ok_or_else(|| t!("deployments.not_found", name = name).to_string())?;
+            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
         let (url, key) = config_endpoint(&deployment, name, password)?;
         let trust = deployment
             .acme_ca()
@@ -1162,7 +1199,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
         else {
-            return Err(t!("deployments.no_provider").to_string());
+            return Err(t!("shared.deployments.no_provider").to_string());
         };
         let runtime = HetznerProviderRuntime::from_api(
             Arc::new(HetznerApi::new(&token)),
@@ -1201,23 +1238,29 @@ impl DeploymentManager {
             acme_ca,
             smtp,
             admin_email,
+            force: _,
         } = deployment;
         let (location, intent) = (*location, *intent);
         let name = checked_name(name)?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
-            return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS)
-                .to_string()
-                .into());
+            return Err(t!(
+                "shared.deployments.short_password",
+                min = MIN_PASSWORD_CHARS
+            )
+            .to_string()
+            .into());
         }
         if password != password_repeat {
-            return Err(t!("deployments.password_mismatch").to_string().into());
+            return Err(t!("shared.deployments.password_mismatch")
+                .to_string()
+                .into());
         }
         // a new password must be hard to guess: whoever reads the project can try guesses offline
         // against the label and the public keys of the deployment
         if intent == Intent::Create
             && let Some(hint) = crate::core::keys::weak_password(name, password)
         {
-            return Err(t!("deployments.weak_password", hint = hint)
+            return Err(t!("shared.deployments.weak_password", hint = hint)
                 .to_string()
                 .into());
         }
@@ -1225,7 +1268,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
         else {
-            return Err(t!("deployments.no_provider").to_string().into());
+            return Err(t!("shared.deployments.no_provider").to_string().into());
         };
         let api = Arc::new(HetznerApi::new(&token));
         let existing = discover(&api)
@@ -1252,19 +1295,19 @@ impl DeploymentManager {
         // multi user needs the mail server and the address of the admin, single user uses neither
         let (smtp, admin_email) = match (intent, user_mode) {
             (Intent::Destroy, _) => (None, None),
-            (_, None) => return Err(t!("deployments.no_user_mode").to_string().into()),
+            (_, None) => return Err(t!("shared.deployments.no_user_mode").to_string().into()),
             (_, Some(UserMode::Single)) => (None, None),
             (_, Some(UserMode::Multi)) => {
                 let smtp = smtp
                     .clone()
-                    .ok_or_else(|| t!("deployments.invalid_smtp_host").to_string())?;
+                    .ok_or_else(|| t!("shared.deployments.invalid_smtp_host").to_string())?;
                 check_smtp(&smtp)?;
                 let admin_email = admin_email
                     .as_deref()
                     .map(str::trim)
                     .filter(|address| is_address(address))
                     .map(str::to_lowercase)
-                    .ok_or_else(|| t!("deployments.invalid_admin_email").to_string())?;
+                    .ok_or_else(|| t!("shared.deployments.invalid_admin_email").to_string())?;
                 (Some(smtp), Some(admin_email))
             }
         };
@@ -1295,11 +1338,15 @@ impl DeploymentManager {
             .and_then(|server| server.labels.get(PROVISIONED_CONFIG_LABEL).cloned());
         let location = match (intent, existing) {
             (Intent::Create, Some(_)) => {
-                return Err(t!("deployments.name_taken", name = name).to_string().into());
+                return Err(t!("shared.deployments.name_taken", name = name)
+                    .to_string()
+                    .into());
             }
             (Intent::Create, None) => location,
             (Intent::Deploy, None) => {
-                return Err(t!("deployments.not_found", name = name).to_string().into());
+                return Err(t!("shared.deployments.not_found", name = name)
+                    .to_string()
+                    .into());
             }
             // destroyed already, maybe with records left: check the password against them
             (Intent::Destroy, None) => {
@@ -1318,7 +1365,7 @@ impl DeploymentManager {
                     .location()
                     .map_err(|resources| {
                         t!(
-                            "deployments.mixed_locations",
+                            "shared.deployments.mixed_locations",
                             name = name,
                             resources = resources
                         )
@@ -1376,9 +1423,9 @@ impl DeploymentManager {
         if intent != Intent::Destroy && !in_the_way.is_empty() {
             return Err(WizardError::new(
                 t!(
-                    "deployments.not_owned",
+                    "shared.deployments.not_owned",
                     error = t!(
-                        "deployments.records_in_the_way",
+                        "shared.deployments.records_in_the_way",
                         records = in_the_way.join(", ")
                     )
                 ),
@@ -1428,10 +1475,9 @@ impl DeploymentManager {
             .spec
             .registry(&prepared.runtime)
             .map_err(|error| error.to_string())?;
-        let diffs = registry
-            .diff_all()
-            .await
-            .map_err(|error| cloud_failure("deployments.plan_failed", prepared.provider, error))?;
+        let diffs = registry.diff_all().await.map_err(|error| {
+            cloud_failure("shared.deployments.plan_failed", prepared.provider, error)
+        })?;
         Ok(PlanResponse {
             name: prepared.spec.name.clone(),
             public_key: prepared.spec.public_key.clone(),
@@ -1496,13 +1542,21 @@ impl DeploymentManager {
                         server.is_some_and(|diff| diff.needs_recreate()),
                     );
                     PlannedResource {
-                        resource: t!("provision.resource", name = prepared.spec.resource_name())
-                            .to_string(),
+                        resource: t!(
+                            "shared.provision.resource",
+                            name = prepared.spec.resource_name()
+                        )
+                        .to_string(),
                         kind: "provisioning".to_string(),
                         name: prepared.spec.resource_name(),
                         resource_status: resource_status(status),
-                        // the playbook runs on every create and deploy
-                        action: Some("will_run"),
+                        // the playbook runs when the provisioning is not up to date, an up to date
+                        // one only on a forced deploy
+                        action: Some(if status == DiffStatus::UpToDate && !deployment.force {
+                            "runs_when_forced"
+                        } else {
+                            "will_run"
+                        }),
                         working: working(deployment.intent, status, false, false),
                         status,
                         keep: false,
@@ -1543,7 +1597,11 @@ impl DeploymentManager {
             self.remove_records(&prepared, on_event)
                 .await
                 .map_err(|error| {
-                    cloud_failure("deployments.destroy_failed", prepared.provider, error)
+                    cloud_failure(
+                        "shared.deployments.destroy_failed",
+                        prepared.provider,
+                        error,
+                    )
                 })?;
             let mut registry = prepared
                 .spec
@@ -1566,7 +1624,11 @@ impl DeploymentManager {
                 .destroy_all_with(&mut report)
                 .await
                 .map_err(|error| {
-                    cloud_failure("deployments.destroy_failed", prepared.provider, error)
+                    cloud_failure(
+                        "shared.deployments.destroy_failed",
+                        prepared.provider,
+                        error,
+                    )
                 })?;
             return Ok(());
         }
@@ -1574,15 +1636,26 @@ impl DeploymentManager {
             .spec
             .registry(&prepared.runtime)
             .map_err(|error| error.to_string())?;
+        // a server created or created anew needs its provisioning, whatever its label says
+        let server_name = prepared.spec.resource_name();
+        let mut server_changed = false;
         let mut report = |event: ApplyEvent| {
             let event = match event {
                 ApplyEvent::Started(resource) => CreateEvent::Started {
                     resource: resource.log_text,
                 },
-                ApplyEvent::Applied(result) => CreateEvent::Applied {
-                    resource: result.resource.log_text,
-                    applied: result.applied,
-                },
+                ApplyEvent::Applied(result) => {
+                    if ResourceKind::of(&result.resource) == Some(ResourceKind::Server)
+                        && result.resource.name == server_name
+                        && matches!(result.applied, Applied::Created | Applied::Recreated)
+                    {
+                        server_changed = true;
+                    }
+                    CreateEvent::Applied {
+                        resource: result.resource.log_text,
+                        applied: result.applied,
+                    }
+                }
                 ApplyEvent::Destroyed(..) => return,
             };
             on_event(event);
@@ -1591,12 +1664,12 @@ impl DeploymentManager {
             .apply_all_with(&mut report)
             .await
             .map_err(|error| {
-                cloud_failure("deployments.create_failed", prepared.provider, error)
+                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
             })?;
         self.remove_records(&prepared, on_event)
             .await
             .map_err(|error| {
-                cloud_failure("deployments.create_failed", prepared.provider, error)
+                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
             })?;
 
         // the result: the address of the server and the device of its data volume
@@ -1605,14 +1678,27 @@ impl DeploymentManager {
             .map_err(|error| failed(prepared.provider, error))?
             .into_iter()
             .find(|found| found.name == prepared.spec.name)
-            .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
-        let server = created
-            .server
-            .as_ref()
-            .ok_or_else(|| t!("deployments.not_found", name = prepared.spec.name).to_string())?;
-        // the provisioning as the plan names it, its events carry it. A deploy always runs the
-        // playbook, so the server is as the deployment declares it, whatever happened to it
-        let resource = t!("provision.resource", name = prepared.spec.resource_name()).to_string();
+            .ok_or_else(|| {
+                t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
+            })?;
+        let server = created.server.as_ref().ok_or_else(|| {
+            t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
+        })?;
+        // the provisioning as the plan names it, its events carry it. A forced deploy always runs
+        // the playbook, so the server is as the deployment declares it, whatever happened to it;
+        // otherwise only when the server changed or was provisioned with another configuration
+        let resource = t!(
+            "shared.provision.resource",
+            name = prepared.spec.resource_name()
+        )
+        .to_string();
+        if !deployment.force
+            && !server_changed
+            && prepared.provisioned.as_deref() == Some(prepared.provisioned_config.as_str())
+        {
+            on_event(CreateEvent::ProvisioningUpToDate { resource });
+            return Ok(());
+        }
         let server_id = server.id;
         let provider = prepared.provider;
         let api = prepared.runtime.api.clone();
@@ -1622,17 +1708,18 @@ impl DeploymentManager {
         set_server_label(&api, server_id, PROVISIONED_CONFIG_LABEL, None)
             .await
             .map_err(|error| failed(prepared.provider, error))?;
-        let host = server
-            .public_ipv4
-            .clone()
-            .ok_or_else(|| t!("provision.no_address", name = prepared.spec.name).to_string())?;
+        let host = server.public_ipv4.clone().ok_or_else(|| {
+            t!("shared.provision.no_address", name = prepared.spec.name).to_string()
+        })?;
         let volume_name = prepared.spec.data_volume().name;
         let storage_device = created
             .volumes
             .iter()
             .find(|volume| volume.name == volume_name)
             .map(|volume| volume.device.clone())
-            .ok_or_else(|| t!("provision.no_volume", name = prepared.spec.name).to_string())?;
+            .ok_or_else(|| {
+                t!("shared.provision.no_volume", name = prepared.spec.name).to_string()
+            })?;
         // the server just provisioned; the wait for the api goes to this address
         let address = host.parse::<std::net::IpAddr>().ok();
         let run = ProvisionRun {
@@ -1658,7 +1745,7 @@ impl DeploymentManager {
 
         on_event(CreateEvent::Provisioning {
             message: t!(
-                "provision.running",
+                "shared.provision.running",
                 name = run.name.as_str(),
                 host = run.host.as_str()
             )
@@ -1708,7 +1795,7 @@ impl DeploymentManager {
                 root_domain,
             ));
             on_event(CreateEvent::Provisioning {
-                message: t!("deployments.waiting_for_api", url = api.as_str()).to_string(),
+                message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
             });
             crate::core::config::wait_for_api(
                 &api,
@@ -1755,6 +1842,9 @@ impl DeploymentManager {
         .await
     }
 }
+
+#[cfg(test)]
+mod window_fixtures;
 
 #[cfg(test)]
 mod tests {
@@ -1885,7 +1975,7 @@ mod tests {
         // no address and no key come out of it, so nothing is sent
         assert_eq!(
             config_endpoint(&deployment, "alpha", "another password here").err(),
-            Some(t!("deployments.wrong_password", name = "alpha").to_string())
+            Some(t!("shared.deployments.wrong_password", name = "alpha").to_string())
         );
     }
 
@@ -1895,7 +1985,7 @@ mod tests {
         let deployment = deployment_with(password, serde_json::json!({ DNS_MODE_LABEL: "domain" }));
         assert_eq!(
             config_endpoint(&deployment, "alpha", password).err(),
-            Some(t!("config.no_root_domain", name = "alpha").to_string())
+            Some(t!("shared.config.no_root_domain", name = "alpha").to_string())
         );
     }
 
@@ -1907,7 +1997,7 @@ mod tests {
         };
         assert_eq!(
             config_endpoint(&deployment, "alpha", "a password of sixteen").err(),
-            Some(t!("deployments.unverifiable", name = "alpha").to_string())
+            Some(t!("shared.deployments.unverifiable", name = "alpha").to_string())
         );
     }
 
@@ -1918,7 +2008,7 @@ mod tests {
             assert_eq!(
                 checked_name(wrong),
                 Err(WizardError::new(
-                    t!("deployments.invalid_name", max = MAX_NAME_LEN),
+                    t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
                     EXIT_USAGE
                 )),
                 "{wrong}"
@@ -1977,6 +2067,7 @@ mod tests {
             acme_ca: None,
             smtp: None,
             admin_email: None,
+            force: true,
         }
     }
 
@@ -2125,14 +2216,14 @@ mod tests {
             provisioning_status(Some("b"), "a", up, false),
             (
                 DiffStatus::HasChanges,
-                vec![t!("provision.config_changed").to_string()]
+                vec![t!("shared.provision.config_changed").to_string()]
             )
         );
         assert_eq!(
             provisioning_status(Some("a"), "a", Some(DiffStatus::HasChanges), false),
             (
                 DiffStatus::HasChanges,
-                vec![t!("provision.server_changes").to_string()]
+                vec![t!("shared.provision.server_changes").to_string()]
             )
         );
         // never provisioned, a new server, one created anew: the first run
@@ -2210,7 +2301,7 @@ mod tests {
         // nothing to check against, a data volume left without a hash: refused, not any password
         assert_eq!(
             check_password(&[], None, name, password),
-            Err(t!("deployments.unverifiable", name = name).to_string())
+            Err(t!("shared.deployments.unverifiable", name = name).to_string())
         );
     }
 
@@ -2269,7 +2360,7 @@ mod tests {
                 "alpha",
                 DnsMode::Subdomain
             )),
-            t!("deployments.no_zones")
+            t!("shared.deployments.no_zones")
         );
         assert_eq!(
             en(check_root_domain(
@@ -2279,7 +2370,7 @@ mod tests {
                 DnsMode::Subdomain
             )),
             t!(
-                "deployments.no_root_domain",
+                "shared.deployments.no_root_domain",
                 domains = "pelle.io, example.com, free.org"
             )
         );
@@ -2291,7 +2382,7 @@ mod tests {
                 DnsMode::Subdomain
             )),
             t!(
-                "deployments.no_root_domain",
+                "shared.deployments.no_root_domain",
                 domains = "pelle.io, example.com, free.org"
             )
         );
@@ -2303,7 +2394,7 @@ mod tests {
                 DnsMode::Subdomain
             )),
             t!(
-                "deployments.unknown_root_domain",
+                "shared.deployments.unknown_root_domain",
                 domain = "other.net",
                 domains = "pelle.io, example.com, free.org"
             )
@@ -2319,14 +2410,22 @@ mod tests {
         assert_eq!(
             check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Domain),
             Err(WizardError::new(
-                t!("deployments.domain_taken", domain = "pelle.io", by = "beta"),
+                t!(
+                    "shared.deployments.domain_taken",
+                    domain = "pelle.io",
+                    by = "beta"
+                ),
                 EXIT_DOMAIN_TAKEN
             ))
         );
         assert_eq!(
             check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Subdomain),
             Err(WizardError::new(
-                t!("deployments.domain_mixed", domain = "pelle.io", by = "beta"),
+                t!(
+                    "shared.deployments.domain_mixed",
+                    domain = "pelle.io",
+                    by = "beta"
+                ),
                 EXIT_MIXED_DNS_MODES
             ))
         );
@@ -2338,12 +2437,12 @@ mod tests {
 
     #[test]
     fn a_root_domain_of_subdomain_deployments_takes_only_the_subdomain_mode() {
-        let by = format!("gamma, {}", t!("deployments.unnamed"));
+        let by = format!("gamma, {}", t!("shared.deployments.unnamed"));
         assert_eq!(
             check_root_domain(&domains(), Some("example.com"), "alpha", DnsMode::Domain),
             Err(WizardError::new(
                 t!(
-                    "deployments.subdomain_only",
+                    "shared.deployments.subdomain_only",
                     domain = "example.com",
                     by = by
                 ),
@@ -2365,7 +2464,14 @@ mod tests {
         assert!(responses[0].dns_modes.is_empty());
         assert_eq!(
             responses[0].note.as_deref(),
-            Some(t!("deployments.domain_taken", domain = "pelle.io", by = "beta").as_ref())
+            Some(
+                t!(
+                    "shared.deployments.domain_taken",
+                    domain = "pelle.io",
+                    by = "beta"
+                )
+                .as_ref()
+            )
         );
         assert_eq!(responses[1].dns_modes, vec![DnsMode::Subdomain]);
         assert!(responses[1].note.is_some());
@@ -2431,7 +2537,7 @@ mod tests {
         with_break.password = "secret\nSAK_ADMIN_PASSWORD_HASH=x".to_string();
         assert_eq!(
             check_smtp(&with_break),
-            Err(t!("deployments.invalid_smtp_value").to_string())
+            Err(t!("shared.deployments.invalid_smtp_value").to_string())
         );
     }
 
@@ -2441,13 +2547,13 @@ mod tests {
         assert!(check_smtp(&smtp(" smtp.example.org ", 465)).is_ok());
         assert_eq!(
             check_smtp(&smtp("", 587)),
-            Err(t!("deployments.invalid_smtp_host").to_string())
+            Err(t!("shared.deployments.invalid_smtp_host").to_string())
         );
         assert!(check_smtp(&smtp("smtp example.org", 587)).is_err());
         assert!(check_smtp(&smtp(&"a".repeat(MAX_HOST_LEN + 1), 587)).is_err());
         assert_eq!(
             check_smtp(&smtp("smtp.example.org", 0)),
-            Err(t!("deployments.invalid_smtp_port").to_string())
+            Err(t!("shared.deployments.invalid_smtp_port").to_string())
         );
     }
 
@@ -2492,7 +2598,7 @@ mod tests {
     #[test]
     fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
         let not_owned = cloud_failure(
-            "deployments.destroy_failed",
+            "shared.deployments.destroy_failed",
             ProviderType::Hetzner,
             sak_cloud::api::Error::NotOwned {
                 resource: "server 'web'".to_string(),
@@ -2504,7 +2610,7 @@ mod tests {
             "server 'web' exists and does not belong to this deployment: it has no label 'sak.pelle.io/name'"
         ));
         let refused = cloud_failure(
-            "deployments.create_failed",
+            "shared.deployments.create_failed",
             ProviderType::Hetzner,
             sak_cloud::api::Error::RecreateRefused {
                 resource: "volume 'web-data'".to_string(),
@@ -2519,7 +2625,7 @@ mod tests {
         );
         // any other failure of the provider is a failure as before
         let other = cloud_failure(
-            "deployments.destroy_failed",
+            "shared.deployments.destroy_failed",
             ProviderType::Hetzner,
             sak_cloud::api::Error::message("timeout"),
         );
@@ -2561,7 +2667,11 @@ mod tests {
         );
         assert_eq!(
             resolve_dns("beta", Intent::Deploy, None, None, None, None),
-            Err(t!("deployments.deploy_without_root_domain", name = "beta").to_string())
+            Err(t!(
+                "shared.deployments.deploy_without_root_domain",
+                name = "beta"
+            )
+            .to_string())
         );
         assert!(resolve_dns("beta", Intent::Deploy, None, Some("  "), None, None).is_err());
     }

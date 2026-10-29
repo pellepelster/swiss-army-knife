@@ -38,7 +38,7 @@ pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result
 fn send(on_event: &Channel<CheckEvent>, event: CheckEvent) -> Result<(), String> {
     on_event
         .send(event)
-        .map_err(|e| t!("checks.splash_not_updated", error = e).to_string())
+        .map_err(|e| t!("shared.checks.splash_not_updated", error = e).to_string())
 }
 
 /// the quit of the splash screen: exit code 1 after a check failed, else 0

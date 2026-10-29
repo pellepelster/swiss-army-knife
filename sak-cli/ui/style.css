@@ -17,12 +17,15 @@ body {
 
 .splash {
   position: relative;
+  box-sizing: border-box;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--sak-space-5);
+  /* the icon and the title in the middle of the window, where they stay; the checks grow below
+     them towards the bottom */
+  padding-top: calc(50vh - (128px + var(--sak-space-5) + 2.4rem) / 2);
 }
 
 /* the quit of the splash screen, at the bottom right like the buttons of every page */
@@ -156,6 +159,26 @@ body {
   margin-top: auto;
   display: flex;
   justify-content: flex-end;
+}
+
+/* the title of a page at the top and its buttons at the bottom stay in view, only what is between
+   them scrolls; they reach over the padding of the page, so nothing scrolls past around them */
+.page-header {
+  position: sticky;
+  top: calc(-1 * var(--sak-space-5));
+  z-index: 1;
+  margin: calc(-1 * var(--sak-space-5)) calc(-1 * var(--sak-space-5)) 0;
+  padding: var(--sak-space-5) var(--sak-space-5) 0;
+  background: var(--sak-bg);
+}
+
+.page-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--sak-space-5));
+  z-index: 1;
+  margin: auto calc(-1 * var(--sak-space-5)) calc(-1 * var(--sak-space-5));
+  padding: var(--sak-space-3) var(--sak-space-5) var(--sak-space-5);
+  background: var(--sak-bg);
 }
 
 .hint {
@@ -352,12 +375,20 @@ body {
   font-size: 1.25rem;
 }
 
-/* the output of ansible on the plan page fills the height below the resources, so it stays in
-   view while a deploy runs */
-.plan-output {
-  flex: 1 1 0;
-  min-height: 8rem;
-  max-height: none;
+/* the eye of the password field: drawn in the color of the text, struck through while the
+   password shows */
+.password-eye {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle[aria-pressed="false"] .password-eye-strike {
+  display: none;
 }
 
 /* the mail server: host and port, user name and password side by side */

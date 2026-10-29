@@ -187,7 +187,7 @@ pub fn run(
 
 /// the text of a check that did not finish, e.g. its thread panicked
 pub fn not_finished(error: impl std::fmt::Display) -> String {
-    t!("checks.not_finished", error = error).to_string()
+    t!("shared.checks.not_finished", error = error).to_string()
 }
 
 #[cfg(test)]

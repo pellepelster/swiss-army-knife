@@ -27,7 +27,7 @@ pub async fn add_provider_token(
 ) -> Result<ProviderTokenResponse, String> {
     let token = token.trim();
     if token.is_empty() {
-        return Err(t!("providers.empty_token").to_string());
+        return Err(t!("shared.providers.empty_token").to_string());
     }
     provider.validate(token).await?;
     tokens.add(provider, token)

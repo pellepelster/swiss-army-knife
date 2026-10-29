@@ -7,6 +7,8 @@ use crate::core::deployments::{
 };
 use crate::core::error::WizardError;
 use crate::core::providers::ProviderTokens;
+use futures_util::future::{AbortHandle, Abortable};
+use rust_i18n::t;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use tauri::ipc::Channel;
@@ -93,20 +95,56 @@ pub async fn plan_deployment(
     manager.plan(tokens, &deployment).await
 }
 
+/// the apply that runs, so cancel can stop it
+#[derive(Default)]
+pub struct RunningApply(Mutex<Option<AbortHandle>>);
+
 #[tauri::command]
 pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
+    running: State<'_, RunningApply>,
     deployment: NewDeployment,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
     let tokens = tokens.tokens();
+    let (abort, registration) = AbortHandle::new_pair();
+    if let Ok(mut running) = running.0.lock() {
+        *running = Some(abort);
+    }
     // a progress event that cannot be sent is no reason to stop the apply
+    let mut report = |event| {
+        let _ = on_event.send(event);
+    };
+    let apply = manager.create(tokens, &deployment, &container, &mut report);
+    let result = Abortable::new(apply, registration).await;
+    if let Ok(mut running) = running.0.lock() {
+        *running = None;
+    }
+    result.unwrap_or_else(|_| Err(t!("shared.deployments.cancelled").to_string().into()))
+}
+
+/// stops the apply that runs: its requests to the provider end where they are, the container of
+/// a provisioning is removed. What was done stays, the plan of the next deploy shows the rest
+#[tauri::command]
+pub fn cancel_apply(running: State<'_, RunningApply>) {
+    if let Some(abort) = running.0.lock().ok().and_then(|mut running| running.take()) {
+        abort.abort();
+    }
+    crate::core::provision::stop_runs();
+}
+
+/// whether the password is the one of the deployment, asked while it is typed
+#[tauri::command]
+pub async fn check_deployment_password(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    name: String,
+    password: String,
+) -> Result<(), String> {
     manager
-        .create(tokens, &deployment, &container, &mut |event| {
-            let _ = on_event.send(event);
-        })
+        .check_password(tokens.tokens(), &name, &password)
         .await
 }
 

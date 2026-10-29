@@ -59,7 +59,7 @@ pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String>
     }
     Err(format!(
         "{}\n\n{}",
-        t!("checks.container_runtime.needed"),
+        t!("shared.checks.container_runtime.needed"),
         errors.join("\n")
     ))
 }
@@ -70,7 +70,7 @@ pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String>
 fn canary(runtime: &str) -> Result<String, String> {
     let not_working = |error: String| {
         t!(
-            "checks.container_runtime.not_working",
+            "shared.checks.container_runtime.not_working",
             runtime = runtime,
             error = error
         )
@@ -82,7 +82,7 @@ fn canary(runtime: &str) -> Result<String, String> {
     if answer != CANARY_ANSWER {
         return Err(not_working(
             t!(
-                "checks.container_runtime.wrong_answer",
+                "shared.checks.container_runtime.wrong_answer",
                 image = CANARY,
                 answer = answer,
                 expected = CANARY_ANSWER
@@ -113,7 +113,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     if !pulled {
         output(runtime, &["pull", IMAGE]).map_err(|error| {
             t!(
-                "checks.image.not_pulled",
+                "shared.checks.image.not_pulled",
                 image = IMAGE,
                 runtime = runtime,
                 error = error
@@ -123,7 +123,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     }
     let answer = output(runtime, &["run", "--rm", IMAGE, "id", "-un"]).map_err(|error| {
         t!(
-            "checks.image.not_run",
+            "shared.checks.image.not_run",
             image = IMAGE,
             runtime = runtime,
             error = error
@@ -132,7 +132,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     })?;
     if answer != IMAGE_USER {
         return Err(t!(
-            "checks.image.wrong_answer",
+            "shared.checks.image.wrong_answer",
             image = IMAGE,
             answer = answer,
             expected = IMAGE_USER
@@ -263,7 +263,7 @@ impl PullProgress {
         let megabytes = |bytes: u64| (bytes as f64 / 1_000_000.0).round() as u64;
         let downloaded = self.layers.values().map(|layer| layer.downloaded).sum();
         t!(
-            "checks.image.progress",
+            "shared.checks.image.progress",
             downloaded = megabytes(downloaded),
             total = megabytes(self.total())
         )
