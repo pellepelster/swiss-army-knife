@@ -14,6 +14,10 @@ rust = "1.99.1"
 "hugo-extended" = "0.168.0"
 go = "1.26.0"
 
+# the version of SAK, the same for all its artifacts (#127); latest until they have versions
+[env]
+VERSION = "latest"
+
 # the images of the server and of sakctl, built and pushed to ghcr.io: the tools sakctl runs in a
 # container (sak-cli/Dockerfile) and the canary proving a container runtime works on its start
 # (sak-cli/canary/Dockerfile)
