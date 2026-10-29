@@ -1,0 +1,142 @@
+// The screens of sakctl's window (sak-cli/ui) as redesigned, and the buttons that lead from one
+// to the next. A relation is labeled with its button, or with what leads there without a button.
+// Open it with `npx likec4 start docs/design/ui`.
+
+specification {
+  element screen {
+    notation "A view of the window"
+    style {
+      shape browser
+      color primary
+    }
+  }
+  element widget {
+    notation "A part that several screens show"
+    style {
+      shape rectangle
+      color green
+    }
+  }
+  element dialog {
+    notation "A modal dialog"
+    style {
+      shape rectangle
+      color red
+    }
+  }
+  element outside {
+    notation "Outside of the window"
+    style {
+      shape rectangle
+      color muted
+    }
+  }
+}
+
+model {
+  splash = screen 'Splash screen' {
+    description 'The checks: docker or podman, the image of the tools, the provider tokens of the environment. Quit only shows after a check failed'
+  }
+  providers = screen 'Provider tokens' {
+    description 'The tokens of the providers; Next only with at least one token'
+  }
+  select = screen 'Select the provider' {
+    description 'The providers sakctl supports'
+  }
+  token = screen 'Token of the provider' {
+    description 'The API token, validated by rust before it is added; a token that is refused stays with its error'
+  }
+  deployments = screen 'Deployments' {
+    description 'The deployments of the project, each with its state'
+  }
+  password = screen 'Password of the deployment' {
+    description 'Every deployment asks for its password. It is checked against the resources as it is typed; Next only with the right password, Cancel back to the deployments'
+  }
+  details = screen 'Deployment details' {
+    description 'One deployment: its state, location and resources. At the bottom a toolbar with Check deployment'
+  }
+  form = screen 'Deployment form' {
+    description 'New deployment: the name, the password, the location, the DNS. Destroy the deployment: whether to delete the data volume, the password is known'
+  }
+  plan = screen 'Plan' {
+    description 'What an apply would do to each resource and to the provisioning. Three buttons: Cancel; Deploy changes, only when a resource is not up to date; Force deploy, always, provisions the server again'
+  }
+  apply = screen 'Apply' {
+    description 'Each resource and each task of the playbook as they are created or changed. Done only when every resource was applied; Cancel stops the run, also while it runs, and is the way out after a failure'
+  }
+  destroy = screen 'Destroy' {
+    description 'Each resource as it is destroyed. Done only when every resource was destroyed, no Next; Cancel stops the run, also while it runs, and is the way out after a failure'
+  }
+  confirm = dialog 'Destroy {name}?' {
+    description 'The last confirmation of a destroy, with the data volume when asked'
+  }
+  resources = widget 'Resource widgets' {
+    description 'One row a resource: its led, kind, name, resource status and what is done to it'
+  }
+  browser = outside 'Browser of the system' {
+    description 'The frontend of a deployment, sak.<base domain>'
+  }
+  quit = outside 'Quit' {
+    description 'The window closes with exit code 1'
+  }
+
+  // the screen flow
+  splash -> providers 'checks done, no provider token'
+  splash -> deployments 'checks done, tokens of the environment'
+  splash -> quit 'Quit (only after a failed check)'
+
+  providers -> select 'Add'
+  providers -> deployments 'Next'
+  select -> token 'a provider'
+  select -> providers 'Cancel'
+  token -> providers 'Add (the token is valid) / Cancel'
+
+  deployments -> form 'Create'
+  deployments -> password 'the header of a deployment'
+  password -> details 'Next (only with the right password)'
+  password -> deployments 'Cancel'
+  deployments -> providers 'Back'
+  deployments -> browser 'Address'
+
+  details -> plan 'Check deployment (toolbar at the bottom)'
+  details -> form 'Destroy'
+  details -> deployments 'Back'
+
+  form -> plan 'Plan (a new deployment)'
+  form -> confirm 'Destroy'
+  form -> deployments 'Cancel'
+  confirm -> destroy 'Destroy'
+  confirm -> form 'Cancel'
+
+  plan -> apply 'Deploy changes (a resource is not up to date) / Force deploy'
+  plan -> details 'Cancel'
+  plan -> deployments 'Cancel (a new deployment)'
+
+  apply -> details 'Done (every resource applied)'
+  apply -> deployments 'Cancel (also while it runs)'
+
+  destroy -> deployments 'Done (every resource destroyed) / Cancel (also while it runs)'
+
+  // the screens that show the resource widgets
+  plan -> resources 'shows'
+  apply -> resources 'shows'
+  destroy -> resources 'shows'
+}
+
+views {
+  view index {
+    title 'Screen flow of the window of sakctl'
+    description 'Which button leads from one screen to the next'
+    include *
+    exclude resources
+    autoLayout TopBottom
+  }
+
+  view widgets {
+    title 'The resource widgets'
+    description 'The screens that show the resources with the same widgets'
+    include plan, apply, destroy, resources
+    exclude plan -> apply
+    autoLayout TopBottom
+  }
+}
