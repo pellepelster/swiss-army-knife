@@ -1,5 +1,6 @@
 //! everything a deployment derives from its password: the ssh client key, the ssh host key, the
-//! password hash label, the api key, the admin password hash and the provisioned-config label.
+//! password hash label, the api key, the backup key, the admin password hash and the
+//! provisioned-config label.
 //! The same name and password give the same values on every machine, so sakctl keeps nothing.
 //!
 //! One strong argon2id of the password (`MASTER_PARAMS`) gives the master key of the deployment.
@@ -159,6 +160,35 @@ pub fn api_key(name: &str, password: &str) -> Result<ApiKey, String> {
     Ok(ApiKey(SigningKey::from_bytes(&expand::<32>(
         name, password, "api-key",
     )?)))
+}
+
+/// the age x25519 key of the backups of a deployment: the server encrypts a backup to its
+/// public half (`recipient`), only sakctl decrypts with the identity. No Debug, the key never
+/// shows
+pub struct BackupKey(age::x25519::Identity);
+
+impl BackupKey {
+    /// the public half, `age1…`, as `age -r` takes it
+    pub fn recipient(&self) -> String {
+        self.0.to_public().to_string()
+    }
+
+    /// what decrypts a backup
+    pub fn identity(&self) -> &age::x25519::Identity {
+        &self.0
+    }
+}
+
+/// the backup key of a deployment: 32 bytes of the master key as an age identity
+/// (`AGE-SECRET-KEY-1…`, bech32)
+pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
+    use std::str::FromStr;
+    let secret = expand::<32>(name, password, "backup")?;
+    let hrp = bech32::Hrp::parse("age-secret-key-").map_err(|e| e.to_string())?;
+    let encoded = bech32::encode::<bech32::Bech32>(hrp, &secret).map_err(|e| e.to_string())?;
+    age::x25519::Identity::from_str(&encoded.to_uppercase())
+        .map(BackupKey)
+        .map_err(|e| e.to_string())
 }
 
 /// the hash of the admin password (the deployment password as nfc) that the backend checks a
@@ -431,6 +461,38 @@ mod tests {
             );
         }
     }
+
+    /// the backup key is an age identity of its own: the same for the same name and password,
+    /// and its recipient is what `age-keygen -y` gives for it (checked with age 1.3.1)
+    #[test]
+    fn the_backup_key_is_a_stable_age_identity() {
+        use age::secrecy::ExposeSecret;
+        let key = backup_key("alpha", "a password of sixteen").unwrap();
+        assert_eq!(key.recipient(), BACKUP_RECIPIENT_VECTOR);
+        assert!(
+            key.identity()
+                .to_string()
+                .expose_secret()
+                .starts_with("AGE-SECRET-KEY-1")
+        );
+        assert_ne!(
+            backup_key("beta", "a password of sixteen")
+                .unwrap()
+                .recipient(),
+            key.recipient()
+        );
+        let client = derive_key("alpha", "a password of sixteen").unwrap();
+        let secret = key.identity().to_string();
+        assert!(
+            !secret
+                .expose_secret()
+                .contains(&STANDARD.encode(client.key.to_bytes()))
+        );
+    }
+
+    /// the recipient of the backup key of `alpha` with `a password of sixteen`
+    const BACKUP_RECIPIENT_VECTOR: &str =
+        "age1f5ztyfa7v24uaakhdrkfzaqzadfeyfydvv36yjtwef5gqna7v93sk5cz7z";
 
     /// the hash of the admin password of `alpha` with `a password of sixteen`: the same constant is
     /// in the tests of the backend (`AdminPasswordTest`), which checks a password against it

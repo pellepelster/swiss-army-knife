@@ -352,6 +352,13 @@ run = """
 ./gradlew :sak-e2e:e2eIntegration
 """
 
+# sak-backup and sak-restore of the role backend as the role renders them, in docker next to a real
+# victorialogs (ansible/roles/backend/tests/backup-test.sh)
+[tasks."ansible:backup:test"]
+description = "Run the tests of the backup and restore scripts of the server in docker"
+dir = "{{config_root}}"
+run = "ansible/roles/backend/tests/backup-test.sh"
+
 # everything at once, each in its own process group with its log in build/local/logs; the backend
 # first, its build installs the npm dependencies of the frontend, which must not change under its
 # dev server. Ctrl-C stops everything.

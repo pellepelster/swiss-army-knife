@@ -1,0 +1,121 @@
+#!/bin/bash
+# {{ ansible_managed }}
+#
+# sak-backup <recipient>: the data of the deployment {{ sak_name }} below {{ sak_data_dir }} as one
+# tar stream, compressed with zstd and encrypted with age to <recipient> (the public half of the
+# backup key sakctl derives), on standard output. Messages go to standard error, each line
+# starting with "sak-backup: ". Nothing stops: the database is copied with VACUUM INTO,
+# victorialogs with its own snapshots, the files as hard links of one moment
+set -euo pipefail
+
+recipient="${1:-}"
+if [[ ! "$recipient" =~ ^age1[02-9ac-hj-np-z]{58}$ ]]; then
+  echo "sak-backup: usage: sak-backup <age recipient>" >&2
+  exit 2
+fi
+
+data={{ sak_data_dir | quote }}
+database={{ (backend_data_path ~ '/sak.db') | quote }}
+staging={{ backend_backup_staging_path | quote }}
+victorialogs={{ backend_victorialogs_data_path | quote }}
+snapshot_api=http://127.0.0.1:9428/internal/partition/snapshot
+
+step() { echo "sak-backup: $*" >&2; }
+
+exec 9>{{ backend_backup_lock_file | quote }}
+if ! flock -n 9; then
+  step "another backup or restore runs"
+  exit 1
+fi
+
+auth_key=$(cat {{ backend_victorialogs_auth_key_file | quote }})
+snapshots=()
+cleanup() {
+  for snapshot in "${snapshots[@]}"; do
+    curl -fsS -X POST --data-urlencode "authKey=$auth_key" --data-urlencode "path=$snapshot" \
+      "$snapshot_api/delete" >/dev/null || step "snapshot $snapshot not deleted"
+  done
+  rm -rf "$staging"
+}
+trap cleanup EXIT
+
+rm -rf "$staging"
+# the user of sak copies the database into it
+install -d -m 0750 -o root -g {{ backend_group }} "$staging"
+install -d -m 0700 -o {{ backend_user }} -g {{ backend_group }} "$staging/database"
+
+# the checkpoint of vector before the snapshot of victorialogs: a line can be sent again after
+# a restore, but none is lost
+step "copying the checkpoints of vector"
+cp -a {{ backend_vector_data_path | quote }} "$staging/vector"
+
+step "taking a snapshot of victorialogs"
+install -d -m 0700 -o {{ backend_user }} -g {{ backend_group }} "$staging/victorialogs" "$staging/victorialogs/partitions"
+answer=$(curl -fsS -X POST --data-urlencode "authKey=$auth_key" "$snapshot_api/create")
+mapfile -t snapshots < <(python3 -c 'import json, sys; print("\n".join(json.load(sys.stdin)))' <<<"$answer")
+for snapshot in "${snapshots[@]}"; do
+  # /victoria-logs-data/partitions/<day>/snapshots/<id>, the path in the container; the delete
+  # takes it as it is
+  day=$(basename "$(dirname "$(dirname "$snapshot")")")
+  install -d -m 0700 -o {{ backend_user }} -g {{ backend_group }} "$staging/victorialogs/partitions/$day"
+  cp -al "$victorialogs${snapshot#/victoria-logs-data}/." "$staging/victorialogs/partitions/$day/"
+done
+
+# the database before the files: every file a row of the copy refers to is there already
+step "copying the database"
+runuser -u {{ backend_user }} -- sqlite3 "$database" "VACUUM INTO '$staging/database/sak.db'"
+integrity=$(runuser -u {{ backend_user }} -- sqlite3 "$staging/database/sak.db" "PRAGMA integrity_check")
+if [ "$integrity" != "ok" ]; then
+  step "the copy of the database is damaged: $integrity"
+  exit 1
+fi
+
+# hard links of the files as they are now; the backend writes a file anew and moves it into
+# place, so a link keeps the file of this moment. The files of the provisioning are no data
+step "linking the files"
+install -d -m 0750 -o root -g {{ backend_group }} "$staging/backend"
+cp -al {{ backend_data_path | quote }} "$staging/backend/data"
+rm -f "$staging/backend/data/sak.db" "$staging/backend/data/sak.db-wal" "$staging/backend/data/sak.db-shm"
+mv "$staging/database/sak.db" "$staging/backend/data/sak.db"
+rmdir "$staging/database"
+for entry in "$data"/* "$data"/.[!.]*; do
+  [ -e "$entry" ] || continue
+  case "$(basename "$entry")" in
+    backend | vector | victorialogs) ;;
+    *) cp -al "$entry" "$staging/" ;;
+  esac
+done
+
+size=$(du -sb "$staging" | cut -f1)
+digest=$(podman image inspect --format '{% raw %}{{.Digest}}{% endraw %}' {{ backend_image | quote }} 2>/dev/null || true)
+python3 - "$staging/backup.json" "$size" "$digest" <<'EOF'
+import datetime, json, sys
+path, size, digest = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+manifest = {
+    "format": 1,
+    # the version of sak, latest until the artifacts have versions (#127)
+    "version": "latest",
+    "name": {{ sak_name | to_json }},
+    "time": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+    "backend_image": digest,
+    "size": size,
+}
+with open(path, "w") as file:
+    json.dump(manifest, file, indent=2)
+EOF
+
+step "sending $size bytes, compressed and encrypted"
+mapfile -t entries < <(cd "$staging" && find . -mindepth 1 -maxdepth 1 ! -name backup.json -printf '%P\n' | sort)
+# tar ends with 1 when a file changed while it was read (the access log of caddy), which is no
+# failure; the plain stream never leaves the server
+set +e
+tar --create --file=- --numeric-owner --warning=no-file-changed -C "$staging" backup.json "${entries[@]}" \
+  | zstd -3 -T0 -q \
+  | age -r "$recipient"
+statuses=("${PIPESTATUS[@]}")
+set -e
+if [ "${statuses[0]}" -gt 1 ] || [ "${statuses[1]}" -ne 0 ] || [ "${statuses[2]}" -ne 0 ]; then
+  step "the archive failed (tar ${statuses[0]}, zstd ${statuses[1]}, age ${statuses[2]})"
+  exit 1
+fi
+step "done"

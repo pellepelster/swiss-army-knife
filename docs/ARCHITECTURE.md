@@ -124,6 +124,10 @@ and the health of the domains.
 - **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the staging
   ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots sakctl
   then trusts). The integration tests use the staging ca, so they never run into the limits of the production one.
+- **Backups through ssh.** A backup is pulled through ssh into one file on the user's machine, compressed and
+  encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
+  through ssh. The files of the backups are data of the user, not state of sakctl. Refer to
+  [FDR-007](fdr/FDR-007-backup.md).
 - **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
   (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
   one that does not answer within some minutes fails, with the cause.
@@ -169,6 +173,7 @@ and the health of the domains.
   | ssh host key | the server's ssh identity, installed by cloud-init, so the first connection is verified |
   | password hash | the `sak.pelle.io/password-hash` label that proves a resource belongs to the deployment |
   | api key | the signatures of sakctl's requests to the api; the backend has only the public half |
+  | backup key | an age key; the server encrypts a backup to its public half, only sakctl decrypts |
   | admin password hash | the password login of the admin; the backend has only the hash |
 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses

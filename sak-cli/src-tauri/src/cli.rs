@@ -1,11 +1,12 @@
 //! The command line of sakctl. A command as the first argument (`list`, `create`, `deploy`,
-//! `destroy`, `config`) runs without a window, on the same core and texts as the window. This file
+//! `destroy`, `config`, `ssh`, `backup`, `restore`) runs without a window, on the same core and texts as the window. This file
 //! only parses the arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
 //! (`--hcloud-token`). The name and the location of a deployment come from the argument or from
 //! SAK_NAME and SAK_LOCATION. The password comes from SAK_PASSWORD or is typed (`--password`),
 //! never from an argument. Every line it prints is `<date> <level> <message>`, the level in color
 //! on a terminal. The exit code tells the failures apart (`core::error`)
 
+use crate::core::backup::BackupManager;
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
@@ -95,6 +96,37 @@ pub enum Command {
         /// A command to run on the server instead of a session
         #[arg(last = true)]
         command: Vec<String>,
+    },
+    /// Back up all data of a sak deployment. The server compresses it and encrypts it with a key
+    /// derived from the password; it goes to ~/.sak/backups/<name>/<name>-<UTC time>.age.sak
+    #[command(after_help = EXIT_CODES)]
+    Backup {
+        #[command(flatten)]
+        provider: Provider,
+        /// The name of the deployment
+        #[arg(env = NAME_VARIABLE)]
+        name: String,
+        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        #[arg(long)]
+        password: bool,
+    },
+    /// Restore a sak deployment from one of its backups: all its data is replaced with the data
+    /// of the backup. The deployment must exist; the files of its provisioning stay
+    #[command(after_help = EXIT_CODES)]
+    Restore {
+        #[command(flatten)]
+        provider: Provider,
+        /// The name of the deployment
+        #[arg(env = NAME_VARIABLE)]
+        name: String,
+        /// The backup, a file that `sakctl backup` wrote
+        file: std::path::PathBuf,
+        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        #[arg(long)]
+        password: bool,
+        /// Replace the data without asking
+        #[arg(long)]
+        yes: bool,
     },
     /// Destroy a sak deployment: its DNS records, server, addresses, firewall and ssh key are
     /// removed, the data volume stays unless --delete-data is given. A deployment that is gone
@@ -244,6 +276,8 @@ pub fn is_command_line(args: &[String]) -> bool {
                 | "destroy"
                 | "config"
                 | "ssh"
+                | "backup"
+                | "restore"
                 | "--help"
                 | "-h"
                 | "--version"
@@ -438,7 +472,11 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             Some(password(deployment.password, false, password_variable())?)
         }
         Command::Config(ConfigCommand::Show { password: ask, .. })
-        | Command::Ssh { password: ask, .. } => Some(password(*ask, false, password_variable())?),
+        | Command::Ssh { password: ask, .. }
+        | Command::Backup { password: ask, .. }
+        | Command::Restore { password: ask, .. } => {
+            Some(password(*ask, false, password_variable())?)
+        }
     };
     let password = password.unwrap_or_default();
     let smtp_password = match &command {
@@ -453,7 +491,9 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         | Command::Deploy { provider, .. }
         | Command::Destroy { provider, .. }
         | Command::Config(ConfigCommand::Show { provider, .. })
-        | Command::Ssh { provider, .. } => provider,
+        | Command::Ssh { provider, .. }
+        | Command::Backup { provider, .. }
+        | Command::Restore { provider, .. } => provider,
     };
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
@@ -465,6 +505,12 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         Command::Ssh { name, command, .. } => {
             ssh(&manager, &token, &runtime, &name, &password.0, &command).await
         }
+        Command::Backup { name, .. } => {
+            backup(&manager, &token, &runtime, &name, &password.0).await
+        }
+        Command::Restore {
+            name, file, yes, ..
+        } => restore(&manager, &token, &runtime, &name, &password.0, &file, yes).await,
         Command::Create { deployment, .. } => {
             deploy(
                 &manager,
@@ -589,6 +635,140 @@ async fn ssh(
             t!("cli.ssh_ended", code = code).to_string(),
             code,
         )),
+    }
+}
+
+/// a backup of the deployment to `~/.sak/backups/<name>/`, each step of the server logged
+async fn backup(
+    manager: &DeploymentManager,
+    provider: &HetznerToken,
+    runtime: &ContainerRuntime,
+    name: &str,
+    password: &str,
+) -> Result<(), WizardError> {
+    let name = name.trim().to_string();
+    let target = manager
+        .ssh_target(provider.tokens(), &name, password)
+        .await?;
+    let key = crate::core::keys::backup_key(&name, password)?;
+    let runtime = runtime
+        .get()
+        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    let directory = crate::core::backup::directory(&name)?;
+    log(
+        Level::Info,
+        t!(
+            "cli.backup_started",
+            name = name,
+            host = target.host.as_str()
+        ),
+    );
+    let path = directory.join(crate::core::backup::file_name(&name, chrono::Utc::now()));
+    let backup = tokio::task::spawn_blocking(move || {
+        BackupManager.backup(runtime, &target, &key, &path, &mut |line| {
+            log(Level::Info, line)
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    log(
+        Level::Info,
+        t!(
+            "cli.backup_done",
+            name = name,
+            path = backup.path.display(),
+            size = size(backup.size)
+        ),
+    );
+    Ok(())
+}
+
+/// replaces the data of the deployment with the backup in `file`, after the user typed the name
+/// (or gave --yes)
+async fn restore(
+    manager: &DeploymentManager,
+    provider: &HetznerToken,
+    runtime: &ContainerRuntime,
+    name: &str,
+    password: &str,
+    file: &std::path::Path,
+    yes: bool,
+) -> Result<(), WizardError> {
+    let name = name.trim().to_string();
+    let target = manager
+        .ssh_target(provider.tokens(), &name, password)
+        .await?;
+    let key = crate::core::keys::backup_key(&name, password)?;
+    let runtime = runtime
+        .get()
+        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    if !yes {
+        confirm_restore(&name, file)?;
+    }
+    log(
+        Level::Info,
+        t!(
+            "cli.restore_started",
+            name = name,
+            host = target.host.as_str(),
+            path = file.display()
+        ),
+    );
+    let path = file.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        BackupManager.restore(runtime, &target, &key, &path, &mut |line| {
+            log(Level::Info, line)
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    log(
+        Level::Info,
+        t!("cli.restore_done", name = name, path = file.display()),
+    );
+    Ok(())
+}
+
+/// the name of the deployment typed on the terminal; anything else changes nothing
+fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), WizardError> {
+    use std::io::Write;
+    if !std::io::stdin().is_terminal() {
+        return Err(WizardError::new(
+            t!("cli.restore_no_terminal", name = name),
+            EXIT_USAGE,
+        ));
+    }
+    eprint!(
+        "{}",
+        t!("cli.restore_confirm", name = name, path = file.display())
+    );
+    std::io::stderr()
+        .flush()
+        .map_err(|error| error.to_string())?;
+    let mut typed = String::new();
+    std::io::stdin()
+        .read_line(&mut typed)
+        .map_err(|error| error.to_string())?;
+    if typed.trim() == name {
+        Ok(())
+    } else {
+        Err(t!("cli.restore_not_confirmed").to_string().into())
+    }
+}
+
+/// a size in bytes for people: `812 B`, `3.4 MiB`
+fn size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
     }
 }
 
@@ -955,6 +1135,43 @@ mod tests {
             panic!("no ssh command");
         };
         assert!(command.is_empty());
+    }
+
+    #[test]
+    fn backup_takes_the_name_and_restore_the_name_and_the_file() {
+        assert!(is_command_line(&["backup".to_string()]));
+        assert!(is_command_line(&["restore".to_string()]));
+        let Some(Command::Backup { name, password, .. }) =
+            parse(&["backup", "alpha"]).unwrap().command
+        else {
+            panic!("no backup command");
+        };
+        assert_eq!((name.as_str(), password), ("alpha", false));
+        let Some(Command::Restore {
+            name, file, yes, ..
+        }) = parse(&[
+            "restore",
+            "alpha",
+            "alpha-20261029T080000Z.age.sak",
+            "--yes",
+        ])
+        .unwrap()
+        .command
+        else {
+            panic!("no restore command");
+        };
+        assert_eq!(name, "alpha");
+        assert_eq!(file, std::path::Path::new("alpha-20261029T080000Z.age.sak"));
+        assert!(yes);
+        // a restore needs its file
+        assert!(parse(&["restore", "alpha"]).is_err());
+    }
+
+    #[test]
+    fn a_size_is_shown_in_the_largest_unit_below_1024() {
+        assert_eq!(size(812), "812 B");
+        assert_eq!(size(3 * 1024 * 1024 + 400 * 1024), "3.4 MiB");
+        assert_eq!(size(2048), "2.0 KiB");
     }
 
     #[test]

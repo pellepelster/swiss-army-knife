@@ -1,0 +1,101 @@
+#!/bin/bash
+# {{ ansible_managed }}
+#
+# sak-restore: replaces the data of the deployment {{ sak_name }} below {{ sak_data_dir }} with
+# the backup on standard input, decrypted by sakctl and still compressed with zstd (what
+# sak-backup wrote before age). The archive is extracted and checked first; until then nothing
+# of the deployment changes. The files of the provisioning stay. Messages go to standard error,
+# each line starting with "sak-restore: "
+set -euo pipefail
+
+data={{ sak_data_dir | quote }}
+staging={{ backend_restore_staging_path | quote }}
+replaced={{ backend_restore_replaced_path | quote }}
+units=(sak-backend sak-ingress sak-vector sak-victorialogs)
+
+step() { echo "sak-restore: $*" >&2; }
+
+exec 9>{{ backend_backup_lock_file | quote }}
+if ! flock -n 9; then
+  step "another backup or restore runs"
+  exit 1
+fi
+
+# what a restore that did not end left behind is the data from before it, never removed here
+if [ -e "$replaced" ]; then
+  step "$replaced is left from a restore that did not end; move its data back or remove it first"
+  exit 1
+fi
+
+stopped=false
+cleanup() {
+  rm -rf "$staging"
+  if [ "$stopped" = true ]; then
+    systemctl start "${units[@]}" || true
+  fi
+}
+trap cleanup EXIT
+
+rm -rf "$staging"
+install -d -m 0700 -o root -g root "$staging"
+
+step "receiving and extracting the backup"
+zstd -dc -q | tar --extract --file=- --numeric-owner --same-permissions -C "$staging"
+
+step "checking the backup"
+python3 - "$staging/backup.json" <<'EOF'
+import json, sys
+manifest = json.load(open(sys.argv[1]))
+if manifest.get("format") != 1:
+    sys.exit(f"sak-restore: the format {manifest.get('format')} of the backup is not known")
+if manifest.get("name") != {{ sak_name | to_json }}:
+    sys.exit(f"sak-restore: the backup is of {manifest.get('name')}, not of {{ sak_name }}")
+EOF
+if [ ! -f "$staging/backend/data/sak.db" ]; then
+  step "the backup has no database"
+  exit 1
+fi
+integrity=$(sqlite3 "$staging/backend/data/sak.db" "PRAGMA integrity_check")
+if [ "$integrity" != "ok" ]; then
+  step "the database of the backup is damaged: $integrity"
+  exit 1
+fi
+# the check ran as root, nothing of it may stay for the backend
+rm -f "$staging/backend/data/sak.db-wal" "$staging/backend/data/sak.db-shm"
+
+# backend/data, and each other directory of the archive (ingress, vector, victorialogs)
+entries=(backend/data)
+for entry in "$staging"/* "$staging"/.[!.]*; do
+  [ -e "$entry" ] || continue
+  case "$(basename "$entry")" in
+    backup.json | backend) ;;
+    *) entries+=("$(basename "$entry")") ;;
+  esac
+done
+
+step "stopping the deployment"
+stopped=true
+systemctl stop "${units[@]}"
+
+step "replacing the data"
+install -d -m 0700 -o root -g root "$replaced" "$replaced/backend"
+for entry in "${entries[@]}"; do
+  if [ -e "$data/$entry" ]; then
+    mv "$data/$entry" "$replaced/$entry"
+  fi
+  mv "$staging/$entry" "$data/$entry"
+done
+
+step "starting the deployment"
+systemctl start "${units[@]}"
+stopped=false
+for _ in $(seq 1 $(({{ backend_restore_wait }} / 5))); do
+  if curl -fsS -o /dev/null http://127.0.0.1:8080/api/v1/info; then
+    rm -rf "$replaced"
+    step "done"
+    exit 0
+  fi
+  sleep 5
+done
+step "the backend does not answer after {{ backend_restore_wait }} seconds; the data from before the restore is in $replaced"
+exit 1

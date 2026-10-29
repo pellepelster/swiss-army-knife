@@ -62,6 +62,6 @@ e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against
 e2e("e2eIntegration", "integration", "Runs the integration tests: the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN") {
     // the binary of `cargo build` in sak-cli/src-tauri, SAK_E2E_SAKCTL points elsewhere
     systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)
-    // two servers created and provisioned one after the other
-    timeout = Duration.ofMinutes(90)
+    // four servers created and provisioned one after the other
+    timeout = Duration.ofMinutes(180)
 }

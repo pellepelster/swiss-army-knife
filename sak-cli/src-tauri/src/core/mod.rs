@@ -1,8 +1,9 @@
 //! what the window and the command line share: the checks on startup, the deployments and their
 //! manager, the provisioning, the container runtime, the keys derived from a password, the signed
-//! requests to the api, the providers and their tokens, the texts. Nothing in here knows tauri or
+//! requests to the api, the backups, the providers and their tokens, the texts. Nothing in here knows tauri or
 //! clap
 
+pub mod backup;
 pub mod checks;
 pub mod config;
 pub mod container;
@@ -31,6 +32,7 @@ mod tests {
                 "checks/provider_tokens.rs",
                 include_str!("checks/provider_tokens.rs"),
             ),
+            ("backup.rs", include_str!("backup.rs")),
             ("config.rs", include_str!("config.rs")),
             ("container.rs", include_str!("container.rs")),
             ("deployments.rs", include_str!("deployments.rs")),

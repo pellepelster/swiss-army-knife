@@ -72,6 +72,10 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 - **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `-- <command>`
   runs a command there. It runs in the image of the tools like the provisioning: the key derived from the password
   goes to an ssh-agent in the container and is never written, the server is checked against its derived host key.
+- **Backup and restore, on the command line only.** `sakctl backup <name>` writes all data of a deployment to
+  `~/.sak/backups/<name>/<name>-<UTC time>.age.sak` and shows the path and the size. `sakctl restore <name> <file>`
+  replaces the data with that of a backup, after the user types the name of the deployment (`--yes` without asking).
+  Both show each step of the server while it runs. Refer to [FDR-007](fdr/FDR-007-backup.md).
 - **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists
   them all.
 - **No surprise by default.** A deploy keeps the settings of the deployment (for example its DNS mode and root

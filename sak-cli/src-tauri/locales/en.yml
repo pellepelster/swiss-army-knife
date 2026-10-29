@@ -22,7 +22,21 @@ cli:
   ssh_ended: "ssh ended with exit code %{code}."
   ssh_no_server: "The deployment %{name} has no server."
   ssh_not_started: "%{runtime} could not start the container of the ssh session: %{error}"
+  backup_started: "Backing up %{name} from root@%{host}…"
+  backup_done: "Backup of %{name} written to %{path} (%{size})."
+  restore_started: "Restoring %{name} on root@%{host} from %{path}…"
+  restore_done: "The deployment %{name} is restored from %{path}."
+  restore_confirm: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
+  restore_not_confirmed: "Not confirmed, nothing was changed."
+  restore_no_terminal: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
 shared:
+  backup:
+    no_home: "The home directory of the user is not known."
+    not_written: "%{path} could not be written: %{error}"
+    not_read: "%{path} could not be read: %{error}"
+    not_decrypted: "%{path} does not decrypt with the password of the deployment, or is damaged or not complete: %{error}"
+    no_script: "The server has no %{script}: deploy the deployment first."
+    failed: "%{script} on the server ended with exit code %{code}."
   checks:
     not_finished: "A check did not finish: %{error}"
     splash_not_updated: "The splash screen could not be updated: %{error}"

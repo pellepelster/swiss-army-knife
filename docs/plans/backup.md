@@ -1,6 +1,6 @@
 # Plan: Backup and Restore of a Deployment
 
-**Status:** Planned
+**Status:** Built; the integration test (`mise run e2e:test:integration`) has not run against a real project yet
 **Created:** 2026-10-29
 **Last reviewed:** 2026-10-29
 
@@ -32,7 +32,7 @@ sakctl makes a backup of a deployment and restores it:
   come from the deployment and are no data.
 - `sakctl ssh <name> -- <command>` runs a command on the server as root, through the container of the tools with the
   derived client key in an ssh agent (`core/ssh.rs`). Its standard input and output are those of sakctl.
-- The server has no `sqlite3` and no `zstd` (the provisioning does not install them).
+- The server had no `sqlite3`, `zstd` and `age`; the role `backend` installs them now, with `curl`.
 
 ## 1. What runs on the server
 
@@ -46,23 +46,24 @@ are versioned with the role; every deploy provisions, so the server always has t
 standard error. `<recipient>` is the public half of the backup key (`age1…`), which sakctl gives on each call.
 
 1. Takes a lock (`flock` on `/run/sak-backup.lock`), so only one backup or restore runs at a time.
-2. **The database.** `sqlite3 sak.db "VACUUM INTO '<staging>/sak.db'"` as the user `sak`, in a staging directory
-   on the data volume (`/storage/data/.backup-<name>`, mode `0700`). `VACUUM INTO` reads one consistent snapshot in
-   one read transaction; the backend continues to write (WAL mode lets readers and writers run together). Then
-   `PRAGMA integrity_check` on the copy; a copy that is not `ok` stops the backup.
-3. **The logs.** A copy of `vector/` into the staging directory, then a snapshot of victorialogs (refer to "The
-   logs" below). victorialogs and vector continue to run.
+2. **The logs.** A copy of `vector/` into a staging directory on the data volume (`/storage/data/.backup-<name>`),
+   then a snapshot of victorialogs (refer to "The logs" below), its days as hard links in the staging directory.
+   victorialogs and vector continue to run.
+3. **The database.** `sqlite3 sak.db "VACUUM INTO '<staging>/…/sak.db'"` as the user `sak`. `VACUUM INTO` reads one
+   consistent snapshot in one read transaction; the backend continues to write (WAL mode lets readers and writers
+   run together). Then `PRAGMA integrity_check` on the copy; a copy that is not `ok` stops the backup. After the
+   database, `backend/data` and the other directories (`ingress`, …) as hard links (`cp -al`) in the staging
+   directory: the backend writes a file anew and moves it into place, so a link keeps the file of this moment.
 4. **The manifest.** `<staging>/backup.json`: the version of the format (`1`), the version of SAK that made the
    backup (`version`, always `latest` until the artifacts have versions,
    [#127](https://github.com/pellepelster/swiss-army-knife/issues/127)), the name, the time (UTC), the image digest
    of the backend and the size of the data before compression.
-5. **The archive.** One `tar` stream, compressed with `zstd` (`tar --zstd`, level 3, all cores) and encrypted with
-   `age -r <recipient>`, paths relative to `/storage/data/<name>`, with the numeric owner and the modes:
-   - first `backup.json`, then `backend/data/sak.db` from the staging directory;
-   - then `vector/` from the staging directory and the snapshots of victorialogs, each as
-     `victorialogs/partitions/<day>/` (`tar --transform`);
-   - then everything else below `/storage/data/<name>`, without `sak.db`, `sak.db-wal`, `sak.db-shm`, the live
-     directories `vector/` and `victorialogs/` and the three files of the provisioning.
+5. **The archive.** One `tar` stream of the staging directory, compressed with `zstd` (level 3, all cores) and
+   encrypted with `age -r <recipient>`, paths relative to `/storage/data/<name>`, with the numeric owner and the
+   modes: first `backup.json`, then `backend/data` (the copy of the database in place of `sak.db`), `ingress`,
+   `vector` and `victorialogs/partitions/<day>/`. The files of the provisioning (`backend/config.yaml`,
+   `backend/backend.env`, `backend/vector.yaml`, the key of victorialogs) are not in it. tar ends with 1 when a file
+   changed while it was read (the access log of caddy); that is no failure.
 6. Deletes the snapshots of victorialogs (also when the backup fails, `trap`), removes the staging directory and the
    lock.
 
@@ -136,9 +137,10 @@ stops the restore at step 2, before anything changes.
   recipient (its public half) goes to the server as an argument; it is public and decrypts nothing. The identity
   stays in sakctl. It joins the table of derived values in ARCHITECTURE.md, "Security". The same name and password
   decrypt the backup on every machine; nothing is stored.
-- **A check while it arrives.** sakctl writes the encrypted bytes to the file as they are, and decrypts a copy of
-  the stream in memory with the identity (the `age` crate): it reads `backup.json`, checks the name, and reads the
-  `tar` to its end. A backup that does not decrypt or is not complete fails, and no file is left.
+- **A check before the file gets its name.** sakctl writes the encrypted bytes to `<file>.partial` as they are,
+  then decrypts the file once with the identity (the `age` crate) and throws the plain bytes away. A backup that
+  does not decrypt or is not complete fails, and no file is left. sakctl needs neither zstd nor tar: `sak-restore`
+  checks `backup.json` and the database on the server.
 - **Damage and truncation.** age authenticates each chunk of 64 KiB and marks the last one, so a changed or a
   truncated file fails on decryption, not after the restore.
 - **The file.** `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`, e.g.
@@ -155,22 +157,22 @@ stops the restore at step 2, before anything changes.
   (backup) or standard input (restore) is a stream that the core reads or writes, not the terminal. Standard error
   goes to the log of sakctl. Same container, agent and host key check as the session.
 - `core/backup.rs`, a `BackupManager` (the one place that makes and restores backups):
-  - `backup(target, keys)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks a
-    decrypted copy of the stream, answers the path and the size of the file;
-  - `restore(target, keys, file)`: decrypts the file while it streams it into `sak-restore` (refer to "Decryption on
-    restore" in the decisions). Before it sends
-    anything, it decrypts the first chunk and reads `backup.json`, so a wrong password or another deployment fails
-    before the server changes;
-  - events for the window and the command line: the bytes transferred, the steps of the scripts (lines on standard
-    error with a prefix, as the provisioning events do).
-- `keys.rs`: `derive_backup_identity(name, password)`.
+  - `backup(target, key, path)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks it
+    by one decryption, answers the path and the size of the file;
+  - `restore(target, key, file)`: decrypts the whole file once, so a wrong password or a damaged file fails before
+    the server changes, then decrypts it again while it streams it into `sak-restore` (refer to "Decryption on
+    restore" in the decisions). `sak-restore` refuses a backup of another deployment;
+  - each line the scripts write to standard error (`sak-backup: …`, `sak-restore: …`) goes to the log while they
+    run.
+- `keys.rs`: `backup_key(name, password)`.
 
 ### The command line
 
 - `sakctl backup <name>`: needs the password and the token, like `ssh`. It shows the path of the file.
 - `sakctl restore <name> <file> [--yes]`: asks for confirmation (the data of the deployment is replaced), unless
-  `--yes` is given. The deployment must exist and be up to date: a restore does not create or provision. After the
-  restore, sakctl waits until the deployment answers at its public endpoint ("Done when it answers").
+  `--yes` is given; the user types the name of the deployment. The deployment must exist: a restore does not
+  create or provision. `sak-restore` ends when the backend answers on the server again (5 minutes at most); the
+  data from before the restore stays in `/storage/data/.replaced-<name>` when it does not.
 - Texts in `cli:` and `shared:` (`en.yml` and `de.yml`), the messages of the core in `shared:`.
 
 ### The window
@@ -190,13 +192,13 @@ for a lost or a deleted volume, or to go back to an earlier state.
   for another purpose), its recipient is what `age-keygen -y` gives for it, a stream that the `age` command encrypts
   to the recipient decrypts with the crate, a truncated or a changed file fails, the manifest check refuses another
   name.
-- `ansible`: the scripts against a container with a data directory and a database that a writer changes during the
-  backup. The archive decrypts only with the identity of the recipient; the copy of the database passes
-  `integrity_check`; a restore of the archive gives the same rows and files.
-  A restore that fails at extraction leaves the data as it was. A victorialogs that receives lines during the backup:
-  after the restore it answers the lines of the snapshot, and no snapshot is left on the server.
-- `sak-e2e` integration (real cloud project): create, write a note with a photo and a bucket, backup, destroy with
-  `--delete-data`, create, restore, the note, the photo and the bucket are there.
+- `ansible` (`mise run ansible:backup:test`): the scripts against a container with a data directory and a
+  database that a writer changes during the backup. The archive decrypts only with the identity of the
+  recipient; the copy of the database passes `integrity_check`; a restore of the archive gives the same rows and
+  files. A restore that fails at extraction leaves the data as it was. A victorialogs that receives lines during
+  the backup: after the restore it answers the lines of the snapshot, and no snapshot is left on the server.
+- `sak-e2e` integration (real cloud project): create, write a note with a random uuid as its text, backup, destroy
+  with `--delete-data`, no resource is left, create, no note, restore, the note is there.
 
 ## Steps
 

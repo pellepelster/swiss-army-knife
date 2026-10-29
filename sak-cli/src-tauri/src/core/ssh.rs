@@ -4,13 +4,15 @@
 //! of `ssh-add` (`exec`). The session is a second `exec` with the terminal of sakctl, which a
 //! standard input that carried the key could no longer be. The host key derived from the password
 //! is the only known host, so the server is verified, not trusted on first use. The container goes
-//! afterwards, also on a termination (`provision::stop_runs`)
+//! afterwards, also on a termination (`provision::stop_runs`). A command can also run with a
+//! stream instead of the terminal (`run_streaming`), the way a backup leaves the server and a
+//! restore reaches it
 
 use crate::core::container;
 use crate::core::keys::DerivedKey;
 use crate::core::provision::{random_hex, remove_container, track_container, untrack_container};
 use rust_i18n::t;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
 
 /// where the agent listens and the known hosts are, inside the container
@@ -218,6 +220,76 @@ pub fn open_session(runtime: &str, target: &SshTarget, command: &[String]) -> Re
     }
     let status = ssh.status().map_err(|error| error.to_string())?;
     Ok(status.code().unwrap_or(1))
+}
+
+/// the data of a command run with `run_streaming`: its standard output written to a writer, or
+/// its standard input read from a reader
+pub enum Stream<'a> {
+    Out(&'a mut (dyn Write + Send)),
+    In(&'a mut (dyn Read + Send)),
+}
+
+/// `command` on the server, without a terminal, its data through `stream`; each line it writes to
+/// its standard error goes to `on_line`, while it runs. The exit code of ssh. A stream that fails
+/// on the side of sakctl (a full disk, a backup that does not decrypt) is the error, whatever the
+/// command answered
+pub fn run_streaming(
+    runtime: &str,
+    target: &SshTarget,
+    command: &[String],
+    stream: Stream<'_>,
+    on_line: &mut (dyn FnMut(String) + Send),
+) -> Result<i32, String> {
+    let container = SessionContainer::start(runtime)?;
+    exec_with_input(
+        runtime,
+        &container.name,
+        &["ssh-add", "-q", "-"],
+        &target.client_key.private_key(),
+    )?;
+    let mut ssh = Command::new(runtime);
+    ssh.args(ssh_arguments(
+        &container.name,
+        &target.host,
+        &target.known_hosts(),
+        false,
+        command,
+    ))
+    .stderr(Stdio::piped());
+    match stream {
+        Stream::Out(_) => ssh.stdin(Stdio::null()).stdout(Stdio::piped()),
+        Stream::In(_) => ssh.stdin(Stdio::piped()).stdout(Stdio::null()),
+    };
+    let mut child = ssh.spawn().map_err(|error| error.to_string())?;
+    let stderr = child.stderr.take();
+    let copied = std::thread::scope(|scope| {
+        if let Some(stderr) = stderr {
+            scope.spawn(move || {
+                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                    on_line(line);
+                }
+            });
+        }
+        match stream {
+            Stream::Out(writer) => match child.stdout.take() {
+                Some(mut stdout) => std::io::copy(&mut stdout, writer).and_then(|_| writer.flush()),
+                None => Ok(()),
+            },
+            Stream::In(reader) => match child.stdin.take() {
+                // dropped at the end, the command reads the end of its input
+                Some(mut stdin) => std::io::copy(reader, &mut stdin).map(|_| ()),
+                None => Ok(()),
+            },
+        }
+    });
+    let status = child.wait().map_err(|error| error.to_string())?;
+    let code = status.code().unwrap_or(1);
+    match copied {
+        // the command ended before it read everything, its exit code tells why
+        Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe && code != 0 => Ok(code),
+        Err(error) => Err(error.to_string()),
+        Ok(()) => Ok(code),
+    }
 }
 
 #[cfg(test)]

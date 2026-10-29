@@ -18,8 +18,14 @@ class Sakctl(
     /** runs `sakctl <arguments>` and answers its exit code */
     fun run(vararg arguments: String): Int = output(*arguments).first
 
-    /** runs `sakctl <arguments>` and answers its exit code and the lines it printed */
-    fun output(vararg arguments: String): Pair<Int, List<String>> {
+    /**
+     * runs `sakctl <arguments>` and answers its exit code and the lines it printed; `input` is its
+     * standard input, e.g. what a command of `sakctl ssh` reads, never an argument
+     */
+    fun output(
+        vararg arguments: String,
+        input: String = "",
+    ): Pair<Int, List<String>> {
         println("> sakctl ${arguments.joinToString(" ")}")
         val process =
             ProcessBuilder(listOf(binary.path) + arguments)
@@ -30,6 +36,7 @@ class Sakctl(
                     environment().keys.removeIf { it.startsWith("SAK_") }
                     environment()["SAK_PASSWORD"] = password
                 }.start()
+        process.outputStream.use { it.write(input.toByteArray()) }
         val lines = mutableListOf<String>()
         process.inputStream.bufferedReader().forEachLine {
             println(it)

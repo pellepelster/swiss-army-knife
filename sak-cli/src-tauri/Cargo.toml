@@ -42,6 +42,8 @@ unicode-normalization = "0.1.26"
 # a password guessed easily is refused
 zxcvbn = "3.1.1"
 hmac = "0.12.1"
+age = "0.12.1"
+bech32 = "0.11"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
@@ -49,9 +51,6 @@ wiremock = "0.6.5"
 
 # the master key takes 256 MiB of argon2id, unoptimized the tests would wait minutes for it
 [profile.dev.package.argon2]
-opt-level = 3
-
-[profile.dev.package.blake2]
 opt-level = 3
 
 [profile.release]
