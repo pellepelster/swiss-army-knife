@@ -1,8 +1,9 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
 # (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
 # the canary), each in a job of its own and pushed to ghcr.io from main only, and sakctl itself,
-# whose checks pull its images. Everything that can be is cached: the mise tools, gradle, npm,
-# cargo, the apt packages and the docker layers (in the registry).
+# whose checks pull its images, and the documentation of docs/ as a site, published as the github
+# pages of the repository from main only. Everything that can be is cached: the mise tools, gradle,
+# npm, cargo, the apt packages and the docker layers (in the registry).
 name: swiss-army-knife
 
 on:
@@ -149,3 +150,39 @@ jobs:
             sak-cli/src-tauri/target/release/bundle/deb/*.deb
             sak-cli/src-tauri/target/release/bundle/rpm/*.rpm
             sak-cli/src-tauri/target/release/bundle/appimage/*.AppImage
+
+  # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
+  # a pull request too. The address of the pages is its base url
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # go fetches the theme, a hugo module
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: hugo-extended go
+      - id: pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+      - run: mise run docs:build
+        env:
+          HUGO_BASEURL: ${{ steps.pages.outputs.base_url }}/
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/site
+
+  # the site of the job docs as the github pages of the repository, from main only
+  docs-pages:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: docs
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
