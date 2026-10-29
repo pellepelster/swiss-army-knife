@@ -10,3 +10,10 @@
     text-underline-offset: 0.2em;
   }
 </style>
+{{- /* the terminal blocks of the commands, the look of the apps */ -}}
+{{- with resources.Get "css/sak-code-block.css" | fingerprint }}
+<link href="{{ .RelPermalink }}" rel="stylesheet" integrity="{{ .Data.Integrity }}">
+{{- end }}
+{{- with resources.Get "js/sak-code-block.js" | fingerprint }}
+<script src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" defer></script>
+{{- end }}

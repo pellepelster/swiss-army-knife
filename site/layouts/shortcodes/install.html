@@ -18,4 +18,24 @@
 {{- else }}
 {{- errorf "install: the platform %q is not linux, macos or windows" $platform }}
 {{- end }}
-{{- highlight $code $language }}
+{{- $name := dict "linux" "Linux — Terminal" "macos" "macOS — Terminal" "windows" "Windows — PowerShell" }}
+{{- $prompt := cond (eq $language "powershell") "PS> " "$ " }}
+{{- /* the terminal of the apps (assets/css/sak-code-block.css): a prompt before each line that does
+   not continue the one before (after \ or {, or a closing }); only the commands are copied */ -}}
+<div class="sak-code-block" data-copy="{{ $code }}">
+  <div class="bar">
+    <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+    <span class="name">{{ index $name $platform }}</span>
+    <button type="button" class="copy" aria-label="Copy the commands" title="Copy the commands"><i class="fa-solid fa-copy" aria-hidden="true"></i> <span class="label">Copy</span></button>
+  </div>
+  {{- $lines := split $code "\n" }}
+  <div class="lines">
+  {{- range $i, $line := $lines }}
+    {{- $previous := cond (gt $i 0) (index $lines (sub $i 1)) "" }}
+    {{- $continues := and (gt $i 0) (or (strings.HasSuffix $previous "\\") (strings.HasSuffix $previous "{") (strings.HasPrefix (strings.TrimSpace $line) "}")) }}
+    {{- if gt $i 0 }}{{ "\n" }}{{ end }}
+    {{- if not $continues }}<span class="prompt">{{ $prompt }}</span>{{ end }}{{ $line }}
+  {{- end -}}
+  </div>
+  <p class="failed" role="alert" hidden>The browser did not allow to copy, please select the text instead.</p>
+</div>

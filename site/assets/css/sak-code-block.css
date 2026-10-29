@@ -1,0 +1,89 @@
+/* a command to take over as it is, as a terminal window, the look of app-code-block of the apps
+   (sak-frontend/src/app/hosting/code-block.ts): dark in light and dark mode alike, its name in the
+   bar with a copy pill, a prompt before each command that is not copied */
+.sak-code-block {
+  --terminal: #1d1c1a;
+  --terminal-bar: #2b2a27;
+  --terminal-text: #ece8dd;
+  --terminal-muted: #9b968b;
+  --terminal-prompt: #8fd18b;
+
+  display: block;
+  margin: var(--sak-space-4) 0;
+  overflow: hidden;
+  border-radius: var(--sak-radius-lg);
+  background: var(--terminal);
+  color: var(--terminal-text);
+  box-shadow: 0 6px 16px -10px rgb(0 0 0 / 60%);
+}
+.sak-code-block .bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  background: var(--terminal-bar);
+  color: var(--terminal-muted);
+  font-size: 0.85rem;
+}
+.sak-code-block .dots {
+  display: flex;
+  gap: 6px;
+  margin-right: 4px;
+}
+.sak-code-block .dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.sak-code-block .dots span:nth-child(1) {
+  background: #ff5f57;
+}
+.sak-code-block .dots span:nth-child(2) {
+  background: #febc2e;
+}
+.sak-code-block .dots span:nth-child(3) {
+  background: #28c840;
+}
+.sak-code-block .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the outline-light button of bootstrap the apps use */
+.sak-code-block .copy {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--terminal-text);
+  border-radius: var(--sak-radius);
+  background: transparent;
+  color: var(--terminal-text);
+  font-family: var(--sak-font-sans);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.sak-code-block .copy:hover,
+.sak-code-block .copy:focus-visible {
+  background: var(--terminal-text);
+  color: var(--terminal);
+}
+/* no pre and code: relearn would put its own copy button on them */
+.sak-code-block .lines {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  white-space: pre;
+}
+.sak-code-block .prompt {
+  color: var(--terminal-prompt);
+  user-select: none;
+}
+.sak-code-block .failed {
+  margin: 0;
+  padding: 0 14px 12px;
+  color: #f2b8b5;
+}
