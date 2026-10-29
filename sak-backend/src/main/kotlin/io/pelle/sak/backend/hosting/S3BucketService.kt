@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.backend.DomainRegistry
+import io.pelle.sak.model.s3.InsertBucketResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
@@ -127,9 +128,13 @@ class S3BucketService(
                 DomainCheck.Taken -> return CreateBucketResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
+        // another bucket may have taken the name or a domain since the checks above
         val bucket =
-            repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized)
-                ?: return CreateBucketResult.NameTaken
+            when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized)) {
+                is InsertBucketResult.Inserted -> inserted.bucket
+                InsertBucketResult.NameTaken -> return CreateBucketResult.NameTaken
+                InsertBucketResult.DomainTaken -> return CreateBucketResult.DomainTaken
+            }
         if (servedDomains(bucket).isNotEmpty()) changed()
         return CreateBucketResult.Created(bucket)
     }

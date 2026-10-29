@@ -1,7 +1,7 @@
 package io.pelle.sak.model.s3
 
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS_DOMAINS
@@ -24,7 +24,7 @@ class S3BucketRepositoryTest {
 
     @Test
     fun `a new bucket is not updated, changing its domains keeps the ones that stay and frees the others`() {
-        val site = repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("a.example.org", "b.example.org", "c.example.org"))!!
+        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("a.example.org", "b.example.org", "c.example.org")) as InsertBucketResult.Inserted).bucket
         site.updatedAt shouldBe null
         repository.secretAccessKey("AKIASITE") shouldBe "SECRETAKIASITE"
         repository.keyPair("site") shouldBe ("AKIASITE" to "SECRETAKIASITE")
@@ -38,7 +38,7 @@ class S3BucketRepositoryTest {
         // the removed one stays as deleted and is free for another bucket
         database.dsl.fetchCount(S3_BUCKETS_DOMAINS) shouldBe 4
         repository.bucketOfDomain("b.example.org") shouldBe null
-        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("b.example.org")) shouldNotBe null
+        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("b.example.org")).shouldBeInstanceOf<InsertBucketResult.Inserted>()
         repository.replaceDomains("site", listOf("b.example.org")) shouldBe false
     }
 
@@ -60,7 +60,19 @@ class S3BucketRepositoryTest {
             it.deletedAt shouldBe now
             it.updatedAt shouldBe null
         }
-        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN") shouldBe null
-        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("example.org")) shouldNotBe null
+        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN") shouldBe InsertBucketResult.NameTaken
+        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("example.org")).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+    }
+
+    @Test
+    fun `an insert tells a taken name from a taken domain`() {
+        repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("example.org"))
+        // what the service checked before may be taken in between by a bucket created at the same time
+        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("www.example.org", "example.org")) shouldBe
+            InsertBucketResult.DomainTaken
+        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN", listOf("free.example.org")) shouldBe InsertBucketResult.NameTaken
+        // nothing of a refused bucket stays
+        repository.byName("other") shouldBe null
+        repository.bucketOfDomain("www.example.org") shouldBe null
     }
 }

@@ -10,6 +10,19 @@ import org.jooq.impl.DSL
 import java.time.Instant
 import java.time.Clock
 
+// what inserting a bucket gives: the bucket, or which of its values another bucket has
+sealed interface InsertBucketResult {
+    data class Inserted(
+        val bucket: S3Bucket,
+    ) : InsertBucketResult
+
+    // the name, also the one of a deleted bucket
+    data object NameTaken : InsertBucketResult
+
+    // one of the domains
+    data object DomainTaken : InsertBucketResult
+}
+
 // the database access of the buckets and their domains, only S3BucketService (sak-backend) uses
 // it
 class S3BucketRepository(
@@ -66,13 +79,14 @@ class S3BucketRepository(
             .where(S3_BUCKETS_DOMAINS.DOMAIN.eq(domain), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
             .fetchOne(S3_BUCKETS_DOMAINS.BUCKET_NAME)
 
-    // null when the name, also the one of a deleted bucket, or one of the domains is taken
+    // the unique constraints decide, so a bucket created at the same time is told apart: by the
+    // name taken (deleted buckets included), else a domain
     fun insert(
         name: String,
         accessKeyId: String,
         secretAccessKey: String,
         domains: List<String> = emptyList(),
-    ): S3Bucket? =
+    ): InsertBucketResult =
         try {
             val bucket = S3Bucket(name, accessKeyId, clock.instant(), null, domains)
             database.dsl.transaction { configuration ->
@@ -86,9 +100,13 @@ class S3BucketRepository(
                     .execute()
                 bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt) }
             }
-            bucket
+            InsertBucketResult.Inserted(bucket)
         } catch (_: IntegrityConstraintViolationException) {
-            null
+            if (database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name))) {
+                InsertBucketResult.NameTaken
+            } else {
+                InsertBucketResult.DomainTaken
+            }
         }
 
     // the domains that stay keep their row and take their new position, the ones removed are
