@@ -27,7 +27,7 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in [UI-UX.md](UI-UX.md), follow it
+How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in [docs/UI-UX.md](docs/UI-UX.md), follow it
 for every change of a ui.
 
 ## Persistence (`sak-model`)
@@ -90,21 +90,20 @@ for every change of a ui.
     - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
       with `firstValueFrom`; everything else subscribes.
 
-## Wizard code (`sak-cli`)
-
-- The rust of `src-tauri` is three modules: `core` holds what both modes share (the checks on
-  startup, the `DeploymentManager`, the deployments and their plans, the provisioning, the keys,
-  the providers and their tokens, the texts) and knows neither tauri nor clap (a test checks it);
-  `gui` is tauri, the window, the commands of the pages as thin calls into core and the checks on
-  its splash screen; `cli` is clap and the log.
-- Creating or deploying ends with the provisioning of the server: `core/provision.rs` runs
-  `ansible-playbook pelle_io.sak.server` in the image of the tools (docker or podman) against it,
-  the inventory, the ssh configuration, the client key and the known host key written to a
-  private directory for the run and mounted read-only; every line ansible prints goes to the
-  page's terminal or stdout. The server's host key is derived from the password like the client
-  key (`keys::derive_host_key`) and installed by cloud-init, so the first connection is verified
-  (`StrictHostKeyChecking yes`) and nothing has to be kept; the user data is part of the server's
-  declaration, a changed one is a recreate.
+- The look follows [docs/UI-UX.md](docs/UI-UX.md); the code rules behind it:
+    - Lists are paginated with the shared `app-pagination` (`shared/pagination.ts`), `PAGE_SIZE`
+      items a page, the page in the `offset` query parameter; only choices and suggestions (a
+      select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts`).
+    - Create on `/<entities>/create`, edit on `/<entities>/<id>/edit`; the tabs of a detail view are
+      child routes.
+    - Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
+      templates, its spacing and corner radius included; a component sets its own layout with
+      `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (its css listed in
+      `angular.json`): `bootstrap.css` there maps bootstrap onto the tokens, `src/styles.scss` only
+      aliases the names the components read (`--wall`, `--ink`, `--line`, `--sheet`, `--muted`,
+      `--danger`) and keeps the post-it colors. No color literal elsewhere. Custom css only for what
+      bootstrap has no class for (the post-its, the terminal look of `app-code-block`, the charts,
+      the stop button of the recording overlay), in the component's own stylesheet.
 
 ## Naming
 

@@ -314,7 +314,7 @@ pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String
 /// how dns is set up for a deployment: `domain` manages `<root domain>` and
 /// `*.<root domain>`, `subdomain` (the default) manages `<sak name>.<root domain>` and
 /// `*.<sak name>.<root domain>`; a root domain has one domain deployment or any number of
-/// subdomain deployments (doc/fdr/FDR-001-dns-mode.md)
+/// subdomain deployments (docs/fdr/FDR-001-dns-mode.md)
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum DnsMode {

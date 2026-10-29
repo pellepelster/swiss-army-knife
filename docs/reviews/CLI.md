@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-29
 **Scope:** `sak-cli/src-tauri` (Rust, Tauri and clap), `sak-cli/ui` (JS, HTML, CSS), `sak-cli/cloud` (sak-cloud),
-`sak-cli/Dockerfile`. The rules are `AGENT.md`, `UI-UX.md`, `GLOSSARY.md` and `doc/fdr/FDR-001-dns-mode.md`.
+`sak-cli/Dockerfile`. The rules are `AGENT.md`, `docs/UI-UX.md`, `GLOSSARY.md` and `docs/fdr/FDR-001-dns-mode.md`.
 **Not in scope:** The admin API token and the `config show` command. Another change adds them to `cli.rs`,
 `core/deployments.rs` and `core/keys.rs` at this time. This review does not examine that code.
 

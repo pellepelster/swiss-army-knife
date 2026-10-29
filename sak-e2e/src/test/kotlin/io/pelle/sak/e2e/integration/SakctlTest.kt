@@ -2,6 +2,7 @@ package io.pelle.sak.e2e.integration
 
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
@@ -67,6 +68,14 @@ class SakctlTest {
             destroy(domain) shouldBe EXIT_OK
 
             create(domain, "domain", DOMAIN_ZONE) shouldBe EXIT_OK
+            // a deploy without --dns-mode and --root-domain keeps both: the records of the domain mode
+            // stay, nothing switches it to a subdomain deployment
+            sakctl.run("deploy", domain, "--password", password) shouldBe EXIT_OK
+            project
+                .resources { it == domain }
+                .filter { it.kind == "dns record" }
+                .map { it.name }
+                .shouldContainAll("@.$DOMAIN_ZONE/A", "*.$DOMAIN_ZONE/A", "@.$DOMAIN_ZONE/AAAA", "*.$DOMAIN_ZONE/AAAA")
             create(subdomain, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_OK
 
             // the domain deployment manages the whole root domain: neither a second domain
