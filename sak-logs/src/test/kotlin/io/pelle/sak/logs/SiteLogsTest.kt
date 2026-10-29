@@ -1,5 +1,6 @@
 package io.pelle.sak.logs
 
+import java.time.Instant
 import com.sun.net.httpserver.HttpServer
 import io.kotest.matchers.shouldBe
 import io.ktor.client.request.get
@@ -63,8 +64,8 @@ class SiteLogsTest {
     fun `searches the request lines and user agents of a site case-insensitively, newest first`() {
         logs.search(site, " Missing ") shouldBe
             listOf(
-                LogEntry("2026-10-26T21:00:02Z", "pelle.io", "/missing", 404),
-                LogEntry("2026-10-26T21:00:01Z", "pelle.io", "/", 200),
+                LogEntry(Instant.parse("2026-10-26T21:00:02Z"), "pelle.io", "/missing", 404),
+                LogEntry(Instant.parse("2026-10-26T21:00:01Z"), "pelle.io", "/", 200),
             )
 
         queries.single().second.getValue("query") shouldBe

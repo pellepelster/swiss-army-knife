@@ -13,6 +13,9 @@ const { invoke, Channel } = window.__TAURI__.core;
 
 const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
+const nameInvalid = document.getElementById('create-name-invalid');
+// why rust refused the name when its field was left, none for a valid one: the plan waits for one
+let nameRefusal = null;
 const passwordInput = document.getElementById('create-password');
 const repeatInput = document.getElementById('create-password-repeat');
 const locationInput = document.getElementById('create-location');
@@ -163,6 +166,35 @@ function showDnsModeHint() {
 }
 
 nameInput.addEventListener('input', showDnsModeHint);
+
+// the name of a new deployment is checked by rust when its field is left; a deploy or destroy
+// takes the name of the deployment as it is
+async function checkName() {
+  nameRefusal = null;
+  if (!existing) {
+    try {
+      await invoke('check_name', { name: nameInput.value });
+    } catch (error) {
+      nameRefusal = String(error);
+    }
+  }
+  showName();
+}
+
+function showName() {
+  nameInput.classList.toggle('is-invalid', Boolean(nameRefusal));
+  nameInvalid.textContent = nameRefusal ?? '';
+  applyRootDomain();
+}
+
+nameInput.addEventListener('blur', checkName);
+// typing again takes the refusal back until the field is left again
+nameInput.addEventListener('input', () => {
+  if (nameRefusal) {
+    nameRefusal = null;
+    showName();
+  }
+});
 dnsModeGroup.addEventListener('change', showDnsModeHint);
 
 // the zones of the project rust offers as root domains, each with the dns modes possible
@@ -198,7 +230,7 @@ function applyRootDomain() {
   if (domainModeInput.disabled && dnsMode() === 'domain') {
     setDnsMode('subdomain');
   }
-  planButton.disabled = !destroying && modes.length === 0;
+  planButton.disabled = (!destroying && modes.length === 0) || Boolean(nameRefusal);
   showDnsModeHint();
 }
 
@@ -308,8 +340,6 @@ async function loadLocations(chosen) {
 // from the environment
 async function prefill(back) {
   const defaults = await invoke('deployment_defaults');
-  // sak-<name>-data stays a dns label, rust tells how long a name may be
-  nameInput.maxLength = defaults.maxNameLength;
   prefillUsers(defaults);
   if (existing) {
     nameInput.value = existing.name;
@@ -340,6 +370,8 @@ export async function showCreate(options = {}) {
   intent = existing ? options.intent : 'create';
   setStatus('');
   repeatInput.classList.remove('is-invalid');
+  nameRefusal = null;
+  nameInput.classList.remove('is-invalid');
   document.getElementById('create-title').textContent = intentText('ui.create.title');
   document.getElementById('create-password-hint').textContent = intentText('ui.create.password_hint');
   repeatGroup.hidden = Boolean(existing);

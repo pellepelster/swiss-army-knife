@@ -87,6 +87,9 @@ and the health of the domains.
 - **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem.
 - **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with `offset`
   and `limit`; `limit` is 50 by default and at most 100.
+- **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That holds for
+  every time the api answers (when something was created, updated or computed, when a session ends, the times of
+  the logs and the metrics). Something that never ends has no time rather than one far away.
 - **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
   response class.
 - **Authentication:** a session token, or the admin api token of sakctl (its sha-256 in the configuration). A
@@ -166,6 +169,13 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   the data volume, against the rule to encrypt all data at rest. Accepted until
   [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
   alone was removed in favor of it.
+
+- **The hashes in labels are shortened.** A label value holds at most 63 characters, so the hashes a server keeps in
+  its labels (of its user data and of its ssh keys) are cut to 240 of their 256 bits to fit one label each. Two
+  different values with the same shortened hash would hide a change, and a server would not be created anew when
+  it should. Accepted: the chance stays far beyond reach (about one in 2^120 for a collision anyone could search
+  for), and one label per hash is simpler than splitting it across several. The password hash label is 240 bits
+  as well.
 
 - **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
   login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by

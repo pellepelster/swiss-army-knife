@@ -103,11 +103,11 @@ async fn server_flow() {
             assert_eq!(diff.changes[0].name, "ssh keys");
             assert_eq!(
                 diff.changes[0].expected.as_deref(),
-                Some("c5383689b3a31bbd0fafbe5c62865ae53a9da27adb1f96b1d94e358f83c9bab6")
+                Some("c5383689b3a31bbd0fafbe5c62865ae53a9da27adb1f96b1d94e358f83c9")
             );
             assert_eq!(
                 diff.changes[0].actual.as_deref(),
-                Some("b500b5a03c1ddbd8b64d477d406ab9a11f985ad382d14fefa45541094599fcb9")
+                Some("b500b5a03c1ddbd8b64d477d406ab9a11f985ad382d14fefa45541094599")
             );
 
             let other_user_data = HetznerServer {

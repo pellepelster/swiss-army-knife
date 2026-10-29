@@ -46,7 +46,7 @@ class ApiTest {
                         install(ApiErrors)
                         get("/numbers") {
                             val page = call.pageRequest() ?: return@get
-                            call.respond(page.of((1..120).toList()))
+                            call.respond(page.of(page.of((1..120).toList())))
                         }
                         get("/boom") { error("the secret detail of the api") }
                         // what RequestBodyLimit throws

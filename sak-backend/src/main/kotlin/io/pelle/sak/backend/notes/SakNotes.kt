@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.files.fileUrl
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.files.thumbnailUrl
@@ -48,8 +49,8 @@ private fun Note.response() =
         labels.map { it.response() },
         photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
         recordings.map { RecordingResponse(it, fileUrl(it), thumbnailUrl(it)) },
-        createdAt.toString(),
-        updatedAt?.toString(),
+        createdAt.apiTime(),
+        updatedAt?.apiTime(),
     )
 
 private fun NoteProblem.message() =
@@ -86,7 +87,7 @@ fun Route.notes(noteService: NoteService) {
         val page = call.pageRequest() ?: return@get
         val label = call.request.queryParameters["label"]
         val notes = withContext(Dispatchers.IO) { noteService.page(call.sessionEmail, page.offset, page.limit, label) }
-        call.respond(page.of(notes.items.map { it.response() }, notes.total))
+        call.respond(page.of(notes.map { it.response() }))
     }.describe {
         tag(NOTES_TAG)
         summary = "The notes of the signed in user"

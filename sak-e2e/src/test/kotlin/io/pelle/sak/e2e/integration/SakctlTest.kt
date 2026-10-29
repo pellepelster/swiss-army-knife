@@ -21,6 +21,12 @@ private const val EXIT_NOT_OWNED = 5
 private val DOMAIN_ZONE = System.getenv("SAK_E2E_DOMAIN_ZONE") ?: "krawallbude.de"
 private val SUBDOMAIN_ZONE = System.getenv("SAK_E2E_SUBDOMAIN_ZONE") ?: "krawallbu.de"
 
+// the users of a test deployment: single user, or multi user with a mail server that is never
+// asked, nobody signs in by e-mail
+private val SINGLE_USER = arrayOf("--user-mode", "single")
+private const val FAKE_SMTP_HOST = "smtp.example.org"
+private val MULTI_USER = arrayOf("--user-mode", "multi", "--admin-email", "e2e@example.org", "--smtp-host", FAKE_SMTP_HOST)
+
 // the deployments of the tests are `test-<id>`, everything else in the project stays untouched
 private const val TEST_PREFIX = "test-"
 
@@ -53,7 +59,18 @@ class SakctlTest {
         name: String,
         dnsMode: String,
         rootDomain: String,
-    ): Int = sakctl.run("create", name, "--password", password, "--user-mode", "single", "--dns-mode", dnsMode, "--root-domain", rootDomain)
+        vararg users: String = SINGLE_USER,
+    ): Int = sakctl.run("create", name, "--password", password, *users, "--dns-mode", dnsMode, "--root-domain", rootDomain)
+
+    // `config show` once the backend answers, it starts after the provisioning: the lines it printed
+    private fun configShow(name: String): List<String> {
+        repeat(30) {
+            val (exit, lines) = sakctl.output("config", "show", name, "--password", password)
+            if (exit == EXIT_OK) return lines
+            Thread.sleep(10_000)
+        }
+        error("config show of $name did not succeed within 5 minutes")
+    }
 
     private fun destroy(
         name: String,
@@ -67,10 +84,16 @@ class SakctlTest {
             // a deployment that is not there is destroyed already
             destroy(domain) shouldBe EXIT_OK
 
-            create(domain, "domain", DOMAIN_ZONE) shouldBe EXIT_OK
+            create(domain, "domain", DOMAIN_ZONE, *MULTI_USER) shouldBe EXIT_OK
+            // the admin api token sakctl derives is the one whose hash the provisioning wrote: the
+            // backend answers its running configuration, without a secret in it
+            configShow(domain).let { lines ->
+                lines.any { it.contains("smtp.host $FAKE_SMTP_HOST") } shouldBe true
+                lines.none { it.contains(password) || it.contains("sak_") } shouldBe true
+            }
             // a deploy without --dns-mode and --root-domain keeps both: the records of the domain mode
             // stay, nothing switches it to a subdomain deployment
-            sakctl.run("deploy", domain, "--password", password, "--user-mode", "single") shouldBe EXIT_OK
+            sakctl.run("deploy", domain, "--password", password, *MULTI_USER) shouldBe EXIT_OK
             project
                 .resources { it == domain }
                 .filter { it.kind == "dns record" }
@@ -94,19 +117,21 @@ class SakctlTest {
     @Test
     fun `a resource of someone else with the name of a deployment is neither removed nor taken over`() {
         val name = testName()
-        project.createForeignSshKey(name)
+        // the cloud name the ssh key of the deployment would have
+        val keyName = "sak-$name"
+        project.createForeignSshKey(keyName)
         try {
             // a destroy finds the key by its name, but it has neither the name label nor the password
             // hash of the deployment
             destroy(name, "--delete-data") shouldBe EXIT_NOT_OWNED
-            project.sshKeyExists(name) shouldBe true
+            project.sshKeyExists(keyName) shouldBe true
 
             // a create stops at the plan, before anything is created
             create(name, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_NOT_OWNED
-            project.sshKeyExists(name) shouldBe true
+            project.sshKeyExists(keyName) shouldBe true
             project.resources { it == name }.shouldBeEmpty()
         } finally {
-            project.deleteSshKey(name)
+            project.deleteSshKey(keyName)
         }
         project.sshKeyExists(name) shouldBe false
     }

@@ -1,10 +1,7 @@
 //! the sak deployments of a cloud project: everything carrying the name label, grouped by
 //! its value, and the state of each against the resource group a deployment consists of
 
-use crate::api::{
-    DiffStatus, Error, Labels, Lookup, LookupProviders, Provisioner, Registry, Resource,
-    ResourceDiff, Result,
-};
+use crate::api::{DiffStatus, Error, Labels, Lookup, Registry, Resource, ResourceDiff, Result};
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
 use crate::hetzner::dns_record::{HetznerDnsRecord, HetznerDnsRecordLookup, RecordValue};
@@ -21,7 +18,6 @@ use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyR
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeRuntime};
 use crate::hetzner::{
     DNS_MODE_LABEL, NAME_LABEL, PASSWORD_HASH_LABEL, ROOT_DOMAIN_LABEL, USER_DATA_LABEL,
-    is_managed_label,
 };
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
@@ -420,8 +416,42 @@ fn of<'a>(
 #[serde(rename_all = "snake_case")]
 pub enum ResourceKind {
     SshKey,
+    Volume,
+    PrimaryIp,
     Firewall,
     Server,
+    DnsRecord,
+}
+
+impl ResourceKind {
+    /// the kind of a declared resource, by the lookup type of its reference
+    fn of(resource: &crate::api::ResourceRef) -> Option<ResourceKind> {
+        use std::any::TypeId;
+        let kinds = [
+            (TypeId::of::<HetznerSshKeyLookup>(), ResourceKind::SshKey),
+            (TypeId::of::<HetznerVolumeLookup>(), ResourceKind::Volume),
+            (
+                TypeId::of::<HetznerPrimaryIpLookup>(),
+                ResourceKind::PrimaryIp,
+            ),
+            (
+                TypeId::of::<crate::hetzner::firewall::HetznerFirewallLookup>(),
+                ResourceKind::Firewall,
+            ),
+            (
+                TypeId::of::<crate::hetzner::server::HetznerServerLookup>(),
+                ResourceKind::Server,
+            ),
+            (
+                TypeId::of::<HetznerDnsRecordLookup>(),
+                ResourceKind::DnsRecord,
+            ),
+        ];
+        kinds
+            .into_iter()
+            .find(|(type_id, _)| *type_id == resource.type_id)
+            .map(|(_, kind)| kind)
+    }
 }
 
 /// the state of one resource of the group
@@ -459,109 +489,36 @@ pub struct DeploymentState {
     pub resources: Vec<ResourceState>,
 }
 
-/// the diff of the resource group of a deployment: its ssh key, firewall and server,
-/// each declared from what the cloud holds of it, so what shows up is what is missing
-/// and whether the server was created with the deployment's key
+/// the diff of a deployment: every resource a deploy declares (ssh key, data volume, primary
+/// ips, firewall, server and dns records), declared from the labels and the settings the
+/// deployment carries (`DeploymentSpec::declared_by`) and diffed like a plan does. What a deploy
+/// would create shows as missing, what it would change with its changes
 pub async fn state(
     provider: &HetznerProviderRuntime,
     deployment: &DiscoveredDeployment,
 ) -> Result<DeploymentState> {
-    let context = LookupProviders::new()
-        .with::<HetznerSshKeyLookup, _>(provider.ssh_keys())
-        .with::<HetznerVolumeLookup, _>(provider.volumes())
-        .with::<HetznerPrimaryIpLookup, _>(provider.primary_ips());
-    let name = &deployment.name;
-    let mut resources = Vec::new();
-
-    let ssh_key = match &deployment.ssh_key {
-        Some(key) => {
-            let resource =
-                HetznerSshKey::new(&key.name, &key.public_key).with_labels(key.labels.clone());
-            let diff = provider.ssh_keys().diff(&resource, &context).await?;
-            resource_state(
-                ResourceKind::SshKey,
-                &key.name,
+    let spec = DeploymentSpec::declared_by(deployment)?;
+    let diffs = spec.registry(provider)?.diff_all().await?;
+    let resources: Vec<ResourceState> = diffs
+        .into_iter()
+        .filter_map(|diff| {
+            let kind = ResourceKind::of(&diff.resource)?;
+            let detail = detail(deployment, kind, &diff.resource.name);
+            Some(resource_state(
+                kind,
+                &diff.resource.name.clone(),
                 diff,
-                Some(key.fingerprint.clone()),
-            )
-        }
-        None => missing(ResourceKind::SshKey, name),
-    };
-    resources.push(ssh_key);
+                detail,
+            ))
+        })
+        .collect();
 
-    let firewall = match &deployment.firewall {
-        Some(firewall) => {
-            let resource = HetznerFirewall::new(&firewall.name, firewall.rules.clone())
-                .applied_to(firewall.applied_to_labels.clone())
-                .with_labels(firewall.labels.clone());
-            let diff = provider.firewalls().diff(&resource, &context).await?;
-            let detail = format!("{} rules", firewall.rules.len());
-            resource_state(ResourceKind::Firewall, &firewall.name, diff, Some(detail))
-        }
-        None => missing(ResourceKind::Firewall, name),
-    };
-    resources.push(firewall);
-
-    let server = match &deployment.server {
-        Some(server) => {
-            let labels = HetznerLabels::from_raw(server.labels.clone());
-            let user_data = labels
-                .labels()
-                .get(USER_DATA_LABEL)
-                .cloned()
-                .unwrap_or_default();
-            let declared: Labels = server
-                .labels
-                .iter()
-                .filter(|(key, _)| !is_managed_label(key))
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect();
-            let volumes = deployment
-                .volumes
-                .iter()
-                .filter(|volume| server.volumes.contains(&volume.id))
-                .map(|volume| HetznerVolumeLookup::new(&volume.name))
-                .collect();
-            let ipv4 = deployment
-                .primary_ips
-                .iter()
-                .find(|ip| Some(ip.id) == server.ipv4_id)
-                .map(|ip| HetznerPrimaryIpLookup::new(&ip.name));
-            let mut resource =
-                HetznerServer::new(&server.name, server.location, server.server_type, "")
-                    .with_image(&server.image)
-                    .with_ssh_keys(
-                        deployment
-                            .ssh_key
-                            .iter()
-                            .map(|key| HetznerSshKeyLookup::new(&key.name))
-                            .collect(),
-                    )
-                    .with_volumes(volumes)
-                    .with_labels(declared);
-            resource.user_data = UserData::Hash(user_data);
-            resource.ipv4 = ipv4;
-            let diff = provider.servers().diff(&resource, &context).await?;
-            let detail = format!(
-                "{} in {}{}",
-                server.server_type,
-                server.location,
-                server
-                    .public_ipv4
-                    .as_ref()
-                    .map(|ip| format!(", {ip}"))
-                    .unwrap_or_default()
-            );
-            resource_state(ResourceKind::Server, &server.name, diff, Some(detail))
-        }
-        None => missing(ResourceKind::Server, name),
-    };
-    resources.push(server);
-
-    let status = if resources
-        .iter()
-        .any(|resource| resource.status == DiffStatus::Missing)
-    {
+    let status = if resources.iter().any(|resource| {
+        matches!(
+            resource.status,
+            DiffStatus::Missing | DiffStatus::ParentMissing
+        )
+    }) {
         DeploymentStatus::Incomplete
     } else if resources
         .iter()
@@ -572,7 +529,7 @@ pub async fn state(
         DeploymentStatus::Ok
     };
     Ok(DeploymentState {
-        name: name.clone(),
+        name: deployment.name.clone(),
         status,
         // the server's, else the volume's or the addresses'; the first when they disagree
         location: deployment
@@ -584,6 +541,51 @@ pub async fn state(
         dns_mode: deployment.dns_mode(),
         resources,
     })
+}
+
+/// what there is to know of a resource at a glance: the fingerprint of the key, the size of the
+/// volume, the address of a primary ip, the rules of the firewall, the type, location and address
+/// of the server
+fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> Option<String> {
+    match kind {
+        ResourceKind::SshKey => deployment
+            .ssh_key
+            .as_ref()
+            .filter(|key| key.name == name)
+            .map(|key| key.fingerprint.clone()),
+        ResourceKind::Volume => deployment
+            .volumes
+            .iter()
+            .find(|volume| volume.name == name)
+            .map(|volume| format!("{} GB", volume.size_gb)),
+        ResourceKind::PrimaryIp => deployment
+            .primary_ips
+            .iter()
+            .find(|ip| ip.name == name)
+            .map(|ip| ip.ip.clone()),
+        ResourceKind::Firewall => deployment
+            .firewall
+            .as_ref()
+            .filter(|firewall| firewall.name == name)
+            .map(|firewall| format!("{} rules", firewall.rules.len())),
+        ResourceKind::Server => deployment
+            .server
+            .as_ref()
+            .filter(|server| server.name == name)
+            .map(|server| {
+                format!(
+                    "{} in {}{}",
+                    server.server_type,
+                    server.location,
+                    server
+                        .public_ipv4
+                        .as_ref()
+                        .map(|ip| format!(", {ip}"))
+                        .unwrap_or_default()
+                )
+            }),
+        ResourceKind::DnsRecord => None,
+    }
 }
 
 fn resource_state(
@@ -602,16 +604,6 @@ fn resource_state(
             .map(|change| change.log_text())
             .collect(),
         detail,
-    }
-}
-
-fn missing(kind: ResourceKind, name: &str) -> ResourceState {
-    ResourceState {
-        kind,
-        name: name.to_string(),
-        status: DiffStatus::Missing,
-        changes: Vec::new(),
-        detail: None,
     }
 }
 
@@ -671,6 +663,9 @@ pub struct DeploymentSpec {
     pub password_hash: Option<String>,
     /// on every resource, next to the name label
     pub labels: Labels,
+    /// the hash of the user data instead of the user data itself, for a spec declared from a
+    /// server that exists (`declared_by`)
+    pub user_data_hash: Option<String>,
 }
 
 impl DeploymentSpec {
@@ -693,7 +688,49 @@ impl DeploymentSpec {
             root_domain: None,
             password_hash: None,
             labels: Labels::new(),
+            user_data_hash: None,
         })
+    }
+
+    /// the spec a deployment was deployed with, as far as its resources tell: its key, location,
+    /// server type, image, volume size, user data and the dns mode, root domain and password hash
+    /// on its labels. What none of its resources tells takes the default of a new deployment
+    pub fn declared_by(deployment: &DiscoveredDeployment) -> Result<Self> {
+        let server = deployment.server.as_ref();
+        let location = deployment
+            .location()
+            .map_err(Error::message)?
+            .unwrap_or(Location::nbg1);
+        let mut spec = DeploymentSpec::new(
+            &deployment.name,
+            deployment
+                .ssh_key
+                .as_ref()
+                .map(|key| key.public_key.as_str())
+                .unwrap_or_default(),
+            location,
+            server
+                .map(|server| server.server_type)
+                .unwrap_or(ServerType::cx23),
+        )?
+        .with_dns_mode(deployment.dns_mode().unwrap_or_default());
+        if let Some(root_domain) = deployment.root_domain() {
+            spec = spec.with_root_domain(&root_domain);
+        }
+        if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
+            spec = spec.with_password_hash(hash);
+        }
+        if let Some(server) = server {
+            spec.image = server.image.clone();
+            spec.user_data_hash = HetznerLabels::from_raw(server.labels.clone())
+                .labels()
+                .get(USER_DATA_LABEL)
+                .cloned();
+        }
+        if let Some(volume) = deployment.volumes.first() {
+            spec.data_volume_gb = volume.size_gb;
+        }
+        Ok(spec)
     }
 
     pub fn with_password_hash(mut self, hash: &str) -> Self {
@@ -783,7 +820,7 @@ impl DeploymentSpec {
     }
 
     pub fn server(&self) -> HetznerServer {
-        HetznerServer::new(
+        let mut server = HetznerServer::new(
             &self.resource_name(),
             self.location,
             self.server_type,
@@ -795,7 +832,11 @@ impl DeploymentSpec {
         .with_ipv4(self.ipv4().as_lookup())
         .with_ipv6(self.ipv6().as_lookup())
         .with_labels(self.resource_labels())
-        .with_identity(self.identity())
+        .with_identity(self.identity());
+        if let Some(hash) = &self.user_data_hash {
+            server.user_data = UserData::Hash(hash.clone());
+        }
+        server
     }
 
     /// the names the deployment manages in its root domain: `@` and `*` in domain mode,
@@ -940,18 +981,22 @@ mod tests {
             (
                 "servers",
                 vec![
-                    server(1, "alpha", named("alpha")),
+                    server(1, "sak-alpha", named("alpha")),
                     server(2, "other", json!({})),
                 ],
             ),
             (
                 "ssh_keys",
                 vec![
-                    key(7, "alpha", named("alpha")),
-                    key(8, "beta", named("beta")),
+                    key(7, "sak-alpha", named("alpha")),
+                    key(
+                        8,
+                        "sak-beta",
+                        json!({ NAME_LABEL: "beta", DNS_MODE_LABEL: "subdomain" }),
+                    ),
                 ],
             ),
-            ("firewalls", vec![firewall(5, "alpha", named("alpha"))]),
+            ("firewalls", vec![firewall(5, "sak-alpha", named("alpha"))]),
             ("volumes", vec![]),
             ("primary_ips", vec![]),
         ])
@@ -982,45 +1027,49 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_state_is_ok_for_a_complete_deployment_and_incomplete_otherwise() {
+    async fn the_state_shows_every_resource_a_deploy_declares() {
         let (_server, api) = project().await;
         let provider =
             HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
         let deployments = discover(&api).await.unwrap();
 
-        let alpha = state(&provider, &deployments[0]).await.unwrap();
-        assert_eq!(alpha.status, DeploymentStatus::Ok, "{:?}", alpha.resources);
-        assert_eq!(
-            alpha.resources[2].detail.as_deref(),
-            Some("cx23 in hel1, 1.2.3.4")
-        );
-        assert_eq!(alpha.resources[0].detail.as_deref(), Some(FINGERPRINT));
-
+        // beta has only its ssh key: everything else a deploy declares shows as missing
         let beta = state(&provider, &deployments[1]).await.unwrap();
         assert_eq!(beta.status, DeploymentStatus::Incomplete);
-        let statuses: Vec<(ResourceKind, DiffStatus)> = beta
+        let resources: Vec<(ResourceKind, &str, DiffStatus)> = beta
             .resources
             .iter()
-            .map(|resource| (resource.kind, resource.status))
+            .map(|resource| (resource.kind, resource.name.as_str(), resource.status))
             .collect();
         assert_eq!(
-            statuses,
+            resources,
             vec![
-                (ResourceKind::SshKey, DiffStatus::UpToDate),
-                (ResourceKind::Firewall, DiffStatus::Missing),
-                (ResourceKind::Server, DiffStatus::Missing)
+                (ResourceKind::SshKey, "sak-beta", DiffStatus::UpToDate),
+                (ResourceKind::Volume, "sak-beta-data", DiffStatus::Missing),
+                (
+                    ResourceKind::PrimaryIp,
+                    "sak-beta-ipv4",
+                    DiffStatus::Missing
+                ),
+                (
+                    ResourceKind::PrimaryIp,
+                    "sak-beta-ipv6",
+                    DiffStatus::Missing
+                ),
+                (ResourceKind::Firewall, "sak-beta", DiffStatus::Missing),
+                (ResourceKind::Server, "sak-beta", DiffStatus::ParentMissing),
             ]
         );
     }
 
     #[tokio::test]
-    async fn a_server_created_with_another_key_is_a_change() {
-        let mut other_key = key(7, "alpha", named("alpha"));
-        other_key["fingerprint"] = json!("aa:bb");
+    async fn the_state_shows_the_dns_records_of_a_deployment_with_a_root_domain() {
+        let labels =
+            json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" });
         let (_server, api) = mock_api_all(&[
-            ("servers", vec![server(1, "alpha", named("alpha"))]),
-            ("ssh_keys", vec![other_key]),
-            ("firewalls", vec![firewall(5, "alpha", named("alpha"))]),
+            ("servers", vec![]),
+            ("ssh_keys", vec![key(7, "sak-alpha", labels)]),
+            ("firewalls", vec![]),
             ("volumes", vec![]),
             ("primary_ips", vec![]),
         ])
@@ -1031,15 +1080,82 @@ mod tests {
 
         let alpha = state(&provider, &deployments[0]).await.unwrap();
 
-        assert_eq!(alpha.status, DeploymentStatus::Changed);
-        assert_eq!(alpha.resources[2].changes.len(), 1);
-        assert!(
-            alpha.resources[2].changes[0].starts_with("ssh keys should be"),
-            "{}",
-            alpha.resources[2].changes[0]
-        );
+        let records: Vec<&str> = alpha
+            .resources
+            .iter()
+            .filter(|resource| resource.kind == ResourceKind::DnsRecord)
+            .map(|resource| resource.name.as_str())
+            .collect();
+        // @ and * of the domain mode, each an A and an AAAA record
+        assert_eq!(records.len(), 4, "{:?}", alpha.resources);
         assert_eq!(
-            serde_json::to_value(alpha.status).unwrap(),
+            serde_json::to_value(ResourceKind::DnsRecord).unwrap(),
+            json!("dns_record")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_server_created_with_another_key_is_a_change() {
+        let mut other_key = key(7, "sak-alpha", named("alpha"));
+        other_key["fingerprint"] = json!("aa:bb");
+        let (_server, api) = mock_api_all(&[
+            ("servers", vec![server(1, "sak-alpha", named("alpha"))]),
+            ("ssh_keys", vec![other_key]),
+            ("firewalls", vec![firewall(5, "sak-alpha", named("alpha"))]),
+            (
+                "volumes",
+                vec![json!({
+                    "id": 3, "name": "sak-alpha-data", "format": "ext4", "linux_device": "/dev/x", "size": 16,
+                    "protection": { "delete": true }, "server": 1, "status": "available",
+                    "location": { "id": 3, "name": "hel1" }, "labels": named("alpha")
+                })],
+            ),
+            (
+                "primary_ips",
+                ["ipv4", "ipv6"]
+                    .iter()
+                    .enumerate()
+                    .map(|(index, ip_type)| {
+                        json!({
+                            "id": 11 + index, "name": format!("sak-alpha-{ip_type}"), "ip": "1.2.3.4", "type": ip_type,
+                            "assignee_id": 1, "assignee_type": "server", "auto_delete": false,
+                            "protection": { "delete": true }, "location": { "id": 3, "name": "hel1" },
+                            "labels": named("alpha")
+                        })
+                    })
+                    .collect(),
+            ),
+        ])
+        .await;
+        let provider =
+            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let deployments = discover(&api).await.unwrap();
+
+        let alpha = state(&provider, &deployments[0]).await.unwrap();
+
+        // the server shows that it was created with another key
+        assert_eq!(
+            alpha.status,
+            DeploymentStatus::Changed,
+            "{:?}",
+            alpha.resources
+        );
+        let server = alpha
+            .resources
+            .iter()
+            .find(|resource| resource.kind == ResourceKind::Server)
+            .unwrap();
+        assert!(
+            server
+                .changes
+                .iter()
+                .any(|change| change.starts_with("ssh keys should be")),
+            "{:?}",
+            server.changes
+        );
+        assert_eq!(server.detail.as_deref(), Some("cx23 in hel1, 1.2.3.4"));
+        assert_eq!(
+            serde_json::to_value(DeploymentStatus::Changed).unwrap(),
             json!("changed")
         );
         let _ = sha256_hex;
@@ -1571,7 +1687,7 @@ mod tests {
         let error = crate::api::LookupProvider::lookup(
             &*provider.ssh_keys(),
             &spec.ssh_key().as_lookup(),
-            &LookupProviders::new(),
+            &crate::api::LookupProviders::new(),
         )
         .await
         .unwrap_err();

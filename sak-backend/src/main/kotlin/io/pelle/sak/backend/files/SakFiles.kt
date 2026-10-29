@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.api.apiTime
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.api.installApi
 import io.ktor.http.ContentType
@@ -48,7 +49,7 @@ fun thumbnailUrl(id: Int) = "${fileUrl(id)}/thumbnail"
 // discovering text costs money at openrouter, so every user may only ask this often
 fun discoverTextLimiter() = RateLimiter(30, Duration.ofHours(1))
 
-fun StoredFile.response() = FileResponse(id, contentType, size, fileUrl(id), thumbnailUrl(id), createdAt.toString())
+fun StoredFile.response() = FileResponse(id, contentType, size, fileUrl(id), thumbnailUrl(id), createdAt.apiTime())
 
 // uploads to the file storage and the discovery of the text in them, meant to be mounted behind
 // the authentication with a body limit that lets the files through

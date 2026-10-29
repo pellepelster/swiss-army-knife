@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.labels
 
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.labels.model.LabelRequest
@@ -35,7 +36,7 @@ private const val LABELS_TAG = "labels"
 const val INVALID_LABEL_NAME = "A label name must have 1 to ${LabelService.MAX_NAME_LENGTH} characters and no control characters."
 private const val LABEL_EXISTS = "A label of the name exists."
 
-fun Label.response() = LabelResponse(id, name, createdAt.toString(), updatedAt?.toString())
+fun Label.response() = LabelResponse(id, name, createdAt.apiTime(), updatedAt?.apiTime())
 
 // the id of the path, null after answering 404 when it is no number
 suspend fun RoutingCall.idParameter(): Int? =
@@ -53,7 +54,7 @@ fun Route.labels(labelService: LabelService) {
     get {
         val page = call.pageRequest() ?: return@get
         val labels = withContext(Dispatchers.IO) { labelService.page(call.sessionEmail, page.offset, page.limit) }
-        call.respond(page.of(labels.items.map { it.response() }, labels.total))
+        call.respond(page.of(labels.map { it.response() }))
     }.describe {
         tag(LABELS_TAG)
         summary = "The labels of the signed in user"

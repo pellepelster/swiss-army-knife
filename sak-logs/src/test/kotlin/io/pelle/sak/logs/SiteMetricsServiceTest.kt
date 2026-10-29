@@ -230,10 +230,10 @@ class SiteMetricsServiceTest {
             SiteMetricsResponse(
                 site = "pelle.io",
                 range = "1h",
-                start = "2026-10-27T08:00:00Z",
-                end = "2026-10-27T08:04:00Z",
+                start = "2026-10-27T08:00:00.000Z",
+                end = "2026-10-27T08:04:00.000Z",
                 stepSeconds = 120,
-                buckets = listOf("2026-10-27T08:00:00Z", "2026-10-27T08:02:00Z"),
+                buckets = listOf("2026-10-27T08:00:00.000Z", "2026-10-27T08:02:00.000Z"),
                 series = listOf(StatusClassSeriesResponse("2xx", listOf(1, 2)), StatusClassSeriesResponse("4xx", listOf(0, 1))),
                 statusCodes = listOf(StatusCodeSeriesResponse("404", "4xx", listOf(0, 1))),
                 bytes = listOf(10, 20),

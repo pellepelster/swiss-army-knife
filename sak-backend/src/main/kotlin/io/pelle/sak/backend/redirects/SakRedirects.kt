@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTarget
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.redirects.model.RedirectResponse
@@ -73,13 +74,13 @@ fun Route.redirects(redirectService: RedirectService) {
     // the location of a bucket is read from the database, the response is made on the io dispatcher
     suspend fun Redirect.response() =
         withContext(Dispatchers.IO) {
-            RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.toString(), updatedAt?.toString())
+            RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.apiTime(), updatedAt?.apiTime())
         }
 
     get {
         val page = call.pageRequest() ?: return@get
         val redirects = page.of(withContext(Dispatchers.IO) { redirectService.all() })
-        call.respond(page.of(redirects.items.map { it.response() }, redirects.pagination.total))
+        call.respond(page.of(redirects.map { it.response() }))
     }.describe {
         tag(INGRESS_TAG)
         summary = "The redirected domains"

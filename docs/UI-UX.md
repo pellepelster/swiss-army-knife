@@ -16,6 +16,11 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   asks for confirmation first and says what goes. Things the app makes again by itself, for example a plan or a
   filter, need no confirmation. Cancel is the safe default.
 - **Dates and times** are shown in the locale of the user, never in a fixed format.
+- **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
+  error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
+  (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
+  same check runs once more when the action is taken, and on the command line, where an invalid value ends the
+  command with an error.
 
 ## Web ui
 

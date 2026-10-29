@@ -420,7 +420,7 @@ mod tests {
     use super::*;
     use crate::api::{DiffStatus, LookupProviders};
     use crate::hetzner::api::{Backoff, Location, ServerType};
-    use crate::hetzner::labels::sha256_hex;
+    use crate::hetzner::labels::label_hash;
     use crate::hetzner::ssh_key::{HetznerSshKeyLookup, HetznerSshKeyProvisioner};
     use crate::hetzner::test_support::{labels, page};
     use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeProvisioner};
@@ -571,8 +571,8 @@ mod tests {
             vec![
                 DiffItem::recreate(
                     "user data checksum",
-                    sha256_hex("#cloud-config\nchanged\n"),
-                    sha256_hex(USER_DATA)
+                    label_hash("#cloud-config\nchanged\n"),
+                    label_hash(USER_DATA)
                 ),
                 DiffItem::recreate("image", "debian-13", "debian-12"),
             ]
@@ -606,7 +606,7 @@ mod tests {
         );
         assert_eq!(
             diff.changes[0].actual.as_deref(),
-            Some(sha256_hex(FINGERPRINT).as_str())
+            Some(label_hash(FINGERPRINT).as_str())
         );
     }
 

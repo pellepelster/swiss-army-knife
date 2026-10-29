@@ -47,6 +47,14 @@ fn checked_url(known: &HashSet<String>, url: &str) -> Result<Url, String> {
     Ok(parsed)
 }
 
+/// the check of a name, as the page asks it when its field is left: the message when it is none
+#[tauri::command]
+pub fn check_name(name: String) -> Result<(), String> {
+    crate::core::deployments::checked_name(&name)
+        .map(|_| ())
+        .map_err(|error| error.message)
+}
+
 #[tauri::command]
 pub fn locations() -> Vec<LocationResponse> {
     crate::core::deployments::locations()

@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.Page
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
@@ -63,8 +65,8 @@ fun Route.buckets(
             name,
             domains,
             bucketService.subdomain(name),
-            createdAt.toString(),
-            updatedAt?.toString(),
+            createdAt.apiTime(),
+            updatedAt?.apiTime(),
             statistics.response(name),
         )
 
@@ -73,7 +75,7 @@ fun Route.buckets(
         // the buckets of the page are counted at once, one not counted within a moment is still being counted
         val buckets = page.of(withContext(Dispatchers.IO) { bucketService.all() })
         val responses = coroutineScope { buckets.items.map { bucket -> async { bucket.response() } }.awaitAll() }
-        call.respond(page.of(responses, buckets.pagination.total))
+        call.respond(page.of(Page(responses, buckets.total)))
     }.describe {
         tag(S3_TAG)
         summary = "The buckets with the number of their objects and their size"
@@ -247,7 +249,7 @@ fun Route.buckets(
 private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatisticsResponse =
     try {
         get(bucket)
-            ?.let { BucketStatisticsResponse(computing = false, objects = it.objects, bytes = it.bytes, computedAt = it.computedAt.toString()) }
+            ?.let { BucketStatisticsResponse(computing = false, objects = it.objects, bytes = it.bytes, computedAt = it.computedAt.apiTime()) }
             ?: BucketStatisticsResponse(computing = true)
     } catch (e: Exception) {
         logger.warn(e) { "could not count the objects of bucket '$bucket'" }

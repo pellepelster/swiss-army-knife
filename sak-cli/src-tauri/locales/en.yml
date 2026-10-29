@@ -93,6 +93,8 @@ config:
   no_root_domain: "The deployment %{name} has no root domain on its resources, deploy it with --root-domain first."
   shown: "The running configuration of %{name} at %{url}"
   no_smtp: "No mail server"
+  unverifiable: "The deployment %{name} has nothing to check the password against, deploy it first."
+  not_https: "The api %{url} is no https address, the admin api token is only sent over https."
 ui:
   quit: "Quit"
   providers:
@@ -119,8 +121,11 @@ ui:
       changed: "changed"
     resource:
       ssh_key: "ssh key"
+      volume: "volume"
+      primary_ip: "primary ip"
       firewall: "firewall"
       server: "server"
+      dns_record: "dns record"
     missing: "missing"
   deployment:
     deploy: "Deploy"

@@ -6,6 +6,7 @@ mod support;
 
 use sak_cloud::api::{Applied, DiffStatus, Resource};
 use sak_cloud::hetzner::deployment::DeploymentSpec;
+use sak_cloud::hetzner::deployment::RESOURCE_PREFIX;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use support::HetznerTest;
 
@@ -21,6 +22,8 @@ async fn backend_flow() {
     hetzner
         .run(|hetzner| async move {
             let name = hetzner.test_id.clone();
+            // the cloud names of the deployment, sak-<name>
+            let cloud_name = format!("{RESOURCE_PREFIX}{name}");
             let location = hetzner.location();
             let server_type = hetzner.server_type();
             let provider =
@@ -61,7 +64,7 @@ async fn backend_flow() {
                 ],
                 "{diffs:?}"
             );
-            assert_eq!(diffs[4].resource.log_text, format!("server '{name}'"));
+            assert_eq!(diffs[4].resource.log_text, format!("server '{cloud_name}'"));
 
             let results = registry.apply_all().await.unwrap();
             let order: Vec<String> = results
@@ -71,12 +74,12 @@ async fn backend_flow() {
             assert_eq!(
                 order,
                 vec![
-                    format!("ssh key '{name}'"),
-                    format!("volume '{name}-data'"),
-                    format!("primary ip '{name}-ipv4'"),
-                    format!("primary ip '{name}-ipv6'"),
-                    format!("server '{name}'"),
-                    format!("firewall '{name}'"),
+                    format!("ssh key '{cloud_name}'"),
+                    format!("volume '{cloud_name}-data'"),
+                    format!("primary ip '{cloud_name}-ipv4'"),
+                    format!("primary ip '{cloud_name}-ipv6'"),
+                    format!("server '{cloud_name}'"),
+                    format!("firewall '{cloud_name}'"),
                 ]
             );
             assert!(
@@ -136,8 +139,8 @@ async fn backend_flow() {
 
             let destroyed = changed.destroy_all().await.unwrap();
             assert_eq!(destroyed.len(), 6);
-            assert_eq!(destroyed[0].log_text, format!("firewall '{name}'"));
-            assert_eq!(destroyed[1].log_text, format!("server '{name}'"));
+            assert_eq!(destroyed[0].log_text, format!("firewall '{cloud_name}'"));
+            assert_eq!(destroyed[1].log_text, format!("server '{cloud_name}'"));
             let diffs = changed.diff_all().await.unwrap();
             assert!(diffs.iter().all(|diff| matches!(
                 diff.status,

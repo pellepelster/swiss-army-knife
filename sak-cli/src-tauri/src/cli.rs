@@ -29,7 +29,7 @@ use std::fmt::Display;
 const EXIT_CODES: &str = "Exit codes:
   0  The command did what it should.
   1  The command failed.
-  2  The arguments are wrong.
+  2  The arguments are wrong, e.g. a name that is none.
   3  Domain mode asked, another deployment manages the root domain in domain mode already.
   4  The DNS mode asked is not the one other deployments use the root domain in: a root
      domain has one domain deployment or only subdomain deployments.
@@ -404,14 +404,17 @@ async fn show_config(
     let (url, config) = manager
         .running_config(provider.tokens(), name, password)
         .await?;
-    log(
-        Level::Info,
-        t!("config.shown", name = name.trim(), url = url.as_str()),
-    );
-    for line in config_lines(&config) {
+    for line in shown_lines(name, &url, &config) {
         log(Level::Info, line);
     }
     Ok(())
+}
+
+/// what `config show` prints: where it asked, then the settings; neither the password nor the token
+fn shown_lines(name: &str, url: &str, config: &crate::core::config::RunningConfig) -> Vec<String> {
+    std::iter::once(t!("config.shown", name = name.trim(), url = url).to_string())
+        .chain(config_lines(config))
+        .collect()
 }
 
 /// `smtp.host smtp.example.org`, … : the settings as `<key> <value>`, no secret among them
@@ -699,6 +702,32 @@ mod tests {
             config_lines(&crate::core::config::RunningConfig { smtp: None }),
             vec![t!("config.no_smtp").to_string()]
         );
+
+        // all that is printed holds neither the password nor the token of it
+        let password = "a password of sixteen";
+        let token = crate::core::keys::api_token("alpha", password).unwrap();
+        let shown = shown_lines(" alpha ", "https://api.pelle.io", &config).join("\n");
+        assert!(shown.contains("https://api.pelle.io"), "{shown}");
+        assert!(!shown.contains(password) && !shown.contains(&token) && !shown.contains("sak_"));
+    }
+
+    #[test]
+    fn config_show_takes_the_password_from_the_environment() {
+        use clap::CommandFactory;
+        let command = Cli::command();
+        let show = command
+            .find_subcommand("config")
+            .and_then(|config| config.find_subcommand("show"))
+            .unwrap();
+        let password = show
+            .get_arguments()
+            .find(|argument| argument.get_id() == "password")
+            .unwrap();
+        assert_eq!(
+            password.get_env().and_then(|env| env.to_str()),
+            Some(PASSWORD_VARIABLE)
+        );
+        assert!(password.is_hide_env_values_set());
     }
 
     #[test]

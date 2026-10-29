@@ -1,5 +1,12 @@
 package io.pelle.sak.backend
 
+import io.kotest.matchers.collections.shouldBeIn
+import io.pelle.sak.auth.Role
+import io.pelle.sak.auth.SigningKey
+import io.pelle.sak.auth.TokenService
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonNull
+import io.kotest.matchers.string.shouldMatch
 import com.icegreen.greenmail.junit5.GreenMailExtension
 import com.icegreen.greenmail.util.GreenMailUtil
 import com.icegreen.greenmail.util.ServerSetupTest
@@ -71,6 +78,7 @@ class SakAppsTest {
         smtp: Boolean = true,
         adminPassword: Boolean = true,
         admins: Boolean = true,
+        smtpPassword: String? = null,
     ): SakConfig {
         // like backend.env holds it: a value starting with $ in the file is an environment variable
         System.setProperty("SAK_TEST_ADMIN_PASSWORD_HASH", ADMIN_PASSWORD_HASH)
@@ -82,7 +90,7 @@ class SakAppsTest {
             sak:
               name: alpha
               dns_mode: domain
-              ${if (apiToken) "api_token_sha256: ${sha256Hex(API_TOKEN)}" else ""}
+              ${if (apiToken) "api_token_sha256: $API_TOKEN_SHA256" else ""}
               data_dir: ${tempDir.resolve("data")}
               root_domain: example.org
             """.trimIndent() +
@@ -102,7 +110,8 @@ class SakAppsTest {
                                   port: ${greenMail.smtp.port}
                                   from: login@example.org
                                   starttls: false
-                                """.trimIndent().prependIndent("    ")
+                                """.trimIndent().prependIndent("    ") +
+                                (smtpPassword?.let { "\n      password: $it" } ?: "")
                         } else {
                             ""
                         }
@@ -185,6 +194,17 @@ class SakAppsTest {
     ): String =
         Socket("localhost", port).use { socket ->
             socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray())
+            socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
+        }
+
+    // a get with a header exactly as given, the answer as it comes, status line and headers included
+    private fun getWithHeader(
+        port: Int,
+        path: String,
+        header: String,
+    ): String =
+        Socket("localhost", port).use { socket ->
+            socket.getOutputStream().write("GET $path HTTP/1.1\r\nHost: localhost\r\n$header\r\nConnection: close\r\n\r\n".toByteArray())
             socket.getInputStream().readAllBytes().toString(Charsets.UTF_8)
         }
 
@@ -950,7 +970,114 @@ class SakAppsTest {
     }
 
     @Test
+    fun `every point in time the api answers is ISO 8601 in UTC with milliseconds`() {
+        val iso8601 = Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z""")
+        val config = config()
+        buckets(config).create("site")
+        withServer(config) { port ->
+            val session = signIn(port)
+
+            fun JsonObject.times(vararg keys: String) = keys.mapNotNull { this[it]?.jsonPrimitive?.contentOrNull }
+
+            val label = post(port, "/api/v1/labels", """{"name":"home"}""", session).json()
+            val changedLabel = put(port, "/api/v1/labels/${label.string("id")}", """{"name":"house"}""", session).json()
+            val note = post(port, "/api/v1/notes", """{"text":"Buy milk","color":"yellow","labels":[]}""", session).json()
+            val changedNote =
+                put(port, "/api/v1/notes/${note.string("id")}", """{"text":"Buy bread","color":"green","labels":[]}""", session).json()
+            val redirect =
+                post(port, "/api/v1/redirects", """{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""", session)
+                    .json()
+            val bucket =
+                get(port, "/api/v1/static-hosting", session).json().getValue("items").jsonArray.first().jsonObject
+            val whoAmI = get(port, "/api/v1/auth/who-am-i", session).json()
+
+            val times =
+                label.times("createdAt") + changedLabel.times("createdAt", "updatedAt") + note.times("createdAt") +
+                    changedNote.times("createdAt", "updatedAt") + redirect.times("createdAt") + bucket.times("createdAt") +
+                    whoAmI.times("expiresAt")
+            times.size shouldBe 9
+            times.forEach { it shouldMatch iso8601 }
+
+            // the admin api token never expires: no time at all rather than one far away
+            get(port, "/api/v1/auth/who-am-i", API_TOKEN).json()["expiresAt"] shouldBe JsonNull
+        }
+    }
+
+    @Test
+    fun `the running configuration hides a configured password of the mail server`() {
+        withServer(config(smtpPassword = "the-smtp-password")) { port ->
+            val answer = get(port, "/api/v1/config", API_TOKEN)
+            answer.statusCode() shouldBe 200
+            answer.json().getValue("smtp").jsonObject.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
+            answer.body() shouldNotContain "the-smtp-password"
+        }
+    }
+
+    @Test
+    fun `the api token works without any admin address`() {
+        // single user: no list of allowed addresses, the token is let in all the same
+        withServer(config(smtp = false, admins = false)) { port ->
+            get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 200
+        }
+    }
+
+    @Test
+    fun `the api token is a user of its own`() {
+        withServer { port ->
+            val session = signIn(port)
+            post(port, "/api/v1/notes", """{"text":"of the token","color":"yellow","labels":[]}""", API_TOKEN).statusCode() shouldBe 201
+            post(port, "/api/v1/notes", """{"text":"of the admin","color":"yellow","labels":[]}""", session).statusCode() shouldBe 201
+
+            get(port, "/api/v1/notes", session).body().let {
+                it shouldContain "of the admin"
+                it shouldNotContain "of the token"
+            }
+            get(port, "/api/v1/notes", API_TOKEN).body().let {
+                it shouldContain "of the token"
+                it shouldNotContain "of the admin"
+            }
+            get(port, "/api/v1/auth/who-am-i", API_TOKEN).json().let {
+                it.string("username") shouldBe "sakctl"
+                it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("admin")
+            }
+        }
+    }
+
+    @Test
+    fun `malformed bearer tokens are refused`() {
+        withServer { port ->
+            // an unsigned jwt with the subject of the admin
+            val unsigned = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbkBleGFtcGxlLm9yZyIsInJvbGVzIjpbImFkbWluIl19."
+            for (authorization in listOf("Basic $API_TOKEN", "Bearer ", "Bearer $API_TOKEN x", "Bearer $unsigned", API_TOKEN)) {
+                val answer = getWithHeader(port, "/api/v1/config", "Authorization: $authorization")
+                val status = answer.substringAfter(' ').substringBefore(' ')
+                // a header that is no valid authorization at all is a malformed request, the others
+                // are refused with one bearer challenge
+                (status to authorization) shouldBeIn listOf("400", "401").map { it to authorization }
+                if (status == "401") {
+                    answer.lines().count { it.startsWith("WWW-Authenticate: Bearer", ignoreCase = true) } shouldBe 1
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a session token naming sakctl or admin gets no role of them`() {
+        val config = config()
+        withServer(config) { port ->
+            // signed with the key of the server, the subjects of the token and of the password login
+            val tokens = TokenService(SigningKey.fromPem(signingKey(config)!!), FRONTEND_URL)
+            for (subject in listOf("sakctl", "admin")) {
+                val forged = tokens.issueSessionToken(subject, setOf(Role.ADMIN)).token
+                get(port, "/api/v1/notes", forged).statusCode() shouldBe 401
+            }
+        }
+    }
+
+    @Test
     fun `the admin api token of sakctl reaches the api like an admin session`() {
+        // the backend hashes a bearer token the way sakctl does: utf-8, sha-256, lowercase hex
+        sha256Hex(API_TOKEN) shouldBe API_TOKEN_SHA256
         withServer { port ->
             get(port, "/api/v1/config", API_TOKEN).statusCode() shouldBe 200
             get(port, "/api/v1/notes", API_TOKEN).statusCode() shouldBe 200
@@ -1060,8 +1187,11 @@ class SakAppsTest {
             "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK767nINg0KkEtAqKeQDg\$o63nEWUsl16I1CzzLIWT2j8a1N9p0Nzhyf0iXOhdZK8"
         private const val ADMIN_PASSWORD = "a password of sixteen"
 
-        // the admin api token of the tests, its sha-256 in the configuration
-        private const val API_TOKEN = "sak_test-api-token"
+        // the admin api token sakctl derives for `alpha` with `a password of sixteen` and its sha-256,
+        // the vectors of sakctl (API_TOKEN_VECTOR and API_TOKEN_SHA256_VECTOR in
+        // sak-cli/src-tauri/src/core/keys.rs): what sakctl sends is what the configuration accepts
+        private const val API_TOKEN = "sak_LWhis5wtozfbH7Zn7v-4sWwBsUp6s59mHcxyAhN0Nvc"
+        private const val API_TOKEN_SHA256 = "aece066898558c7b3ad19725bc43a3f4cf2db34b6f860d4ddc85994c33513a3b"
 
         private fun sha256Hex(value: String) = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
 

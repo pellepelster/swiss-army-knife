@@ -1,5 +1,9 @@
 package io.pelle.sak.logs
 
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+
 
 // the access log entries of one site, searched in the stored entries
 class SiteLogs(
@@ -15,7 +19,7 @@ class SiteLogs(
     ): List<LogEntry> =
         client
             .query("${searchFilter(site, text)} | $FIELDS | sort by (_time desc) | offset $offset | limit $limit")
-            .map { it.toLogEntry() }
+            .mapNotNull { it.toLogEntry() }
 
     // how many entries the search finds altogether
     fun count(
@@ -52,9 +56,10 @@ class SiteLogs(
             return "(_msg:~$pattern OR user_agent:~$pattern)"
         }
 
-        fun Map<String, String>.toLogEntry() =
+        // none for an entry without a readable time, which the stored entries always have
+        fun Map<String, String>.toLogEntry(): LogEntry? =
             LogEntry(
-                time = this["_time"].orEmpty(),
+                time = this["_time"]?.let(::parseTime) ?: return null,
                 host = this["request.host"].orEmpty(),
                 path = this["request.uri"].orEmpty(),
                 status = this["status"]?.toIntOrNull(),
@@ -62,10 +67,18 @@ class SiteLogs(
     }
 }
 
-// one request of the ingress access log with the domain it was made to; time as victorialogs tells
-// it, an rfc 3339 timestamp, status 0 for a request caddy closed without an answer
+// an rfc 3339 timestamp as victorialogs tells it, null when it is none
+private fun parseTime(time: String): Instant? =
+    try {
+        OffsetDateTime.parse(time).toInstant()
+    } catch (_: DateTimeParseException) {
+        null
+    }
+
+// one request of the ingress access log with the domain it was made to, status 0 for a request
+// caddy closed without an answer
 data class LogEntry(
-    val time: String,
+    val time: Instant,
     val host: String,
     val path: String,
     val status: Int?,

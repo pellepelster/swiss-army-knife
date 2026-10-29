@@ -1,5 +1,7 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.Page
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
@@ -123,7 +125,7 @@ fun Route.accessLogs(
         try {
             call.respond(
                 withContext(Dispatchers.IO) {
-                    page.of(logs.search(site, text, page.offset, page.limit).map { it.response() }, logs.count(site, text))
+                    page.of(Page(logs.search(site, text, page.offset, page.limit).map { it.response() }, logs.count(site, text)))
                 },
             )
         } catch (e: VictoriaLogsException) {
@@ -162,16 +164,16 @@ private suspend fun ApplicationCall.logsSite(site: suspend (ApplicationCall) -> 
 
 fun Site.response() = SiteResponse(id, domains)
 
-fun LogEntry.response() = LogEntryResponse(time, host, path, status)
+fun LogEntry.response() = LogEntryResponse(time.apiTime(), host, path, status)
 
 fun SiteMetrics.response() =
     SiteMetricsResponse(
         site = site.id,
         range = range.key,
-        start = start.toString(),
-        end = end.toString(),
+        start = start.apiTime(),
+        end = end.apiTime(),
         stepSeconds = range.step.seconds,
-        buckets = buckets.map { it.toString() },
+        buckets = buckets.map { it.apiTime() },
         series = series.map { StatusClassSeriesResponse(it.statusClass.key, it.values) },
         statusCodes = statusCodes.map { StatusCodeSeriesResponse(it.status, it.statusClass.key, it.values) },
         bytes = bytes,

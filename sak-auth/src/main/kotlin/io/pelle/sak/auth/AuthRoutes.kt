@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
@@ -62,7 +63,8 @@ private const val AUTH_TAG = "auth"
 
 data class SessionPrincipal(
     val email: String,
-    val expiresAt: Instant,
+    // null for the admin api token, which never expires
+    val expiresAt: Instant?,
     val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
     val withPassword: Boolean = false,
@@ -95,7 +97,11 @@ fun AuthenticationConfig.session(
             val withPassword = credential.payload.getClaim(TokenService.LOGIN_METHOD).asString() == TokenService.PASSWORD
             if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles, withPassword) else null
         }
-        challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
+        // a 401 says how to authenticate, one bearer challenge for the session and the api token alike
+        challenge { _, _ ->
+            call.response.header(HttpHeaders.WWWAuthenticate, "Bearer")
+            call.respond(HttpStatusCode.Unauthorized)
+        }
     }
 }
 
@@ -113,7 +119,7 @@ fun AuthenticationConfig.apiToken(sha256: String?) {
         authenticate { credential ->
             val actual = MessageDigest.getInstance("SHA-256").digest(credential.token.toByteArray())
             if (expected != null && MessageDigest.isEqual(expected, actual)) {
-                SessionPrincipal(API_TOKEN_IDENTITY, Instant.MAX, setOf(Role.ADMIN))
+                SessionPrincipal(API_TOKEN_IDENTITY, null, setOf(Role.ADMIN))
             } else {
                 null
             }
@@ -202,7 +208,7 @@ fun Route.login(
         val session = tokens.issueSessionToken(claims.email, roles)
         call.response.header(HttpHeaders.CacheControl, "no-store")
         call.respond(
-            ExchangeResponse(session.token, session.email, session.expiresAt.toString(), roles.keys(), safeRedirect(claims.redirect)),
+            ExchangeResponse(session.token, session.email, session.expiresAt.apiTime(), roles.keys(), safeRedirect(claims.redirect)),
         )
     }.describe {
         tag(AUTH_TAG)
@@ -260,7 +266,7 @@ fun Route.passwordLogin(
             val session = tokens.issueSessionToken(admin, roles, withPassword = true)
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(
-                ExchangeResponse(session.token, session.email, session.expiresAt.toString(), roles.keys(), safeRedirect(request.redirect)),
+                ExchangeResponse(session.token, session.email, session.expiresAt.apiTime(), roles.keys(), safeRedirect(request.redirect)),
             )
         }.describe {
             tag(AUTH_TAG)
@@ -322,7 +328,7 @@ fun Route.whoAmI() {
         val principal = call.principal<SessionPrincipal>()!!
         call.response.header(HttpHeaders.CacheControl, "no-store")
         val username = if (principal.withPassword) ADMIN_USERNAME else principal.email
-        call.respond(WhoAmIResponse(username, principal.expiresAt.toString(), principal.roles.keys()))
+        call.respond(WhoAmIResponse(username, principal.expiresAt?.apiTime(), principal.roles.keys()))
     }.describe {
         tag(AUTH_TAG)
         summary = "The signed in user"

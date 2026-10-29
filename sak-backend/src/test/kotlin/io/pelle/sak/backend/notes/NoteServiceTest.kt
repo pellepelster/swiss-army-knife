@@ -2,7 +2,7 @@ package io.pelle.sak.backend.notes
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.pelle.sak.backend.Slice
+import io.pelle.sak.api.Page
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.StoreFileResult
@@ -103,7 +103,7 @@ class NoteServiceTest {
             it.items.map { note -> note.text } shouldBe listOf("app", "plumber")
             it.total shouldBe 2
         }
-        service.page(PELLE, 0, 10, "unknown") shouldBe Slice(emptyList(), 0)
+        service.page(PELLE, 0, 10, "unknown") shouldBe Page.empty()
     }
 
     @Test

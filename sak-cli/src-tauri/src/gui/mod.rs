@@ -27,6 +27,7 @@ pub fn run() {
             providers::add_provider_token,
             deployments::list_deployments,
             deployments::deployment_defaults,
+            deployments::check_name,
             deployments::locations,
             deployments::open_url,
             deployments::root_domains,

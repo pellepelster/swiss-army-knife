@@ -261,6 +261,16 @@ class SakConfigLoaderTest {
     }
 
     @Test
+    fun `an api_token_sha256 that is no sha-256 in lower case hex refuses to load`() {
+        val hash = "ab".repeat(32)
+        load("api_token_sha256: $hash\ndata_dir: /data\n$ROOT_DOMAIN").apiTokenSha256 shouldBe hash
+        load("data_dir: /data\n$ROOT_DOMAIN").apiTokenSha256 shouldBe null
+        listOf(hash.drop(1), hash.uppercase(), "zz".repeat(32), hash + "a").forEach { wrong ->
+            shouldThrow<IllegalArgumentException> { load("api_token_sha256: $wrong\ndata_dir: /data\n$ROOT_DOMAIN") }
+        }
+    }
+
+    @Test
     fun `fails when data dir is missing`() {
         shouldThrow<RuntimeException> { load("$ROOT_DOMAIN") }
     }

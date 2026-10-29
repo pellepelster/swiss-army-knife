@@ -14,6 +14,21 @@ pub fn sha256_hex(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
 }
 
+/// how many hex characters of a sha256 a hash label keeps: 240 of its 256 bits, so the hash fits
+/// one label value and is never chunked
+pub const LABEL_HASH_LEN: usize = 60;
+
+// a hash label is never chunked
+const _: () = assert!(LABEL_HASH_LEN < MAX_VALUE_LENGTH);
+
+/// the sha256 of `value` cut to LABEL_HASH_LEN, what a hash label holds (user data, ssh key
+/// fingerprints)
+pub fn label_hash(value: &str) -> String {
+    let mut hash = sha256_hex(value);
+    hash.truncate(LABEL_HASH_LEN);
+    hash
+}
+
 /// whether a hashed label still matches the value it was made from, with both hashes for
 /// the diff
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,8 +39,9 @@ pub struct HashComparison {
 }
 
 /// the labels of a hetzner resource with values longer than a label allows: those are
-/// chunked across indexed keys when stored and reassembled when read. A sha256 hash of
-/// a value (user data, ssh key fingerprints) is one such value, it is 64 characters
+/// chunked across indexed keys when stored and reassembled when read. A hash label fits one
+/// value (`label_hash`); servers labeled before the hash was cut carry all 64 characters of
+/// it in two chunks
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HetznerLabels {
     raw: Labels,
@@ -97,21 +113,24 @@ impl HetznerLabels {
         Ok(())
     }
 
-    /// stores the sha256 of `value` under `key`, `hash_matches` compares it later
+    /// stores the label hash of `value` under `key`, `hash_matches` compares it later
     pub fn add_hashed(&mut self, key: &str, value: &str) -> Result<()> {
-        self.add(key, &sha256_hex(value))
+        self.add(key, &label_hash(value))
     }
 
     pub fn hash_matches(&self, key: &str, value: &str) -> HashComparison {
-        self.matches_hash(key, &sha256_hex(value))
+        self.matches_hash(key, &label_hash(value))
     }
 
-    /// like `hash_matches` with the hash of the value already in hand
+    /// like `hash_matches` with the hash of the value already in hand; the full sha256 of a
+    /// label from before the hash was cut matches as well, it starts with the cut one
     pub fn matches_hash(&self, key: &str, expected: &str) -> HashComparison {
         let actual = self.labels().get(key).cloned();
         let expected = expected.to_string();
         HashComparison {
-            matches: actual.as_deref() == Some(expected.as_str()),
+            matches: actual.as_deref().is_some_and(|actual| {
+                actual == expected || (actual.len() == 64 && actual.starts_with(&expected))
+            }),
             expected,
             actual,
         }
@@ -138,13 +157,34 @@ mod tests {
         let mut labels = HetznerLabels::new();
 
         labels.add_hashed("hash-test", "hallo welt").unwrap();
-        assert_eq!(labels.labels()["hash-test"], HALLO_WELT_HASH);
+        // one label, not chunked
+        assert_eq!(
+            labels.raw()["hash-test"],
+            &HALLO_WELT_HASH[..LABEL_HASH_LEN]
+        );
 
         assert!(labels.hash_matches("hash-test", "hallo welt").matches);
         let mismatch = labels.hash_matches("hash-test", "hallo welt1");
         assert!(!mismatch.matches);
-        assert_eq!(mismatch.actual.as_deref(), Some(HALLO_WELT_HASH));
-        assert_eq!(mismatch.expected, sha256_hex("hallo welt1"));
+        assert_eq!(
+            mismatch.actual.as_deref(),
+            Some(&HALLO_WELT_HASH[..LABEL_HASH_LEN])
+        );
+        assert_eq!(mismatch.expected, label_hash("hallo welt1"));
+    }
+
+    #[test]
+    fn a_label_hash_fits_one_label_value() {
+        assert_eq!(label_hash("hallo welt").len(), LABEL_HASH_LEN);
+    }
+
+    #[test]
+    fn the_full_hash_of_a_label_from_before_still_matches() {
+        let mut labels = HetznerLabels::new();
+        labels.add("hash-test", HALLO_WELT_HASH).unwrap();
+
+        assert!(labels.hash_matches("hash-test", "hallo welt").matches);
+        assert!(!labels.hash_matches("hash-test", "hallo welt1").matches);
     }
 
     #[test]
@@ -155,7 +195,10 @@ mod tests {
 
         let imported = HetznerLabels::from_raw(labels.raw().clone());
 
-        assert_eq!(imported.labels()["hash-test"], HALLO_WELT_HASH);
+        assert_eq!(
+            imported.labels()["hash-test"],
+            &HALLO_WELT_HASH[..LABEL_HASH_LEN]
+        );
         assert!(imported.hash_matches("long-test", &"A".repeat(124)).matches);
     }
 

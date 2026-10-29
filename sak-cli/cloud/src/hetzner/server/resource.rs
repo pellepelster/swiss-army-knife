@@ -1,6 +1,6 @@
 use crate::api::{Labeled, Labels, Lookup, Resource, ResourceRef};
 use crate::hetzner::api::{Location, ServerType};
-use crate::hetzner::labels::sha256_hex;
+use crate::hetzner::labels::label_hash;
 use crate::hetzner::primary_ip::HetznerPrimaryIpLookup;
 use crate::hetzner::server::{HetznerServerLookup, HetznerServerRuntime};
 use crate::hetzner::ssh_key::HetznerSshKeyLookup;
@@ -20,10 +20,10 @@ impl UserData {
         UserData::Text(text.to_string())
     }
 
-    /// the sha256 that goes into the label of the server
+    /// the label hash that goes into the label of the server
     pub fn hash(&self) -> String {
         match self {
-            UserData::Text(text) => sha256_hex(text),
+            UserData::Text(text) => label_hash(text),
             UserData::Hash(hash) => hash.clone(),
         }
     }

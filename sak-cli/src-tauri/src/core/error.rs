@@ -9,8 +9,7 @@ use std::fmt;
 pub const EXIT_OK: i32 = 0;
 /// anything else failed: a check, a password, the provider, the provisioning
 pub const EXIT_FAILED: i32 = 1;
-/// the arguments are wrong (the code of the argument parser, named here for the help)
-#[cfg_attr(not(test), allow(dead_code))]
+/// the arguments are wrong: what the argument parser refuses, and a name that is none
 pub const EXIT_USAGE: i32 = 2;
 /// domain mode asked, another deployment manages the root domain in domain mode already
 pub const EXIT_DOMAIN_TAKEN: i32 = 3;

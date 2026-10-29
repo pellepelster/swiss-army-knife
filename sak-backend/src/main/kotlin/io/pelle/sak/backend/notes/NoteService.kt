@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.notes
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.Slice
+import io.pelle.sak.api.Page
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
@@ -98,12 +98,12 @@ class NoteService(
         offset: Long,
         limit: Int,
         label: String? = null,
-    ): Slice<Note> {
+    ): Page<Note> {
         val labelId =
             label?.let { name ->
-                labels.byName(owner, name)?.id ?: return Slice(emptyList(), 0)
+                labels.byName(owner, name)?.id ?: return Page.empty()
             }
-        return Slice(notes(owner, repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
+        return Page(notes(owner, repository.page(owner, offset, limit, labelId)), repository.count(owner, labelId))
     }
 
     fun byId(

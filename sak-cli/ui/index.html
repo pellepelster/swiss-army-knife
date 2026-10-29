@@ -142,7 +142,8 @@
       <form class="page-form" id="create-form">
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>
-          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" required>
+          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required aria-describedby="create-name-invalid">
+          <div class="invalid-feedback" id="create-name-invalid"></div>
           <div class="form-text" data-text="ui.create.name_hint"></div>
         </div>
         <div>

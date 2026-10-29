@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.labels
 
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.Slice
+import io.pelle.sak.api.Page
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
@@ -58,7 +58,7 @@ class LabelService(
         owner: String,
         offset: Long,
         limit: Int,
-    ): Slice<Label> = Slice(repository.page(owner, offset, limit), repository.count(owner))
+    ): Page<Label> = Page(repository.page(owner, offset, limit), repository.count(owner))
 
     fun byId(
         owner: String,

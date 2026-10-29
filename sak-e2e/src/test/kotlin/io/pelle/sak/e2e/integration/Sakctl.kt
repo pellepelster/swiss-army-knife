@@ -14,20 +14,25 @@ class Sakctl(
         }
 
     /** runs `sakctl <arguments>` and answers its exit code */
-    fun run(vararg arguments: String): Int {
+    fun run(vararg arguments: String): Int = output(*arguments).first
+
+    /** runs `sakctl <arguments>` and answers its exit code and the lines it printed */
+    fun output(vararg arguments: String): Pair<Int, List<String>> {
         println("> sakctl ${arguments.joinToString(" ")}")
         val process =
             ProcessBuilder(listOf(binary.path) + arguments)
                 .redirectErrorStream(true)
                 .apply {
                     environment()["HCLOUD_TOKEN"] = token
-                    // the password comes as an argument, the variables of the developer stay out
-                    environment().remove("SAK_NAME")
-                    environment().remove("SAK_PASSWORD")
-                    environment().remove("SAK_LOCATION")
+                    // the settings come as arguments, the variables of the developer stay out
+                    environment().keys.removeIf { it.startsWith("SAK_") }
                 }.start()
-        process.inputStream.bufferedReader().forEachLine { println(it) }
+        val lines = mutableListOf<String>()
+        process.inputStream.bufferedReader().forEachLine {
+            println(it)
+            lines += it
+        }
         check(process.waitFor(60, TimeUnit.MINUTES)) { "sakctl ${arguments.first()} did not end" }
-        return process.exitValue()
+        return process.exitValue() to lines
     }
 }

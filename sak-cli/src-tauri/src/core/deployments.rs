@@ -4,7 +4,8 @@
 
 use crate::core::container::ContainerRuntime;
 use crate::core::error::{
-    EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, WizardError,
+    EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, EXIT_USAGE,
+    WizardError,
 };
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
@@ -245,8 +246,6 @@ pub struct DeploymentDefaults {
     admin_email: Option<String>,
     /// the user mode of SAK_USER_MODE
     user_mode: Option<UserMode>,
-    /// the longest name, not from the environment: what the page limits its field to
-    max_name_length: usize,
 }
 
 /// the variables a new deployment takes its name, password and location from, the pages
@@ -434,7 +433,6 @@ pub fn defaults() -> DeploymentDefaults {
         smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
         admin_email: variable(ADMIN_EMAIL_VARIABLE),
         user_mode: variable(USER_MODE_VARIABLE).and_then(|value| UserMode::parse(&value)),
-        max_name_length: MAX_NAME_LEN,
     }
 }
 
@@ -557,6 +555,52 @@ fn verify_password(
     name: &str,
     password: &str,
 ) -> Result<(), String> {
+    let (hashes, key) = password_proofs(deployment);
+    check_password(&hashes, key, name, password)
+}
+
+/// where `config show` asks and with what: the api of the base domain on the labels of the
+/// deployment and the admin api token of the password. The password is checked first, so the token
+/// of a wrong password never leaves; one that nothing can check would only be refused by the backend
+fn config_endpoint(
+    deployment: &DiscoveredDeployment,
+    name: &str,
+    password: &str,
+) -> Result<(String, String), String> {
+    if matches!(password_proofs(deployment), (hashes, None) if hashes.is_empty()) {
+        return Err(t!("config.unverifiable", name = name).to_string());
+    }
+    verify_password(deployment, name, password)?;
+    let root_domain = deployment
+        .root_domain()
+        .ok_or_else(|| t!("config.no_root_domain", name = name).to_string())?;
+    let base = sak_cloud::hetzner::deployment::base_domain(
+        name,
+        deployment.dns_mode().unwrap_or_default(),
+        &root_domain,
+    );
+    let url = crate::core::config::api_url(&base);
+    let token = crate::core::keys::api_token(name, password)?;
+    Ok((url, token))
+}
+
+/// a name as sakctl takes it, trimmed: 1 to MAX_NAME_LEN lower case letters, digits and dashes,
+/// what hetzner and dns take with the prefix and suffix of the cloud names. The one check of a
+/// name, the window asks it when the field is left; a wrong name is a usage error (`EXIT_USAGE`)
+pub fn checked_name(name: &str) -> Result<&str, WizardError> {
+    let name = name.trim();
+    check_name(name).map_err(|_| {
+        WizardError::new(
+            t!("deployments.invalid_name", max = MAX_NAME_LEN),
+            EXIT_USAGE,
+        )
+    })?;
+    Ok(name)
+}
+
+/// what a password can be checked against: the password hashes on the resources and the public
+/// key of the ssh key; both empty for a deployment of which only unlabeled resources are left
+fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&str>) {
     let mut labels = Vec::new();
     labels.extend(deployment.server.iter().map(|server| &server.labels));
     labels.extend(deployment.ssh_key.iter().map(|key| &key.labels));
@@ -576,7 +620,7 @@ fn verify_password(
         .ssh_key
         .as_ref()
         .map(|key| key.public_key.as_str());
-    check_password(&hashes, key, name, password)
+    (hashes, key)
 }
 
 /// `hashes` the password hashes found on the resources, `key` the public key of the ssh key
@@ -676,7 +720,7 @@ impl DeploymentManager {
         name: &str,
         password: &str,
     ) -> Result<(String, crate::core::config::RunningConfig), String> {
-        let name = name.trim();
+        let name = checked_name(name).map_err(|error| error.message)?;
         let Some((provider, token)) = tokens
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
@@ -690,17 +734,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|deployment| deployment.name == name)
             .ok_or_else(|| t!("deployments.not_found", name = name).to_string())?;
-        verify_password(&deployment, name, password)?;
-        let root_domain = deployment
-            .root_domain()
-            .ok_or_else(|| t!("config.no_root_domain", name = name).to_string())?;
-        let base = sak_cloud::hetzner::deployment::base_domain(
-            name,
-            deployment.dns_mode().unwrap_or_default(),
-            &root_domain,
-        );
-        let url = crate::core::config::api_url(&base);
-        let token = crate::core::keys::api_token(name, password)?;
+        let (url, token) = config_endpoint(&deployment, name, password)?;
         let config = crate::core::config::fetch(&url, &token).await?;
         Ok((url, config))
     }
@@ -755,9 +789,7 @@ impl DeploymentManager {
             admin_email,
         } = deployment;
         let (location, intent) = (*location, *intent);
-        let name = name.trim();
-        check_name(name)
-            .map_err(|_| t!("deployments.invalid_name", max = MAX_NAME_LEN).to_string())?;
+        let name = checked_name(name)?;
         if password.chars().count() < MIN_PASSWORD_CHARS {
             return Err(t!("deployments.short_password", min = MIN_PASSWORD_CHARS)
                 .to_string()
@@ -1127,6 +1159,7 @@ fn first_address(network: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sak_cloud::hetzner::{DNS_MODE_LABEL, ROOT_DOMAIN_LABEL};
 
     #[test]
     fn the_password_of_a_deployment_is_checked_against_its_server_or_its_key() {
@@ -1165,6 +1198,101 @@ mod tests {
         };
         assert!(verify_password(&with_key, name, password).is_ok());
         assert!(verify_password(&with_key, name, "another password here").is_err());
+    }
+
+    /// a deployment of `alpha` whose server carries the password hash of `password` and the labels
+    fn deployment_with(password: &str, labels: serde_json::Value) -> DiscoveredDeployment {
+        let mut labels = labels;
+        labels[PASSWORD_HASH_LABEL] =
+            serde_json::json!(crate::core::keys::password_hash("alpha", password).unwrap());
+        let server: sak_cloud::hetzner::api::servers::Server =
+            serde_json::from_value(serde_json::json!({
+                "id": 1, "name": "sak-alpha", "status": "running", "server_type": { "id": 1, "name": "cx23" },
+                "image": { "id": 2, "name": "debian-13" }, "location": { "id": 3, "name": "nbg1" },
+                "protection": { "delete": false, "rebuild": false }, "volumes": [],
+                "public_net": { "ipv4": null, "ipv6": null }, "private_net": [],
+                "labels": labels
+            }))
+            .unwrap();
+        DiscoveredDeployment {
+            name: "alpha".to_string(),
+            server: Some(server.into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn config_show_reads_the_host_from_the_root_domain_and_dns_mode_labels() {
+        let password = "a password of sixteen";
+        let domain = deployment_with(
+            password,
+            serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }),
+        );
+        let subdomain = deployment_with(
+            password,
+            serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "subdomain" }),
+        );
+
+        let (url, token) = config_endpoint(&domain, "alpha", password).unwrap();
+        assert_eq!(url, "https://api.pelle.io");
+        assert_eq!(
+            token,
+            crate::core::keys::api_token("alpha", password).unwrap()
+        );
+        assert_eq!(
+            config_endpoint(&subdomain, "alpha", password).unwrap().0,
+            "https://api.alpha.pelle.io"
+        );
+    }
+
+    #[test]
+    fn config_show_refuses_a_wrong_password_before_any_request() {
+        let deployment = deployment_with(
+            "a password of sixteen",
+            serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }),
+        );
+        // no address and no token come out of it, so nothing is sent anywhere
+        assert_eq!(
+            config_endpoint(&deployment, "alpha", "another password here"),
+            Err(t!("deployments.wrong_password", name = "alpha").to_string())
+        );
+    }
+
+    #[test]
+    fn config_show_without_a_root_domain_label_says_so() {
+        let password = "a password of sixteen";
+        let deployment = deployment_with(password, serde_json::json!({ DNS_MODE_LABEL: "domain" }));
+        assert_eq!(
+            config_endpoint(&deployment, "alpha", password),
+            Err(t!("config.no_root_domain", name = "alpha").to_string())
+        );
+    }
+
+    #[test]
+    fn config_show_refuses_a_deployment_with_nothing_to_check_the_password_against() {
+        let deployment = DiscoveredDeployment {
+            name: "alpha".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(
+            config_endpoint(&deployment, "alpha", "a password of sixteen"),
+            Err(t!("config.unverifiable", name = "alpha").to_string())
+        );
+    }
+
+    #[test]
+    fn a_name_is_checked_once_and_a_wrong_one_is_a_usage_error() {
+        assert_eq!(checked_name(" alpha-1 "), Ok("alpha-1"));
+        for wrong in ["", "Alpha", "-alpha", "a_b", &"a".repeat(MAX_NAME_LEN + 1)] {
+            assert_eq!(
+                checked_name(wrong),
+                Err(WizardError::new(
+                    t!("deployments.invalid_name", max = MAX_NAME_LEN),
+                    EXIT_USAGE
+                )),
+                "{wrong}"
+            );
+        }
     }
 
     #[test]
@@ -1443,7 +1571,6 @@ mod tests {
             smtp_starttls: Some(false),
             admin_email: Some("admin@example.org".to_string()),
             user_mode: Some(UserMode::Multi),
-            max_name_length: MAX_NAME_LEN,
         };
         let json = serde_json::to_value(&defaults).unwrap();
         assert_eq!(json["userMode"], "multi");

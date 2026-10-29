@@ -1,12 +1,14 @@
 //! the discovery of deployments against the real api: an ssh key and a firewall labeled
-//! with a name make a deployment whose server is missing
+//! with a name make a deployment whose volume, addresses and server are missing
 
 mod support;
 
 use sak_cloud::api::{DiffStatus, LookupProviders, Provisioner};
 use sak_cloud::hetzner::NAME_LABEL;
 use sak_cloud::hetzner::api::{Location, ServerType};
-use sak_cloud::hetzner::deployment::{DeploymentStatus, ResourceKind, discover, state};
+use sak_cloud::hetzner::deployment::{
+    DeploymentStatus, RESOURCE_PREFIX, ResourceKind, discover, state,
+};
 use sak_cloud::hetzner::firewall::{HetznerFirewall, inbound_icmp};
 use sak_cloud::hetzner::ssh_key::HetznerSshKey;
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
@@ -31,11 +33,13 @@ async fn discovers_a_deployment_by_its_name_label() {
             );
             let context = LookupProviders::new();
             let labels = hetzner.labels_with(&[(NAME_LABEL, &name)]);
+            // the cloud names of a deployment, sak-<name>
+            let cloud_name = format!("{RESOURCE_PREFIX}{name}");
 
             provider
                 .ssh_keys()
                 .apply(
-                    &HetznerSshKey::new(&name, PUBLIC_KEY).with_labels(labels.clone()),
+                    &HetznerSshKey::new(&cloud_name, PUBLIC_KEY).with_labels(labels.clone()),
                     &context,
                 )
                 .await
@@ -43,7 +47,8 @@ async fn discovers_a_deployment_by_its_name_label() {
             provider
                 .firewalls()
                 .apply(
-                    &HetznerFirewall::new(&name, vec![inbound_icmp()]).with_labels(labels.clone()),
+                    &HetznerFirewall::new(&cloud_name, vec![inbound_icmp()])
+                        .with_labels(labels.clone()),
                     &context,
                 )
                 .await
@@ -60,18 +65,42 @@ async fn discovers_a_deployment_by_its_name_label() {
 
             let state = state(&provider, deployment).await.unwrap();
             assert_eq!(state.status, DeploymentStatus::Incomplete);
-            let statuses: Vec<(ResourceKind, DiffStatus)> = state
+            // every resource a deploy declares shows: the key and the firewall are there (the
+            // firewall with other rules than a deploy declares), the rest is missing
+            let kinds: Vec<ResourceKind> = state
                 .resources
                 .iter()
-                .map(|resource| (resource.kind, resource.status))
+                .map(|resource| resource.kind)
                 .collect();
             assert_eq!(
-                statuses,
+                kinds,
                 vec![
-                    (ResourceKind::SshKey, DiffStatus::UpToDate),
-                    (ResourceKind::Firewall, DiffStatus::UpToDate),
-                    (ResourceKind::Server, DiffStatus::Missing),
+                    ResourceKind::SshKey,
+                    ResourceKind::Volume,
+                    ResourceKind::PrimaryIp,
+                    ResourceKind::PrimaryIp,
+                    ResourceKind::Firewall,
+                    ResourceKind::Server,
                 ]
+            );
+            let status = |kind| {
+                state
+                    .resources
+                    .iter()
+                    .filter(|resource| resource.kind == kind)
+                    .map(|resource| resource.status)
+                    .collect::<Vec<_>>()
+            };
+            assert!(!status(ResourceKind::SshKey).contains(&DiffStatus::Missing));
+            assert!(!status(ResourceKind::Firewall).contains(&DiffStatus::Missing));
+            assert_eq!(status(ResourceKind::Volume), vec![DiffStatus::Missing]);
+            assert_eq!(
+                status(ResourceKind::PrimaryIp),
+                vec![DiffStatus::Missing, DiffStatus::Missing]
+            );
+            assert_eq!(
+                status(ResourceKind::Server),
+                vec![DiffStatus::ParentMissing]
             );
         })
         .await;

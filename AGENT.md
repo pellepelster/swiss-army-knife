@@ -66,6 +66,11 @@ in the same commit and says why.
 - The contract (errors, pagination, request and response classes) is in ARCHITECTURE.md, "API". In the code:
 - Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation; errors are answered with
   `call.respondErrors`; the largest `limit` is `MAX_LIMIT` (`sak-api`).
+- A service answers a page as `Page<T>` (`sak-api`, its items and the total); the route answers
+  `page.of(it.map { it.response() })` with the `PageRequest` of the call. A list that is there as a whole is paged
+  with `page.of(all)`.
+- A point in time in a response is a `String` written with `Instant.apiTime()` (`sak-api`), never `toString()`;
+  something that never ends has `null`, not a far away time.
 - Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
   in them (e.g. `PageResponse`, `SiteMetricsResponse`).
 - Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in

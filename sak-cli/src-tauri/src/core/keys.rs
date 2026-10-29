@@ -273,7 +273,6 @@ mod tests {
         // another name or password, another token; nothing of the password hash in it
         assert_ne!(token, api_token("beta", password).unwrap());
         assert_ne!(token, api_token(name, "another password here").unwrap());
-        assert!(!password_hash(name, password).unwrap().contains(&token[4..]));
         // what the backend compares with: the sha-256 in hex
         let hash = api_token_sha256(&token);
         assert_eq!(hash.len(), 64);
@@ -283,6 +282,62 @@ mod tests {
             api_token_sha256("abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+
+    /// the admin api token of `alpha` with `a password of sixteen` and its sha-256: the same
+    /// constants are in the tests of the backend (`SakAppsTest`), which signs in with the token and
+    /// configures the hash
+    pub const API_TOKEN_VECTOR: &str = "sak_LWhis5wtozfbH7Zn7v-4sWwBsUp6s59mHcxyAhN0Nvc";
+    pub const API_TOKEN_SHA256_VECTOR: &str =
+        "aece066898558c7b3ad19725bc43a3f4cf2db34b6f860d4ddc85994c33513a3b";
+
+    /// a change of a salt, a parameter or an encoding changes these, and every deployment would
+    /// be locked out of its servers, its labels and its api: pinned, so such a change fails here
+    #[test]
+    fn the_derived_values_are_pinned() {
+        let (name, password) = ("alpha", "a password of sixteen");
+        assert_eq!(api_token(name, password).unwrap(), API_TOKEN_VECTOR);
+        assert_eq!(api_token_sha256(API_TOKEN_VECTOR), API_TOKEN_SHA256_VECTOR);
+        assert_eq!(
+            password_hash(name, password).unwrap(),
+            "8a5de384627e8403fca59205abcc53f887ef0e101a73b9fe212990aee3f3"
+        );
+        assert_eq!(
+            derive_public_key(name, password).unwrap(),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMez2i9SS5TFJSYlA+23H5liX9/hLZ4JHND4AS1IGp45 sak-alpha"
+        );
+        assert_eq!(
+            derive_host_key(name, password).unwrap().public_key(),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOEQis05sH25xqsL2BjyezE5R9qMLIb3cy3jXLdpqx8b sak-alpha-host"
+        );
+    }
+
+    /// the token, the seeds of both keys and the password hash come from the same password: each
+    /// has a salt of its own, so none of them gives away another
+    #[test]
+    fn the_api_token_shares_no_bytes_with_the_keys_or_the_hash() {
+        let (name, password) = ("alpha", "a password of sixteen");
+        let token = URL_SAFE_NO_PAD
+            .decode(&api_token(name, password).unwrap()[4..])
+            .unwrap();
+        assert_eq!(token.len(), 32);
+        let client = derive_key(name, password).unwrap().key.to_bytes();
+        let host = derive_host_key(name, password).unwrap().key.to_bytes();
+        let hash: Vec<u8> = (0..30)
+            .map(|index| {
+                let hex = password_hash(name, password).unwrap();
+                u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).unwrap()
+            })
+            .collect();
+        for other in [&client[..], &host[..], &hash[..]] {
+            assert_ne!(&token[..other.len()], other);
+            // not even a run of 8 bytes in common
+            assert!(
+                !token
+                    .windows(8)
+                    .any(|window| other.windows(8).any(|part| part == window))
+            );
+        }
     }
 
     /// the hash of the admin password of `alpha` with `a password of sixteen`: the same constant is

@@ -93,6 +93,8 @@ config:
   no_root_domain: "Das Deployment %{name} hat keine Root-Domain an seinen Ressourcen, rolle es zuerst mit --root-domain aus."
   shown: "Die laufende Konfiguration von %{name} unter %{url}"
   no_smtp: "Kein Mailserver"
+  unverifiable: "Das Deployment %{name} hat nichts, gegen das das Passwort geprüft werden kann, rolle es zuerst aus."
+  not_https: "Die API %{url} ist keine https-Adresse, das Admin-API-Token wird nur über https gesendet."
 ui:
   quit: "Beenden"
   providers:
@@ -119,8 +121,11 @@ ui:
       changed: "geändert"
     resource:
       ssh_key: "SSH-Key"
+      volume: "Volume"
+      primary_ip: "Primäre IP"
       firewall: "Firewall"
       server: "Server"
+      dns_record: "DNS-Eintrag"
     missing: "fehlt"
   deployment:
     deploy: "Ausrollen"
