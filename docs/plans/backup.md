@@ -36,7 +36,7 @@ sakctl makes a backup of a deployment and restores it:
 
 ## 1. What runs on the server
 
-The provisioning (role `backend`) installs `sqlite3` and `zstd`, and two scripts, `/usr/local/bin/sak-backup` and
+The provisioning (role `backend`) installs `sqlite3`, `zstd`, `age` and `curl`, and two scripts, `/usr/local/bin/sak-backup` and
 `/usr/local/bin/sak-restore`, from templates with the paths of the role. sakctl calls them through ssh. The scripts
 are versioned with the role; every deploy provisions, so the server always has the scripts of its provisioning.
 
@@ -141,8 +141,9 @@ stops the restore at step 2, before anything changes.
   `tar` to its end. A backup that does not decrypt or is not complete fails, and no file is left.
 - **Damage and truncation.** age authenticates each chunk of 64 KiB and marks the last one, so a changed or a
   truncated file fails on decryption, not after the restore.
-- **The file.** `sak-<name>-<UTC time>.tar.zst.age`, e.g. `sak-alpha-20261029T080000Z.tar.zst.age`, in the current
-  directory or at `--output <path>`. sakctl writes to `<file>.partial` (mode `0600`) and renames it only when the
+- **The file.** `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`, e.g.
+  `~/.sak/backups/alpha/alpha-20261029T080000Z.age.sak`. sakctl makes the directories (mode `0700`) when they are
+  not there. sakctl writes to `<file>.partial` (mode `0600`) and renames it only when the
   script on the server ended with success and the stream is complete. A backup that fails leaves no file that looks
   complete.
 
@@ -154,7 +155,7 @@ stops the restore at step 2, before anything changes.
   (backup) or standard input (restore) is a stream that the core reads or writes, not the terminal. Standard error
   goes to the log of sakctl. Same container, agent and host key check as the session.
 - `core/backup.rs`, a `BackupManager` (the one place that makes and restores backups):
-  - `backup(target, keys, output)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks a
+  - `backup(target, keys)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks a
     decrypted copy of the stream, answers the path and the size of the file;
   - `restore(target, keys, file)`: decrypts the file while it streams it into `sak-restore` (refer to "Decryption on
     restore" in the decisions). Before it sends
@@ -166,7 +167,7 @@ stops the restore at step 2, before anything changes.
 
 ### The command line
 
-- `sakctl backup <name> [--output <path>]`: needs the password and the token, like `ssh`.
+- `sakctl backup <name>`: needs the password and the token, like `ssh`. It shows the path of the file.
 - `sakctl restore <name> <file> [--yes]`: asks for confirmation (the data of the deployment is replaced), unless
   `--yes` is given. The deployment must exist and be up to date: a restore does not create or provision. After the
   restore, sakctl waits until the deployment answers at its public endpoint ("Done when it answers").
@@ -212,7 +213,8 @@ for a lost or a deleted volume, or to go back to an earlier state.
 ## Decisions
 
 - **Through ssh, pulled by sakctl.** No backup target on the server, no S3 or other third party, no credentials of a
-  storage service. The user keeps the file where they want it.
+  storage service. The backups of a deployment are in one directory on the user's machine,
+  `~/.sak/backups/<name>/`.
 - **Encrypted on the server, to a derived public key.** The plain data never leaves the server, and the server never
   has the secret half of the key. The user has no key to keep beyond the password. Tradeoff: a backup is only as safe
   as the password, and a backup made with an old password needs the old password.
