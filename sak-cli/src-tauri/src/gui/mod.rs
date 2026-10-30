@@ -8,6 +8,7 @@ mod desktop;
 pub mod i18n;
 pub mod maintenance;
 pub mod providers;
+pub mod state;
 pub mod update;
 
 use crate::core::deployments::DeploymentManager;
@@ -24,8 +25,8 @@ pub fn run() {
         .manage(ProviderTokens::default())
         .manage(DeploymentManager)
         .manage(deployments::FrontendUrls::default())
-        .manage(deployments::RunningApply::default())
-        .manage(deployments::CheckedDeployment::default())
+        .manage(state::RunningWork::default())
+        .manage(state::CheckedDeployment::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,

@@ -697,13 +697,6 @@ confirmation.
 
 ### Smells
 
-#### ~~UI-11 (Medium): The whole maintenance flow is written twice~~ **fixed**
-
-`cli.rs:777-870` and `gui/maintenance.rs:55-123` are the same `match` (limited status/update/reboot → lines →
-reboot hint → `wait_after_reboot` → back line), differing in the hint key and the sink. Belongs in core:
-`maintenance::perform(action, manager, tokens, runtime, name, password, on_line) -> Result<Vec<Line>>`; the
-command line logs, the window sends.
-
 #### UI-16 (Low): Boolean parameters — *partly fixed*
 
 `password(ask, twice, from_env)` (`cli.rs:417`), `deployment(intent, delete_data, …)` (`:474`), `deploy(…,
@@ -752,12 +745,6 @@ showDeployments)`, `navigate('deployments', data)` — hands each view a generat
 enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-written `current !== shown` /
 `running === current` guards (`deployment.js:81, 93, 98`, `run.js:164, 171`, `maintenance.js:50, 56, 61, 65`,
 `password.js:61`) and fixes UI-2. `text(key, values)` and `status()` live there too (UI-18).
-
-#### UI-26: `gui/` holds state and channels only
-
-`check_deployment`'s detect + complete + plan (`gui/deployments.rs:135-155`) and the maintenance flow (UI-11) are
-domain logic and belong in core. `RunningApply` and `CheckedDeployment` are used by three modules and belong in
-`gui/state.rs`; `RunningApply` is misnamed since the maintenance uses it too.
 
 ---
 

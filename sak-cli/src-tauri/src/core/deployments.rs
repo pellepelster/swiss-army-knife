@@ -1204,6 +1204,28 @@ fn message(key: &str, provider: ProviderType, error: impl ToString) -> String {
 #[derive(Default)]
 pub struct DeploymentManager;
 
+impl NewDeployment {
+    /// a deploy of the deployment `name` as it is: nothing given, its settings come from the
+    /// deployment (`DeploymentManager::completed`)
+    pub fn as_it_is(name: &str, password: &str, location: Location) -> Self {
+        NewDeployment {
+            name: name.to_string(),
+            password: password.to_string(),
+            password_repeat: password.to_string(),
+            location,
+            dns_mode: None,
+            root_domain: None,
+            intent: Intent::Deploy,
+            delete_data: false,
+            user_mode: None,
+            acme_ca: None,
+            smtp: None,
+            admin_email: None,
+            force: false,
+        }
+    }
+}
+
 impl DeploymentManager {
     /// the deployments at every provider with a token, by provider and name
     pub async fn list(
@@ -1232,6 +1254,28 @@ impl DeploymentManager {
             }
         }
         Ok(deployments)
+    }
+
+    /// the check of a deployment, as the page of a deployment shows it: a deploy of the deployment
+    /// as it is, completed from it as the command line does, and its plan. The deploy is what an
+    /// apply of the check applies
+    pub async fn check(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+        location: Location,
+        container: &ContainerRuntime,
+    ) -> Result<(NewDeployment, PlanResponse), WizardError> {
+        let deployment = self
+            .completed(
+                tokens.clone(),
+                NewDeployment::as_it_is(name, password, location),
+                "",
+            )
+            .await?;
+        let plan = self.plan(tokens, &deployment, container).await?;
+        Ok((deployment, plan))
     }
 
     /// a deploy with what is not given taken from the deployment, for the window and the command

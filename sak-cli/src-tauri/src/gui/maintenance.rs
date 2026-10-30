@@ -8,7 +8,7 @@ use crate::core::deployments::DeploymentManager;
 use crate::core::error::WizardError;
 use crate::core::maintenance::{self, Line};
 use crate::core::providers::ProviderTokens;
-use crate::gui::deployments::RunningApply;
+use crate::gui::state::RunningWork;
 use rust_i18n::t;
 use serde::Deserialize;
 use tauri::State;
@@ -36,7 +36,7 @@ pub async fn run_maintenance(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
-    running: State<'_, RunningApply>,
+    running: State<'_, RunningWork>,
     request: MaintenanceRequest,
     on_line: Channel<String>,
 ) -> Result<Vec<Line>, WizardError> {

@@ -3,7 +3,7 @@
 //! with the new version
 
 use crate::core::update::{self, RECEIVER, Status};
-use crate::gui::deployments::RunningApply;
+use crate::gui::state::RunningWork;
 use rust_i18n::t;
 use serde::Serialize;
 use tauri::{AppHandle, State};
@@ -64,7 +64,7 @@ pub async fn install_update() -> Result<UpdateResponse, String> {
 /// starts sakctl anew, the binary it was started from, which an install replaced. Refused while a
 /// deployment is changed, a restart would stop it halfway; a provisioning left is stopped first
 #[tauri::command]
-pub fn restart(app: AppHandle, running: State<'_, RunningApply>) -> Result<(), String> {
+pub fn restart(app: AppHandle, running: State<'_, RunningWork>) -> Result<(), String> {
     if running.is_running() {
         return Err(t!("ui.update.restart_while_running").to_string());
     }

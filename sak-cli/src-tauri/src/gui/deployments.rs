@@ -1,13 +1,14 @@
-//! the commands of the pages about deployments, each a thin call into core
+//! the commands of the pages about deployments, each a thin call into core; what the window keeps
+//! between them is in `state`
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, Intent,
-    LocationResponse, NewDeployment, PlanResponse, RootDomainResponse, defaults,
+    CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, LocationResponse,
+    NewDeployment, PlanResponse, RootDomainResponse, defaults,
 };
 use crate::core::error::WizardError;
 use crate::core::providers::{ProviderTokens, ProviderType};
-use futures_util::future::{AbortHandle, Abortable};
+use crate::gui::state::{CheckedDeployment, RunningWork};
 use rust_i18n::t;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -84,87 +85,6 @@ pub async fn plan_deployment(
     manager.plan(tokens, &deployment, &container).await
 }
 
-/// the apply or the maintenance that runs, so cancel can stop it
-#[derive(Default)]
-pub struct RunningApply(Mutex<Option<AbortHandle>>);
-
-impl RunningApply {
-    pub fn is_running(&self) -> bool {
-        self.0.lock().is_ok_and(|running| running.is_some())
-    }
-
-    /// `work` until it ends, or until cancel stops it: then the error is the text `cancelled`
-    pub async fn run<T, E: From<String>>(
-        &self,
-        work: impl std::future::Future<Output = Result<T, E>>,
-        cancelled: &str,
-    ) -> Result<T, E> {
-        let (abort, registration) = AbortHandle::new_pair();
-        if let Ok(mut running) = self.0.lock() {
-            *running = Some(abort);
-        }
-        let result = Abortable::new(work, registration).await;
-        if let Ok(mut running) = self.0.lock() {
-            *running = None;
-        }
-        result.unwrap_or_else(|_| Err(t!(cancelled).to_string().into()))
-    }
-}
-
-/// the deploy the last check of the page of a deployment planned, as `apply_checked` applies it.
-/// Each check has its number; only the newest one is kept, and a deploy names the check it applies.
-/// So a check that ends after a newer one (of another deployment, after the user went back and
-/// opened it) is never what a deploy applies
-#[derive(Default)]
-pub struct CheckedDeployment(Mutex<Checks>);
-
-#[derive(Default)]
-struct Checks {
-    /// the number of the newest check that started
-    newest: u64,
-    /// the newest check that ended, with its number
-    done: Option<(u64, NewDeployment)>,
-}
-
-impl CheckedDeployment {
-    /// the number of a check that starts; what an older check kept goes
-    fn start(&self) -> u64 {
-        let mut checks = self
-            .0
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        checks.newest += 1;
-        checks.done = None;
-        checks.newest
-    }
-
-    /// keeps the deploy of the check `number`, unless a newer check started meanwhile
-    fn done(&self, number: u64, deployment: NewDeployment) {
-        let mut checks = self
-            .0
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if checks.newest == number {
-            checks.done = Some((number, deployment));
-        }
-    }
-
-    /// the deploy of the check `number`, once; none when it is not the newest check that ended
-    fn take(&self, number: u64) -> Option<NewDeployment> {
-        let mut checks = self
-            .0
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        match checks.done.take() {
-            Some((done, deployment)) if done == number => Some(deployment),
-            other => {
-                checks.done = other;
-                None
-            }
-        }
-    }
-}
-
 /// the plan of a check and its number, which the deploy names
 #[derive(serde::Serialize)]
 pub struct CheckResponse {
@@ -173,9 +93,8 @@ pub struct CheckResponse {
     plan: PlanResponse,
 }
 
-/// the check of the page of a deployment: a deploy of the deployment as it is, its settings
-/// detected and completed as the command line does (`deployments::complete`), and its plan. The
-/// deploy is kept for `apply_checked`, so a deploy applies what was checked
+/// the check of the page of a deployment (`DeploymentManager::check`); the deploy it planned is
+/// kept for `apply_checked`, so a deploy applies what was checked
 #[tauri::command]
 pub async fn check_deployment(
     manager: State<'_, DeploymentManager>,
@@ -186,25 +105,10 @@ pub async fn check_deployment(
     password: String,
     location: sak_cloud::hetzner::api::Location,
 ) -> Result<CheckResponse, WizardError> {
-    let tokens = tokens.tokens();
     let number = checked.start();
-    let deployment = NewDeployment {
-        name: name.clone(),
-        password: password.clone(),
-        password_repeat: password.clone(),
-        location,
-        dns_mode: None,
-        root_domain: None,
-        intent: Intent::Deploy,
-        delete_data: false,
-        user_mode: None,
-        acme_ca: None,
-        smtp: None,
-        admin_email: None,
-        force: false,
-    };
-    let deployment = manager.completed(tokens.clone(), deployment, "").await?;
-    let plan = manager.plan(tokens, &deployment, &container).await?;
+    let (deployment, plan) = manager
+        .check(tokens.tokens(), &name, &password, location, &container)
+        .await?;
     checked.done(number, deployment);
     Ok(CheckResponse {
         check: number,
@@ -225,7 +129,7 @@ pub async fn apply_checked(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
-    running: State<'_, RunningApply>,
+    running: State<'_, RunningWork>,
     checked: State<'_, CheckedDeployment>,
     deploy: CheckedDeploy,
     on_event: Channel<CreateEvent>,
@@ -254,7 +158,7 @@ pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
-    running: State<'_, RunningApply>,
+    running: State<'_, RunningWork>,
     deployment: NewDeployment,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
@@ -274,7 +178,7 @@ async fn apply(
     manager: &DeploymentManager,
     tokens: Vec<(ProviderType, String)>,
     container: &ContainerRuntime,
-    running: &RunningApply,
+    running: &RunningWork,
     deployment: &NewDeployment,
     on_event: &Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
@@ -294,7 +198,7 @@ async fn apply(
 /// the container of a provisioning or an ssh session is removed. What was done stays, the plan of
 /// the next deploy shows the rest
 #[tauri::command]
-pub fn cancel_apply(running: State<'_, RunningApply>) {
+pub fn cancel_apply(running: State<'_, RunningWork>) {
     if let Some(abort) = running.0.lock().ok().and_then(|mut running| running.take()) {
         abort.abort();
     }
@@ -334,51 +238,6 @@ pub async fn list_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn deployment(name: &str) -> NewDeployment {
-        NewDeployment {
-            name: name.to_string(),
-            password: String::new(),
-            password_repeat: String::new(),
-            location: sak_cloud::hetzner::api::Location::nbg1,
-            dns_mode: None,
-            root_domain: None,
-            intent: Intent::Deploy,
-            delete_data: false,
-            user_mode: None,
-            acme_ca: None,
-            smtp: None,
-            admin_email: None,
-            force: false,
-        }
-    }
-
-    #[test]
-    fn a_deploy_applies_only_the_newest_check_it_names() {
-        let checked = CheckedDeployment::default();
-        // the page of alpha checks, the user goes back and opens beta, which checks too
-        let alpha = checked.start();
-        let beta = checked.start();
-        // beta ends first, alpha after it: alpha is not kept
-        checked.done(beta, deployment("beta"));
-        checked.done(alpha, deployment("alpha"));
-        assert!(checked.take(alpha).is_none());
-        assert_eq!(checked.take(beta).unwrap().name, "beta");
-        // once
-        assert!(checked.take(beta).is_none());
-
-        // a deploy that names an older check leaves the newest one as it is
-        let gamma = checked.start();
-        checked.done(gamma, deployment("gamma"));
-        assert!(checked.take(beta).is_none());
-        assert_eq!(checked.take(gamma).unwrap().name, "gamma");
-
-        // a check that starts drops what the one before kept
-        let delta = checked.start();
-        checked.done(delta, deployment("delta"));
-        checked.start();
-        assert!(checked.take(delta).is_none());
-    }
 
     #[test]
     fn only_the_frontend_of_a_listed_deployment_reaches_the_browser() {
