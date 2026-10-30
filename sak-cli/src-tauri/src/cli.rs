@@ -795,89 +795,46 @@ async fn maintenance(
     command: &MaintenanceCommand,
     password: &str,
 ) -> Result<(), WizardError> {
-    use crate::core::maintenance;
+    use crate::core::maintenance::{self, Action, Answer};
     let args = command.args();
-    let name = args.name.trim().to_string();
-    let target = manager
-        .ssh_target(provider.tokens(), &name, password)
-        .await?;
-    let runtime = runtime
-        .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    let name = args.name.trim();
     let json = args.json;
-    if !json {
-        log(
-            Level::Info,
-            t!(
-                "shared.maintenance.connecting",
-                name = name,
-                host = target.host.as_str()
-            ),
-        );
-    }
-    let mut on_line = move |line: String| {
-        if !json {
-            log(Level::Info, line)
-        }
-    };
-    let lines = match command {
-        MaintenanceCommand::Status(_) => {
-            let status = maintenance::limited(maintenance::STATUS_TIMEOUT, move || {
-                maintenance::status(runtime, &target, &mut on_line)
-            })
-            .await?;
-            if json {
-                return print_json(&status);
-            }
-            maintenance::status_lines(&name, &status)
-        }
-        MaintenanceCommand::Update(_) => {
-            let update = maintenance::limited(maintenance::UPDATE_TIMEOUT, move || {
-                maintenance::update(runtime, &target, &mut on_line)
-            })
-            .await?;
-            if json {
-                return print_json(&update);
-            }
-            update_lines(&name, &update)
-        }
+    let action = match command {
+        MaintenanceCommand::Status(_) => Action::Status,
+        MaintenanceCommand::Update(_) => Action::Update,
         MaintenanceCommand::Reboot {
             if_pending,
             no_wait,
             ..
-        } => {
-            let if_pending = *if_pending;
-            let reboot = maintenance::limited(maintenance::REBOOT_TIMEOUT, move || {
-                maintenance::reboot(runtime, &target, if_pending, &mut on_line)
-            })
-            .await?;
-            if json {
-                print_json(&reboot)?;
-            } else {
-                log(Level::Info, maintenance::reboot_line(&name, &reboot).text);
-            }
-            if reboot.rebooting && !*no_wait {
-                let mut on_line = move |line: String| {
-                    if !json {
-                        log(Level::Info, line)
-                    }
-                };
-                maintenance::wait_after_reboot(
-                    manager,
-                    provider.tokens(),
-                    &name,
-                    password,
-                    &mut on_line,
-                )
-                .await?;
-                if !json {
-                    log(Level::Info, t!("shared.maintenance.back", name = name));
-                }
-            }
-            return Ok(());
+        } => Action::Reboot {
+            if_pending: *if_pending,
+            wait: !*no_wait,
+        },
+    };
+    let on_line = move |line: String| {
+        if !json {
+            log(Level::Info, line)
         }
     };
-    for line in lines {
+    let answer = maintenance::perform(
+        manager,
+        provider.tokens(),
+        runtime,
+        name,
+        password,
+        action,
+        on_line,
+    )
+    .await?;
+    if json {
+        return match &answer {
+            Answer::Status(status) => print_json(status),
+            Answer::Update(update) => print_json(update),
+            Answer::Reboot { reboot, .. } => print_json(reboot),
+        };
+    }
+    let hint = t!("cli.maintenance.reboot_hint", name = name);
+    for line in answer.lines(name, &hint) {
         log(if line.warn { Level::Warn } else { Level::Info }, line.text);
     }
     Ok(())
@@ -887,21 +844,6 @@ fn print_json(value: &impl serde::Serialize) -> Result<(), WizardError> {
     let text = serde_json::to_string_pretty(value).map_err(|error| error.to_string())?;
     anstream::println!("{text}");
     Ok(())
-}
-
-/// what `maintenance update` prints: the answer, and the command of the reboot when one is pending
-fn update_lines(
-    name: &str,
-    update: &crate::core::maintenance::UpdateResult,
-) -> Vec<crate::core::maintenance::Line> {
-    let mut lines = crate::core::maintenance::update_lines(name, update);
-    if update.reboot_pending {
-        lines.push(crate::core::maintenance::Line {
-            warn: true,
-            text: t!("cli.maintenance.reboot_hint", name = name).to_string(),
-        });
-    }
-    lines
 }
 
 /// a backup of the deployment to `~/.sak/backups/<name>/`, each step of the server logged
@@ -1340,68 +1282,6 @@ mod tests {
         ));
         assert!(parse(&["maintenance", "update", "alpha", "--if-pending"]).is_err());
         assert!(is_command_line(&["maintenance".to_string()]));
-    }
-
-    #[test]
-    fn maintenance_prints_the_reasons_and_the_changes_of_packages() {
-        use crate::core::maintenance::{Kernel, PackageChange, RebootStatus, UpdateResult};
-        let change = |package: &str, from: Option<&str>, to: &str| PackageChange {
-            package: package.to_string(),
-            from: from.map(String::from),
-            to: to.to_string(),
-            time: None,
-        };
-        let status = RebootStatus {
-            reboot_pending: true,
-            reasons: vec!["kernel".to_string()],
-            kernel: Kernel {
-                running: "6.12.38".to_string(),
-                installed: "6.12.41".to_string(),
-            },
-            services: vec!["dbus.service".to_string()],
-            updates_since_boot: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
-            booted_at: "2026-10-21T04:00:12Z".to_string(),
-        };
-        let lines: Vec<String> = crate::core::maintenance::status_lines("alpha", &status)
-            .into_iter()
-            .map(|line| line.text)
-            .collect();
-        assert_eq!(
-            lines[0],
-            "A reboot of alpha is pending: kernel 6.12.38 → 6.12.41."
-        );
-        assert_eq!(lines[1], "Services on old libraries: dbus.service");
-        assert_eq!(lines.last().unwrap(), "openssl 3.5.1-1 → 3.5.4-1");
-
-        let update = UpdateResult {
-            upgraded: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
-            installed: vec![change("linux-image-6.12.41", None, "6.12.41-1")],
-            reboot_pending: true,
-            reasons: vec!["kernel".to_string()],
-        };
-        let lines: Vec<String> = update_lines("alpha", &update)
-            .into_iter()
-            .map(|line| line.text)
-            .collect();
-        assert_eq!(
-            lines,
-            [
-                "openssl 3.5.1-1 → 3.5.4-1",
-                "linux-image-6.12.41 6.12.41-1 (new)",
-                "1 packages upgraded, 1 installed.",
-                "A reboot is pending, run sakctl maintenance reboot alpha."
-            ]
-        );
-        let nothing = UpdateResult {
-            upgraded: vec![],
-            installed: vec![],
-            reboot_pending: false,
-            reasons: vec![],
-        };
-        assert_eq!(
-            update_lines("alpha", &nothing)[0].text,
-            "All packages of alpha are up-to-date."
-        );
     }
 
     #[test]

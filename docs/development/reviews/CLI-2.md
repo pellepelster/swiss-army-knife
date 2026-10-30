@@ -834,7 +834,7 @@ confirmation.
 
 ### Smells
 
-#### UI-11 (Medium): The whole maintenance flow is written twice
+#### ~~UI-11 (Medium): The whole maintenance flow is written twice~~ **fixed**
 
 `cli.rs:777-870` and `gui/maintenance.rs:55-123` are the same `match` (limited status/update/reboot → lines →
 reboot hint → `wait_after_reboot` → back line), differing in the hint key and the sink. Belongs in core:

@@ -16,9 +16,9 @@ const BUSY: i32 = 2;
 
 /// how long each command may take on the server. `sak-backend` waits up to 10 minutes for an apt
 /// or dpkg that runs (`backend_apt_wait`) before an update or a reboot starts
-pub const STATUS_TIMEOUT: Duration = Duration::from_secs(2 * 60);
-pub const UPDATE_TIMEOUT: Duration = Duration::from_secs(45 * 60);
-pub const REBOOT_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+const STATUS_TIMEOUT: Duration = Duration::from_secs(2 * 60);
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(45 * 60);
+const REBOOT_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// a package that changed: its version before (none for one installed new) and after
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -71,7 +71,7 @@ pub struct RebootResult {
 }
 
 /// whether a reboot of the server is pending, why, and what dpkg upgraded since its boot
-pub fn status(
+fn status(
     runtime: &str,
     target: &SshTarget,
     on_line: &mut (dyn FnMut(String) + Send),
@@ -80,7 +80,7 @@ pub fn status(
 }
 
 /// upgrades all packages of the server, none is removed
-pub fn update(
+fn update(
     runtime: &str,
     target: &SshTarget,
     on_line: &mut (dyn FnMut(String) + Send),
@@ -90,7 +90,7 @@ pub fn update(
 
 /// stops the deployment in order and reboots the server; with `if_pending` only when a reboot
 /// is pending
-pub fn reboot(
+fn reboot(
     runtime: &str,
     target: &SshTarget,
     if_pending: bool,
@@ -105,7 +105,7 @@ pub fn reboot(
 
 /// `command`, one of the commands above, until it ends or `limit` passes: then its ssh session is
 /// stopped, and with it the wait of sakctl; what the server started may still finish there
-pub async fn limited<T: Send + 'static>(
+async fn limited<T: Send + 'static>(
     limit: Duration,
     command: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
@@ -114,6 +114,108 @@ pub async fn limited<T: Send + 'static>(
         Err(_) => {
             crate::core::provision::stop_runs();
             Err(t!("shared.maintenance.timeout", minutes = limit.as_secs() / 60).to_string())
+        }
+    }
+}
+
+/// what a maintenance does on the server of a deployment
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Action {
+    Status,
+    Update,
+    /// `if_pending`: only when a reboot is pending; `wait`: until the deployment answers again
+    Reboot {
+        if_pending: bool,
+        wait: bool,
+    },
+}
+
+/// the answer of a maintenance as the server gave it
+#[derive(Clone, Debug)]
+pub enum Answer {
+    Status(RebootStatus),
+    Update(UpdateResult),
+    /// `back`: the deployment answered again after the reboot
+    Reboot {
+        reboot: RebootResult,
+        back: bool,
+    },
+}
+
+impl Answer {
+    /// the answer as lines; `reboot_hint` follows an update after which a reboot is pending, it
+    /// names what reboots in the command line or in the window
+    pub fn lines(&self, name: &str, reboot_hint: &str) -> Vec<Line> {
+        match self {
+            Answer::Status(status) => status_lines(name, status),
+            Answer::Update(update) => {
+                let mut lines = update_lines(name, update);
+                if update.reboot_pending {
+                    lines.push(Line::warn(reboot_hint));
+                }
+                lines
+            }
+            // the reboot itself went by while the deployment was waited for
+            Answer::Reboot { back: true, .. } => {
+                vec![Line::info(t!("shared.maintenance.back", name = name))]
+            }
+            Answer::Reboot { reboot, .. } => vec![reboot_line(name, reboot)],
+        }
+    }
+}
+
+/// the maintenance `action` on the server of the deployment `name`, its password checked first.
+/// Each line of the server and each step goes to `on_line` while it runs; each command on the
+/// server has its timeout (`limited`)
+pub async fn perform(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    container: &crate::core::container::ContainerRuntime,
+    name: &str,
+    password: &str,
+    action: Action,
+    on_line: impl FnMut(String) + Send + Clone + 'static,
+) -> Result<Answer, String> {
+    let target = manager.ssh_target(tokens.clone(), name, password).await?;
+    let runtime = container
+        .get()
+        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    let mut on_step = on_line.clone();
+    on_step(
+        t!(
+            "shared.maintenance.connecting",
+            name = name,
+            host = target.host.as_str()
+        )
+        .to_string(),
+    );
+    let mut on_server = on_line;
+    match action {
+        Action::Status => limited(STATUS_TIMEOUT, move || {
+            status(runtime, &target, &mut on_server)
+        })
+        .await
+        .map(Answer::Status),
+        Action::Update => limited(UPDATE_TIMEOUT, move || {
+            update(runtime, &target, &mut on_server)
+        })
+        .await
+        .map(Answer::Update),
+        Action::Reboot { if_pending, wait } => {
+            let reboot = limited(REBOOT_TIMEOUT, move || {
+                reboot(runtime, &target, if_pending, &mut on_server)
+            })
+            .await?;
+            if !(reboot.rebooting && wait) {
+                return Ok(Answer::Reboot {
+                    reboot,
+                    back: false,
+                });
+            }
+            // the wait takes minutes, what it waits for is said first
+            on_step(reboot_line(name, &reboot).text);
+            wait_after_reboot(manager, tokens, name, password, &mut on_step).await?;
+            Ok(Answer::Reboot { reboot, back: true })
         }
     }
 }
@@ -143,7 +245,7 @@ impl Line {
 
 /// the answer of `status`: whether a reboot is pending and why, the services on old libraries,
 /// the upgrades since the boot
-pub fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
+fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
     let mut lines = Vec::new();
     if status.reboot_pending {
         let reasons: Vec<String> = status
@@ -194,7 +296,7 @@ pub fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
 
 /// the answer of `update`: each package that changed and how many; what to do about a pending
 /// reboot is up to the caller
-pub fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
+fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
     let mut lines: Vec<Line> = update
         .upgraded
         .iter()
@@ -214,7 +316,7 @@ pub fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
 }
 
 /// the answer of `reboot`: when the server goes down, or that nothing was changed
-pub fn reboot_line(name: &str, reboot: &RebootResult) -> Line {
+fn reboot_line(name: &str, reboot: &RebootResult) -> Line {
     if reboot.rebooting {
         Line::info(t!(
             "shared.maintenance.rebooting",
@@ -241,7 +343,7 @@ fn change_line(change: &PackageChange) -> String {
 
 /// waits until the deployment answers at its public endpoint again, after a reboot of its server;
 /// the wait goes to `on_line`
-pub async fn wait_after_reboot(
+async fn wait_after_reboot(
     manager: &DeploymentManager,
     tokens: Vec<(ProviderType, String)>,
     name: &str,
@@ -343,6 +445,93 @@ mod tests {
             t!("shared.backup.no_script", script = SCRIPT).to_string()
         );
         assert!(answer::<RebootStatus>(0, b"not json").is_err());
+    }
+
+    #[test]
+    fn the_answers_read_as_lines_with_the_reasons_and_the_changes_of_packages() {
+        let change = |package: &str, from: Option<&str>, to: &str| PackageChange {
+            package: package.to_string(),
+            from: from.map(String::from),
+            to: to.to_string(),
+            time: None,
+        };
+        let status = RebootStatus {
+            reboot_pending: true,
+            reasons: vec!["kernel".to_string()],
+            kernel: Kernel {
+                running: "6.12.38".to_string(),
+                installed: "6.12.41".to_string(),
+            },
+            services: vec!["dbus.service".to_string()],
+            updates_since_boot: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
+            booted_at: "2026-10-21T04:00:12Z".to_string(),
+        };
+        let lines: Vec<String> = Answer::Status(status)
+            .lines("alpha", "HINT")
+            .into_iter()
+            .map(|line| line.text)
+            .collect();
+        assert_eq!(
+            lines[0],
+            "A reboot of alpha is pending: kernel 6.12.38 → 6.12.41."
+        );
+        assert_eq!(lines[1], "Services on old libraries: dbus.service");
+        assert_eq!(lines.last().unwrap(), "openssl 3.5.1-1 → 3.5.4-1");
+
+        let update = UpdateResult {
+            upgraded: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
+            installed: vec![change("linux-image-6.12.41", None, "6.12.41-1")],
+            reboot_pending: true,
+            reasons: vec!["kernel".to_string()],
+        };
+        let lines: Vec<String> = Answer::Update(update)
+            .lines("alpha", "HINT")
+            .into_iter()
+            .map(|line| line.text)
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                "openssl 3.5.1-1 → 3.5.4-1",
+                "linux-image-6.12.41 6.12.41-1 (new)",
+                "1 packages upgraded, 1 installed.",
+                "HINT"
+            ]
+        );
+        let nothing = UpdateResult {
+            upgraded: vec![],
+            installed: vec![],
+            reboot_pending: false,
+            reasons: vec![],
+        };
+        assert_eq!(
+            Answer::Update(nothing).lines("alpha", "HINT")[0].text,
+            "All packages of alpha are up-to-date."
+        );
+
+        // a reboot that was waited for ends with the deployment answering again; the reboot
+        // itself went by as a step
+        let reboot = RebootResult {
+            rebooting: true,
+            at: Some("2026-10-30T04:00:05Z".to_string()),
+            reasons: vec![],
+        };
+        let waited = Answer::Reboot {
+            reboot: reboot.clone(),
+            back: true,
+        };
+        assert_eq!(
+            waited.lines("alpha", "HINT")[0].text,
+            "The deployment alpha answers again."
+        );
+        let not_waited = Answer::Reboot {
+            reboot,
+            back: false,
+        };
+        assert_eq!(
+            not_waited.lines("alpha", "HINT")[0].text,
+            "The deployment alpha is stopped, its server reboots at 2026-10-30T04:00:05Z."
+        );
     }
 
     #[tokio::test]

@@ -1,7 +1,7 @@
 //! the command of the maintenance view: the status, the update or the reboot of the server of a
-//! deployment, as `sakctl maintenance` has them. Each line of the server goes to the view while it
-//! runs, the answer comes as lines. It cannot be cancelled, each command on the server has its
-//! timeout; while it runs, sakctl is not restarted
+//! deployment, as `sakctl maintenance` has them (`maintenance::perform`). Each line of the server
+//! goes to the view while it runs, the answer comes as lines. It cannot be cancelled, each command
+//! on the server has its timeout; while it runs, sakctl is not restarted
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentManager;
@@ -39,87 +39,31 @@ pub async fn run_maintenance(
     request: MaintenanceRequest,
     on_line: Channel<String>,
 ) -> Result<Vec<Line>, String> {
-    let work = run(
-        &manager,
-        tokens.tokens(),
-        &container,
-        request.action,
-        request.name.trim(),
-        &request.password,
-        on_line,
-    );
-    // the view has no cancel; this keeps a restart from stopping it halfway
-    running.run(work, "shared.deployments.cancelled").await
-}
-
-async fn run(
-    manager: &DeploymentManager,
-    tokens: Vec<(crate::core::providers::ProviderType, String)>,
-    container: &ContainerRuntime,
-    action: Action,
-    name: &str,
-    password: &str,
-    on_line: Channel<String>,
-) -> Result<Vec<Line>, String> {
-    let target = manager.ssh_target(tokens.clone(), name, password).await?;
-    let runtime = container
-        .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    let name = request.name.trim();
+    let action = match request.action {
+        Action::Status => maintenance::Action::Status,
+        Action::Update => maintenance::Action::Update,
+        Action::Reboot => maintenance::Action::Reboot {
+            if_pending: false,
+            wait: true,
+        },
+    };
     // a line that cannot be sent is no reason to stop the maintenance
     let send = move |line: String| {
         let _ = on_line.send(line);
     };
-    send(
-        t!(
-            "shared.maintenance.connecting",
-            name = name,
-            host = target.host.as_str()
-        )
-        .to_string(),
+    let work = maintenance::perform(
+        &manager,
+        tokens.tokens(),
+        &container,
+        name,
+        &request.password,
+        action,
+        send,
     );
-    let mut on_server = send.clone();
-    match action {
-        Action::Status => {
-            let status = maintenance::limited(maintenance::STATUS_TIMEOUT, move || {
-                maintenance::status(runtime, &target, &mut on_server)
-            })
-            .await?;
-            Ok(maintenance::status_lines(name, &status))
-        }
-        Action::Update => {
-            let update = maintenance::limited(maintenance::UPDATE_TIMEOUT, move || {
-                maintenance::update(runtime, &target, &mut on_server)
-            })
-            .await?;
-            let mut lines = maintenance::update_lines(name, &update);
-            if update.reboot_pending {
-                lines.push(Line {
-                    warn: true,
-                    text: t!("ui.maintenance.reboot_hint").to_string(),
-                });
-            }
-            Ok(lines)
-        }
-        Action::Reboot => {
-            let reboot = maintenance::limited(maintenance::REBOOT_TIMEOUT, move || {
-                maintenance::reboot(runtime, &target, false, &mut on_server)
-            })
-            .await?;
-            let mut lines = vec![maintenance::reboot_line(name, &reboot)];
-            if reboot.rebooting {
-                // the wait takes minutes, the view says why already
-                send(lines[0].text.clone());
-                let mut on_wait = send.clone();
-                maintenance::wait_after_reboot(manager, tokens, name, password, &mut on_wait)
-                    .await?;
-                lines.push(Line {
-                    warn: false,
-                    text: t!("shared.maintenance.back", name = name).to_string(),
-                });
-            }
-            Ok(lines)
-        }
-    }
+    // the view has no cancel; this keeps a restart from stopping it halfway
+    let answer = running.run(work, "shared.deployments.cancelled").await?;
+    Ok(answer.lines(name, &t!("ui.maintenance.reboot_hint")))
 }
 
 #[cfg(test)]
