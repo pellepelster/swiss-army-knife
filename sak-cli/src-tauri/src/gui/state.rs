@@ -1,7 +1,7 @@
 //! what the window keeps between its commands: the work that runs and the deploy the last check
 //! planned
 
-use crate::core::deployments::DeploymentRequest;
+use crate::core::deployments::{DeploymentRequest, Seen};
 use futures_util::future::{AbortHandle, Abortable};
 use rust_i18n::t;
 use std::sync::Mutex;
@@ -45,8 +45,8 @@ pub struct CheckedDeployment(Mutex<Checks>);
 struct Checks {
     /// the number of the newest check that started
     newest: u64,
-    /// the newest check that ended, with its number
-    done: Option<(u64, DeploymentRequest)>,
+    /// the newest check that ended, with its number and what its plan showed
+    done: Option<(u64, DeploymentRequest, Seen)>,
 }
 
 impl CheckedDeployment {
@@ -61,25 +61,27 @@ impl CheckedDeployment {
         checks.newest
     }
 
-    /// keeps the deploy of the check `number`, unless a newer check started meanwhile
-    pub(crate) fn done(&self, number: u64, deployment: DeploymentRequest) {
+    /// keeps the deploy of the check `number` and what its plan showed, unless a newer check
+    /// started meanwhile
+    pub(crate) fn done(&self, number: u64, deployment: DeploymentRequest, seen: Seen) {
         let mut checks = self
             .0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         if checks.newest == number {
-            checks.done = Some((number, deployment));
+            checks.done = Some((number, deployment, seen));
         }
     }
 
-    /// the deploy of the check `number`, once; none when it is not the newest check that ended
-    pub(crate) fn take(&self, number: u64) -> Option<DeploymentRequest> {
+    /// the deploy of the check `number` and what its plan showed, once; none when it is not the
+    /// newest check that ended
+    pub(crate) fn take(&self, number: u64) -> Option<(DeploymentRequest, Seen)> {
         let mut checks = self
             .0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         match checks.done.take() {
-            Some((done, deployment)) if done == number => Some(deployment),
+            Some((done, deployment, seen)) if done == number => Some((deployment, seen)),
             other => {
                 checks.done = other;
                 None
@@ -103,22 +105,22 @@ mod tests {
         let alpha = checked.start();
         let beta = checked.start();
         // beta ends first, alpha after it: alpha is not kept
-        checked.done(beta, deployment("beta"));
-        checked.done(alpha, deployment("alpha"));
+        checked.done(beta, deployment("beta"), Vec::new());
+        checked.done(alpha, deployment("alpha"), Vec::new());
         assert!(checked.take(alpha).is_none());
-        assert_eq!(checked.take(beta).unwrap().name, "beta");
+        assert_eq!(checked.take(beta).unwrap().0.name, "beta");
         // once
         assert!(checked.take(beta).is_none());
 
         // a deploy that names an older check leaves the newest one as it is
         let gamma = checked.start();
-        checked.done(gamma, deployment("gamma"));
+        checked.done(gamma, deployment("gamma"), Vec::new());
         assert!(checked.take(beta).is_none());
-        assert_eq!(checked.take(gamma).unwrap().name, "gamma");
+        assert_eq!(checked.take(gamma).unwrap().0.name, "gamma");
 
         // a check that starts drops what the one before kept
         let delta = checked.start();
-        checked.done(delta, deployment("delta"));
+        checked.done(delta, deployment("delta"), Vec::new());
         checked.start();
         assert!(checked.take(delta).is_none());
     }

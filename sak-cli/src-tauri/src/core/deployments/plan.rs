@@ -3,6 +3,9 @@
 
 use super::*;
 
+/// what a plan shows of the resources: each with its status and its changes
+pub type Seen = Vec<(String, DiffStatus, Vec<String>)>;
+
 /// the plan of a create, deploy or destroy: what the apply does, resource by resource
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +13,24 @@ pub struct PlanResponse {
     pub(crate) name: String,
     pub(crate) public_key: String,
     pub(crate) resources: Vec<PlannedResource>,
+}
+
+impl PlanResponse {
+    /// what the plan shows of the resources, to tell whether the project changed since. The
+    /// provisioning is left out: a forced deploy changes its row on purpose
+    pub fn seen(&self) -> Seen {
+        self.resources
+            .iter()
+            .filter(|resource| resource.kind != PlannedKind::Provisioning)
+            .map(|resource| {
+                (
+                    resource.resource.clone(),
+                    resource.status,
+                    resource.changes.clone(),
+                )
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Serialize)]

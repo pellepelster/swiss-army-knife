@@ -110,7 +110,7 @@ pub async fn check_deployment(
     let (deployment, plan) = manager
         .check(tokens.tokens(), &name, &password, location, &container)
         .await?;
-    checked.done(number, deployment);
+    checked.done(number, deployment, plan.seen());
     Ok(CheckResponse {
         check: number,
         plan,
@@ -151,22 +151,30 @@ pub async fn apply_checked(
     on_event: Channel<DeploymentEvent>,
 ) -> Result<(), SakctlError> {
     let CheckedDeploy { check, force } = deploy;
-    let deployment = checked
+    let (deployment, seen) = checked
         .take(check)
         .ok_or_else(|| t!("ui.deployment.not_checked").to_string())?;
     let deployment = DeploymentRequest {
         force,
         ..deployment
     };
-    apply(
-        &manager,
-        tokens.tokens(),
-        &container,
-        &running,
-        &deployment,
-        &on_event,
-    )
-    .await
+    // a progress event that cannot be sent is no reason to stop the apply
+    let mut report = |event| {
+        let _ = on_event.send(event);
+    };
+    // the apply plans again and applies only what the page showed: a project that changed since
+    // the check is checked again first
+    let work = async {
+        let prepared = manager.prepare(tokens.tokens(), &deployment).await?;
+        let plan = manager.plan_prepared(&prepared, &container).await?;
+        if plan.seen() != seen {
+            return Err(SakctlError::from(
+                t!("ui.deployment.changed_since_check").to_string(),
+            ));
+        }
+        manager.apply(prepared, &container, &mut report).await
+    };
+    running.run(work, "shared.deployments.cancelled").await
 }
 
 #[tauri::command]

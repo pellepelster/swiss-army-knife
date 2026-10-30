@@ -1150,3 +1150,55 @@ async fn the_plan_of_a_destroy_shows_a_second_server_it_leaves() {
     assert_eq!(second.action, Some(PlanAction::WillKeep));
     assert!(second.keep);
 }
+
+#[test]
+fn what_a_plan_shows_leaves_out_the_provisioning_a_forced_deploy_changes() {
+    let row = |kind, resource: &str, status, action| PlannedResource {
+        resource: resource.to_string(),
+        kind,
+        name: resource.to_string(),
+        resource_status: ResourceStatus::of(status),
+        action,
+        working: Working::Check,
+        status,
+        keep: false,
+        changes: Vec::new(),
+    };
+    let plan = |provisioning_status, provisioning_action, server_status| PlanResponse {
+        name: "alpha".into(),
+        public_key: String::new(),
+        resources: vec![
+            row(
+                PlannedKind::Resource(ResourceKind::Server),
+                "server 'sak-alpha'",
+                server_status,
+                None,
+            ),
+            row(
+                PlannedKind::Provisioning,
+                "provisioning",
+                provisioning_status,
+                provisioning_action,
+            ),
+        ],
+    };
+    let checked = plan(
+        DiffStatus::UpToDate,
+        Some(PlanAction::RunsWhenForced),
+        DiffStatus::UpToDate,
+    );
+    // forced, the provisioning runs: the same resources
+    let forced = plan(
+        DiffStatus::HasChanges,
+        Some(PlanAction::WillRun),
+        DiffStatus::UpToDate,
+    );
+    assert_eq!(checked.seen(), forced.seen());
+    // the server changed since the check: another plan
+    let changed = plan(
+        DiffStatus::UpToDate,
+        Some(PlanAction::RunsWhenForced),
+        DiffStatus::HasChanges,
+    );
+    assert_ne!(checked.seen(), changed.seen());
+}

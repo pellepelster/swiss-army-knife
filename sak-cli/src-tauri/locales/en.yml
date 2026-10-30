@@ -244,6 +244,7 @@ ui:
     loading: "Looking for deployments at the providers…"
     address: "Address"
   deployment:
+    changed_since_check: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
     maintenance: "Maintenance"
     destroy: "Destroy"
     location: "Location"
