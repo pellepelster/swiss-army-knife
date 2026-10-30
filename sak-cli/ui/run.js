@@ -108,6 +108,8 @@ function onEvent(message) {
   }
   const led = item.querySelector('.resource-state');
   const detail = item.querySelector('.resource-detail');
+  // the state of the run from now on, no more the one of the plan: its colour follows it
+  item.dataset.status = { started: 'working', taskStarted: 'working', provisionFailed: 'failed' }[message.event] ?? 'done';
   switch (message.event) {
     case 'started':
       led.dataset.sakState = 'busy';

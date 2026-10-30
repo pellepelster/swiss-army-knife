@@ -333,9 +333,11 @@ body {
   align-items: baseline;
 }
 
+/* the led on the first line of its row, also when the detail takes several lines */
 .resource-state {
   justify-self: center;
-  align-self: center;
+  align-self: start;
+  margin-top: calc(0.5lh - 3.5px);
 }
 
 .resource-kind {
@@ -374,6 +376,10 @@ body {
 
 .resource[data-status="has_changes"] .resource-detail {
   color: var(--sak-warn);
+}
+
+.resource[data-status="failed"] .resource-detail {
+  color: var(--sak-danger);
 }
 
 .resource-change {

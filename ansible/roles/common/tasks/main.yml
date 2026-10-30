@@ -45,7 +45,7 @@
   ansible.builtin.copy:
     dest: /etc/needrestart/conf.d/50-sak.conf
     content: |
-      # {{ ansible_managed }}
+      # written by the role common of SAK, changes are lost on the next deploy
       $nrconf{restart} = 'l';
       $nrconf{kernelhints} = 0;
     owner: root
