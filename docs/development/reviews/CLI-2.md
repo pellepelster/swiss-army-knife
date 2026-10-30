@@ -55,9 +55,9 @@ Nothing of the list is left.
 - **One thing written more than once.** *Done: the maintenance flow, the deploy completion, the checks, the
   lookup of a deployment, the driver of `sak-backend`, the request plumbing of the api (one `ResourceApi<T>`; the
   dns zones keep theirs), the provisioner skeleton (`HetznerKind`; the server and the dns record keep theirs).*
-- **Plan and apply disagree.** The playbook decision differs (CD-4), a pending label change reads as a recreate
-  (CP-3). Letting the registry tell what it applied resolves both (CD-25, CP-22). *Done: the plan is the one gate
-  of the apply, and the window applies only what its check showed.*
+- **Plan and apply disagree.** A pending label change reads as a recreate (CP-3, CP-22). *Done: the plan is the
+  one gate of the apply, the window applies only what its check showed, and the registry tells the provisioners
+  what it applied with a change, so plan and apply run the playbook alike.*
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
 - **Booleans and strings standing in for enums.** *Done: `DiffItem`, the plan words and kinds, the reasons of a
@@ -175,24 +175,6 @@ A fingerprint recreate: yes; a label change: no (CP-3). The volume size recreate
 
 ### Bugs
 
-#### CD-3 (Medium): The version label of the server can stay stale for good
-
-`apply` sets `VERSION_LABEL` only after `wait_for_api` succeeds (`deployments.rs:1790-1806`). When the wait times
-out (slow DNS or ACME), the playbook has run and the markers carry the `sak_version` of this sakctl
-(`roles.rs:41`), so the next deploy finds the provisioning up to date, `provisioned` stays false and `apply` returns
-at `:1761-1763` without the wait and without the label. **Scenario:** deploy → provisioning ok → wait fails → the
-user deploys again → "done" without a check of the api, the label stays the old version until a forced deploy.
-**Fix:** set the label right after the provisioning; consider the wait for every deploy.
-
-#### CD-4 (Medium): Plan and apply decide differently whether the playbook runs
-
-In the plan `AnsibleRolesProvisioner::diff` uses `has_pending_change(server | volume)` (`ansible_roles.rs:193-195`).
-In the apply the registry clears pending before applying (`cloud/api/registry.rs:315`), and the only replacement is
-`server_changed`, set for the server alone (`deployments.rs:1713-1718`). **Scenario:** the volume has an in-place
-change (delete protection, `volume/provisioner.rs:86`) → the plan says `will_run`; the apply updates the volume,
-reads the markers via ssh, nothing changed → `UpToDate`, playbook skipped. **Fix:** the registry exposes "applied
-with a change in this run" (CD-25).
-
 #### CD-5 (Medium, suspected): `backend.env` is read by systemd, not by podman
 
 `ansible/roles/backend/templates/sak-backend.container.j2:14` uses `EnvironmentFile=`, whose parser strips leading
@@ -202,26 +184,12 @@ verbatim (`provision.rs:133`). A mail password that starts with a quote, contain
 reaches the backend altered; the test at `provision.rs:618` checks the file, not what systemd reads. **To confirm:**
 `systemd.exec(5)` EnvironmentFile semantics or a quadlet test; then quote the values in `backend_env`.
 
-#### CD-7 (Low): A cancel in a narrow window leaves ansible running
-
-`cancel_apply` aborts the future and calls `stop_runs()` (`gui/deployments.rs:236-241`), which removes the names in
-`RUNS`. A run is registered in `RunDir::create_at` (`provision.rs:404-406`) before the container is spawned
-(`:259`); a cancel in that window (also `SessionContainer::start`, `ssh.rs:125`, before `run -d`) removes nothing,
-the container starts on the detached blocking thread and ansible runs to completion (up to 45 min) while the page
-says "cancelled". **Fix:** `ProvisionManager::provision` checks a stopped flag after the spawn, or `stop_runs`
-remembers names to remove once they appear.
-
 ### Structure
 
 #### CD-23: The wait after the provisioning discovers the deployment again
 
 `DeploymentManager::find` and `Endpoint` serve every lookup of a deployment but one: the wait in `apply` still
 discovers the deployment after the provisioning, although `run.host` holds the address.
-
-#### CD-25: sak-cloud tells the provisioners what was applied with a change
-
-The registry exposes "applied with a change in this run" to the diffs (removes `server_changed` of
-`core/ansible_roles.rs` and its setting in the apply; CD-4).
 
 ---
 
