@@ -1,6 +1,7 @@
 // the password of a deployment before its page opens. Rust checks it against the resources of the
 // deployment while it is typed, a moment after the last key; next only with the right one, cancel
-// back to the list. The password stays with the opened deployment for its check and its destroy
+// back to the list. The password stays with the opened deployment for its check and its destroy.
+// With SAK_PASSWORD set, the field starts with it and rust checks it at once
 import { show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -47,7 +48,7 @@ function setStatus(message, failed = false) {
   status.classList.toggle('status-failed', failed);
 }
 
-export function showPassword(data) {
+export async function showPassword(data) {
   deployment = data;
   input.value = '';
   showTyped(false);
@@ -56,6 +57,11 @@ export function showPassword(data) {
   document.getElementById('password-name').textContent = data.name;
   show('view-password');
   input.focus();
+  const { password } = await invoke('deployment_defaults');
+  if (password && deployment === data && !input.value) {
+    input.value = password;
+    await check();
+  }
 }
 
 async function check() {
