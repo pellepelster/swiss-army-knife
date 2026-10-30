@@ -175,9 +175,10 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('cre
       doneButton.focus();
     }
   } catch (error) {
-    // only cancel leads on after a failure
+    // only cancel leads on after a failure; a failure a row shows already is not said again
     if (running === current) {
-      setStatus(runStatus, String(error), true);
+      const shown = [...rows.values()].some((item) => item.dataset.status === 'failed');
+      setStatus(runStatus, shown ? '' : String(error), !shown);
     }
   }
 }
