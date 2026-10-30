@@ -339,9 +339,11 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 
 # the next patch version of main as the tag v<version>, pushed: the workflow builds the tag and
 # releases it as <version> (the images, sakctl and the documentation). Only from a clean main that
-# is the same as origin/main, the commit of the tag must be on github
+# is the same as origin/main, the commit of the tag must be on github. The documentation is built
+# first: a link that does not resolve stops the release before its tag
 [tasks."release"]
 description = "Tag and push the next release"
+depends = ["docs:build"]
 run = """
 set -eu
 [ -z "$(git status --porcelain)" ] || { echo "the repository is not clean" >&2; exit 1; }
