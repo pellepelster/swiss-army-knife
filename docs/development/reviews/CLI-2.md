@@ -745,14 +745,6 @@ the server pulls the backend images by tag (`sak_image_tag`). A tag on ghcr.io c
 tools gets the private client key of every server sakctl provisions. **Fix:** verify a signature (cosign) before a
 run, or pin each release to digests. GitHub issue #91 tracks it.
 
-#### R1-2 (Low): The page gets the passwords of the environment, and the decision is not written down (was S12)
-
-`deployment_defaults` (`core/deployments/input.rs:245` and around) sends `SAK_PASSWORD` and `SAK_SMTP_PASSWORD` to
-the page, which fills its fields with them. This is wanted (the window prefills the password from the environment),
-but neither ARCHITECTURE.md nor UI-UX.md says so; UI-UX.md describes only the command line ("A secret is never an
-argument"). **Fix:** record it as a decision with its risk (the secrets cross the ipc into the web view, which the
-CSP and `textContent` keep in), or send only "set in the environment" and let rust use the value.
-
 #### R1-3 (Medium): The command line applies a plan that removes or recreates without asking (was C6)
 
 `cli/deploy.rs` prints the plan and applies it at once; a `sakctl deploy` that would create the server anew or

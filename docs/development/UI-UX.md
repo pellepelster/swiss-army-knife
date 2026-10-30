@@ -43,6 +43,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 ## sakctl window
 
+- **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the window
+  fills its password fields with them, which the user can change; an accepted risk of ARCHITECTURE.md.
 - **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move through
   the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost button.
   Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the header.

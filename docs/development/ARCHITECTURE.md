@@ -301,6 +301,12 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   being used to send mail, a login outage of an hour is the price, and the apps have few allowed addresses whose
   sessions last 30 days.
 
+- **The window gets the passwords of the environment.** When `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` is set, sakctl
+  sends them to the page of the window, which fills its password fields with them, so a user who keeps them in the
+  environment does not type them again. The secrets cross the ipc into the web view. Accepted: the web view shows
+  only the pages of sakctl, its content security policy loads nothing from elsewhere, the page writes every value
+  with `textContent`, and the same process holds the secrets anyway; whoever can read the web view can read sakctl.
+
 - **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
   proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
   Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.
