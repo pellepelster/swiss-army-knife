@@ -29,6 +29,7 @@ pub const PLAYBOOK: &str = "pelle_io.sak.server";
 const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45 * 60);
 
 /// a server to provision and what ansible needs to reach and set it up
+#[derive(Clone)]
 pub struct ProvisionRun {
     /// the name of the deployment: the host in the inventory and `sak_name`
     pub name: String,
@@ -60,36 +61,65 @@ pub struct ProvisionRun {
 }
 
 impl ProvisionRun {
+    /// the variables the roles get from the inventory, by name, each as a string. The roles take
+    /// the flags with `| bool`. The fingerprints of the roles take them too (`core::roles`)
+    pub(crate) fn variables(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("storage_device", self.storage_device.clone()),
+            ("sak_name", self.name.clone()),
+            ("sak_dns_mode", self.dns_mode.to_string()),
+            ("sak_root_domain", self.root_domain.clone()),
+            ("sak_acme_ca", self.acme_ca.clone().unwrap_or_default()),
+            ("sak_api_public_key", self.api_public_key.clone()),
+            ("sak_admin_email", self.admin_email.clone()),
+            ("sak_smtp_enabled", self.smtp.is_some().to_string()),
+            // without starttls the connection is implicit tls (smtps), never plain text
+            (
+                "sak_smtp_tls",
+                self.smtp
+                    .as_ref()
+                    .is_some_and(|smtp| !smtp.starttls)
+                    .to_string(),
+            ),
+            (
+                "sak_smtp_starttls",
+                self.smtp
+                    .as_ref()
+                    .is_some_and(|smtp| smtp.starttls)
+                    .to_string(),
+            ),
+            ("backend_env_src", format!("{RUN_DIR}/backend.env")),
+            // the server runs the images of the version of this sakctl
+            ("sak_version", crate::core::VERSION.to_string()),
+        ]
+    }
+
+    /// the inventory of the run: the host, how ansible reaches it, the variables of the roles and
+    /// the fingerprints the last role writes as their markers; every value quoted as json, which
+    /// yaml reads as a string
     fn inventory(&self) -> String {
-        format!(
+        let quoted = |value: &str| serde_json::to_string(value).unwrap_or_default();
+        let mut text = format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
-             ansible_ssh_common_args: -F {dir}/ssh_config\n      \
-             storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_public_key: \"{api_public_key}\"\n      sak_admin_email: {admin_email}\n      \
-             sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_tls: {smtp_tls}\n      \
-             sak_smtp_starttls: {smtp_starttls}\n      backend_env_src: {dir}/backend.env\n      \
-             sak_version: \"{version}\"\n",
+             ansible_ssh_common_args: -F {dir}/ssh_config\n",
             name = self.name,
             host = self.host,
             dir = RUN_DIR,
-            device = self.storage_device,
-            dns_mode = self.dns_mode,
-            root_domain = self.root_domain,
-            acme_ca = self.acme_ca.as_deref().unwrap_or_default(),
-            api_public_key = self.api_public_key,
-            admin_email = self.admin_email,
-            smtp_enabled = self.smtp.is_some(),
-            // without starttls the connection is implicit tls (smtps), never plain text
-            smtp_tls = self.smtp.as_ref().is_some_and(|smtp| !smtp.starttls),
-            smtp_starttls = self.smtp.as_ref().is_some_and(|smtp| smtp.starttls),
-            // the server runs the images of the version of this sakctl
-            version = crate::core::VERSION,
-        )
+        );
+        for (name, value) in self.variables() {
+            text.push_str(&format!("      {name}: {}\n", quoted(&value)));
+        }
+        text.push_str("      sak_role_markers:\n");
+        for (role, fingerprint) in crate::core::roles::fingerprints(self) {
+            text.push_str(&format!("        {role}: {}\n", quoted(&fingerprint)));
+        }
+        text
     }
 
     /// the environment of the backend (`backend.env`), one `KEY=value` on each line as podman reads
     /// it: the hash of the admin password, the addresses of the server and the settings of the mail
     /// server. Secret, written for the run only
-    fn backend_env(&self) -> String {
+    pub(crate) fn backend_env(&self) -> String {
         let mut lines = vec![
             format!("SAK_ADMIN_PASSWORD_HASH={}", self.admin_password_hash),
             format!("SAK_IPV4={}", self.host),
@@ -527,11 +557,11 @@ pub(crate) fn random_hex() -> Result<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::core::keys::{derive_host_key, derive_key};
 
-    fn run() -> ProvisionRun {
+    pub(crate) fn run() -> ProvisionRun {
         ProvisionRun {
             name: "alpha".to_string(),
             dns_mode: sak_cloud::hetzner::deployment::DnsMode::Domain,
@@ -606,14 +636,17 @@ mod tests {
     #[test]
     fn the_inventory_tells_the_backend_role_the_admin_and_the_mail_server() {
         let inventory = run().inventory();
-        assert!(inventory.contains("      sak_admin_email: admin@example.org\n"));
+        assert!(inventory.contains("      sak_admin_email: \"admin@example.org\"\n"));
         assert!(inventory.contains(
-            "      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n"
+            "      sak_acme_ca: \"https://acme-staging-v02.api.letsencrypt.org/directory\"\n"
         ));
-        assert!(inventory.contains("      sak_smtp_enabled: true\n"));
+        assert!(inventory.contains("      sak_smtp_enabled: \"true\"\n"));
         // without starttls implicit tls, never plain text
-        assert!(inventory.contains("      sak_smtp_tls: true\n      sak_smtp_starttls: false\n"));
-        assert!(inventory.contains("      backend_env_src: /run/sak/backend.env\n"));
+        assert!(
+            inventory
+                .contains("      sak_smtp_tls: \"true\"\n      sak_smtp_starttls: \"false\"\n")
+        );
+        assert!(inventory.contains("      backend_env_src: \"/run/sak/backend.env\"\n"));
         assert!(inventory.contains(&format!(
             "      sak_version: \"{}\"\n",
             crate::core::VERSION
@@ -624,14 +657,17 @@ mod tests {
             smtp.starttls = true;
         }
         let inventory = given.inventory();
-        assert!(inventory.contains("      sak_smtp_tls: false\n      sak_smtp_starttls: true\n"));
+        assert!(
+            inventory
+                .contains("      sak_smtp_tls: \"false\"\n      sak_smtp_starttls: \"true\"\n")
+        );
 
         let without_smtp = ProvisionRun {
             smtp: None,
             ..run()
         }
         .inventory();
-        assert!(without_smtp.contains("      sak_smtp_enabled: false\n"));
+        assert!(without_smtp.contains("      sak_smtp_enabled: \"false\"\n"));
     }
 
     #[test]
@@ -640,7 +676,7 @@ mod tests {
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
         // what the backend role writes into the configuration of the backend
         assert!(inventory.contains(
-            "      sak_name: alpha\n      sak_dns_mode: domain\n      sak_root_domain: pelle.io\n      sak_acme_ca: https://acme-staging-v02.api.letsencrypt.org/directory\n      sak_api_public_key: \"PUBLIC+KEY/=\"\n"
+            "      sak_name: \"alpha\"\n      sak_dns_mode: \"domain\"\n      sak_root_domain: \"pelle.io\"\n      sak_acme_ca: \"https://acme-staging-v02.api.letsencrypt.org/directory\"\n      sak_api_public_key: \"PUBLIC+KEY/=\"\n"
         ));
         // no private key file, the key is in the agent of the container
         assert!(!inventory.contains("private_key_file"));
@@ -649,7 +685,7 @@ mod tests {
                 .ssh_config()
                 .contains("IdentityFile /run/sak/id_ed25519.pub\n")
         );
-        assert!(inventory.contains("storage_device: /dev/disk/by-id/scsi-0HC_Volume_1"));
+        assert!(inventory.contains("storage_device: \"/dev/disk/by-id/scsi-0HC_Volume_1\""));
     }
 
     #[test]

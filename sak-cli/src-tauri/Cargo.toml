@@ -7,6 +7,7 @@ rust-version = "1.90"
 publish = false
 
 [build-dependencies]
+sha2 = "0.10.9"
 tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
@@ -47,6 +48,7 @@ bech32 = "0.11"
 semver = "1.0.28"
 self-replace = "1.5.1"
 zip = { version = "9.1.3", default-features = false, features = ["deflate"] }
+async-trait = "0.1.89"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -127,14 +127,6 @@ function onEvent(message) {
       led.dataset.sakState = 'busy';
       detail.textContent = message.task;
       break;
-    case 'provisioned':
-      led.dataset.sakState = 'ok';
-      detail.textContent = text('ui.plan.provisioning.all_ok');
-      break;
-    case 'provisioningUpToDate':
-      led.dataset.sakState = 'ok';
-      detail.textContent = text('ui.plan.provisioning.up_to_date');
-      break;
     case 'provisionFailed':
       led.dataset.sakState = 'danger';
       detail.textContent = message.task

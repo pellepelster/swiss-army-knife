@@ -1,6 +1,5 @@
 //! everything a deployment derives from its password: the ssh client key, the ssh host key, the
-//! password hash label, the api key, the backup key, the admin password hash and the
-//! provisioned-config label.
+//! password hash label, the api key, the backup key and the admin password hash.
 //! The same name and password give the same values on every machine, so sakctl keeps nothing.
 //!
 //! One strong argon2id of the password (`MASTER_PARAMS`) gives the master key of the deployment.
@@ -90,6 +89,7 @@ fn hex(bytes: &[u8]) -> String {
 
 /// an ed25519 ssh key derived from the master key: the client key the server is created with,
 /// or the host key the server identifies itself with
+#[derive(Clone)]
 pub struct DerivedKey {
     key: SigningKey,
     comment: String,
@@ -204,19 +204,6 @@ pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String>
         .hash_password(normalized(password).as_bytes(), &salt)
         .map_err(|e| e.to_string())?
         .to_string())
-}
-
-/// the label `sak.pelle.io/provisioned-config` of the server: hmac-sha256 over `config` (the
-/// configuration the playbook writes) with a key from the master key, 30 bytes as hex. The same
-/// configuration gives the same value on every machine, another configuration another value.
-/// Without the password nobody can find the configuration from it, also not a weak password of
-/// the mail server in it
-pub fn provisioned_config(name: &str, password: &str, config: &str) -> Result<String, String> {
-    use hmac::{Hmac, Mac};
-    let key = expand::<32>(name, password, "provisioned-config")?;
-    let mut mac = Hmac::<Sha256>::new_from_slice(&key).map_err(|e| e.to_string())?;
-    mac.update(config.as_bytes());
-    Ok(hex(&mac.finalize().into_bytes()[..30]))
 }
 
 /// the lowest zxcvbn score (0 to 4) of a new password: 3 needs at least 10^8 guesses
@@ -489,31 +476,6 @@ mod tests {
             admin_password_hash("beta", "a password of sixteen").unwrap()
         );
         assert_eq!(hash, ADMIN_PASSWORD_VECTOR);
-    }
-
-    #[test]
-    fn the_provisioned_config_fits_one_label_and_follows_the_configuration() {
-        let (name, password) = ("alpha", "a password of sixteen");
-        let value = provisioned_config(name, password, "sak_name: alpha").unwrap();
-        assert_eq!(value.len(), 60);
-        assert_eq!(
-            provisioned_config(name, password, "sak_name: alpha").unwrap(),
-            value
-        );
-        assert_ne!(
-            provisioned_config(name, password, "sak_name: beta").unwrap(),
-            value
-        );
-        assert_ne!(
-            provisioned_config("beta", password, "sak_name: alpha").unwrap(),
-            value
-        );
-        assert_ne!(
-            provisioned_config(name, "another password here", "sak_name: alpha").unwrap(),
-            value
-        );
-        // it is no plain hash of the configuration
-        assert!(!sak_cloud::hetzner::labels::sha256_hex("sak_name: alpha").starts_with(&value));
     }
 
     /// the same characters give the same values, composed or with combining marks (as macos may

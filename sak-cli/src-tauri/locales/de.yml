@@ -8,8 +8,6 @@ cli:
     ignored: "[fehlgeschlagen, ignoriert] %{task}: %{message}"
     failed: "[fehlgeschlagen] %{task}: %{message}"
     unreachable: "[nicht erreichbar] %{task}: %{message}"
-  provisioned: "Server %{name} eingerichtet."
-  provisioning_up_to_date: "Server %{name} ist schon mit dieser Konfiguration eingerichtet, das Playbook lief nicht."
   no_password: "Kein Passwort: setze SAK_PASSWORD oder führe den Befehl in einem Terminal aus, um es einzugeben."
   password_prompt: "Passwort des Deployments: "
   password_repeat_prompt: "Passwort wiederholen: "
@@ -99,8 +97,6 @@ shared:
     no_address: "Der Server von %{name} hat keine öffentliche Adresse."
     no_volume: "Das Datenvolume von %{name} ist nicht angehängt."
     resource: "Einrichtung '%{name}'"
-    config_changed: "die Konfiguration hat sich geändert"
-    server_changes: "der Server ändert sich"
   deployments:
     invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
     short_password: "Das Passwort braucht mindestens %{min} Zeichen."
@@ -304,7 +300,5 @@ ui:
     destroyed_with_data: "Das Deployment und sein Datenvolume sind zerstört."
     creating: "Erstelle das Deployment, das dauert ein paar Minuten…"
     provisioning:
-      all_ok: "alles ok"
-      up_to_date: "aktuell, das Playbook lief nicht"
       failed: "fehlgeschlagen bei %{task}: %{message}"
     provisioned: "Das Deployment ist aktuell und sein Server eingerichtet."

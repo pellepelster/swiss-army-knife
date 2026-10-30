@@ -125,11 +125,13 @@ and the health of the domains.
   the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail server) in
   a private directory for the run. It sets up the base system, the data volume and the backend, its
   configuration and the containers next to it.
-- **Every deploy provisions.** A deploy always runs the whole playbook, so the server is as the deployment declares
-  it whatever happened to it. After a provisioning succeeded the server carries a label that stands for the
-  configuration and the version it was provisioned with, keyed by the password, so it tells nothing of the
-  configuration; the plan tells from it whether the configuration or the version changed. The label goes before a provisioning starts, so one that failed
-  shows as missing.
+- **The provisioning is a resource.** The roles of the playbook on the server are a resource of the plan like the
+  others: after the server and the data volume, with a diff and an apply. Ansible has no plan of its own, so the
+  server tells what was applied last: a run that succeeded leaves one marker for each role, the fingerprint of the
+  files of the role and of the values the run gave it. The plan reads the markers through ssh and runs the playbook
+  when the server changes, when there are no markers (never provisioned, or the last run failed: a run removes them
+  first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
+  Refer to [FDR-009](fdr/FDR-009-provisioning-markers.md).
 - **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the staging
   ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots sakctl
   then trusts). The integration tests use the staging ca, so they never run into the limits of the production one.
@@ -165,8 +167,7 @@ and the health of the domains.
   `sak.pelle.io/user-mode`. A deploy reads them back; a change of one is a label change, never a recreate. The dns mode on a DNS record tells which
   deployments use a root domain.
 - **Kinds of labels.** The plan compares the identity labels and the settings. It never compares the labels that
-  sakctl keeps on the server itself (the hashes of its ssh keys and user data, the provisioned configuration) or the
-  info labels (the version).
+  sakctl keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
 - **Own prefix.** Labels of SAK are under `sak.pelle.io/`, labels of the user never are.
 - **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the data volume
   unless the user asks to delete it.

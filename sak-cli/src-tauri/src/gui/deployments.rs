@@ -72,16 +72,16 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// the settings a redeploy takes from the deployment, as the command line does: its user mode
-/// and, for multi user, the admin and the mail server
+/// the plan of a create or a destroy, as the form asks for it
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
+    container: State<'_, ContainerRuntime>,
     deployment: NewDeployment,
 ) -> Result<PlanResponse, WizardError> {
     let tokens = tokens.tokens();
-    manager.plan(tokens, &deployment).await
+    manager.plan(tokens, &deployment, &container).await
 }
 
 /// the apply that runs, so cancel can stop it
@@ -105,6 +105,7 @@ pub struct CheckedDeployment(Mutex<Option<NewDeployment>>);
 pub async fn check_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
+    container: State<'_, ContainerRuntime>,
     checked: State<'_, CheckedDeployment>,
     name: String,
     password: String,
@@ -131,7 +132,7 @@ pub async fn check_deployment(
     };
     let detected = manager.detected(tokens.clone(), &name, &password).await?;
     let deployment = complete(deployment, &detected, "")?;
-    let plan = manager.plan(tokens, &deployment).await?;
+    let plan = manager.plan(tokens, &deployment, &container).await?;
     if let Ok(mut checked) = checked.0.lock() {
         *checked = Some(deployment);
     }

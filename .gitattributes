@@ -1,3 +1,6 @@
 gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+# the roles as they are in the repository on every platform: sakctl takes their digests at build time
+# (sak-cli/src-tauri/build.rs), the image of the tools gets them from linux
+ansible/** text eol=lf

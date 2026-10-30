@@ -2,6 +2,7 @@
 //! and diffed against the resource group of a deployment. A create, deploy or destroy of a
 //! deployment, planned and applied from its name and password
 
+use crate::core::ansible_roles::{AnsibleRoles, AnsibleRolesProvisioner, is_provisioning};
 use crate::core::container::ContainerRuntime;
 use crate::core::error::{
     EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, EXIT_USAGE,
@@ -10,10 +11,10 @@ use crate::core::error::{
 use crate::core::events::{AnsibleEvent, task_name};
 use crate::core::keys::DerivedKey;
 use crate::core::providers::{ProviderType, ProviderTypeResponse};
-use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
+use crate::core::provision::ProvisionRun;
 use rust_i18n::t;
-use sak_cloud::api::Lookup;
 use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
+use sak_cloud::api::{Lookup, Resource};
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
@@ -23,11 +24,12 @@ use sak_cloud::hetzner::deployment::{
 };
 use sak_cloud::hetzner::dns_record::{HetznerDnsRecordLookup, first_address};
 use sak_cloud::hetzner::labels::HetznerLabels;
-use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, PROVISIONED_CONFIG_LABEL, VERSION_LABEL};
+use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, VERSION_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -252,15 +254,6 @@ pub enum CreateEvent {
         outcome: TaskOutcome,
         message: Option<String>,
     },
-    /// the playbook ran to its end
-    Provisioned {
-        resource: String,
-    },
-    /// the playbook did not run: the server was not changed and is provisioned with this
-    /// configuration, and the deploy was not forced
-    ProvisioningUpToDate {
-        resource: String,
-    },
     /// the playbook failed; `task` when the events tell it
     ProvisionFailed {
         resource: String,
@@ -283,7 +276,7 @@ pub enum TaskOutcome {
 }
 
 /// the event of the apply for an event of the playbook; none for an event the apply does not show
-fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
+pub(crate) fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
     let done = |task: String, outcome, message| {
         Some(CreateEvent::TaskDone {
             resource: resource.to_string(),
@@ -712,30 +705,58 @@ pub struct Prepared {
     admin_password_hash: String,
     /// the mail server of the e-mail login; none for the password login only
     smtp: Option<Smtp>,
-    /// the label `sak.pelle.io/provisioned-config` of the server after a provisioning of this
-    /// configuration (empty on a destroy), and the label now (none when there is no server or it
-    /// was never provisioned). The plan compares them to find a changed configuration; a deploy
-    /// always provisions
-    provisioned_config: String,
-    provisioned: Option<String>,
     /// where the certificates come from; it sets what sakctl trusts when it waits for the api
     acme_ca: AcmeCa,
 }
 
 impl Prepared {
-    /// the configuration the playbook writes, one value on each line, as the label of the server
-    /// stands for it. Without the addresses and the device of the volume, a deployment keeps them
-    fn config(&self) -> String {
-        config_text(
-            &self.spec.name,
-            self.spec.dns_mode,
-            self.spec.root_domain.as_deref().unwrap_or_default(),
-            &self.api_public_key,
-            self.admin_email.as_deref().unwrap_or_default(),
-            self.smtp.as_ref(),
-            &self.admin_password_hash,
-            crate::core::VERSION,
-        ) + &format!("\nacme_ca {}", self.acme_ca.as_str())
+    /// what the playbook gets; the provisioner adds the addresses of the server and the device of
+    /// the volume as it finds them
+    fn provision_run(&self) -> ProvisionRun {
+        ProvisionRun {
+            name: self.spec.name.clone(),
+            dns_mode: self.spec.dns_mode,
+            // a create or deploy has one, prepare checked it
+            root_domain: self.spec.root_domain.clone().unwrap_or_default(),
+            api_public_key: self.api_public_key.clone(),
+            host: String::new(),
+            host_ipv6: None,
+            client_key: self.client_key.clone(),
+            host_key: self.host_key.clone(),
+            storage_device: String::new(),
+            // a create or deploy has them, prepare checked them
+            admin_email: self.admin_email.clone().unwrap_or_default(),
+            smtp: self.smtp.clone(),
+            admin_password_hash: self.admin_password_hash.clone(),
+            acme_ca: self.acme_ca.directory().map(String::from),
+        }
+    }
+
+    /// the resources a create or deploy plans and applies: those of the spec and, after the
+    /// server and the volume, the roles of the playbook on the server (`core::ansible_roles`). A
+    /// destroy has no roles, they go with the server
+    fn registry(
+        &self,
+        intent: Intent,
+        provisioner: impl FnOnce(ProvisionRun) -> AnsibleRolesProvisioner,
+    ) -> Result<sak_cloud::api::Registry, String> {
+        let mut registry = self
+            .spec
+            .registry(&self.runtime)
+            .map_err(|error| error.to_string())?;
+        if intent != Intent::Destroy {
+            registry.register::<AnsibleRoles, AnsibleRolesProvisioner>(Arc::new(provisioner(
+                self.provision_run(),
+            )));
+            registry
+                .add(AnsibleRoles {
+                    name: self.spec.resource_name(),
+                    server: self.spec.server().as_lookup(),
+                    volume: self.spec.data_volume().as_lookup(),
+                })
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(registry)
     }
 }
 
@@ -893,65 +914,6 @@ fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> 
         _ if recreate => "working_recreate",
         _ => "working_update",
     }
-}
-
-/// the status of the provisioning in the plan; a create or deploy always runs it. Missing for a
-/// server that is created (anew) or was never provisioned. Has changes for a server with changes
-/// or another configuration. Up-to-date only for a server that stays as it is and has the label
-/// of this configuration
-fn provisioning_status(
-    provisioned: Option<&str>,
-    expected: &str,
-    server: Option<DiffStatus>,
-    server_recreated: bool,
-) -> (DiffStatus, Vec<String>) {
-    let changed = |key: &str| (DiffStatus::HasChanges, vec![t!(key).to_string()]);
-    match server {
-        None | Some(DiffStatus::Missing | DiffStatus::ParentMissing) => {
-            return (DiffStatus::Missing, Vec::new());
-        }
-        Some(_) if server_recreated => return (DiffStatus::Missing, Vec::new()),
-        Some(DiffStatus::HasChanges) => return changed("shared.provision.server_changes"),
-        Some(_) => {}
-    }
-    match provisioned {
-        None => (DiffStatus::Missing, Vec::new()),
-        Some(label) if label != expected => changed("shared.provision.config_changed"),
-        Some(_) => (DiffStatus::UpToDate, Vec::new()),
-    }
-}
-
-/// the values `ProvisionRun` gives the playbook to write onto the server; a change of one of them
-/// is a change of the configuration. The version is the one of the images the server runs, so a
-/// deploy with another version of sakctl provisions again
-#[allow(clippy::too_many_arguments)]
-fn config_text(
-    name: &str,
-    dns_mode: DnsMode,
-    root_domain: &str,
-    api_public_key: &str,
-    admin_email: &str,
-    smtp: Option<&Smtp>,
-    admin_password_hash: &str,
-    version: &str,
-) -> String {
-    let mut lines = vec![
-        format!("name {name}"),
-        format!("version {version}"),
-        format!("dns_mode {dns_mode}"),
-        format!("root_domain {root_domain}"),
-        format!("api_public_key {api_public_key}"),
-        format!("admin_email {admin_email}"),
-        format!("admin_password_hash {admin_password_hash}"),
-    ];
-    if let Some(smtp) = smtp {
-        lines.push(format!("smtp_host {}", smtp.host.trim()));
-        lines.push(format!("smtp_port {}", smtp.port));
-        lines.push(format!("smtp_username {}", smtp.username));
-        lines.push(format!("smtp_password {}", smtp.password));
-        lines.push(format!("smtp_starttls {}", smtp.starttls));
-    }
-    lines.join("\n")
 }
 
 /// checks the password of an existing deployment before anything changes: against the hash label
@@ -1430,11 +1392,6 @@ impl DeploymentManager {
             .await
             .map_err(|error| failed(provider, error))?;
         let records = deployment_records(&listings, name);
-        // what the server was provisioned with, before `existing` is taken apart
-        let provisioned = existing
-            .as_ref()
-            .and_then(|deployment| deployment.server.as_ref())
-            .and_then(|server| server.labels.get(PROVISIONED_CONFIG_LABEL).cloned());
         let location = match (intent, existing) {
             (Intent::Create, Some(_)) => {
                 return Err(t!("shared.deployments.name_taken", name = name)
@@ -1533,7 +1490,7 @@ impl DeploymentManager {
                 EXIT_NOT_OWNED,
             ));
         }
-        let mut prepared = Prepared {
+        Ok(Prepared {
             provider,
             runtime,
             spec,
@@ -1544,25 +1501,20 @@ impl DeploymentManager {
             admin_email,
             admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
             smtp,
-            provisioned_config: String::new(),
-            provisioned,
             acme_ca,
-        };
-        if intent != Intent::Destroy {
-            prepared.provisioned_config =
-                crate::core::keys::provisioned_config(name, password, &prepared.config())?;
-        }
-        Ok(prepared)
+        })
     }
 
-    /// prepares the deployment and plans it: its resources diffed against the project
+    /// prepares the deployment and plans it: its resources diffed against the project, the roles
+    /// of the server against its markers, read through ssh in the image of the tools
     pub async fn plan(
         &self,
         tokens: Vec<(ProviderType, String)>,
         deployment: &NewDeployment,
+        container: &ContainerRuntime,
     ) -> Result<PlanResponse, WizardError> {
         let prepared = self.prepare(tokens, deployment).await?;
-        self.plan_prepared(&prepared, deployment).await
+        self.plan_prepared(&prepared, deployment, container).await
     }
 
     /// the plan of a deployment prepared already
@@ -1570,12 +1522,17 @@ impl DeploymentManager {
         &self,
         prepared: &Prepared,
         deployment: &NewDeployment,
+        container: &ContainerRuntime,
     ) -> Result<PlanResponse, WizardError> {
         let volume = prepared.spec.data_volume().name;
-        let mut registry = prepared
-            .spec
-            .registry(&prepared.runtime)
-            .map_err(|error| error.to_string())?;
+        let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
+            run,
+            runtime: container.clone(),
+            force: deployment.force,
+            server_changed: Default::default(),
+            events: None,
+            failure: Default::default(),
+        })?;
         let diffs = registry.diff_all().await.map_err(|error| {
             cloud_failure("shared.deployments.plan_failed", prepared.provider, error)
         })?;
@@ -1588,20 +1545,35 @@ impl DeploymentManager {
                     let keep = deployment.intent == Intent::Destroy
                         && !deployment.delete_data
                         && diff.resource.name == volume;
+                    let provisioning = is_provisioning(&diff.resource);
                     PlannedResource {
                         resource: diff.resource.log_text.clone(),
-                        kind: ResourceKind::of(&diff.resource)
-                            .map(|kind| key(&kind))
-                            .unwrap_or_default(),
+                        kind: match ResourceKind::of(&diff.resource) {
+                            Some(kind) => key(&kind),
+                            None if provisioning => "provisioning".to_string(),
+                            None => String::new(),
+                        },
                         name: diff.resource.name.clone(),
                         resource_status: resource_status(diff.status),
-                        action: action(
-                            deployment.intent,
-                            diff.status,
-                            diff.needs_recreate(),
-                            keep,
-                            false,
-                        ),
+                        // the playbook runs when a role is not up to date, an up to date one only
+                        // on a forced deploy
+                        action: if provisioning {
+                            Some(
+                                if diff.status == DiffStatus::UpToDate && !deployment.force {
+                                    "runs_when_forced"
+                                } else {
+                                    "will_run"
+                                },
+                            )
+                        } else {
+                            action(
+                                deployment.intent,
+                                diff.status,
+                                diff.needs_recreate(),
+                                keep,
+                                false,
+                            )
+                        },
                         working: working(
                             deployment.intent,
                             diff.status,
@@ -1632,46 +1604,15 @@ impl DeploymentManager {
                     keep: false,
                     changes: Vec::new(),
                 }))
-                // a create or deploy provisions the server after its resources
-                .chain((deployment.intent != Intent::Destroy).then(|| {
-                    let server = prepared.spec.resource_name();
-                    let server = diffs.iter().find(|diff| diff.resource.name == server);
-                    let (status, changes) = provisioning_status(
-                        prepared.provisioned.as_deref(),
-                        &prepared.provisioned_config,
-                        server.map(|diff| diff.status),
-                        server.is_some_and(|diff| diff.needs_recreate()),
-                    );
-                    PlannedResource {
-                        resource: t!(
-                            "shared.provision.resource",
-                            name = prepared.spec.resource_name()
-                        )
-                        .to_string(),
-                        kind: "provisioning".to_string(),
-                        name: prepared.spec.resource_name(),
-                        resource_status: resource_status(status),
-                        // the playbook runs when the provisioning is not up to date, an up to date
-                        // one only on a forced deploy
-                        action: Some(if status == DiffStatus::UpToDate && !deployment.force {
-                            "runs_when_forced"
-                        } else {
-                            "will_run"
-                        }),
-                        working: working(deployment.intent, status, false, false),
-                        status,
-                        keep: false,
-                        changes,
-                    }
-                }))
                 .collect(),
         })
     }
 
     /// prepares the deployment and applies it. A create or deploy applies the resources in the
-    /// order of their dependencies, then removes the dns records of an old dns mode or root domain.
-    /// Then ansible provisions the server, sakctl waits for the api and sets the provisioned-config
-    /// label. Each resource, line and task goes to `on_event`. What is up-to-date stays as it is,
+    /// order of their dependencies, the roles of the playbook after the server and the volume
+    /// (`core::ansible_roles`), then removes the dns records of an old dns mode or root domain.
+    /// After a provisioning sakctl waits for the api and sets the version label of the server.
+    /// Each resource, line and task goes to `on_event`. What is up-to-date stays as it is,
     /// so the next run finishes a run that failed. A destroy removes the dns records of the
     /// deployment, then every resource but the data volume (also that with `delete_data`),
     /// dependents first
@@ -1733,160 +1674,98 @@ impl DeploymentManager {
                 })?;
             return Ok(());
         }
-        let mut registry = prepared
-            .spec
-            .registry(&prepared.runtime)
-            .map_err(|error| error.to_string())?;
-        // a server created or created anew needs its provisioning, whatever its label says
+        // the events of the resources and of the playbook go through one channel to `on_event`
+        // while the registry applies; it closes when the registry and its report are gone
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<CreateEvent>();
+        let server_changed = Arc::new(AtomicBool::new(false));
+        let failure = Arc::new(Mutex::new(None));
+        let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
+            run,
+            runtime: container.clone(),
+            force: deployment.force,
+            server_changed: server_changed.clone(),
+            events: Some(sender.clone()),
+            failure: failure.clone(),
+        })?;
         let server_name = prepared.spec.resource_name();
-        let mut server_changed = false;
-        let mut report = |event: ApplyEvent| {
-            let event = match event {
-                ApplyEvent::Started(resource) => CreateEvent::Started {
-                    resource: resource.log_text,
-                },
-                ApplyEvent::Applied(result) => {
-                    if ResourceKind::of(&result.resource) == Some(ResourceKind::Server)
-                        && result.resource.name == server_name
-                        && matches!(result.applied, Applied::Created | Applied::Recreated)
-                    {
-                        server_changed = true;
-                    }
-                    CreateEvent::Applied {
-                        resource: result.resource.log_text,
-                        applied: result.applied,
-                    }
-                }
-                ApplyEvent::Destroyed(..) => return,
-            };
-            on_event(event);
+        let provisioned = Arc::new(AtomicBool::new(false));
+        let apply = {
+            let provisioned = provisioned.clone();
+            async move {
+                // a server created, created anew or changed runs the roles again, whatever its
+                // markers say
+                let mut report = |event: ApplyEvent| {
+                    let event = match event {
+                        ApplyEvent::Started(resource) => CreateEvent::Started {
+                            resource: resource.log_text,
+                        },
+                        ApplyEvent::Applied(result) => {
+                            if ResourceKind::of(&result.resource) == Some(ResourceKind::Server)
+                                && result.resource.name == server_name
+                                && result.applied != Applied::Unchanged
+                            {
+                                server_changed.store(true, Ordering::SeqCst);
+                            }
+                            if is_provisioning(&result.resource)
+                                && result.applied != Applied::Unchanged
+                            {
+                                provisioned.store(true, Ordering::SeqCst);
+                            }
+                            CreateEvent::Applied {
+                                resource: result.resource.log_text,
+                                applied: result.applied,
+                            }
+                        }
+                        ApplyEvent::Destroyed(..) => return,
+                    };
+                    let _ = sender.send(event);
+                };
+                let result = registry.apply_all_with(&mut report).await;
+                drop(registry);
+                result
+            }
         };
-        registry
-            .apply_all_with(&mut report)
-            .await
-            .map_err(|error| {
-                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
-            })?;
+        let forward = async {
+            while let Some(event) = receiver.recv().await {
+                on_event(event);
+            }
+        };
+        let (result, ()) = tokio::join!(apply, forward);
+        if let Err(error) = result {
+            // a failed playbook says what failed in its own words, a failure at the provider with
+            // its name
+            if let Some(message) = failure.lock().ok().and_then(|mut failure| failure.take()) {
+                return Err(message.into());
+            }
+            return Err(cloud_failure(
+                "shared.deployments.create_failed",
+                prepared.provider,
+                error,
+            ));
+        }
         self.remove_records(&prepared, on_event)
             .await
             .map_err(|error| {
                 cloud_failure("shared.deployments.create_failed", prepared.provider, error)
             })?;
+        if !provisioned.load(Ordering::SeqCst) {
+            return Ok(());
+        }
 
-        // the result: the address of the server and the device of its data volume
-        let created = discover(&prepared.runtime.api)
+        // the server just provisioned: the wait for the api goes to its address
+        let server = discover(&prepared.runtime.api)
             .await
             .map_err(|error| failed(prepared.provider, error))?
             .into_iter()
             .find(|found| found.name == prepared.spec.name)
+            .and_then(|found| found.server)
             .ok_or_else(|| {
                 t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
             })?;
-        let server = created.server.as_ref().ok_or_else(|| {
-            t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
-        })?;
-        // the provisioning as the plan names it, its events carry it. A forced deploy always runs
-        // the playbook, so the server is as the deployment declares it, whatever happened to it;
-        // otherwise only when the server changed or was provisioned with another configuration
-        let resource = t!(
-            "shared.provision.resource",
-            name = prepared.spec.resource_name()
-        )
-        .to_string();
-        if !deployment.force
-            && !server_changed
-            && prepared.provisioned.as_deref() == Some(prepared.provisioned_config.as_str())
-        {
-            on_event(CreateEvent::ProvisioningUpToDate { resource });
-            return Ok(());
-        }
-        let server_id = server.id;
-        let provider = prepared.provider;
-        let api = prepared.runtime.api.clone();
-        let provisioned_config = prepared.provisioned_config.clone();
-        // remove the label first: after a run that fails or is stopped the plan shows the
-        // provisioning as missing
-        set_server_labels(&api, server_id, &[(PROVISIONED_CONFIG_LABEL, None)])
-            .await
-            .map_err(|error| failed(prepared.provider, error))?;
-        let host = server.public_ipv4.clone().ok_or_else(|| {
-            t!("shared.provision.no_address", name = prepared.spec.name).to_string()
-        })?;
-        let volume_name = prepared.spec.data_volume().name;
-        let storage_device = created
-            .volumes
-            .iter()
-            .find(|volume| volume.name == volume_name)
-            .map(|volume| volume.device.clone())
-            .ok_or_else(|| {
-                t!("shared.provision.no_volume", name = prepared.spec.name).to_string()
-            })?;
-        // the server just provisioned; the wait for the api goes to this address
-        let address = host.parse::<std::net::IpAddr>().ok();
-        let run = ProvisionRun {
-            name: prepared.spec.name.clone(),
-            dns_mode: prepared.spec.dns_mode,
-            // a create or deploy has one, prepare checked it
-            root_domain: prepared.spec.root_domain.clone().unwrap_or_default(),
-            api_public_key: prepared.api_public_key.clone(),
-            // a create or deploy has them, prepare checked them
-            admin_email: prepared.admin_email.clone().unwrap_or_default(),
-            smtp: prepared.smtp.clone(),
-            admin_password_hash: prepared.admin_password_hash.clone(),
-            acme_ca: prepared.acme_ca.directory().map(String::from),
-            host,
-            host_ipv6: server
-                .public_ipv6
-                .clone()
-                .map(|network| first_address(&network)),
-            client_key: prepared.client_key,
-            host_key: prepared.host_key,
-            storage_device,
-        };
-
-        on_event(CreateEvent::Provisioning {
-            message: t!(
-                "shared.provision.running",
-                name = run.name.as_str(),
-                host = run.host.as_str()
-            )
-            .to_string(),
-        });
-        // ansible runs as a process of its own; its lines come through a channel while it runs
-        let runtime = container.clone();
-        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
-        let provisioning = tokio::task::spawn_blocking(move || {
-            ProvisionManager.provision(&runtime, &run, &mut |output| {
-                let _ = sender.send(output);
-            })
-        });
-        let mut failed_task = None;
-        while let Some(output) = receiver.recv().await {
-            let event = match output {
-                ProvisionOutput::Line(line) => Some(CreateEvent::Output { line }),
-                ProvisionOutput::Event(event) => task_event(&resource, event),
-            };
-            if let Some(CreateEvent::TaskDone {
-                task,
-                outcome: TaskOutcome::Failed | TaskOutcome::Unreachable,
-                ..
-            }) = &event
-            {
-                failed_task.get_or_insert_with(|| task.clone());
-            }
-            if let Some(event) = event {
-                on_event(event);
-            }
-        }
-        if let Err(message) = provisioning.await.map_err(|error| error.to_string())? {
-            on_event(CreateEvent::ProvisionFailed {
-                resource,
-                task: failed_task,
-                message: message.clone(),
-            });
-            return Err(message.into());
-        }
-        on_event(CreateEvent::Provisioned { resource });
+        let address = server
+            .public_ipv4
+            .as_deref()
+            .and_then(|host| host.parse::<std::net::IpAddr>().ok());
         // done when the deployment answers as its users reach it: through its ingress, with its
         // certificate. A backend that did not start or a missing certificate stops the apply here
         if let Some(root_domain) = &prepared.spec.root_domain {
@@ -1909,15 +1788,12 @@ impl DeploymentManager {
         }
         // the server runs the images of this version now, its version label says so
         set_server_labels(
-            &api,
-            server_id,
-            &[
-                (PROVISIONED_CONFIG_LABEL, Some(&provisioned_config)),
-                (VERSION_LABEL, Some(crate::core::VERSION)),
-            ],
+            &prepared.runtime.api,
+            server.id,
+            &[(VERSION_LABEL, Some(crate::core::VERSION))],
         )
         .await
-        .map_err(|error| failed(provider, error))?;
+        .map_err(|error| failed(prepared.provider, error))?;
         Ok(())
     }
 
@@ -2295,117 +2171,17 @@ mod tests {
         assert!(task_event(row, AnsibleEvent::PlayStart { play: "p".into() }).is_none());
         // the window reads the events by these names
         assert_eq!(
-            serde_json::to_value(CreateEvent::Provisioned {
-                resource: row.into()
+            serde_json::to_value(CreateEvent::ProvisionFailed {
+                resource: row.into(),
+                task: None,
+                message: "no".into()
             })
             .unwrap()["event"],
-            "provisioned"
+            "provisionFailed"
         );
         assert_eq!(
             serde_json::to_value(TaskOutcome::Unreachable).unwrap(),
             "unreachable"
-        );
-    }
-
-    #[test]
-    fn the_plan_tells_whether_the_configuration_of_the_server_changed() {
-        let up = Some(DiffStatus::UpToDate);
-        // provisioned with this configuration, the server stays: up to date
-        assert_eq!(
-            provisioning_status(Some("a"), "a", up, false),
-            (DiffStatus::UpToDate, vec![])
-        );
-        // another configuration, a changing server: changes, and why
-        assert_eq!(
-            provisioning_status(Some("b"), "a", up, false),
-            (
-                DiffStatus::HasChanges,
-                vec![t!("shared.provision.config_changed").to_string()]
-            )
-        );
-        assert_eq!(
-            provisioning_status(Some("a"), "a", Some(DiffStatus::HasChanges), false),
-            (
-                DiffStatus::HasChanges,
-                vec![t!("shared.provision.server_changes").to_string()]
-            )
-        );
-        // never provisioned, a new server, one created anew: the first run
-        assert_eq!(
-            provisioning_status(None, "a", up, false).0,
-            DiffStatus::Missing
-        );
-        assert_eq!(
-            provisioning_status(Some("a"), "a", None, false).0,
-            DiffStatus::Missing
-        );
-        assert_eq!(
-            provisioning_status(Some("a"), "a", Some(DiffStatus::HasChanges), true).0,
-            DiffStatus::Missing
-        );
-    }
-
-    #[test]
-    fn the_configuration_of_the_label_holds_what_the_playbook_writes() {
-        let smtp = Smtp {
-            host: " smtp.example.org ".to_string(),
-            port: 465,
-            username: "user".to_string(),
-            password: "secret".to_string(),
-            starttls: false,
-        };
-        let text = config_text(
-            "alpha",
-            DnsMode::Domain,
-            "pelle.io",
-            "abc",
-            "admin@example.org",
-            Some(&smtp),
-            "$argon2id$hash",
-            "0.1.1",
-        );
-        for part in [
-            "name alpha",
-            "version 0.1.1",
-            "dns_mode domain",
-            "root_domain pelle.io",
-            "api_public_key abc",
-            "admin_email admin@example.org",
-            "admin_password_hash $argon2id$hash",
-            "smtp_host smtp.example.org",
-            "smtp_port 465",
-            "smtp_password secret",
-            "smtp_starttls false",
-        ] {
-            assert!(text.lines().any(|line| line == part), "{part}");
-        }
-        // single user: no mail server, another configuration
-        assert_ne!(
-            config_text(
-                "alpha",
-                DnsMode::Domain,
-                "pelle.io",
-                "abc",
-                "",
-                None,
-                "$argon2id$hash",
-                "0.1.1"
-            ),
-            text
-        );
-        // another version of sakctl: another configuration, the server is provisioned again
-        assert_ne!(
-            config_text(
-                "alpha",
-                DnsMode::Domain,
-                "pelle.io",
-                "abc",
-                "admin@example.org",
-                Some(&smtp),
-                "$argon2id$hash",
-                "0.1.2"
-            ),
-            text
         );
     }
 

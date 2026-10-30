@@ -494,13 +494,15 @@ set -e
 
 # in docker: the vector configuration the backend role deploys, with its image, and sak-backend
 # of the role as it renders it (backup, restore and the maintenance), next to a real victorialogs
-# (ansible/roles/backend/tests/sak-backend-test.sh)
+# (ansible/roles/backend/tests/sak-backend-test.sh), and the role role_markers
+# (ansible/roles/role_markers/tests/role-markers-test.sh)
 [tasks."test:backend:integration"]
 description = "Run the integration tests of the backend in docker: the vector configuration and sak-backend"
 dir = "{{config_root}}"
 run = """
 ./gradlew :sak-backend:vectorTest
 ansible/roles/backend/tests/sak-backend-test.sh
+ansible/roles/role_markers/tests/role-markers-test.sh
 """
 
 # the apps in a browser against the controller and a mailpit e-mail sink (docker); playwright

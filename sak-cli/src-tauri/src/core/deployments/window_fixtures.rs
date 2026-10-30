@@ -21,10 +21,12 @@ const IPV4: &str = "203.0.113.10";
 const IPV6: &str = "2001:db8:1::1";
 
 /// the tasks of the playbook `pelle_io.sak.server` as its callback names them, in their order:
-/// the pre tasks, then the roles common, storage and backend (ansible/roles/*/tasks/main.yml)
+/// the pre tasks, then the roles common, storage, backend and role_markers
+/// (ansible/roles/*/tasks/main.yml)
 const TASKS: &[&str] = &[
     "Wait for the server to accept ssh",
     "Gather facts",
+    "Remove the role markers of the run before",
     "Install unattended-upgrades",
     "Enable periodic package list updates and unattended upgrades",
     "Configure unattended upgrades",
@@ -61,6 +63,8 @@ const TASKS: &[&str] = &[
     "Remove the sak-controller quadlet and the image archives",
     "Install the quadlets",
     "Start the containers",
+    "Create the directory of the role markers",
+    "Write a marker for each role of the run",
 ];
 
 /// an event of a channel and the milliseconds before it
@@ -171,6 +175,12 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     }
     let resource = provisioning(spec);
     events.push(after(
+        150,
+        CreateEvent::Started {
+            resource: resource.clone(),
+        },
+    ));
+    events.push(after(
         400,
         CreateEvent::Provisioning {
             message: t!(
@@ -213,18 +223,24 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
             },
         ));
     }
+    events.push(after(
+        300,
+        CreateEvent::Applied {
+            resource,
+            applied: Applied::Created,
+        },
+    ));
     let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
         NAME,
         DnsMode::Domain,
         ROOT_DOMAIN,
     ));
     events.push(after(
-        300,
+        2_000,
         CreateEvent::Provisioning {
             message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
         },
     ));
-    events.push(after(2_000, CreateEvent::Provisioned { resource }));
     events
 }
 

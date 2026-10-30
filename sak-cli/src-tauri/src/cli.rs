@@ -1207,7 +1207,9 @@ async fn deploy(
 ) -> Result<(), WizardError> {
     // the project is read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
-    let plan = manager.plan_prepared(&prepared, deployment).await?;
+    let plan = manager
+        .plan_prepared(&prepared, deployment, runtime)
+        .await?;
     let intro = match deployment.intent {
         Intent::Create => t!("shared.plan.intro"),
         Intent::Deploy => t!("shared.plan.intro_deploy"),
@@ -1309,14 +1311,6 @@ async fn deploy(
                 ),
             )
         }
-        CreateEvent::Provisioned { .. } => log(
-            Level::Info,
-            t!("cli.provisioned", name = deployment.name.trim()),
-        ),
-        CreateEvent::ProvisioningUpToDate { .. } => log(
-            Level::Info,
-            t!("cli.provisioning_up_to_date", name = deployment.name.trim()),
-        ),
         // the error of the run tells what failed, the command ends with it
         CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
     };

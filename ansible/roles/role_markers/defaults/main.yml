@@ -1,0 +1,6 @@
+---
+# the fingerprint of each role this run applied, by role name; sakctl sets it in the inventory of
+# the run (core/roles.rs: the files of the role and what the run hands it)
+sak_role_markers: {}
+# where the markers live, one file per role; the next diff of sakctl reads them through ssh
+role_markers_dir: /var/lib/sak/roles

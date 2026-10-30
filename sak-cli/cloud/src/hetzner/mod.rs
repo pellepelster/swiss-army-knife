@@ -55,9 +55,9 @@ pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 /// that a check left and removes it
 pub const TOKEN_CHECK_LABEL: &str = "sak.pelle.io/token-check";
 
-/// the configuration that the server was provisioned with, as a hash only sakctl can make (keyed
-/// by the master key of the deployment). Set after a provisioning succeeded, removed before one
-/// starts. sakctl keeps it on the server; the declaration of the server does not have it
+/// the configuration that a server was provisioned with by an older sakctl. sakctl writes it no
+/// more, the markers of the roles on the server took its place; it stays a managed label, so a
+/// server that carries it shows no change
 pub const PROVISIONED_CONFIG_LABEL: &str = "sak.pelle.io/provisioned-config";
 
 /// whether the provisioners or sakctl keep the label on a resource in addition to the declared

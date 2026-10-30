@@ -1,7 +1,8 @@
 ---
 # the server of a deployment as sakctl creates it: reached as soon as it accepts ssh, then the
 # base setup, the data volume and the backend (sak-backend, caddy, the logs) with the
-# configuration and backend.env sakctl hands over
+# configuration and backend.env sakctl hands over. The markers of the roles go first and come
+# back last (role_markers), so only a run that succeeded leaves them
 - name: Provision the server of a deployment
   hosts: all
   become: true
@@ -12,7 +13,12 @@
         timeout: 600
     - name: Gather facts
       ansible.builtin.setup:
+    - name: Remove the role markers of the run before
+      ansible.builtin.file:
+        path: /var/lib/sak/roles
+        state: absent
   roles:
     - pelle_io.sak.common
     - pelle_io.sak.storage
     - pelle_io.sak.backend
+    - pelle_io.sak.role_markers

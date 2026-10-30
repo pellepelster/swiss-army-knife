@@ -1,0 +1,23 @@
+---
+# the last role of the run: it is reached only when every role before it succeeded. The playbook
+# removes the markers before the roles run, so a run that fails anywhere leaves none, and the
+# next diff of sakctl finds the provisioning missing. Only root reads them: the fingerprint of the
+# backend covers its secrets
+- name: Create the directory of the role markers
+  ansible.builtin.file:
+    path: "{{ role_markers_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write a marker for each role of the run
+  ansible.builtin.copy:
+    content: "{{ item.value }}"
+    dest: "{{ role_markers_dir }}/{{ item.key }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ sak_role_markers | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

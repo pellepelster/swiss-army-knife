@@ -7,6 +7,7 @@ Ansible collection that provisions the `sak-backend` server.
 | `pelle_io.sak.common`  | Base setup, enables automatic unattended upgrades, key based ssh login only, blocks the cloud metadata service (it serves the ssh host key) for everything but root |
 | `pelle_io.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` (`sak_mount_dir`) |
 | `pelle_io.sak.backend` | Pulls the `sak-backend` and `sak-ingress` images (caddy, denies everything until the backend configures it, storage in `/storage/data/<name>/ingress`, json logs in `/storage/data/<name>/ingress/log`) from ghcr.io on every run, restarts a container whose image changed, and runs them as quadlets; all data of the deployment lives below `/storage/data/<name>` (`sak_data_dir`, `<name>` is `sak_name`), the s3 buckets in `/storage/data/<name>/backend/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000). |
+| `pelle_io.sak.role_markers` | The last role of a run: writes the fingerprint of each role the run applied (`sak_role_markers`, set by sakctl) to `/var/lib/sak/roles/<role>`, readable by root only. The playbook removes them before the roles run, so only a run that succeeded leaves them; the plan of sakctl compares them to find a role that has to run again |
 
 `playbooks/server.yml` (`pelle_io.sak.server`) is what sakctl runs against the server of a
 deployment right after creating it: it waits for ssh, then `common` and `storage`; the

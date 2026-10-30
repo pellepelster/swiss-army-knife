@@ -3,6 +3,7 @@
 //! requests to the api, the backups, the providers and their tokens, the texts. Nothing in here knows tauri or
 //! clap
 
+pub mod ansible_roles;
 pub mod backup;
 pub mod checks;
 pub mod config;
@@ -15,6 +16,7 @@ pub mod keys;
 pub mod maintenance;
 pub mod providers;
 pub mod provision;
+pub mod roles;
 pub mod ssh;
 pub mod update;
 
@@ -38,12 +40,14 @@ mod tests {
                 "checks/provider_tokens.rs",
                 include_str!("checks/provider_tokens.rs"),
             ),
+            ("ansible_roles.rs", include_str!("ansible_roles.rs")),
             ("backup.rs", include_str!("backup.rs")),
             ("config.rs", include_str!("config.rs")),
             ("container.rs", include_str!("container.rs")),
             ("deployments.rs", include_str!("deployments.rs")),
             ("error.rs", include_str!("error.rs")),
             ("provision.rs", include_str!("provision.rs")),
+            ("roles.rs", include_str!("roles.rs")),
             ("i18n.rs", include_str!("i18n.rs")),
             ("keys.rs", include_str!("keys.rs")),
             ("maintenance.rs", include_str!("maintenance.rs")),
