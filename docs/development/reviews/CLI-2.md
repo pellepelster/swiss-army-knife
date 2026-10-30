@@ -189,32 +189,6 @@ sakctl on aarch64 Linux downloads the x86_64 zip, the checksum matches, `self_re
 not run. Low likelihood for official releases, cheap to guard: the architecture in the asset name, or a check of
 the ELF/Mach-O machine. Downgrades, partial writes and symlinked install paths are handled correctly.
 
-#### CU-6 (Low, confirmed): The first download url is not pinned to GitHub, only the redirects are
-
-`Updater::get` (`update.rs:226-229`) checks only the `https://` prefix of `browser_download_url` from the release
-json, while `follow_to_github` (`update.rs:282-294`) restricts the redirect hops to GitHub hosts. Apply `is_github`
-to the first host too (within the accepted risk "release not signed", but the code claims a policy it half
-enforces).
-
-#### CU-8 (Low): The startup checks have no timeout
-
-`canary` (`container.rs:87-112`) and `pull` (`container.rs:129-161`) go through `output()` (`container.rs:294-303`),
-which waits forever. A daemon that accepts the connection but never answers hangs the splash screen. The bollard
-path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
-
-### Smells
-
-#### CU-16 (Low): `BackupManager` is a unit struct with `&self` methods
-
-`backup.rs:32, 139, 187`, called as `BackupManager.backup(...)`; the receiver carries nothing. The doc line at
-`backup.rs:16-17` is duplicated.
-
-#### CU-18 (Low): `block_on` hides in `container.rs`
-
-`container.rs:116-125`, used by `checks/provider_tokens.rs:2`; it panics when called from an async task and relies
-on a comment. `pull()` discards the bollard error silently (`container.rs:130`), so the user never learns why the
-progress disappeared.
-
 ### Structure
 
 #### CU-21: A cancellable ssh session per call
@@ -222,11 +196,6 @@ progress disappeared.
 `run_streaming` returns or takes a handle that removes its own `SessionContainer`; `limited` stops that handle
 instead of `stop_runs()`. With `ServerAlive*`/`BatchMode` in `ssh_arguments` and a `limited` around backup and
 restore this resolves CU-2.
-
-#### CU-22: Split `container.rs`
-
-- Split `container.rs`: runtime detection, canary and `command()` stay; `PullProgress` and the bollard pull go to
-  `container/pull.rs`; `block_on` to a small `core::runtime`.
 
 ---
 
