@@ -3,7 +3,7 @@
 use crate::api::{Labels, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location};
 use crate::hetzner::deployment::ResourceKind;
-use crate::hetzner::deployment::{DnsMode, frontend_host};
+use crate::hetzner::deployment::{AcmeCa, DnsMode, UserMode, frontend_host};
 use crate::hetzner::firewall::HetznerFirewallRuntime;
 use crate::hetzner::primary_ip::HetznerPrimaryIpRuntime;
 use crate::hetzner::server::HetznerServerRuntime;
@@ -59,14 +59,15 @@ impl DiscoveredDeployment {
     }
 
     /// the user mode on its resources, `single` or `multi`; none for a deployment created before
-    /// the label
-    pub fn user_mode(&self) -> Option<String> {
-        self.label(USER_MODE_LABEL).cloned()
+    /// the label and for a value this sakctl does not know
+    pub fn user_mode(&self) -> Option<UserMode> {
+        UserMode::parse(self.label(USER_MODE_LABEL)?)
     }
 
-    /// the acme ca on its resources, `staging`; none for the default
-    pub fn acme_ca(&self) -> Option<String> {
-        self.label(ACME_CA_LABEL).cloned()
+    /// the acme ca on its resources, `staging`; none for the default and for a value this sakctl
+    /// does not know
+    pub fn acme_ca(&self) -> Option<AcmeCa> {
+        AcmeCa::parse(self.label(ACME_CA_LABEL)?)
     }
 
     /// the version of sak that last created or deployed it, as its resources tell

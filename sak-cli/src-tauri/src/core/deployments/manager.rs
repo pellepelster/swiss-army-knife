@@ -154,7 +154,7 @@ impl Prepared {
             admin_email,
             smtp,
             admin_password_hash: provisioning.admin_password_hash.clone(),
-            acme_ca: provisioning.acme_ca.directory().map(String::from),
+            acme_ca: acme_directory(provisioning.acme_ca).map(String::from),
         }
     }
 
@@ -359,9 +359,7 @@ impl DeploymentManager {
         password: &str,
     ) -> Result<Detected, SakctlError> {
         let deployment = self.find(&tokens, name).await?;
-        let label = deployment
-            .user_mode()
-            .and_then(|mode| UserMode::parse(&mode));
+        let label = deployment.user_mode();
         // a single user deployment has no more settings
         let running = match label {
             Some(UserMode::Single) => Ok(None),
@@ -715,7 +713,12 @@ impl DeploymentManager {
         let provisioning = match &prepared.purpose {
             Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => provisioning,
             Purpose::Destroy { delete_data } => {
-                return self.destroy(&prepared, *delete_data, on_event).await;
+                let data_volume = if *delete_data {
+                    DataVolume::Delete
+                } else {
+                    DataVolume::Keep
+                };
+                return self.destroy(&prepared, data_volume, on_event).await;
             }
         };
         let provisioned = self.apply_resources(&prepared, container, on_event).await?;
@@ -732,11 +735,11 @@ impl DeploymentManager {
     }
 
     /// a destroy: the dns records of the deployment, then every resource but the data volume
-    /// (also that with `delete_data`), dependents first
+    /// (also that with `DataVolume::Delete`), dependents first
     async fn destroy(
         &self,
         prepared: &Prepared,
-        delete_data: bool,
+        data_volume: DataVolume,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
         let destroy_failed = |error| {
@@ -751,7 +754,7 @@ impl DeploymentManager {
             .map_err(destroy_failed)?;
         let mut registry = prepared
             .spec
-            .destroy_registry(&prepared.runtime, delete_data)
+            .destroy_registry(&prepared.runtime, data_volume)
             .map_err(|error| error.to_string())?;
         let mut report = |event: ApplyEvent| {
             let event = match event {
@@ -887,7 +890,7 @@ impl DeploymentManager {
         crate::core::config::wait_for_api(
             &api,
             address,
-            provisioning.acme_ca.trust(),
+            acme_trust(provisioning.acme_ca),
             crate::core::config::API_WAIT,
             std::time::Duration::from_secs(5),
         )
@@ -995,18 +998,12 @@ fn users_and_acme_ca(
     deployment: &DeploymentRequest,
     existing: Option<&DiscoveredDeployment>,
 ) -> Result<(Purpose<Users>, AcmeCa), SakctlError> {
-    let user_mode = deployment.user_mode.or_else(|| {
-        existing
-            .and_then(DiscoveredDeployment::user_mode)
-            .and_then(|mode| UserMode::parse(&mode))
-    });
+    let user_mode = deployment
+        .user_mode
+        .or_else(|| existing.and_then(DiscoveredDeployment::user_mode));
     let acme_ca = deployment
         .acme_ca
-        .or_else(|| {
-            existing
-                .and_then(DiscoveredDeployment::acme_ca)
-                .and_then(|ca| AcmeCa::parse(&ca))
-        })
+        .or_else(|| existing.and_then(DiscoveredDeployment::acme_ca))
         .unwrap_or_default();
     let users = || {
         users(
@@ -1125,8 +1122,8 @@ fn laid_out(
     if let Some(settings) = settings {
         spec = spec
             .with_root_domain(&settings.root_domain)
-            .with_user_mode(settings.users.mode().as_str())
-            .with_acme_ca(acme_ca.as_str())
+            .with_user_mode(settings.users.mode())
+            .with_acme_ca(acme_ca)
             .with_version(crate::core::VERSION);
     }
     spec.user_data = user_data(&host_key);

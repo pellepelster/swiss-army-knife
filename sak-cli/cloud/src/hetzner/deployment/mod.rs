@@ -2,12 +2,13 @@
 //! value, and the state of each deployment compared with its declared resource group.
 //!
 //! `discover` finds the deployments, `spec` declares the resources of one, `state` compares
-//! them, `domain` holds the root domains and the dns mode, `records` the dns records of a
-//! deployment in the zones of the project
+//! them, `domain` holds the root domains and the dns mode, `settings` the user mode and the acme
+//! ca, `records` the dns records of a deployment in the zones of the project
 
 mod discover;
 mod domain;
 mod records;
+mod settings;
 mod spec;
 mod state;
 
@@ -21,9 +22,10 @@ pub use domain::{
 pub use records::{
     DeploymentRecord, deployment_records, foreign_records, remove_records, stale_records,
 };
+pub use settings::{AcmeCa, UserMode};
 pub use spec::{
-    DATA_VOLUME_SUFFIX, DNS_LABEL_LEN, DeploymentSpec, MAX_NAME_LEN, RESOURCE_PREFIX, USER_DATA,
-    check_name,
+    DATA_VOLUME_SUFFIX, DNS_LABEL_LEN, DataVolume, DeploymentSpec, MAX_NAME_LEN, RESOURCE_PREFIX,
+    USER_DATA, check_name,
 };
 pub use state::{DeploymentState, DeploymentStatus, ResourceKind, ResourceState, state};
 

@@ -3,7 +3,7 @@
 use crate::api::{Error, Labels, Registry, Resource, Result};
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::api::{Location, ServerType};
-use crate::hetzner::deployment::{DiscoveredDeployment, DnsMode};
+use crate::hetzner::deployment::{AcmeCa, DiscoveredDeployment, DnsMode, UserMode};
 use crate::hetzner::dns_record::{HetznerDnsRecord, RecordValue};
 use crate::hetzner::dns_zone::HetznerDnsZoneLookup;
 use crate::hetzner::firewall::{HetznerFirewall, inbound_icmp, inbound_tcp};
@@ -55,6 +55,13 @@ pub fn check_name(name: &str) -> Result<()> {
     }
 }
 
+/// what a destroy does with the data volume of the deployment
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DataVolume {
+    Keep,
+    Delete,
+}
+
 /// the resources of a deployment, as sakctl creates them: an ssh key, a data volume, a primary
 /// ipv4 and ipv6, a firewall, the server made of them and its dns records, each with the name
 /// label
@@ -72,10 +79,10 @@ pub struct DeploymentSpec {
     pub dns_mode: DnsMode,
     /// on every resource, the dns zone of the names of the deployment; none for a destroy
     pub root_domain: Option<String>,
-    /// on every resource, who signs in (`single`, `multi`); none for a destroy
-    pub user_mode: Option<String>,
-    /// on every resource, the acme ca of the certificates (`staging`); none for the default
-    pub acme_ca: Option<String>,
+    /// on every resource, who signs in; none for a destroy
+    pub user_mode: Option<UserMode>,
+    /// on every resource, the acme ca of the certificates; none for the default
+    pub acme_ca: Option<AcmeCa>,
     /// on every resource, the version of sak that creates or deploys it; none for a destroy
     pub version: Option<String>,
     /// on every resource; sakctl checks a password against it
@@ -168,8 +175,8 @@ impl DeploymentSpec {
         self
     }
 
-    pub fn with_acme_ca(mut self, acme_ca: &str) -> Self {
-        self.acme_ca = Some(acme_ca.to_string());
+    pub fn with_acme_ca(mut self, acme_ca: AcmeCa) -> Self {
+        self.acme_ca = Some(acme_ca);
         self
     }
 
@@ -178,8 +185,8 @@ impl DeploymentSpec {
         self
     }
 
-    pub fn with_user_mode(mut self, user_mode: &str) -> Self {
-        self.user_mode = Some(user_mode.to_string());
+    pub fn with_user_mode(mut self, user_mode: UserMode) -> Self {
+        self.user_mode = Some(user_mode);
         self
     }
 
@@ -206,11 +213,11 @@ impl DeploymentSpec {
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
-        if let Some(user_mode) = &self.user_mode {
-            labels.insert(USER_MODE_LABEL.to_string(), user_mode.clone());
+        if let Some(user_mode) = self.user_mode {
+            labels.insert(USER_MODE_LABEL.to_string(), user_mode.to_string());
         }
-        if let Some(acme_ca) = &self.acme_ca {
-            labels.insert(ACME_CA_LABEL.to_string(), acme_ca.clone());
+        if let Some(acme_ca) = self.acme_ca {
+            labels.insert(ACME_CA_LABEL.to_string(), acme_ca.to_string());
         }
         if let Some(root_domain) = &self.root_domain {
             labels.insert(ROOT_DOMAIN_LABEL.to_string(), root_domain.clone());
@@ -372,19 +379,19 @@ impl DeploymentSpec {
         Ok(registry)
     }
 
-    /// what a destroy removes: the resource group, the data volume only with `delete_data`,
-    /// each only with the identity of the deployment. The dns records are not in it; they are
-    /// found by their labels (`deployment_records`, `stale_records`)
+    /// what a destroy removes: the resource group, the data volume only with
+    /// `DataVolume::Delete`, each only with the identity of the deployment. The dns records are
+    /// not in it; they are found by their labels (`deployment_records`, `stale_records`)
     pub fn destroy_registry(
         &self,
         provider: &HetznerProviderRuntime,
-        delete_data: bool,
+        data_volume: DataVolume,
     ) -> Result<Registry> {
         let mut registry = provider
             .registry()
             .owned_by(self.identity())
             .with(self.ssh_key())?;
-        if delete_data {
+        if data_volume == DataVolume::Delete {
             registry.add(self.data_volume())?;
         }
         registry
@@ -618,7 +625,7 @@ mod tests {
         let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
 
         let error = web()
-            .destroy_registry(&provider, true)
+            .destroy_registry(&provider, DataVolume::Delete)
             .unwrap()
             .destroy_all()
             .await
@@ -783,9 +790,9 @@ mod tests {
         let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
         let spec = spec(DnsMode::Domain);
         let mut planned = Vec::new();
-        for delete_data in [false, true] {
+        for data_volume in [DataVolume::Keep, DataVolume::Delete] {
             let resources: Vec<String> = spec
-                .destroy_registry(&provider, delete_data)
+                .destroy_registry(&provider, data_volume)
                 .unwrap()
                 .diff_all()
                 .await

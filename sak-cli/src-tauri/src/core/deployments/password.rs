@@ -34,11 +34,7 @@ pub(super) fn endpoint(
     Ok(Endpoint {
         url,
         key,
-        trust: deployment
-            .acme_ca()
-            .and_then(|ca| AcmeCa::parse(&ca))
-            .unwrap_or_default()
-            .trust(),
+        trust: acme_trust(deployment.acme_ca().unwrap_or_default()),
         address: deployment
             .server
             .as_ref()
