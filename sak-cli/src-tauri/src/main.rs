@@ -1,4 +1,4 @@
-// no console window next to the app in windows release builds; there the commands of cli.rs
+// no console window next to the app in windows release builds; there the commands of cli/
 // print nothing
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 

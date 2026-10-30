@@ -918,13 +918,14 @@ duplicates the subcommand list clap knows.
 
 ### Structure
 
-#### UI-24: Split `cli.rs`
+#### ~~UI-24: Split `cli.rs`~~ **fixed**
 
 1724 lines, three responsibilities: `cli/mod.rs` (Cli, Command, `is_command_line`, `run`, `execute`);
 `cli/args.rs` (Provider, DeploymentArgs, MaintenanceArgs, the `parse_*`); `cli/secrets.rs` (`hcloud_token`,
 `password`, `smtp_password`, `confirm_restore`); `cli/log.rs` (Level, `log`, `log_line`, `print_json`, `size`);
 `cli/deploy.rs` (`list`, `deploy`); `cli/server.rs` (`ssh`, `backup`, `restore`, `maintenance`, `show_config`).
-The tests move with their functions. With UI-14, UI-15.
+The tests move with their functions. With UI-14, UI-15. *Done as `cli/{mod,args,secrets,log,deploy,server}.rs`; the tests stay
+one module, `cli/tests.rs`.*
 
 #### UI-25: A small router in `views.js`, no dynamic `import()`
 
