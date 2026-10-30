@@ -149,15 +149,6 @@ not the existing type, so a server upgraded in the console is silently recreated
 on the volume, but a recreate of a running server should not follow from "unknown": compare only when the image is
 known, or make the recreate a confirmed step.
 
-#### CP-5 (Medium): A user's own label on a resource is a diff and is wiped by the apply
-
-`hetzner/mod.rs:71-80` ignores only managed and info keys; `api/diff.rs:283-287` reports every undeclared live
-label as removed; every apply sends `labels: Some(resource.labels.clone())` (`volume/provisioner.rs:133-141`,
-`primary_ip:146-156`, `firewall:120-123`, `ssh_key:142-150`, `server:337-341`, `dns_record:183-187`). ARCHITECTURE
-"Own prefix" says user labels are never under `sak.pelle.io/`, which only makes sense when keys outside the prefix
-are left alone. **Scenario:** `env=prod` added in the console → state "Changed", the deploy removes it. The decision
-is GitHub issue #131.
-
 #### CP-6 (Low): Growing the data volume is a recreate, which is refused
 
 `hetzner/volume/provisioner.rs:80-86`: declared size > live → `DiffItem::recreate("size")`; the volume is never
