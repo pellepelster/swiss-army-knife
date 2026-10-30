@@ -846,7 +846,7 @@ command line logs, the window sends.
 `cli.rs:659-671` and `gui/deployments.rs:135-154` both build the `NewDeployment`, call `detected`, then `complete`.
 A `DeploymentManager::completed(new, smtp_password)` in core removes both, and UI-6 with them.
 
-#### UI-13 (Low): The startup checks are run twice
+#### ~~UI-13 (Low): The startup checks are run twice~~ **fixed**
 
 `cli.rs:541-584` and `gui/checks.rs:13-36` both build the checks, run them on a blocking thread, set the runtime
 and the tokens. Core could return a `Found` plus a `ContainerRuntime` from one `checks::run_all(tokens, on_event)`.

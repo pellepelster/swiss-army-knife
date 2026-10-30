@@ -544,38 +544,34 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
         provider.0.clone(),
         "HCLOUD_TOKEN",
     )]);
-    let found = tokio::task::spawn_blocking(move || {
-        // the window shows the progress of a pull ten times a second; the log shows each tenth
-        let mut logged = 0;
-        checks::run(checks::checks(tokens), &mut |event| {
-            match event {
-                CheckEvent::Started { id, .. } => {
-                    log(Level::Info, t!(format!("shared.checks.{id}.running")))
-                }
-                CheckEvent::Progress { fraction, text, .. } => {
-                    let tenth = (fraction * 10.0).floor() as u32;
-                    if tenth > logged && fraction < 1.0 {
-                        logged = tenth;
-                        log(Level::Info, text);
-                    }
-                }
-                CheckEvent::Passed { id, text, .. } => {
-                    logged = 0;
-                    log(
-                        Level::Info,
-                        t!(format!("shared.checks.{id}.done"), text = text),
-                    )
-                }
-                // the failure ends the command; `run` logs the error one time
-                CheckEvent::Failed { .. }
-                | CheckEvent::Listed { .. }
-                | CheckEvent::Finished { .. } => {}
+    // the window shows the progress of a pull ten times a second; the log shows each tenth
+    let mut logged = 0;
+    let found = checks::run_all(tokens, move |event| {
+        match event {
+            CheckEvent::Started { id, .. } => {
+                log(Level::Info, t!(format!("shared.checks.{id}.running")))
             }
-            Ok(())
-        })
+            CheckEvent::Progress { fraction, text, .. } => {
+                let tenth = (fraction * 10.0).floor() as u32;
+                if tenth > logged && fraction < 1.0 {
+                    logged = tenth;
+                    log(Level::Info, text);
+                }
+            }
+            CheckEvent::Passed { id, text, .. } => {
+                logged = 0;
+                log(
+                    Level::Info,
+                    t!(format!("shared.checks.{id}.done"), text = text),
+                )
+            }
+            // the failure ends the command; `run` logs the error one time
+            CheckEvent::Failed { .. } | CheckEvent::Listed { .. } | CheckEvent::Finished { .. } => {
+            }
+        }
+        Ok(())
     })
-    .await
-    .map_err(checks::not_finished)??;
+    .await?;
     let runtime = ContainerRuntime::default();
     if let Some(found) = found.runtime {
         runtime.set(found);

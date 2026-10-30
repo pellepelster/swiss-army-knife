@@ -12,14 +12,11 @@ use tauri::{AppHandle, Manager};
 #[tauri::command]
 pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result<(), String> {
     let channel = on_event.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let checks = checks::checks(ProviderTokensCheck::from_environment());
-        checks::run(checks, &mut |event| send(&channel, event))
+    let found = checks::run_all(ProviderTokensCheck::from_environment(), move |event| {
+        send(&channel, event)
     })
     .await
-    .map_err(checks::not_finished)
-    .and_then(|result| result);
-    let found = result.inspect_err(|text| eprintln!("{text}"))?;
+    .inspect_err(|text| eprintln!("{text}"))?;
     if let Some(runtime) = found.runtime {
         app.state::<ContainerRuntime>().set(runtime);
     }

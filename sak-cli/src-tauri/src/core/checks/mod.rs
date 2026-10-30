@@ -186,7 +186,18 @@ pub fn run(
 }
 
 /// the text of a check that did not finish, e.g. its thread panicked
-pub fn not_finished(error: impl std::fmt::Display) -> String {
+/// the checks with `tokens`, on a thread of their own because they block, for the window and the
+/// command line alike; each event goes to `on_event`
+pub async fn run_all(
+    tokens: ProviderTokensCheck,
+    mut on_event: impl FnMut(CheckEvent) -> Result<(), String> + Send + 'static,
+) -> Result<Found, String> {
+    tokio::task::spawn_blocking(move || run(checks(tokens), &mut on_event))
+        .await
+        .map_err(not_finished)?
+}
+
+fn not_finished(error: impl std::fmt::Display) -> String {
     t!("shared.checks.not_finished", error = error).to_string()
 }
 
