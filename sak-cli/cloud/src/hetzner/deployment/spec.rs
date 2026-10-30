@@ -1,6 +1,7 @@
-//! the resources of a deployment as a deploy declares them, the names and the registries
+//! the resources of a deployment as a deploy declares them, the names and the registries, and
+//! the spec an existing deployment tells, to compare it
 
-use crate::api::{Error, Labels, Registry, Resource, Result};
+use crate::api::{Error, Labels, Registry, Resource, ResourceDiff, Result};
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::api::{Location, ServerType};
 use crate::hetzner::deployment::{AcmeCa, DiscoveredDeployment, DnsMode, UserMode};
@@ -89,9 +90,6 @@ pub struct DeploymentSpec {
     pub password_hash: Option<String>,
     /// on every resource, with the name label
     pub labels: Labels,
-    /// the hash of the user data instead of the text, for a spec declared from an existing
-    /// server (`declared_by`)
-    pub user_data_hash: Option<String>,
 }
 
 impl DeploymentSpec {
@@ -117,52 +115,7 @@ impl DeploymentSpec {
             version: None,
             password_hash: None,
             labels: Labels::new(),
-            user_data_hash: None,
         })
-    }
-
-    /// the spec of a deployment, as far as its resources tell: its key, location, server type,
-    /// image, volume size, user data hash, and the dns mode, root domain, user mode, acme ca,
-    /// version and password hash on its labels. The rest has the default of a new deployment
-    pub fn declared_by(deployment: &DiscoveredDeployment) -> Result<Self> {
-        let server = deployment.server.as_ref();
-        let location = deployment
-            .location()
-            .map_err(Error::message)?
-            .unwrap_or(Location::nbg1);
-        let mut spec = DeploymentSpec::new(
-            &deployment.name,
-            deployment
-                .ssh_key
-                .as_ref()
-                .map(|key| key.public_key.as_str())
-                .unwrap_or_default(),
-            location,
-            server
-                .map(|server| server.server_type)
-                .unwrap_or(ServerType::cx23),
-        )?
-        .with_dns_mode(deployment.dns_mode().unwrap_or_default());
-        if let Some(root_domain) = deployment.root_domain() {
-            spec = spec.with_root_domain(&root_domain);
-        }
-        spec.user_mode = deployment.user_mode();
-        spec.acme_ca = deployment.acme_ca();
-        spec.version = deployment.version();
-        if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
-            spec = spec.with_password_hash(hash);
-        }
-        if let Some(server) = server {
-            spec.image = server.image.clone();
-            spec.user_data_hash = HetznerLabels::from_raw(server.labels.clone())
-                .labels()
-                .get(USER_DATA_LABEL)
-                .cloned();
-        }
-        if let Some(volume) = deployment.volumes.first() {
-            spec.data_volume_gb = volume.size_gb;
-        }
-        Ok(spec)
     }
 
     pub fn with_password_hash(mut self, hash: &str) -> Self {
@@ -287,7 +240,7 @@ impl DeploymentSpec {
     }
 
     pub fn server(&self) -> HetznerServer {
-        let mut server = HetznerServer::new(
+        HetznerServer::new(
             &self.resource_name(),
             self.location,
             self.server_type,
@@ -300,11 +253,7 @@ impl DeploymentSpec {
         .with_ipv6(self.ipv6().as_lookup())
         .with_labels(self.resource_labels())
         .with_identity(self.identity())
-        .with_info(self.resource_info());
-        if let Some(hash) = &self.user_data_hash {
-            server.user_data = UserData::Hash(hash.clone());
-        }
-        server
+        .with_info(self.resource_info())
     }
 
     /// the names the deployment manages in its root domain: `@` and `*` in domain mode,
@@ -362,6 +311,15 @@ impl DeploymentSpec {
     /// primary ip stops the plan (`RecreateRefused`). A recreate removes only resources with
     /// the identity of the deployment
     pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
+        self.registry_with(provider, self.server())
+    }
+
+    /// `registry` with `server` for the server of the spec
+    fn registry_with(
+        &self,
+        provider: &HetznerProviderRuntime,
+        server: HetznerServer,
+    ) -> Result<Registry> {
         let mut registry = provider
             .registry()
             .owned_by(self.identity())
@@ -372,7 +330,7 @@ impl DeploymentSpec {
             .with(self.ipv4())?
             .with(self.ipv6())?
             .with(self.firewall())?
-            .with(self.server())?;
+            .with(server)?;
         for record in self.dns_records() {
             registry.add(record)?;
         }
@@ -399,6 +357,81 @@ impl DeploymentSpec {
             .with(self.ipv6())?
             .with(self.firewall())?
             .with(self.server())
+    }
+}
+
+/// the spec of an existing deployment, as far as its resources tell, to compare it with what a
+/// deploy declares: a list shows its state with it. Its server has the hash of its user data, not
+/// the text, so it cannot be applied; it only compares
+pub(super) struct ObservedSpec {
+    spec: DeploymentSpec,
+    /// the user data label of the server; none without a server or the label
+    user_data_hash: Option<String>,
+}
+
+impl ObservedSpec {
+    /// the spec of `deployment`: its key, location, server type, image, volume size, user data
+    /// hash, and the dns mode, root domain, user mode, acme ca, version and password hash on its
+    /// labels. The rest has the default of a new deployment
+    pub(super) fn of(deployment: &DiscoveredDeployment) -> Result<Self> {
+        let server = deployment.server.as_ref();
+        let location = deployment
+            .location()
+            .map_err(Error::message)?
+            .unwrap_or(Location::nbg1);
+        let mut spec = DeploymentSpec::new(
+            &deployment.name,
+            deployment
+                .ssh_key
+                .as_ref()
+                .map(|key| key.public_key.as_str())
+                .unwrap_or_default(),
+            location,
+            server
+                .map(|server| server.server_type)
+                .unwrap_or(ServerType::cx23),
+        )?
+        .with_dns_mode(deployment.dns_mode().unwrap_or_default());
+        if let Some(root_domain) = deployment.root_domain() {
+            spec = spec.with_root_domain(&root_domain);
+        }
+        spec.user_mode = deployment.user_mode();
+        spec.acme_ca = deployment.acme_ca();
+        spec.version = deployment.version();
+        if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
+            spec = spec.with_password_hash(hash);
+        }
+        let mut user_data_hash = None;
+        if let Some(server) = server {
+            spec.image = server.image.clone();
+            user_data_hash = HetznerLabels::from_raw(server.labels.clone())
+                .labels()
+                .get(USER_DATA_LABEL)
+                .cloned();
+        }
+        if let Some(volume) = deployment.volumes.first() {
+            spec.data_volume_gb = volume.size_gb;
+        }
+        Ok(ObservedSpec {
+            spec,
+            user_data_hash,
+        })
+    }
+
+    /// the diff of every resource a deploy declares, without the gates of an apply: a duplicate
+    /// and a recreate show as their status and changes
+    pub(super) async fn compare(
+        &self,
+        provider: &HetznerProviderRuntime,
+    ) -> Result<Vec<ResourceDiff>> {
+        let mut server = self.spec.server();
+        if let Some(hash) = &self.user_data_hash {
+            server.user_data = UserData::Hash(hash.clone());
+        }
+        self.spec
+            .registry_with(provider, server)?
+            .compare_all()
+            .await
     }
 }
 

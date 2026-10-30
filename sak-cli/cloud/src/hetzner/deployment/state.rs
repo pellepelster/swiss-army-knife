@@ -2,7 +2,8 @@
 
 use crate::api::{DiffStatus, ResourceRef, Result};
 use crate::hetzner::api::Location;
-use crate::hetzner::deployment::{DeploymentSpec, DiscoveredDeployment, DnsMode};
+use crate::hetzner::deployment::spec::ObservedSpec;
+use crate::hetzner::deployment::{DiscoveredDeployment, DnsMode};
 use crate::hetzner::dns_record::HetznerDnsRecordLookup;
 use crate::hetzner::firewall::HetznerFirewallLookup;
 use crate::hetzner::primary_ip::HetznerPrimaryIpLookup;
@@ -95,7 +96,7 @@ pub struct DeploymentState {
 
 /// the diff of a deployment: every resource that a deploy declares (ssh key, data volume,
 /// primary ips, firewall, server and dns records), declared from the labels and settings of the
-/// deployment (`DeploymentSpec::declared_by`) and diffed as a plan does. What a deploy would
+/// deployment (`ObservedSpec`) and diffed as a plan does. What a deploy would
 /// create is missing; what it would change shows its changes. A deployment that cannot be
 /// compared (resources in two locations, a resource of its name that belongs to someone else, a
 /// failed request) is `Unknown` with the error and the resources found; it never fails a list of
@@ -141,9 +142,8 @@ async fn compare(
     provider: &HetznerProviderRuntime,
     deployment: &DiscoveredDeployment,
 ) -> Result<Vec<ResourceState>> {
-    let spec = DeploymentSpec::declared_by(deployment)?;
     // a list applies nothing: a duplicate or a refused recreate shows, it does not fail
-    let diffs = spec.registry(provider)?.compare_all().await?;
+    let diffs = ObservedSpec::of(deployment)?.compare(provider).await?;
     Ok(diffs
         .into_iter()
         .filter_map(|diff| {
