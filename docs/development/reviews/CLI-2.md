@@ -704,12 +704,6 @@ reboot hint → `wait_after_reboot` → back line), differing in the hint key an
 `maintenance::perform(action, manager, tokens, runtime, name, password, on_line) -> Result<Vec<Line>>`; the
 command line logs, the window sends.
 
-#### UI-15 (Low): `ssh_target` + runtime lookup repeated four times
-
-`cli.rs:746-751, 787-792, 902-908, 950-956`. The name trimming differs: `ssh` passes the untrimmed name to
-`ssh_target` (`:747`) but trims it for the message (`:756`); backup, restore and maintenance trim first. One
-`session(...) -> (SshTarget, runtime)` helper.
-
 #### UI-16 (Low): Boolean parameters — *partly fixed*
 
 `password(ask, twice, from_env)` (`cli.rs:417`), `deployment(intent, delete_data, …)` (`:474`), `deploy(…,

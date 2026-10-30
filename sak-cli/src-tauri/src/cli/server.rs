@@ -3,6 +3,25 @@
 
 use super::*;
 
+/// what a command on the server needs: the name trimmed, the server and the keys to reach it (the
+/// password checked first), and the container runtime ssh runs in
+async fn session(
+    manager: &DeploymentManager,
+    provider: &HetznerToken,
+    runtime: &ContainerRuntime,
+    name: &str,
+    password: &str,
+) -> Result<(String, crate::core::ssh::SshTarget, &'static str), WizardError> {
+    let name = name.trim().to_string();
+    let target = manager
+        .ssh_target(provider.tokens(), &name, password)
+        .await?;
+    let runtime = runtime
+        .get()
+        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    Ok((name, target, runtime))
+}
+
 /// a session on the server, or its command; the exit code of ssh is the exit code of sakctl
 pub(super) async fn ssh(
     manager: &DeploymentManager,
@@ -12,17 +31,12 @@ pub(super) async fn ssh(
     password: &str,
     command: &[String],
 ) -> Result<(), WizardError> {
-    let target = manager
-        .ssh_target(provider.tokens(), name, password)
-        .await?;
-    let runtime = runtime
-        .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+    let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     log(
         Level::Info,
         t!(
             "cli.ssh_connecting",
-            name = name.trim(),
+            name = name,
             host = target.host.as_str()
         ),
     );
@@ -103,14 +117,8 @@ pub(super) async fn backup(
     name: &str,
     password: &str,
 ) -> Result<(), WizardError> {
-    let name = name.trim().to_string();
-    let target = manager
-        .ssh_target(provider.tokens(), &name, password)
-        .await?;
+    let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
-    let runtime = runtime
-        .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
     let directory = crate::core::backup::directory(&name)?;
     log(
         Level::Info,
@@ -151,14 +159,8 @@ pub(super) async fn restore(
     file: &std::path::Path,
     yes: bool,
 ) -> Result<(), WizardError> {
-    let name = name.trim().to_string();
-    let target = manager
-        .ssh_target(provider.tokens(), &name, password)
-        .await?;
+    let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
-    let runtime = runtime
-        .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
     if !yes {
         confirm_restore(&name, file)?;
     }
