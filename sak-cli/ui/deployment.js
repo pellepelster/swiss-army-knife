@@ -1,11 +1,13 @@
 // the page of one deployment, opened with its password: its state, location and resources. It
 // checks the deployment when it opens: a deploy of the deployment as it is, planned in rust, its
 // rows those of the plan, the provisioning included. The toolbar at the top right: destroy, which
-// opens the form of a destroy, and check, which checks again. At the bottom right, one group:
+// opens the form of a destroy, maintenance, a menu of status, update and reboot that each open the
+// maintenance view, and check, which checks again. At the bottom right, one group:
 // back to the list, force deploy (after a check, the playbook runs again) and deploy changes (only
 // when the check found changes). The one green button is check, or deploy changes when there are changes
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
+import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
 import { show, text } from './views.js';
@@ -18,6 +20,8 @@ const badge = document.getElementById('deployment-status');
 const checkButton = document.getElementById('deployment-check');
 const deployButton = document.getElementById('deployment-deploy');
 const forceButton = document.getElementById('deployment-force');
+const maintenanceButton = document.getElementById('deployment-maintenance');
+const maintenanceMenu = document.getElementById('deployment-maintenance-menu');
 let current = null;
 // the plan of the last check, its rows are those of the run
 let checked = null;
@@ -100,6 +104,32 @@ function deploy(force) {
   const { password } = openedDeployment();
   runChecked(checked, current.name, password, force);
 }
+
+// the menu of the maintenance opens below its button and closes on a choice, a click elsewhere and
+// escape
+function setMenu(open) {
+  maintenanceMenu.classList.toggle('show', open);
+  maintenanceButton.setAttribute('aria-expanded', String(open));
+}
+
+maintenanceButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setMenu(!maintenanceMenu.classList.contains('show'));
+});
+maintenanceMenu.addEventListener('click', (event) => {
+  const item = event.target.closest('[data-action]');
+  if (item) {
+    setMenu(false);
+    showMaintenance(current, item.dataset.action);
+  }
+});
+document.addEventListener('click', () => setMenu(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && maintenanceMenu.classList.contains('show')) {
+    setMenu(false);
+    maintenanceButton.focus();
+  }
+});
 
 checkButton.addEventListener('click', check);
 deployButton.addEventListener('click', () => deploy(false));

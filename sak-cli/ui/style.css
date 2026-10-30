@@ -454,3 +454,28 @@ body {
   gap: var(--sak-space-3);
   margin: var(--sak-space-2) 0;
 }
+
+/* the menu of the maintenance below its button, at its right edge; the page has no popper */
+.maintenance-menu {
+  top: 100%;
+  right: 0;
+  left: auto;
+  margin-top: var(--sak-space-1);
+}
+
+/* the maintenance view: the lines of the server muted, the answer below them */
+.maintenance-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--sak-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.maintenance-progress {
+  color: var(--sak-muted);
+}
+
+.maintenance-line[data-warn="true"] {
+  color: var(--sak-warn);
+}

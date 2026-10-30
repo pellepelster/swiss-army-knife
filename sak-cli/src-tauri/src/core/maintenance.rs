@@ -1,8 +1,11 @@
 //! the maintenance of the server of a deployment: whether a reboot is pending, an update of all
 //! packages, a coordinated reboot. `sak-backend` on the server does the work and answers as json
-//! on its standard output; each line it writes to standard error goes to the caller while it runs
+//! on its standard output; each line it writes to standard error goes to the caller while it runs.
+//! The answers as lines are the same on the command line and in the window
 
 use crate::core::backup::SCRIPT;
+use crate::core::deployments::DeploymentManager;
+use crate::core::providers::ProviderType;
 use crate::core::ssh::{SshTarget, Stream, run_streaming};
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
@@ -91,6 +94,151 @@ pub fn reboot(
         command.push("--if-pending");
     }
     run(runtime, target, &command, on_line)
+}
+
+/// a line of an answer; `warn` for one that asks for something to be done
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Line {
+    pub warn: bool,
+    pub text: String,
+}
+
+impl Line {
+    fn info(text: impl Into<String>) -> Self {
+        Line {
+            warn: false,
+            text: text.into(),
+        }
+    }
+
+    fn warn(text: impl Into<String>) -> Self {
+        Line {
+            warn: true,
+            text: text.into(),
+        }
+    }
+}
+
+/// the answer of `status`: whether a reboot is pending and why, the services on old libraries,
+/// the upgrades since the boot
+pub fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
+    let mut lines = Vec::new();
+    if status.reboot_pending {
+        let reasons: Vec<String> = status
+            .reasons
+            .iter()
+            .map(|reason| match reason.as_str() {
+                "kernel" => t!(
+                    "shared.maintenance.reason_kernel",
+                    running = status.kernel.running.as_str(),
+                    installed = status.kernel.installed.as_str()
+                )
+                .to_string(),
+                "reboot-required" => t!("shared.maintenance.reason_reboot_required").to_string(),
+                other => other.to_string(),
+            })
+            .collect();
+        lines.push(Line::warn(t!(
+            "shared.maintenance.pending",
+            name = name,
+            reasons = reasons.join(", ")
+        )));
+    } else {
+        lines.push(Line::info(t!(
+            "shared.maintenance.not_pending",
+            name = name
+        )));
+    }
+    if !status.services.is_empty() {
+        lines.push(Line::info(t!(
+            "shared.maintenance.services",
+            services = status.services.join(", ")
+        )));
+    }
+    if !status.updates_since_boot.is_empty() {
+        lines.push(Line::info(t!(
+            "shared.maintenance.since_boot",
+            time = status.booted_at.as_str()
+        )));
+        lines.extend(
+            status
+                .updates_since_boot
+                .iter()
+                .map(|change| Line::info(change_line(change))),
+        );
+    }
+    lines
+}
+
+/// the answer of `update`: each package that changed and how many; what to do about a pending
+/// reboot is up to the caller
+pub fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
+    let mut lines: Vec<Line> = update
+        .upgraded
+        .iter()
+        .chain(&update.installed)
+        .map(|change| Line::info(change_line(change)))
+        .collect();
+    lines.push(Line::info(if lines.is_empty() {
+        t!("shared.maintenance.up_to_date", name = name)
+    } else {
+        t!(
+            "shared.maintenance.updated",
+            upgraded = update.upgraded.len(),
+            installed = update.installed.len()
+        )
+    }));
+    lines
+}
+
+/// the answer of `reboot`: when the server goes down, or that nothing was changed
+pub fn reboot_line(name: &str, reboot: &RebootResult) -> Line {
+    if reboot.rebooting {
+        Line::info(t!(
+            "shared.maintenance.rebooting",
+            name = name,
+            at = reboot.at.as_deref().unwrap_or_default()
+        ))
+    } else {
+        Line::info(t!("shared.maintenance.reboot_not_pending", name = name))
+    }
+}
+
+/// `openssl 3.5.1-1 → 3.5.4-1`, or `linux-image-6.12.41 6.12.41-1 (new)`
+fn change_line(change: &PackageChange) -> String {
+    match &change.from {
+        Some(from) => format!("{} {from} → {}", change.package, change.to),
+        None => t!(
+            "shared.maintenance.installed_new",
+            package = change.package.as_str(),
+            to = change.to.as_str()
+        )
+        .to_string(),
+    }
+}
+
+/// waits until the deployment answers at its public endpoint again, after a reboot of its server;
+/// the wait goes to `on_line`
+pub async fn wait_after_reboot(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    name: &str,
+    password: &str,
+    on_line: &mut (dyn FnMut(String) + Send),
+) -> Result<(), String> {
+    let (api, trust, address) = manager.public_endpoint(tokens, name, password).await?;
+    // the server goes down some seconds after the answer; before that it answers no request,
+    // the ingress stopped first
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    on_line(t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string());
+    crate::core::config::wait_for_api(
+        &api,
+        address,
+        trust,
+        crate::core::config::API_WAIT,
+        std::time::Duration::from_secs(5),
+    )
+    .await
 }
 
 fn run<T: for<'de> Deserialize<'de>>(

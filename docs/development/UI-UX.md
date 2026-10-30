@@ -55,10 +55,13 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   volume, the address of a server) and the link to its frontend; the link opens the browser of the system. The list
   shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened
   with the password, checks the deployment at once: each resource and the provisioning with its state and changes,
-  as the plan of a deploy has them, and the state of the deployment. At the top right: destroy and check, which
-  checks again. At the bottom right, one group: back, force deploy (after a check; the playbook runs again) and
+  as the plan of a deploy has them, and the state of the deployment. At the top right: destroy, maintenance (a
+  menu of status, update and reboot) and check, which checks again. At the bottom right, one group: back, force deploy (after a check; the playbook runs again) and
   deploy changes (only when the check found changes). Check is the green button, deploy changes
   instead when there are changes.
+- **Maintenance.** Each entry of the maintenance menu opens its own view: the lines of the server while it works,
+  then the answer, warnings in yellow, a failure in red. Cancel stops it; back is enabled once it ended and leads to
+  the page of the deployment, which checks again.
 - **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed, created anew
   or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes something, and it shows each resource as it goes, with the output of the
   provisioning below.

@@ -127,6 +127,15 @@
         </div>
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
+          <!-- the maintenance of the server, each entry opens the maintenance view -->
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="deployment-maintenance" aria-haspopup="menu" aria-expanded="false" data-text="ui.deployment.maintenance"></button>
+            <ul class="dropdown-menu maintenance-menu" id="deployment-maintenance-menu" role="menu">
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="status" data-text="ui.maintenance.status"></button></li>
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="update" data-text="ui.maintenance.update"></button></li>
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="reboot" data-text="ui.maintenance.reboot"></button></li>
+            </ul>
+          </div>
           <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </header>
@@ -319,6 +328,27 @@
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="run-cancel" data-text="ui.cancel"></button>
           <button type="button" class="btn btn-primary" id="run-done" data-text="ui.run.done" disabled></button>
+        </div>
+      </div>
+    </main>
+    <!-- the status, the update or the reboot of the server of a deployment as it runs: each line
+         of the server, then the answer. Cancel stops it; back to the page of the deployment once
+         it ended -->
+    <main class="view page" id="view-maintenance" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="icon.svg" alt="">
+          <h1 id="maintenance-title"></h1>
+        </div>
+      </header>
+      <p class="hint"><span data-text="ui.maintenance.intro"></span> <strong class="sak-mono" id="maintenance-name"></strong></p>
+      <ul class="maintenance-lines maintenance-progress sak-mono" id="maintenance-progress" aria-live="polite"></ul>
+      <ul class="maintenance-lines maintenance-answer" id="maintenance-answer" aria-live="polite"></ul>
+      <p class="hint" id="maintenance-status" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="maintenance-back" data-text="ui.back" disabled></button>
+          <button type="button" class="btn btn-outline-secondary" id="maintenance-cancel" data-text="ui.cancel"></button>
         </div>
       </div>
     </main>

@@ -84,13 +84,30 @@ pub async fn plan_deployment(
     manager.plan(tokens, &deployment, &container).await
 }
 
-/// the apply that runs, so cancel can stop it
+/// the apply or the maintenance that runs, so cancel can stop it
 #[derive(Default)]
 pub struct RunningApply(Mutex<Option<AbortHandle>>);
 
 impl RunningApply {
     pub fn is_running(&self) -> bool {
         self.0.lock().is_ok_and(|running| running.is_some())
+    }
+
+    /// `work` until it ends, or until cancel stops it: then the error is the text `cancelled`
+    pub async fn run<T, E: From<String>>(
+        &self,
+        work: impl std::future::Future<Output = Result<T, E>>,
+        cancelled: &str,
+    ) -> Result<T, E> {
+        let (abort, registration) = AbortHandle::new_pair();
+        if let Ok(mut running) = self.0.lock() {
+            *running = Some(abort);
+        }
+        let result = Abortable::new(work, registration).await;
+        if let Ok(mut running) = self.0.lock() {
+            *running = None;
+        }
+        result.unwrap_or_else(|_| Err(t!(cancelled).to_string().into()))
     }
 }
 
@@ -200,24 +217,21 @@ async fn apply(
     deployment: &NewDeployment,
     on_event: &Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
-    let (abort, registration) = AbortHandle::new_pair();
-    if let Ok(mut running) = running.0.lock() {
-        *running = Some(abort);
-    }
     // a progress event that cannot be sent is no reason to stop the apply
     let mut report = |event| {
         let _ = on_event.send(event);
     };
-    let apply = manager.create(tokens, deployment, container, &mut report);
-    let result = Abortable::new(apply, registration).await;
-    if let Ok(mut running) = running.0.lock() {
-        *running = None;
-    }
-    result.unwrap_or_else(|_| Err(t!("shared.deployments.cancelled").to_string().into()))
+    running
+        .run(
+            manager.create(tokens, deployment, container, &mut report),
+            "shared.deployments.cancelled",
+        )
+        .await
 }
 
-/// stops the apply that runs: its requests to the provider end where they are, the container of
-/// a provisioning is removed. What was done stays, the plan of the next deploy shows the rest
+/// stops the apply or the maintenance that runs: its requests to the provider end where they are,
+/// the container of a provisioning or an ssh session is removed. What was done stays, the plan of
+/// the next deploy shows the rest
 #[tauri::command]
 pub fn cancel_apply(running: State<'_, RunningApply>) {
     if let Some(abort) = running.0.lock().ok().and_then(|mut running| running.take()) {

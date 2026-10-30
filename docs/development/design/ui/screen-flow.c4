@@ -53,7 +53,7 @@ model {
     description 'Every deployment asks for its password. It is checked against the resources as it is typed; Next only with the right password, Cancel back to the deployments'
   }
   details = screen 'Deployment details' {
-    description 'One deployment: its state, location and resources. At the top right a toolbar with Check deployment and Destroy'
+    description 'One deployment: its state, location and resources. At the top right a toolbar with Destroy, the Maintenance menu (Status, Update, Reboot) and Check'
   }
   form = screen 'Deployment form' {
     description 'New deployment: the name, the password, the location, the DNS. Destroy the deployment: whether to delete the data volume, the password is known'
@@ -66,6 +66,9 @@ model {
   }
   destroy = screen 'Destroy' {
     description 'Each resource as it is destroyed. Done only when every resource was destroyed, no Next; Cancel stops the run, also while it runs, and is the way out after a failure'
+  }
+  maintenance = screen 'Maintenance' {
+    description 'The status, the update or the reboot of the server: the lines of the server while it runs, then the answer. Cancel stops it; Back only once it ended'
   }
   confirm = dialog 'Destroy {name}?' {
     description 'The last confirmation of a destroy, with the data volume when asked'
@@ -101,6 +104,8 @@ model {
   details -> plan 'Check deployment (top toolbar)'
   details -> form 'Destroy'
   details -> deployments 'Back'
+  details -> maintenance 'Maintenance: Status / Update / Reboot'
+  maintenance -> details 'Back (once it ended)'
 
   form -> plan 'Plan (a new deployment)'
   form -> confirm 'Destroy'

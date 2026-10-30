@@ -6,6 +6,7 @@ pub mod deployments;
 #[cfg(target_os = "linux")]
 mod desktop;
 pub mod i18n;
+pub mod maintenance;
 pub mod providers;
 pub mod update;
 
@@ -46,6 +47,7 @@ pub fn run() {
             deployments::apply_checked,
             deployments::cancel_apply,
             deployments::check_deployment_password,
+            maintenance::run_maintenance,
             update::version,
             update::check_update,
             update::install_update,

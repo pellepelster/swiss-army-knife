@@ -781,6 +781,7 @@ async fn maintenance(
     command: &MaintenanceCommand,
     password: &str,
 ) -> Result<(), WizardError> {
+    use crate::core::maintenance;
     let args = command.args();
     let name = args.name.trim().to_string();
     let target = manager
@@ -794,7 +795,7 @@ async fn maintenance(
         log(
             Level::Info,
             t!(
-                "cli.maintenance.connecting",
+                "shared.maintenance.connecting",
                 name = name,
                 host = target.host.as_str()
             ),
@@ -808,18 +809,18 @@ async fn maintenance(
     let lines = match command {
         MaintenanceCommand::Status(_) => {
             let status = tokio::task::spawn_blocking(move || {
-                crate::core::maintenance::status(runtime, &target, &mut on_line)
+                maintenance::status(runtime, &target, &mut on_line)
             })
             .await
             .map_err(|error| error.to_string())??;
             if json {
                 return print_json(&status);
             }
-            status_lines(&name, &status)
+            maintenance::status_lines(&name, &status)
         }
         MaintenanceCommand::Update(_) => {
             let update = tokio::task::spawn_blocking(move || {
-                crate::core::maintenance::update(runtime, &target, &mut on_line)
+                maintenance::update(runtime, &target, &mut on_line)
             })
             .await
             .map_err(|error| error.to_string())??;
@@ -835,35 +836,38 @@ async fn maintenance(
         } => {
             let if_pending = *if_pending;
             let reboot = tokio::task::spawn_blocking(move || {
-                crate::core::maintenance::reboot(runtime, &target, if_pending, &mut on_line)
+                maintenance::reboot(runtime, &target, if_pending, &mut on_line)
             })
             .await
             .map_err(|error| error.to_string())??;
             if json {
                 print_json(&reboot)?;
-            } else if reboot.rebooting {
-                log(
-                    Level::Info,
-                    t!(
-                        "cli.maintenance.rebooting",
-                        name = name,
-                        at = reboot.at.as_deref().unwrap_or_default()
-                    ),
-                );
             } else {
-                log(
-                    Level::Info,
-                    t!("cli.maintenance.reboot_not_pending", name = name),
-                );
+                log(Level::Info, maintenance::reboot_line(&name, &reboot).text);
             }
             if reboot.rebooting && !*no_wait {
-                wait_after_reboot(manager, provider, &name, password, json).await?;
+                let mut on_line = move |line: String| {
+                    if !json {
+                        log(Level::Info, line)
+                    }
+                };
+                maintenance::wait_after_reboot(
+                    manager,
+                    provider.tokens(),
+                    &name,
+                    password,
+                    &mut on_line,
+                )
+                .await?;
+                if !json {
+                    log(Level::Info, t!("shared.maintenance.back", name = name));
+                }
             }
             return Ok(());
         }
     };
-    for (level, line) in lines {
-        log(level, line);
+    for line in lines {
+        log(if line.warn { Level::Warn } else { Level::Info }, line.text);
     }
     Ok(())
 }
@@ -874,150 +878,19 @@ fn print_json(value: &impl serde::Serialize) -> Result<(), WizardError> {
     Ok(())
 }
 
-/// waits until the deployment answers at its public endpoint again, after the server went down
-async fn wait_after_reboot(
-    manager: &DeploymentManager,
-    provider: &HetznerToken,
-    name: &str,
-    password: &str,
-    json: bool,
-) -> Result<(), WizardError> {
-    let (api, trust, address) = manager
-        .public_endpoint(provider.tokens(), name, password)
-        .await?;
-    // the server goes down some seconds after the answer; before that it answers no request,
-    // the ingress stopped first
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-    if !json {
-        log(
-            Level::Info,
-            t!("shared.deployments.waiting_for_api", url = api.as_str()),
-        );
-    }
-    crate::core::config::wait_for_api(
-        &api,
-        address,
-        trust,
-        crate::core::config::API_WAIT,
-        std::time::Duration::from_secs(5),
-    )
-    .await?;
-    if !json {
-        log(Level::Info, t!("cli.maintenance.back", name = name));
-    }
-    Ok(())
-}
-
-/// what `maintenance status` prints: whether a reboot is pending and why, the services on old
-/// libraries, the upgrades since the boot
-fn status_lines(
-    name: &str,
-    status: &crate::core::maintenance::RebootStatus,
-) -> Vec<(Level, String)> {
-    let mut lines = Vec::new();
-    if status.reboot_pending {
-        let reasons: Vec<String> = status
-            .reasons
-            .iter()
-            .map(|reason| match reason.as_str() {
-                "kernel" => t!(
-                    "cli.maintenance.reason_kernel",
-                    running = status.kernel.running.as_str(),
-                    installed = status.kernel.installed.as_str()
-                )
-                .to_string(),
-                "reboot-required" => t!("cli.maintenance.reason_reboot_required").to_string(),
-                other => other.to_string(),
-            })
-            .collect();
-        lines.push((
-            Level::Warn,
-            t!(
-                "cli.maintenance.pending",
-                name = name,
-                reasons = reasons.join(", ")
-            )
-            .to_string(),
-        ));
-    } else {
-        lines.push((
-            Level::Info,
-            t!("cli.maintenance.not_pending", name = name).to_string(),
-        ));
-    }
-    if !status.services.is_empty() {
-        lines.push((
-            Level::Info,
-            t!(
-                "cli.maintenance.services",
-                services = status.services.join(", ")
-            )
-            .to_string(),
-        ));
-    }
-    if !status.updates_since_boot.is_empty() {
-        lines.push((
-            Level::Info,
-            t!(
-                "cli.maintenance.since_boot",
-                time = status.booted_at.as_str()
-            )
-            .to_string(),
-        ));
-        lines.extend(
-            status
-                .updates_since_boot
-                .iter()
-                .map(|change| (Level::Info, change_line(change))),
-        );
-    }
-    lines
-}
-
-/// what `maintenance update` prints: each package that changed, how many, and a pending reboot
+/// what `maintenance update` prints: the answer, and the command of the reboot when one is pending
 fn update_lines(
     name: &str,
     update: &crate::core::maintenance::UpdateResult,
-) -> Vec<(Level, String)> {
-    let mut lines: Vec<(Level, String)> = update
-        .upgraded
-        .iter()
-        .chain(&update.installed)
-        .map(|change| (Level::Info, change_line(change)))
-        .collect();
-    lines.push((
-        Level::Info,
-        if lines.is_empty() {
-            t!("cli.maintenance.up_to_date", name = name).to_string()
-        } else {
-            t!(
-                "cli.maintenance.updated",
-                upgraded = update.upgraded.len(),
-                installed = update.installed.len()
-            )
-            .to_string()
-        },
-    ));
+) -> Vec<crate::core::maintenance::Line> {
+    let mut lines = crate::core::maintenance::update_lines(name, update);
     if update.reboot_pending {
-        lines.push((
-            Level::Warn,
-            t!("cli.maintenance.reboot_hint", name = name).to_string(),
-        ));
+        lines.push(crate::core::maintenance::Line {
+            warn: true,
+            text: t!("cli.maintenance.reboot_hint", name = name).to_string(),
+        });
     }
     lines
-}
-
-/// `openssl 3.5.1-1 → 3.5.4-1`, or `linux-image-6.12.41 6.12.41-1 (new)`
-fn change_line(change: &crate::core::maintenance::PackageChange) -> String {
-    match &change.from {
-        Some(from) => format!("{} {from} → {}", change.package, change.to),
-        None => t!(
-            "cli.maintenance.installed_new",
-            package = change.package.as_str(),
-            to = change.to.as_str()
-        )
-        .to_string(),
-    }
 }
 
 /// a backup of the deployment to `~/.sak/backups/<name>/`, each step of the server logged
@@ -1478,9 +1351,9 @@ mod tests {
             updates_since_boot: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
             booted_at: "2026-10-21T04:00:12Z".to_string(),
         };
-        let lines: Vec<String> = status_lines("alpha", &status)
+        let lines: Vec<String> = crate::core::maintenance::status_lines("alpha", &status)
             .into_iter()
-            .map(|(_, line)| line)
+            .map(|line| line.text)
             .collect();
         assert_eq!(
             lines[0],
@@ -1497,7 +1370,7 @@ mod tests {
         };
         let lines: Vec<String> = update_lines("alpha", &update)
             .into_iter()
-            .map(|(_, line)| line)
+            .map(|line| line.text)
             .collect();
         assert_eq!(
             lines,
@@ -1515,7 +1388,7 @@ mod tests {
             reasons: vec![],
         };
         assert_eq!(
-            update_lines("alpha", &nothing)[0].1,
+            update_lines("alpha", &nothing)[0].text,
             "All packages of alpha are up-to-date."
         );
     }
