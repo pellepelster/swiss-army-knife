@@ -357,7 +357,10 @@ export async function showCreate(options = {}) {
   // a destroy needs no users: their hidden fields must not stop the form
   showUserMode();
   show('view-create');
-  (nameInput.value ? passwordInput.value ? planButton : passwordInput : nameInput).focus();
+  // the first empty field; a destroy with both filled focuses cancel, the safe default, so enter
+  // never leads straight to its confirmation
+  const filled = intent === 'destroy' ? document.getElementById('create-cancel') : planButton;
+  (nameInput.value ? passwordInput.value ? filled : passwordInput : nameInput).focus();
 }
 
 

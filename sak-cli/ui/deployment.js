@@ -107,11 +107,36 @@ function deploy(force) {
 function setMenu(open) {
   maintenanceMenu.classList.toggle('show', open);
   maintenanceButton.setAttribute('aria-expanded', String(open));
+  // an open menu has the focus on its first entry, the arrow keys move it
+  if (open) {
+    menuItems()[0].focus();
+  }
+}
+
+function menuItems() {
+  return [...maintenanceMenu.querySelectorAll('[data-action]')];
 }
 
 maintenanceButton.addEventListener('click', (event) => {
   event.stopPropagation();
   setMenu(!maintenanceMenu.classList.contains('show'));
+});
+// arrow up and down, home and end move between the entries; tab leaves the menu closed
+maintenanceMenu.addEventListener('keydown', (event) => {
+  const items = menuItems();
+  const at = items.indexOf(document.activeElement);
+  const next = {
+    ArrowDown: (at + 1) % items.length,
+    ArrowUp: (at - 1 + items.length) % items.length,
+    Home: 0,
+    End: items.length - 1,
+  }[event.key];
+  if (next !== undefined) {
+    event.preventDefault();
+    items[next].focus();
+  } else if (event.key === 'Tab') {
+    setMenu(false);
+  }
 });
 // whether the user confirms the reboot of the deployment `name`
 function confirmReboot(name) {
@@ -131,6 +156,8 @@ maintenanceMenu.addEventListener('click', async (event) => {
   setMenu(false);
   const { action } = item.dataset;
   if (action === 'reboot' && !(await confirmReboot(current.name))) {
+    // the entry that had the focus is hidden, the button of the menu takes it
+    maintenanceButton.focus();
     return;
   }
   showMaintenance(current, action);

@@ -438,13 +438,6 @@ a narrow window: `run-cancel` fires `cancel_apply` without awaiting (`ui/run.js:
 `None` on its next poll; a maintenance started in between is then unregistered. **Fix:** compare the handle (or a
 generation id) before clearing. Related CU-2.
 
-#### UI-10 (Low): Focus and keyboard on the maintenance menu
-
-`ui/deployment.js:130-141`: after a choice the view switches while the focus is on the now-hidden `menuitem`, so it
-falls to `body`; `role="menu"` has no arrow-key handling (only Escape, `:143-148`). `showCreate` for a destroy
-focuses the red Destroy button (`create.js:364`: name and password are filled), so Enter leads straight to the
-confirmation.
-
 ### Smells
 
 #### UI-16 (Low): Boolean parameters — *partly fixed*

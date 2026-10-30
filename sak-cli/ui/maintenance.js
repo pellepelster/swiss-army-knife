@@ -41,6 +41,8 @@ export async function showMaintenance(deployment, action) {
   backButton.disabled = true;
   setStatus(status, text(`ui.maintenance.running_${action}`));
   show('view-maintenance');
+  // the focus follows into the view, the entry of the menu that had it is hidden now
+  document.getElementById('maintenance-title').focus();
   const channel = new Channel();
   channel.onmessage = (message) => {
     if (running === current) {
