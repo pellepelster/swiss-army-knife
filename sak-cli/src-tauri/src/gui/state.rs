@@ -9,28 +9,52 @@ use std::sync::Mutex;
 /// the work of the window that runs, an apply or a maintenance: cancel stops it, a restart waits
 /// for it
 #[derive(Default)]
-pub struct RunningWork(pub(crate) Mutex<Option<AbortHandle>>);
+pub struct RunningWork(Mutex<Running>);
+
+/// the works that run, each by its number, and the number of the next one
+#[derive(Default)]
+struct Running {
+    next: u64,
+    works: Vec<(u64, AbortHandle)>,
+}
 
 impl RunningWork {
     pub fn is_running(&self) -> bool {
-        self.0.lock().is_ok_and(|running| running.is_some())
+        self.0.lock().is_ok_and(|running| !running.works.is_empty())
     }
 
-    /// `work` until it ends, or until cancel stops it: then the error is the text `cancelled`
+    /// `work` until it ends, or until cancel stops it: then the error is the text `cancelled`.
+    /// Each work removes only itself when it ends, so one that still runs stays known to cancel
+    /// and to a restart
     pub async fn run<T, E: From<String>>(
         &self,
         work: impl std::future::Future<Output = Result<T, E>>,
         cancelled: &str,
     ) -> Result<T, E> {
         let (abort, registration) = AbortHandle::new_pair();
-        if let Ok(mut running) = self.0.lock() {
-            *running = Some(abort);
-        }
+        let number = self.0.lock().ok().map(|mut running| {
+            running.next += 1;
+            let number = running.next;
+            running.works.push((number, abort));
+            number
+        });
         let result = Abortable::new(work, registration).await;
-        if let Ok(mut running) = self.0.lock() {
-            *running = None;
+        if let (Ok(mut running), Some(number)) = (self.0.lock(), number) {
+            running.works.retain(|(work, _)| *work != number);
         }
         result.unwrap_or_else(|_| Err(t!(cancelled).to_string().into()))
+    }
+
+    /// stops every work that runs
+    pub fn cancel(&self) {
+        let works = self
+            .0
+            .lock()
+            .map(|mut running| std::mem::take(&mut running.works))
+            .unwrap_or_default();
+        for (_, abort) in works {
+            abort.abort();
+        }
     }
 }
 
@@ -92,6 +116,41 @@ impl CheckedDeployment {
 
 #[cfg(test)]
 mod tests {
+
+    #[tokio::test]
+    async fn a_work_that_ends_leaves_the_one_that_still_runs_known() {
+        let running = std::sync::Arc::new(RunningWork::default());
+        let (release, wait) = tokio::sync::oneshot::channel::<()>();
+        let long = {
+            let running = running.clone();
+            tokio::spawn(async move {
+                running
+                    .run(
+                        async {
+                            let _ = wait.await;
+                            Ok::<_, String>(())
+                        },
+                        "shared.deployments.cancelled",
+                    )
+                    .await
+            })
+        };
+        tokio::task::yield_now().await;
+        assert!(running.is_running());
+        // a second work starts and ends while the first still runs
+        running
+            .run(
+                async { Ok::<_, String>(()) },
+                "shared.deployments.cancelled",
+            )
+            .await
+            .unwrap();
+        assert!(running.is_running(), "the first work is still running");
+        let _ = release.send(());
+        long.await.unwrap().unwrap();
+        assert!(!running.is_running());
+    }
+
     use super::*;
 
     fn deployment(name: &str) -> DeploymentRequest {

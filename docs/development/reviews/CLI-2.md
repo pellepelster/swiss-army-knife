@@ -241,16 +241,6 @@ The registry exposes "applied with a change in this run" to the diffs (removes `
 
 ## UI: command line, window commands, pages, locales
 
-### Bugs
-
-#### UI-8 (Low, suspected): `RunningApply` can lose the running handle when two runs overlap
-
-`gui/deployments.rs:97-114`: a second `run` overwrites the handle, and whichever ends first sets `None`, so cancel
-and `restart`'s `is_running` (`gui/update.rs:68`) see nothing while the other still runs. Through the window only in
-a narrow window: `run-cancel` fires `cancel_apply` without awaiting (`ui/run.js:225-228`), the aborted future sets
-`None` on its next poll; a maintenance started in between is then unregistered. **Fix:** compare the handle (or a
-generation id) before clearing. Related CU-2.
-
 ---
 
 ## R1: open from the first review

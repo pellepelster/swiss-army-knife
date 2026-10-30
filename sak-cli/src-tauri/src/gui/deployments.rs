@@ -223,9 +223,7 @@ async fn apply(
 /// the next deploy shows the rest
 #[tauri::command]
 pub fn cancel_apply(running: State<'_, RunningWork>) {
-    if let Some(abort) = running.0.lock().ok().and_then(|mut running| running.take()) {
-        abort.abort();
-    }
+    running.cancel();
     crate::core::provision::stop_runs();
 }
 
