@@ -11,7 +11,7 @@
 use crate::core::container;
 use crate::core::encoding::random_hex;
 use crate::core::keys::DerivedKey;
-use crate::core::provision::{remove_container, track_container, untrack_container};
+use crate::core::provision::{remove_container, stopped, track_container, untrack_container};
 use rust_i18n::t;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
@@ -147,6 +147,10 @@ impl SessionContainer {
             runtime: runtime.to_string(),
             name,
         };
+        // a session stopped before its container is there starts none
+        if stopped(&container.name) {
+            return Err(t!("shared.provision.stopped").to_string());
+        }
         let status = container::command(runtime)
             .args([
                 "run",
@@ -165,6 +169,10 @@ impl SessionContainer {
             })?;
         if !status.success() {
             return Err(t!("cli.ssh_not_started", runtime = runtime, error = status).to_string());
+        }
+        // a stop while the container started removed nothing: the drop removes it
+        if stopped(&container.name) {
+            return Err(t!("shared.provision.stopped").to_string());
         }
         // the agent listens a moment after the container started
         for _ in 0..50 {

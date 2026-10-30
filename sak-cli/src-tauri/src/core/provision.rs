@@ -223,6 +223,10 @@ impl ProvisionManager {
         };
         dir.write("events_token", events.token())?;
 
+        // a run stopped before its container is there starts none
+        if stopped(&dir.container) {
+            return Err(t!("shared.provision.stopped").to_string().into());
+        }
         let mut child = container_command(runtime, &dir, events.port())?
             .spawn()
             .map_err(|e| {
@@ -239,10 +243,15 @@ impl ProvisionManager {
             sender,
             &receiver,
             RUN_TIMEOUT,
+            &|| stopped(&dir.container),
             &mut || remove_container(runtime, &dir.container),
             on_output,
         );
         let status = child.wait().map_err(|e| e.to_string())?;
+        // a container the runtime created only after the stop removed nothing goes now
+        if pumped.stopped {
+            remove_container(runtime, &dir.container);
+        }
         // stop the endpoint, then pass on the events it got after the last line
         drop(events);
         for output in receiver.try_iter() {
@@ -307,12 +316,13 @@ fn container_command(
     Ok(command)
 }
 
-/// what the output of a run told: the failure of a task that stopped it, and whether it took
-/// longer than its timeout
+/// what the output of a run told: the failure of a task that stopped it, whether it took
+/// longer than its timeout and whether `stop_runs` stopped it
 #[derive(Default)]
 struct Pumped {
     failed: Option<(String, Option<String>)>,
     timed_out: bool,
+    stopped: bool,
 }
 
 impl Pumped {
@@ -327,13 +337,14 @@ impl Pumped {
 
 /// both output streams of `child` line by line into the channel of `sender`, and everything of
 /// `receiver` to `on_output`, until both streams are read to the end: the endpoint holds a
-/// sender until it stops, so the channel does not close before. A run longer than `timeout` is
-/// stopped with `stop` and a kill; its streams end once the container is gone
+/// sender until it stops, so the channel does not close before. A run longer than `timeout` or
+/// `stopped` is stopped with `stop` and a kill; its streams end once the container is gone
 fn pump_output(
     child: &mut std::process::Child,
     sender: mpsc::Sender<ProvisionOutput>,
     receiver: &mpsc::Receiver<ProvisionOutput>,
     timeout: std::time::Duration,
+    stopped: &dyn Fn() -> bool,
     stop: &mut dyn FnMut(),
     on_output: &mut dyn FnMut(ProvisionOutput),
 ) -> Pumped {
@@ -371,24 +382,30 @@ fn pump_output(
     loop {
         match receiver.recv_timeout(std::time::Duration::from_millis(100)) {
             Ok(output) => pumped.pass(output, on_output),
-            Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {
-                if !pumped.timed_out && started.elapsed() > timeout {
-                    pumped.timed_out = true;
-                    stop();
-                    let _ = child.kill();
-                }
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {}
             Err(_) => break,
+        }
+        // a stop that came before the container was there removed nothing: it is removed here
+        if !pumped.timed_out && !pumped.stopped {
+            pumped.stopped = stopped();
+            pumped.timed_out = !pumped.stopped && started.elapsed() > timeout;
+            if pumped.stopped || pumped.timed_out {
+                stop();
+                let _ = child.kill();
+            }
         }
     }
     pumped
 }
 
-/// the result of a run from the status of its container and what its output told: a timeout,
-/// else the failed task, else the exit status. A failure names the task that failed first
+/// the result of a run from the status of its container and what its output told: a stop, else
+/// a timeout, else the failed task, else the exit status. A failure names the task that failed
+/// first
 fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), ProvisionFailure> {
     let task = pumped.failed.as_ref().map(|(task, _)| task.clone());
-    let message = if pumped.timed_out {
+    let message = if pumped.stopped {
+        t!("shared.provision.stopped")
+    } else if pumped.timed_out {
         t!(
             "shared.provision.timed_out",
             minutes = RUN_TIMEOUT.as_secs() / 60
@@ -428,9 +445,39 @@ fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
     }
 }
 
-/// the runs going on, as `stop_runs` stops and removes them: the directory, the runtime and the
-/// container
-static RUNS: Mutex<Vec<(PathBuf, String, String)>> = Mutex::new(Vec::new());
+/// a run going on, as `stop_runs` stops and removes it: the directory, the runtime, the
+/// container and whether it was stopped. It stays until its drop, so that a container started
+/// after the stop sees it
+struct Run {
+    path: PathBuf,
+    runtime: String,
+    container: String,
+    stopped: bool,
+}
+
+/// the runs going on
+static RUNS: Mutex<Vec<Run>> = Mutex::new(Vec::new());
+
+/// registers a run of `container`; `path` is empty for a container without a directory
+fn track(path: PathBuf, runtime: &str, container: &str) {
+    if let Ok(mut runs) = RUNS.lock() {
+        runs.push(Run {
+            path,
+            runtime: runtime.to_string(),
+            container: container.to_string(),
+            stopped: false,
+        });
+    }
+}
+
+/// whether `stop_runs` stopped the run of `container`: what is about to start it starts
+/// nothing, what started it removes it
+pub(crate) fn stopped(container: &str) -> bool {
+    RUNS.lock().is_ok_and(|runs| {
+        runs.iter()
+            .any(|run| run.container == container && run.stopped)
+    })
+}
 
 /// the directory of a run and the name of its container. The directory has a random name below
 /// the runtime directory of the user (a tmpfs only the user reads), else below the temporary
@@ -465,9 +512,7 @@ impl RunDir {
             builder.mode(0o700);
         }
         builder.create(&path).map_err(|e| e.to_string())?;
-        if let Ok(mut runs) = RUNS.lock() {
-            runs.push((path.clone(), runtime.to_string(), name.clone()));
-        }
+        track(path.clone(), runtime, &name);
         Ok(RunDir {
             path,
             container: name,
@@ -505,7 +550,7 @@ impl Drop for RunDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
         if let Ok(mut runs) = RUNS.lock() {
-            runs.retain(|(path, ..)| *path != self.path);
+            runs.retain(|run| run.path != self.path);
         }
     }
 }
@@ -514,11 +559,19 @@ impl Drop for RunDir {
 const RUN_PREFIX: &str = "sakctl-run-";
 
 /// stops the containers of the runs going on and removes their directories: on ctrl+c, a
-/// termination, a hangup or when the window closes, when no `Drop` runs any more
+/// termination, a hangup, a cancel or when the window closes, when no `Drop` runs any more. Each
+/// run is marked stopped: a container that is not there yet is removed once it starts
 pub fn stop_runs() {
-    let runs = RUNS
+    let runs: Vec<(PathBuf, String, String)> = RUNS
         .lock()
-        .map(|mut runs| std::mem::take(&mut *runs))
+        .map(|mut runs| {
+            runs.iter_mut()
+                .map(|run| {
+                    run.stopped = true;
+                    (run.path.clone(), run.runtime.clone(), run.container.clone())
+                })
+                .collect()
+        })
         .unwrap_or_default();
     for (path, runtime, container) in runs {
         if !path.as_os_str().is_empty() {
@@ -531,14 +584,12 @@ pub fn stop_runs() {
 /// a container without a directory of its own that `stop_runs` removes too, e.g. the one of an ssh
 /// session; `untrack_container` when it is gone
 pub(crate) fn track_container(runtime: &str, name: &str) {
-    if let Ok(mut runs) = RUNS.lock() {
-        runs.push((PathBuf::new(), runtime.to_string(), name.to_string()));
-    }
+    track(PathBuf::new(), runtime, name);
 }
 
 pub(crate) fn untrack_container(name: &str) {
     if let Ok(mut runs) = RUNS.lock() {
-        runs.retain(|(_, _, container)| container != name);
+        runs.retain(|run| run.container != name);
     }
 }
 
@@ -696,6 +747,7 @@ pub(crate) mod tests {
         let pumped = |timed_out| Pumped {
             failed: Some(("Start the backend".into(), Some("no".into()))),
             timed_out,
+            ..Pumped::default()
         };
         let failure = outcome(failed, pumped(false)).unwrap_err();
         assert_eq!(failure.task.as_deref(), Some("Start the backend"));
@@ -828,6 +880,77 @@ pub(crate) mod tests {
         assert!(other.path.exists());
         stop_runs();
         assert!(!other.path.exists());
+    }
+
+    #[test]
+    fn a_run_stopped_before_its_container_is_there_is_marked_until_it_is_gone() {
+        let dir = RunDir::create("true").unwrap();
+        track_container("true", "sakctl-ssh-test");
+        assert!(!stopped(&dir.container));
+        // what registered but has no container yet: the stop marks it
+        stop_runs();
+        assert!(stopped(&dir.container));
+        assert!(stopped("sakctl-ssh-test"));
+        // a run that starts afterwards is not stopped
+        let next = RunDir::create("true").unwrap();
+        assert!(!stopped(&next.container));
+        let container = dir.container.clone();
+        drop(dir);
+        untrack_container("sakctl-ssh-test");
+        assert!(!stopped(&container));
+        assert!(!stopped("sakctl-ssh-test"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_stopped_run_is_stopped_while_it_runs_and_fails_as_stopped() {
+        let start = |script: &str| {
+            std::process::Command::new("sh")
+                .args(["-c", script])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap()
+        };
+        let pump = |child: &mut std::process::Child, stopped: bool| {
+            let (sender, receiver) = mpsc::channel();
+            let mut stops = 0;
+            let mut lines = Vec::new();
+            let pumped = pump_output(
+                child,
+                sender,
+                &receiver,
+                std::time::Duration::from_secs(60),
+                &|| stopped,
+                &mut || stops += 1,
+                &mut |output| {
+                    if let ProvisionOutput::Line(line) = output {
+                        lines.push(line);
+                    }
+                },
+            );
+            (pumped, stops, lines)
+        };
+
+        // the container started after the stop: it is removed and killed, not waited for
+        let started = std::time::Instant::now();
+        let mut child = start("echo started; exec sleep 30");
+        let (pumped, stops, _) = pump(&mut child, true);
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+        assert!(pumped.stopped && !pumped.timed_out);
+        assert_eq!(stops, 1);
+        let failure = outcome(child.wait().unwrap(), pumped).unwrap_err();
+        assert_eq!(failure.message, t!("shared.provision.stopped"));
+
+        // a run not stopped runs to its end
+        let mut child = start("echo one; echo two");
+        let (pumped, stops, lines) = pump(&mut child, false);
+        assert!(!pumped.stopped && !pumped.timed_out);
+        assert_eq!(
+            (stops, lines),
+            (0, vec!["one".to_string(), "two".to_string()])
+        );
+        assert!(outcome(child.wait().unwrap(), pumped).is_ok());
     }
 
     #[test]

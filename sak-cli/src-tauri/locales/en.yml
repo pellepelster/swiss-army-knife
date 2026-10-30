@@ -93,6 +93,7 @@ shared:
     timed_out: "ansible did not finish within %{minutes} minutes and was stopped. Deploy again, a deploy goes on from where it stopped."
     task_failed: "ansible failed at the task '%{task}': %{message}"
     no_address: "The server of %{name} has no public address."
+    stopped: "The run was stopped, its container removed."
     resource: "provisioning '%{name}'"
   deployments:
     invalid_name: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."

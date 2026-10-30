@@ -93,6 +93,7 @@ shared:
     timed_out: "Ansible ist nicht innerhalb von %{minutes} Minuten fertig geworden und wurde gestoppt. Rolle erneut aus, ein Deploy macht dort weiter, wo er aufgehört hat."
     task_failed: "Ansible ist bei der Aufgabe '%{task}' fehlgeschlagen: %{message}"
     no_address: "Der Server von %{name} hat keine öffentliche Adresse."
+    stopped: "Der Lauf wurde gestoppt, sein Container entfernt."
     resource: "Einrichtung '%{name}'"
   deployments:
     invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
