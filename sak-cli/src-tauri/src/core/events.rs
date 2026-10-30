@@ -183,6 +183,15 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_task_is_shown_without_its_role() {
+        assert_eq!(
+            task_name("pelle_io.sak.backend : Install the backend"),
+            "Install the backend"
+        );
+        assert_eq!(task_name("Gathering Facts"), "Gathering Facts");
+    }
     use std::sync::Mutex;
 
     fn started() -> (EventServer, Arc<Mutex<Vec<AnsibleEvent>>>) {

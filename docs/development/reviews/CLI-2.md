@@ -431,16 +431,6 @@ Each a container and an ssh session: the plan's `diff_all`, the apply's own `dif
 (`deployments.rs:1062-1066, 1271-1275`) only to call `state()`/`dns_zones()`. `DeploymentManager` and
 `ProvisionManager` are stateless unit structs; `&self` buys a tauri `State` and nothing else.
 
-#### CD-21 (Low): Tests that test more or less than their name
-
-`a_failure_that_stops_the_run_names_its_task` also asserts `events_host` (`provision.rs:610-614`);
-`the_markers_are_read_back_and_compared` asserts `read_command()` (`roles.rs:221`);
-`a_task_is_shown_without_its_role` (`deployments.rs:2010-2025`) tests `events.rs::task_name` and overlaps
-`the_tasks_of_the_playbook_show_on_the_row_of_the_provisioning`;
-`the_inputs_of_each_role_are_the_variables_it_reads` matches substrings (`roles.rs:238`), so a variable name that
-is a substring of a comment passes; `window_fixtures.rs` hand-maintains the registry order (`:85-100`) and the task
-list (`:26-68`), which drift from `DeploymentSpec::registry` and the playbook.
-
 ### Structure
 
 #### CD-23: The wait after the provisioning discovers the deployment again

@@ -214,7 +214,26 @@ mod tests {
                 .len(),
             2
         );
+    }
+
+    #[test]
+    fn the_read_command_reads_the_markers_directory() {
         assert!(read_command().contains(MARKERS_DIR));
+    }
+
+    /// whether `text` names the variable `name` as a whole word, not as a part of a longer one
+    fn reads(text: &str, name: &str) -> bool {
+        let word = |c: Option<char>| c.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_');
+        text.match_indices(name).any(|(at, _)| {
+            !word(text[..at].chars().next_back()) && !word(text[at + name.len()..].chars().next())
+        })
+    }
+
+    #[test]
+    fn a_variable_is_read_as_a_whole_word() {
+        assert!(reads("{{ sak_smtp_host }}", "sak_smtp_host"));
+        assert!(!reads("{{ sak_smtp_host_name }}", "sak_smtp_host"));
+        assert!(!reads("{{ my_sak_smtp_host }}", "sak_smtp_host"));
     }
 
     /// what a role reads of the inventory is among its inputs, so a change of it runs the role
@@ -231,7 +250,7 @@ mod tests {
             let mut text = String::new();
             read_all(&roles.join(role), &mut text);
             for name in &names {
-                if text.contains(name) {
+                if reads(&text, name) {
                     assert!(
                         inputs(role).contains(name),
                         "the role {role} reads {name}, which is not among its inputs"

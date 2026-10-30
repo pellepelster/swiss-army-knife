@@ -616,7 +616,10 @@ pub(crate) mod tests {
             })
             .is_some()
         );
-        // the container reaches the endpoint on the loopback of the machine
+    }
+
+    #[test]
+    fn the_container_reaches_the_events_endpoint_on_the_loopback() {
         let (args, host) = events_host("docker");
         if cfg!(target_os = "linux") {
             assert_eq!((args, host), (vec!["--network", "host"], "127.0.0.1"));

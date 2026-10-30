@@ -45,7 +45,7 @@ const TASKS: &[&str] = &[
     "Create the mount point",
     "Mount the data volume",
     "Check that the required variables are set",
-    "Install podman",
+    "Install podman and the tools of the backup",
     "Create the sak group",
     "Create the data directory of the deployment",
     "Create the sak user",
@@ -55,6 +55,8 @@ const TASKS: &[&str] = &[
     "Create the ingress data directory",
     "Create the ingress log directory",
     "Create the log data directories",
+    "Create the key of the partition endpoints of victorialogs",
+    "Install sak-backend",
     "Pull the images",
     "Upload the vector configuration",
     "Write the backend configuration",
@@ -72,7 +74,7 @@ fn after(delay_ms: u64, event: impl Serialize) -> Value {
     json!({ "delayMs": delay_ms, "message": event })
 }
 
-fn spec() -> DeploymentSpec {
+pub(super) fn spec() -> DeploymentSpec {
     let public_key = crate::core::keys::derive_public_key(NAME, PASSWORD).unwrap();
     DeploymentSpec::new(NAME, &public_key, LOCATION, ServerType::cx23)
         .unwrap()
@@ -82,7 +84,8 @@ fn spec() -> DeploymentSpec {
 }
 
 /// the resources of the spec in the order the registry applies them: what they depend on first
-fn resources(spec: &DeploymentSpec) -> Vec<sak_cloud::api::ResourceRef> {
+/// (a test compares it with the registry, `tests::the_window_fixtures_apply_in_the_order_of_the_registry`)
+pub(super) fn resources(spec: &DeploymentSpec) -> Vec<sak_cloud::api::ResourceRef> {
     let mut resources = vec![
         spec.ssh_key().resource_ref(),
         spec.data_volume().resource_ref(),
@@ -361,6 +364,31 @@ fn checks() -> Vec<Value> {
         },
     ));
     events
+}
+
+/// the tasks of the fixtures are those of the playbook, in its order: its pre tasks, then the
+/// tasks of each of its roles
+#[test]
+fn the_tasks_are_those_of_the_playbook() {
+    let ansible = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ansible");
+    let playbook = std::fs::read_to_string(ansible.join("playbooks/server.yml")).unwrap();
+    let names = |text: &str, indent: &str| -> Vec<String> {
+        text.lines()
+            .filter_map(|line| line.strip_prefix(indent)?.strip_prefix("- name: "))
+            .map(|name| name.trim().to_string())
+            .collect()
+    };
+    let mut tasks = names(&playbook, "    ");
+    let roles = playbook
+        .lines()
+        .skip_while(|line| line.trim() != "roles:")
+        .filter_map(|line| line.trim().strip_prefix("- pelle_io.sak."));
+    for role in roles {
+        let main =
+            std::fs::read_to_string(ansible.join(format!("roles/{role}/tasks/main.yml"))).unwrap();
+        tasks.extend(names(&main, ""));
+    }
+    assert_eq!(tasks, TASKS);
 }
 
 #[test]

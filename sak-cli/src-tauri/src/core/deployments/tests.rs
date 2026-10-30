@@ -223,12 +223,7 @@ fn a_name_is_checked_once_and_a_wrong_one_is_a_usage_error() {
 }
 
 #[test]
-fn a_task_is_shown_without_its_role() {
-    assert_eq!(
-        task_name("pelle_io.sak.backend : Install the backend"),
-        "Install the backend"
-    );
-    assert_eq!(task_name("Gathering Facts"), "Gathering Facts");
+fn a_task_event_names_the_task_without_its_role() {
     assert!(matches!(
         task_event(
             "row",
@@ -948,7 +943,8 @@ fn the_server_type_follows_the_location() {
     assert_eq!(LOCATIONS[0].id, Location::nbg1);
 }
 
-/// a project where only the data volume of `alpha` is left, of `size` GB, and nothing else
+/// a project where only the data volume of the spec is left, of `size` GB in its location, and
+/// nothing else
 async fn only_the_volume(spec: &DeploymentSpec, size: u64) -> wiremock::MockServer {
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, ResponseTemplate};
@@ -959,7 +955,7 @@ async fn only_the_volume(spec: &DeploymentSpec, size: u64) -> wiremock::MockServ
         "id": 3, "name": spec.data_volume().name, "format": "ext4",
         "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": size,
         "protection": { "delete": true }, "server": null, "status": "available",
-        "location": { "id": 2, "name": "nbg1" }, "labels": labels.into_raw()
+        "location": { "id": 2, "name": spec.location.to_string() }, "labels": labels.into_raw()
     });
     Mock::given(method("GET"))
         .and(path("/volumes"))
@@ -1038,4 +1034,28 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
                 && diff.status == DiffStatus::HasChanges),
         "{diffs:?}"
     );
+}
+
+#[tokio::test]
+async fn the_window_fixtures_apply_in_the_order_of_the_registry() {
+    let spec = super::window_fixtures::spec();
+    let server = only_the_volume(&spec, 16).await;
+    let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(
+        sak_cloud::hetzner::api::Backoff::new(
+            1,
+            std::time::Duration::ZERO,
+            std::time::Duration::ZERO,
+        ),
+    );
+    let runtime = HetznerProviderRuntime::from_api(Arc::new(api), Location::nbg1, ServerType::cx23);
+    let diffs = spec.registry(&runtime).unwrap().diff_all().await.unwrap();
+    let applied: Vec<String> = diffs
+        .iter()
+        .map(|diff| diff.resource.log_text.clone())
+        .collect();
+    let fixtures: Vec<String> = super::window_fixtures::resources(&spec)
+        .iter()
+        .map(|resource| resource.log_text.clone())
+        .collect();
+    assert_eq!(fixtures, applied);
 }
