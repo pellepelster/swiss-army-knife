@@ -42,8 +42,8 @@ const EXIT_CODES: &str = "Exit codes:
      data or address. Nothing was changed.
   7  update --check: a newer release of sakctl exists.";
 
-/// Swiss Army Knife: list, create, deploy and destroy the deployments of a Hetzner Cloud project,
-/// and show their running configuration. Without a command the window opens.
+/// Swiss Army Knife: manage the deployments of a Hetzner Cloud project. Without a command the
+/// window opens.
 #[derive(Parser, Debug)]
 #[command(
     name = "sakctl",
@@ -58,11 +58,13 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum Command {
-    /// List the sak deployments of the project with the state of their resources
+    /// List the deployments and the state of their resources
     #[command(after_help = EXIT_CODES)]
     List(Provider),
-    /// Create a sak deployment: an ssh key, a data volume, a primary ipv4 and ipv6, a
-    /// firewall, the server and its DNS records, then provision the server
+    /// Create a deployment and provision its server
+    ///
+    /// Creates an ssh key, a data volume, a primary IPv4 and IPv6, a firewall, the server and its
+    /// DNS records.
     #[command(after_help = EXIT_CODES)]
     Create {
         #[command(flatten)]
@@ -70,8 +72,9 @@ pub enum Command {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
-    /// Deploy a sak deployment: bring it to what it declares and provision the server again.
-    /// The server is created anew when it must be; the data volume and the addresses stay
+    /// Update a deployment and provision its server again
+    ///
+    /// Creates the server anew only when it must. The data volume and the addresses stay.
     #[command(after_help = EXIT_CODES)]
     Deploy {
         #[command(flatten)]
@@ -79,12 +82,13 @@ pub enum Command {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
-    /// The configuration of a running sak deployment
+    /// Show the configuration of a running deployment
     #[command(subcommand)]
     Config(ConfigCommand),
-    /// Open an ssh session as root on the server of a sak deployment, or run a command there
-    /// (after --). It runs in the image of the tools with the key derived from the password, the
-    /// server verified by its derived host key; the key is never written
+    /// Open an ssh session on the server, or run a command after --
+    ///
+    /// Runs in the image of the tools with the key derived from the password, and checks the
+    /// server's derived host key. The key is never written to disk.
     #[command(after_help = EXIT_CODES)]
     Ssh {
         #[command(flatten)]
@@ -92,15 +96,17 @@ pub enum Command {
         /// The name of the deployment
         #[arg(env = NAME_VARIABLE)]
         name: String,
-        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
         password: bool,
         /// A command to run on the server instead of a session
         #[arg(last = true)]
         command: Vec<String>,
     },
-    /// Back up all data of a sak deployment. The server compresses it and encrypts it with a key
-    /// derived from the password; it goes to ~/.sak/backups/<name>/<name>-<UTC time>.age.sak
+    /// Back up all data of a deployment
+    ///
+    /// The server compresses the data and encrypts it with a key derived from the password, to
+    /// ~/.sak/backups/<name>/<name>-<UTC time>.age.sak.
     #[command(after_help = EXIT_CODES)]
     Backup {
         #[command(flatten)]
@@ -108,12 +114,13 @@ pub enum Command {
         /// The name of the deployment
         #[arg(env = NAME_VARIABLE)]
         name: String,
-        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
         password: bool,
     },
-    /// Restore a sak deployment from one of its backups: all its data is replaced with the data
-    /// of the backup. The deployment must exist; the files of its provisioning stay
+    /// Replace all data of a deployment with a backup
+    ///
+    /// The deployment must exist. The files of its provisioning stay.
     #[command(after_help = EXIT_CODES)]
     Restore {
         #[command(flatten)]
@@ -123,16 +130,17 @@ pub enum Command {
         name: String,
         /// The backup, a file that `sakctl backup` wrote
         file: std::path::PathBuf,
-        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
         password: bool,
         /// Replace the data without asking
         #[arg(long)]
         yes: bool,
     },
-    /// Destroy a sak deployment: its DNS records, server, addresses, firewall and ssh key are
-    /// removed, the data volume stays unless --delete-data is given. A deployment that is gone
-    /// is destroyed already
+    /// Destroy a deployment, keeping its data volume
+    ///
+    /// Removes its DNS records, server, addresses, firewall and ssh key. --delete-data also
+    /// deletes the data volume. A deployment that is already gone counts as destroyed.
     #[command(after_help = EXIT_CODES)]
     Destroy {
         #[command(flatten)]
@@ -143,11 +151,12 @@ pub enum Command {
         #[arg(long)]
         delete_data: bool,
     },
-    /// Update sakctl to the newest release on github.com: it asks github.com for the newest
-    /// release and, when it is newer, replaces this sakctl with it after checking its sha-256
+    /// Update sakctl to the newest release from github.com
+    ///
+    /// Replaces sakctl only when the release is newer, after checking its sha-256.
     #[command(after_help = EXIT_CODES)]
     Update {
-        /// Only compare this sakctl with the newest release, exit code 7 when a newer one exists
+        /// Only check for a newer release, exit code 7 when there is one
         #[arg(long)]
         check: bool,
     },
@@ -155,8 +164,10 @@ pub enum Command {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum ConfigCommand {
-    /// Show the running configuration of a deployment, read from its backend with a request signed
-    /// with the key derived from the password; no secret of it is shown
+    /// Show the configuration of a running deployment
+    ///
+    /// Reads it from the backend with a request signed with the key derived from the password.
+    /// No secret is shown.
     #[command(after_help = EXIT_CODES)]
     Show {
         #[command(flatten)]
@@ -164,7 +175,7 @@ pub enum ConfigCommand {
         /// The name of the deployment
         #[arg(env = NAME_VARIABLE)]
         name: String,
-        /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set
+        /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
         password: bool,
     },
@@ -172,9 +183,9 @@ pub enum ConfigCommand {
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct Provider {
-    /// Ask for the API token of the Hetzner Cloud project on the terminal, even when HCLOUD_TOKEN
-    /// is set. The token is never an argument: it comes from HCLOUD_TOKEN or is typed, without
-    /// echo
+    /// Ask for the Hetzner Cloud API token, even when HCLOUD_TOKEN is set
+    ///
+    /// The token is never an argument: it comes from HCLOUD_TOKEN or is typed without echo.
     #[arg(long)]
     hcloud_token: bool,
 }
@@ -187,33 +198,38 @@ pub struct DeploymentArgs {
     /// The name of the deployment
     #[arg(env = NAME_VARIABLE)]
     name: String,
-    /// Ask for the password of the deployment on the terminal, even when SAK_PASSWORD is set. The
-    /// password (at least 16 characters, the keys of the deployment are derived from it) is never
-    /// an argument: it comes from SAK_PASSWORD or is typed, without echo
+    /// Ask for the password, even when SAK_PASSWORD is set
+    ///
+    /// The password has at least 16 characters, the keys of the deployment are derived from it.
+    /// It is never an argument: it comes from SAK_PASSWORD or is typed without echo.
     #[arg(long)]
     password: bool,
-    /// Where the server, its data volume and its addresses are created
+    /// The location of the server, its data volume and its addresses
     #[arg(long, env = LOCATION_VARIABLE, default_value = "nbg1", value_parser = parse_location)]
     location: Location,
-    /// How DNS is set up: domain manages <root domain> and *.<root domain>, subdomain manages
-    /// <name>.<root domain> and *.<name>.<root domain>. Not given: subdomain for a create,
-    /// the deployment's own for a deploy
+    /// The DNS mode: domain or subdomain
+    ///
+    /// domain manages <root domain> and *.<root domain>, subdomain manages <name>.<root domain>
+    /// and *.<name>.<root domain>. Default: subdomain for a create, the deployment's own for a
+    /// deploy.
     #[arg(long, value_parser = parse_dns_mode)]
     dns_mode: Option<DnsMode>,
-    /// The DNS zone of the project the names of the deployment are in, pelle.io; needed by a
-    /// create, a deploy takes the deployment's own when not given. The zone must exist, SAK does
-    /// not create it
+    /// The DNS zone of the deployment, e.g. pelle.io
+    ///
+    /// Needed for a create, a deploy takes the deployment's own. The zone must exist in the
+    /// project, SAK does not create it.
     #[arg(long)]
     root_domain: Option<String>,
-    /// Who signs in, needed by create and deploy: single, one user, the admin, who signs in with
-    /// the password of the deployment; multi, users sign in by e-mail and the admin also with the
-    /// password, needs --admin-email and --smtp-host
+    /// Who signs in: single or multi
+    ///
+    /// single: one user, the admin, signs in with the password of the deployment. multi: users
+    /// sign in by e-mail, the admin also with the password; needs --admin-email and --smtp-host.
     #[arg(long, env = USER_MODE_VARIABLE, value_parser = parse_user_mode)]
     user_mode: Option<UserMode>,
-    /// The e-mail address of the admin, the first user of the e-mail login (multi user)
+    /// The e-mail address of the admin (multi user)
     #[arg(long, env = ADMIN_EMAIL_VARIABLE)]
     admin_email: Option<String>,
-    /// The mail server the backend sends its login links with (multi user)
+    /// The mail server for the login links (multi user)
     #[arg(long, env = SMTP_HOST_VARIABLE)]
     smtp_host: Option<String>,
     /// The port of the mail server
@@ -222,22 +238,23 @@ pub struct DeploymentArgs {
     /// The user name at the mail server
     #[arg(long, env = SMTP_USERNAME_VARIABLE, default_value = "")]
     smtp_username: String,
-    /// Where the certificates of the deployment come from: production, or staging, the staging ca
-    /// of let's encrypt for test deployments (sakctl then trusts its roots). Not given: the
-    /// deployment's own for a deploy, production for a create
+    /// The CA of the certificates: production or staging
+    ///
+    /// staging is the staging CA of Let's Encrypt for test deployments, sakctl then trusts its
+    /// roots. Default: production for a create, the deployment's own for a deploy.
     #[arg(long, value_parser = parse_acme_ca)]
     acme_ca: Option<AcmeCa>,
-    /// Ask for the password at the mail server on the terminal, even when SAK_SMTP_PASSWORD is
-    /// set. It is never an argument: it comes from SAK_SMTP_PASSWORD or is typed, without echo;
-    /// without either the mail server has none, a redeploy takes over the running one
+    /// Ask for the password at the mail server, even when SAK_SMTP_PASSWORD is set
+    ///
+    /// It is never an argument: it comes from SAK_SMTP_PASSWORD or is typed without echo. Without
+    /// either, the mail server has none, and a deploy takes over the running one.
     #[arg(long)]
     smtp_password: bool,
-    /// Whether the connection to the mail server is upgraded with STARTTLS (true or false)
+    /// Use STARTTLS with the mail server: true or false
     #[arg(long,
         action = clap::ArgAction::Set, env = SMTP_STARTTLS_VARIABLE, default_value_t = DEFAULT_SMTP_STARTTLS, value_parser = parse_flag)]
     smtp_starttls: bool,
-    /// Stream the output of ansible while it provisions the server, each line prefixed with
-    /// [ansible]
+    /// Show the output of ansible while it provisions the server
     #[arg(long)]
     show_log: bool,
 }
