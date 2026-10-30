@@ -47,9 +47,8 @@ the review found them; the sections below hold the ones still open.
 ### Fix first
 
 1. **UI-2** a destroy runs after Cancel.
-2. **CD-2** a destroy plan is refused for a volume it would never recreate.
-3. **UI-4** a deployment without a location cannot be checked in the window.
-4. **UI-5** the window shows command-line instructions it cannot act on.
+2. **UI-4** a deployment without a location cannot be checked in the window.
+3. **UI-5** the window shows command-line instructions it cannot act on.
 
 ### The structural threads that run through all slices
 
@@ -57,7 +56,7 @@ the review found them; the sections below hold the ones still open.
   the deploy completion, the checks, the lookup of a deployment, the driver of `sak-backend`, the request plumbing
   of the api (one `ResourceApi<T>`; the dns zones keep theirs).*
 - **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
-  CA-3), a destroy plans with the create registry (CD-2), the playbook decision differs (CD-4), a pending label
+  CA-3), the playbook decision differs (CD-4), a pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
   resolves all of them (CD-25, CP-22).
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
@@ -462,7 +461,7 @@ deployment — exactly when a redeploy is wanted → window and command line say
 way to supply the mail server, the cause (TLS, 5xx, wrong password) is lost. **Fix:** `detected` distinguishes
 "labels only" from "the backend did not answer: <cause>"; `prepare` says "mail server unknown, give it".
 
-#### CD-2 (Medium, confirmed): A destroy plan runs through the create registry and its recreate refusal
+#### ~~CD-2 (Medium, confirmed): A destroy plan runs through the create registry and its recreate refusal~~ **fixed**
 
 `plan_prepared` (`deployments.rs:1538`) calls `Prepared::registry` (`:743-746`), which is `spec.registry()` for
 every intent, with `.recreatable(server, ssh_key)`; `diff_all` calls `refuse_recreate`. The volume provisioner marks
@@ -515,7 +514,7 @@ remembers names to remove once they appear.
 `public_endpoint`, `running_config` (`deployments.rs:1093, 1131, 1155, 1195, 1228`) turns `EXIT_USAGE` into
 `EXIT_FAILED`, because these return `Result<_, String>` while `prepare` returns `WizardError`.
 
-#### CD-9 (Low): Costly work for a destroy
+#### ~~CD-9 (Low): Costly work for a destroy~~ **fixed**
 
 `prepare` computes `admin_password_hash` (argon2id 64 MiB × 3, not derived from the cached master key) for every
 intent (`deployments.rs:1512`), plus the host key and the user data, which a destroy never uses.

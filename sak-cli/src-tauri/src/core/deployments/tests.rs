@@ -941,3 +941,95 @@ fn the_server_type_follows_the_location() {
     assert_eq!(server_type_for(Location::sin), ServerType::cpx21);
     assert_eq!(LOCATIONS[0].id, Location::nbg1);
 }
+
+/// a project where only the data volume of `alpha` is left, of `size` GB, and nothing else
+async fn only_the_volume(spec: &DeploymentSpec, size: u64) -> wiremock::MockServer {
+    use wiremock::matchers::{method, path, query_param};
+    use wiremock::{Mock, ResponseTemplate};
+    let server = wiremock::MockServer::start().await;
+    let mut labels = HetznerLabels::new();
+    labels.add_all(&spec.identity()).unwrap();
+    let volume = serde_json::json!({
+        "id": 3, "name": spec.data_volume().name, "format": "ext4",
+        "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": size,
+        "protection": { "delete": true }, "server": null, "status": "available",
+        "location": { "id": 2, "name": "nbg1" }, "labels": labels.into_raw()
+    });
+    Mock::given(method("GET"))
+        .and(path("/volumes"))
+        .and(query_param("name", spec.data_volume().name))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "volumes": [volume],
+            "meta": { "pagination": { "page": 1, "per_page": 50, "next_page": null, "total_entries": 1 } }
+        })))
+        .mount(&server)
+        .await;
+    for kind in ["ssh_keys", "volumes", "primary_ips", "firewalls", "servers"] {
+        Mock::given(method("GET"))
+            .and(path(format!("/{kind}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                kind: [],
+                "meta": { "pagination": { "page": 1, "per_page": 50, "next_page": null, "total_entries": 0 } }
+            })))
+            .mount(&server)
+            .await;
+    }
+    server
+}
+
+#[tokio::test]
+async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
+    // the volume was made 16 GB; a later sakctl declares 32
+    let mut spec = DeploymentSpec::new(
+        "alpha",
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE+u0dEVRZDzzp4E1teCqF49r8ig3YEk8eaPqNWfDcPb alpha",
+        Location::nbg1,
+        ServerType::cx23,
+    )
+    .unwrap();
+    spec.data_volume_gb = 32;
+    let server = only_the_volume(&spec, 16).await;
+    let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(
+        sak_cloud::hetzner::api::Backoff::new(
+            1,
+            std::time::Duration::ZERO,
+            std::time::Duration::ZERO,
+        ),
+    );
+    let key = crate::core::keys::derive_key("alpha", "a password of sixteen").unwrap();
+    let prepared = Prepared {
+        provider: ProviderType::Hetzner,
+        runtime: HetznerProviderRuntime::from_api(Arc::new(api), Location::nbg1, ServerType::cx23),
+        spec,
+        stale_records: Vec::new(),
+        client_key: key.clone(),
+        host_key: key,
+        api_public_key: String::new(),
+        admin_email: None,
+        admin_password_hash: String::new(),
+        smtp: None,
+        acme_ca: AcmeCa::default(),
+    };
+    let roles = |run| AnsibleRolesProvisioner {
+        run,
+        runtime: ContainerRuntime::default(),
+        force: false,
+        server_changed: Default::default(),
+        events: None,
+        failure: Default::default(),
+    };
+
+    // a deploy must not create the volume anew: refused
+    let mut deploy = prepared.registry(Intent::Deploy, roles).unwrap();
+    assert!(deploy.diff_all().await.is_err());
+    // a destroy creates nothing: its plan goes through, the volume still shows
+    let mut destroy = prepared.registry(Intent::Destroy, roles).unwrap();
+    let diffs = destroy.diff_all().await.unwrap();
+    assert!(
+        diffs
+            .iter()
+            .any(|diff| diff.resource.name == "sak-alpha-data"
+                && diff.status == DiffStatus::HasChanges),
+        "{diffs:?}"
+    );
+}

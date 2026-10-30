@@ -65,7 +65,8 @@ impl Prepared {
 
     /// the resources a create or deploy plans and applies: those of the spec and, after the
     /// server and the volume, the roles of the playbook on the server (`core::ansible_roles`). A
-    /// destroy has no roles, they go with the server
+    /// destroy has no roles, they go with the server; and it creates nothing, so no resource of
+    /// its plan is refused for a recreate (a volume smaller than the size of today is no reason)
     pub(super) fn registry(
         &self,
         intent: Intent,
@@ -75,7 +76,26 @@ impl Prepared {
             .spec
             .registry(&self.runtime)
             .map_err(|error| error.to_string())?;
-        if intent != Intent::Destroy {
+        if intent == Intent::Destroy {
+            let spec = &self.spec;
+            let resources = [
+                spec.ssh_key().resource_ref(),
+                spec.data_volume().resource_ref(),
+                spec.ipv4().resource_ref(),
+                spec.ipv6().resource_ref(),
+                spec.firewall().resource_ref(),
+                spec.server().resource_ref(),
+            ]
+            .into_iter()
+            .chain(
+                spec.dns_records()
+                    .into_iter()
+                    .map(|record| record.resource_ref()),
+            );
+            for resource in resources {
+                registry = registry.recreatable(resource);
+            }
+        } else {
             registry.register::<AnsibleRoles, AnsibleRolesProvisioner>(Arc::new(provisioner(
                 self.provision_run(),
             )));
@@ -595,7 +615,13 @@ impl DeploymentManager {
             host_key,
             api_public_key,
             admin_email,
-            admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
+            // a destroy provisions nothing, the argon2id of the hash would be for nothing
+            admin_password_hash: match intent {
+                Intent::Destroy => String::new(),
+                Intent::Create | Intent::Deploy => {
+                    crate::core::keys::admin_password_hash(name, password)?
+                }
+            },
             smtp,
             acme_ca,
         })
