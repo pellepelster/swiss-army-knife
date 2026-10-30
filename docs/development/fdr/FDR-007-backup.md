@@ -71,6 +71,15 @@ the directories and starts it again.
 **Decision:** The server refuses a backup of another deployment.
 **Why:** The paths on the server and the key of the backup depend on the name.
 
+### 6. A restore only into the same or a newer version
+
+**Decision:** A backup has the version of the server that wrote it. The server refuses a backup of a newer version
+than its own, and tells the user to deploy that version first. A backup or a server of no known version (`latest`)
+is restored with a warning.
+**Why:** The backend migrates an older database on its start, but does not know the changes of a newer one, and can
+fail or damage the data.
+**Tradeoff:** A backup of a newer version cannot go back to an older version.
+
 ## Related
 
 - **ADRs:** none
@@ -79,7 +88,4 @@ the directories and starts it again.
 
 ## Open Questions
 
-- The restore does not compare the version of the backup with the version of the backend yet
-  ([#128](https://github.com/pellepelster/swiss-army-knife/issues/128)). The backup has the version of the server
-  that wrote it.
 - The window has no backup or restore yet.

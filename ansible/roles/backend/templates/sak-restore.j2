@@ -3,7 +3,8 @@
 #
 # sak-restore: replaces the data of the deployment {{ sak_name }} below {{ sak_data_dir }} with
 # the backup on standard input, decrypted by sakctl and still compressed with zstd (what
-# sak-backup wrote before age). The archive is extracted and checked first; until then nothing
+# sak-backup wrote before age). The archive is extracted and checked first (its deployment, a
+# version not newer than the one of the server, the database); until then nothing
 # of the deployment changes. The files of the provisioning stay. Messages go to standard error,
 # each line starting with "sak-restore: "
 set -euo pipefail
@@ -50,6 +51,18 @@ if manifest.get("format") != 1:
     sys.exit(f"sak-restore: the format {manifest.get('format')} of the backup is not known")
 if manifest.get("name") != {{ sak_name | to_json }}:
     sys.exit(f"sak-restore: the backup is of {manifest.get('name')}, not of {{ sak_name }}")
+# the backend migrates an older database on its start, a newer one it does not know. latest (a
+# backup or a server of no release) is not known, its restore is not stopped
+def parsed(version):
+    try:
+        return tuple(int(part) for part in str(version).split("-")[0].split("."))
+    except ValueError:
+        return None
+backup, server = manifest.get("version"), {{ sak_version | to_json }}
+if parsed(backup) is None or parsed(server) is None:
+    print(f"sak-restore: the version of the backup ({backup}) or of the server ({server}) is not known, they are not compared", file=sys.stderr)
+elif parsed(backup) > parsed(server):
+    sys.exit(f"sak-restore: the backup is of version {backup}, the server runs {server}; deploy {backup} or newer first")
 EOF
 if [ ! -f "$staging/backend/data/sak.db" ]; then
   step "the backup has no database"

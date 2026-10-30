@@ -268,3 +268,10 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
 - **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
   proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
   Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.
+
+- **A label deleted while a note is saved.** A note that is saved with a new label creates the label first. When
+  the user deletes that label at the same time, for example on another device, the note is saved without it and
+  without an error. When the note is deleted at the same time, the new labels stay without a note. Accepted: it
+  takes two devices of the same user acting within milliseconds, nothing is lost but the label on the note, and
+  the user sees the result at once and can add the label again; a lock across both for every save costs more
+  than it gives.

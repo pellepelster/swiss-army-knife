@@ -18,12 +18,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# the scripts as the role renders them, for the deployment alpha
+# the scripts as the role renders them, for the deployment alpha on a server of version 0.2.0
 for script in sak-backup sak-restore; do
   ansible localhost --connection local -m ansible.builtin.template \
     -a "src=$role/templates/$script.j2 dest=$work/$script mode=0755" \
     -e "@$role/defaults/main.yml" -e sak_name=alpha -e sak_mount_dir=/work/storage/data \
-    -e backend_restore_wait=30 >/dev/null
+    -e sak_version=0.2.0 -e backend_restore_wait=30 >/dev/null
 done
 
 data=/work/storage/data/alpha
@@ -90,7 +90,7 @@ for unwanted in backend/config.yaml backend/backend.env backend/victorialogs-par
   ! grep -qx "$unwanted" <<<"$listing" || fail "$unwanted is in the backup"
 done
 on_server "age -d -i /work/backup.key /work/backup.age | zstd -dc | tar -xO backup.json" \
-  | python3 -c 'import json, sys; m = json.load(sys.stdin); assert (m["format"], m["version"], m["name"], m["backend_image"]) == (1, "latest", "alpha", "sha256:test"), m'
+  | python3 -c 'import json, sys; m = json.load(sys.stdin); assert (m["format"], m["version"], m["name"], m["backend_image"]) == (1, "0.2.0", "alpha", "sha256:test"), m'
 [ "$(on_server "curl -fsS -X POST --data-urlencode authKey=\$(cat $data/backend/victorialogs-partition.key) http://127.0.0.1:9428/internal/partition/snapshot/list")" = "[]" ] \
   || {
     on_server "cat /work/backup.log"
@@ -103,6 +103,25 @@ on_server "mkdir -p /work/other && cd /work/other && echo '{\"format\": 1, \"nam
   && tar -c backup.json | zstd -q > /work/other.tar.zst"
 on_server "! sak-restore < /work/other.tar.zst 2>/dev/null" || fail "a backup of another deployment is restored"
 on_server "[ ! -e /work/systemctl.log ]" || fail "the deployment was stopped for a wrong backup"
+
+echo "a backup of a newer version changes nothing, an older one or one of no known version is checked further"
+# a backup of only its manifest: one that passes the check of its version fails at its database
+backup_of() {
+  on_server "rm -rf /work/version && mkdir -p /work/version && cd /work/version \
+    && echo '{\"format\": 1, \"name\": \"alpha\", \"version\": \"$1\"}' > backup.json \
+    && tar -c backup.json | zstd -q > /work/version.tar.zst"
+}
+backup_of 0.3.0
+on_server "! sak-restore < /work/version.tar.zst 2> /work/version.log && grep -q 'deploy 0.3.0 or newer first' /work/version.log" \
+  || { on_server "cat /work/version.log" >&2; fail "a backup of a newer version is restored"; }
+for version in 0.1.9 0.2.0 latest; do
+  backup_of "$version"
+  on_server "! sak-restore < /work/version.tar.zst 2> /work/version.log && grep -q 'the backup has no database' /work/version.log" \
+    || { on_server "cat /work/version.log" >&2; fail "a backup of version $version is refused for its version"; }
+done
+on_server "grep -q 'the version of the backup (latest) or of the server (0.2.0) is not known' /work/version.log" \
+  || fail "no warning for a backup of no known version"
+on_server "[ ! -e /work/systemctl.log ]" || fail "the deployment was stopped for a backup that was refused"
 
 echo "changes after the backup, then the restore"
 on_server "runuser -u sak -- sqlite3 -cmd '.timeout 10000' $data/backend/data/sak.db 'INSERT INTO notes VALUES (\"after\")'
