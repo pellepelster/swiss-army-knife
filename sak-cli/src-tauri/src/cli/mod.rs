@@ -1,6 +1,6 @@
-//! The command line of sakctl. A command as the first argument (`list`, `create`, `deploy`,
-//! `destroy`, `config`, `ssh`, `backup`, `restore`, `update`) runs without a window, on the same core and texts as the window. This module
-//! only parses the arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
+//! The command line of sakctl. A command as the first argument (`args::Command`, `sakctl --help`)
+//! runs without a window, on the same core and texts as the window. This module only parses the
+//! arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
 //! (`--hcloud-token`). The name and the location of a deployment come from the argument or from
 //! SAK_NAME and SAK_LOCATION. The password comes from SAK_PASSWORD or is typed (`--password`),
 //! never from an argument. Every line it prints is `<date> <level> <message>`, the level in color

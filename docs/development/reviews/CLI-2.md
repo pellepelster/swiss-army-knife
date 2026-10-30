@@ -785,7 +785,7 @@ time of an apply, refused when another value is there; or record it as an accept
 `create_deployment` (`gui/deployments.rs:157`) and `NewDeployment` serve all three intents; `WizardError` is a
 leftover name. Rename them (e.g. `ApplyEvent`, `apply`, `DeploymentRequest`, `Error`). Overlaps CD-18.
 
-#### R1-7 (Low): The module doc of the command line lists its commands without `maintenance` (was M5)
+#### ~~R1-7 (Low): The module doc of the command line lists its commands without `maintenance` (was M5)~~ **fixed**
 
 `cli/mod.rs:1-2` names `list`, `create`, `deploy`, `destroy`, `config`, `ssh`, `backup`, `restore`, `update`; the
 list misses `maintenance`, and a hand-kept list will miss the next one too. Name none, or point to `--help`.
