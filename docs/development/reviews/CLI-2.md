@@ -48,7 +48,7 @@ names its ID.
    server type does the same.
 3. **CD-1 / UI-6 / UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host" and
    command-line instructions in the window.
-4. **CU-1** a backup or restore hangs forever on a dropped connection; **CU-3 / CU-4** ssh's and the lock's exit
+4. ~~**CU-1** a backup or restore hangs forever on a dropped connection~~; **CU-3 / CU-4** ssh's and the lock's exit
    codes are blamed on `sak-backend`.
 5. **UI-2 / UI-3** a destroy runs after Cancel; "delete the data volume" stays ticked.
 6. **CD-2** a destroy plan is refused for a volume it would never recreate.
@@ -233,7 +233,7 @@ implements `DiffContext` makes `diff_all` `&self`, removes `mark_pending`/`clear
 
 ### Bugs and security
 
-#### CU-1 (High, confirmed): A backup or restore hangs forever on a dropped connection
+#### ~~CU-1 (High, confirmed): A backup or restore hangs forever on a dropped connection~~ **fixed**
 
 `ssh.rs:65-70` sets `ConnectTimeout=30` only; no `ServerAliveInterval`/`ServerAliveCountMax`. `run_streaming`
 (`ssh.rs:236-293`) blocks in `io::copy` until ssh exits. The maintenance wraps this in `limited`

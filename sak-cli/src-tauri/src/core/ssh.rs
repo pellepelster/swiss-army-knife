@@ -19,6 +19,10 @@ use std::process::{Command, Stdio};
 const AGENT_SOCKET: &str = "/tmp/sak-agent.sock";
 const KNOWN_HOSTS: &str = "/tmp/sak-known-hosts";
 
+/// ssh asks the server every 15 seconds and gives up after 4 asks without an answer
+const ALIVE_INTERVAL_SECONDS: u32 = 15;
+const ALIVE_COUNT: u32 = 4;
+
 /// the server of a deployment and the keys to reach it
 pub struct SshTarget {
     /// the public ipv4 of the server, ssh connects to it
@@ -68,6 +72,13 @@ fn ssh_arguments(
         "StrictHostKeyChecking=yes".to_string(),
         "-o".to_string(),
         "ConnectTimeout=30".to_string(),
+        // a connection that drops (the network of the laptop, the server gone) ends ssh after
+        // a minute without an answer, instead of the hours of the keepalive of tcp; a backup or
+        // restore would wait that long otherwise
+        "-o".to_string(),
+        format!("ServerAliveInterval={ALIVE_INTERVAL_SECONDS}"),
+        "-o".to_string(),
+        format!("ServerAliveCountMax={ALIVE_COUNT}"),
     ]);
     if terminal {
         arguments.push("-t".to_string());
@@ -317,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn ssh_runs_as_root_with_the_agent_and_checks_the_host_key() {
+    fn ssh_runs_as_root_with_the_agent_checks_the_host_key_and_notices_a_dropped_connection() {
         let session = ssh_arguments("c", "203.0.113.1", "KNOWN", true, &[]);
         assert_eq!(
             &session[..6],
@@ -340,7 +351,7 @@ mod tests {
             session[10..].join(" "),
             format!(
                 "ssh -o UserKnownHostsFile={KNOWN_HOSTS} -o StrictHostKeyChecking=yes -o ConnectTimeout=30 \
-                 -t root@203.0.113.1"
+                 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -t root@203.0.113.1"
             )
         );
         // a command runs without a terminal, its arguments as given
