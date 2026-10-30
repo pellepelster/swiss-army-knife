@@ -9,7 +9,7 @@ use super::volumes::{VolumeCreate, VolumeFormat, VolumeUpdate};
 use super::{ApiError, Backoff, ErrorCode, HetznerApi, ListQuery, Location, ServerType};
 use serde_json::{Value, json};
 use std::time::Duration;
-use wiremock::matchers::{body_partial_json, header, method, path, query_param};
+use wiremock::matchers::{body_json, body_partial_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 const TOKEN: &str = "the-token";
@@ -859,4 +859,54 @@ async fn the_rules_of_a_firewall_are_set_with_one_action_per_server_and_waited_f
         vec![5, 6]
     );
     firewalls.wait_for_actions(&actions).await.unwrap();
+}
+
+#[tokio::test]
+async fn set_labels_changes_and_removes_labels_and_keeps_the_others() {
+    let labeled = |labels: Value| {
+        json!({ "server": {
+            "id": 1, "name": "sak-alpha", "status": "running", "server_type": { "id": 1, "name": "cx23" },
+            "image": { "id": 2, "name": "debian-13" }, "location": { "id": 3, "name": "hel1" },
+            "protection": { "delete": false, "rebuild": false }, "volumes": [],
+            "public_net": { "ipv4": null, "ipv6": null }, "private_net": [], "labels": labels
+        } })
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/servers/1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(labeled(
+            json!({ "keep": "1", "change": "old", "remove": "x" }),
+        )))
+        .mount(&server)
+        .await;
+    let updated = json!({ "keep": "1", "change": "new", "add": "2" });
+    Mock::given(method("PUT"))
+        .and(path("/servers/1"))
+        .and(body_json(json!({ "labels": updated })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(labeled(updated.clone())))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let changes = [
+        ("change", Some("new")),
+        ("add", Some("2")),
+        ("remove", None),
+    ];
+    let set = api(&server)
+        .servers()
+        .set_labels(1, &changes)
+        .await
+        .unwrap();
+
+    assert_eq!(set.unwrap().labels["change"], "new");
+    // a server that is gone
+    assert!(
+        api(&server)
+            .servers()
+            .set_labels(2, &changes)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }

@@ -186,4 +186,28 @@ impl ServersApi<'_> {
         };
         self.action_with(id, "change_type", &request).await
     }
+
+    /// sets each label `key` to its `value`, or removes it when the value is `None`, in one
+    /// update; the other labels stay. `None` when the server is gone
+    pub async fn set_labels(
+        &self,
+        id: u64,
+        changes: &[(&str, Option<&str>)],
+    ) -> Result<Option<Server>> {
+        let Some(server) = self.get(id).await? else {
+            return Ok(None);
+        };
+        let mut labels = server.labels;
+        for (key, value) in changes {
+            match value {
+                Some(value) => labels.insert(key.to_string(), value.to_string()),
+                None => labels.remove(*key),
+            };
+        }
+        let request = ServerUpdate {
+            labels: Some(labels),
+            ..Default::default()
+        };
+        Ok(Some(self.update(id, &request).await?))
+    }
 }
