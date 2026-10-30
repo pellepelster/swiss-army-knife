@@ -314,6 +314,13 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   hand; each run plans first and stops at what it does not expect, and the next deploy repairs what two runs left
   half done. A lock label on the resources would stay behind after a run that was killed.
 
+- **The client key goes to the container engine.** sakctl hands the private client key of a deployment to an
+  ssh-agent in a container (`docker exec -i … ssh-add -`) and to the container of a provisioning. It is never
+  written to disk, but it passes the engine: with `DOCKER_HOST=tcp://…` and no TLS it would cross the network in
+  clear, and the agent that holds it would run on that other host. Accepted for now: sakctl runs against the
+  engine of the user's own machine, a local socket; whoever points `DOCKER_HOST` at another host trusts that
+  host with the same containers anyway. To revisit: refuse a plain tcp engine for ssh and provisioning.
+
 - **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
   proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
   Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.

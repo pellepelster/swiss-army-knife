@@ -197,13 +197,6 @@ json, while `follow_to_github` (`update.rs:282-294`) restricts the redirect hops
 to the first host too (within the accepted risk "release not signed", but the code claims a policy it half
 enforces).
 
-#### CU-7 (Low): The private client key transits the docker daemon
-
-`exec_with_input` (`ssh.rs:81-114`) pipes `private_key()` into `docker exec -i … ssh-add -`. `docker_api()` supports
-`DOCKER_HOST=tcp://` without TLS (`container.rs:213-215`); then the key crosses the network in clear and the agent
-holding it lives on the remote host. Either refuse `tcp://` without `DOCKER_TLS_VERIFY` for ssh sessions, or add it
-to the accepted risks.
-
 #### CU-8 (Low): The startup checks have no timeout
 
 `canary` (`container.rs:87-112`) and `pull` (`container.rs:129-161`) go through `output()` (`container.rs:294-303`),
