@@ -55,9 +55,9 @@ Nothing of the list is left.
 - **One thing written more than once.** *Done: the maintenance flow, the deploy completion, the checks, the
   lookup of a deployment, the driver of `sak-backend`, the request plumbing of the api (one `ResourceApi<T>`; the
   dns zones keep theirs), the provisioner skeleton (`HetznerKind`; the server and the dns record keep theirs).*
-- **Plan and apply disagree.** A pending label change reads as a recreate (CP-3, CP-22). *Done: the plan is the
-  one gate of the apply, the window applies only what its check showed, and the registry tells the provisioners
-  what it applied with a change, so plan and apply run the playbook alike.*
+- **Plan and apply disagree.** *Done: the plan is the one gate of the apply, the window applies only what its
+  check showed, the registry tells the provisioners what it applied with a change, so plan and apply run the
+  playbook alike, and a change of labels alone is not pending for the dependents.*
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
 - **Booleans and strings standing in for enums.** *Done: `DiffItem`, the plan words and kinds, the reasons of a
@@ -80,26 +80,11 @@ their lookups of the server return `None`. Each provisioner guards this itself t
 (`dns_record/provisioner.rs:107`, `src-tauri/src/core/ansible_roles.rs:197`), which makes the registry's check
 half-redundant. **Fix:** include `ParentMissing | Duplicate` at `:270`, or make it the provisioner's job alone.
 
-### Structure
-
-#### CA-21: `pending` as a per-run value, `diff_all` takes `&self`
-
-`diff_all` needs `&mut self` only for `pending`. A `DiffRun<'a> { providers: &'a LookupProviders, pending }` that
-implements `DiffContext` makes `diff_all` `&self`, and a plan cannot leak pending state into the next run.
-
 ---
 
 ## CU: core utilities
 
 ### Bugs and security
-
-#### CU-2 (Medium, confirmed): A maintenance timeout stops every tracked run, not its own session
-
-`maintenance.rs:115` calls `provision::stop_runs()`, which drains the global `RUNS` and removes all containers and
-run directories (`provision.rs:444-455`). The window cannot start a deploy and a maintenance at the same time today
-(the run view has no way back while it runs), so this is a latent flaw: `limited` should stop its own
-`SessionContainer`, which needs a handle from `run_streaming`. The same `stop_runs` from an async context runs
-`docker rm --force` synchronously on a tokio worker (`provision.rs:472-478`).
 
 #### CU-5 (Medium, confirmed): The self-update has no architecture in the platform and checks nothing about the binary
 
@@ -108,14 +93,6 @@ release builds macOS universal, Linux and Windows x86_64 only (`mise.toml`). **S
 sakctl on aarch64 Linux downloads the x86_64 zip, the checksum matches, `self_replace` installs a binary that does
 not run. Low likelihood for official releases, cheap to guard: the architecture in the asset name, or a check of
 the ELF/Mach-O machine. Downgrades, partial writes and symlinked install paths are handled correctly.
-
-### Structure
-
-#### CU-21: A cancellable ssh session per call
-
-`run_streaming` returns or takes a handle that removes its own `SessionContainer`; `limited` stops that handle
-instead of `stop_runs()`. With `ServerAlive*`/`BatchMode` in `ssh_arguments` and a `limited` around backup and
-restore this resolves CU-2.
 
 ---
 
@@ -130,15 +107,6 @@ wherever it is (`:137`), but never the ip the server has now (`runtime.ipv4_id`,
 differs). Suspected: Hetzner refuses a second ipv4/ipv6 on a server. On any error after `power_off` nothing powers
 the server on again; the `power_on` at `:357` is reached on success only. **Scenario:** a server created without
 the primary ips (an older sakctl, or by hand) → the deploy ends with an api error and the server off.
-
-#### CP-3 (Medium): The plan reports a recreate of the server on any change of a dependency, a label change too
-
-`hetzner/server/provisioner.rs:193-200`: any pending ssh key → `DiffItem::recreate("ssh keys", "<known after
-apply>")`; `hetzner/dns_record/provisioner.rs:121-135` the same for the ips. Pending means "not UpToDate"
-(`api/registry.rs:291-292`), so a key or ip that needs only a label update (acme-ca or user-mode after a partial
-apply) makes the state show "ssh keys … requires recreate" on the server and "<known after apply>" on four
-records; the apply then only updates labels. **Fix:** pending carries whether the change alters what dependents
-read. See CP-22.
 
 #### CP-4 (Medium): A server whose image Hetzner deleted is recreated by the next deploy without a decision
 
@@ -162,12 +130,6 @@ recreatable (`deployment.rs:1037-1046`) → `RecreateRefused`. Hetzner grows a v
 continues in an action); `change_protection` at `:124` and the server create with the volume id then depend on the
 423 retry of the api (`api/mod.rs:310-312`, 5 attempts ≈ 30 s). `server/provisioner.rs:410-422` `wait_for_volumes`
 checks `volume.server` only, never `status`.
-
-### Structure
-
-#### CP-22: Pending carries whether the dependency's value changes
-
-A fingerprint recreate: yes; a label change: no (CP-3). The volume size recreate becomes an in-place resize (CP-6).
 
 ---
 
