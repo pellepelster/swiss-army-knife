@@ -308,9 +308,15 @@ impl Registry {
         for index in self.order()? {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
+            // a parent is missing too when it is missing its own parent, or is a duplicate: there
+            // is nothing of it to diff against
             let parent_missing = resource.depends_on().iter().any(|dependency| {
                 diffs.iter().any(|(_, diff)| {
-                    diff.resource == *dependency && diff.status == DiffStatus::Missing
+                    diff.resource == *dependency
+                        && matches!(
+                            diff.status,
+                            DiffStatus::Missing | DiffStatus::ParentMissing | DiffStatus::Duplicate
+                        )
                 })
             });
             let diff = if parent_missing {
@@ -969,6 +975,41 @@ mod tests {
         assert!(matches!(registry.apply_all().await, Err(Error::NoOwner)));
         // the key before the server is not created either
         assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+    }
+
+    #[tokio::test]
+    async fn a_parent_that_misses_its_own_parent_or_is_a_duplicate_is_missing_for_its_dependents() {
+        let cloud = Arc::new(Cloud::default());
+        // c is missing, b depends on c, a depends on b
+        let chain = registry(&cloud)
+            .with(thing("c", 1, &[]))
+            .unwrap()
+            .with(thing("b", 1, &["c"]))
+            .unwrap()
+            .with(thing("a", 1, &["b"]))
+            .unwrap();
+        let status = |diffs: &[ResourceDiff], name: &str| {
+            diffs
+                .iter()
+                .find(|diff| diff.resource.name == name)
+                .unwrap()
+                .status
+        };
+        let diffs = chain.compare_all().await.unwrap();
+        assert_eq!(status(&diffs, "c"), DiffStatus::Missing);
+        assert_eq!(status(&diffs, "b"), DiffStatus::ParentMissing);
+        assert_eq!(status(&diffs, "a"), DiffStatus::ParentMissing);
+
+        // a duplicate parent: its dependent is not diffed against it
+        cloud.duplicated.lock().unwrap().insert("key".to_string());
+        let duplicated = registry(&cloud)
+            .with(thing("key", 1, &[]))
+            .unwrap()
+            .with(thing("server", 1, &["key"]))
+            .unwrap();
+        let diffs = duplicated.compare_all().await.unwrap();
+        assert_eq!(status(&diffs, "key"), DiffStatus::Duplicate);
+        assert_eq!(status(&diffs, "server"), DiffStatus::ParentMissing);
     }
 
     #[tokio::test]

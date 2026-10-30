@@ -70,16 +70,6 @@ Nothing of the list is left.
 
 ## CA: sak-cloud, api and registry
 
-### Bugs
-
-#### CA-6 (Low): A parent that is itself `ParentMissing` or `Duplicate` counts as present
-
-`registry.rs:267-271` marks a child `ParentMissing` only when a dependency's diff is `Missing`. **Scenario:** the
-ssh key is missing → the server is `ParentMissing` → the roles (which depend on the server) are diffed anyway, and
-their lookups of the server return `None`. Each provisioner guards this itself today
-(`dns_record/provisioner.rs:107`, `src-tauri/src/core/ansible_roles.rs:197`), which makes the registry's check
-half-redundant. **Fix:** include `ParentMissing | Duplicate` at `:270`, or make it the provisioner's job alone.
-
 ---
 
 ## CU: core utilities

@@ -154,10 +154,12 @@ async fn compare(
                 kind,
                 name,
                 status: Some(diff.status),
+                // a duplicate says which resource it duplicates
                 changes: diff
                     .changes
                     .iter()
                     .map(|change| change.log_text())
+                    .chain(diff.duplicate_message.clone())
                     .collect(),
                 detail,
             })
@@ -509,7 +511,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_server_whose_key_was_renamed_names_the_key() {
+    async fn a_key_that_was_renamed_is_a_duplicate_that_names_it_and_its_server_misses_it() {
         let (_server, api) = mock_api_all(&[
             ("servers", vec![server(1, "sak-alpha", named("alpha"))]),
             // renamed in the console: a deploy would create the key anew, Hetzner refuses it
@@ -533,13 +535,32 @@ mod tests {
 
         let alpha = state(&provider, &deployments[0]).await;
 
-        assert_eq!(alpha.status, DeploymentStatus::Unknown);
-        let error = alpha.error.unwrap();
-        assert!(
-            error.contains("ssh key 'sak-alpha' not found")
-                && error.contains("'sak-alpha-old' has its labels"),
-            "{error}"
+        // the key is a duplicate that names the renamed one, the server misses its key
+        assert_eq!(
+            alpha.status,
+            DeploymentStatus::Incomplete,
+            "{:?}",
+            alpha.error
         );
+        let key = alpha
+            .resources
+            .iter()
+            .find(|resource| resource.kind == ResourceKind::SshKey && resource.name == "sak-alpha")
+            .unwrap();
+        assert_eq!(key.status, Some(DiffStatus::Duplicate));
+        assert!(
+            key.changes
+                .iter()
+                .any(|change| change.contains("sak-alpha-old")),
+            "{:?}",
+            key.changes
+        );
+        let server = alpha
+            .resources
+            .iter()
+            .find(|resource| resource.kind == ResourceKind::Server)
+            .unwrap();
+        assert_eq!(server.status, Some(DiffStatus::ParentMissing));
     }
 
     #[test]
