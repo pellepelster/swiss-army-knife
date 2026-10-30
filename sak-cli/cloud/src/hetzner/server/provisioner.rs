@@ -4,7 +4,7 @@ use crate::api::{
     LookupContext, LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
 use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, ServerUpdate};
-use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery};
+use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery, Location, ServerType};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
 use crate::hetzner::server::{HetznerServer, HetznerServerLookup, HetznerServerRuntime, UserData};
@@ -213,14 +213,16 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             );
         }
 
-        if resource.location != runtime.location {
+        // a location or type this sakctl does not know is no reason to recreate the server
+        if resource.location != runtime.location && runtime.location != Location::unknown {
             changes.push(DiffItem::recreate(
                 "location",
                 resource.location,
                 runtime.location,
             ));
         }
-        if resource.server_type != runtime.server_type {
+        if resource.server_type != runtime.server_type && runtime.server_type != ServerType::unknown
+        {
             changes.push(DiffItem::recreate(
                 "type",
                 resource.server_type,

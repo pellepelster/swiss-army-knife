@@ -16,6 +16,9 @@ pub enum Location {
     ash,
     hil,
     sin,
+    /// one this sakctl does not know yet: read, never compared and never asked for
+    #[serde(other)]
+    unknown,
 }
 
 impl fmt::Display for Location {
@@ -54,6 +57,10 @@ pub enum ServerType {
     ccx43,
     ccx53,
     ccx63,
+    /// one this sakctl does not know yet (a type Hetzner added or retired): read, never compared
+    /// and never asked for
+    #[serde(other)]
+    unknown,
 }
 
 impl fmt::Display for ServerType {

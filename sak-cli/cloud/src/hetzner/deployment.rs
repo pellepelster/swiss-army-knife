@@ -1245,6 +1245,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_server_of_an_unknown_type_location_and_status_is_listed_and_not_recreated() {
+        // what Hetzner may answer after this release: a new type, location and status
+        let mut alpha = server(1, "sak-alpha", named("alpha"));
+        alpha["server_type"]["name"] = json!("cx99");
+        alpha["location"]["name"] = json!("xyz1");
+        alpha["status"] = json!("frozen");
+        let (_server, api) = mock_api_all(&[
+            ("servers", vec![alpha]),
+            ("ssh_keys", vec![key(7, "sak-alpha", named("alpha"))]),
+            ("firewalls", vec![]),
+            ("volumes", vec![]),
+            ("primary_ips", vec![]),
+        ])
+        .await;
+        let deployments = discover(&api).await.unwrap();
+        let server = deployments[0].server.as_ref().unwrap();
+        assert_eq!(server.server_type, ServerType::unknown);
+        assert_eq!(server.location, Location::unknown);
+
+        let provider =
+            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let alpha = state(&provider, &deployments[0]).await;
+        assert_eq!(alpha.error, None);
+        let changes: Vec<&String> = alpha
+            .resources
+            .iter()
+            .filter(|resource| resource.kind == ResourceKind::Server)
+            .flat_map(|resource| &resource.changes)
+            .collect();
+        assert!(
+            changes
+                .iter()
+                .all(|change| !change.starts_with("type") && !change.starts_with("location")),
+            "{changes:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn a_deployment_that_kept_only_its_volume_is_incomplete() {
         // a destroy without --delete-data keeps the volume with the name label, and no ssh key
         let (_server, api) = mock_api_all(&[

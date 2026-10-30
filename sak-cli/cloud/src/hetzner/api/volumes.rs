@@ -16,6 +16,9 @@ pub enum VolumeFormat {
 pub enum VolumeStatus {
     Available,
     Creating,
+    /// a status this sakctl does not know yet
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, Deserialize)]

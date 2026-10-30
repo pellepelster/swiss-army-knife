@@ -649,6 +649,8 @@ fn server_type_for(location: Location) -> ServerType {
     match location {
         Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,
         Location::ash | Location::hil | Location::sin => ServerType::cpx21,
+        // nothing is created there (`prepare`); the type only completes the declaration
+        Location::unknown => ServerType::cx23,
     }
 }
 
@@ -1437,6 +1439,14 @@ impl DeploymentManager {
         } = deployment;
         let (location, intent) = (*location, *intent);
         let name = checked_name(name)?;
+        // a location Hetzner added after this release can be read, but nothing is created in it; a
+        // destroy needs no location
+        if location == Location::unknown && intent != Intent::Destroy {
+            return Err(WizardError::new(
+                t!("shared.deployments.unknown_location", name = name),
+                crate::core::error::EXIT_USAGE,
+            ));
+        }
         if password.chars().count() < MIN_PASSWORD_CHARS {
             return Err(t!(
                 "shared.deployments.short_password",
@@ -2235,6 +2245,19 @@ mod tests {
             admin_email: None,
             force: true,
         }
+    }
+
+    #[tokio::test]
+    async fn nothing_is_created_in_a_location_this_sakctl_does_not_know() {
+        let unknown = NewDeployment {
+            location: Location::unknown,
+            ..deploy()
+        };
+        let Err(error) = DeploymentManager.prepare(Vec::new(), &unknown).await else {
+            panic!("a deploy into an unknown location was prepared");
+        };
+        assert_eq!(error.exit_code, crate::core::error::EXIT_USAGE);
+        assert!(error.message.contains("alpha"), "{}", error.message);
     }
 
     #[tokio::test]

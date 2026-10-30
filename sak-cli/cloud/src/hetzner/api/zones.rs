@@ -167,6 +167,9 @@ pub enum RRType {
     SVCB,
     TLSA,
     TXT,
+    /// a type this sakctl does not know, in a zone of the user: read, never written
+    #[serde(other)]
+    Unknown,
 }
 
 impl fmt::Display for RRType {

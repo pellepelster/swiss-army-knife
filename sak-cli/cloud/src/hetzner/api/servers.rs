@@ -17,6 +17,8 @@ pub enum ServerStatus {
     Deleting,
     Migrating,
     Rebuilding,
+    /// also a status this sakctl does not know yet
+    #[serde(other)]
     Unknown,
 }
 

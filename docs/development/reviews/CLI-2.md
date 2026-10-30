@@ -46,11 +46,10 @@ the review found them; the sections below hold the ones still open.
 
 ### Fix first
 
-1. **CA-1** one server of an unknown type fails every list of deployments.
-2. **UI-2** a destroy runs after Cancel.
-3. **CD-2** a destroy plan is refused for a volume it would never recreate.
-4. **UI-4** a deployment without a location cannot be checked in the window.
-5. **UI-5** the window shows command-line instructions it cannot act on.
+1. **UI-2** a destroy runs after Cancel.
+2. **CD-2** a destroy plan is refused for a volume it would never recreate.
+3. **UI-4** a deployment without a location cannot be checked in the window.
+4. **UI-5** the window shows command-line instructions it cannot act on.
 
 ### The structural threads that run through all slices
 
@@ -61,9 +60,8 @@ the review found them; the sections below hold the ones still open.
   CA-3), a destroy plans with the create registry (CD-2), the playbook decision differs (CD-4), a pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
   resolves all of them (CD-25, CP-22).
-- **Errors that lose their cause.** One unknown server type that fails the list (CA-1). *Done: the running
-  configuration, the exit codes of ssh and of the lock, a deployment that cannot be compared, the reading of the
-  markers.*
+- **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
+  deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
 - **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the kind of a planned
   resource (CD-13), the strings and flags of the deployment spec (CP-17), a few flags of the command line (UI-16).
   *Done: `DiffItem`, the plan words, the reasons of a reboot, the password prompt, the transport.*
@@ -76,7 +74,7 @@ the review found them; the sections below hold the ones still open.
 
 ### Bugs
 
-#### CA-1 (High, confirmed): A server of an unknown type or location fails every list of deployments
+#### ~~CA-1 (High, confirmed): A server of an unknown type or location fails every list of deployments~~ **fixed**
 
 `hetzner/api/model.rs:12` (`Location`) and `:30` (`ServerType`) and `hetzner/api/servers.rs:11` (`ServerStatus`)
 are closed enums without a `#[serde(other)]` fallback; only `hetzner/api/error.rs:33` has one. `Server.server_type`

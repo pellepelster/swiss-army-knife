@@ -131,6 +131,7 @@ shared:
       changed: "has changes"
       unknown: "unknown"
     settings_unread: "The user mode, the admin and the mail server of %{name} could not be read from its backend: %{error}"
+    unknown_location: "%{name} is in a location this sakctl does not know. Update sakctl (sakctl update) to deploy it."
     not_compared: "%{name} could not be compared with what a deploy declares: %{error}"
     empty: "No deployment found. Install one with the button at the top."
   config:
