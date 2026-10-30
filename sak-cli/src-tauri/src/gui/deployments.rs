@@ -3,7 +3,7 @@
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, Intent,
-    LocationResponse, NewDeployment, PlanResponse, RootDomainResponse, complete, defaults,
+    LocationResponse, NewDeployment, PlanResponse, RootDomainResponse, defaults,
 };
 use crate::core::error::WizardError;
 use crate::core::providers::{ProviderTokens, ProviderType};
@@ -203,8 +203,7 @@ pub async fn check_deployment(
         admin_email: None,
         force: false,
     };
-    let detected = manager.detected(tokens.clone(), &name, &password).await?;
-    let deployment = complete(deployment, &detected, "")?;
+    let deployment = manager.completed(tokens.clone(), deployment, "").await?;
     let plan = manager.plan(tokens, &deployment, &container).await?;
     checked.done(number, deployment);
     Ok(CheckResponse {

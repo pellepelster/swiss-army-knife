@@ -835,7 +835,7 @@ fn detect(
 /// user, the admin and the mail server. A given `smtp_password` wins over the detected one. An
 /// older backend does not answer the password; then the password must be given, because a deploy
 /// without it removes it
-pub fn complete(
+fn complete(
     mut deployment: NewDeployment,
     detected: &Detected,
     smtp_password: &str,
@@ -1079,6 +1079,29 @@ impl DeploymentManager {
             }
         }
         Ok(deployments)
+    }
+
+    /// a deploy with what is not given taken from the deployment, for the window and the command
+    /// line alike: its user mode and, for multi user, the admin and the mail server (`detected`,
+    /// `complete`). A deploy that gives them all is not completed; a deployment that cannot be
+    /// read (no provider, not found, a wrong password) is the error
+    pub async fn completed(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        deployment: NewDeployment,
+        smtp_password: &str,
+    ) -> Result<NewDeployment, WizardError> {
+        let incomplete = deployment.user_mode != Some(UserMode::Single)
+            && (deployment.user_mode.is_none()
+                || deployment.smtp.is_none()
+                || deployment.admin_email.is_none());
+        if !incomplete {
+            return Ok(deployment);
+        }
+        let detected = self
+            .detected(tokens, &deployment.name, &deployment.password)
+            .await?;
+        complete(deployment, &detected, smtp_password)
     }
 
     /// the settings a deploy can take from an existing deployment, for the window and the command
@@ -2061,6 +2084,51 @@ mod tests {
             admin_email: None,
             force: true,
         }
+    }
+
+    #[tokio::test]
+    async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_read_is_the_error()
+    {
+        // no provider token: a deploy that needs the deployment read fails, one that does not
+        // never asks
+        let single = NewDeployment {
+            user_mode: Some(UserMode::Single),
+            ..deploy()
+        };
+        let completed = DeploymentManager
+            .completed(Vec::new(), single, "")
+            .await
+            .unwrap();
+        assert_eq!(completed.user_mode, Some(UserMode::Single));
+
+        let given = NewDeployment {
+            user_mode: Some(UserMode::Multi),
+            admin_email: Some("admin@example.com".into()),
+            smtp: Some(Smtp {
+                host: "smtp.example.com".into(),
+                port: 587,
+                username: "sak".into(),
+                password: "secret".into(),
+                starttls: true,
+            }),
+            ..deploy()
+        };
+        assert!(
+            DeploymentManager
+                .completed(Vec::new(), given, "")
+                .await
+                .is_ok()
+        );
+
+        // the mail server is missing: the deployment is read, and that it cannot be is the error,
+        // not a missing mail server later
+        let Err(error) = DeploymentManager.completed(Vec::new(), deploy(), "").await else {
+            panic!("a deploy without its mail server was completed without the deployment");
+        };
+        assert_eq!(
+            error.message,
+            t!("shared.deployments.no_provider").to_string()
+        );
     }
 
     #[test]

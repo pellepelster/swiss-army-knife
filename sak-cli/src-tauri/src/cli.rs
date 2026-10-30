@@ -14,7 +14,7 @@ use crate::core::deployments::{
     DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment,
     PASSWORD_VARIABLE, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
     SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE,
-    UserMode, applied_key, complete, destroyed_key, key, parse_flag, resource_status,
+    UserMode, applied_key, destroyed_key, key, parse_flag, resource_status,
 };
 use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
@@ -656,18 +656,14 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             .await
         }
         Command::Deploy { deployment, .. } => {
-            let mut new = deployment.deployment(Intent::Deploy, false, password, &smtp_password);
-            // what is not given comes from the deployment: its user mode and, for multi user,
-            // the admin and the mail server, detected as the window does
-            let incomplete = new.user_mode != Some(UserMode::Single)
-                && (new.user_mode.is_none() || new.smtp.is_none() || new.admin_email.is_none());
-            if incomplete
-                && let Ok(detected) = manager
-                    .detected(token.tokens(), &new.name, &new.password)
-                    .await
-            {
-                new = complete(new, &detected, &smtp_password)?;
-            }
+            // what is not given comes from the deployment, as the window does
+            let new = manager
+                .completed(
+                    token.tokens(),
+                    deployment.deployment(Intent::Deploy, false, password, &smtp_password),
+                    &smtp_password,
+                )
+                .await?;
             deploy(&manager, &token, &new, &runtime, deployment.show_log).await
         }
         Command::Destroy {

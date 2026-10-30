@@ -800,7 +800,7 @@ wording: `smtp_password_needed` "give it again with SAK_SMTP_PASSWORD" (`en.yml:
 **Scenario:** a multi-user deployment whose backend does not answer the smtp password (CD-1) → the page says to
 set an environment variable. Either `ui.`/`cli.` variants, or the window gets the fields to supply what is missing.
 
-#### UI-6 (Medium): `sakctl deploy` swallows the detection failure and fails later with the wrong cause
+#### ~~UI-6 (Medium): `sakctl deploy` swallows the detection failure and fails later with the wrong cause~~ **fixed**
 
 `cli.rs:664-670`: `if incomplete && let Ok(detected) = …` ignores an `Err` (api unreachable, wrong password, no
 provider) and continues; `prepare` then fails with `no_user_mode` or `invalid_admin_email`. The window propagates it
@@ -841,7 +841,7 @@ reboot hint → `wait_after_reboot` → back line), differing in the hint key an
 `maintenance::perform(action, manager, tokens, runtime, name, password, on_line) -> Result<Vec<Line>>`; the
 command line logs, the window sends.
 
-#### UI-12 (Medium): The detect-and-complete of a deploy is written twice
+#### ~~UI-12 (Medium): The detect-and-complete of a deploy is written twice~~ **fixed**
 
 `cli.rs:659-671` and `gui/deployments.rs:135-154` both build the `NewDeployment`, call `detected`, then `complete`.
 A `DeploymentManager::completed(new, smtp_password)` in core removes both, and UI-6 with them.
