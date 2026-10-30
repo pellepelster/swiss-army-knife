@@ -1,6 +1,5 @@
 use crate::api::Labels;
-use crate::hetzner::api::model::{ListQuery, list_page};
-use crate::hetzner::api::{HetznerApi, Result};
+use crate::hetzner::api::resource::{HetznerResource, ResourceApi};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize)]
@@ -30,52 +29,13 @@ pub struct SshKeyUpdate {
     pub labels: Option<Labels>,
 }
 
-#[derive(Deserialize)]
-struct SshKeyResponse {
-    ssh_key: SshKey,
+impl HetznerResource for SshKey {
+    const PATH: &'static str = "ssh_keys";
+    const KEY: &'static str = "ssh_key";
+    type Create = SshKeyCreate;
+    type Update = SshKeyUpdate;
+    type Created = Self;
+    type Deleted = bool;
 }
 
-list_page!(SshKeysPage, ssh_keys, SshKey);
-
-pub struct SshKeysApi<'a> {
-    pub(crate) api: &'a HetznerApi,
-}
-
-impl SshKeysApi<'_> {
-    pub async fn list(&self, query: &ListQuery) -> Result<Vec<SshKey>> {
-        self.api.list_all::<SshKeysPage>("ssh_keys", query).await
-    }
-
-    pub async fn get(&self, id: u64) -> Result<Option<SshKey>> {
-        Ok(self
-            .api
-            .get::<SshKeyResponse>(&format!("ssh_keys/{id}"), &[])
-            .await?
-            .map(|response| response.ssh_key))
-    }
-
-    /// names are unique per project, so at most one
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<SshKey>> {
-        Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
-    }
-
-    pub async fn create(&self, request: &SshKeyCreate) -> Result<SshKey> {
-        Ok(self
-            .api
-            .post::<SshKeyResponse, _>("ssh_keys", Some(request))
-            .await?
-            .ssh_key)
-    }
-
-    pub async fn update(&self, id: u64, request: &SshKeyUpdate) -> Result<SshKey> {
-        Ok(self
-            .api
-            .put::<SshKeyResponse, _>(&format!("ssh_keys/{id}"), request)
-            .await?
-            .ssh_key)
-    }
-
-    pub async fn delete(&self, id: u64) -> Result<bool> {
-        self.api.delete(&format!("ssh_keys/{id}")).await
-    }
-}
+pub type SshKeysApi<'a> = ResourceApi<'a, SshKey>;

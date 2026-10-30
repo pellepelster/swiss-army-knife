@@ -1,9 +1,9 @@
 use crate::api::Labels;
-use crate::hetzner::api::model::{
-    Action, ActionResponse, ChangeProtectionRequest, ListQuery, Location, Named, Protection,
-    list_page,
+use crate::hetzner::api::Result;
+use crate::hetzner::api::model::{Action, Location, Named, Protection};
+use crate::hetzner::api::resource::{
+    CreateAnswer, HetznerResource, Protectable, ResourceApi, WithActions,
 };
-use crate::hetzner::api::{HetznerApi, NO_BODY, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -86,11 +86,6 @@ struct AssignRequest {
     assignee_type: AssigneeType,
 }
 
-#[derive(Deserialize)]
-struct PrimaryIpResponse {
-    primary_ip: PrimaryIp,
-}
-
 /// the answer to a create: the ip and, when it is created assigned, the action that assigns it
 #[derive(Debug, Deserialize)]
 pub struct PrimaryIpCreated {
@@ -98,84 +93,40 @@ pub struct PrimaryIpCreated {
     pub action: Option<Action>,
 }
 
-list_page!(PrimaryIpsPage, primary_ips, PrimaryIp);
+impl CreateAnswer for PrimaryIpCreated {
+    type Answer = Self;
 
-pub struct PrimaryIpsApi<'a> {
-    pub(crate) api: &'a HetznerApi,
+    fn from_answer(answer: Self) -> Self {
+        answer
+    }
 }
 
+impl HetznerResource for PrimaryIp {
+    const PATH: &'static str = "primary_ips";
+    const KEY: &'static str = "primary_ip";
+    type Create = PrimaryIpCreate;
+    type Update = PrimaryIpUpdate;
+    type Created = PrimaryIpCreated;
+    type Deleted = bool;
+}
+
+impl WithActions for PrimaryIp {}
+
+impl Protectable for PrimaryIp {}
+
+pub type PrimaryIpsApi<'a> = ResourceApi<'a, PrimaryIp>;
+
 impl PrimaryIpsApi<'_> {
-    pub async fn list(&self, query: &ListQuery) -> Result<Vec<PrimaryIp>> {
-        self.api
-            .list_all::<PrimaryIpsPage>("primary_ips", query)
-            .await
-    }
-
-    pub async fn get(&self, id: u64) -> Result<Option<PrimaryIp>> {
-        Ok(self
-            .api
-            .get::<PrimaryIpResponse>(&format!("primary_ips/{id}"), &[])
-            .await?
-            .map(|response| response.primary_ip))
-    }
-
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<PrimaryIp>> {
-        Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
-    }
-
-    pub async fn create(&self, request: &PrimaryIpCreate) -> Result<PrimaryIpCreated> {
-        self.api.post("primary_ips", Some(request)).await
-    }
-
-    pub async fn update(&self, id: u64, request: &PrimaryIpUpdate) -> Result<PrimaryIp> {
-        Ok(self
-            .api
-            .put::<PrimaryIpResponse, _>(&format!("primary_ips/{id}"), request)
-            .await?
-            .primary_ip)
-    }
-
-    pub async fn delete(&self, id: u64) -> Result<bool> {
-        self.api.delete(&format!("primary_ips/{id}")).await
-    }
-
-    pub async fn change_protection(&self, id: u64, delete: bool) -> Result<Action> {
-        let request = ChangeProtectionRequest {
-            delete,
-            rebuild: None,
-        };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(
-                &format!("primary_ips/{id}/actions/change_protection"),
-                Some(&request),
-            )
-            .await?
-            .action)
-    }
-
     /// the server must be powered off
     pub async fn assign(&self, id: u64, server: u64) -> Result<Action> {
         let request = AssignRequest {
             assignee_id: server,
             assignee_type: AssigneeType::Server,
         };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("primary_ips/{id}/actions/assign"), Some(&request))
-            .await?
-            .action)
+        self.action_with(id, "assign", &request).await
     }
 
     pub async fn unassign(&self, id: u64) -> Result<Action> {
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("primary_ips/{id}/actions/unassign"), NO_BODY)
-            .await?
-            .action)
-    }
-
-    pub async fn wait_for_action(&self, action: &Action) -> Result<Action> {
-        self.api.wait_for_action("primary_ips", action.id).await
+        self.action(id, "unassign").await
     }
 }

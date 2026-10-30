@@ -1,9 +1,9 @@
 use crate::api::Labels;
-use crate::hetzner::api::model::{
-    Action, ActionResponse, ChangeProtectionRequest, ListQuery, Location, Named, Protection,
-    ServerType, list_page,
+use crate::hetzner::api::Result;
+use crate::hetzner::api::model::{Action, Location, Named, Protection, ServerType};
+use crate::hetzner::api::resource::{
+    CreateAnswer, HetznerResource, Protectable, ResourceApi, WithActions,
 };
-use crate::hetzner::api::{HetznerApi, NO_BODY, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -120,11 +120,6 @@ struct ChangeTypeRequest {
     upgrade_disk: bool,
 }
 
-#[derive(Deserialize)]
-struct ServerResponse {
-    server: Server,
-}
-
 /// the answer to a create: the server and the action that creates it
 #[derive(Debug, Deserialize)]
 pub struct ServerCreated {
@@ -132,61 +127,33 @@ pub struct ServerCreated {
     pub action: Action,
 }
 
-list_page!(ServersPage, servers, Server);
+impl CreateAnswer for ServerCreated {
+    type Answer = Self;
 
-pub struct ServersApi<'a> {
-    pub(crate) api: &'a HetznerApi,
+    fn from_answer(answer: Self) -> Self {
+        answer
+    }
 }
 
+impl HetznerResource for Server {
+    const PATH: &'static str = "servers";
+    const KEY: &'static str = "server";
+    type Create = ServerCreate;
+    type Update = ServerUpdate;
+    type Created = ServerCreated;
+    /// the action that deletes the server
+    type Deleted = Option<Action>;
+}
+
+impl WithActions for Server {}
+
+impl Protectable for Server {
+    const REBUILD: bool = true;
+}
+
+pub type ServersApi<'a> = ResourceApi<'a, Server>;
+
 impl ServersApi<'_> {
-    pub async fn list(&self, query: &ListQuery) -> Result<Vec<Server>> {
-        self.api.list_all::<ServersPage>("servers", query).await
-    }
-
-    pub async fn get(&self, id: u64) -> Result<Option<Server>> {
-        Ok(self
-            .api
-            .get::<ServerResponse>(&format!("servers/{id}"), &[])
-            .await?
-            .map(|response| response.server))
-    }
-
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<Server>> {
-        Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
-    }
-
-    pub async fn create(&self, request: &ServerCreate) -> Result<ServerCreated> {
-        self.api.post("servers", Some(request)).await
-    }
-
-    pub async fn update(&self, id: u64, request: &ServerUpdate) -> Result<Server> {
-        Ok(self
-            .api
-            .put::<ServerResponse, _>(&format!("servers/{id}"), request)
-            .await?
-            .server)
-    }
-
-    /// the action that deletes the server; `None` when the server does not exist
-    pub async fn delete(&self, id: u64) -> Result<Option<Action>> {
-        self.api.delete_with_action(&format!("servers/{id}")).await
-    }
-
-    pub async fn change_protection(&self, id: u64, delete: bool) -> Result<Action> {
-        let request = ChangeProtectionRequest {
-            delete,
-            rebuild: Some(delete),
-        };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(
-                &format!("servers/{id}/actions/change_protection"),
-                Some(&request),
-            )
-            .await?
-            .action)
-    }
-
     pub async fn power_on(&self, id: u64) -> Result<Action> {
         self.action(id, "poweron").await
     }
@@ -215,22 +182,6 @@ impl ServersApi<'_> {
             server_type,
             upgrade_disk,
         };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("servers/{id}/actions/change_type"), Some(&request))
-            .await?
-            .action)
-    }
-
-    pub async fn wait_for_action(&self, action: &Action) -> Result<Action> {
-        self.api.wait_for_action("servers", action.id).await
-    }
-
-    async fn action(&self, id: u64, command: &str) -> Result<Action> {
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("servers/{id}/actions/{command}"), NO_BODY)
-            .await?
-            .action)
+        self.action_with(id, "change_type", &request).await
     }
 }

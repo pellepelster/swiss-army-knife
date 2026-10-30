@@ -1,9 +1,7 @@
 use crate::api::Labels;
-use crate::hetzner::api::model::{
-    Action, ActionResponse, ChangeProtectionRequest, ListQuery, Location, Named, Protection,
-    list_page,
-};
-use crate::hetzner::api::{HetznerApi, NO_BODY, Result};
+use crate::hetzner::api::Result;
+use crate::hetzner::api::model::{Action, Location, Named, Protection};
+use crate::hetzner::api::resource::{HetznerResource, Protectable, ResourceApi, WithActions};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -64,88 +62,29 @@ struct AttachRequest {
     automount: bool,
 }
 
-#[derive(Deserialize)]
-struct VolumeResponse {
-    volume: Volume,
+impl HetznerResource for Volume {
+    const PATH: &'static str = "volumes";
+    const KEY: &'static str = "volume";
+    type Create = VolumeCreate;
+    type Update = VolumeUpdate;
+    /// the volume; the api continues the creation in an action
+    type Created = Self;
+    type Deleted = bool;
 }
 
-list_page!(VolumesPage, volumes, Volume);
+impl WithActions for Volume {}
 
-pub struct VolumesApi<'a> {
-    pub(crate) api: &'a HetznerApi,
-}
+impl Protectable for Volume {}
+
+pub type VolumesApi<'a> = ResourceApi<'a, Volume>;
 
 impl VolumesApi<'_> {
-    pub async fn list(&self, query: &ListQuery) -> Result<Vec<Volume>> {
-        self.api.list_all::<VolumesPage>("volumes", query).await
-    }
-
-    pub async fn get(&self, id: u64) -> Result<Option<Volume>> {
-        Ok(self
-            .api
-            .get::<VolumeResponse>(&format!("volumes/{id}"), &[])
-            .await?
-            .map(|response| response.volume))
-    }
-
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<Volume>> {
-        Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
-    }
-
-    /// the volume; the api continues the creation in an action
-    pub async fn create(&self, request: &VolumeCreate) -> Result<Volume> {
-        Ok(self
-            .api
-            .post::<VolumeResponse, _>("volumes", Some(request))
-            .await?
-            .volume)
-    }
-
-    pub async fn update(&self, id: u64, request: &VolumeUpdate) -> Result<Volume> {
-        Ok(self
-            .api
-            .put::<VolumeResponse, _>(&format!("volumes/{id}"), request)
-            .await?
-            .volume)
-    }
-
-    pub async fn delete(&self, id: u64) -> Result<bool> {
-        self.api.delete(&format!("volumes/{id}")).await
-    }
-
-    pub async fn change_protection(&self, id: u64, delete: bool) -> Result<Action> {
-        let request = ChangeProtectionRequest {
-            delete,
-            rebuild: None,
-        };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(
-                &format!("volumes/{id}/actions/change_protection"),
-                Some(&request),
-            )
-            .await?
-            .action)
-    }
-
     pub async fn attach(&self, id: u64, server: u64, automount: bool) -> Result<Action> {
         let request = AttachRequest { server, automount };
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("volumes/{id}/actions/attach"), Some(&request))
-            .await?
-            .action)
+        self.action_with(id, "attach", &request).await
     }
 
     pub async fn detach(&self, id: u64) -> Result<Action> {
-        Ok(self
-            .api
-            .post::<ActionResponse, _>(&format!("volumes/{id}/actions/detach"), NO_BODY)
-            .await?
-            .action)
-    }
-
-    pub async fn wait_for_action(&self, action: &Action) -> Result<Action> {
-        self.api.wait_for_action("volumes", action.id).await
+        self.action(id, "detach").await
     }
 }

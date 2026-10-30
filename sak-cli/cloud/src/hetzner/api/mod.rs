@@ -1,10 +1,11 @@
-//! the part of the hetzner cloud api that the provisioners use: one struct per resource with
-//! list, get, create, update, delete and the actions of the resource
+//! the part of the hetzner cloud api that the provisioners use: one `ResourceApi` per kind
+//! with list, get, create, update, delete, and the actions of the kind; dns in `zones`
 
 pub mod error;
 pub mod firewalls;
 pub mod model;
 pub mod primary_ips;
+pub mod resource;
 pub mod servers;
 pub mod ssh_keys;
 pub mod volumes;
@@ -15,6 +16,7 @@ mod tests;
 
 pub use error::{ApiError, ErrorCode};
 pub use model::{Action, ActionStatus, ListQuery, Location, ServerType};
+pub use resource::{HetznerResource, ResourceApi};
 
 use error::ErrorResponse;
 use model::{ActionResponse, ListPage};
@@ -138,23 +140,23 @@ impl HetznerApi {
     }
 
     pub fn ssh_keys(&self) -> ssh_keys::SshKeysApi<'_> {
-        ssh_keys::SshKeysApi { api: self }
+        ResourceApi::new(self)
     }
 
     pub fn servers(&self) -> servers::ServersApi<'_> {
-        servers::ServersApi { api: self }
+        ResourceApi::new(self)
     }
 
     pub fn firewalls(&self) -> firewalls::FirewallsApi<'_> {
-        firewalls::FirewallsApi { api: self }
+        ResourceApi::new(self)
     }
 
     pub fn volumes(&self) -> volumes::VolumesApi<'_> {
-        volumes::VolumesApi { api: self }
+        ResourceApi::new(self)
     }
 
     pub fn primary_ips(&self) -> primary_ips::PrimaryIpsApi<'_> {
-        primary_ips::PrimaryIpsApi { api: self }
+        ResourceApi::new(self)
     }
 
     pub fn zones(&self) -> zones::ZonesApi<'_> {
@@ -171,21 +173,26 @@ impl HetznerApi {
         path: &str,
         query: &[(String, String)],
     ) -> Result<Option<T>> {
-        let request = self.client.get(self.url(path)).query(query);
-        let response = self.send(path, request).await?;
+        let response = self
+            .send(Method::GET, path, |request| request.query(query))
+            .await?;
         self.handle_optional(path, response).await
     }
 
     pub(crate) async fn post<T: DeserializeOwned, B: Serialize>(
         &self,
         path: &str,
-        body: Option<&B>,
+        body: &B,
     ) -> Result<T> {
-        let mut request = self.client.post(self.url(path));
-        if let Some(body) = body {
-            request = request.json(body);
-        }
-        let response = self.send(path, request).await?;
+        let response = self
+            .send(Method::POST, path, |request| request.json(body))
+            .await?;
+        self.handle(path, response).await
+    }
+
+    /// a post without a body, e.g. an action like `poweron`
+    pub(crate) async fn post_empty<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let response = self.send(Method::POST, path, |request| request).await?;
         self.handle(path, response).await
     }
 
@@ -194,14 +201,15 @@ impl HetznerApi {
         path: &str,
         body: &B,
     ) -> Result<T> {
-        let request = self.client.put(self.url(path)).json(body);
-        let response = self.send(path, request).await?;
+        let response = self
+            .send(Method::PUT, path, |request| request.json(body))
+            .await?;
         self.handle(path, response).await
     }
 
     /// `false` when there was nothing to delete
     pub(crate) async fn delete(&self, path: &str) -> Result<bool> {
-        let response = self.send(path, self.client.delete(self.url(path))).await?;
+        let response = self.send(Method::DELETE, path, |request| request).await?;
         match response.status() {
             status if status.is_success() => Ok(true),
             StatusCode::NOT_FOUND => Ok(false),
@@ -211,7 +219,7 @@ impl HetznerApi {
 
     /// a delete that the api answers with an action; `None` for a 404
     pub(crate) async fn delete_with_action(&self, path: &str) -> Result<Option<Action>> {
-        let response = self.send(path, self.client.delete(self.url(path))).await?;
+        let response = self.send(Method::DELETE, path, |request| request).await?;
         Ok(self
             .handle_optional::<ActionResponse>(path, response)
             .await?
@@ -310,18 +318,19 @@ impl HetznerApi {
     /// a rate limit (429, until `RateLimit-Reset`) and on a resource locked by a running action
     /// (423 `locked`, 409 `conflict`); a request that can be sent twice (GET, PUT, DELETE) also on
     /// a connection error, a timeout and a server error (5xx). A POST is not sent twice after an
-    /// error that may have come after hetzner took it, it could create a resource twice
-    async fn send(&self, path: &str, request: RequestBuilder) -> Result<Response> {
-        let request = request.bearer_auth(&self.token);
-        let idempotent = request
-            .try_clone()
-            .and_then(|request| request.build().ok())
-            .is_some_and(|request| {
-                matches!(
-                    *request.method(),
-                    Method::GET | Method::PUT | Method::DELETE | Method::HEAD
-                )
-            });
+    /// error that may have come after hetzner took it, it could create a resource twice.
+    /// `build` adds the query or the body
+    async fn send(
+        &self,
+        method: Method,
+        path: &str,
+        build: impl FnOnce(RequestBuilder) -> RequestBuilder,
+    ) -> Result<Response> {
+        let idempotent = matches!(
+            method,
+            Method::GET | Method::PUT | Method::DELETE | Method::HEAD
+        );
+        let request = build(self.client.request(method, self.url(path))).bearer_auth(&self.token);
         for attempt in 0..self.retry.attempts {
             let last = attempt + 1 == self.retry.attempts;
             let attempt_request = request
@@ -403,9 +412,3 @@ impl HetznerApi {
         }
     }
 }
-
-#[derive(Serialize)]
-pub(crate) struct Empty {}
-
-/// no body, for a post without a body
-pub(crate) const NO_BODY: Option<&Empty> = None;

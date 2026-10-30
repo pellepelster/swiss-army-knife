@@ -1,6 +1,7 @@
 use crate::api::Labels;
-use crate::hetzner::api::model::{Action, ActionsResponse, ListQuery, list_page};
-use crate::hetzner::api::{HetznerApi, Result};
+use crate::hetzner::api::Result;
+use crate::hetzner::api::model::Action;
+use crate::hetzner::api::resource::{CreateAnswer, HetznerResource, ResourceApi, WithActions};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -176,11 +177,6 @@ struct RemoveFromRequest<'a> {
     remove_from: &'a [FirewallResource],
 }
 
-#[derive(Deserialize)]
-struct FirewallResponse {
-    firewall: Firewall,
-}
-
 /// the answer to a create: the firewall and the actions that apply it to resources
 #[derive(Debug, Deserialize)]
 pub struct FirewallCreated {
@@ -189,57 +185,33 @@ pub struct FirewallCreated {
     pub actions: Vec<Action>,
 }
 
-list_page!(FirewallsPage, firewalls, Firewall);
+impl CreateAnswer for FirewallCreated {
+    type Answer = Self;
 
-pub struct FirewallsApi<'a> {
-    pub(crate) api: &'a HetznerApi,
+    fn from_answer(answer: Self) -> Self {
+        answer
+    }
 }
 
-impl FirewallsApi<'_> {
-    pub async fn list(&self, query: &ListQuery) -> Result<Vec<Firewall>> {
-        self.api.list_all::<FirewallsPage>("firewalls", query).await
-    }
-
-    pub async fn get(&self, id: u64) -> Result<Option<Firewall>> {
-        Ok(self
-            .api
-            .get::<FirewallResponse>(&format!("firewalls/{id}"), &[])
-            .await?
-            .map(|response| response.firewall))
-    }
-
-    pub async fn get_by_name(&self, name: &str) -> Result<Option<Firewall>> {
-        Ok(self.list(&ListQuery::name(name)).await?.into_iter().next())
-    }
-
-    pub async fn create(&self, request: &FirewallCreate) -> Result<FirewallCreated> {
-        self.api.post("firewalls", Some(request)).await
-    }
-
-    pub async fn update(&self, id: u64, request: &FirewallUpdate) -> Result<Firewall> {
-        Ok(self
-            .api
-            .put::<FirewallResponse, _>(&format!("firewalls/{id}"), request)
-            .await?
-            .firewall)
-    }
-
+impl HetznerResource for Firewall {
+    const PATH: &'static str = "firewalls";
+    const KEY: &'static str = "firewall";
+    type Create = FirewallCreate;
+    type Update = FirewallUpdate;
+    type Created = FirewallCreated;
     /// a firewall still applied to resources cannot be deleted
-    pub async fn delete(&self, id: u64) -> Result<bool> {
-        self.api.delete(&format!("firewalls/{id}")).await
-    }
+    type Deleted = bool;
+}
 
+impl WithActions for Firewall {}
+
+pub type FirewallsApi<'a> = ResourceApi<'a, Firewall>;
+
+impl FirewallsApi<'_> {
     /// replaces all rules; one action per server that the firewall is applied to
     pub async fn set_rules(&self, id: u64, rules: &[FirewallRule]) -> Result<Vec<Action>> {
         let request = SetRulesRequest { rules };
-        Ok(self
-            .api
-            .post::<ActionsResponse, _>(
-                &format!("firewalls/{id}/actions/set_rules"),
-                Some(&request),
-            )
-            .await?
-            .actions)
+        self.actions_with(id, "set_rules", &request).await
     }
 
     pub async fn apply_to_resources(
@@ -250,14 +222,7 @@ impl FirewallsApi<'_> {
         let request = ApplyToRequest {
             apply_to: resources,
         };
-        Ok(self
-            .api
-            .post::<ActionsResponse, _>(
-                &format!("firewalls/{id}/actions/apply_to_resources"),
-                Some(&request),
-            )
-            .await?
-            .actions)
+        self.actions_with(id, "apply_to_resources", &request).await
     }
 
     pub async fn remove_from_resources(
@@ -268,26 +233,8 @@ impl FirewallsApi<'_> {
         let request = RemoveFromRequest {
             remove_from: resources,
         };
-        Ok(self
-            .api
-            .post::<ActionsResponse, _>(
-                &format!("firewalls/{id}/actions/remove_from_resources"),
-                Some(&request),
-            )
-            .await?
-            .actions)
-    }
-
-    pub async fn wait_for_action(&self, action: &Action) -> Result<Action> {
-        self.api.wait_for_action("firewalls", action.id).await
-    }
-
-    /// waits for each action; the first error stops the wait
-    pub async fn wait_for_actions(&self, actions: &[Action]) -> Result<()> {
-        for action in actions {
-            self.wait_for_action(action).await?;
-        }
-        Ok(())
+        self.actions_with(id, "remove_from_resources", &request)
+            .await
     }
 }
 

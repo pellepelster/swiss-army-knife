@@ -93,8 +93,9 @@ pub trait ListPage: serde::de::DeserializeOwned {
     fn into_parts(self) -> (Vec<Self::Item>, Meta);
 }
 
-/// declares the page of a list endpoint: `list_page!(SshKeysPage, ssh_keys, SshKey)` reads
-/// `{ "ssh_keys": [...], "meta": {...} }`
+/// declares the page of a list endpoint that is not a `HetznerResource` (those read
+/// `resource::Page`): `list_page!(ZonesPage, zones, Zone)` reads
+/// `{ "zones": [...], "meta": {...} }`
 macro_rules! list_page {
     ($page:ident, $key:ident, $item:ty) => {
         #[derive(serde::Deserialize)]

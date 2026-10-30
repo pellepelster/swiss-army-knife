@@ -1,9 +1,11 @@
 //! the client against a mock of the api: paths, bodies and the token of the requests,
 //! pagination, the rate limit retry, action polling and the errors
 
+use super::firewalls::{FirewallRule, RuleDirection, RuleProtocol};
 use super::primary_ips::{AssigneeType, PrimaryIpCreate, PrimaryIpType};
 use super::servers::{PublicNetCreate, ServerCreate};
 use super::ssh_keys::SshKeyCreate;
+use super::volumes::{VolumeCreate, VolumeFormat, VolumeUpdate};
 use super::{ApiError, Backoff, ErrorCode, HetznerApi, ListQuery, Location, ServerType};
 use serde_json::{Value, json};
 use std::time::Duration;
@@ -603,4 +605,258 @@ async fn a_primary_ip_is_created_unassigned_in_a_location() {
     );
     assert!(created.primary_ip.assignee_id.is_none());
     assert!(created.action.is_none());
+}
+
+fn volume(id: u64, name: &str) -> Value {
+    json!({
+        "id": id, "name": name, "format": "ext4", "linux_device": format!("/dev/disk/by-id/scsi-0HC_Volume_{id}"),
+        "size": 10, "protection": { "delete": false }, "server": null, "status": "available",
+        "location": { "id": 3, "name": "nbg1" }, "labels": {}
+    })
+}
+
+#[tokio::test]
+async fn a_volume_is_read_beside_the_actions_of_its_answer_and_updated_with_a_put() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/volumes"))
+        .and(body_partial_json(json!({ "name": "data", "size": 10, "location": "nbg1", "format": "ext4", "automount": false })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "action": action(5, "running")["action"],
+            "volume": volume(3, "data"),
+            "next_actions": []
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/volumes/3"))
+        .and(body_partial_json(json!({ "name": "backup" })))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({ "volume": volume(3, "backup") })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let request = VolumeCreate {
+        name: "data".to_string(),
+        size: 10,
+        location: Location::nbg1,
+        format: VolumeFormat::Ext4,
+        automount: false,
+        labels: None,
+    };
+    let created = api(&server).volumes().create(&request).await.unwrap();
+    assert_eq!(created.id, 3);
+    assert_eq!(created.format, Some(VolumeFormat::Ext4));
+
+    let update = VolumeUpdate {
+        name: Some("backup".to_string()),
+        labels: None,
+    };
+    let updated = api(&server).volumes().update(3, &update).await.unwrap();
+    assert_eq!(updated.name, "backup");
+}
+
+#[tokio::test]
+async fn an_answer_without_its_key_is_an_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/volumes/3"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({ "server": volume(3, "data") })),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/volumes"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "volumes": [] })))
+        .mount(&server)
+        .await;
+
+    let error = api(&server).volumes().get(3).await.unwrap_err();
+    assert!(matches!(error, ApiError::Request { .. }), "{error}");
+
+    let error = api(&server)
+        .volumes()
+        .list(&ListQuery::new())
+        .await
+        .unwrap_err();
+    assert!(matches!(error, ApiError::Request { .. }), "{error}");
+}
+
+#[tokio::test]
+async fn a_server_delete_answers_its_action_and_none_for_a_404() {
+    let server = MockServer::start().await;
+    Mock::given(method("DELETE"))
+        .and(path("/servers/1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(action(5, "running")))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/servers/2"))
+        .respond_with(error(404, "not_found"))
+        .mount(&server)
+        .await;
+
+    let action = api(&server).servers().delete(1).await.unwrap().unwrap();
+    assert_eq!(action.id, 5);
+    assert!(api(&server).servers().delete(2).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn the_protection_of_a_server_covers_the_rebuild_and_that_of_a_volume_does_not() {
+    let server = MockServer::start().await;
+    let no_rebuild = |request: &Request| {
+        let body: Value = serde_json::from_slice(&request.body).unwrap_or_default();
+        body.get("rebuild").is_none()
+    };
+    Mock::given(method("POST"))
+        .and(path("/servers/1/actions/change_protection"))
+        .and(body_partial_json(
+            json!({ "delete": true, "rebuild": true }),
+        ))
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(5, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/volumes/3/actions/change_protection"))
+        .and(body_partial_json(json!({ "delete": false })))
+        .and(no_rebuild)
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(6, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/primary_ips/11/actions/change_protection"))
+        .and(body_partial_json(json!({ "delete": true })))
+        .and(no_rebuild)
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(7, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let api = api(&server);
+    assert_eq!(
+        api.servers().change_protection(1, true).await.unwrap().id,
+        5
+    );
+    assert_eq!(
+        api.volumes().change_protection(3, false).await.unwrap().id,
+        6
+    );
+    assert_eq!(
+        api.primary_ips()
+            .change_protection(11, true)
+            .await
+            .unwrap()
+            .id,
+        7
+    );
+}
+
+#[tokio::test]
+async fn the_actions_of_a_kind_post_to_their_command_with_or_without_a_body() {
+    let server = MockServer::start().await;
+    let no_body = |request: &Request| request.body.is_empty();
+    for (action_path, id) in [
+        ("/servers/1/actions/poweron", 1),
+        ("/servers/1/actions/shutdown", 2),
+        ("/volumes/3/actions/detach", 3),
+        ("/primary_ips/11/actions/unassign", 4),
+    ] {
+        Mock::given(method("POST"))
+            .and(path(action_path))
+            .and(no_body)
+            .respond_with(ResponseTemplate::new(201).set_body_json(action(id, "running")))
+            .expect(1)
+            .mount(&server)
+            .await;
+    }
+    Mock::given(method("POST"))
+        .and(path("/volumes/3/actions/attach"))
+        .and(body_partial_json(
+            json!({ "server": 1, "automount": false }),
+        ))
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(5, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/primary_ips/11/actions/assign"))
+        .and(body_partial_json(
+            json!({ "assignee_id": 1, "assignee_type": "server" }),
+        ))
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(6, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/servers/1/actions/change_type"))
+        .and(body_partial_json(
+            json!({ "server_type": "cx33", "upgrade_disk": false }),
+        ))
+        .respond_with(ResponseTemplate::new(201).set_body_json(action(7, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let api = api(&server);
+    assert_eq!(api.servers().power_on(1).await.unwrap().id, 1);
+    assert_eq!(api.servers().shutdown(1).await.unwrap().id, 2);
+    assert_eq!(api.volumes().detach(3).await.unwrap().id, 3);
+    assert_eq!(api.primary_ips().unassign(11).await.unwrap().id, 4);
+    assert_eq!(api.volumes().attach(3, 1, false).await.unwrap().id, 5);
+    assert_eq!(api.primary_ips().assign(11, 1).await.unwrap().id, 6);
+    assert_eq!(
+        api.servers()
+            .change_type(1, ServerType::cx33, false)
+            .await
+            .unwrap()
+            .id,
+        7
+    );
+}
+
+#[tokio::test]
+async fn the_rules_of_a_firewall_are_set_with_one_action_per_server_and_waited_for() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/firewalls/4/actions/set_rules"))
+        .and(body_partial_json(
+            json!({ "rules": [{ "direction": "in", "protocol": "tcp", "port": "22" }] }),
+        ))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "actions": [action(5, "running")["action"], action(6, "running")["action"]]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    for id in [5, 6] {
+        Mock::given(method("GET"))
+            .and(path(format!("/firewalls/actions/{id}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(action(id, "success")))
+            .expect(1)
+            .mount(&server)
+            .await;
+    }
+
+    let rule = FirewallRule {
+        direction: RuleDirection::In,
+        protocol: RuleProtocol::Tcp,
+        port: Some("22".to_string()),
+        source_ips: vec!["0.0.0.0/0".to_string()],
+        destination_ips: vec![],
+        description: None,
+    };
+    let api = api(&server);
+    let firewalls = api.firewalls();
+    let actions = firewalls.set_rules(4, &[rule]).await.unwrap();
+    assert_eq!(
+        actions.iter().map(|action| action.id).collect::<Vec<_>>(),
+        vec![5, 6]
+    );
+    firewalls.wait_for_actions(&actions).await.unwrap();
 }

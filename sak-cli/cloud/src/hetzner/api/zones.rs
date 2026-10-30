@@ -98,7 +98,7 @@ impl<'a> ZonesApi<'a> {
     }
 
     pub async fn create(&self, request: &ZoneCreate) -> Result<ZoneCreated> {
-        self.api.post("zones", Some(request)).await
+        self.api.post("zones", request).await
     }
 
     pub async fn update(&self, zone: &str, request: &ZoneUpdate) -> Result<Zone> {
@@ -118,7 +118,7 @@ impl<'a> ZonesApi<'a> {
         let request = ChangeTtlRequest { ttl };
         Ok(self
             .api
-            .post::<ActionResponse, _>(&format!("zones/{zone}/actions/change_ttl"), Some(&request))
+            .post::<ActionResponse, _>(&format!("zones/{zone}/actions/change_ttl"), &request)
             .await?
             .action)
     }
@@ -130,10 +130,7 @@ impl<'a> ZonesApi<'a> {
         };
         Ok(self
             .api
-            .post::<ActionResponse, _>(
-                &format!("zones/{zone}/actions/change_protection"),
-                Some(&request),
-            )
+            .post::<ActionResponse, _>(&format!("zones/{zone}/actions/change_protection"), &request)
             .await?
             .action)
     }
@@ -279,7 +276,7 @@ impl RRSetsApi<'_> {
     }
 
     pub async fn create(&self, request: &RRSetCreate) -> Result<RRSetCreated> {
-        self.api.post(&self.path(""), Some(request)).await
+        self.api.post(&self.path(""), request).await
     }
 
     pub async fn update(
@@ -314,7 +311,7 @@ impl RRSetsApi<'_> {
             .api
             .post::<ActionResponse, _>(
                 &self.path(&format!("/{name}/{rr_type}/actions/set_records")),
-                Some(&request),
+                &request,
             )
             .await?
             .action)
@@ -326,7 +323,7 @@ impl RRSetsApi<'_> {
             .api
             .post::<ActionResponse, _>(
                 &self.path(&format!("/{name}/{rr_type}/actions/change_ttl")),
-                Some(&request),
+                &request,
             )
             .await?
             .action)
