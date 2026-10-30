@@ -61,20 +61,22 @@ backend_victorialogs_data_path: "{{ sak_data_dir }}/victorialogs"
 backend_victorialogs_retention: 35d
 backend_victorialogs_max_disk_usage: 10GiB
 # the key of the partition endpoints of victorialogs (its snapshots for the backup, but also the
-# detach and delete of days), made once on the server; only sak-backup sends it
+# detach and delete of days), made once on the server; only sak-backend backup sends it
 backend_victorialogs_auth_key_file: "{{ backend_base_path }}/victorialogs-partition.key"
-# a snapshot that a killed sak-backup did not delete goes after this time
+# a snapshot that a killed sak-backend backup did not delete goes after this time
 backend_victorialogs_snapshots_max_age: 1d
 # vector ships the access log from the ingress data directory to victorialogs
 backend_vector_image: docker.io/timberio/vector:0.60.0-alpine
 backend_vector_data_path: "{{ sak_data_dir }}/vector"
 backend_vector_config_file: "{{ backend_base_path }}/vector.yaml"
-# sak-backup and sak-restore (docs/development/plans/backup.md) keep their working copies on the data volume,
+# sak-backend backup and restore (docs/development/plans/backup.md) keep their working copies on the data volume,
 # next to the data of the deployment, so a hard link or a rename stays on one filesystem
 backend_backup_staging_path: "{{ sak_mount_dir }}/.backup-{{ sak_name }}"
 backend_restore_staging_path: "{{ sak_mount_dir }}/.restore-{{ sak_name }}"
 backend_restore_replaced_path: "{{ sak_mount_dir }}/.replaced-{{ sak_name }}"
-# one backup or restore at a time
-backend_backup_lock_file: /run/sak-backup.lock
-# how long sak-restore waits for the backend to answer after the restore, in seconds
+# one backup, restore, update or reboot at a time
+backend_lock_file: /run/sak-backend.lock
+# how long sak-backend update and reboot wait for apt and dpkg (unattended upgrades), in seconds
+backend_apt_wait: 600
+# how long sak-backend restore waits for the backend to answer after the restore, in seconds
 backend_restore_wait: 300

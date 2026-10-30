@@ -12,6 +12,7 @@ pub mod error;
 pub mod events;
 pub mod i18n;
 pub mod keys;
+pub mod maintenance;
 pub mod providers;
 pub mod provision;
 pub mod ssh;
@@ -45,6 +46,7 @@ mod tests {
             ("provision.rs", include_str!("provision.rs")),
             ("i18n.rs", include_str!("i18n.rs")),
             ("keys.rs", include_str!("keys.rs")),
+            ("maintenance.rs", include_str!("maintenance.rs")),
             ("update.rs", include_str!("update.rs")),
             ("providers/mod.rs", include_str!("providers/mod.rs")),
             ("providers/hetzner.rs", include_str!("providers/hetzner.rs")),

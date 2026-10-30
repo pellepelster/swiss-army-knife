@@ -30,6 +30,33 @@
     group: root
     mode: "0644"
 
+# needrestart lists the services that still run old libraries after an upgrade (sak-backend
+# reboot-pending); it only lists them, it restarts nothing. Its configuration comes first, so the
+# hook it adds to apt never restarts a service
+- name: Create the configuration directory of needrestart
+  ansible.builtin.file:
+    path: /etc/needrestart/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure needrestart to list only
+  ansible.builtin.copy:
+    dest: /etc/needrestart/conf.d/50-sak.conf
+    content: |
+      # {{ ansible_managed }}
+      $nrconf{restart} = 'l';
+      $nrconf{kernelhints} = 0;
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install needrestart
+  ansible.builtin.apt:
+    name: needrestart
+    state: present
+
 - name: Enable the unattended-upgrades service
   ansible.builtin.systemd_service:
     name: unattended-upgrades

@@ -11,6 +11,8 @@ small groups: a few people who know and trust each other.
   window or on the command line.
 - **Backup** `sakctl backup` copies all data of a deployment to one encrypted file on your computer.
 - **Restore** `sakctl restore` restores the data back into a running deployment.
+- **Server maintenance** `sakctl maintenance` shows whether a reboot is pending, upgrades all packages of the server
+  and reboots it without interrupting a backup.
 - **Self-update** `sakctl update` replaces sakctl with its newest release, when you ask for it. A deploy then updates
   the server to the same version.
 - **On every device** All apps work on a phone as well as on a desktop. On a phone, you can install them as an app (PWA)

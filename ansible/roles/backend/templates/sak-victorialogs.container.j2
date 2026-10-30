@@ -11,7 +11,7 @@ Network=host
 User={{ backend_uid }}
 Group={{ backend_gid }}
 Volume={{ backend_victorialogs_data_path }}:/victoria-logs-data
-# the snapshots of sak-backup need the key, so does every other partition endpoint
+# the snapshots of sak-backend backup need the key, so does every other partition endpoint
 Volume={{ backend_victorialogs_auth_key_file }}:/etc/victoria-logs/partition.key:ro
 Exec=-storageDataPath=/victoria-logs-data -httpListenAddr=127.0.0.1:9428 -retentionPeriod={{ backend_victorialogs_retention }} -retention.maxDiskSpaceUsageBytes={{ backend_victorialogs_max_disk_usage }} -partitionManageAuthKey=file:///etc/victoria-logs/partition.key -snapshotsMaxAge={{ backend_victorialogs_snapshots_max_age }}
 ReadOnly=true

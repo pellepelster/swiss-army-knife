@@ -30,6 +30,21 @@ cli:
   restore_not_confirmed: "Not confirmed, nothing was changed."
   restore_no_terminal: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
   update_hint: "Run sakctl update to install it."
+  maintenance:
+    connecting: "Asking the server of %{name} at root@%{host}…"
+    pending: "A reboot of %{name} is pending: %{reasons}."
+    not_pending: "No reboot of %{name} is pending."
+    reason_kernel: "kernel %{running} → %{installed}"
+    reason_reboot_required: "an upgrade asks for it"
+    services: "Services on old libraries: %{services}"
+    since_boot: "Upgraded since the boot at %{time}:"
+    installed_new: "%{package} %{to} (new)"
+    updated: "%{upgraded} packages upgraded, %{installed} installed."
+    up_to_date: "All packages of %{name} are up-to-date."
+    reboot_hint: "A reboot is pending, run sakctl maintenance reboot %{name}."
+    rebooting: "The deployment %{name} is stopped, its server reboots at %{at}."
+    reboot_not_pending: "No reboot of %{name} is pending, nothing was changed."
+    back: "The deployment %{name} answers again."
 shared:
   backup:
     no_home: "The home directory of the user is not known."
@@ -169,6 +184,10 @@ shared:
     created: "created"
     updated: "updated"
     destroyed: "destroyed"
+  maintenance:
+    busy: "Another backup, restore, update or reboot runs on the server, try again when it is done."
+    failed: "The server failed: %{error}"
+    unreadable: "The server answered something that is not readable: %{error}"
   update:
     checking: "Asking %{receiver} for the newest release of sakctl…"
     no_release: "This sakctl (%{version}) is no release, there is no version to compare it with."

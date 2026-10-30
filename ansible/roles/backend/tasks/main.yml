@@ -11,7 +11,7 @@
     fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_public_key (32 bytes as base64), sak_admin_email (with sak_smtp_enabled) and backend_env_src must be set"
     quiet: true
 
-# sqlite3, zstd, age and curl for sak-backup and sak-restore
+# sqlite3, zstd, age and curl for sak-backend backup and restore
 - name: Install podman and the tools of the backup
   ansible.builtin.apt:
     name:
@@ -115,17 +115,14 @@
     executable: /bin/bash
   notify: Restart sak-victorialogs
 
-# called by sakctl through ssh (sakctl backup, sakctl restore), as root
-- name: Install the backup scripts
+# called by sakctl through ssh (sakctl backup, restore and maintenance), as root
+- name: Install sak-backend
   ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: /usr/local/bin/{{ item }}
+    src: sak-backend.j2
+    dest: /usr/local/bin/sak-backend
     owner: root
     group: root
     mode: "0700"
-  loop:
-    - sak-backup
-    - sak-restore
 
 # every run pulls every image: sak-backend and sak-ingress at the tag CI pushes from main
 # (latest), the log images at their pinned tags. A pull that brings another image than the one

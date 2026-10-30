@@ -58,6 +58,9 @@ and the health of the domains.
 
 - Four containers run as podman quadlets, all as the user `sak`: the backend, caddy, victorialogs and vector.
   Ansible pulls their images on each run; a new image restarts its container.
+- **One script for the maintenance.** sakctl backs up, restores, updates and reboots the server through ssh with one
+  script, whose commands take turns: a reboot stops the deployment in order first and never interrupts a backup.
+  Refer to [FDR-008](fdr/FDR-008-server-maintenance.md).
 - All data is on the data volume, mounted at `/storage/data`, below a directory named like the deployment
   (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
 - The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of the

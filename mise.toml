@@ -492,15 +492,15 @@ set -e
 (cd cloud && cargo nextest run --no-fail-fast -E 'kind(lib)')
 """
 
-# in docker: the vector configuration the backend role deploys, with its image, and sak-backup and
-# sak-restore of the role as it renders them, next to a real victorialogs
-# (ansible/roles/backend/tests/backup-test.sh)
+# in docker: the vector configuration the backend role deploys, with its image, and sak-backend
+# of the role as it renders it (backup, restore and the maintenance), next to a real victorialogs
+# (ansible/roles/backend/tests/sak-backend-test.sh)
 [tasks."test:backend:integration"]
-description = "Run the integration tests of the backend in docker: the vector configuration, backup and restore"
+description = "Run the integration tests of the backend in docker: the vector configuration and sak-backend"
 dir = "{{config_root}}"
 run = """
 ./gradlew :sak-backend:vectorTest
-ansible/roles/backend/tests/backup-test.sh
+ansible/roles/backend/tests/sak-backend-test.sh
 """
 
 # the apps in a browser against the controller and a mailpit e-mail sink (docker); playwright

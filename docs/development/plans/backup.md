@@ -43,16 +43,18 @@ sakctl makes a backup of a deployment and restores it:
 
 ## 1. What runs on the server
 
-The provisioning (role `backend`) installs `sqlite3`, `zstd`, `age` and `curl`, and two scripts, `/usr/local/bin/sak-backup` and
-`/usr/local/bin/sak-restore`, from templates with the paths of the role. sakctl calls them through ssh. The scripts
-are versioned with the role; every deploy provisions, so the server always has the scripts of its provisioning.
+The provisioning (role `backend`) installs `sqlite3`, `zstd`, `age` and `curl`, and the script
+`/usr/local/bin/sak-backend` from a template with the paths of the role; `backup` and `restore` are two of its commands
+(the others are the maintenance of the server, refer to [FDR-008](../fdr/FDR-008-server-maintenance.md)). sakctl calls
+it through ssh. The script is versioned with the role; every deploy provisions, so the server always has the script of
+its provisioning.
 
-### `sak-backup`
+### `sak-backend backup`
 
-`sak-backup <recipient>` writes the encrypted archive to its standard output and nothing else; messages go to
+`sak-backend backup <recipient>` writes the encrypted archive to its standard output and nothing else; messages go to
 standard error. `<recipient>` is the public half of the backup key (`age1…`), which sakctl gives on each call.
 
-1. Takes a lock (`flock` on `/run/sak-backup.lock`), so only one backup or restore runs at a time.
+1. Takes a lock (`flock` on `/run/sak-backend.lock`), so only one backup, restore, update or reboot runs at a time.
 2. **The logs.** A copy of `vector/` into a staging directory on the data volume (`/storage/data/.backup-<name>`),
    then a snapshot of victorialogs (refer to "The logs" below), its days as hard links in the staging directory.
    victorialogs and vector continue to run.
@@ -111,7 +113,7 @@ The checkpoint of vector (its position in the access log) is copied before the s
 the snapshot. After a restore, vector sends again the lines of the moment between the copy and the snapshot: a line
 in the console can occur twice, but no line is lost. A checkpoint copied after the snapshot would lose those lines.
 
-### `sak-restore`
+### `sak-backend restore`
 
 Reads an archive from its standard input.
 
@@ -136,7 +138,7 @@ stops the restore at step 2, before anything changes.
 
 - **Compression on the server.** `zstd` on the server compresses before the data goes through ssh, so less goes
   through the network. Data that is already compressed (photos, recordings) gets no smaller, but costs little time.
-- **Encryption on the server.** `sak-backup` pipes the compressed stream through
+- **Encryption on the server.** `sak-backend backup` pipes the compressed stream through
   [age](https://age-encryption.org) (the Debian package `age`) with the recipient that sakctl gives. Only encrypted
   bytes leave the server: the plain data is not in the ssh connection, not in the container of the tools and not in
   sakctl.
@@ -146,7 +148,7 @@ stops the restore at step 2, before anything changes.
   decrypt the backup on every machine; nothing is stored.
 - **A check before the file gets its name.** sakctl writes the encrypted bytes to `<file>.partial` as they are,
   then decrypts the file once with the identity (the `age` crate) and throws the plain bytes away. A backup that
-  does not decrypt or is not complete fails, and no file is left. sakctl needs neither zstd nor tar: `sak-restore`
+  does not decrypt or is not complete fails, and no file is left. sakctl needs neither zstd nor tar: `sak-backend restore`
   checks `backup.json` and the database on the server.
 - **Damage and truncation.** age authenticates each chunk of 64 KiB and marks the last one, so a changed or a
   truncated file fails on decryption, not after the restore.
@@ -164,12 +166,12 @@ stops the restore at step 2, before anything changes.
   (backup) or standard input (restore) is a stream that the core reads or writes, not the terminal. Standard error
   goes to the log of sakctl. Same container, agent and host key check as the session.
 - `core/backup.rs`, a `BackupManager` (the one place that makes and restores backups):
-  - `backup(target, key, path)`: runs `sak-backup <recipient>`, writes the encrypted bytes to the file, checks it
+  - `backup(target, key, path)`: runs `sak-backend backup <recipient>`, writes the encrypted bytes to the file, checks it
     by one decryption, answers the path and the size of the file;
   - `restore(target, key, file)`: decrypts the whole file once, so a wrong password or a damaged file fails before
-    the server changes, then decrypts it again while it streams it into `sak-restore` (refer to "Decryption on
-    restore" in the decisions). `sak-restore` refuses a backup of another deployment;
-  - each line the scripts write to standard error (`sak-backup: …`, `sak-restore: …`) goes to the log while they
+    the server changes, then decrypts it again while it streams it into `sak-backend restore` (refer to "Decryption on
+    restore" in the decisions). `sak-backend restore` refuses a backup of another deployment;
+  - each line the scripts write to standard error (`sak-backend: …`) goes to the log while they
     run.
 - `keys.rs`: `backup_key(name, password)`.
 
@@ -178,7 +180,7 @@ stops the restore at step 2, before anything changes.
 - `sakctl backup <name>`: needs the password and the token, like `ssh`. It shows the path of the file.
 - `sakctl restore <name> <file> [--yes]`: asks for confirmation (the data of the deployment is replaced), unless
   `--yes` is given; the user types the name of the deployment. The deployment must exist: a restore does not
-  create or provision. `sak-restore` ends when the backend answers on the server again (5 minutes at most); the
+  create or provision. `sak-backend restore` ends when the backend answers on the server again (5 minutes at most); the
   data from before the restore stays in `/storage/data/.replaced-<name>` when it does not.
 - Texts in `cli:` and `shared:` (`en.yml` and `de.yml`), the messages of the core in `shared:`.
 
@@ -210,7 +212,7 @@ for a lost or a deleted volume, or to go back to an earlier state.
 ## Steps
 
 1. The role `backend`: install `sqlite3`, `zstd`, `age` and `curl`; the key of `-partitionManageAuthKey` and
-   `-snapshotsMaxAge=1d` for victorialogs; the scripts `sak-backup` and `sak-restore`, their tests.
+   `-snapshotsMaxAge=1d` for victorialogs; the script `sak-backend`, its tests.
 2. `keys.rs`: the derived backup identity; ARCHITECTURE.md, "Security": its row in the table.
 3. `core/ssh.rs`: the run with a stream on standard output or standard input.
 4. `core/backup.rs`: `BackupManager`, the encryption, the manifest check, the events.

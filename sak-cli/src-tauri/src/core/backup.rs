@@ -1,8 +1,8 @@
-//! the backups of a deployment (docs/development/plans/backup.md). `sak-backup` on the server writes all data
+//! the backups of a deployment (docs/development/plans/backup.md). `sak-backend backup` on the server writes all data
 //! of the deployment as one tar stream, compressed with zstd and encrypted with age to the
 //! recipient of the backup key; sakctl stores the bytes as they come, in
 //! `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`, and decrypts them once to check them. A
-//! restore decrypts a backup and streams it, still compressed, into `sak-restore`, which checks it
+//! restore decrypts a backup and streams it, still compressed, into `sak-backend restore`, which checks it
 //! before it replaces the data. The plain data of a backup is never on the disk of the user, and
 //! the secret half of the key never on the server
 
@@ -14,8 +14,8 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 /// the scripts of the role backend on the server
-const BACKUP_SCRIPT: &str = "sak-backup";
-const RESTORE_SCRIPT: &str = "sak-restore";
+/// the script of the role backend on the server; `backup` and `restore` are two of its commands
+pub const SCRIPT: &str = "sak-backend";
 
 /// what the shell answers for a command that is not there: a server provisioned before the
 /// backup existed
@@ -80,7 +80,7 @@ fn create_private_file(path: &Path) -> Result<File, String> {
     })
 }
 
-/// the plain stream of a backup, as `sak-backup` wrote it before age: still compressed
+/// the plain stream of a backup, as `sak-backend backup` wrote it before age: still compressed
 fn decrypted(path: &Path, key: &BackupKey) -> Result<impl Read + Send + use<>, String> {
     let file = File::open(path).map_err(|error| {
         t!(
@@ -151,9 +151,9 @@ impl BackupManager {
         let partial = partial(&path);
         let result = (|| {
             let mut file = std::io::BufWriter::new(create_private_file(&partial)?);
-            let command = [BACKUP_SCRIPT.to_string(), key.recipient()];
+            let command = [SCRIPT.to_string(), "backup".to_string(), key.recipient()];
             let code = run_streaming(runtime, target, &command, Stream::Out(&mut file), on_line)?;
-            ended(code, BACKUP_SCRIPT)?;
+            ended(code, SCRIPT)?;
             file.into_inner()
                 .map_err(|error| error.to_string())?
                 .sync_all()
@@ -182,7 +182,7 @@ impl BackupManager {
     }
 
     /// replaces the data of the deployment with the backup at `path`, checked first in full, so
-    /// a wrong password or a damaged file fails before the server changes. `sak-restore` checks
+    /// a wrong password or a damaged file fails before the server changes. `sak-backend restore` checks
     /// the name of the deployment and the database before it replaces anything
     pub fn restore(
         &self,
@@ -194,14 +194,14 @@ impl BackupManager {
     ) -> Result<(), String> {
         check(path, key)?;
         let mut plain = decrypted(path, key)?;
-        let command = [RESTORE_SCRIPT.to_string()];
+        let command = [SCRIPT.to_string(), "restore".to_string()];
         let code = run_streaming(runtime, target, &command, Stream::In(&mut plain), on_line)?;
-        ended(code, RESTORE_SCRIPT)
+        ended(code, SCRIPT)
     }
 }
 
 /// the exit code of a script on the server as the result
-fn ended(code: i32, script: &str) -> Result<(), String> {
+pub(crate) fn ended(code: i32, script: &str) -> Result<(), String> {
     match code {
         0 => Ok(()),
         NOT_FOUND => Err(t!("shared.backup.no_script", script = script).to_string()),
@@ -306,15 +306,11 @@ mod tests {
 
     #[test]
     fn a_script_that_is_not_on_the_server_says_to_deploy_first() {
-        assert!(ended(0, BACKUP_SCRIPT).is_ok());
+        assert!(ended(0, SCRIPT).is_ok());
         assert_eq!(
-            ended(NOT_FOUND, BACKUP_SCRIPT).unwrap_err(),
-            t!("shared.backup.no_script", script = BACKUP_SCRIPT).to_string()
+            ended(NOT_FOUND, SCRIPT).unwrap_err(),
+            t!("shared.backup.no_script", script = SCRIPT).to_string()
         );
-        assert!(
-            ended(1, RESTORE_SCRIPT)
-                .unwrap_err()
-                .contains(RESTORE_SCRIPT)
-        );
+        assert!(ended(1, SCRIPT).unwrap_err().contains(SCRIPT));
     }
 }

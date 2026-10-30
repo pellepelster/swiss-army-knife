@@ -1222,6 +1222,41 @@ impl DeploymentManager {
         })
     }
 
+    /// where the deployment answers its users: its api, the trust of its certificates and the
+    /// address of its server, which a wait asks directly (`config::wait_for_api`)
+    pub async fn public_endpoint(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<(String, crate::core::config::Trust, Option<std::net::IpAddr>), String> {
+        let name = checked_name(name).map_err(|error| error.message)?;
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("shared.deployments.no_provider").to_string());
+        };
+        let deployment = discover(&HetznerApi::new(&token))
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
+        let (url, _) = config_endpoint(&deployment, name, password)?;
+        let trust = deployment
+            .acme_ca()
+            .and_then(|ca| AcmeCa::parse(&ca))
+            .unwrap_or_default()
+            .trust();
+        let address = deployment
+            .server
+            .as_ref()
+            .and_then(|server| server.public_ipv4.as_deref())
+            .and_then(|address| address.parse().ok());
+        Ok((url, trust, address))
+    }
+
     pub async fn running_config(
         &self,
         tokens: Vec<(ProviderType, String)>,

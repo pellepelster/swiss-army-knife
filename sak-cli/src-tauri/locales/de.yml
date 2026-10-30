@@ -30,6 +30,21 @@ cli:
   restore_not_confirmed: "Nicht bestätigt, nichts wurde geändert."
   restore_no_terminal: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
   update_hint: "sakctl update installiert es."
+  maintenance:
+    connecting: "Frage den Server von %{name} unter root@%{host}…"
+    pending: "Ein Neustart von %{name} steht an: %{reasons}."
+    not_pending: "Kein Neustart von %{name} steht an."
+    reason_kernel: "Kernel %{running} → %{installed}"
+    reason_reboot_required: "eine Aktualisierung verlangt ihn"
+    services: "Dienste mit alten Bibliotheken: %{services}"
+    since_boot: "Seit dem Start um %{time} aktualisiert:"
+    installed_new: "%{package} %{to} (neu)"
+    updated: "%{upgraded} Pakete aktualisiert, %{installed} installiert."
+    up_to_date: "Alle Pakete von %{name} sind aktuell."
+    reboot_hint: "Ein Neustart steht an, führe sakctl maintenance reboot %{name} aus."
+    rebooting: "Das Deployment %{name} ist gestoppt, sein Server startet um %{at} neu."
+    reboot_not_pending: "Kein Neustart von %{name} steht an, nichts wurde geändert."
+    back: "Das Deployment %{name} antwortet wieder."
 shared:
   backup:
     no_home: "Das Home-Verzeichnis des Benutzers ist nicht bekannt."
@@ -169,6 +184,10 @@ shared:
     created: "erstellt"
     updated: "aktualisiert"
     destroyed: "zerstört"
+  maintenance:
+    busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
+    failed: "Der Server ist fehlgeschlagen: %{error}"
+    unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
   update:
     checking: "Frage %{receiver} nach dem neuesten Release von sakctl…"
     no_release: "Dieses sakctl (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
