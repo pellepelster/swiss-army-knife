@@ -505,13 +505,6 @@ between the check and the click is applied as it is then, not as the page showed
 before a plan that destroys or recreates, with `--yes` for scripts; let the apply stop when its diff differs from
 the plan it was given (CA-20 keeps the plan's diffs for the apply).
 
-#### R1-4 (Low): The plan does not show a second server, ssh key or firewall of a deployment (was C10)
-
-`discover` keeps them (`DiscoveredDeployment::left_out`), the list shows them as duplicates and the password is
-checked against their hashes too. The plan of a deploy or destroy still shows only the resources of the spec: a
-duplicate stays out of sight there, and a destroy leaves it. **Fix:** show the left-out resources in the plan as
-duplicates; with CP-10, handle duplicates the same way for every kind.
-
 ---
 
 ## Areas examined with no finding worth the name

@@ -28,6 +28,9 @@ pub struct Prepared {
     pub(super) stale_records: Vec<HetznerDnsRecordLookup>,
     /// a create or deploy with what it provisions the server with, or a destroy
     pub(super) purpose: Purpose<Provisioning>,
+    /// a second server, ssh key or firewall of the deployment: the plan shows it, nothing changes
+    /// it
+    pub(super) left_out: Vec<sak_cloud::hetzner::deployment::LeftOut>,
 }
 
 /// what a plan or an apply is for, typed: a create and a deploy with `P`, what they provision
@@ -509,6 +512,10 @@ impl DeploymentManager {
             .await
             .map_err(|error| failed(provider, error))?;
         let records = deployment_records(&listings, name);
+        let left_out = existing
+            .as_ref()
+            .map(|existing| existing.left_out.clone())
+            .unwrap_or_default();
         let location = location_of(
             name,
             password,
@@ -557,6 +564,7 @@ impl DeploymentManager {
             spec,
             stale_records,
             purpose,
+            left_out,
         })
     }
 
@@ -658,6 +666,20 @@ impl DeploymentManager {
                         status: DiffStatus::UpToDate,
                         keep: false,
                         changes: Vec::new(),
+                    })
+                }))
+                // a duplicate the deployment does not use: a deploy and a destroy leave it
+                .chain(prepared.left_out.iter().map(|left_out| {
+                    Ok(PlannedResource {
+                        resource: format!("{} '{}'", key(&left_out.kind), left_out.name),
+                        kind: PlannedKind::Resource(left_out.kind),
+                        name: left_out.name.clone(),
+                        resource_status: ResourceStatus::of(DiffStatus::Duplicate),
+                        action: (intent == Intent::Destroy).then_some(PlanAction::WillKeep),
+                        working: Working::Check,
+                        status: DiffStatus::Duplicate,
+                        keep: intent == Intent::Destroy,
+                        changes: vec![t!("shared.plan.left_out").to_string()],
                     })
                 }))
                 .collect::<Result<Vec<_>, SakctlError>>()?,

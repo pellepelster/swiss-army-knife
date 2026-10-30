@@ -150,6 +150,7 @@ shared:
     missing: "fehlt"
     has_changes: "hat Änderungen"
   plan:
+    left_out: "ein zweites des Deployments, sakctl lässt es, wie es ist; entferne es, wenn es nicht gebraucht wird"
     intro: "Erstelle das Swiss-Army-Knife-Deployment"
     intro_deploy: "Rolle das Swiss-Army-Knife-Deployment erneut aus"
     intro_destroy: "Zerstöre das Swiss-Army-Knife-Deployment"

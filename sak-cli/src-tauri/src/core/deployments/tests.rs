@@ -1050,6 +1050,7 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
         spec: spec.clone(),
         stale_records: Vec::new(),
         purpose,
+        left_out: Vec::new(),
     };
     let deploy = prepared(Purpose::Deploy {
         provisioning: Provisioning {
@@ -1110,4 +1111,42 @@ async fn the_window_fixtures_apply_in_the_order_of_the_registry() {
         .map(|resource| resource.log_text.clone())
         .collect();
     assert_eq!(fixtures, applied);
+}
+
+#[tokio::test]
+async fn the_plan_of_a_destroy_shows_a_second_server_it_leaves() {
+    let spec = super::window_fixtures::spec();
+    let server = only_the_volume(&spec, 16).await;
+    let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(
+        sak_cloud::hetzner::api::Backoff::new(
+            1,
+            std::time::Duration::ZERO,
+            std::time::Duration::ZERO,
+        ),
+    );
+    let prepared = Prepared {
+        provider: ProviderType::Hetzner,
+        runtime: HetznerProviderRuntime::from_api(Arc::new(api), spec.location, ServerType::cx23),
+        spec,
+        stale_records: Vec::new(),
+        purpose: Purpose::Destroy { delete_data: false },
+        left_out: vec![sak_cloud::hetzner::deployment::LeftOut {
+            kind: ResourceKind::Server,
+            name: "sak-example1-2".to_string(),
+            labels: Default::default(),
+        }],
+    };
+    let plan = DeploymentManager
+        .plan_prepared(&prepared, &ContainerRuntime::default())
+        .await
+        .unwrap();
+    let second = plan
+        .resources
+        .iter()
+        .find(|resource| resource.name == "sak-example1-2")
+        .expect("the second server in the plan");
+    assert_eq!(second.kind, PlannedKind::Resource(ResourceKind::Server));
+    assert_eq!(second.status, DiffStatus::Duplicate);
+    assert_eq!(second.action, Some(PlanAction::WillKeep));
+    assert!(second.keep);
 }

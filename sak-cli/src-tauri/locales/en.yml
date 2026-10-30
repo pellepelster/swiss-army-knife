@@ -150,6 +150,7 @@ shared:
     missing: "missing"
     has_changes: "has changes"
   plan:
+    left_out: "a second one of the deployment, sakctl leaves it as it is; remove it if it is not needed"
     intro: "Create the Swiss Army Knife deployment"
     intro_deploy: "Redeploy the Swiss Army Knife deployment"
     intro_destroy: "Destroy the Swiss Army Knife deployment"
