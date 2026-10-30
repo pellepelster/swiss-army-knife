@@ -46,8 +46,8 @@ names its ID.
 1. ~~**UI-1** the page can deploy another deployment than the one shown (`CheckedDeployment` has no identity).~~
 2. ~~**CP-1** one odd deployment (a kept volume after a destroy) hides the whole list~~; **CA-1** one unknown
    server type does the same.
-3. **CD-1 / UI-6 / UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host" and
-   command-line instructions in the window.
+3. ~~**CD-1 / UI-6**~~ / **UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host"
+   and command-line instructions in the window.
 4. ~~**CU-1** a backup or restore hangs forever on a dropped connection~~; **CU-3 / CU-4** ssh's and the lock's exit
    codes are blamed on `sak-backend`.
 5. **UI-2** a destroy runs after Cancel; ~~**UI-3** "delete the data volume" stays ticked~~.
@@ -560,7 +560,7 @@ the ARCHITECTURE sentence.
 
 ### Bugs
 
-#### CD-1 (High, confirmed): A multi-user deploy is impossible, with a misleading error, when the backend does not answer
+#### ~~CD-1 (High, confirmed): A multi-user deploy is impossible, with a misleading error, when the backend does not answer~~ **fixed**
 
 `deployments.rs:1109-1116` (`detected`) turns any failure of `running_config` into `None` with `.ok()`; both
 callers swallow again (`gui/deployments.rs:152-153`, `cli.rs:665-669` `if let Ok(detected)`, see UI-6). `complete`

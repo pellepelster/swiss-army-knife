@@ -858,6 +858,9 @@ pub struct Detected {
     pub user_mode: Option<UserMode>,
     pub admin_email: Option<String>,
     pub smtp: Option<DetectedSmtp>,
+    /// why the running configuration could not be read: the backend did not answer, its
+    /// certificate was refused, …; none when it was read or not needed (single user)
+    pub unread: Option<String>,
 }
 
 /// the mail server of the running configuration, with its password when the backend answers it.
@@ -915,6 +918,33 @@ fn detect(
             password_set: smtp.password_set,
             starttls: smtp.starttls,
         }),
+        unread: None,
+    }
+}
+
+/// a deploy completed from `detected`; when it still lacks what only the running configuration
+/// tells (the user mode, or the admin and mail server of multi user) and that could not be read,
+/// the reason it could not is the error, not a missing value later
+fn completed_from(
+    deployment: NewDeployment,
+    detected: &Detected,
+    smtp_password: &str,
+) -> Result<NewDeployment, WizardError> {
+    let deployment = complete(deployment, detected, smtp_password)?;
+    let lacking = match deployment.user_mode {
+        None => true,
+        Some(UserMode::Multi) => deployment.smtp.is_none() || deployment.admin_email.is_none(),
+        Some(UserMode::Single) => false,
+    };
+    match &detected.unread {
+        Some(error) if lacking => Err(t!(
+            "shared.deployments.settings_unread",
+            name = deployment.name,
+            error = error
+        )
+        .to_string()
+        .into()),
+        _ => Ok(deployment),
     }
 }
 
@@ -1222,7 +1252,7 @@ impl DeploymentManager {
         let detected = self
             .detected(tokens, &deployment.name, &deployment.password)
             .await?;
-        complete(deployment, &detected, smtp_password)
+        completed_from(deployment, &detected, smtp_password)
     }
 
     /// the deployment `name` at the hetzner project of `tokens`, its name checked first: a wrong
@@ -1268,10 +1298,16 @@ impl DeploymentManager {
             .and_then(|mode| UserMode::parse(&mode));
         // a single user deployment has no more settings
         let running = match label {
-            Some(UserMode::Single) => None,
-            _ => running_config_of(&deployment, password).await.ok(),
+            Some(UserMode::Single) => Ok(None),
+            _ => running_config_of(&deployment, password).await.map(Some),
         };
-        Ok(detect(label, running.as_ref()))
+        Ok(match running {
+            Ok(running) => detect(label, running.as_ref()),
+            Err(error) => Detected {
+                unread: Some(error),
+                ..detect(label, None)
+            },
+        })
     }
 
     /// whether `password` is the one of the deployment `name`: checked against the password
@@ -2264,6 +2300,45 @@ mod tests {
             error.message,
             t!("shared.deployments.no_provider").to_string()
         );
+    }
+
+    #[test]
+    fn a_backend_that_does_not_answer_is_the_error_when_its_settings_are_needed() {
+        let unread = |user_mode| Detected {
+            user_mode,
+            unread: Some("connection refused".to_string()),
+            ..Detected::default()
+        };
+        // multi user on the label, the mail server unknown: the cause, not "invalid smtp host"
+        let error = match completed_from(deploy(), &unread(Some(UserMode::Multi)), "") {
+            Err(error) => error.message,
+            Ok(_) => panic!("completed without the mail server"),
+        };
+        assert!(
+            error.contains("alpha") && error.contains("connection refused"),
+            "{error}"
+        );
+        // no label: the user mode itself is unknown
+        assert!(completed_from(deploy(), &unread(None), "").is_err());
+        // what is given needs nothing of the backend
+        let given = NewDeployment {
+            user_mode: Some(UserMode::Multi),
+            admin_email: Some("admin@example.com".into()),
+            smtp: Some(Smtp {
+                host: "smtp.example.com".into(),
+                port: 587,
+                username: "sak".into(),
+                password: "secret".into(),
+                starttls: true,
+            }),
+            ..deploy()
+        };
+        assert!(completed_from(given, &unread(Some(UserMode::Multi)), "").is_ok());
+        let single = NewDeployment {
+            user_mode: Some(UserMode::Single),
+            ..deploy()
+        };
+        assert!(completed_from(single, &unread(None), "").is_ok());
     }
 
     #[test]
