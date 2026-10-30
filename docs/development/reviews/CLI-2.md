@@ -155,8 +155,8 @@ known, or make the recreate a confirmed step.
 label as removed; every apply sends `labels: Some(resource.labels.clone())` (`volume/provisioner.rs:133-141`,
 `primary_ip:146-156`, `firewall:120-123`, `ssh_key:142-150`, `server:337-341`, `dns_record:183-187`). ARCHITECTURE
 "Own prefix" says user labels are never under `sak.pelle.io/`, which only makes sense when keys outside the prefix
-are left alone. **Scenario:** `env=prod` added in the console → state "Changed", the deploy removes it. Decide once
-(CP-23).
+are left alone. **Scenario:** `env=prod` added in the console → state "Changed", the deploy removes it. The decision
+is GitHub issue #131.
 
 #### CP-6 (Low): Growing the data volume is a recreate, which is refused
 
@@ -191,11 +191,6 @@ selectors merge into one map (`a=1` + `a=2` collapse).
 #### CP-22: Pending carries whether the dependency's value changes
 
 A fingerprint recreate: yes; a label change: no (CP-3). The volume size recreate becomes an in-place resize (CP-6).
-
-#### CP-23: Decide label ownership once
-
-Either ignore and keep keys outside `sak.pelle.io/` in `hetzner_label_diff` and in every update (CP-5), or change
-the ARCHITECTURE sentence.
 
 ---
 
