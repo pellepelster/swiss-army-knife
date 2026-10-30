@@ -49,6 +49,7 @@ shared:
       needed: "Swiss Army Knife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte Swiss Army Knife erneut."
       not_working: "%{runtime} funktioniert nicht: %{error}"
       wrong_answer: "Das Image %{image} antwortete '%{answer}' statt '%{expected}'."
+      no_answer: "`%{command}` hat nicht innerhalb von %{seconds} Sekunden geantwortet und wurde beendet."
     image:
       name: "Neuestes Image laden"
       running: "Lade das neueste Image…"
@@ -58,6 +59,8 @@ shared:
       not_run: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
       progress: "%{downloaded} MB von %{total} MB"
       wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von Swiss Army Knife."
+      no_api: "Unter DOCKER_HOST oder im aktuellen Docker-Kontext wurde keine API von Docker gefunden."
+      api_failed: "Auch die API von Docker konnte es nicht laden: %{error}"
     provider_tokens:
       name: "Provider-Tokens prüfen"
       running: "Prüfe die Provider-Tokens…"

@@ -49,6 +49,7 @@ shared:
       needed: "Swiss Army Knife needs docker or podman to run containers. Install one of them, make sure it runs containers without sudo, and start Swiss Army Knife again."
       not_working: "%{runtime} does not work: %{error}"
       wrong_answer: "The image %{image} answered '%{answer}' instead of '%{expected}'."
+      no_answer: "`%{command}` did not answer within %{seconds} seconds and was stopped."
     image:
       name: "Pull the latest tool image"
       running: "Pulling the latest tool image…"
@@ -58,6 +59,8 @@ shared:
       not_run: "%{runtime} could not run the tool image %{image}: %{error}"
       progress: "%{downloaded} MB of %{total} MB"
       wrong_answer: "The tool image %{image} runs as '%{answer}' instead of '%{expected}', it is not the image of Swiss Army Knife."
+      no_api: "No api of docker was found at DOCKER_HOST or in the current docker context."
+      api_failed: "The api of docker could not pull it either: %{error}"
     provider_tokens:
       name: "Verify the provider API tokens"
       running: "Verifying provider API tokens…"

@@ -1,6 +1,6 @@
 use super::{Check, CheckResult, Found, Progress};
-use crate::core::container::block_on;
 use crate::core::providers::ProviderType;
+use crate::core::runtime::block_on;
 use rust_i18n::t;
 
 /// the provider tokens given to sakctl, each validated and given back. For the window, the tokens
