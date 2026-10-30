@@ -16,6 +16,7 @@ use hkdf::Hkdf;
 use sha2::{Digest, Sha256};
 use std::sync::Mutex;
 use unicode_normalization::UnicodeNormalization;
+use zeroize::{Zeroize, Zeroizing};
 
 /// the argon2id of the master key: 256 MiB, 3 passes, one lane; about half a second
 const MASTER_PARAMS: (u32, u32, u32) = (256 * 1024, 3, 1);
@@ -32,9 +33,10 @@ fn argon2((memory, passes, lanes): (u32, u32, u32)) -> Result<Argon2<'static>, S
     Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
 }
 
-/// the password as nfc: the same characters give the same bytes, typed on whatever system
-fn normalized(password: &str) -> String {
-    password.nfc().collect()
+/// the password as nfc: the same characters give the same bytes, typed on whatever system. A copy
+/// of the password, wiped when it goes
+fn normalized(password: &str) -> Zeroizing<String> {
+    Zeroizing::new(password.nfc().collect())
 }
 
 /// the master keys this process derived, by the name and a sha-256 of the password. A run asks for
@@ -45,29 +47,33 @@ static MASTER_KEYS: Mutex<Vec<(String, [u8; 32], [u8; 32])>> = Mutex::new(Vec::n
 /// the most master keys kept; the oldest goes first
 const MASTER_KEYS_KEPT: usize = 16;
 
-fn master_key(name: &str, password: &str) -> Result<[u8; 32], String> {
+fn master_key(name: &str, password: &str) -> Result<Zeroizing<[u8; 32]>, String> {
     let password = normalized(password);
-    let id: [u8; 32] = Sha256::digest(format!("{VERSION}/master-key-id/{name}\0{password}")).into();
+    let id: [u8; 32] = Sha256::digest(Zeroizing::new(format!(
+        "{VERSION}/master-key-id/{name}\0{}",
+        password.as_str()
+    )))
+    .into();
     if let Some((.., key)) = MASTER_KEYS
         .lock()
         .ok()
         .and_then(|keys| keys.iter().find(|(n, i, _)| n == name && *i == id).cloned())
     {
-        return Ok(key);
+        return Ok(Zeroizing::new(key));
     }
-    let mut key = [0u8; 32];
+    let mut key = Zeroizing::new([0u8; 32]);
     argon2(MASTER_PARAMS)?
         .hash_password_into(
             password.as_bytes(),
             format!("{VERSION}/master-key/{name}").as_bytes(),
-            &mut key,
+            key.as_mut(),
         )
         .map_err(|e| e.to_string())?;
     if let Ok(mut keys) = MASTER_KEYS.lock() {
         if keys.len() >= MASTER_KEYS_KEPT {
-            keys.remove(0);
+            keys.remove(0).2.zeroize();
         }
-        keys.push((name.to_string(), id, key));
+        keys.push((name.to_string(), id, *key));
     }
     Ok(key)
 }
@@ -76,7 +82,7 @@ fn master_key(name: &str, password: &str) -> Result<[u8; 32], String> {
 fn expand<const N: usize>(name: &str, password: &str, purpose: &str) -> Result<[u8; N], String> {
     let master = master_key(name, password)?;
     let mut out = [0u8; N];
-    Hkdf::<Sha256>::from_prk(&master)
+    Hkdf::<Sha256>::from_prk(master.as_ref())
         .map_err(|e| e.to_string())?
         .expand(format!("{VERSION}/{purpose}/{name}").as_bytes(), &mut out)
         .map_err(|e| e.to_string())?;
@@ -101,9 +107,9 @@ impl DerivedKey {
         encode_public_key(&self.key.verifying_key(), &self.comment)
     }
 
-    /// the private key as openssh writes it, unencrypted
-    pub fn private_key(&self) -> String {
-        encode_private_key(&self.key, &self.comment)
+    /// the private key as openssh writes it, unencrypted; wiped when it goes
+    pub fn private_key(&self) -> Zeroizing<String> {
+        Zeroizing::new(encode_private_key(&self.key, &self.comment))
     }
 }
 

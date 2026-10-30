@@ -276,11 +276,6 @@ path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
 has "tauri" in a comment, `deployments/window_fixtures.rs` too. **Fix:** walk `src/core` in the test; fix the
 comments.
 
-#### CU-11 (Low): No zeroization of secrets
-
-`normalized(password)` (`keys.rs:36-38`), the master-key cache (`keys.rs:43`), `private_key()` as a `String`
-(`keys.rs:105`), provider tokens (`providers/mod.rs:65-68`) are plain heap data. `age` already pulls in `secrecy`.
-
 ### Smells
 
 #### CU-15 (Low): Five copies of hex encoding, three of random bytes

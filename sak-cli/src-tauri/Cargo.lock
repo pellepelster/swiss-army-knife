@@ -4674,6 +4674,7 @@ dependencies = [
  "unicode-normalization",
  "url",
  "wiremock",
+ "zeroize",
  "zip",
  "zxcvbn",
 ]
