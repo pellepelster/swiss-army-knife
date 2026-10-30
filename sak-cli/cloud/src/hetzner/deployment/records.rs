@@ -133,7 +133,7 @@ mod tests {
                 id: 1,
                 name: "pelle.io".to_string(),
                 ttl: 3600,
-                status: "ok".to_string(),
+                status: crate::hetzner::api::zones::ZoneStatus::Ok,
                 nameservers: vec![],
                 delete_protected: false,
                 labels: Labels::new(),

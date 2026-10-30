@@ -34,8 +34,7 @@ pub struct Zone {
     /// the default ttl of the rrsets, in seconds
     pub ttl: u64,
     pub protection: Protection,
-    /// `ok`, `updating`, `error`
-    pub status: String,
+    pub status: ZoneStatus,
     #[serde(default)]
     pub authoritative_nameservers: Option<AuthoritativeNameservers>,
     #[serde(default)]
@@ -146,6 +145,18 @@ impl<'a> ZonesApi<'a> {
             zone: zone.to_string(),
         }
     }
+}
+
+/// the state of a zone at hetzner
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ZoneStatus {
+    Ok,
+    Updating,
+    Error,
+    /// a status this sakctl does not know yet
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]

@@ -30,6 +30,26 @@ pub enum Error {
     )]
     RecreateRefused { resource: String, changes: String },
 
+    /// a registry without owner labels destroys nothing (`Registry::owned_by`)
+    #[error("nothing is destroyed without the owner labels of the resources (owned_by)")]
+    NoOwner,
+
+    /// a resource of this reference is in the registry already
+    #[error("{0} is declared twice")]
+    DeclaredTwice(String),
+
+    /// no provisioner is registered for the type of the resource
+    #[error("no provisioner registered for {0}")]
+    NoProvisioner(String),
+
+    /// the dependencies of the resource lead back to it, directly or through others
+    #[error("{0} is in a cycle of dependencies")]
+    Cycle(String),
+
+    /// the resource does not exist under its name, but one with its content does under another
+    #[error("{resource}: {message}")]
+    Duplicate { resource: String, message: String },
+
     /// the api of a provider failed; the source is the error of the provider
     #[error("{0}")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),

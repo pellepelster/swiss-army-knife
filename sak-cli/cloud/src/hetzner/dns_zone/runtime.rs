@@ -1,13 +1,13 @@
 use crate::api::{Labeled, Labels, Runtime};
 use crate::hetzner::api::zones::Zone;
+use crate::hetzner::api::zones::ZoneStatus;
 
 #[derive(Clone, Debug)]
 pub struct HetznerDnsZoneRuntime {
     pub id: u64,
     pub name: String,
     pub ttl: u64,
-    /// `ok`, `updating`, `error`
-    pub status: String,
+    pub status: ZoneStatus,
     /// the nameservers to set at the registrar
     pub nameservers: Vec<String>,
     pub delete_protected: bool,

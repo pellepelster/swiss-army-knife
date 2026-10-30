@@ -221,11 +221,7 @@ impl Registry {
         self.owner
             .as_ref()
             .filter(|owner| !owner.is_empty())
-            .ok_or_else(|| {
-                Error::message(
-                    "nothing is destroyed without the owner labels of the resources (owned_by)",
-                )
-            })
+            .ok_or(Error::NoOwner)
     }
 
     /// the lookup providers of the run, for lookups outside a diff or apply
@@ -240,12 +236,10 @@ impl Registry {
             .iter()
             .any(|declared| declared.resource_ref() == reference)
         {
-            return Err(Error::message(format!("{reference} is declared twice")));
+            return Err(Error::DeclaredTwice(reference.to_string()));
         }
         if !self.provisioners.contains_key(&TypeId::of::<R>()) {
-            return Err(Error::message(format!(
-                "no provisioner registered for {reference}"
-            )));
+            return Err(Error::NoProvisioner(reference.to_string()));
         }
         self.resources.push(Box::new(resource));
         Ok(())
@@ -327,10 +321,13 @@ impl Registry {
                     Applied::Created
                 }
                 DiffStatus::Duplicate => {
-                    return Err(Error::message(format!(
-                        "{reference}: {}",
-                        diff.duplicate_message.as_deref().unwrap_or("is duplicated")
-                    )));
+                    return Err(Error::Duplicate {
+                        resource: reference.to_string(),
+                        message: diff
+                            .duplicate_message
+                            .clone()
+                            .unwrap_or_else(|| "is duplicated".to_string()),
+                    });
                 }
                 DiffStatus::HasChanges if diff.needs_recreate() => {
                     self.refuse_recreate(&diff)?;
@@ -390,12 +387,7 @@ impl Registry {
         self.provisioners
             .get(&resource.as_any().type_id())
             .map(Box::as_ref)
-            .ok_or_else(|| {
-                Error::message(format!(
-                    "no provisioner registered for {}",
-                    resource.resource_ref()
-                ))
-            })
+            .ok_or_else(|| Error::NoProvisioner(resource.resource_ref().to_string()))
     }
 
     /// the resources with every dependency before its dependents, else in declared order. A
@@ -428,10 +420,9 @@ impl Registry {
             return Ok(());
         }
         if !visiting.insert(index) {
-            return Err(Error::message(format!(
-                "{} depends on itself",
-                self.resources[index].resource_ref()
-            )));
+            return Err(Error::Cycle(
+                self.resources[index].resource_ref().to_string(),
+            ));
         }
         for dependency in self.resources[index].depends_on() {
             if let Some(&dependency) = declared.get(&dependency) {
@@ -776,7 +767,7 @@ mod tests {
 
         let error = registry.destroy_all().await.unwrap_err();
 
-        assert!(error.to_string().contains("owner labels"), "{error}");
+        assert!(matches!(error, Error::NoOwner), "{error}");
         assert!(log(&cloud).is_empty());
         // empty owner labels count as none
         let mut empty = Registry::new().owned_by(Labels::new());
@@ -847,31 +838,19 @@ mod tests {
         let cloud = Arc::new(Cloud::default());
         let mut registry = registry(&cloud).with(thing("a", 1, &["b"])).unwrap();
 
-        assert!(
-            registry
-                .add(thing("a", 1, &[]))
-                .unwrap_err()
-                .to_string()
-                .contains("declared twice")
-        );
+        assert!(matches!(
+            registry.add(thing("a", 1, &[])),
+            Err(Error::DeclaredTwice(_))
+        ));
 
         registry.add(thing("b", 1, &["a"])).unwrap();
-        assert!(
-            registry
-                .diff_all()
-                .await
-                .unwrap_err()
-                .to_string()
-                .contains("depends on itself")
-        );
+        // a → b → a: a cycle through another resource, not only of one with itself
+        assert!(matches!(registry.diff_all().await, Err(Error::Cycle(_))));
 
         let mut empty = Registry::new();
-        assert!(
-            empty
-                .add(thing("a", 1, &[]))
-                .unwrap_err()
-                .to_string()
-                .contains("no provisioner")
-        );
+        assert!(matches!(
+            empty.add(thing("a", 1, &[])),
+            Err(Error::NoProvisioner(_))
+        ));
     }
 }

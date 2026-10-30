@@ -133,12 +133,6 @@ test a token and wraps the `ApiError` into `Error::Message`, losing the code. `#
 
 `api/provisioner.rs:17`, used by `tests/hetzner_dns.rs` only. It lists the whole project without a label filter.
 
-#### CA-16 (Low): Stringly typed errors and states
-
-`Error::Message` for "declared twice", "no provisioner", "depends on itself", "nothing destroyed without owner"
-(`registry.rs:243, 246, 431, 225`); the tests match substrings. The cycle message says "depends on itself" for an
-indirect cycle a→b→a. `Zone.status: String` (`zones.rs:38`) lists its values in a comment.
-
 #### CA-17 (Low): A test that does not test its name
 
 `hetzner/api/tests.rs:404-413` `a_read_is_sent_again_after_a_connection_error` asserts only that the result is an
