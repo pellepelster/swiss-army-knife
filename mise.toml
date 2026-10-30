@@ -36,7 +36,7 @@ cli_canary = "ghcr.io/pellepelster/sak-cli-docker-canary"
 # REGISTRY_USERNAME and REGISTRY_PASSWORD: a github user and a token of it with write:packages,
 # in the workflow github.actor and its GITHUB_TOKEN
 [tasks."registry:login"]
-description = "Log in to ghcr.io to pull and push the images and their cache"
+description = "Log in to ghcr.io"
 run = """
 if [ -z "$REGISTRY_USERNAME" ] || [ -z "$REGISTRY_PASSWORD" ]; then
   echo "set REGISTRY_USERNAME and REGISTRY_PASSWORD to log in to ghcr.io" >&2
@@ -51,7 +51,7 @@ printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_US
 # writes it. A build is for the platform it runs on, into the local images; --load keeps it
 # there when buildx builds in a container of its own (the github workflow)
 [tasks."backend:image:build"]
-description = "Build the image of sak-backend, the controller, from the distribution gradle installs"
+description = "Build the sak-backend image"
 run = """
 ./gradlew :sak-backend:installDist
 docker buildx build --load --tag {{vars.backend_image}}:latest \
@@ -59,7 +59,7 @@ docker buildx build --load --tag {{vars.backend_image}}:latest \
 """
 
 [tasks."backend:image:test"]
-description = "Check that the image of sak-backend holds the controller and runs as sak (10000)"
+description = "Test the sak-backend image"
 depends = ["backend:image:build"]
 run = """
 set -e
@@ -73,7 +73,7 @@ echo "the image of sak-backend works"
 # for amd64 and arm64, tagged <VERSION>-rc (`release:docker` makes it <VERSION>) and with the commit it
 # was built from; the platform not running here needs qemu (binfmt)
 [tasks."backend:image:push"]
-description = "Build the image of sak-backend for amd64 and arm64 and push it to ghcr.io"
+description = "Push the sak-backend image"
 run = """
 ./gradlew :sak-backend:installDist
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
@@ -84,14 +84,14 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 """
 
 [tasks."ingress:docker:build"]
-description = "Build the image of sak-ingress, the caddy in front of the controller"
+description = "Build the sak-ingress image"
 run = """
 docker buildx build --load --tag {{vars.ingress_image}}:latest \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache sak-ingress
 """
 
 [tasks."ingress:docker:test"]
-description = "Check that the image of sak-ingress runs caddy with its Caddyfile as sak (10000)"
+description = "Test the sak-ingress image"
 depends = ["ingress:docker:build"]
 run = """
 set -e
@@ -103,7 +103,7 @@ echo "the image of sak-ingress works"
 """
 
 [tasks."ingress:docker:push"]
-description = "Build the image of sak-ingress for amd64 and arm64 and push it to ghcr.io"
+description = "Push the sak-ingress image"
 run = """
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
   --tag {{vars.ingress_image}}:${VERSION}-rc --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
@@ -134,7 +134,7 @@ run = "./gradlew :sak-frontend:npmCi"
 # the apps built into sak-frontend/dist/, as the jar of the backend takes them (:sak-frontend:npmBuild);
 # gradle builds again only what changed
 [tasks."frontend:build"]
-description = "Build sak-frontend, the apps, into sak-frontend/dist/"
+description = "Build sak-frontend"
 depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmBuild"
@@ -142,7 +142,7 @@ run = "./gradlew :sak-frontend:npmBuild"
 # the theme of sak-theme with its bootstrap, copied into sak-cli/ui/theme/ (not committed): tauri
 # bundles sak-cli/ui/ alone
 [tasks."cli:theme"]
-description = "Copy sak-theme into ui/theme/ for the page of sakctl"
+description = "Copy sak-theme into the sakctl ui"
 depends = ["theme:install"]
 dir = "{{config_root}}/sak-cli"
 # bash on windows too (git bash), where mise would run cmd
@@ -160,7 +160,7 @@ cp -r ../sak-theme/icons ui/theme/icons
 # `mise run cli:run -- list`; tauri dev passes what follows its second -- to the app. The token
 # comes from pass unless HCLOUD_TOKEN is set
 [tasks."cli:run"]
-description = "Run sakctl, reloading it when its rust code or ui changes; a command as argument runs its command line"
+description = "Run sakctl with reload"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
@@ -179,7 +179,7 @@ fi
 # the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
 # msi and nsis on windows) land in sak-cli/src-tauri/target/release/bundle/
 [tasks."cli:build"]
-description = "Build the sakctl installers for the current platform, the image of its tools and the canary"
+description = "Build the sakctl installers"
 depends = ["cli:theme", "cli:image:build", "cli:canary:build"]
 dir = "{{config_root}}/sak-cli"
 run = "tauri build"
@@ -189,7 +189,7 @@ run = "tauri build"
 # runs on its own platform (the workflow, job sakctl). macOS gets one universal binary for apple
 # silicon and intel
 [tasks."cli:build:linux"]
-description = "Build sakctl for linux into sak-cli/build/sak-cli-linux-<VERSION>.zip"
+description = "Build sakctl for linux"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 run = """
@@ -201,7 +201,7 @@ zip -j "build/sak-cli-linux-${VERSION}.zip" src-tauri/target/release/sakctl
 """
 
 [tasks."cli:build:macos"]
-description = "Build sakctl for macOS (apple silicon and intel) into sak-cli/build/sak-cli-macos-<VERSION>.zip"
+description = "Build sakctl for macOS"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 run = """
@@ -216,7 +216,7 @@ zip -j "build/sak-cli-macos-${VERSION}.zip" src-tauri/target/universal-apple-dar
 # in git bash, which has no zip; 7-Zip is there instead. -e: a failed step ends the task, as sh
 # does for the others
 [tasks."cli:build:windows"]
-description = "Build sakctl for windows into sak-cli/build/sak-cli-windows-<VERSION>.zip"
+description = "Build sakctl for windows"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 shell = "bash -e -c"
@@ -233,7 +233,7 @@ rm -f "build/sak-cli-windows-${VERSION}.zip"
 # .../releases/download/v<VERSION>/sak-cli-<platform>-<VERSION>.zip. Needs gh and GH_TOKEN with
 # contents: write (the workflow, job release, on a tag only)
 [tasks."cli:release"]
-description = "Publish the zips of sakctl in sak-cli/build as the github release of the tag v<VERSION>"
+description = "Publish the sakctl GitHub release"
 dir = "{{config_root}}/sak-cli"
 run = """
 set -eu
@@ -251,7 +251,7 @@ gh release create "v${VERSION}" --verify-tag --title "sakctl $VERSION" \
 # deploy <name> or destroy <name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
 # environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run cli:sakctl -- create
 [tasks."cli:sakctl"]
-description = "Run sakctl on the command line: list, create [<name>], deploy <name>, destroy <name> or ssh <name>"
+description = "Run the sakctl command line"
 dir = "{{config_root}}/sak-cli/src-tauri"
 # the terminal of the user, not a pipe: the prompts of the passwords and an ssh session need it
 raw = true
@@ -270,7 +270,7 @@ cargo run -q -- "$@"
 # there when buildx builds in a container of its own (the github workflow). The context is the
 # repository, the image takes the ansible collection of ansible/
 [tasks."cli:image:build"]
-description = "Build the image of the tools of sakctl, ansible and the pelle_io.sak collection"
+description = "Build the tools image"
 dir = "{{config_root}}/sak-cli"
 run = """
 docker buildx build --load --file Dockerfile --tag {{vars.cli_image}}:latest \
@@ -278,7 +278,7 @@ docker buildx build --load --file Dockerfile --tag {{vars.cli_image}}:latest \
 """
 
 [tasks."cli:image:test"]
-description = "Check that the image of the tools runs ansible and the pelle_io.sak collection as sak (1000:1000)"
+description = "Test the tools image"
 depends = ["cli:image:build"]
 run = """
 set -e
@@ -299,7 +299,7 @@ echo "the image of the tools works"
 # for amd64 and arm64 (the macs), tagged <VERSION>-rc (`release:docker` makes it <VERSION>) and with the
 # commit it was built from; the platform not running here needs qemu (binfmt)
 [tasks."cli:image:push"]
-description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
+description = "Push the tools image"
 dir = "{{config_root}}/sak-cli"
 run = """
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" --file Dockerfile \
@@ -310,7 +310,7 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 """
 
 [tasks."cli:canary:build"]
-description = "Build the canary proving a container runtime works, sak-cli-docker-canary"
+description = "Build the canary image"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
 docker buildx build --load --tag {{vars.cli_canary}}:latest \
@@ -318,7 +318,7 @@ docker buildx build --load --tag {{vars.cli_canary}}:latest \
 """
 
 [tasks."cli:canary:test"]
-description = "Check that the canary answers"
+description = "Test the canary image"
 depends = ["cli:canary:build"]
 run = """
 [ "$(docker run --rm {{vars.cli_canary}}:latest)" = "sak-cli-docker-canary" ]
@@ -326,7 +326,7 @@ echo "the canary works"
 """
 
 [tasks."cli:canary:push"]
-description = "Build the canary for amd64 and arm64 and push it to ghcr.io"
+description = "Push the canary image"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
@@ -340,7 +340,7 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 # releases it as <version> (the images, sakctl and the documentation). Only from a clean main that
 # is the same as origin/main, the commit of the tag must be on github
 [tasks."release"]
-description = "Tag the next patch version of a clean main as v<version> and push the tag, which builds the release"
+description = "Tag and push the next release"
 run = """
 set -eu
 [ -z "$(git status --porcelain)" ] || { echo "the repository is not clean" >&2; exit 1; }
@@ -356,21 +356,21 @@ echo "tagged $version, the workflow builds and releases it"
 # every image of SAK for the platform it runs on, into the local images: the server (sak-backend,
 # sak-ingress) and sakctl (the tools, the canary)
 [tasks."docker:all:build"]
-description = "Build all images of SAK into the local images"
+description = "Build all images"
 depends = ["backend:image:build", "ingress:docker:build", "cli:image:build", "cli:canary:build"]
 
 # every image of SAK for amd64 and arm64, pushed to ghcr.io as <VERSION>-rc (and with the commit);
 # `release:docker` makes them <VERSION>. Needs a login to ghcr.io (registry:login). SAK_DOCKER_PLATFORMS
 # selects other platforms, e.g. only the one of this machine, which needs no qemu
 [tasks."docker:all:push"]
-description = "Build all images of SAK for amd64 and arm64 and push them to ghcr.io as <VERSION>-rc"
+description = "Push all images as <VERSION>-rc"
 depends = ["backend:image:push", "ingress:docker:push", "cli:image:push", "cli:canary:push"]
 
 # the images of a build, pushed as <VERSION>-rc by their push tasks, as <VERSION>: the registry
 # copies the manifest of both platforms, nothing is pulled. Run when all images are pushed (the
 # workflow, job release); sakctl and the servers take <VERSION> only after it
 [tasks."release:docker"]
-description = "Tag the images pushed as <VERSION>-rc as <VERSION> in ghcr.io"
+description = "Release the <VERSION>-rc images as <VERSION>"
 run = """
 for image in {{vars.backend_image}} {{vars.ingress_image}} {{vars.cli_image}} {{vars.cli_canary}}; do
   docker buildx imagetools create --tag "$image:${VERSION}" "$image:${VERSION}-rc"
@@ -381,7 +381,7 @@ done
 # and 443 (admin api 2019), victorialogs 9428 and the mailpit the login links go to, 1025 (smtp)
 # and 8025 (web ui); in the foreground with their logs until Ctrl-C
 [tasks."local:env:run"]
-description = "Run the ingress on https://sak.localhost, victorialogs on http://localhost:9428 and mailpit on http://localhost:8025 until Ctrl-C"
+description = "Run ingress, victorialogs and mailpit"
 env = {
     SAK_LOCAL_DIR = "{{config_root}}/build/local",
     SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
@@ -404,7 +404,7 @@ $compose logs -f
 # the ports do not clash: backend 8080, frontend 4200 (proxies /api to the backend), the services
 # of local:env:run
 [tasks."local:backend:run"]
-description = "Run sak-backend on http://localhost:8080, its ingress, victorialogs and mailpit come from local:env:run"
+description = "Run sak-backend"
 env = {
     SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data",
     SAK_IPV4 = "192.0.2.1",
@@ -422,7 +422,7 @@ mkdir -p "$SAK_LOCAL_DATA_DIR"
 """
 
 [tasks."local:frontend:run"]
-description = "Run sak-frontend, the apps, on http://localhost:4200, its /api goes to local:backend:run"
+description = "Run sak-frontend"
 depends = ["frontend:install"]
 dir = "{{config_root}}/sak-frontend"
 run = "npx ng serve"
@@ -430,7 +430,7 @@ run = "npx ng serve"
 # the page of sakctl's window and the answers of rust for it, what the window screenshots and its
 # video show (sak-cli/src-tauri/src/core/deployments/window_fixtures.rs)
 [tasks."docs:window"]
-description = "Prepare the window of sakctl for its screenshots and video: its theme and the fixtures of rust"
+description = "Prepare the sakctl window fixtures"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
@@ -439,7 +439,7 @@ run = "cargo test window_fixtures -- --ignored"
 # the workflow those of all platforms) for the installation, as site/data/sakctl.yaml; a platform
 # without a zip shows <sha256>
 [tasks."docs:data"]
-description = "Write the version, its release and the checksums of sakctl for the installation of the documentation"
+description = "Write the sakctl data of the docs"
 dir = "{{config_root}}/site"
 run = """
 set -eu
@@ -460,14 +460,14 @@ mkdir -p data
 # the documents of docs/ as a site with the theme relearn in the look of sak-theme (site/),
 # reloaded on every change: http://localhost:1313
 [tasks."docs:serve"]
-description = "Serve the documentation of docs/ as a site, reloaded when a document changes"
+description = "Serve the docs"
 depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo server"
 
 # the same site as files in build/site; a link that does not resolve fails it
 [tasks."docs:build"]
-description = "Build the documentation of docs/ as a site into build/site"
+description = "Build the docs"
 depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
@@ -476,7 +476,7 @@ run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 # environment of `mise run local:run` (every page on a desktop and on a phone), the window of sakctl
 # in light and dark
 [tasks."docs:screenshots"]
-description = "Take the screenshots of docs/development/screenshots/: the apps against mise run local:run, the window of sakctl"
+description = "Take the screenshots"
 depends = ["docs:window"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eScreenshots"
@@ -484,7 +484,7 @@ run = "./gradlew :sak-e2e:e2eScreenshots"
 # the videos of build/videos/, never committed: the tour of the apps against the environment of
 # `mise run local:run` and the tour of the window of sakctl, each as .webm, .mp4 and .gif
 [tasks."docs:video"]
-description = "Record the videos of build/videos/: the apps against mise run local:run, the window of sakctl"
+description = "Record the videos"
 depends = ["docs:window"]
 dir = "{{config_root}}"
 run = '''
@@ -506,12 +506,12 @@ ls -lh build/videos/*.mp4 build/videos/*.gif
 # the unit tests of every gradle module of the backend; the build of sak-backend builds the
 # frontend with npm
 [tasks."backend:test:unit"]
-description = "Run the unit tests of all gradle modules of the backend"
+description = "Run the backend unit tests"
 dir = "{{config_root}}"
 run = "./gradlew test"
 
 [tasks."frontend:test:unit"]
-description = "Run the unit tests of sak-frontend"
+description = "Run the frontend unit tests"
 depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
@@ -519,7 +519,7 @@ run = "./gradlew :sak-frontend:npmTest"
 # sakctl and sak-cloud (sak-cli/cloud/, the crate that declares the cloud resources of sakctl);
 # the integration tests of sakctl are in modules named integration
 [tasks."cli:test:unit"]
-description = "Run the unit tests of sakctl and sak-cloud"
+description = "Run the cli unit tests"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 run = """
@@ -533,7 +533,7 @@ set -e
 # (ansible/roles/backend/tests/sak-backend-test.sh), and the role role_markers
 # (ansible/roles/role_markers/tests/role-markers-test.sh)
 [tasks."backend:test:integration"]
-description = "Run the integration tests of the backend in docker: the vector configuration and sak-backend"
+description = "Run the backend integration tests"
 dir = "{{config_root}}"
 run = """
 ./gradlew :sak-backend:vectorTest
@@ -544,7 +544,7 @@ ansible/roles/role_markers/tests/role-markers-test.sh
 # the apps in a browser against the controller and a mailpit e-mail sink (docker); playwright
 # downloads its chromium on the first run
 [tasks."frontend:test:integration"]
-description = "Run the integration tests of sak-frontend: the apps in a browser against the controller"
+description = "Run the frontend integration tests"
 depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
@@ -552,7 +552,7 @@ run = "./gradlew :sak-frontend:e2eTest"
 # the tests of sakctl in modules named integration: docker and podman (they pull the canary and
 # the image of the tools from ghcr.io), the ssh session in the image of the tools, ssh-keygen
 [tasks."cli:test:integration"]
-description = "Run the integration tests of sakctl: docker, podman and ssh-keygen"
+description = "Run the cli integration tests"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
 run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
@@ -560,7 +560,7 @@ run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
 # the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
 # playwright downloads its chromium on the first run
 [tasks."frontend:test:local"]
-description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
+description = "Run the frontend tests against local:run"
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
 
@@ -572,7 +572,7 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
 # pushes them first (docker:all:push), in CI the jobs of the images pushed them
 [tasks."cli:test:e2e"]
-description = "Run the e2e tests of sak-cloud and sakctl against a real Hetzner Cloud project"
+description = "Run the cli e2e tests"
 depends = ["cli:theme"]
 dir = "{{config_root}}"
 env = {
@@ -611,7 +611,7 @@ export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
 # dependencies of the frontend first (frontend:install), so neither the build of the backend nor the
 # dev server changes them under the other. Ctrl-C stops everything.
 [tasks."local:run"]
-description = "Run the services of local:env:run, the backend and the frontend until Ctrl-C"
+description = "Run everything locally"
 depends = ["frontend:install"]
 # the script keeps the process groups of the tasks in an array
 shell = "bash -c"
