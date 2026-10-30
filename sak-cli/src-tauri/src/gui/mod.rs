@@ -5,6 +5,7 @@ pub mod checks;
 pub mod deployments;
 pub mod i18n;
 pub mod providers;
+pub mod update;
 
 use crate::core::deployments::DeploymentManager;
 use crate::core::providers::ProviderTokens;
@@ -37,7 +38,10 @@ pub fn run() {
             deployments::plan_deployment,
             deployments::create_deployment,
             deployments::cancel_apply,
-            deployments::check_deployment_password
+            deployments::check_deployment_password,
+            update::version,
+            update::check_update,
+            update::install_update
         ])
         .build(tauri::generate_context!())
         .expect("sakctl failed to start")

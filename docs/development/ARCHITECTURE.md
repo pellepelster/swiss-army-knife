@@ -124,8 +124,8 @@ and the health of the domains.
   configuration and the containers next to it.
 - **Every deploy provisions.** A deploy always runs the whole playbook, so the server is as the deployment declares
   it whatever happened to it. After a provisioning succeeded the server carries a label that stands for the
-  configuration it was provisioned with, keyed by the password, so it tells nothing of the configuration; the plan
-  tells from it whether the configuration changed. The label goes before a provisioning starts, so one that failed
+  configuration and the version it was provisioned with, keyed by the password, so it tells nothing of the
+  configuration; the plan tells from it whether the configuration or the version changed. The label goes before a provisioning starts, so one that failed
   shows as missing.
 - **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the staging
   ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots sakctl
@@ -134,6 +134,11 @@ and the health of the domains.
   encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
   through ssh. The files of the backups are data of the user, not state of sakctl. Refer to
   [FDR-007](fdr/FDR-007-backup.md).
+- **One version.** sakctl, the image of its tools and the images of the server have the same version, the version
+  of the release. A server runs the images of the version of the sakctl that deployed it.
+- **Updates on request.** sakctl compares its version with the newest release on GitHub and replaces itself with it
+  only when the user asks, on the command line or in the footer of the window. It checks the download against the
+  checksum of the release before it replaces itself.
 - **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
   (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
   one that does not answer within some minutes fails, with the cause.
@@ -143,6 +148,9 @@ and the health of the domains.
 - **The name label.** Every cloud resource of a deployment (server, volume, primary IP, firewall, ssh key, DNS
   record) carries `sak.pelle.io/name=<name>`. It tells the resources of one deployment from those of another
   and from everything else in the project.
+- **The version label.** Every resource of a deployment also carries `sak.pelle.io/version=<version>`, the version of
+  the sakctl that created or deployed it last. A deploy with another version changes the label, never creates the
+  resource anew.
 - **The password hash label.** Every resource of a deployment, the DNS records included, also carries
   `sak.pelle.io/password-hash=<hash>`, a hash derived from the password. sakctl checks a password against it before
   it changes anything. The password itself is nowhere.
@@ -164,6 +172,8 @@ and the health of the domains.
 - **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated (for
   example the provider of text discovery in the configuration of the backend), and the user agrees before each
   transfer and knows where the data goes. No default activates such a connection.
+- **Updates on request only.** sakctl asks GitHub for the newest release only when the user asks for an update, and
+  names GitHub before it connects. GitHub then sees the IP address of the user. sakctl never asks on its own.
 - **User data stays.** User data leaves the backend only when the user asks for it (for example text discovery), and
   only to providers that do not collect it.
 
@@ -254,3 +264,7 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   hour, and no allowed address gets a link until the hour is over. Accepted: the global limit keeps the server from
   being used to send mail, a login outage of an hour is the price, and the apps have few allowed addresses whose
   sessions last 30 days.
+
+- **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
+  proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
+  Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.

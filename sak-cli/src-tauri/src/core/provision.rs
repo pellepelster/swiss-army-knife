@@ -66,7 +66,8 @@ impl ProvisionRun {
              ansible_ssh_common_args: -F {dir}/ssh_config\n      \
              storage_device: {device}\n      sak_name: {name}\n      sak_dns_mode: {dns_mode}\n      sak_root_domain: {root_domain}\n      sak_acme_ca: {acme_ca}\n      sak_api_public_key: \"{api_public_key}\"\n      sak_admin_email: {admin_email}\n      \
              sak_smtp_enabled: {smtp_enabled}\n      sak_smtp_tls: {smtp_tls}\n      \
-             sak_smtp_starttls: {smtp_starttls}\n      backend_env_src: {dir}/backend.env\n",
+             sak_smtp_starttls: {smtp_starttls}\n      backend_env_src: {dir}/backend.env\n      \
+             sak_version: \"{version}\"\n",
             name = self.name,
             host = self.host,
             dir = RUN_DIR,
@@ -80,6 +81,8 @@ impl ProvisionRun {
             // without starttls the connection is implicit tls (smtps), never plain text
             smtp_tls = self.smtp.as_ref().is_some_and(|smtp| !smtp.starttls),
             smtp_starttls = self.smtp.as_ref().is_some_and(|smtp| smtp.starttls),
+            // the server runs the images of the version of this sakctl
+            version = crate::core::VERSION,
         )
     }
 
@@ -611,6 +614,10 @@ mod tests {
         // without starttls implicit tls, never plain text
         assert!(inventory.contains("      sak_smtp_tls: true\n      sak_smtp_starttls: false\n"));
         assert!(inventory.contains("      backend_env_src: /run/sak/backend.env\n"));
+        assert!(inventory.contains(&format!(
+            "      sak_version: \"{}\"\n",
+            crate::core::VERSION
+        )));
 
         let mut given = run();
         if let Some(smtp) = given.smtp.as_mut() {

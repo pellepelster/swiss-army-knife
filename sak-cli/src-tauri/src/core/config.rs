@@ -197,7 +197,7 @@ fn client(https_only: bool, trust: Trust) -> Result<Client, String> {
 
 fn client_builder(https_only: bool, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
-        .user_agent(concat!("sakctl/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("sakctl/", env!("SAK_VERSION")))
         .timeout(Duration::from_secs(30))
         .redirect(Policy::none())
         .https_only(https_only);

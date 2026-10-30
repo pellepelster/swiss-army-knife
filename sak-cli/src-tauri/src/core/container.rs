@@ -13,10 +13,14 @@ use std::sync::Mutex;
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
 // a small image that shows that a runtime pulls and runs images (canary/Dockerfile). The name
 // is fully qualified, because without a tty podman refuses a short name
-const CANARY: &str = "ghcr.io/pellepelster/sak-cli-docker-canary:latest";
+const CANARY: &str = concat!(
+    "ghcr.io/pellepelster/sak-cli-docker-canary:",
+    env!("SAK_VERSION")
+);
 const CANARY_ANSWER: &str = "sak-cli-docker-canary";
-// the image of the tools (Dockerfile), pulled on every start so the latest one is used
-pub const IMAGE: &str = "ghcr.io/pellepelster/sak-cli-tools:latest";
+// the image of the tools (Dockerfile) of the version of sakctl (`core::VERSION`), pulled on every
+// start
+pub const IMAGE: &str = concat!("ghcr.io/pellepelster/sak-cli-tools:", env!("SAK_VERSION"));
 // the user of the image; only this image answers `id -un` with it
 const IMAGE_USER: &str = "sak";
 // the timeout of each request to the docker api; the pull of the image is one request

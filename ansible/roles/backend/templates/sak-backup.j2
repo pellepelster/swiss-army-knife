@@ -93,8 +93,8 @@ import datetime, json, sys
 path, size, digest = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 manifest = {
     "format": 1,
-    # the version of sak, latest until the artifacts have versions (#127)
-    "version": "latest",
+    # the version of sak the server runs
+    "version": {{ sak_version | to_json }},
     "name": {{ sak_name | to_json }},
     "time": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
     "backend_image": digest,

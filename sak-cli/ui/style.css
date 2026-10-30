@@ -5,10 +5,37 @@ html, body {
   height: 100%;
 }
 
+/* the view fills the window above the footer */
 body {
   /* an app, not a document: only what is typed in is meant to be selected */
   user-select: none;
   cursor: default;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+}
+
+/* the version of sakctl and its update below every view, small and quiet */
+.app-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sak-space-3);
+  padding: var(--sak-space-2) var(--sak-space-5);
+  border-top: 1px solid var(--sak-line);
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+}
+
+.app-footer .btn-link {
+  padding: 0;
+  font-size: inherit;
 }
 
 [hidden] {
@@ -18,7 +45,6 @@ body {
 .splash {
   position: relative;
   box-sizing: border-box;
-  height: 100%;
 }
 
 /* the middle of the icon and the title a third down the window, whatever their size; the checks
@@ -129,7 +155,6 @@ body {
 /* a page: the header, its content, the footer with the button group at the bottom right */
 .page {
   box-sizing: border-box;
-  height: 100%;
   padding: var(--sak-space-5);
   display: flex;
   flex-direction: column;

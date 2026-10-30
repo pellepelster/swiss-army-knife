@@ -15,6 +15,11 @@ pub mod keys;
 pub mod providers;
 pub mod provision;
 pub mod ssh;
+pub mod update;
+
+/// the version of SAK this sakctl is (`VERSION` of the build, `build.rs`), the tag of the images
+/// it pulls and deploys; `latest` for a build that is no release
+pub const VERSION: &str = env!("SAK_VERSION");
 
 #[cfg(test)]
 mod tests {
@@ -40,6 +45,7 @@ mod tests {
             ("provision.rs", include_str!("provision.rs")),
             ("i18n.rs", include_str!("i18n.rs")),
             ("keys.rs", include_str!("keys.rs")),
+            ("update.rs", include_str!("update.rs")),
             ("providers/mod.rs", include_str!("providers/mod.rs")),
             ("providers/hetzner.rs", include_str!("providers/hetzner.rs")),
         ] {

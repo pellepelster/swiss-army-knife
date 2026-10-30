@@ -80,6 +80,6 @@ the directories and starts it again.
 ## Open Questions
 
 - The restore does not compare the version of the backup with the version of the backend yet
-  ([#128](https://github.com/pellepelster/swiss-army-knife/issues/128), after
-  [#127](https://github.com/pellepelster/swiss-army-knife/issues/127)).
+  ([#128](https://github.com/pellepelster/swiss-army-knife/issues/128)). The backup has the version of the server
+  that wrote it.
 - The window has no backup or restore yet.

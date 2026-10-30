@@ -734,6 +734,7 @@ impl Prepared {
             self.admin_email.as_deref().unwrap_or_default(),
             self.smtp.as_ref(),
             &self.admin_password_hash,
+            crate::core::VERSION,
         ) + &format!("\nacme_ca {}", self.acme_ca.as_str())
     }
 }
@@ -921,7 +922,9 @@ fn provisioning_status(
 }
 
 /// the values `ProvisionRun` gives the playbook to write onto the server; a change of one of them
-/// is a change of the configuration
+/// is a change of the configuration. The version is the one of the images the server runs, so a
+/// deploy with another version of sakctl provisions again
+#[allow(clippy::too_many_arguments)]
 fn config_text(
     name: &str,
     dns_mode: DnsMode,
@@ -930,9 +933,11 @@ fn config_text(
     admin_email: &str,
     smtp: Option<&Smtp>,
     admin_password_hash: &str,
+    version: &str,
 ) -> String {
     let mut lines = vec![
         format!("name {name}"),
+        format!("version {version}"),
         format!("dns_mode {dns_mode}"),
         format!("root_domain {root_domain}"),
         format!("api_public_key {api_public_key}"),
@@ -1472,7 +1477,9 @@ impl DeploymentManager {
             spec = spec.with_user_mode(user_mode.as_str());
         }
         if intent != Intent::Destroy {
-            spec = spec.with_acme_ca(acme_ca.as_str());
+            spec = spec
+                .with_acme_ca(acme_ca.as_str())
+                .with_version(crate::core::VERSION);
         }
         spec.user_data = user_data(&host_key);
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
@@ -2317,9 +2324,11 @@ mod tests {
             "admin@example.org",
             Some(&smtp),
             "$argon2id$hash",
+            "0.1.1",
         );
         for part in [
             "name alpha",
+            "version 0.1.1",
             "dns_mode domain",
             "root_domain pelle.io",
             "api_public_key abc",
@@ -2341,7 +2350,22 @@ mod tests {
                 "abc",
                 "",
                 None,
-                "$argon2id$hash"
+                "$argon2id$hash",
+                "0.1.1"
+            ),
+            text
+        );
+        // another version of sakctl: another configuration, the server is provisioned again
+        assert_ne!(
+            config_text(
+                "alpha",
+                DnsMode::Domain,
+                "pelle.io",
+                "abc",
+                "admin@example.org",
+                Some(&smtp),
+                "$argon2id$hash",
+                "0.1.2"
             ),
             text
         );

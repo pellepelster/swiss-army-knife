@@ -46,6 +46,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 - **One page at a time.** Each page has a header and, if needed, actions at the bottom. Buttons that move through
   the steps (next, back, cancel, plan, create) are at the bottom right. Buttons that act on the data of the page (add
   a provider, create a deployment) are at the top right of the header. One action of a page is the primary one.
+- **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an update.
+  The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs it.
 - **Start-up checks.** The splash screen runs the checks and has a Quit button. A failed check shows its reason in
   its own row, never in a dialog. Quit is then the only action left.
 - **A deployment and its page.** The list shows each deployment with its state and the link to its frontend; the
@@ -88,7 +90,7 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   domain) unless they are given; a default never changes a running deployment.
 - **Exit codes tell what happened.** Success, a general failure, wrong arguments, and each refusal that a script may
   want to handle (a root domain that is taken, mixed DNS modes, a resource that belongs to someone else, data that
-  would be lost) have a code of their own. `--help` lists them.
+  would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them.
 - **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color on a
   terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
   the plan found or a resource a destroy will remove.

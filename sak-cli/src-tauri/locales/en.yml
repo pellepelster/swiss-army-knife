@@ -29,6 +29,7 @@ cli:
   restore_confirm: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
   restore_not_confirmed: "Not confirmed, nothing was changed."
   restore_no_terminal: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
+  update_hint: "Run sakctl update to install it."
 shared:
   backup:
     no_home: "The home directory of the user is not known."
@@ -168,8 +169,27 @@ shared:
     created: "created"
     updated: "updated"
     destroyed: "destroyed"
+  update:
+    checking: "Asking %{receiver} for the newest release of sakctl…"
+    no_release: "This sakctl (%{version}) is no release, there is no version to compare it with."
+    up_to_date: "sakctl %{version} is up-to-date."
+    newer: "sakctl %{newest} is available, this is %{current}."
+    installing: "Downloading sakctl %{version} from %{receiver}…"
+    installed: "sakctl is updated from %{current} to %{newest}. Start sakctl again to use it."
+    unreachable: "%{url} could not be reached: %{error}"
+    failed: "%{url} answered %{status}."
+    not_https: "%{url} is no https address, sakctl asks github over https only."
+    unreadable: "The newest release on %{receiver} could not be read: %{error}"
+    no_asset: "The release %{version} has no %{name}."
+    checksum_mismatch: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
+    no_binary: "%{name} has no %{binary}, nothing was changed."
+    not_replaced: "sakctl at %{path} could not be replaced: %{error}"
 ui:
   quit: "Quit"
+  update:
+    version: "sakctl %{version}"
+    check: "Check for updates on %{receiver}"
+    install: "Update to %{version}"
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers SwissArmyKnife creates resources at."

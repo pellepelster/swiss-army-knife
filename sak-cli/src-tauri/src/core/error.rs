@@ -22,6 +22,8 @@ pub const EXIT_NOT_OWNED: i32 = 5;
 /// a resource that must stay (the data volume, a primary ip) would have to be created anew and
 /// lose what it holds; nothing was changed
 pub const EXIT_RECREATE_REFUSED: i32 = 6;
+/// `sakctl update --check`: a newer release of sakctl exists
+pub const EXIT_UPDATE_AVAILABLE: i32 = 7;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WizardError {

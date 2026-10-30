@@ -1,6 +1,9 @@
 ---
-# the backend, pulled on every run: CI pushes it from main
-backend_image: ghcr.io/pellepelster/sak-backend:latest
+# the version of sak the server runs, the tag of its images; sakctl sets its own version in the
+# inventory of the run, so a server runs the version of the sakctl that deployed it
+sak_version: latest
+# the backend, pulled on every run: a release pushes it as its version
+backend_image: "ghcr.io/pellepelster/sak-backend:{{ sak_version }}"
 # path the data volume is mounted at, the same default as the storage role
 sak_mount_dir: /storage/data
 # everything of the deployment lives below this path on the data volume
@@ -47,7 +50,7 @@ backend_group: sak
 backend_uid: 10000
 backend_gid: 10000
 # the ingress (caddy), pulled on every run like the backend
-backend_ingress_image: ghcr.io/pellepelster/sak-ingress:latest
+backend_ingress_image: "ghcr.io/pellepelster/sak-ingress:{{ sak_version }}"
 # caddy keeps its certificates and acme state here
 backend_ingress_data_path: "{{ sak_data_dir }}/ingress"
 # victorialogs keeps the ingress access logs the console computes the metrics of the sites

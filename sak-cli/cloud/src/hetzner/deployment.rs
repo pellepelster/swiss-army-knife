@@ -18,7 +18,7 @@ use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyR
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeLookup, HetznerVolumeRuntime};
 use crate::hetzner::{
     ACME_CA_LABEL, DNS_MODE_LABEL, NAME_LABEL, PASSWORD_HASH_LABEL, ROOT_DOMAIN_LABEL,
-    USER_DATA_LABEL, USER_MODE_LABEL,
+    USER_DATA_LABEL, USER_MODE_LABEL, VERSION_LABEL,
 };
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
@@ -67,6 +67,11 @@ impl DiscoveredDeployment {
     /// the acme ca on its resources, `staging`; none for the default
     pub fn acme_ca(&self) -> Option<String> {
         self.label(ACME_CA_LABEL).cloned()
+    }
+
+    /// the version of sak that last created or deployed it, as its resources tell
+    pub fn version(&self) -> Option<String> {
+        self.label(VERSION_LABEL).cloned()
     }
 
     /// the url of its frontend, `https://sak.<base domain>`; none without a root domain on its
@@ -750,6 +755,8 @@ pub struct DeploymentSpec {
     pub user_mode: Option<String>,
     /// on every resource, the acme ca of the certificates (`staging`); none for the default
     pub acme_ca: Option<String>,
+    /// on every resource, the version of sak that creates or deploys it; none for a destroy
+    pub version: Option<String>,
     /// on every resource; sakctl checks a password against it
     pub password_hash: Option<String>,
     /// on every resource, with the name label
@@ -779,6 +786,7 @@ impl DeploymentSpec {
             root_domain: None,
             user_mode: None,
             acme_ca: None,
+            version: None,
             password_hash: None,
             labels: Labels::new(),
             user_data_hash: None,
@@ -786,8 +794,8 @@ impl DeploymentSpec {
     }
 
     /// the spec of a deployment, as far as its resources tell: its key, location, server type,
-    /// image, volume size, user data hash, and the dns mode, root domain, user mode, acme ca and
-    /// password hash on its labels. The rest has the default of a new deployment
+    /// image, volume size, user data hash, and the dns mode, root domain, user mode, acme ca,
+    /// version and password hash on its labels. The rest has the default of a new deployment
     pub fn declared_by(deployment: &DiscoveredDeployment) -> Result<Self> {
         let server = deployment.server.as_ref();
         let location = deployment
@@ -812,6 +820,7 @@ impl DeploymentSpec {
         }
         spec.user_mode = deployment.user_mode();
         spec.acme_ca = deployment.acme_ca();
+        spec.version = deployment.version();
         if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
             spec = spec.with_password_hash(hash);
         }
@@ -843,6 +852,11 @@ impl DeploymentSpec {
         self
     }
 
+    pub fn with_version(mut self, version: &str) -> Self {
+        self.version = Some(version.to_string());
+        self
+    }
+
     pub fn with_user_mode(mut self, user_mode: &str) -> Self {
         self.user_mode = Some(user_mode.to_string());
         self
@@ -866,8 +880,8 @@ impl DeploymentSpec {
     }
 
     /// the labels of a resource: those of `labels()`, the dns mode, the user mode, the acme ca,
-    /// the root domain and the password hash. The firewall selects its servers by `labels()`
-    /// alone
+    /// the version, the root domain and the password hash. The firewall selects its servers by
+    /// `labels()` alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
@@ -876,6 +890,9 @@ impl DeploymentSpec {
         }
         if let Some(acme_ca) = &self.acme_ca {
             labels.insert(ACME_CA_LABEL.to_string(), acme_ca.clone());
+        }
+        if let Some(version) = &self.version {
+            labels.insert(VERSION_LABEL.to_string(), version.clone());
         }
         if let Some(root_domain) = &self.root_domain {
             labels.insert(ROOT_DOMAIN_LABEL.to_string(), root_domain.clone());
@@ -1603,6 +1620,48 @@ mod tests {
         .unwrap();
         deployment.ssh_key = Some(key.into());
         assert_eq!(deployment.root_domain().as_deref(), Some("pelle.io"));
+    }
+
+    #[test]
+    fn the_version_is_on_every_resource_and_read_back_from_them() {
+        let spec = DeploymentSpec::new(
+            "alpha",
+            "ssh-ed25519 AAAA",
+            Location::hel1,
+            ServerType::cx23,
+        )
+        .unwrap()
+        .with_root_domain("pelle.io")
+        .with_version("0.1.1");
+        let records = spec.dns_records();
+        assert!(!records.is_empty());
+        for labels in [
+            spec.ssh_key().labels,
+            spec.data_volume().labels,
+            spec.ipv4().labels,
+            spec.ipv6().labels,
+            spec.firewall().labels,
+            spec.server().labels,
+        ]
+        .into_iter()
+        .chain(records.into_iter().map(|record| record.labels))
+        {
+            assert_eq!(labels[VERSION_LABEL], "0.1.1");
+        }
+        // a destroy declares no version
+        let without = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
+        assert_eq!(without.server().labels.get(VERSION_LABEL), None);
+
+        let mut deployment = DiscoveredDeployment::new("alpha");
+        assert_eq!(deployment.version(), None);
+        let key: crate::hetzner::api::ssh_keys::SshKey = serde_json::from_value(key(
+            7,
+            "alpha",
+            json!({ NAME_LABEL: "alpha", VERSION_LABEL: "0.1.1" }),
+        ))
+        .unwrap();
+        deployment.ssh_key = Some(key.into());
+        assert_eq!(deployment.version().as_deref(), Some("0.1.1"));
     }
 
     fn spec(dns_mode: DnsMode) -> DeploymentSpec {

@@ -22,7 +22,7 @@ program.
 
 ## Download
 
-sakctl is built for each change on the main branch, and published on the
+sakctl is built for each release, and published on the
 [release page](https://github.com/pellepelster/swiss-army-knife/releases) of the repository. The commands below
 download the program of your system, check its SHA-256 checksum and extract it. When the checksum does not match,
 the commands stop: do not use the file.
@@ -63,6 +63,15 @@ Click **More info**, then **Run anyway**.
 
 On Windows, use the window: the command line of `sakctl.exe` does not show its output. The window needs the Microsoft
 Edge WebView2 runtime, which Windows 10 and 11 have.
+
+## Update
+
+sakctl does not look for updates on its own. To update it, click **Check for updates on github.com** in the footer
+of the window, then **Update to** the new version. On the command line, `sakctl update` does the same, and
+`sakctl update --check` only shows if a new version is available. sakctl asks GitHub for the newest release, checks
+the SHA-256 checksum of the download and replaces itself. Start sakctl again to use the new version.
+
+A deploy with the new version also updates the server of the deployment to it.
 
 ## The first start
 

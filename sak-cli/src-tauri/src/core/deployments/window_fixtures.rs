@@ -381,6 +381,7 @@ fn window_fixtures() {
             "open_url": [null],
             "quit": [null],
             "run_checks": [null],
+            "version": [crate::gui::update::version()],
         },
         // the events a command sends to its channel before it answers
         "channels": {

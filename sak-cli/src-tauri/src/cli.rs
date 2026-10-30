@@ -1,5 +1,5 @@
 //! The command line of sakctl. A command as the first argument (`list`, `create`, `deploy`,
-//! `destroy`, `config`, `ssh`, `backup`, `restore`) runs without a window, on the same core and texts as the window. This file
+//! `destroy`, `config`, `ssh`, `backup`, `restore`, `update`) runs without a window, on the same core and texts as the window. This file
 //! only parses the arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
 //! (`--hcloud-token`). The name and the location of a deployment come from the argument or from
 //! SAK_NAME and SAK_LOCATION. The password comes from SAK_PASSWORD or is typed (`--password`),
@@ -16,8 +16,9 @@ use crate::core::deployments::{
     SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE,
     UserMode, applied_key, complete, destroyed_key, key, parse_flag, resource_status,
 };
-use crate::core::error::{EXIT_OK, EXIT_USAGE, WizardError};
+use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
+use crate::core::update::{self, RECEIVER, Status};
 use anstyle::{AnsiColor, Style};
 use clap::{Args, Parser, Subcommand};
 use rust_i18n::t;
@@ -38,14 +39,15 @@ const EXIT_CODES: &str = "Exit codes:
   5  A resource of a name the deployment uses belongs to someone else: it lacks the label
      sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.
   6  The data volume or a primary IP would have to be created anew, which would remove its
-     data or address. Nothing was changed.";
+     data or address. Nothing was changed.
+  7  update --check: a newer release of sakctl exists.";
 
 /// SwissArmyKnife: list, create, deploy and destroy the deployments of a Hetzner Cloud project,
 /// and show their running configuration. Without a command the window opens.
 #[derive(Parser, Debug)]
 #[command(
     name = "sakctl",
-    version,
+    version = crate::core::VERSION,
     disable_help_subcommand = true,
     after_help = EXIT_CODES
 )]
@@ -140,6 +142,14 @@ pub enum Command {
         /// Delete the data volume too, with everything stored on it
         #[arg(long)]
         delete_data: bool,
+    },
+    /// Update sakctl to the newest release on github.com: it asks github.com for the newest
+    /// release and, when it is newer, replaces this sakctl with it after checking its sha-256
+    #[command(after_help = EXIT_CODES)]
+    Update {
+        /// Only compare this sakctl with the newest release, exit code 7 when a newer one exists
+        #[arg(long)]
+        check: bool,
     },
 }
 
@@ -278,6 +288,7 @@ pub fn is_command_line(args: &[String]) -> bool {
                 | "ssh"
                 | "backup"
                 | "restore"
+                | "update"
                 | "--help"
                 | "-h"
                 | "--version"
@@ -290,8 +301,13 @@ pub fn is_command_line(args: &[String]) -> bool {
 pub fn run(command: Command) -> i32 {
     // ctrl+c stops a provisioning and removes the files of its run
     crate::core::provision::stop_runs_on_signal();
-    match tauri::async_runtime::block_on(execute(command)) {
-        Ok(()) => EXIT_OK,
+    // an update needs neither a token nor the checks
+    let result = match command {
+        Command::Update { check } => tauri::async_runtime::block_on(update(check)),
+        command => tauri::async_runtime::block_on(execute(command)).map(|()| EXIT_OK),
+    };
+    match result {
+        Ok(code) => code,
         Err(error) => {
             log(Level::Error, &error.message);
             error.exit_code
@@ -413,6 +429,39 @@ impl DeploymentArgs {
     }
 }
 
+/// compares sakctl with the newest release on github.com and, unless `check`, installs a newer one.
+/// With `check` a newer release ends with `EXIT_UPDATE_AVAILABLE`
+async fn update(check: bool) -> Result<i32, WizardError> {
+    if !update::is_release() {
+        log(Level::Info, Status::NoRelease.message());
+        return Ok(EXIT_OK);
+    }
+    log(
+        Level::Info,
+        t!("shared.update.checking", receiver = RECEIVER),
+    );
+    let status = update::check().await?;
+    log(Level::Info, status.message());
+    let Status::Newer { newest, .. } = status else {
+        return Ok(EXIT_OK);
+    };
+    if check {
+        log(Level::Info, t!("cli.update_hint"));
+        return Ok(EXIT_UPDATE_AVAILABLE);
+    }
+    log(
+        Level::Info,
+        t!(
+            "shared.update.installing",
+            version = newest,
+            receiver = RECEIVER
+        ),
+    );
+    let installed = update::install().await?;
+    log(Level::Info, installed.installed_message());
+    Ok(EXIT_OK)
+}
+
 /// the checks the window runs on startup, each one logged; the token checked is the one of the
 /// command
 async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
@@ -464,7 +513,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
     let manager = DeploymentManager;
     // asked before the checks, because they take some time
     let password = match &command {
-        Command::List(_) => None,
+        Command::List(_) | Command::Update { .. } => None,
         Command::Create { deployment, .. } => {
             Some(password(deployment.password, true, password_variable())?)
         }
@@ -494,10 +543,12 @@ async fn execute(command: Command) -> Result<(), WizardError> {
         | Command::Ssh { provider, .. }
         | Command::Backup { provider, .. }
         | Command::Restore { provider, .. } => provider,
+        Command::Update { .. } => unreachable!("run() updates without the checks"),
     };
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
     match command {
+        Command::Update { .. } => unreachable!("run() updates without the checks"),
         Command::List(_) => list(&manager, &token).await,
         Command::Config(ConfigCommand::Show { name, .. }) => {
             show_config(&manager, &token, &name, &password.0).await
@@ -1003,7 +1054,7 @@ mod tests {
     use super::*;
     use crate::core::error::{
         EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED,
-        EXIT_RECREATE_REFUSED, EXIT_USAGE,
+        EXIT_RECREATE_REFUSED, EXIT_UPDATE_AVAILABLE, EXIT_USAGE,
     };
 
     fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
@@ -1040,6 +1091,7 @@ mod tests {
             EXIT_MIXED_DNS_MODES,
             EXIT_NOT_OWNED,
             EXIT_RECREATE_REFUSED,
+            EXIT_UPDATE_AVAILABLE,
         ] {
             assert!(EXIT_CODES.contains(&format!("\n  {code}  ")), "{code}");
         }

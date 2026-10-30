@@ -329,5 +329,12 @@
         </div>
       </form>
     </dialog>
+    <!-- below every view: the version of sakctl and its update, github is asked on a click only -->
+    <footer class="app-footer">
+      <span id="update-version"></span>
+      <button type="button" class="btn btn-link btn-sm" id="update-check"></button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="update-install" hidden></button>
+      <span class="hint" id="update-status" aria-live="polite"></span>
+    </footer>
   </body>
 </html>

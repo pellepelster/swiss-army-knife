@@ -29,6 +29,7 @@ cli:
   restore_confirm: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
   restore_not_confirmed: "Nicht bestätigt, nichts wurde geändert."
   restore_no_terminal: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
+  update_hint: "sakctl update installiert es."
 shared:
   backup:
     no_home: "Das Home-Verzeichnis des Benutzers ist nicht bekannt."
@@ -168,8 +169,27 @@ shared:
     created: "erstellt"
     updated: "aktualisiert"
     destroyed: "zerstört"
+  update:
+    checking: "Frage %{receiver} nach dem neuesten Release von sakctl…"
+    no_release: "Dieses sakctl (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+    up_to_date: "sakctl %{version} ist aktuell."
+    newer: "sakctl %{newest} ist verfügbar, dies ist %{current}."
+    installing: "Lade sakctl %{version} von %{receiver}…"
+    installed: "sakctl ist von %{current} auf %{newest} aktualisiert. Starte sakctl erneut, um es zu verwenden."
+    unreachable: "%{url} ist nicht erreichbar: %{error}"
+    failed: "%{url} hat %{status} geantwortet."
+    not_https: "%{url} ist keine https-Adresse, sakctl fragt github nur über https."
+    unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
+    no_asset: "Das Release %{version} hat kein %{name}."
+    checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+    no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
+    not_replaced: "sakctl unter %{path} konnte nicht ersetzt werden: %{error}"
 ui:
   quit: "Beenden"
+  update:
+    version: "sakctl %{version}"
+    check: "Auf %{receiver} nach Updates suchen"
+    install: "Auf %{version} aktualisieren"
   providers:
     title: "Provider-Tokens"
     empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen SwissArmyKnife Ressourcen erstellt."

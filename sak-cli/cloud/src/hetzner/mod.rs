@@ -38,6 +38,10 @@ pub const USER_MODE_LABEL: &str = "sak.pelle.io/user-mode";
 /// encrypt (tests), none for the default. On every resource of it; a deploy keeps it
 pub const ACME_CA_LABEL: &str = "sak.pelle.io/acme-ca";
 
+/// the version of sak that last created or deployed a deployment, `0.1.1`, on every resource of
+/// it
+pub const VERSION_LABEL: &str = "sak.pelle.io/version";
+
 /// the root domain of a deployment, `pelle.io`, on every resource of it
 pub const ROOT_DOMAIN_LABEL: &str = "sak.pelle.io/root-domain";
 
