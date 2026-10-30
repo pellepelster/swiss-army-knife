@@ -188,7 +188,7 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
             ..ResourceDiff::new(resource, DiffStatus::HasChanges)
         };
         // a server or volume that changes in the plan, or changed in the apply of this run, runs
-        // the roles again, whatever the markers say
+        // the roles again, whatever the markers say; a change of its labels only does not
         let server_changes = [
             resource.server.resource_ref(),
             resource.volume.resource_ref(),

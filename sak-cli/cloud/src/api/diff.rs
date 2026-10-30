@@ -22,6 +22,8 @@ pub struct DiffItem {
     pub kind: ChangeKind,
     pub expected: Option<String>,
     pub actual: Option<String>,
+    /// a label of the resource, which no dependent reads
+    pub label: bool,
 }
 
 impl DiffItem {
@@ -31,6 +33,7 @@ impl DiffItem {
             kind,
             expected: None,
             actual: None,
+            label: false,
         }
     }
 
@@ -73,6 +76,12 @@ impl DiffItem {
     /// something the runtime has that is not declared
     pub fn removed(name: impl Into<String>) -> Self {
         DiffItem::new(name, ChangeKind::Removed)
+    }
+
+    /// the difference is in a label of the resource
+    pub fn of_label(mut self) -> Self {
+        self.label = true;
+        self
     }
 
     pub fn with_actual(mut self, actual: Option<impl ToString>) -> Self {
@@ -173,6 +182,18 @@ impl ResourceDiff {
     pub fn has_changes(&self) -> bool {
         !self.changes.is_empty()
     }
+
+    /// whether the change alters what a dependent reads of the resource: a create, a recreate,
+    /// a changed value. A change of labels only does not
+    pub fn changes_what_dependents_read(&self) -> bool {
+        match self.status {
+            DiffStatus::UpToDate => false,
+            DiffStatus::HasChanges => {
+                self.changes.is_empty() || self.changes.iter().any(|change| !change.label)
+            }
+            DiffStatus::Missing | DiffStatus::ParentMissing | DiffStatus::Duplicate => true,
+        }
+    }
 }
 
 impl fmt::Display for ResourceDiff {
@@ -238,17 +259,18 @@ pub fn label_diff(
 
     let missing = compared()
         .filter(|(key, _)| !live.contains_key(*key))
-        .map(|(key, _)| DiffItem::missing(format!("label '{key}'")));
+        .map(|(key, _)| DiffItem::missing(format!("label '{key}'")).of_label());
 
     let changed = compared().filter_map(|(key, value)| {
         let actual = live.get(key)?;
-        (actual != value).then(|| DiffItem::changed(format!("label '{key}'"), value, actual))
+        (actual != value)
+            .then(|| DiffItem::changed(format!("label '{key}'"), value, actual).of_label())
     });
 
     let removed = live
         .keys()
         .filter(|key| !ignored(key) && !declared.contains_key(*key))
-        .map(|key| DiffItem::removed(format!("label '{key}'")));
+        .map(|key| DiffItem::removed(format!("label '{key}'")).of_label());
 
     missing.chain(changed).chain(removed).collect()
 }
@@ -274,9 +296,9 @@ mod tests {
         assert_eq!(
             diff,
             vec![
-                DiffItem::missing("label 'a'"),
-                DiffItem::changed("label 'b'", "2", "changed"),
-                DiffItem::removed("label 'd'"),
+                DiffItem::missing("label 'a'").of_label(),
+                DiffItem::changed("label 'b'", "2", "changed").of_label(),
+                DiffItem::removed("label 'd'").of_label(),
             ]
         );
         assert_eq!(diff[0].log_text(), "label 'a' is missing");
@@ -344,6 +366,38 @@ mod tests {
              duplicate resources:\n    - thing 'd': another key has its fingerprint\n\
              up to date resources:\n    - thing 'e'\n"
         );
+    }
+
+    #[test]
+    fn a_change_of_labels_only_changes_nothing_a_dependent_reads() {
+        let diff = |status: DiffStatus, changes: Vec<DiffItem>| ResourceDiff {
+            resource: ResourceRef {
+                type_id: std::any::TypeId::of::<()>(),
+                name: "a".to_string(),
+                log_text: "thing 'a'".to_string(),
+            },
+            status,
+            changes,
+            duplicate_message: None,
+        };
+        let label = DiffItem::changed("label 'b'", "2", "1").of_label();
+
+        assert!(!diff(DiffStatus::HasChanges, vec![label.clone()]).changes_what_dependents_read());
+        assert!(!diff(DiffStatus::UpToDate, Vec::new()).changes_what_dependents_read());
+        for changes in [
+            vec![label.clone(), DiffItem::changed("ttl", 60, 300)],
+            vec![DiffItem::recreate("fingerprint", "aa", "bb")],
+            Vec::new(),
+        ] {
+            assert!(diff(DiffStatus::HasChanges, changes).changes_what_dependents_read());
+        }
+        for status in [
+            DiffStatus::Missing,
+            DiffStatus::ParentMissing,
+            DiffStatus::Duplicate,
+        ] {
+            assert!(diff(status, Vec::new()).changes_what_dependents_read());
+        }
     }
 
     #[test]

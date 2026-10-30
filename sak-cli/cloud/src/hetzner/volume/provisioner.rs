@@ -207,11 +207,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             diff.changes,
-            vec![DiffItem::changed(
-                format!("label '{NAME_LABEL}'"),
-                "alpha",
-                "beta"
-            )]
+            vec![DiffItem::changed(format!("label '{NAME_LABEL}'"), "alpha", "beta").of_label()]
         );
     }
 
@@ -253,7 +249,7 @@ mod tests {
                 DiffItem::recreate("location", "hel1", "nbg1"),
                 DiffItem::recreate("size", "32", "16"),
                 DiffItem::changed("delete protection", "false", "true"),
-                DiffItem::missing("label 'app'"),
+                DiffItem::missing("label 'app'").of_label(),
             ]
         );
     }

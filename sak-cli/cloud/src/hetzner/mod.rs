@@ -128,11 +128,10 @@ mod label_kind_tests {
         let other = live(&[(NAME_LABEL, "alpha"), (DNS_MODE_LABEL, "subdomain")]);
         assert_eq!(
             hetzner_label_diff(&resource, &other),
-            vec![DiffItem::changed(
-                format!("label '{DNS_MODE_LABEL}'"),
-                "domain",
-                "subdomain"
-            )]
+            vec![
+                DiffItem::changed(format!("label '{DNS_MODE_LABEL}'"), "domain", "subdomain")
+                    .of_label()
+            ]
         );
     }
 }

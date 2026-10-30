@@ -717,6 +717,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_ssh_key_whose_labels_change_is_no_recreate_of_the_server() {
+        let (_server, api) = mock(vec![server(
+            "backend",
+            "debian-13",
+            vec![3],
+            None,
+            created_labels(&[("app", "sak")]),
+        )])
+        .await;
+        // the key of the fingerprint, without the label it is declared with
+        let key = crate::hetzner::ssh_key::HetznerSshKey::new(
+            "admin",
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE+u0dEVRZDzzp4E1teCqF49r8ig3YEk8eaPqNWfDcPb pelle@fry",
+        )
+        .with_labels(labels(&[("app", "sak")]));
+        let registry = crate::providers::hetzner::HetznerProviderRuntime::from_api(api)
+            .registry()
+            .with(key)
+            .unwrap()
+            .with(resource())
+            .unwrap();
+
+        let diffs = registry.diff_all().await.unwrap();
+
+        let statuses: Vec<(&str, DiffStatus)> = diffs
+            .iter()
+            .map(|diff| (diff.resource.name.as_str(), diff.status))
+            .collect();
+        assert_eq!(
+            statuses,
+            vec![
+                ("admin", DiffStatus::HasChanges),
+                ("backend", DiffStatus::UpToDate)
+            ]
+        );
+    }
+
+    #[tokio::test]
     async fn a_missing_dependency_is_an_error() {
         let (_server, api) = mock(vec![]).await;
         let resource = resource().with_ssh_keys(vec![HetznerSshKeyLookup::new("nobody")]);

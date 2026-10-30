@@ -275,9 +275,10 @@ impl Registry {
     }
 
     /// the diff of every resource, dependencies first. A resource with a missing dependency is
-    /// `ParentMissing`. A resource sees each dependency that is not up to date as pending. The
-    /// plan is the gate of the apply: a duplicate, a recreate the registry may not do and a
-    /// resource of someone else fail here, before anything changes
+    /// `ParentMissing`. A resource sees each dependency as pending whose change alters what it
+    /// reads, not one that changes only its labels. The plan is the gate of the apply: a
+    /// duplicate, a recreate the registry may not do and a resource of someone else fail here,
+    /// before anything changes
     pub async fn diff_all(&self) -> Result<Vec<ResourceDiff>> {
         Ok(self
             .plan(Gate::Apply)
@@ -332,7 +333,7 @@ impl Registry {
             if gate == Gate::Apply {
                 self.refuse(resource, &diff).await?;
             }
-            if diff.status != DiffStatus::UpToDate {
+            if diff.changes_what_dependents_read() {
                 run.mark_pending(reference);
             }
             diffs.push((index, diff));
@@ -440,8 +441,10 @@ impl Registry {
             };
             if applied != Applied::Unchanged {
                 changed.insert(reference.clone());
-                // what depends on it and is diffed again sees it
-                run.mark_applied(reference.clone());
+                // what depends on it and is diffed again sees it, unless only its labels changed
+                if diff.changes_what_dependents_read() {
+                    run.mark_applied(reference.clone());
+                }
             }
             let result = ApplyResult {
                 resource: reference,
@@ -626,6 +629,8 @@ mod tests {
         name: String,
         version: u32,
         strict: bool,
+        /// its version is a label: a change of it changes nothing a dependent reads
+        labeled: bool,
         depends_on: Vec<ThingLookup>,
     }
 
@@ -634,6 +639,7 @@ mod tests {
             name: name.to_string(),
             version,
             strict: false,
+            labeled: false,
             depends_on: depends_on
                 .iter()
                 .map(|name| ThingLookup(name.to_string()))
@@ -721,6 +727,9 @@ mod tests {
             if runtime.version != resource.version {
                 changes.push(if resource.strict {
                     DiffItem::recreate("version", resource.version, runtime.version)
+                } else if resource.labeled {
+                    DiffItem::changed("label 'version'", resource.version, runtime.version)
+                        .of_label()
                 } else {
                     DiffItem::changed("version", resource.version, runtime.version)
                 });
@@ -859,6 +868,44 @@ mod tests {
             ]
         );
         assert!(log(&cloud).contains(&"diff server pending [\"key\"]".to_string()));
+    }
+
+    #[tokio::test]
+    async fn a_dependency_that_changes_only_its_labels_is_neither_pending_nor_applied() {
+        let cloud = Arc::new(Cloud::default());
+        for name in ["key", "server"] {
+            cloud
+                .existing
+                .lock()
+                .unwrap()
+                .insert(name.to_string(), (1, owner()));
+        }
+        let key = Thing {
+            labeled: true,
+            ..thing("key", 2, &[])
+        };
+        let registry = registry(&cloud)
+            .with(key)
+            .unwrap()
+            .with(thing("server", 1, &["key"]))
+            .unwrap();
+
+        let diffs = registry.diff_all().await.unwrap();
+        assert_eq!(diffs[1].status, DiffStatus::UpToDate);
+        assert!(log(&cloud).contains(&"diff server pending []".to_string()));
+
+        let results = registry.apply_all().await.unwrap();
+        let applied: Vec<Applied> = results.iter().map(|result| result.applied).collect();
+        assert_eq!(applied, vec![Applied::Updated, Applied::Unchanged]);
+        assert_eq!(
+            log(&cloud),
+            vec![
+                "diff key pending []",
+                "diff server pending []",
+                "apply key",
+                "diff server pending []"
+            ]
+        );
     }
 
     #[tokio::test]

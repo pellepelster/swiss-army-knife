@@ -44,14 +44,15 @@ impl<C: LookupContext + ?Sized> LookupContextExt for C {
     }
 }
 
-/// the context of a diff: the lookups, and which resources diffed before this one are not up
-/// to date. A dependent resource then reports their values as known after the apply. While the
-/// registry applies, nothing is pending; it tells which resources it applied with a change
+/// the context of a diff: the lookups, and which resources diffed before this one change what
+/// their dependents read: a create, a recreate, a changed value, not a change of labels only. A
+/// dependent resource then reports their values as known after the apply. While the registry
+/// applies, nothing is pending; it tells which resources it applied with such a change
 pub trait DiffContext: LookupContext {
     fn has_pending_change(&self, resource: &ResourceRef) -> bool;
 
-    /// whether the apply of this run created, updated or recreated `resource`; never outside an
-    /// apply
+    /// whether the apply of this run created or recreated `resource`, or updated more than its
+    /// labels; never outside an apply
     fn applied_with_change(&self, _resource: &ResourceRef) -> bool {
         false
     }

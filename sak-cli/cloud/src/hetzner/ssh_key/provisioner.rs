@@ -206,7 +206,7 @@ mod tests {
             diff.changes,
             vec![
                 DiffItem::recreate("fingerprint", FINGERPRINT, "aa:bb"),
-                DiffItem::changed("label 'app'", "sak", "old")
+                DiffItem::changed("label 'app'", "sak", "old").of_label()
             ]
         );
     }
