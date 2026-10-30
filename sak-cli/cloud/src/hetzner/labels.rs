@@ -5,11 +5,13 @@ use sha2::{Digest, Sha256};
 /// separates a key from the index of a chunk: `key_0`, `key_1`
 const DELIMITER: char = '_';
 
-/// the length of a chunk; a hetzner label value has at most 63 characters, a value of this
-/// length or longer is chunked
-const MAX_VALUE_LENGTH: usize = 62;
+/// a hetzner label value has at most 63 characters; a longer value is chunked
+const MAX_VALUE_LENGTH: usize = 63;
 
-const MAX_TOTAL_VALUE_LENGTH: usize = MAX_VALUE_LENGTH * 2;
+/// the length of a chunk, as the labels chunked so far have it
+const CHUNK_LENGTH: usize = 62;
+
+const MAX_TOTAL_VALUE_LENGTH: usize = CHUNK_LENGTH * 2;
 
 pub fn sha256_hex(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
@@ -99,8 +101,8 @@ impl HetznerLabels {
             )));
         }
 
-        if value.len() >= MAX_VALUE_LENGTH {
-            let chunks = value.as_bytes().chunks(MAX_VALUE_LENGTH).enumerate();
+        if value.len() > MAX_VALUE_LENGTH {
+            let chunks = value.as_bytes().chunks(CHUNK_LENGTH).enumerate();
             for (index, chunk) in chunks {
                 let chunk = std::str::from_utf8(chunk).map_err(|_| {
                     Error::InvalidLabel(format!("the value of '{key}' is not ascii"))
@@ -212,6 +214,21 @@ mod tests {
         assert_eq!(labels.labels()["label1"], "A".repeat(124));
         assert_eq!(labels.raw()["label1_0"], "A".repeat(62));
         assert_eq!(labels.raw()["label1_1"], "A".repeat(62));
+    }
+
+    #[test]
+    fn a_value_of_63_characters_is_one_label_and_a_chunked_one_reads_back() {
+        let mut labels = HetznerLabels::new();
+        labels.add("label1", &"A".repeat(63)).unwrap();
+        labels.add("label2", &"A".repeat(64)).unwrap();
+
+        assert_eq!(labels.raw()["label1"], "A".repeat(63));
+        assert_eq!(labels.raw()["label2_0"], "A".repeat(62));
+        assert_eq!(labels.raw()["label2_1"], "AA");
+        // a 62 character value chunked before
+        let chunked =
+            HetznerLabels::from_raw(Labels::from([("label3_0".to_string(), "A".repeat(62))]));
+        assert_eq!(chunked.labels()["label3"], "A".repeat(62));
     }
 
     #[test]

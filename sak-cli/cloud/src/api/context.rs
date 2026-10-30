@@ -117,11 +117,12 @@ impl LookupProviders {
         self
     }
 
-    pub fn mark_pending(&mut self, resource: ResourceRef) {
+    /// only the registry marks what is pending, as it diffs
+    pub(crate) fn mark_pending(&mut self, resource: ResourceRef) {
         self.pending.insert(resource);
     }
 
-    pub fn clear_pending(&mut self) {
+    pub(crate) fn clear_pending(&mut self) {
         self.pending.clear();
     }
 }

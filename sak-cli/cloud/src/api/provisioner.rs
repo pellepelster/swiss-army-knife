@@ -12,12 +12,6 @@ pub trait LookupProvider<L: Lookup>: Send + Sync {
     async fn lookup(&self, lookup: &L, context: &dyn LookupContext) -> Result<Option<L::Runtime>>;
 }
 
-/// lists every resource of one type at the provider as lookups
-#[async_trait]
-pub trait Listable<L: Lookup>: Send + Sync {
-    async fn list(&self) -> Result<Vec<L>>;
-}
-
 /// reconciles resources of one type: `diff` tells what `apply` would do, `apply` creates a
 /// missing resource and updates what it can update in place, `destroy` removes it
 #[async_trait]

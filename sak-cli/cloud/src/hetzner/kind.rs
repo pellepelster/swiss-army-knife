@@ -4,7 +4,7 @@
 
 use crate::api::identity;
 use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labeled, Listable, LookupContext,
+    ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labeled, LookupContext,
     LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
 use crate::hetzner::hetzner_label_diff;
@@ -21,9 +21,6 @@ pub trait HetznerKind: Send + Sync + 'static {
 
     /// the resource of the name as the api has it, before the identity check
     async fn fetch(&self, name: &str) -> Result<Option<Self::Runtime>>;
-
-    /// the names of every resource of the kind
-    async fn names(&self) -> Result<Vec<String>>;
 
     /// what differs besides the labels; the blanket impl adds the label diff
     fn compare(&self, resource: &Self::Resource, runtime: &Self::Runtime) -> Result<Vec<DiffItem>>;
@@ -77,18 +74,6 @@ impl<K: HetznerKind> LookupProvider<NamedLookup<K::Runtime>> for K {
         _: &dyn LookupContext,
     ) -> Result<Option<K::Runtime>> {
         find(self, lookup).await
-    }
-}
-
-#[async_trait]
-impl<K: HetznerKind> Listable<NamedLookup<K::Runtime>> for K {
-    async fn list(&self) -> Result<Vec<NamedLookup<K::Runtime>>> {
-        Ok(self
-            .names()
-            .await?
-            .iter()
-            .map(|name| NamedLookup::new(name))
-            .collect())
     }
 }
 

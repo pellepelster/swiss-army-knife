@@ -234,31 +234,21 @@ pub fn label_diff(
     live: &Labels,
     ignored: impl Fn(&str) -> bool,
 ) -> Vec<DiffItem> {
-    let ignored = |key: &String| ignored(key);
-    let declared: Vec<(&String, &String)> =
-        declared.iter().filter(|(key, _)| !ignored(key)).collect();
-    let live: Vec<(&String, &String)> = live.iter().filter(|(key, _)| !ignored(key)).collect();
+    let compared = || declared.iter().filter(|(key, _)| !ignored(key));
 
-    let live_value = |key: &String| {
-        live.iter()
-            .find(|(live_key, _)| *live_key == key)
-            .map(|(_, value)| *value)
-    };
-
-    let missing = declared
-        .iter()
-        .filter(|(key, _)| live_value(key).is_none())
+    let missing = compared()
+        .filter(|(key, _)| !live.contains_key(*key))
         .map(|(key, _)| DiffItem::missing(format!("label '{key}'")));
 
-    let changed = declared.iter().filter_map(|(key, value)| {
-        let actual = live_value(key)?;
-        (actual != *value).then(|| DiffItem::changed(format!("label '{key}'"), value, actual))
+    let changed = compared().filter_map(|(key, value)| {
+        let actual = live.get(key)?;
+        (actual != value).then(|| DiffItem::changed(format!("label '{key}'"), value, actual))
     });
 
     let removed = live
-        .iter()
-        .filter(|(key, _)| !declared.iter().any(|(declared_key, _)| declared_key == key))
-        .map(|(key, _)| DiffItem::removed(format!("label '{key}'")));
+        .keys()
+        .filter(|key| !ignored(key) && !declared.contains_key(*key))
+        .map(|key| DiffItem::removed(format!("label '{key}'")));
 
     missing.chain(changed).chain(removed).collect()
 }

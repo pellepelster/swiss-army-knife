@@ -1,6 +1,6 @@
 use crate::api::{DiffItem, Labeled, Resource, Result};
+use crate::hetzner::api::HetznerApi;
 use crate::hetzner::api::primary_ips::{PrimaryIpCreate, PrimaryIpUpdate};
-use crate::hetzner::api::{HetznerApi, ListQuery};
 use crate::hetzner::kind::HetznerKind;
 use crate::hetzner::primary_ip::{HetznerPrimaryIp, HetznerPrimaryIpRuntime};
 use async_trait::async_trait;
@@ -29,11 +29,6 @@ impl HetznerKind for HetznerPrimaryIpProvisioner {
             .get_by_name(name)
             .await?
             .map(Into::into))
-    }
-
-    async fn names(&self) -> Result<Vec<String>> {
-        let ips = self.api.primary_ips().list(&ListQuery::new()).await?;
-        Ok(ips.into_iter().map(|ip| ip.name).collect())
     }
 
     fn compare(

@@ -5,11 +5,13 @@
 
 mod support;
 
+use async_trait::async_trait;
 use sak_cloud::api::destroy_resource;
 use sak_cloud::api::{
-    DiffStatus, Listable, Lookup, LookupProvider, LookupProviders, Provisioner, Resource,
+    AnyLookup, DiffContext, DiffStatus, Lookup, LookupContext, LookupProvider, LookupProviders,
+    Provisioner, Resource, ResourceRef,
 };
-use sak_cloud::hetzner::api::Location;
+use sak_cloud::hetzner::api::{ListQuery, Location};
 use sak_cloud::hetzner::dns_record::{HetznerDnsRecord, HetznerDnsRecordProvisioner, RecordValue};
 use sak_cloud::hetzner::dns_zone::{
     HetznerDnsZone, HetznerDnsZoneLookup, HetznerDnsZoneProvisioner,
@@ -17,8 +19,31 @@ use sak_cloud::hetzner::dns_zone::{
 use sak_cloud::hetzner::primary_ip::{
     HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpProvisioner,
 };
+use std::any::Any;
 use std::sync::Arc;
 use support::HetznerTest;
+
+/// the context of a diff with one resource pending, as the registry marks it while it diffs
+struct Pending<'a> {
+    context: &'a LookupProviders,
+    pending: ResourceRef,
+}
+
+#[async_trait]
+impl LookupContext for Pending<'_> {
+    async fn lookup_erased(
+        &self,
+        lookup: &dyn AnyLookup,
+    ) -> sak_cloud::api::Result<Option<Box<dyn Any + Send + Sync>>> {
+        self.context.lookup_erased(lookup).await
+    }
+}
+
+impl DiffContext for Pending<'_> {
+    fn has_pending_change(&self, resource: &ResourceRef) -> bool {
+        *resource == self.pending
+    }
+}
 
 #[tokio::test]
 async fn dns_flow() {
@@ -54,7 +79,16 @@ async fn dns_flow() {
             assert_eq!(runtime.name, zone_name);
             assert_eq!(runtime.ttl, 300);
             assert!(!runtime.nameservers.is_empty());
-            assert!(zones.list().await.unwrap().contains(&zone.as_lookup()));
+            assert!(
+                hetzner
+                    .api
+                    .zones()
+                    .list(&ListQuery::new())
+                    .await
+                    .unwrap()
+                    .iter()
+                    .any(|listed| listed.name == zone_name)
+            );
             assert_eq!(
                 zones.diff(&zone, &context).await.unwrap().status,
                 DiffStatus::UpToDate
@@ -157,10 +191,10 @@ async fn dns_flow() {
                 DiffStatus::UpToDate
             );
 
-            let mut pending = LookupProviders::new()
-                .with::<HetznerDnsZoneLookup, _>(zones.clone())
-                .with::<HetznerPrimaryIpLookup, _>(ips.clone());
-            pending.mark_pending(ip.as_lookup().resource_ref());
+            let pending = Pending {
+                context: &context,
+                pending: ip.as_lookup().resource_ref(),
+            };
             let diff = records.diff(&from_ip, &pending).await.unwrap();
             assert_eq!(
                 diff.changes[0].expected.as_deref(),

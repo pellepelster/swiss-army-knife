@@ -1,10 +1,10 @@
 use crate::api::identity;
 use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labels, Listable, Lookup,
-    LookupContext, LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
+    ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labels, Lookup, LookupContext,
+    LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
 use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, ServerUpdate};
-use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery, Location, ServerType};
+use crate::hetzner::api::{ErrorCode, HetznerApi, Location, ServerType};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
 use crate::hetzner::server::{HetznerServer, HetznerServerLookup, HetznerServerRuntime, UserData};
@@ -179,20 +179,6 @@ impl LookupProvider<HetznerServerLookup> for HetznerServerProvisioner {
         _: &dyn LookupContext,
     ) -> Result<Option<HetznerServerRuntime>> {
         self.find(lookup).await
-    }
-}
-
-#[async_trait]
-impl Listable<HetznerServerLookup> for HetznerServerProvisioner {
-    async fn list(&self) -> Result<Vec<HetznerServerLookup>> {
-        Ok(self
-            .api
-            .servers()
-            .list(&ListQuery::new())
-            .await?
-            .iter()
-            .map(|server| HetznerServerLookup::new(&server.name))
-            .collect())
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::api::{DiffItem, Resource, Result};
+use crate::hetzner::api::HetznerApi;
 use crate::hetzner::api::volumes::{VolumeCreate, VolumeUpdate};
-use crate::hetzner::api::{HetznerApi, ListQuery};
 use crate::hetzner::kind::HetznerKind;
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeRuntime};
 use async_trait::async_trait;
@@ -24,11 +24,6 @@ impl HetznerKind for HetznerVolumeProvisioner {
 
     async fn fetch(&self, name: &str) -> Result<Option<HetznerVolumeRuntime>> {
         Ok(self.api.volumes().get_by_name(name).await?.map(Into::into))
-    }
-
-    async fn names(&self) -> Result<Vec<String>> {
-        let volumes = self.api.volumes().list(&ListQuery::new()).await?;
-        Ok(volumes.into_iter().map(|volume| volume.name).collect())
     }
 
     fn compare(

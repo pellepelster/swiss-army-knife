@@ -16,6 +16,6 @@ pub use context::{
 pub use diff::{ChangeKind, DiffItem, DiffStatus, ResourceDiff, label_diff};
 pub use error::{Error, Result};
 pub use lookup::{AnyLookup, Lookup};
-pub use provisioner::{Listable, LookupProvider, Provisioner, destroy_resource};
+pub use provisioner::{LookupProvider, Provisioner, destroy_resource};
 pub use registry::{Applied, ApplyEvent, ApplyResult, Registry};
 pub use resource::{Labeled, Labels, Resource, ResourceRef, Runtime};

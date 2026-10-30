@@ -51,11 +51,6 @@ impl HetznerKind for HetznerDnsZoneProvisioner {
         Ok(self.api.zones().get(name).await?.map(Into::into))
     }
 
-    async fn names(&self) -> Result<Vec<String>> {
-        let zones = self.api.zones().list(&ListQuery::new()).await?;
-        Ok(zones.into_iter().map(|zone| zone.name).collect())
-    }
-
     fn compare(
         &self,
         resource: &HetznerDnsZone,

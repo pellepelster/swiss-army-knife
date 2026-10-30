@@ -329,10 +329,34 @@ mod tests {
             .with::<HetznerVolumeLookup, _>(Arc::new(Nothing))
     }
 
+    /// the context of a diff with one resource pending, as the registry marks it while it diffs
+    struct Pending {
+        context: LookupProviders,
+        pending: ResourceRef,
+    }
+
+    #[async_trait]
+    impl LookupContext for Pending {
+        async fn lookup_erased(
+            &self,
+            lookup: &dyn sak_cloud::api::AnyLookup,
+        ) -> Result<Option<Box<dyn std::any::Any + Send + Sync>>> {
+            self.context.lookup_erased(lookup).await
+        }
+    }
+
+    impl DiffContext for Pending {
+        fn has_pending_change(&self, resource: &ResourceRef) -> bool {
+            *resource == self.pending
+        }
+    }
+
     #[tokio::test]
     async fn a_server_that_changes_runs_the_roles_without_asking_it() {
-        let mut context = context();
-        context.mark_pending(roles().server.resource_ref());
+        let context = Pending {
+            context: context(),
+            pending: roles().server.resource_ref(),
+        };
         let diff = provisioner(false).diff(&roles(), &context).await.unwrap();
         assert_eq!(diff.status, DiffStatus::HasChanges);
         assert_eq!(diff.changes[0].log_text(), "server changed");

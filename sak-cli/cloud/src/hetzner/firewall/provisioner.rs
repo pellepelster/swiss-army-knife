@@ -2,7 +2,7 @@ use crate::api::{DiffItem, Labels, Resource, Result};
 use crate::hetzner::api::firewalls::{
     FirewallCreate, FirewallResource, FirewallRule, FirewallUpdate,
 };
-use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery};
+use crate::hetzner::api::{ErrorCode, HetznerApi};
 use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallRuntime};
 use crate::hetzner::kind::HetznerKind;
 use async_trait::async_trait;
@@ -50,14 +50,6 @@ impl HetznerKind for HetznerFirewallProvisioner {
             Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
             None => Ok(None),
         }
-    }
-
-    async fn names(&self) -> Result<Vec<String>> {
-        let firewalls = self.api.firewalls().list(&ListQuery::new()).await?;
-        Ok(firewalls
-            .into_iter()
-            .map(|firewall| firewall.name)
-            .collect())
     }
 
     fn compare(

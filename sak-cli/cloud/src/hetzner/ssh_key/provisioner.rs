@@ -58,11 +58,6 @@ impl HetznerKind for HetznerSshKeyProvisioner {
         Ok(self.api.ssh_keys().get_by_name(name).await?.map(Into::into))
     }
 
-    async fn names(&self) -> Result<Vec<String>> {
-        let keys = self.api.ssh_keys().list(&ListQuery::new()).await?;
-        Ok(keys.into_iter().map(|key| key.name).collect())
-    }
-
     fn compare(
         &self,
         resource: &HetznerSshKey,
