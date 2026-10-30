@@ -516,15 +516,16 @@ impl DeploymentManager {
                     .to_string()
                     .into());
             }
-            // destroyed already, maybe with records left: check the password against them. Without
-            // records nothing of the deployment is left to change, the plan stops at a resource of
-            // someone else with its name
+            // destroyed already, maybe with records left: check the password against their hashes.
+            // A destroy removes only records with the hash of the password (the identity of the
+            // spec), so records without one stay and need no check; without records nothing of the
+            // deployment is left to change, the plan stops at a resource of someone else
             (Intent::Destroy, None) => {
-                if !records.is_empty() {
-                    let hashes: Vec<String> = records
-                        .iter()
-                        .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
-                        .collect();
+                let hashes: Vec<String> = records
+                    .iter()
+                    .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
+                    .collect();
+                if !hashes.is_empty() {
                     check_password(&hashes, None, name, password)?;
                 }
                 location

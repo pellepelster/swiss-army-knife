@@ -397,12 +397,6 @@ the container starts on the detached blocking thread and ansible runs to complet
 says "cancelled". **Fix:** `ProvisionManager::provision` checks a stopped flag after the spawn, or `stop_runs`
 remembers names to remove once they appear.
 
-#### CD-10 (Low): A destroy with leftover records without a hash label says "unverifiable"
-
-`deployments.rs:1416-1425`: records of an old deployment with the name label but no hash → `check_password` says
-"unverifiable", although `stale_records` would never remove them (identity filter,
-`cloud/hetzner/deployment.rs:302-322`). The user should hear "nothing of the deployment is left".
-
 ### Smells
 
 #### CD-12 (Low): One playbook failure travels on three channels
