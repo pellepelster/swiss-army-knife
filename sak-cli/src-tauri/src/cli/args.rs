@@ -14,7 +14,8 @@ pub(super) const EXIT_CODES: &str = "Exit codes:
      sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.
   6  The data volume or a primary IP would have to be created anew, which would remove its
      data or address. Nothing was changed.
-  7  update --check: a newer release of sakctl exists.";
+  7  update --check: a newer release of sakctl exists.
+ssh ends with the exit code of the command on the server; when sakctl or ssh itself fails, 255.";
 
 /// Swiss Army Knife: manage the deployments of a Hetzner Cloud project. Without a command the
 /// window opens.

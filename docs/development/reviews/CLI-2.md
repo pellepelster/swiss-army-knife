@@ -614,11 +614,6 @@ wording: `smtp_password_needed` "give it again with SAK_SMTP_PASSWORD" (`en.yml:
 **Scenario:** a multi-user deployment whose backend does not answer the smtp password (CD-1) → the page says to
 set an environment variable. Either `ui.`/`cli.` variants, or the window gets the fields to supply what is missing.
 
-#### UI-7 (Low): `sakctl ssh -- <cmd>` exit codes collide with the documented table
-
-`cli.rs:766-772` makes the remote command's exit code sakctl's own: `-- exit 3` reads as "domain taken", `2` as
-"arguments wrong". `EXIT_CODES` (`:32-43`) does not mention it. Document it, or reserve a range.
-
 #### UI-8 (Low, suspected): `RunningApply` can lose the running handle when two runs overlap
 
 `gui/deployments.rs:97-114`: a second `run` overwrites the handle, and whichever ends first sets `None`, so cancel

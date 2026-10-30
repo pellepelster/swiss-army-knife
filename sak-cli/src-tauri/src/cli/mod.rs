@@ -61,7 +61,13 @@ pub fn run(command: Command) -> i32 {
     let result = match command {
         Command::Update { check } => tauri::async_runtime::block_on(update(check)),
         Command::Project(command) => {
-            tauri::async_runtime::block_on(execute(command)).map(|()| EXIT_OK)
+            // `ssh` passes on the exit code of the command on the server, so a failure of
+            // sakctl itself is 255, as ssh has it, and never one of the codes of the table
+            let remote = matches!(command, ProjectCommand::Ssh { .. });
+            tauri::async_runtime::block_on(execute(command)).map_err(|error| match remote {
+                true => SakctlError::new(error.message, crate::core::ssh::SSH_FAILED),
+                false => error,
+            })
         }
     };
     match result {
@@ -149,7 +155,8 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     Ok(runtime)
 }
 
-async fn execute(command: ProjectCommand) -> Result<(), SakctlError> {
+/// the command; its exit code is `EXIT_OK`, or for `ssh` the one of the command on the server
+async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
     let manager = DeploymentManager;
     let needs = command.needs();
     // asked before the checks, because they take some time
@@ -164,16 +171,17 @@ async fn execute(command: ProjectCommand) -> Result<(), SakctlError> {
     let provider = needs.provider;
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
-    match command {
+    let done = match command {
+        // its exit code is the one of the command on the server
+        ProjectCommand::Ssh { name, command, .. } => {
+            return ssh(&manager, &token, &runtime, &name, &password.0, &command).await;
+        }
         ProjectCommand::List(_) => list(&manager, &token).await,
         ProjectCommand::Maintenance(command) => {
             maintenance(&manager, &token, &runtime, &command, &password.0).await
         }
         ProjectCommand::Config(ConfigCommand::Show { name, .. }) => {
             show_config(&manager, &token, &name, &password.0).await
-        }
-        ProjectCommand::Ssh { name, command, .. } => {
-            ssh(&manager, &token, &runtime, &name, &password.0, &command).await
         }
         ProjectCommand::Backup { name, .. } => {
             backup(&manager, &token, &runtime, &name, &password.0).await
@@ -216,5 +224,6 @@ async fn execute(command: ProjectCommand) -> Result<(), SakctlError> {
             )
             .await
         }
-    }
+    };
+    done.map(|()| EXIT_OK)
 }

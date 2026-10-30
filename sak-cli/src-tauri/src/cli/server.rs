@@ -22,7 +22,8 @@ async fn session(
     Ok((name, target, runtime))
 }
 
-/// a session on the server, or its command; the exit code of ssh is the exit code of sakctl
+/// a session on the server, or its command; its exit code, the one of the command on the server,
+/// is the exit code of sakctl
 pub(super) async fn ssh(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -30,7 +31,7 @@ pub(super) async fn ssh(
     name: &str,
     password: &str,
     command: &[String],
-) -> Result<(), SakctlError> {
+) -> Result<i32, SakctlError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     log(
         Level::Info,
@@ -46,13 +47,10 @@ pub(super) async fn ssh(
     })
     .await
     .map_err(|error| error.to_string())??;
-    match code {
-        0 => Ok(()),
-        code => Err(SakctlError::new(
-            t!("cli.ssh_ended", code = code).to_string(),
-            code,
-        )),
+    if code != 0 {
+        log(Level::Info, t!("cli.ssh_ended", code = code));
     }
+    Ok(code)
 }
 
 /// the maintenance of the server: each line of the server logged, the answer as lines or, with

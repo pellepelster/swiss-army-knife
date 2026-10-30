@@ -105,6 +105,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 - **Exit codes tell what happened.** Success, a general failure, wrong arguments, and each refusal that a script may
   want to handle (a root domain that is taken, mixed DNS modes, a resource that belongs to someone else, data that
   would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them.
+  `sakctl ssh` ends with the exit code of the command on the server, as ssh does; when sakctl or ssh itself fails,
+  it ends with 255.
 - **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color on a
   terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
   the plan found or a resource a destroy will remove.
