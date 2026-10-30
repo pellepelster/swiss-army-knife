@@ -10,6 +10,14 @@ fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
     Cli::try_parse_from(std::iter::once("sakctl").chain(words.iter().copied()))
 }
 
+/// the command on a project the arguments ask for; none for nothing or `update`
+fn project(cli: Cli) -> Option<ProjectCommand> {
+    match cli.command {
+        Some(Command::Project(command)) => Some(command),
+        _ => None,
+    }
+}
+
 #[test]
 fn a_log_line_is_date_level_message_with_the_level_coloured() {
     let line = log_line(
@@ -62,11 +70,11 @@ fn the_help_lists_the_exit_codes_of_the_errors() {
 #[test]
 fn maintenance_takes_the_name_and_its_options() {
     let cli = parse(&["maintenance", "reboot", "alpha", "--if-pending", "--json"]).unwrap();
-    let Some(Command::Maintenance(MaintenanceCommand::Reboot {
+    let Some(ProjectCommand::Maintenance(MaintenanceCommand::Reboot {
         args,
         if_pending,
         no_wait,
-    })) = cli.command
+    })) = project(cli)
     else {
         panic!("maintenance reboot");
     };
@@ -75,8 +83,8 @@ fn maintenance_takes_the_name_and_its_options() {
         ("alpha", true, true, false)
     );
     assert!(matches!(
-        parse(&["maintenance", "status", "alpha"]).unwrap().command,
-        Some(Command::Maintenance(MaintenanceCommand::Status(_)))
+        project(parse(&["maintenance", "status", "alpha"]).unwrap()),
+        Some(ProjectCommand::Maintenance(MaintenanceCommand::Status(_)))
     ));
     assert!(parse(&["maintenance", "update", "alpha", "--if-pending"]).is_err());
     assert!(is_command_line(&["maintenance".to_string()]));
@@ -100,13 +108,14 @@ fn the_commands_are_told_from_the_window_a_word_is_the_command_line() {
     // a mistyped command is a usage error of clap, which names the command meant
     let error = parse(&["lst"]).err().unwrap().to_string();
     assert!(error.contains("list"), "{error}");
-    assert_eq!(parse(&[]).unwrap().command, None);
+    assert_eq!(project(parse(&[]).unwrap()), None);
 }
 
 #[test]
 fn config_show_takes_the_name_and_password_and_prints_no_secret() {
     let cli = parse(&["config", "show", "alpha", "--hcloud-token", "--password"]).unwrap();
-    let Some(Command::Config(ConfigCommand::Show { name, password, .. })) = cli.command else {
+    let Some(ProjectCommand::Config(ConfigCommand::Show { name, password, .. })) = project(cli)
+    else {
         panic!("config show");
     };
     // --password asks for it, it takes no value
@@ -162,21 +171,20 @@ fn config_show_takes_the_name_and_password_and_prints_no_secret() {
 #[test]
 fn ssh_takes_the_name_and_a_command_after_two_dashes() {
     assert!(is_command_line(&["ssh".to_string()]));
-    let Some(Command::Ssh {
+    let Some(ProjectCommand::Ssh {
         name,
         command,
         password,
         ..
-    }) = parse(&["ssh", "alpha", "--", "uptime", "-p"])
-        .unwrap()
-        .command
+    }) = project(parse(&["ssh", "alpha", "--", "uptime", "-p"]).unwrap())
     else {
         panic!("no ssh command");
     };
     assert_eq!(name, "alpha");
     assert_eq!(command, ["uptime", "-p"]);
     assert!(!password);
-    let Some(Command::Ssh { command, .. }) = parse(&["ssh", "alpha"]).unwrap().command else {
+    let Some(ProjectCommand::Ssh { command, .. }) = project(parse(&["ssh", "alpha"]).unwrap())
+    else {
         panic!("no ssh command");
     };
     assert!(command.is_empty());
@@ -186,21 +194,23 @@ fn ssh_takes_the_name_and_a_command_after_two_dashes() {
 fn backup_takes_the_name_and_restore_the_name_and_the_file() {
     assert!(is_command_line(&["backup".to_string()]));
     assert!(is_command_line(&["restore".to_string()]));
-    let Some(Command::Backup { name, password, .. }) = parse(&["backup", "alpha"]).unwrap().command
+    let Some(ProjectCommand::Backup { name, password, .. }) =
+        project(parse(&["backup", "alpha"]).unwrap())
     else {
         panic!("no backup command");
     };
     assert_eq!((name.as_str(), password), ("alpha", false));
-    let Some(Command::Restore {
+    let Some(ProjectCommand::Restore {
         name, file, yes, ..
-    }) = parse(&[
-        "restore",
-        "alpha",
-        "alpha-20261029T080000Z.age.sak",
-        "--yes",
-    ])
-    .unwrap()
-    .command
+    }) = project(
+        parse(&[
+            "restore",
+            "alpha",
+            "alpha-20261029T080000Z.age.sak",
+            "--yes",
+        ])
+        .unwrap(),
+    )
     else {
         panic!("no restore command");
     };
@@ -303,15 +313,15 @@ fn the_password_comes_from_sak_password_or_is_typed_never_from_an_argument() {
 fn the_arguments_of_the_commands() {
     let cli = parse(&["list", "--hcloud-token"]).unwrap();
     assert_eq!(
-        cli.command,
-        Some(Command::List(Provider { hcloud_token: true }))
+        project(cli),
+        Some(ProjectCommand::List(Provider { hcloud_token: true }))
     );
 
     let cli = parse(&["deploy", "alpha", "--hcloud-token", "--location", "nbg1"]).unwrap();
-    let Some(Command::Deploy {
+    let Some(ProjectCommand::Deploy {
         provider,
         deployment,
-    }) = cli.command
+    }) = project(cli)
     else {
         panic!("a deploy");
     };
@@ -330,11 +340,11 @@ fn the_arguments_of_the_commands() {
     );
 
     let cli = parse(&["destroy", "alpha", "--hcloud-token", "--password"]).unwrap();
-    let Some(Command::Destroy {
+    let Some(ProjectCommand::Destroy {
         deployment,
         delete_data,
         ..
-    }) = cli.command
+    }) = project(cli)
     else {
         panic!("a destroy");
     };
@@ -367,7 +377,7 @@ fn the_arguments_of_the_commands() {
         "false",
     ])
     .unwrap();
-    let Some(Command::Create { deployment, .. }) = cli.command else {
+    let Some(ProjectCommand::Create { deployment, .. }) = project(cli) else {
         panic!("a create");
     };
     assert!(deployment.show_log);

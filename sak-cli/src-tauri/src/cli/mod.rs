@@ -60,7 +60,9 @@ pub fn run(command: Command) -> i32 {
     // an update needs neither a token nor the checks
     let result = match command {
         Command::Update { check } => tauri::async_runtime::block_on(update(check)),
-        command => tauri::async_runtime::block_on(execute(command)).map(|()| EXIT_OK),
+        Command::Project(command) => {
+            tauri::async_runtime::block_on(execute(command)).map(|()| EXIT_OK)
+        }
     };
     match result {
         Ok(code) => code,
@@ -147,72 +149,39 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     Ok(runtime)
 }
 
-async fn execute(command: Command) -> Result<(), WizardError> {
+async fn execute(command: ProjectCommand) -> Result<(), WizardError> {
     let manager = DeploymentManager;
+    let needs = command.needs();
     // asked before the checks, because they take some time
-    let password =
-        match &command {
-            Command::List(_) | Command::Update { .. } => None,
-            Command::Create { deployment, .. } => Some(password(
-                deployment.password,
-                Typed::Twice,
-                password_variable(),
-            )?),
-            Command::Deploy { deployment, .. } | Command::Destroy { deployment, .. } => Some(
-                password(deployment.password, Typed::Once, password_variable())?,
-            ),
-            Command::Maintenance(maintenance) => Some(password(
-                maintenance.args().password,
-                Typed::Once,
-                password_variable(),
-            )?),
-            Command::Config(ConfigCommand::Show { password: ask, .. })
-            | Command::Ssh { password: ask, .. }
-            | Command::Backup { password: ask, .. }
-            | Command::Restore { password: ask, .. } => {
-                Some(password(*ask, Typed::Once, password_variable())?)
-            }
-        };
-    let password = password.unwrap_or_default();
-    let smtp_password = match &command {
-        Command::Create { deployment, .. } | Command::Deploy { deployment, .. } => {
-            smtp_password(deployment.smtp_password, smtp_password_variable())?
-        }
-        _ => String::new(),
+    let password = match needs.password {
+        Some((ask, typed)) => password(ask, typed, password_variable())?,
+        None => Default::default(),
     };
-    let provider = match &command {
-        Command::List(provider)
-        | Command::Create { provider, .. }
-        | Command::Deploy { provider, .. }
-        | Command::Destroy { provider, .. }
-        | Command::Config(ConfigCommand::Show { provider, .. })
-        | Command::Ssh { provider, .. }
-        | Command::Backup { provider, .. }
-        | Command::Restore { provider, .. } => provider,
-        Command::Maintenance(maintenance) => &maintenance.args().provider,
-        Command::Update { .. } => unreachable!("run() updates without the checks"),
+    let smtp_password = match needs.smtp_password {
+        Some(ask) => smtp_password(ask, smtp_password_variable())?,
+        None => String::new(),
     };
+    let provider = needs.provider;
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
     match command {
-        Command::Update { .. } => unreachable!("run() updates without the checks"),
-        Command::List(_) => list(&manager, &token).await,
-        Command::Maintenance(command) => {
+        ProjectCommand::List(_) => list(&manager, &token).await,
+        ProjectCommand::Maintenance(command) => {
             maintenance(&manager, &token, &runtime, &command, &password.0).await
         }
-        Command::Config(ConfigCommand::Show { name, .. }) => {
+        ProjectCommand::Config(ConfigCommand::Show { name, .. }) => {
             show_config(&manager, &token, &name, &password.0).await
         }
-        Command::Ssh { name, command, .. } => {
+        ProjectCommand::Ssh { name, command, .. } => {
             ssh(&manager, &token, &runtime, &name, &password.0, &command).await
         }
-        Command::Backup { name, .. } => {
+        ProjectCommand::Backup { name, .. } => {
             backup(&manager, &token, &runtime, &name, &password.0).await
         }
-        Command::Restore {
+        ProjectCommand::Restore {
             name, file, yes, ..
         } => restore(&manager, &token, &runtime, &name, &password.0, &file, yes).await,
-        Command::Create { deployment, .. } => {
+        ProjectCommand::Create { deployment, .. } => {
             plan_and_apply(
                 &manager,
                 &token,
@@ -222,7 +191,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             )
             .await
         }
-        Command::Deploy { deployment, .. } => {
+        ProjectCommand::Deploy { deployment, .. } => {
             // what is not given comes from the deployment, as the window does
             let new = manager
                 .completed(
@@ -233,7 +202,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
                 .await?;
             plan_and_apply(&manager, &token, &new, &runtime, deployment.show_log).await
         }
-        Command::Destroy {
+        ProjectCommand::Destroy {
             deployment,
             delete_data,
             ..

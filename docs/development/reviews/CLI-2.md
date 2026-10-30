@@ -704,11 +704,6 @@ reboot hint → `wait_after_reboot` → back line), differing in the hint key an
 `maintenance::perform(action, manager, tokens, runtime, name, password, on_line) -> Result<Vec<Line>>`; the
 command line logs, the window sends.
 
-#### UI-14 (Low): `execute` matches the same enum four times
-
-`cli.rs:586-688`: password, smtp password, provider and dispatch each re-match `Command`; `Update` is
-`unreachable!` twice (`:626, 631`). A `Command::common(&self)` accessor, or `Update` out of the enum, removes both.
-
 #### UI-15 (Low): `ssh_target` + runtime lookup repeated four times
 
 `cli.rs:746-751, 787-792, 902-908, 950-956`. The name trimming differs: `ssh` passes the untrimmed name to

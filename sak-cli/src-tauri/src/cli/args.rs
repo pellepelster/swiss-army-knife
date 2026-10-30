@@ -32,6 +32,22 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// the commands on the deployments of a project: each needs its token and the checks
+    #[command(flatten)]
+    Project(ProjectCommand),
+    /// Update sakctl to the newest release from github.com
+    ///
+    /// Replaces sakctl only when the release is newer, after checking its sha-256.
+    #[command(after_help = EXIT_CODES)]
+    Update {
+        /// Only check for a newer release, exit code 7 when there is one
+        #[arg(long)]
+        check: bool,
+    },
+}
+
+#[derive(Subcommand, Debug, PartialEq, Eq)]
+pub enum ProjectCommand {
     /// List the deployments and the state of their resources
     #[command(after_help = EXIT_CODES)]
     List(Provider),
@@ -128,15 +144,6 @@ pub enum Command {
     /// Maintain the server of a deployment: pending reboot, package updates, reboot
     #[command(subcommand)]
     Maintenance(MaintenanceCommand),
-    /// Update sakctl to the newest release from github.com
-    ///
-    /// Replaces sakctl only when the release is newer, after checking its sha-256.
-    #[command(after_help = EXIT_CODES)]
-    Update {
-        /// Only check for a newer release, exit code 7 when there is one
-        #[arg(long)]
-        check: bool,
-    },
 }
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
@@ -180,6 +187,65 @@ pub struct MaintenanceArgs {
     /// Print the answer of the server as JSON
     #[arg(long)]
     pub(super) json: bool,
+}
+
+/// what a command needs before it runs: the token of its provider, the password of the
+/// deployment (asked again with `--password`, typed once or twice) and, for a create or deploy,
+/// the password at the mail server (asked again with `--smtp-password`)
+pub(super) struct Needs<'a> {
+    pub(super) provider: &'a Provider,
+    pub(super) password: Option<(bool, Typed)>,
+    pub(super) smtp_password: Option<bool>,
+}
+
+impl ProjectCommand {
+    pub(super) fn needs(&self) -> Needs<'_> {
+        let needs = |provider, password, smtp_password| Needs {
+            provider,
+            password,
+            smtp_password,
+        };
+        match self {
+            ProjectCommand::List(provider) => needs(provider, None, None),
+            ProjectCommand::Create {
+                provider,
+                deployment,
+            } => needs(
+                provider,
+                Some((deployment.password, Typed::Twice)),
+                Some(deployment.smtp_password),
+            ),
+            ProjectCommand::Deploy {
+                provider,
+                deployment,
+            } => needs(
+                provider,
+                Some((deployment.password, Typed::Once)),
+                Some(deployment.smtp_password),
+            ),
+            ProjectCommand::Destroy {
+                provider,
+                deployment,
+                ..
+            } => needs(provider, Some((deployment.password, Typed::Once)), None),
+            ProjectCommand::Maintenance(maintenance) => {
+                let args = maintenance.args();
+                needs(&args.provider, Some((args.password, Typed::Once)), None)
+            }
+            ProjectCommand::Config(ConfigCommand::Show {
+                provider, password, ..
+            })
+            | ProjectCommand::Ssh {
+                provider, password, ..
+            }
+            | ProjectCommand::Backup {
+                provider, password, ..
+            }
+            | ProjectCommand::Restore {
+                provider, password, ..
+            } => needs(provider, Some((*password, Typed::Once)), None),
+        }
+    }
 }
 
 impl MaintenanceCommand {
