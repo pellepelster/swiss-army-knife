@@ -355,14 +355,14 @@ echo "tagged $version, the workflow builds and releases it"
 
 # every image of SAK for the platform it runs on, into the local images: the server (sak-backend,
 # sak-ingress) and sakctl (the tools, the canary)
-[tasks."docker:all:build"]
+[tasks."image:all:build"]
 description = "Build all images"
 depends = ["backend:image:build", "ingress:image:build", "tools:image:build", "canary:image:build"]
 
 # every image of SAK for amd64 and arm64, pushed to ghcr.io as <VERSION>-rc (and with the commit);
 # `release:docker` makes them <VERSION>. Needs a login to ghcr.io (registry:login). SAK_DOCKER_PLATFORMS
 # selects other platforms, e.g. only the one of this machine, which needs no qemu
-[tasks."docker:all:push"]
+[tasks."image:all:push"]
 description = "Push all images as <VERSION>-rc"
 depends = ["backend:image:push", "ingress:image:push", "tools:image:push", "canary:image:push"]
 
@@ -570,7 +570,7 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # resources and servers (test-<id>), which takes long and costs money. The token and the mailtrap
 # credentials come from pass unless set; without them the task refuses to run. The deployments run
 # the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
-# pushes them first (docker:all:push), in CI the jobs of the images pushed them
+# pushes them first (image:all:push), in CI the jobs of the images pushed them
 [tasks."cli:test:e2e"]
 description = "Run the cli e2e tests"
 depends = ["cli:theme"]
@@ -598,8 +598,8 @@ if [ -z "${CI:-}" ]; then
     aarch64 | arm64) platform=linux/amd64,linux/arm64 ;;
     *) platform=linux/amd64 ;;
   esac
-  mise run docker:all:build
-  SAK_DOCKER_PLATFORMS="${SAK_DOCKER_PLATFORMS:-$platform}" mise run docker:all:push
+  mise run image:all:build
+  SAK_DOCKER_PLATFORMS="${SAK_DOCKER_PLATFORMS:-$platform}" mise run image:all:push
 fi
 export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
 # one test at a time: the tests against the hetzner cloud api share their ssh key and names

@@ -53,7 +53,7 @@ mise run cli:test:e2e   # builds sakctl, then runs the tests
 ```
 
 Before the tests, the task runs the tests of sak-cloud against the API of Hetzner, and, outside of CI, builds and
-pushes all images of SAK as `<VERSION>-rc` (`mise run docker:all:push`, for amd64 and the platform of the machine;
+pushes all images of SAK as `<VERSION>-rc` (`mise run image:all:push`, for amd64 and the platform of the machine;
 docker must be logged in to ghcr.io). The deployments run these images (`SAK_DOCKER_IMAGE_TAG`, `<VERSION>-rc` unless
 set), so they run the roles and the backend of this source; in CI the jobs of the images push them.
 
