@@ -460,14 +460,6 @@ CD-12).
 
 ### Bugs
 
-#### ~~UI-2 (Medium, confirmed): A destroy runs after the user cancelled the form~~ **fixed**
-
-`ui/create.js:375-384`: for a destroy the submit does not `setBusy`, so Cancel stays enabled while `runDestroy`
-awaits `plan_deployment` (`ui/run.js:196-199`). **Scenario:** Destroy → confirm → (plan pending) → Cancel → the
-list shows → the plan resolves → `run()` switches to the run view and starts the destroy. A create is safe only
-because `setBusy(true)` disables the cancel button (`create.js:386, 261-264`). **Fix:** a generation guard in
-`run()` (UI-25) and the busy state for the destroy.
-
 #### UI-5 (Medium): The window shows command-line instructions it cannot act on
 
 `gui/deployments.rs:154` calls `complete(deployment, &detected, "")`; its errors are `shared.` texts with cli
@@ -511,7 +503,7 @@ used only inside handlers, so static imports in a cycle work in ES modules. A ro
 showDeployments)`, `navigate('deployments', data)` — hands each view a generation token (`const gen =
 enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-written `current !== shown` /
 `running === current` guards (`deployment.js:81, 93, 98`, `run.js:164, 171`, `maintenance.js:50, 56, 61, 65`,
-`password.js:61`) and fixes UI-2.
+`password.js:61`).
 
 ---
 
