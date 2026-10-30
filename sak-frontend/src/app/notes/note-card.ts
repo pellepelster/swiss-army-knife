@@ -22,7 +22,7 @@ interface Media {
   selector: 'app-note-card',
   imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe],
   host: {
-    '[class]': "'note h-100 note-' + note().color",
+    '[class]': "'note note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
   },
   template: `
