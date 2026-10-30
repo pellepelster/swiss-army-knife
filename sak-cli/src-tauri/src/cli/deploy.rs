@@ -75,9 +75,10 @@ pub(super) async fn plan_and_apply(
     args: &DeploymentArgs,
 ) -> Result<(), SakctlError> {
     let DeploymentArgs { show_log, yes, .. } = *args;
-    // the project is read once, for the plan and the apply
+    // the project and the markers are read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
-    let plan = manager.plan_prepared(&prepared, runtime).await?;
+    let planned = manager.plan_prepared(prepared, runtime).await?;
+    let plan = &planned.plan;
     let intro = match deployment.intent {
         Intent::Create => t!("shared.plan.intro"),
         Intent::Deploy => t!("shared.plan.intro_deploy"),
@@ -179,7 +180,7 @@ pub(super) async fn plan_and_apply(
         // the error of the run tells what failed, the command ends with it
         DeploymentEvent::TaskStarted { .. } | DeploymentEvent::ProvisionFailed { .. } => {}
     };
-    manager.apply(prepared, runtime, &mut report).await?;
+    manager.apply(planned, runtime, &mut report).await?;
     let done = match deployment.intent {
         Intent::Destroy if deployment.delete_data => {
             t!("cli.destroyed_with_data", name = deployment.name)

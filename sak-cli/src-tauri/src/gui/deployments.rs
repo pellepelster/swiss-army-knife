@@ -163,16 +163,16 @@ pub async fn apply_checked(
         let _ = on_event.send(event);
     };
     // the apply plans again and applies only what the page showed: a project that changed since
-    // the check is checked again first
+    // the check is checked again first. The apply applies this plan
     let work = async {
         let prepared = manager.prepare(tokens.tokens(), &deployment).await?;
-        let plan = manager.plan_prepared(&prepared, &container).await?;
-        if plan.seen() != seen {
+        let planned = manager.plan_prepared(prepared, &container).await?;
+        if planned.plan.seen() != seen {
             return Err(SakctlError::from(
                 t!("ui.deployment.changed_since_check").to_string(),
             ));
         }
-        manager.apply(prepared, &container, &mut report).await
+        manager.apply(planned, &container, &mut report).await
     };
     running.run(work, "shared.deployments.cancelled").await
 }

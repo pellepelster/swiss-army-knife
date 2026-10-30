@@ -1136,9 +1136,10 @@ async fn the_plan_of_a_destroy_shows_a_second_server_it_leaves() {
         }],
     };
     let plan = DeploymentManager
-        .plan_prepared(&prepared, &ContainerRuntime::default())
+        .plan_prepared(prepared, &ContainerRuntime::default())
         .await
-        .unwrap();
+        .unwrap()
+        .plan;
     let second = plan
         .resources
         .iter()

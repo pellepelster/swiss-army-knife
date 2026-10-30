@@ -357,6 +357,42 @@ impl Registry {
         // the whole plan first: a refused recreate, a duplicate or a resource of someone else
         // stops the apply before anything is created, not half way
         let plan = self.plan(Gate::Apply).await?;
+        self.apply_plan(plan, on_event).await
+    }
+
+    /// `apply_all_with` on a plan made already: the diffs `diff_all` gave for the same resources,
+    /// of this registry or of one declared alike. Nothing is diffed again but what depends on a
+    /// change, as in `apply_all`. The gates hold: a duplicate or a recreate that is refused stops
+    /// it before anything changes. A plan of other resources fails
+    pub async fn apply_planned_with(
+        &mut self,
+        plan: Vec<ResourceDiff>,
+        on_event: &mut (dyn FnMut(ApplyEvent) + Send),
+    ) -> Result<Vec<ApplyResult>> {
+        let order = self.order()?;
+        let matches = plan.len() == order.len()
+            && plan
+                .iter()
+                .zip(&order)
+                .all(|(diff, &index)| diff.resource == self.resources[index].resource_ref());
+        if !matches {
+            return Err(Error::message(
+                "the plan is not one of the resources of the registry",
+            ));
+        }
+        for (diff, &index) in plan.iter().zip(&order) {
+            self.refuse(self.resources[index].as_ref(), diff).await?;
+        }
+        self.apply_plan(order.into_iter().zip(plan).collect(), on_event)
+            .await
+    }
+
+    /// applies `plan`, the diff of each resource with its index in the order of the dependencies
+    async fn apply_plan(
+        &mut self,
+        plan: Vec<(usize, ResourceDiff)>,
+        on_event: &mut (dyn FnMut(ApplyEvent) + Send),
+    ) -> Result<Vec<ApplyResult>> {
         self.context.clear_pending();
         // what the plan found not up to date and what the apply changed: the plan's diff of a
         // resource that depends on one is stale, it is diffed again once that is applied
@@ -907,6 +943,102 @@ mod tests {
                 .iter()
                 .any(|diff| diff.resource.name == "key" && diff.status == DiffStatus::Duplicate)
         );
+
+        // a comparison handed to the apply keeps the gate
+        assert!(matches!(
+            registry.apply_planned_with(diffs, &mut |_| {}).await,
+            Err(Error::Duplicate { .. })
+        ));
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+    }
+
+    #[tokio::test]
+    async fn a_plan_made_already_is_applied_without_diffing_it_again() {
+        let cloud = Arc::new(Cloud::default());
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("volume".to_string(), (1, owner()));
+        let declare = || {
+            registry(&cloud)
+                .with(thing("server", 1, &["key", "volume"]))
+                .unwrap()
+                .with(thing("volume", 1, &[]))
+                .unwrap()
+                .with(thing("key", 1, &[]))
+                .unwrap()
+        };
+        let plan = declare().diff_all().await.unwrap();
+        log(&cloud);
+
+        // another registry declared alike applies it: only the server, whose key is created, is
+        // diffed again
+        let results = declare()
+            .apply_planned_with(plan, &mut |_| {})
+            .await
+            .unwrap();
+        let applied: Vec<(&str, Applied)> = results
+            .iter()
+            .map(|result| (result.resource.name.as_str(), result.applied))
+            .collect();
+        assert_eq!(
+            applied,
+            vec![
+                ("key", Applied::Created),
+                ("volume", Applied::Unchanged),
+                ("server", Applied::Created)
+            ]
+        );
+        assert_eq!(
+            log(&cloud),
+            vec!["apply key", "diff server pending []", "apply server"]
+        );
+
+        // a plan of other resources is refused before anything is applied
+        let plan = registry(&cloud)
+            .with(thing("key", 1, &[]))
+            .unwrap()
+            .diff_all()
+            .await
+            .unwrap();
+        assert!(
+            declare()
+                .apply_planned_with(plan, &mut |_| {})
+                .await
+                .is_err()
+        );
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+    }
+
+    #[tokio::test]
+    async fn a_recreate_refused_stops_a_plan_made_already() {
+        let cloud = Arc::new(Cloud::default());
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("key".to_string(), (1, owner()));
+        let strict = || Thing {
+            strict: true,
+            ..thing("key", 2, &[])
+        };
+        // planned where the key may be recreated, applied where it may not
+        let plan = registry(&cloud)
+            .recreatable(Resource::resource_ref(&strict()))
+            .with(strict())
+            .unwrap()
+            .diff_all()
+            .await
+            .unwrap();
+        let error = registry(&cloud)
+            .with(strict())
+            .unwrap()
+            .apply_planned_with(plan, &mut |_| {})
+            .await
+            .unwrap_err();
+        assert!(matches!(error, Error::RecreateRefused { .. }), "{error}");
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));
     }
 
     #[tokio::test]

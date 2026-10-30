@@ -30,7 +30,7 @@ pub use password::*;
 pub use plan::*;
 pub use progress::*;
 use rust_i18n::t;
-use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
+use sak_cloud::api::{Applied, ApplyEvent, DiffStatus, ResourceDiff};
 use sak_cloud::api::{Lookup, Resource};
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{

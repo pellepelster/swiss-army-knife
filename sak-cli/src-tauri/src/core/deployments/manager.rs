@@ -18,8 +18,9 @@ pub fn user_data(host_key: &DerivedKey) -> String {
 }
 
 /// a deployment checked and ready to plan and apply: where it goes and what it consists of. The
-/// command line plans and applies with the same one, so it reads the project one time. The window
-/// prepares again for the apply, because the user can wait a long time on the plan
+/// command line plans and applies with the same one (`Planned`), so it reads the project and the
+/// markers one time. The window prepares and plans again for the apply, because the user can wait
+/// a long time on the check
 pub struct Prepared {
     pub(super) provider: ProviderType,
     pub(super) runtime: HetznerProviderRuntime,
@@ -131,6 +132,15 @@ pub(super) struct Provisioning {
     pub(super) admin_password_hash: String,
     /// the playbook runs even when the provisioning is up to date
     pub(super) force: bool,
+}
+
+/// a prepared deployment with its plan: `plan` is what sakctl shows, the apply applies its diffs,
+/// so the markers of the server are read once for both. A destroy applies no diffs, it removes
+/// what it finds
+pub struct Planned {
+    pub plan: PlanResponse,
+    prepared: Prepared,
+    diffs: Vec<ResourceDiff>,
 }
 
 impl Prepared {
@@ -569,15 +579,15 @@ impl DeploymentManager {
         container: &ContainerRuntime,
     ) -> Result<PlanResponse, SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
-        self.plan_prepared(&prepared, container).await
+        Ok(self.plan_prepared(prepared, container).await?.plan)
     }
 
-    /// the plan of a deployment prepared already
+    /// the plan of a deployment prepared already, kept for its apply
     pub async fn plan_prepared(
         &self,
-        prepared: &Prepared,
+        prepared: Prepared,
         container: &ContainerRuntime,
-    ) -> Result<PlanResponse, SakctlError> {
+    ) -> Result<Planned, SakctlError> {
         let intent = prepared.purpose.intent();
         let delete_data = matches!(prepared.purpose, Purpose::Destroy { delete_data: true });
         // a destroy has no roles and so nothing to force
@@ -601,7 +611,7 @@ impl DeploymentManager {
         .map_err(|error| {
             cloud_failure("shared.deployments.plan_failed", prepared.provider, error)
         })?;
-        Ok(PlanResponse {
+        let plan = PlanResponse {
             name: prepared.spec.name.clone(),
             public_key: prepared.spec.public_key.clone(),
             resources: diffs
@@ -679,6 +689,11 @@ impl DeploymentManager {
                     })
                 }))
                 .collect::<Result<Vec<_>, SakctlError>>()?,
+        };
+        Ok(Planned {
+            plan,
+            prepared,
+            diffs,
         })
     }
 
@@ -698,13 +713,31 @@ impl DeploymentManager {
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
-        self.apply(prepared, container, on_event).await
+        self.apply_prepared(prepared, None, container, on_event)
+            .await
     }
 
-    /// applies a deployment prepared already, as `create` does
+    /// applies a deployment planned already, as `prepare_and_apply` does, with the diffs of its
+    /// plan
     pub async fn apply(
         &self,
+        planned: Planned,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakctlError> {
+        let Planned {
+            prepared, diffs, ..
+        } = planned;
+        self.apply_prepared(prepared, Some(diffs), container, on_event)
+            .await
+    }
+
+    /// the apply of `prepare_and_apply` and `apply`: a create or deploy applies the `planned`
+    /// diffs, or plans first without them
+    async fn apply_prepared(
+        &self,
         prepared: Prepared,
+        planned: Option<Vec<ResourceDiff>>,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
@@ -719,7 +752,9 @@ impl DeploymentManager {
                 return self.destroy(&prepared, data_volume, on_event).await;
             }
         };
-        let provisioned = self.apply_resources(&prepared, container, on_event).await?;
+        let provisioned = self
+            .apply_resources(&prepared, planned, container, on_event)
+            .await?;
         self.remove_records(&prepared, on_event)
             .await
             .map_err(|error| {
@@ -776,10 +811,12 @@ impl DeploymentManager {
 
     /// the resources of a create or deploy in the order of their dependencies, the roles of the
     /// playbook after the server and the volume. Their events and those of the playbook go
-    /// through one channel to `on_event` while the registry applies. Whether the roles ran
+    /// through one channel to `on_event` while the registry applies, the `planned` diffs when
+    /// there are, else after a plan of its own. Whether the roles ran
     async fn apply_resources(
         &self,
         prepared: &Prepared,
+        planned: Option<Vec<ResourceDiff>>,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<bool, SakctlError> {
@@ -826,7 +863,10 @@ impl DeploymentManager {
                     };
                     let _ = sender.send(event);
                 };
-                let result = registry.apply_all_with(&mut report).await;
+                let result = match planned {
+                    Some(diffs) => registry.apply_planned_with(diffs, &mut report).await,
+                    None => registry.apply_all_with(&mut report).await,
+                };
                 drop(registry);
                 result
             }
