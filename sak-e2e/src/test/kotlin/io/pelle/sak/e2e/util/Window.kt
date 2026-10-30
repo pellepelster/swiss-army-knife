@@ -1,4 +1,4 @@
-package io.pelle.sak.e2e.window
+package io.pelle.sak.e2e.util
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.BrowserContext

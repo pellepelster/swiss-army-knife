@@ -527,20 +527,30 @@ description = "Run the local end to end tests of sak-e2e against the environment
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
 
-# against the Hetzner Cloud project of HCLOUD_TOKEN (from pass unless set): the tests of sak-cloud
-# against the hetzner cloud api, then the command line of sakctl, built first, in sak-e2e. They
-# create and destroy real resources and servers (test-<id>), which takes long and costs money;
-# without a token the tests would skip themselves, so the task refuses to run
+# against the Hetzner Cloud project of HCLOUD_TOKEN: the tests of sak-cloud against the hetzner
+# cloud api, then sak-e2e: two deployments created with sakctl, built first, the logins and the apps
+# in a browser against them, the login mails in a mailtrap sandbox. They create and destroy real
+# resources and servers (test-<id>), which takes long and costs money. The token and the mailtrap
+# credentials come from pass unless set; without them the task refuses to run
 [tasks."test:cli:e2e"]
 description = "Run the e2e tests of sak-cloud and sakctl against a real Hetzner Cloud project"
 dir = "{{config_root}}"
-env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
+env = {
+    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}",
+    MAILTRAP_API_TOKEN = "{{ get_env(name='MAILTRAP_API_TOKEN', default=exec(command='pass show mailtrap/pelle/api-token 2>/dev/null | head -n1')) }}",
+    SAK_E2E_SMTP_HOST = "{{ get_env(name='SAK_E2E_SMTP_HOST', default=exec(command='pass show mailtrap/pelle/smtp-server 2>/dev/null | head -n1')) }}",
+    SAK_E2E_SMTP_PORT = "{{ get_env(name='SAK_E2E_SMTP_PORT', default=exec(command='pass show mailtrap/pelle/smtp-port 2>/dev/null | head -n1')) }}",
+    SAK_E2E_SMTP_USERNAME = "{{ get_env(name='SAK_E2E_SMTP_USERNAME', default=exec(command='pass show mailtrap/pelle/smtp-user 2>/dev/null | head -n1')) }}",
+    SAK_E2E_SMTP_PASSWORD = "{{ get_env(name='SAK_E2E_SMTP_PASSWORD', default=exec(command='pass show mailtrap/pelle/smtp-password 2>/dev/null | head -n1')) }}"
+}
 run = """
 set -e
-[ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN to the token of a Hetzner Cloud project" >&2; exit 1; }
+for variable in HCLOUD_TOKEN MAILTRAP_API_TOKEN SAK_E2E_SMTP_HOST SAK_E2E_SMTP_PORT SAK_E2E_SMTP_USERNAME SAK_E2E_SMTP_PASSWORD; do
+  [ -n "$(printenv "$variable")" ] || { echo "set $variable, refer to sak-e2e/README.md" >&2; exit 1; }
+done
 (cd sak-cli/cloud && cargo nextest run --no-fail-fast -E 'kind(test)')
 (cd sak-cli/src-tauri && cargo build)
-./gradlew :sak-e2e:e2eIntegration
+./gradlew :sak-e2e:e2eIntegration --console=plain
 """
 
 # everything at once, each in its own process group with its log in build/local/logs; the backend

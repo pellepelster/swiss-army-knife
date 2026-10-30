@@ -7,6 +7,15 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.AriaRole
+import io.pelle.sak.e2e.util.ADMIN
+import io.pelle.sak.e2e.util.FRONTEND_URL
+import io.pelle.sak.e2e.util.LocalData
+import io.pelle.sak.e2e.util.MAILPIT_URL
+import io.pelle.sak.e2e.util.Mailpit
+import io.pelle.sak.e2e.util.NEW_NOTE
+import io.pelle.sak.e2e.util.NOTES
+import io.pelle.sak.e2e.util.PHOTO_NOTE
+import io.pelle.sak.e2e.util.RECORDING_NOTE
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag

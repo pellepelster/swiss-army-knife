@@ -1,4 +1,4 @@
-package io.pelle.sak.e2e.local
+package io.pelle.sak.e2e.util
 
 import com.microsoft.playwright.APIRequest
 import com.microsoft.playwright.APIRequestContext

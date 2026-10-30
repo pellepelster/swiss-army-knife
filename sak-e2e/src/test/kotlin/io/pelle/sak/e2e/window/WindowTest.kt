@@ -8,6 +8,12 @@ import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.ColorScheme
 import com.microsoft.playwright.options.ScreenshotAnimations
 import com.microsoft.playwright.options.ScreenshotCaret
+import io.pelle.sak.e2e.util.WINDOW_HEIGHT
+import io.pelle.sak.e2e.util.WINDOW_WIDTH
+import io.pelle.sak.e2e.util.openWindow
+import io.pelle.sak.e2e.util.resume
+import io.pelle.sak.e2e.util.waitForHold
+import io.pelle.sak.e2e.util.window
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag

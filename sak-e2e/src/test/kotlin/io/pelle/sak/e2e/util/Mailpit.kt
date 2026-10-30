@@ -1,4 +1,4 @@
-package io.pelle.sak.e2e.local
+package io.pelle.sak.e2e.util
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

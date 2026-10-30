@@ -33,8 +33,10 @@ fun e2e(
     useJUnitPlatform { includeTags(tag) }
     // what runs is outside the build, a run is never up to date
     outputs.upToDateWhen { false }
+    // every line a test prints shows while it runs, with its start and its end: the tests take
+    // minutes and say what they do and wait for (util/Log.kt)
     testLogging {
-        events("passed", "failed", "skipped")
+        events("started", "passed", "failed", "skipped", "standard_out", "standard_error")
         exceptionFormat = TestExceptionFormat.FULL
         showStandardStreams = true
     }
@@ -59,9 +61,11 @@ e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against
     window()
 }
 
-e2e("e2eIntegration", "integration", "Runs the integration tests: the command line of sakctl against the Hetzner Cloud project of HCLOUD_TOKEN") {
+e2e("e2eIntegration", "integration", "Runs the integration tests: two deployments created with sakctl in the Hetzner Cloud project of HCLOUD_TOKEN, the apps in a browser against them") {
     // the binary of `cargo build` in sak-cli/src-tauri, SAK_E2E_SAKCTL points elsewhere
     systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)
-    // four servers created and provisioned one after the other
-    timeout = Duration.ofMinutes(180)
+    // the classes in the order of their @Order: the logins, the apps, the restores, the command line
+    systemProperty("junit.jupiter.testclass.order.default", "org.junit.jupiter.api.ClassOrderer\$OrderAnnotation")
+    // two servers created at once, the tests, then both destroyed
+    timeout = Duration.ofMinutes(90)
 }

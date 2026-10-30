@@ -1,4 +1,4 @@
-package io.pelle.sak.e2e.integration
+package io.pelle.sak.e2e.util
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -15,13 +15,13 @@ import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.net.URI
-import java.security.KeyPairGenerator
-import java.util.Base64
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.security.KeyPairGenerator
 import java.time.Duration
+import java.util.Base64
 
 // the label every resource of a deployment carries, its value the name
 const val NAME_LABEL = "sak.pelle.io/name"
@@ -142,6 +142,18 @@ class HetznerProject(
     }
 
     /** the names of the dns zones of the project */
+    /** the public ipv4 of the server of the deployment `name`; a read only, sakctl creates and removes it */
+    fun serverIpv4(name: String): String =
+        list("servers", "servers", labeled)
+            .single { it.sakName() == name }
+            .getValue("public_net")
+            .jsonObject
+            .getValue("ipv4")
+            .jsonObject
+            .getValue("ip")
+            .jsonPrimitive
+            .content
+
     fun zones(): List<String> = list("zones", "zones").map { it.name() }
 
     /** every resource and dns record whose name label `matches` */

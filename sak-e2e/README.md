@@ -45,22 +45,53 @@ notes, a bucket and two redirects; other data of the local environment stays and
 
 ## Integration tests
 
-The command line of sakctl, against the Hetzner Cloud project of `HCLOUD_TOKEN` (from pass
-when not set):
+Two deployments in the Hetzner Cloud project of `HCLOUD_TOKEN`, created with sakctl, and the apps in chromium
+against them:
 
 ```sh
 mise run test:cli:e2e   # builds sakctl, then runs the tests
 ```
 
-The tests create, provision and destroy real servers, so a run takes long and costs money.
+The tests create, provision and destroy real servers, so a run takes about 20 minutes and costs money. A server is
+expensive, so all tests share two deployments (`util/TestDeployments.kt`):
 
-- Before the run, the tests delete every resource and DNS record of the project whose label
-  `sak.pelle.io/name` starts with `test-`. Nothing else is changed.
-- The deployments are `test-<5 random characters>`. One uses the DNS zone `krawallbude.de` in
-  domain mode, one `krawallbu.de` in subdomain mode. A third one must fail on `krawallbude.de` in
-  both modes, each with its own exit code. Both zones must exist in the project.
-  `SAK_E2E_DOMAIN_ZONE` and `SAK_E2E_SUBDOMAIN_ZONE` select other zones.
-- At the end, every deployment is destroyed with `--delete-data`, and no resource of them may remain.
+- `test-<id>-single`: single user, domain mode on `krawallbude.de`.
+- `test-<id>-multi`: multi user, subdomain mode on `krawallbu.de`. It sends its login links through the SMTP of a
+  Mailtrap sandbox, and the tests read them through the API of Mailtrap. Only synthetic addresses go there.
+
+The first test that needs them creates both at once, with `sakctl create`. When the run ends, also after a failure,
+both are destroyed with `sakctl destroy --delete-data`, and no resource of them may remain. Running one test class
+creates both too.
+
+The tests run in this order:
+
+1. `LoginTest`: the password on the single user deployment; the e-mailed link (once only) and the password on the
+   multi user one.
+2. `NotesTest`: the same tests on both deployments; a note is created, kept and deleted.
+3. `BackupTest`: on both, a note, `sakctl backup`, the note deleted and another one created, `sakctl restore`: the
+   note of the backup is back, the later one is gone.
+4. `SakctlTest`: the rules of the command line, without a server of their own. A second domain deployment and the
+   mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither removed nor taken over;
+   `config show` shows no secret; a deploy keeps the settings.
+
+Each step and each wait is a line on the output while the tests run, with the time and the deployment it is about.
+
+What the run needs, from pass unless set:
+
+| Variable | pass |
+|---|---|
+| `HCLOUD_TOKEN` | `hetzner/pelle.io/hcloud_api_token` |
+| `MAILTRAP_API_TOKEN` | `mailtrap/pelle/api-token` |
+| `SAK_E2E_SMTP_HOST`, `SAK_E2E_SMTP_PORT` | `mailtrap/pelle/smtp-server`, `mailtrap/pelle/smtp-port` (Hetzner blocks 25 and 465) |
+| `SAK_E2E_SMTP_USERNAME`, `SAK_E2E_SMTP_PASSWORD` | `mailtrap/pelle/smtp-user`, `mailtrap/pelle/smtp-password` |
+
+- Before the run, the tests delete every resource and DNS record of the project whose label `sak.pelle.io/name`
+  starts with `test-`, and empty the sandbox. Nothing else is changed.
+- Both zones must exist in the project. `SAK_E2E_DOMAIN_ZONE` and `SAK_E2E_SUBDOMAIN_ZONE` select other zones.
+- The browser reaches the new names of a deployment at the address of its server at once (`--host-resolver-rules`),
+  whatever the DNS of the machine still remembers. The deployments get their certificates from the staging CA of
+  Let's Encrypt (`--acme-ca staging`), which the browser does not check.
 - `SAK_E2E_SAKCTL` selects another sakctl binary than the one of `cargo build`.
 - The servers are created in `hel1`, `SAK_E2E_LOCATION` selects another location (a server type can be sold out in
-  one for a while). Every deployment gets its certificates from the staging CA of Let's Encrypt (`--acme-ca staging`).
+  one for a while).
+- A run sends one mail; the free plan of Mailtrap has 50 a month.
