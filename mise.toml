@@ -14,10 +14,13 @@ rust = "1.99.1"
 # the documentation as a site (site/): hugo, and go for its modules (the theme relearn)
 "hugo-extended" = "0.168.0"
 go = "1.26.0"
+# the next version of `release`, from the tags v<version>
+svu = "3.4.1"
 
-# the version of SAK, the same for all its artifacts (#127); latest until they have versions
+# the version of SAK, the same for all its artifacts (#127): the build of a tag v<version> gets it
+# from the workflow as its tag, the artifacts take it without the v; latest everywhere else
 [env]
-VERSION = "latest"
+VERSION = "{{ get_env(name='VERSION', default='latest') | trim_start(pat='v') }}"
 
 # the images of the server and of sakctl, built and pushed to ghcr.io: the tools sakctl runs in a
 # container (sak-cli/Dockerfile) and the canary proving a container runtime works on its start
@@ -65,7 +68,7 @@ docker run --rm --entrypoint test "$image" -x /opt/sak-backend/bin/sak-backend
 echo "the image of sak-backend works"
 """
 
-# for amd64 and arm64, tagged <VERSION>-rc (`release` makes it <VERSION>) and with the commit it
+# for amd64 and arm64, tagged <VERSION>-rc (`release:docker` makes it <VERSION>) and with the commit it
 # was built from; the platform not running here needs qemu (binfmt)
 [tasks."backend:image:push"]
 description = "Build the image of sak-backend for amd64 and arm64 and push it to ghcr.io"
@@ -199,11 +202,11 @@ rm -f "build/sak-cli-windows-${VERSION}.zip"
 """
 
 # the zips of all platforms and their checksums (sak-cli/build/, from cli:build:<platform>) as the
-# assets of the github pre-release <VERSION>, made anew each time, so the addresses of the
-# installation stay the same: .../releases/download/<VERSION>/sak-cli-<platform>-<VERSION>.zip.
-# Needs gh and GH_TOKEN with contents: write (the workflow, job release)
+# assets of the github release of the tag v<VERSION>, where the installation downloads them:
+# .../releases/download/v<VERSION>/sak-cli-<platform>-<VERSION>.zip. Needs gh and GH_TOKEN with
+# contents: write (the workflow, job release, on a tag only)
 [tasks."cli:release"]
-description = "Publish the zips of sakctl in sak-cli/build as the github pre-release <VERSION>"
+description = "Publish the zips of sakctl in sak-cli/build as the github release of the tag v<VERSION>"
 dir = "{{config_root}}/sak-cli"
 run = """
 set -eu
@@ -213,8 +216,8 @@ for platform in linux macos windows; do
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
   files="$files $zip $zip.sha256"
 done
-gh release delete "$VERSION" --cleanup-tag --yes 2>/dev/null || true
-gh release create "$VERSION" --prerelease --target "$(git rev-parse HEAD)"   --title "sakctl $VERSION" --notes "sakctl for linux, macOS and windows, built from $(git rev-parse --short=12 HEAD)."   $files
+gh release create "v${VERSION}" --verify-tag --title "sakctl $VERSION" \
+  --notes "sakctl for linux, macOS and windows, built from $(git rev-parse --short=12 HEAD)." $files
 """
 
 # the checks run real containers with the docker or podman installed, skipped without one
@@ -282,7 +285,7 @@ docker run --rm -v "{{config_root}}/sak-cli/image-test:/test:ro" "$image" sh /te
 echo "the image of the tools works"
 """
 
-# for amd64 and arm64 (the macs), tagged <VERSION>-rc (`release` makes it <VERSION>) and with the
+# for amd64 and arm64 (the macs), tagged <VERSION>-rc (`release:docker` makes it <VERSION>) and with the
 # commit it was built from; the platform not running here needs qemu (binfmt)
 [tasks."cli:image:push"]
 description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
@@ -322,10 +325,27 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --push .
 """
 
+# the next minor version of main as the tag v<version>, pushed: the workflow builds the tag and
+# releases it as <version> (the images, sakctl and the documentation). Only from a clean main that
+# is the same as origin/main, the commit of the tag must be on github
+[tasks."release"]
+description = "Tag the next minor version of a clean main as v<version> and push the tag, which builds the release"
+run = """
+set -eu
+[ -z "$(git status --porcelain)" ] || { echo "the repository is not clean" >&2; exit 1; }
+[ "$(git branch --show-current)" = main ] || { echo "a release is made from main only" >&2; exit 1; }
+git fetch --tags origin main
+[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "main is not the same as origin/main" >&2; exit 1; }
+version=$(svu minor)
+git tag -a "$version" -m "Release $version"
+git push origin "$version"
+echo "tagged $version, the workflow builds and releases it"
+"""
+
 # the images of a build, pushed as <VERSION>-rc by their push tasks, as <VERSION>: the registry
 # copies the manifest of both platforms, nothing is pulled. Run when all images are pushed (the
 # workflow, job release); sakctl and the servers take <VERSION> only after it
-[tasks."release"]
+[tasks."release:docker"]
 description = "Tag the images pushed as <VERSION>-rc as <VERSION> in ghcr.io"
 run = """
 for image in {{vars.backend_image}} {{vars.ingress_image}} {{vars.cli_image}} {{vars.cli_canary}}; do
@@ -404,13 +424,15 @@ run = "cargo test window_fixtures -- --ignored"
 # the workflow those of all platforms) for the installation, as site/data/sakctl.yaml; a platform
 # without a zip shows <sha256>
 [tasks."docs:data"]
-description = "Write the version and the checksums of sakctl for the installation of the documentation"
+description = "Write the version, its release and the checksums of sakctl for the installation of the documentation"
 dir = "{{config_root}}/site"
 run = """
 set -eu
 mkdir -p data
 {
   echo "version: '$VERSION'"
+  # the tag of the release, no tag for a build that is not one
+  [ "$VERSION" = latest ] && echo "release: 'latest'" || echo "release: 'v$VERSION'"
   echo "checksums:"
   for platform in linux macos windows; do
     checksum="../sak-cli/build/sak-cli-${platform}-${VERSION}.zip.sha256"

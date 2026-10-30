@@ -1,15 +1,17 @@
 # builds and tests everything: the backend and the frontend with gradle, the images of the server
 # (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
-# the canary), each in a job of its own and pushed to ghcr.io as <VERSION>-rc from main only, then
-# all of them as <VERSION> (release), sakctl as a native binary for linux, macOS and windows, and
-# the documentation of docs/ as a site, published as the github pages of the repository from main
-# only after the release. Everything that can be is cached: the mise tools, gradle, npm, cargo, the
-# apt packages and the docker layers (in the registry).
+# the canary), each in a job of its own, sakctl as a native binary for linux, macOS and windows, and
+# the documentation of docs/ as a site. Only the build of a tag v<version> (mise run release)
+# publishes: the images pushed to ghcr.io as <VERSION>-rc, then all of them as <VERSION> (release),
+# and after the release the documentation as the github pages of the repository. Everything that
+# can be is cached: the mise tools, gradle, npm, cargo, the apt packages and the docker layers (in
+# the registry).
 name: swiss-army-knife
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -26,6 +28,8 @@ concurrency:
 
 env:
   MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+  # the tag v<version> of a release, mise.toml takes the v off; latest for every other build
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   # each job installs the tools it needs only, not every tool of the mise.toml files
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
@@ -79,7 +83,7 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run ${{ matrix.tasks }}:test
-      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - if: github.ref_type == 'tag'
         run: mise run ${{ matrix.tasks }}:push
 
   sak-cli-images:
@@ -104,7 +108,7 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run cli:${{ matrix.image }}:test
-      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - if: github.ref_type == 'tag'
         run: mise run cli:${{ matrix.image }}:push
 
   # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
@@ -175,21 +179,21 @@ jobs:
           path: sak-cli/build
           merge-multiple: true
       - id: pages
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref_type == 'tag'
         uses: actions/configure-pages@v6
       - run: mise run docs:build
         env:
           HUGO_BASEURL: ${{ steps.pages.outputs.base_url }}/
-      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - if: github.ref_type == 'tag'
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/site
 
-  # from main only, when all images and all zips of sakctl are built: the images pushed as
-  # <VERSION>-rc as <VERSION> (mise run release), the zips and their checksums as the github
-  # pre-release <VERSION> (mise run cli:release), where the installation downloads them
+  # from a tag v<version> only, when all images and all zips of sakctl are built: the images pushed
+  # as <VERSION>-rc as <VERSION> (mise run release:docker), the zips and their checksums as the
+  # github release of the tag (mise run cli:release), where the installation downloads them
   release:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref_type == 'tag'
     needs: [sak-backend-images, sak-cli-images, sakctl]
     runs-on: ubuntu-24.04
     permissions:
@@ -205,7 +209,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: mise run release
+      - run: mise run release:docker
       # the zips as they are; without skip-decompress they would be extracted
       - uses: actions/download-artifact@v8
         with:
@@ -218,10 +222,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # the site of the job docs-build as the github pages of the repository, from main only, after the
-  # release
+  # the site of the job docs-build as the github pages of the repository, from a tag v<version>
+  # only, after the release: its installation downloads the zips of that release
   docs-publish:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref_type == 'tag'
     needs: [docs-build, release]
     runs-on: ubuntu-24.04
     permissions:
