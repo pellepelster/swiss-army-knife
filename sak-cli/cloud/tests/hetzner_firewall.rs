@@ -136,10 +136,7 @@ async fn firewall_flow() {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(
-                runtime.applied_to_labels,
-                [("selector-a".to_string(), name.clone())].into()
-            );
+            assert_eq!(runtime.selectors, [format!("selector-a={name}")].into());
 
             let selector_b = updated_label
                 .clone()
@@ -154,10 +151,7 @@ async fn firewall_flow() {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(
-                runtime.applied_to_labels,
-                [("selector-b".to_string(), name.clone())].into()
-            );
+            assert_eq!(runtime.selectors, [format!("selector-b={name}")].into());
             assert_eq!(
                 provisioner
                     .diff(&selector_b, &context)

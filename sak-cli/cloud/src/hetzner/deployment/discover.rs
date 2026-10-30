@@ -204,7 +204,7 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             });
             continue;
         }
-        deployment.firewall = Some(HetznerFirewallRuntime::from_firewall(firewall)?);
+        deployment.firewall = Some(HetznerFirewallRuntime::from_firewall(firewall));
     }
     for volume in api.volumes().list(&query).await? {
         let Some(deployment) = of(&mut deployments, &volume.labels) else {

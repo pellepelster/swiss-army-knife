@@ -3,10 +3,11 @@ use crate::hetzner::api::firewalls::{
     FirewallCreate, FirewallResource, FirewallRule, FirewallUpdate,
 };
 use crate::hetzner::api::{ErrorCode, HetznerApi};
+use crate::hetzner::firewall::runtime::selector;
 use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallRuntime};
 use crate::hetzner::kind::HetznerKind;
 use async_trait::async_trait;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use tracing::info;
 
@@ -32,12 +33,18 @@ fn rules_text(rules: &[FirewallRule]) -> String {
         .join("; ")
 }
 
-fn selector_text(labels: &Labels) -> String {
-    labels
-        .iter()
-        .map(|(key, value)| format!("{key}={value}"))
-        .collect::<Vec<_>>()
-        .join(", ")
+/// the selectors of the declared labels: one, of all of them; none without labels
+fn declared_selectors(labels: &Labels) -> BTreeSet<String> {
+    FirewallResource::label_selector(labels)
+        .label_selector
+        .map(|label_selector| selector(&label_selector.selector))
+        .into_iter()
+        .filter(|selector| !selector.is_empty())
+        .collect()
+}
+
+fn selectors_text(selectors: &BTreeSet<String>) -> String {
+    selectors.iter().cloned().collect::<Vec<_>>().join("; ")
 }
 
 #[async_trait]
@@ -47,7 +54,7 @@ impl HetznerKind for HetznerFirewallProvisioner {
 
     async fn fetch(&self, name: &str) -> Result<Option<HetznerFirewallRuntime>> {
         match self.api.firewalls().get_by_name(name).await? {
-            Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
+            Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall))),
             None => Ok(None),
         }
     }
@@ -65,11 +72,12 @@ impl HetznerKind for HetznerFirewallProvisioner {
                 rules_text(&runtime.rules),
             ));
         }
-        if resource.applied_to_labels != runtime.applied_to_labels {
+        let declared = declared_selectors(&resource.applied_to_labels);
+        if declared != runtime.selectors {
             changes.push(DiffItem::changed(
                 "label selectors",
-                selector_text(&resource.applied_to_labels),
-                selector_text(&runtime.applied_to_labels),
+                selectors_text(&declared),
+                selectors_text(&runtime.selectors),
             ));
         }
         Ok(changes)
@@ -86,7 +94,7 @@ impl HetznerKind for HetznerFirewallProvisioner {
         };
         let created = firewalls.create(&request).await?;
         firewalls.wait_for_actions(&created.actions).await?;
-        HetznerFirewallRuntime::from_firewall(created.firewall)
+        Ok(HetznerFirewallRuntime::from_firewall(created.firewall))
     }
 
     /// the rules, and the label selectors, which a create does not set
@@ -100,8 +108,8 @@ impl HetznerKind for HetznerFirewallProvisioner {
             let actions = firewalls.set_rules(runtime.id, &resource.rules).await?;
             firewalls.wait_for_actions(&actions).await?;
         }
-        if runtime.applied_to_labels != resource.applied_to_labels {
-            if !runtime.applied_to_labels.is_empty() {
+        if runtime.selectors != declared_selectors(&resource.applied_to_labels) {
+            if !runtime.selectors.is_empty() {
                 let selectors: Vec<FirewallResource> = runtime
                     .applied_to
                     .iter()
@@ -254,13 +262,95 @@ mod tests {
         );
     }
 
+    /// the runtime of a firewall with these label selectors
+    fn with_selectors(selectors: &[&str]) -> HetznerFirewallRuntime {
+        let applied_to: Vec<Value> = selectors
+            .iter()
+            .map(|selector| json!({ "type": "label_selector", "label_selector": { "selector": selector } }))
+            .collect();
+        HetznerFirewallRuntime::from_firewall(
+            serde_json::from_value(
+                json!({ "id": 5, "name": "web", "rules": [], "applied_to": applied_to, "labels": {} }),
+            )
+            .unwrap(),
+        )
+    }
+
     #[test]
-    fn the_runtime_merges_the_selectors() {
-        let firewall: crate::hetzner::api::firewalls::Firewall =
-            serde_json::from_value(firewall("web", vec![], Some("a=1,b=2"), json!({}))).unwrap();
+    fn a_selector_is_compared_in_one_spelling() {
+        let declared = declared_selectors(&labels(&[("a", "1"), ("b", "2")]));
+        assert_eq!(declared, BTreeSet::from(["a=1,b=2".to_string()]));
+        for spelling in ["a=1,b=2", "b=2,a=1", "a==1, b=2", " a = 1 ,b==2,"] {
+            assert_eq!(
+                with_selectors(&[spelling]).selectors,
+                declared,
+                "{spelling}"
+            );
+        }
+        assert!(declared_selectors(&Labels::new()).is_empty());
+        assert!(with_selectors(&[]).selectors.is_empty());
+    }
 
-        let runtime = HetznerFirewallRuntime::from_firewall(firewall).unwrap();
+    #[test]
+    fn a_selector_sak_cloud_does_not_know_is_kept_as_it_is() {
+        let runtime = with_selectors(&[
+            "env!=prod",
+            "tier in (a,b),app=sak",
+            "tier notin (c, d)",
+            "backup",
+            "!legacy",
+        ]);
+        assert_eq!(
+            runtime.selectors,
+            BTreeSet::from([
+                "!legacy".to_string(),
+                "app=sak,tier in (a,b)".to_string(),
+                "backup".to_string(),
+                "env!=prod".to_string(),
+                "tier notin (c, d)".to_string(),
+            ])
+        );
+    }
 
-        assert_eq!(runtime.applied_to_labels, labels(&[("a", "1"), ("b", "2")]));
+    #[test]
+    fn two_selectors_stay_two() {
+        // `a=1` and `a=2` are two selectors, not one map
+        let runtime = with_selectors(&["a=1", "a=2"]);
+        assert_eq!(
+            runtime.selectors,
+            BTreeSet::from(["a=1".to_string(), "a=2".to_string()])
+        );
+        assert_ne!(
+            runtime.selectors,
+            declared_selectors(&labels(&[("a", "2")]))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_selector_sak_cloud_does_not_know_is_a_change_not_an_error() {
+        let (_server, provisioner) = provisioner_with(vec![firewall(
+            "web",
+            vec![http()],
+            Some("app=sak,tier in (web, api)"),
+            json!({}),
+        )])
+        .await;
+        let resource = HetznerFirewall::new("web", vec![inbound_tcp("80")])
+            .applied_to(labels(&[("app", "sak")]));
+
+        let diff = provisioner
+            .diff(&resource, &LookupProviders::new())
+            .await
+            .unwrap();
+
+        assert_eq!(diff.status, DiffStatus::HasChanges);
+        assert_eq!(
+            diff.changes,
+            vec![DiffItem::changed(
+                "label selectors",
+                "app=sak",
+                "app=sak,tier in (web, api)"
+            )]
+        );
     }
 }
