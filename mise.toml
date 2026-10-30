@@ -115,15 +115,39 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 # sakctl (sak-cli). On linux the webview needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
+# the npm dependencies of sak-theme (its bootstrap), installed again when its package-lock.json changed
+[tasks."theme:install"]
+description = "Install the npm dependencies of sak-theme"
+dir = "{{config_root}}/sak-theme"
+sources = ["package.json", "package-lock.json"]
+outputs = ["node_modules/.package-lock.json"]
+shell = "bash -c"
+run = "npm ci --no-audit --no-fund"
+
+# the npm dependencies of sak-frontend, as the gradle build installs them (:sak-frontend:npmCi),
+# again only when package.json or package-lock.json changed
+[tasks."frontend:install"]
+description = "Install the npm dependencies of sak-frontend"
+dir = "{{config_root}}"
+run = "./gradlew :sak-frontend:npmCi"
+
+# the apps built into sak-frontend/dist/, as the jar of the backend takes them (:sak-frontend:npmBuild);
+# gradle builds again only what changed
+[tasks."frontend:build"]
+description = "Build sak-frontend, the apps, into sak-frontend/dist/"
+depends = ["frontend:install"]
+dir = "{{config_root}}"
+run = "./gradlew :sak-frontend:npmBuild"
+
 # the theme of sak-theme with its bootstrap, copied into sak-cli/ui/theme/ (not committed): tauri
 # bundles sak-cli/ui/ alone
 [tasks."cli:theme"]
 description = "Copy sak-theme into ui/theme/ for the page of sakctl"
+depends = ["theme:install"]
 dir = "{{config_root}}/sak-cli"
 # bash on windows too (git bash), where mise would run cmd
 shell = "bash -c"
 run = """
-(cd ../sak-theme && npm ci --no-audit --no-fund)
 rm -rf ui/theme
 mkdir -p ui/theme
 cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
@@ -399,11 +423,9 @@ mkdir -p "$SAK_LOCAL_DATA_DIR"
 
 [tasks."local:frontend:run"]
 description = "Run sak-frontend, the apps, on http://localhost:4200, its /api goes to local:backend:run"
+depends = ["frontend:install"]
 dir = "{{config_root}}/sak-frontend"
-run = """
-[ -d node_modules ] || npm ci
-npx ng serve
-"""
+run = "npx ng serve"
 
 # the page of sakctl's window and the answers of rust for it, what the window screenshots and its
 # video show (sak-cli/src-tauri/src/core/deployments/window_fixtures.rs)
@@ -490,6 +512,7 @@ run = "./gradlew test"
 
 [tasks."frontend:test:unit"]
 description = "Run the unit tests of sak-frontend"
+depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
@@ -522,6 +545,7 @@ ansible/roles/role_markers/tests/role-markers-test.sh
 # downloads its chromium on the first run
 [tasks."frontend:test:integration"]
 description = "Run the integration tests of sak-frontend: the apps in a browser against the controller"
+depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
 
@@ -583,11 +607,12 @@ export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
 ./gradlew :sak-e2e:e2eIntegration --console=plain
 """
 
-# everything at once, each in its own process group with its log in build/local/logs; the backend
-# first, its build installs the npm dependencies of the frontend, which must not change under its
-# dev server. Ctrl-C stops everything.
+# everything at once, each in its own process group with its log in build/local/logs. The npm
+# dependencies of the frontend first (frontend:install), so neither the build of the backend nor the
+# dev server changes them under the other. Ctrl-C stops everything.
 [tasks."local:run"]
 description = "Run the services of local:env:run, the backend and the frontend until Ctrl-C"
+depends = ["frontend:install"]
 # the script keeps the process groups of the tasks in an array
 shell = "bash -c"
 run = '''
