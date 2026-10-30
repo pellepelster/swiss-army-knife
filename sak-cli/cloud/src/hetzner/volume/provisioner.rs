@@ -72,7 +72,14 @@ impl HetznerKind for HetznerVolumeProvisioner {
             automount: false,
             labels: Some(resource.labels.clone()),
         };
-        Ok(self.api.volumes().create(&request).await?.into())
+        let volumes = self.api.volumes();
+        let created = volumes.create(&request).await?;
+        // the api finishes the volume in its action; until then it is locked, and a server can not
+        // take it
+        if let Some(action) = &created.action {
+            volumes.wait_for_action(action).await?;
+        }
+        Ok(created.volume.into())
     }
 
     /// the delete protection, which a create cannot set
@@ -281,6 +288,40 @@ mod tests {
                 .await
                 .unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn a_create_waits_for_the_action_that_finishes_the_volume() {
+        let (server, provisioner) = provisioner_with(vec![]).await;
+        let mut creating = volume("data", 16, false, json!({}));
+        creating["status"] = json!("creating");
+        let action = |status: &str| {
+            json!({
+                "id": 9, "command": "create_volume", "status": status, "progress": 100,
+                "started": "2026-01-01T00:00:00+00:00", "finished": null, "error": null,
+                "resources": [{ "id": 3, "type": "volume" }]
+            })
+        };
+        Mock::given(method("POST"))
+            .and(path("/volumes"))
+            .respond_with(
+                ResponseTemplate::new(201)
+                    .set_body_json(json!({ "volume": creating, "action": action("running") })),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/volumes/actions/9"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "action": action("success") })),
+            )
+            .expect(1..)
+            .mount(&server)
+            .await;
+        let resource = HetznerVolume::new("data", Location::nbg1, 16).with_protected(false);
+
+        HetznerKind::create(&provisioner, &resource).await.unwrap();
+        // the expectation on the action is checked when the server goes
     }
 
     #[tokio::test]

@@ -4,6 +4,7 @@ use crate::api::{
     LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
 use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, ServerUpdate};
+use crate::hetzner::api::volumes::VolumeStatus;
 use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery, Location, ServerType};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
@@ -461,6 +462,27 @@ impl HetznerServerProvisioner {
     /// waits until a volume attached to a deleted server is detached. A volume attached to an
     /// existing server is an error in the declaration
     async fn wait_for_volumes(&self, volumes: &[HetznerVolumeRuntime]) -> Result<()> {
+        // a volume still being created, by this run or another, is locked until it is available
+        let creating: Vec<u64> = volumes
+            .iter()
+            .filter(|volume| volume.status != VolumeStatus::Available)
+            .map(|volume| volume.id)
+            .collect();
+        if !creating.is_empty() {
+            let api = &self.api;
+            let creating = &creating;
+            api.wait_until("the volumes to be available", || async move {
+                for id in creating {
+                    if let Some(volume) = api.volumes().get(*id).await?
+                        && volume.status != VolumeStatus::Available
+                    {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            })
+            .await?;
+        }
         for volume in volumes {
             let Some(other) = volume.server else { continue };
             if let Some(server) = self.api.servers().get(other).await? {
@@ -612,6 +634,41 @@ mod tests {
             .wait_for_deleted(&resource().as_lookup())
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_server_waits_for_a_volume_that_is_still_being_created() {
+        let (mock_server, api) = mock(vec![]).await;
+        let mut available = json!({
+            "id": 3, "name": "data", "format": "ext4", "linux_device": "/dev/sdb", "size": 16,
+            "protection": { "delete": true }, "server": null, "status": "available",
+            "location": { "id": 3, "name": "nbg1" }, "labels": {}
+        });
+        Mock::given(method("GET"))
+            .and(path("/volumes/3"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "volume": available.take() })),
+            )
+            .expect(1..)
+            .mount(&mock_server)
+            .await;
+        let creating = HetznerVolumeRuntime {
+            id: 3,
+            name: "data".to_string(),
+            device: "/dev/sdb".to_string(),
+            size_gb: 16,
+            location: Location::nbg1,
+            server: None,
+            delete_protected: true,
+            status: VolumeStatus::Creating,
+            labels: Default::default(),
+        };
+
+        HetznerServerProvisioner::new(api)
+            .wait_for_volumes(&[creating])
+            .await
+            .unwrap();
+        // the expectation on the volume is checked when the mock server goes
     }
 
     #[tokio::test]

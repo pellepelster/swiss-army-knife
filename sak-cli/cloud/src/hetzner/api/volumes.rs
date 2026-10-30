@@ -1,7 +1,9 @@
 use crate::api::Labels;
 use crate::hetzner::api::Result;
 use crate::hetzner::api::model::{Action, Location, Named, Protection};
-use crate::hetzner::api::resource::{HetznerResource, Protectable, ResourceApi, WithActions};
+use crate::hetzner::api::resource::{
+    CreateAnswer, HetznerResource, Protectable, ResourceApi, WithActions,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -65,13 +67,28 @@ struct AttachRequest {
     automount: bool,
 }
 
+/// the answer to a create: the volume and the action in which the api finishes it; until that is
+/// done the volume is `creating` and locked
+#[derive(Debug, Deserialize)]
+pub struct VolumeCreated {
+    pub volume: Volume,
+    pub action: Option<Action>,
+}
+
+impl CreateAnswer for VolumeCreated {
+    type Answer = Self;
+
+    fn from_answer(answer: Self) -> Self {
+        answer
+    }
+}
+
 impl HetznerResource for Volume {
     const PATH: &'static str = "volumes";
     const KEY: &'static str = "volume";
     type Create = VolumeCreate;
     type Update = VolumeUpdate;
-    /// the volume; the api continues the creation in an action
-    type Created = Self;
+    type Created = VolumeCreated;
     type Deleted = bool;
 }
 

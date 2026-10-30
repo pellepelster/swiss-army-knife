@@ -690,8 +690,10 @@ async fn a_volume_is_read_beside_the_actions_of_its_answer_and_updated_with_a_pu
         labels: None,
     };
     let created = api(&server).volumes().create(&request).await.unwrap();
-    assert_eq!(created.id, 3);
-    assert_eq!(created.format, Some(VolumeFormat::Ext4));
+    assert_eq!(created.volume.id, 3);
+    assert_eq!(created.volume.format, Some(VolumeFormat::Ext4));
+    // the action in which the api finishes the volume is kept, a create waits for it
+    assert!(created.action.is_some());
 
     let update = VolumeUpdate {
         name: Some("backup".to_string()),

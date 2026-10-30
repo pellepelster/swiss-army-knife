@@ -117,13 +117,6 @@ not the existing type, so a server upgraded in the console is silently recreated
 on the volume, but a recreate of a running server should not follow from "unknown": compare only when the image is
 known, or make the recreate a confirmed step.
 
-#### CP-7 (Low, suspected): The volume is used while still `creating`
-
-`volume/provisioner.rs:120` `create(..)?.into()` ignores the create action (`api/volumes.rs:95` says the api
-continues in an action); `change_protection` at `:124` and the server create with the volume id then depend on the
-423 retry of the api (`api/mod.rs:310-312`, 5 attempts ≈ 30 s). `server/provisioner.rs:410-422` `wait_for_volumes`
-checks `volume.server` only, never `status`.
-
 ---
 
 ## CD: core deployments and provisioning

@@ -1,6 +1,6 @@
 use crate::api::{Labeled, Labels, Runtime};
 use crate::hetzner::api::Location;
-use crate::hetzner::api::volumes::Volume;
+use crate::hetzner::api::volumes::{Volume, VolumeStatus};
 
 #[derive(Clone, Debug)]
 pub struct HetznerVolumeRuntime {
@@ -13,6 +13,8 @@ pub struct HetznerVolumeRuntime {
     /// the id of the server the volume is attached to
     pub server: Option<u64>,
     pub delete_protected: bool,
+    /// `creating` until the api finished it; a server can take it only when it is available
+    pub status: VolumeStatus,
     pub labels: Labels,
 }
 
@@ -26,6 +28,7 @@ impl From<Volume> for HetznerVolumeRuntime {
             location: volume.location.name,
             server: volume.server,
             delete_protected: volume.protection.delete,
+            status: volume.status,
             labels: volume.labels,
         }
     }
