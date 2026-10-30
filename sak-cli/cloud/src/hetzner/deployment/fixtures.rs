@@ -75,6 +75,13 @@ pub(super) fn volume(id: u64, name: &str, location: &str, labels: Value) -> Valu
     })
 }
 
+pub(super) fn ip(id: u64, name: &str, ip_type: &str, location: &str, labels: Value) -> Value {
+    json!({
+        "id": id, "name": name, "ip": "1.2.3.4", "type": ip_type, "assignee_id": null, "assignee_type": "unassigned",
+        "auto_delete": false, "protection": { "delete": true }, "location": { "id": 3, "name": location }, "labels": labels
+    })
+}
+
 pub(super) fn spec(dns_mode: DnsMode) -> DeploymentSpec {
     DeploymentSpec::new(
         "alpha",

@@ -29,6 +29,10 @@ pub const RESOURCE_PREFIX: &str = "sak-";
 /// of a resource
 pub const DATA_VOLUME_SUFFIX: &str = "-data";
 
+/// the suffixes of the cloud names of the primary ips, `sak-<name>-ipv4` and `sak-<name>-ipv6`
+pub(super) const IPV4_SUFFIX: &str = "-ipv4";
+pub(super) const IPV6_SUFFIX: &str = "-ipv6";
+
 /// the maximum length of a dns label, and so of a hostname label
 pub const DNS_LABEL_LEN: usize = 63;
 
@@ -214,17 +218,23 @@ impl DeploymentSpec {
     }
 
     pub fn ipv4(&self) -> HetznerPrimaryIp {
-        HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.resource_name()), self.location)
-            .with_labels(self.resource_labels())
-            .with_identity(self.identity())
-            .with_info(self.resource_info())
+        HetznerPrimaryIp::ipv4(
+            &format!("{}{IPV4_SUFFIX}", self.resource_name()),
+            self.location,
+        )
+        .with_labels(self.resource_labels())
+        .with_identity(self.identity())
+        .with_info(self.resource_info())
     }
 
     pub fn ipv6(&self) -> HetznerPrimaryIp {
-        HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.resource_name()), self.location)
-            .with_labels(self.resource_labels())
-            .with_identity(self.identity())
-            .with_info(self.resource_info())
+        HetznerPrimaryIp::ipv6(
+            &format!("{}{IPV6_SUFFIX}", self.resource_name()),
+            self.location,
+        )
+        .with_labels(self.resource_labels())
+        .with_identity(self.identity())
+        .with_info(self.resource_info())
     }
 
     /// ssh, https and icmp from anywhere, applied to the servers of the deployment
@@ -409,7 +419,7 @@ impl ObservedSpec {
                 .get(USER_DATA_LABEL)
                 .cloned();
         }
-        if let Some(volume) = deployment.volumes.first() {
+        if let Some(volume) = &deployment.data_volume {
             spec.data_volume_gb = volume.size_gb;
         }
         Ok(ObservedSpec {

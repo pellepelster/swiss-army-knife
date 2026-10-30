@@ -3,7 +3,10 @@
 use crate::api::{Labels, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location};
 use crate::hetzner::deployment::ResourceKind;
-use crate::hetzner::deployment::{AcmeCa, DnsMode, UserMode, frontend_host};
+use crate::hetzner::deployment::spec::{IPV4_SUFFIX, IPV6_SUFFIX};
+use crate::hetzner::deployment::{
+    AcmeCa, DATA_VOLUME_SUFFIX, DnsMode, RESOURCE_PREFIX, UserMode, frontend_host,
+};
 use crate::hetzner::firewall::HetznerFirewallRuntime;
 use crate::hetzner::primary_ip::HetznerPrimaryIpRuntime;
 use crate::hetzner::server::HetznerServerRuntime;
@@ -21,15 +24,21 @@ pub struct DiscoveredDeployment {
     pub ssh_key: Option<HetznerSshKeyRuntime>,
     pub firewall: Option<HetznerFirewallRuntime>,
     pub server: Option<HetznerServerRuntime>,
-    pub volumes: Vec<HetznerVolumeRuntime>,
-    pub primary_ips: Vec<HetznerPrimaryIpRuntime>,
-    /// a second server, ssh key or firewall with its name label: the deployment has one of each,
-    /// the first found; the others are kept here, so the list shows them and the password is
-    /// checked against their hashes too
+    /// the volume of its declared name, `sak-<name>-data`
+    pub data_volume: Option<HetznerVolumeRuntime>,
+    /// the primary ip of its declared name, `sak-<name>-ipv4`
+    pub ipv4: Option<HetznerPrimaryIpRuntime>,
+    /// the primary ip of its declared name, `sak-<name>-ipv6`
+    pub ipv6: Option<HetznerPrimaryIpRuntime>,
+    /// the other resources with its name label: a second server, ssh key or firewall (the
+    /// deployment has the first found), a volume or primary ip of another name than the declared
+    /// one. They are kept here, so the list shows them and the password is checked against their
+    /// hashes too
     pub left_out: Vec<LeftOut>,
 }
 
-/// a resource with the name label of a deployment that has one of its kind already
+/// a resource with the name label of a deployment that has one of its kind already, or a volume
+/// or primary ip with it under a name the deployment does not declare
 #[derive(Clone, Debug)]
 pub struct LeftOut {
     pub kind: ResourceKind,
@@ -86,7 +95,7 @@ impl DiscoveredDeployment {
         ))
     }
 
-    /// the location of its server, else of its volumes, else of its primary ips; none without
+    /// the location of its server, else of its volume, else of its primary ips; none without
     /// them. Resources in different locations are an error that names them: a deploy must not
     /// guess
     pub fn location(&self) -> std::result::Result<Option<Location>, String> {
@@ -104,7 +113,7 @@ impl DiscoveredDeployment {
         Ok(Some(*location))
     }
 
-    /// the location of each of its server, volumes and primary ips, in this order
+    /// the location of each of its server, volume and primary ips, in this order
     pub(super) fn locations(&self) -> Vec<(String, Location)> {
         let mut found: Vec<(String, Location)> = Vec::new();
         found.extend(
@@ -113,27 +122,31 @@ impl DiscoveredDeployment {
                 .map(|server| (format!("server '{}'", server.name), server.location)),
         );
         found.extend(
-            self.volumes
+            self.data_volume
                 .iter()
                 .map(|volume| (format!("volume '{}'", volume.name), volume.location)),
         );
         found.extend(
-            self.primary_ips
-                .iter()
+            self.primary_ips()
                 .map(|ip| (format!("primary ip '{}'", ip.name), ip.location)),
         );
         found
     }
 
+    /// its primary ips, ipv4 first
+    pub(super) fn primary_ips(&self) -> impl Iterator<Item = &HetznerPrimaryIpRuntime> {
+        self.ipv4.iter().chain(self.ipv6.iter())
+    }
+
     /// the labels of each of its resources: the server, the ssh key, the firewall, the primary
-    /// ips, the volumes
+    /// ips, the volume, the ones left out
     pub fn labels(&self) -> Vec<&Labels> {
         let mut labels: Vec<&Labels> = Vec::new();
         labels.extend(self.server.iter().map(|server| &server.labels));
         labels.extend(self.ssh_key.iter().map(|key| &key.labels));
         labels.extend(self.firewall.iter().map(|firewall| &firewall.labels));
-        labels.extend(self.primary_ips.iter().map(|ip| &ip.labels));
-        labels.extend(self.volumes.iter().map(|volume| &volume.labels));
+        labels.extend(self.primary_ips().map(|ip| &ip.labels));
+        labels.extend(self.data_volume.iter().map(|volume| &volume.labels));
         labels.extend(self.left_out.iter().map(|left_out| &left_out.labels));
         labels
     }
@@ -145,7 +158,8 @@ impl DiscoveredDeployment {
 }
 
 /// the deployments of the project, sorted by name. A deployment has one server, ssh key and
-/// firewall; a second one with the same name label is left out (`left_out`)
+/// firewall, the first found, and the volume and the primary ips of their declared names; any
+/// other resource with the same name label is left out (`left_out`)
 pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     let query = ListQuery::new().label_exists(NAME_LABEL);
     let mut deployments: BTreeMap<String, DiscoveredDeployment> = BTreeMap::new();
@@ -193,16 +207,42 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
         deployment.firewall = Some(HetznerFirewallRuntime::from_firewall(firewall)?);
     }
     for volume in api.volumes().list(&query).await? {
-        if let Some(deployment) = of(&mut deployments, &volume.labels) {
-            deployment.volumes.push(volume.into());
+        let Some(deployment) = of(&mut deployments, &volume.labels) else {
+            continue;
+        };
+        if volume.name != declared(&deployment.name, DATA_VOLUME_SUFFIX) {
+            deployment.left_out.push(LeftOut {
+                kind: ResourceKind::Volume,
+                name: volume.name.clone(),
+                labels: volume.labels.clone(),
+            });
+            continue;
         }
+        deployment.data_volume = Some(volume.into());
     }
     for ip in api.primary_ips().list(&query).await? {
-        if let Some(deployment) = of(&mut deployments, &ip.labels) {
-            deployment.primary_ips.push(ip.into());
+        let Some(deployment) = of(&mut deployments, &ip.labels) else {
+            continue;
+        };
+        if ip.name == declared(&deployment.name, IPV4_SUFFIX) {
+            deployment.ipv4 = Some(ip.into());
+        } else if ip.name == declared(&deployment.name, IPV6_SUFFIX) {
+            deployment.ipv6 = Some(ip.into());
+        } else {
+            deployment.left_out.push(LeftOut {
+                kind: ResourceKind::PrimaryIp,
+                name: ip.name.clone(),
+                labels: ip.labels.clone(),
+            });
         }
     }
     Ok(deployments.into_values().collect())
+}
+
+/// the cloud name a deployment declares for a resource with `suffix`, `sak-<name>-data`; names
+/// are unique per kind in a project, so one resource has it at most
+fn declared(name: &str, suffix: &str) -> String {
+    format!("{RESOURCE_PREFIX}{name}{suffix}")
 }
 
 /// the deployment of the labels, added when it is not there yet; none without the name label
@@ -269,6 +309,74 @@ mod tests {
     }
     use crate::providers::hetzner::HetznerProviderRuntime;
     use serde_json::json;
+
+    #[tokio::test]
+    async fn a_volume_and_a_primary_ip_of_another_name_are_left_out_and_listed() {
+        let labels = json!({ NAME_LABEL: "alpha", DNS_MODE_LABEL: "subdomain" });
+        let mut old = volume(4, "sak-alpha-old", "hel1", labels.clone());
+        old["size"] = json!(64);
+        let mut data = volume(3, "sak-alpha-data", "hel1", labels.clone());
+        data["size"] = json!(32);
+        let (_server, api) = mock_api_all(&[
+            ("servers", vec![]),
+            ("ssh_keys", vec![key(7, "sak-alpha", labels.clone())]),
+            ("firewalls", vec![]),
+            // listed first, the volume of another name must not set the declared size
+            ("volumes", vec![old, data]),
+            (
+                "primary_ips",
+                vec![
+                    ip(10, "sak-alpha-old", "ipv4", "hel1", labels.clone()),
+                    ip(11, "sak-alpha-ipv4", "ipv4", "hel1", labels.clone()),
+                ],
+            ),
+        ])
+        .await;
+
+        let deployments = discover(&api).await.unwrap();
+        let alpha = &deployments[0];
+        assert_eq!(alpha.data_volume.as_ref().unwrap().name, "sak-alpha-data");
+        assert_eq!(alpha.ipv4.as_ref().unwrap().name, "sak-alpha-ipv4");
+        assert!(alpha.ipv6.is_none());
+        let left_out: Vec<(ResourceKind, &str)> = alpha
+            .left_out
+            .iter()
+            .map(|left_out| (left_out.kind, left_out.name.as_str()))
+            .collect();
+        assert_eq!(
+            left_out,
+            vec![
+                (ResourceKind::Volume, "sak-alpha-old"),
+                (ResourceKind::PrimaryIp, "sak-alpha-old"),
+            ]
+        );
+
+        let provider = HetznerProviderRuntime::from_api(api.clone());
+        let listed = state(&provider, alpha).await;
+        assert_eq!(listed.error, None);
+        let statuses: Vec<(ResourceKind, &str, Option<crate::api::DiffStatus>)> = listed
+            .resources
+            .iter()
+            .filter(|resource| {
+                matches!(
+                    resource.kind,
+                    ResourceKind::Volume | ResourceKind::PrimaryIp
+                )
+            })
+            .map(|resource| (resource.kind, resource.name.as_str(), resource.status))
+            .collect();
+        use crate::api::DiffStatus::{Duplicate, Missing, UpToDate};
+        assert_eq!(
+            statuses,
+            vec![
+                (ResourceKind::Volume, "sak-alpha-data", Some(UpToDate)),
+                (ResourceKind::PrimaryIp, "sak-alpha-ipv4", Some(UpToDate)),
+                (ResourceKind::PrimaryIp, "sak-alpha-ipv6", Some(Missing)),
+                (ResourceKind::Volume, "sak-alpha-old", Some(Duplicate)),
+                (ResourceKind::PrimaryIp, "sak-alpha-old", Some(Duplicate)),
+            ]
+        );
+    }
 
     #[tokio::test]
     async fn discover_groups_the_labeled_resources_by_name() {
@@ -348,13 +456,13 @@ mod tests {
         };
         let mut deployment = DiscoveredDeployment::new("alpha");
         assert_eq!(deployment.location(), Ok(None));
-        deployment.primary_ips = vec![ip("nbg1").into()];
+        deployment.ipv4 = Some(ip("nbg1").into());
         assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
         // without a server, the volume gives the location
-        deployment.volumes = vec![volume.into()];
+        deployment.data_volume = Some(volume.into());
         assert_eq!(deployment.location(), Ok(Some(Location::nbg1)));
         // resources in two locations: an error, no guess
-        deployment.primary_ips = vec![ip("hel1").into()];
+        deployment.ipv4 = Some(ip("hel1").into());
         assert_eq!(
             deployment.location(),
             Err("volume 'sak-alpha-data' in nbg1, primary ip 'sak-alpha-ipv4' in hel1".to_string())

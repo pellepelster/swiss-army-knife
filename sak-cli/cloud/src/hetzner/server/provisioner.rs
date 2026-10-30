@@ -4,11 +4,11 @@ use crate::api::{
     LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
 use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, ServerUpdate};
-use crate::hetzner::api::{ErrorCode, HetznerApi, Location, ServerType};
+use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery, Location, ServerType};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::primary_ip::{HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime};
 use crate::hetzner::server::{HetznerServer, HetznerServerLookup, HetznerServerRuntime, UserData};
-use crate::hetzner::ssh_key::HetznerSshKeyRuntime;
+use crate::hetzner::ssh_key::{HetznerSshKeyLookup, HetznerSshKeyRuntime};
 use crate::hetzner::volume::HetznerVolumeRuntime;
 use crate::hetzner::{SSH_KEYS_LABEL, USER_DATA_LABEL, hetzner_label_diff};
 use async_trait::async_trait;
@@ -88,12 +88,10 @@ impl HetznerServerProvisioner {
     ) -> Result<Dependencies> {
         let mut ssh_keys = Vec::new();
         for lookup in &resource.ssh_keys {
-            ssh_keys.push(
-                context
-                    .lookup(lookup)
-                    .await?
-                    .ok_or_else(|| Error::NotFound(lookup.log_text()))?,
-            );
+            match context.lookup(lookup).await? {
+                Some(key) => ssh_keys.push(key),
+                None => return Err(self.missing_key(lookup).await?),
+            }
         }
         let mut volumes = Vec::new();
         for lookup in &resource.volumes {
@@ -109,6 +107,36 @@ impl HetznerServerProvisioner {
             volumes,
             ipv4: self.primary_ip(resource.ipv4.as_ref(), context).await?,
             ipv6: self.primary_ip(resource.ipv6.as_ref(), context).await?,
+        })
+    }
+
+    /// the error of a declared ssh key that is not found; it names a key of another name with the
+    /// identity labels of the lookup, a key renamed in the console
+    async fn missing_key(&self, lookup: &HetznerSshKeyLookup) -> Result<Error> {
+        if lookup.identity.is_empty() {
+            return Ok(Error::NotFound(lookup.log_text()));
+        }
+        let renamed = self
+            .api
+            .ssh_keys()
+            .list(&ListQuery::new().labels(&lookup.identity))
+            .await?
+            .into_iter()
+            .find(|key| {
+                key.name != lookup.name
+                    && lookup
+                        .identity
+                        .iter()
+                        .all(|(label, value)| key.labels.get(label) == Some(value))
+            });
+        Ok(match renamed {
+            Some(key) => Error::message(format!(
+                "{} not found, the ssh key '{}' has its labels: rename it back to '{}' or remove it",
+                lookup.log_text(),
+                key.name,
+                lookup.name
+            )),
+            None => Error::NotFound(lookup.log_text()),
         })
     }
 

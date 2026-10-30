@@ -195,14 +195,13 @@ fn found(deployment: &DiscoveredDeployment) -> Vec<ResourceState> {
     );
     found.extend(
         deployment
-            .volumes
+            .data_volume
             .iter()
             .map(|volume| (ResourceKind::Volume, volume.name.as_str())),
     );
     found.extend(
         deployment
-            .primary_ips
-            .iter()
+            .primary_ips()
             .map(|ip| (ResourceKind::PrimaryIp, ip.name.as_str())),
     );
     found.extend(
@@ -261,13 +260,12 @@ fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> 
             .filter(|key| key.name == name)
             .map(|key| key.fingerprint.clone()),
         ResourceKind::Volume => deployment
-            .volumes
-            .iter()
-            .find(|volume| volume.name == name)
+            .data_volume
+            .as_ref()
+            .filter(|volume| volume.name == name)
             .map(|volume| format!("{} GB", volume.size_gb)),
         ResourceKind::PrimaryIp => deployment
-            .primary_ips
-            .iter()
+            .primary_ips()
             .find(|ip| ip.name == name)
             .map(|ip| ip.ip.clone()),
         ResourceKind::Firewall => deployment
@@ -342,19 +340,19 @@ mod tests {
 
     #[tokio::test]
     async fn a_deployment_that_cannot_be_compared_is_unknown_with_what_was_found() {
-        // two volumes of the name in two locations: a deploy must not guess the location
+        // the volume and a primary ip in two locations: a deploy must not guess the location
         let (_server, api) = mock_api_all(&[
             ("servers", vec![]),
             ("ssh_keys", vec![key(8, "sak-delta", named("delta"))]),
             ("firewalls", vec![]),
             (
                 "volumes",
-                vec![
-                    volume(3, "sak-delta-data", "nbg1", named("delta")),
-                    volume(4, "sak-delta-old", "hel1", named("delta")),
-                ],
+                vec![volume(3, "sak-delta-data", "nbg1", named("delta"))],
             ),
-            ("primary_ips", vec![]),
+            (
+                "primary_ips",
+                vec![ip(11, "sak-delta-ipv4", "ipv4", "hel1", named("delta"))],
+            ),
         ])
         .await;
         let provider = HetznerProviderRuntime::from_api(api.clone());
@@ -375,7 +373,7 @@ mod tests {
             vec![
                 (ResourceKind::SshKey, "sak-delta", None),
                 (ResourceKind::Volume, "sak-delta-data", None),
-                (ResourceKind::Volume, "sak-delta-old", None),
+                (ResourceKind::PrimaryIp, "sak-delta-ipv4", None),
             ]
         );
         assert_eq!(delta.resources[1].detail.as_deref(), Some("16 GB"));
@@ -508,6 +506,40 @@ mod tests {
             server.changes
         );
         assert_eq!(server.detail.as_deref(), Some("cx23 in hel1, 1.2.3.4"));
+    }
+
+    #[tokio::test]
+    async fn a_server_whose_key_was_renamed_names_the_key() {
+        let (_server, api) = mock_api_all(&[
+            ("servers", vec![server(1, "sak-alpha", named("alpha"))]),
+            // renamed in the console: a deploy would create the key anew, Hetzner refuses it
+            ("ssh_keys", vec![key(7, "sak-alpha-old", named("alpha"))]),
+            ("firewalls", vec![firewall(5, "sak-alpha", named("alpha"))]),
+            (
+                "volumes",
+                vec![volume(3, "sak-alpha-data", "hel1", named("alpha"))],
+            ),
+            (
+                "primary_ips",
+                vec![
+                    ip(11, "sak-alpha-ipv4", "ipv4", "hel1", named("alpha")),
+                    ip(12, "sak-alpha-ipv6", "ipv6", "hel1", named("alpha")),
+                ],
+            ),
+        ])
+        .await;
+        let provider = HetznerProviderRuntime::from_api(api.clone());
+        let deployments = discover(&api).await.unwrap();
+
+        let alpha = state(&provider, &deployments[0]).await;
+
+        assert_eq!(alpha.status, DeploymentStatus::Unknown);
+        let error = alpha.error.unwrap();
+        assert!(
+            error.contains("ssh key 'sak-alpha' not found")
+                && error.contains("'sak-alpha-old' has its labels"),
+            "{error}"
+        );
     }
 
     #[test]
