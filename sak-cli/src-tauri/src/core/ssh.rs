@@ -23,6 +23,14 @@ const KNOWN_HOSTS: &str = "/tmp/sak-known-hosts";
 const ALIVE_INTERVAL_SECONDS: u32 = 15;
 const ALIVE_COUNT: u32 = 4;
 
+/// what ssh answers when it fails itself: the connection, the host key, the client key
+pub const SSH_FAILED: i32 = 255;
+
+/// the error of an ssh that failed itself, in its own words: the last line it wrote
+pub fn failed(last_line: Option<&str>) -> String {
+    t!("shared.ssh.failed", error = last_line.unwrap_or_default()).to_string()
+}
+
 /// the server of a deployment and the keys to reach it
 pub struct SshTarget {
     /// the public ipv4 of the server, ssh connects to it

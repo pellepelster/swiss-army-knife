@@ -10,7 +10,7 @@ use crate::core::container::ContainerRuntime;
 use crate::core::deployments::CreateEvent;
 use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
 use crate::core::roles;
-use crate::core::ssh::{SshTarget, Stream, run_streaming};
+use crate::core::ssh::{SSH_FAILED, SshTarget, Stream, run_streaming};
 use async_trait::async_trait;
 use rust_i18n::t;
 use sak_cloud::api::context::LookupContextExt;
@@ -149,17 +149,20 @@ impl AnsibleRolesProvisioner {
         };
         tokio::task::spawn_blocking(move || {
             let mut out = Vec::new();
+            // what ssh says when it fails, e.g. "Host key verification failed."
+            let mut last_line = None;
             let code = run_streaming(
                 runtime,
                 &target,
                 &[roles::read_command()],
                 Stream::Out(&mut out),
-                &mut |_| {},
+                &mut |line| last_line = Some(line),
             )?;
-            if code != 0 {
-                return Err(format!("ssh ended with exit code {code}"));
+            match code {
+                0 => Ok(roles::parse(&String::from_utf8_lossy(&out))),
+                SSH_FAILED => Err(crate::core::ssh::failed(last_line.as_deref())),
+                code => Err(t!("shared.provision.markers_failed", code = code).to_string()),
             }
-            Ok(roles::parse(&String::from_utf8_lossy(&out)))
         })
         .await
         .map_err(|error| error.to_string())?

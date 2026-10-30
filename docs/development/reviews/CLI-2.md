@@ -61,9 +61,9 @@ the review found them; the sections below hold the ones still open.
   CA-3), a destroy plans with the create registry (CD-2), the playbook decision differs (CD-4), a pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
   resolves all of them (CD-25, CP-22).
-- **Errors that lose their cause.** Stderr thrown away when the markers are read (CD-6), one unknown server type
-  that fails the list (CA-1). *Done: the running configuration, the exit codes of ssh and of the lock, a deployment
-  that cannot be compared.*
+- **Errors that lose their cause.** One unknown server type that fails the list (CA-1). *Done: the running
+  configuration, the exit codes of ssh and of the lock, a deployment that cannot be compared, the reading of the
+  markers.*
 - **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the kind of a planned
   resource (CD-13), the strings and flags of the deployment spec (CP-17), a few flags of the command line (UI-16).
   *Done: `DiffItem`, the plan words, the reasons of a reboot, the password prompt, the transport.*
@@ -242,14 +242,6 @@ run directories (`provision.rs:444-455`). The window cannot start a deploy and a
 `SessionContainer`, which needs a handle from `run_streaming`. The same `stop_runs` from an async context runs
 `docker rm --force` synchronously on a tokio worker (`provision.rs:472-478`).
 
-#### ~~CU-3 (Medium, confirmed): ssh's own failure is reported as the script's exit code~~ **fixed**
-
-ssh exits 255 on a host-key mismatch, a refused key, a reset. `backup::ended` (`backup.rs:204-209`) and
-`maintenance::answer` (`maintenance.rs:290-294`) turn that into "sak-backend on the server ended with exit code 255";
-the cause went by as a stderr line. **Scenario:** the server was recreated by someone else → "Host key
-verification failed." scrolls past, the error blames sak-backend. **Fix:** map 255 to an ssh error that carries the
-last stderr line.
-
 #### CU-5 (Medium, confirmed): The self-update has no architecture in the platform and checks nothing about the binary
 
 `PLATFORM` (`update.rs:27-32`) is `linux|macos|windows`; `verify` (`update.rs:297-312`) proves integrity only. The
@@ -322,14 +314,6 @@ progress disappeared.
   signature or a doc note keeps someone from passing a filename with a space.
 
 ### Structure
-
-#### ~~CU-20: One `core::sak_backend` module~~ **fixed**
-
-`enum Command { Backup { recipient }, Restore, RebootPending, Update, Reboot { if_pending } }` with `fn argv(&self)`,
-one `run(runtime, target, command, stream, on_line) -> Result<Outcome, Failure>` where `Failure` is typed
-(`Ssh { code, last_line }`, `NotInstalled`, `Busy`, `Failed { error }`, `ExitCode(i32)`). `backup.rs` keeps the file
-and age work, `maintenance.rs` the typed answers and their lines; `ansible_roles.rs` uses the same runner. Resolves
-CU-3, the busy code of a backup and the cross-import.
 
 #### CU-21: A cancellable ssh session per call
 
@@ -564,14 +548,6 @@ comments. `check_smtp` (`deployments.rs:471-486`) refuses only `\n`/`\r`; `backe
 verbatim (`provision.rs:133`). A mail password that starts with a quote, contains a backslash or has leading spaces
 reaches the backend altered; the test at `provision.rs:618` checks the file, not what systemd reads. **To confirm:**
 `systemd.exec(5)` EnvironmentFile semantics or a quadlet test; then quote the values in `backend_env`.
-
-#### CD-6 (Medium): An ssh failure while reading the markers is "will run", and its cause is dropped
-
-`ansible_roles.rs:150-162` discards stderr (`&mut |_| {}`) and returns the untranslated "ssh ended with exit code";
-`diff` maps any error to `HasChanges` (`:202-208`). **Scenario:** a host-key mismatch (someone re-imaged the server)
-or a firewall change → the plan says "will run", the apply starts ansible, whose first task waits up to 600 s
-(`ansible/playbooks/server.yml:12`) and fails "unreachable", never naming the reason. **Fix:** keep the stderr in
-the `DiffItem`; distinguish "no markers" from "could not read" (also CU-3, CU-20).
 
 #### CD-7 (Low): A cancel in a narrow window leaves ansible running
 

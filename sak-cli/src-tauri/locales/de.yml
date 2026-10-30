@@ -73,6 +73,7 @@ shared:
       refused: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
       not_deleted: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
   provision:
+    markers_failed: "Das Lesen der Markierungen der Rollen auf dem Server endete mit Exit-Code %{code}."
     no_runtime: "Keine Container-Runtime, in der Ansible laufen kann, docker oder podman wird gebraucht."
     running: "Richte Server %{name} (%{host}) ein…"
     not_started: "%{runtime} konnte das Image der Werkzeuge nicht starten: %{error}"
@@ -168,13 +169,14 @@ shared:
     created: "erstellt"
     updated: "aktualisiert"
     destroyed: "zerstört"
+  ssh:
+    failed: "ssh zum Server ist fehlgeschlagen: %{error}"
   sak_backend:
     no_script: "Der Server hat kein %{script}: deploye das Deployment zuerst."
     ended: "%{script} auf dem Server endete mit Exit-Code %{code}."
     busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
     failed: "Der Server ist fehlgeschlagen: %{error}"
     unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
-    ssh_failed: "ssh zum Server ist fehlgeschlagen: %{error}"
   maintenance:
     timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     connecting: "Frage den Server von %{name} unter root@%{host}…"

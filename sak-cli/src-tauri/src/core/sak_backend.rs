@@ -3,7 +3,7 @@
 //! calls it through ssh (`ssh::run_streaming`); each line it writes to its standard error goes to
 //! the caller while it runs, its standard output carries the data of a backup or a json answer
 
-use crate::core::ssh::{SshTarget, Stream, run_streaming};
+use crate::core::ssh::{SSH_FAILED, SshTarget, Stream, run_streaming};
 use rust_i18n::t;
 use serde::Deserialize;
 
@@ -13,8 +13,6 @@ pub const SCRIPT: &str = "sak-backend";
 const BUSY: i32 = 2;
 /// what the shell answers for a command that is not there: a server provisioned before the script
 const NOT_FOUND: i32 = 127;
-/// what ssh answers when it fails itself: the connection, the host key, the client key
-const SSH_FAILED: i32 = 255;
 
 /// a command of the script
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,11 +121,7 @@ fn ended(code: i32, out: Option<&[u8]>, last_line: Option<&str>) -> Result<(), S
         0 => Ok(()),
         BUSY => Err(t!("shared.sak_backend.busy").to_string()),
         NOT_FOUND => Err(t!("shared.sak_backend.no_script", script = SCRIPT).to_string()),
-        SSH_FAILED => Err(t!(
-            "shared.sak_backend.ssh_failed",
-            error = last_line.unwrap_or_default()
-        )
-        .to_string()),
+        SSH_FAILED => Err(crate::core::ssh::failed(last_line)),
         code => match out.and_then(|out| serde_json::from_slice::<Failure>(out).ok()) {
             Some(failure) => {
                 Err(t!("shared.sak_backend.failed", error = failure.error).to_string())
