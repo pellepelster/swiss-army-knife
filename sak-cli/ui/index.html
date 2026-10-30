@@ -17,8 +17,9 @@
   </head>
   <body>
     <!-- one view at a time, show() of views.js switches between them; data-text is the key of a
-         text of src-tauri/locales/. Buttons that move through the steps (next, back, cancel,
-         plan, create) are in the button group at the bottom right. Buttons that act on the data
+         text of src-tauri/locales/. Back is the leftmost button at the bottom; the other buttons
+         that move through the steps (next, cancel, plan, create) are in the button group at the
+         bottom right. Buttons that act on the data
          of the view (add a provider, create a deployment) are at the top right of the header -->
     <main class="view splash" id="view-splash">
       <!-- the icon and the title a third down the window, the checks hang below them -->
@@ -109,9 +110,7 @@
       <p class="hint" id="deployments-status" aria-live="polite"></p>
       <ul class="deployments" id="deployments"></ul>
       <div class="page-footer">
-        <div class="btn-group" role="group">
-          <button type="button" class="btn btn-outline-secondary" id="deployments-back" data-text="ui.back"></button>
-        </div>
+        <button type="button" class="btn btn-outline-secondary back" id="deployments-back" data-text="ui.back"></button>
       </div>
     </main>
 
@@ -126,17 +125,20 @@
           </h1>
         </div>
         <div class="btn-group" role="group">
-          <button type="button" class="btn btn-outline-secondary" id="deployment-check" data-text="ui.deployment.check"></button>
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
+          <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </header>
       <p class="hint" id="deployment-location"></p>
+      <!-- the resources as the list found them, then, after the check, as the plan of a deploy
+           has them, the provisioning included -->
       <ul class="resources" id="deployment-resources"></ul>
       <p class="hint" id="deployment-message" aria-live="polite"></p>
-      <div class="page-footer">
-        <div class="btn-group" role="group">
-          <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
-        </div>
+      <!-- back at the left, force deploy in the middle, deploy changes at the right -->
+      <div class="page-footer page-footer-split">
+        <button type="button" class="btn btn-outline-secondary back" id="deployment-back" data-text="ui.back"></button>
+        <button type="button" class="btn btn-outline-secondary" id="deployment-force" data-text="ui.plan.force_deploy" disabled></button>
+        <button type="button" class="btn btn-outline-secondary" id="deployment-deploy" data-text="ui.plan.deploy_changes" disabled></button>
       </div>
     </main>
 

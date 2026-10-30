@@ -1,5 +1,6 @@
-// the sak deployments found at the providers, each with its state and the status of each
-// resource. The header of a deployment asks for its password, then opens its page; create opens
+// the sak deployments found at the providers, each with its resources and what they are: the
+// fingerprint of a key, the size of a volume, the address of a server. No state: without the
+// password the list sees only the labels, the page of a deployment checks it with its password. The header of a deployment asks for its password, then opens its page; create opens
 // the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
 import { showPassword } from './password.js';
@@ -10,22 +11,16 @@ const { invoke } = window.__TAURI__.core;
 const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
-// the led of the theme for the state of a deployment, on its pill
+// the led of the theme for the state of a deployment, on its pill on its page
 export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
-// the resource status of the glossary for the diff status of a resource: one whose parent is
-// missing is missing itself, a duplicate has changes
-const RESOURCE_STATUS = { up_to_date: 'up_to_date', missing: 'missing', parent_missing: 'missing', has_changes: 'has_changes', duplicate: 'has_changes' };
 
-// the led of the theme for the diff status of a resource
-const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
-
+// a resource as the list knows it: its kind, its name and its detail. The place of the led stays
+// empty, the page of the deployment puts the led of its check there
 export function resource(state) {
   const item = document.createElement('li');
   item.className = 'resource';
-  item.dataset.status = state.status;
   const mark = document.createElement('span');
-  mark.className = 'resource-state sak-led';
-  mark.dataset.sakState = LEDS[state.status] ?? 'neutral';
+  mark.className = 'resource-state';
   mark.setAttribute('aria-hidden', 'true');
   const kind = document.createElement('span');
   kind.className = 'resource-kind';
@@ -36,16 +31,8 @@ export function resource(state) {
   item.append(mark, kind, name);
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  // its resource status, then its detail; a missing resource has no detail
-  const status = text(`shared.resource_status.${RESOURCE_STATUS[state.status] ?? 'has_changes'}`);
-  detail.textContent = state.detail && RESOURCE_STATUS[state.status] !== 'missing' ? `${status}, ${state.detail}` : status;
+  detail.textContent = state.detail ?? '';
   item.append(detail);
-  for (const change of state.changes) {
-    const line = document.createElement('span');
-    line.className = 'resource-change';
-    line.textContent = change;
-    item.append(line);
-  }
   return item;
 }
 
@@ -73,10 +60,9 @@ function frontendLink(url) {
 }
 
 function deployment(data) {
-  const { provider, name, status: state, resources } = data;
+  const { provider, name, resources } = data;
   const item = document.createElement('li');
   item.className = 'card deployment';
-  item.dataset.status = state;
   // the header asks for the password of the deployment, then opens it
   const header = document.createElement('button');
   header.type = 'button';
@@ -89,12 +75,7 @@ function deployment(data) {
   const title = document.createElement('span');
   title.className = 'deployment-name';
   title.textContent = name;
-
-  const badge = document.createElement('span');
-  badge.className = 'deployment-status sak-status';
-  badge.dataset.sakState = STATES[state] ?? 'neutral';
-  badge.textContent = text(`shared.deployments.status.${state}`);
-  header.append(logo, title, badge);
+  header.append(logo, title);
   const group = document.createElement('ul');
   group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));

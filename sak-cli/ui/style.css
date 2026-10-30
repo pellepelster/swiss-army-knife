@@ -211,6 +211,27 @@ body {
   justify-content: flex-end;
 }
 
+/* back is always the leftmost button at the bottom, the others stay at the right */
+.page-footer .back {
+  margin-right: auto;
+}
+
+/* back at the left, one button in the middle, one at the right */
+.page-footer-split {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.page-footer-split > :last-child {
+  justify-self: end;
+}
+
+.page-footer-split > .back {
+  justify-self: start;
+  margin-right: 0;
+}
+
 /* the title of a page at the top and its buttons at the bottom stay in view, only what is between
    them scrolls; they reach over the padding of the page, so nothing scrolls past around them */
 .page-header {
@@ -311,11 +332,6 @@ body {
 .deployment-url {
   font-size: 0.875rem;
   overflow-wrap: anywhere;
-}
-
-/* the state of the deployment, the led pill at the right end of the card header */
-.deployment-status {
-  margin-left: auto;
 }
 
 .resources {

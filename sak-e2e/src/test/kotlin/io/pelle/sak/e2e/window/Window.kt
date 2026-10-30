@@ -50,7 +50,7 @@ private val BRIDGE =
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms * window.__sakPace));
       class Channel { constructor() { this.onmessage = () => {}; } }
       // how long rust takes for a command without a channel
-      const busy = { plan_deployment: 900, add_provider_token: 1200, list_deployments: 300 };
+      const busy = { plan_deployment: 900, check_deployment: 900, add_provider_token: 1200, list_deployments: 300 };
       async function invoke(command, args = {}) {
         const events = fixtures.channels[command] ?? [];
         const channel = Object.values(args).find((value) => value instanceof Channel);

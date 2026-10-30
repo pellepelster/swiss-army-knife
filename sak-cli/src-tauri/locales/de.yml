@@ -234,7 +234,11 @@ ui:
   deployment:
     destroy: "Zerstören"
     location: "Standort"
-    check: "Deployment prüfen"
+    check: "Prüfen"
+    checking: "Prüfe das Deployment…"
+    changes: "%{count} seiner Ressourcen haben Änderungen."
+    up_to_date: "Alles ist aktuell."
+    not_checked: "Prüfe das Deployment zuerst."
   password:
     title: "Passwort"
     intro: "Das Passwort des Deployments"

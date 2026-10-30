@@ -2,11 +2,11 @@
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, LocationResponse,
-    NewDeployment, PlanResponse, RootDomainResponse, defaults,
+    CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, Intent,
+    LocationResponse, NewDeployment, PlanResponse, RootDomainResponse, complete, defaults,
 };
 use crate::core::error::WizardError;
-use crate::core::providers::ProviderTokens;
+use crate::core::providers::{ProviderTokens, ProviderType};
 use futures_util::future::{AbortHandle, Abortable};
 use rust_i18n::t;
 use std::collections::HashSet;
@@ -75,17 +75,6 @@ pub async fn root_domains(
 /// the settings a redeploy takes from the deployment, as the command line does: its user mode
 /// and, for multi user, the admin and the mail server
 #[tauri::command]
-pub async fn detected_settings(
-    manager: State<'_, DeploymentManager>,
-    tokens: State<'_, ProviderTokens>,
-    name: String,
-    password: String,
-) -> Result<crate::core::deployments::Detected, String> {
-    let tokens = tokens.tokens();
-    manager.detected(tokens, &name, &password).await
-}
-
-#[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
@@ -105,6 +94,82 @@ impl RunningApply {
     }
 }
 
+/// the deploy the last check of the page of a deployment planned, as `apply_checked` applies it
+#[derive(Default)]
+pub struct CheckedDeployment(Mutex<Option<NewDeployment>>);
+
+/// the check of the page of a deployment: a deploy of the deployment as it is, its settings
+/// detected and completed as the command line does (`deployments::complete`), and its plan. The
+/// deploy is kept for `apply_checked`, so a deploy applies what was checked
+#[tauri::command]
+pub async fn check_deployment(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    checked: State<'_, CheckedDeployment>,
+    name: String,
+    password: String,
+    location: sak_cloud::hetzner::api::Location,
+) -> Result<PlanResponse, WizardError> {
+    let tokens = tokens.tokens();
+    if let Ok(mut checked) = checked.0.lock() {
+        *checked = None;
+    }
+    let deployment = NewDeployment {
+        name: name.clone(),
+        password: password.clone(),
+        password_repeat: password.clone(),
+        location,
+        dns_mode: None,
+        root_domain: None,
+        intent: Intent::Deploy,
+        delete_data: false,
+        user_mode: None,
+        acme_ca: None,
+        smtp: None,
+        admin_email: None,
+        force: false,
+    };
+    let detected = manager.detected(tokens.clone(), &name, &password).await?;
+    let deployment = complete(deployment, &detected, "")?;
+    let plan = manager.plan(tokens, &deployment).await?;
+    if let Ok(mut checked) = checked.0.lock() {
+        *checked = Some(deployment);
+    }
+    Ok(plan)
+}
+
+/// the deploy of the last check, forced or not
+#[tauri::command]
+pub async fn apply_checked(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    container: State<'_, ContainerRuntime>,
+    running: State<'_, RunningApply>,
+    checked: State<'_, CheckedDeployment>,
+    force: bool,
+    on_event: Channel<CreateEvent>,
+) -> Result<(), WizardError> {
+    let deployment = checked
+        .0
+        .lock()
+        .ok()
+        .and_then(|mut checked| checked.take())
+        .ok_or_else(|| t!("ui.deployment.not_checked").to_string())?;
+    let deployment = NewDeployment {
+        force,
+        ..deployment
+    };
+    apply(
+        &manager,
+        tokens.tokens(),
+        &container,
+        &running,
+        &deployment,
+        &on_event,
+    )
+    .await
+}
+
 #[tauri::command]
 pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,
@@ -114,7 +179,26 @@ pub async fn create_deployment(
     deployment: NewDeployment,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
-    let tokens = tokens.tokens();
+    apply(
+        &manager,
+        tokens.tokens(),
+        &container,
+        &running,
+        &deployment,
+        &on_event,
+    )
+    .await
+}
+
+/// the apply of `deployment`, which cancel can stop; each event goes to the page
+async fn apply(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    container: &ContainerRuntime,
+    running: &RunningApply,
+    deployment: &NewDeployment,
+    on_event: &Channel<CreateEvent>,
+) -> Result<(), WizardError> {
     let (abort, registration) = AbortHandle::new_pair();
     if let Ok(mut running) = running.0.lock() {
         *running = Some(abort);
@@ -123,7 +207,7 @@ pub async fn create_deployment(
     let mut report = |event| {
         let _ = on_event.send(event);
     };
-    let apply = manager.create(tokens, &deployment, &container, &mut report);
+    let apply = manager.create(tokens, deployment, container, &mut report);
     let result = Abortable::new(apply, registration).await;
     if let Ok(mut running) = running.0.lock() {
         *running = None;

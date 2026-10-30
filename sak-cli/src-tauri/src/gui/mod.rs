@@ -24,6 +24,7 @@ pub fn run() {
         .manage(DeploymentManager)
         .manage(deployments::FrontendUrls::default())
         .manage(deployments::RunningApply::default())
+        .manage(deployments::CheckedDeployment::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,
@@ -36,12 +37,13 @@ pub fn run() {
             deployments::list_deployments,
             deployments::deployment_defaults,
             deployments::check_name,
-            deployments::detected_settings,
             deployments::locations,
             deployments::open_url,
             deployments::root_domains,
             deployments::plan_deployment,
             deployments::create_deployment,
+            deployments::check_deployment,
+            deployments::apply_checked,
             deployments::cancel_apply,
             deployments::check_deployment_password,
             update::version,

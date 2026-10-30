@@ -32,8 +32,8 @@ private const val CHECKS_HOLD = 6
 private const val CREATE_HOLD = 20 + 1 + 2 * 20
 
 // a tour through the window: the checks, a provider token, the create of example1 with its plan
-// and its run, the page of the new deployment and its check, the list, and the password that opens
-// the deployment again; `step` gets the name of each view as it is shown, `type` types into a field
+// and its run, the page of the new deployment with its check, the list, and the password that
+// opens the deployment again; `step` gets the name of each view as it is shown, `type` types into a field
 private fun Page.tour(
     step: (String) -> Unit,
     type: (Locator, String) -> Unit,
@@ -78,16 +78,14 @@ private fun Page.tour(
     assertThat(locator("#run-done")).isEnabled(EnabledTimeout.long)
     step("done")
 
-    // the page of the new deployment and its check: everything up to date, so no deploy changes
+    // the page of the new deployment checks it at once: everything up to date, so deploy changes
+    // stays disabled and check is the green button; force deploy is there after the check
     locator("#run-done").click()
     assertThat(locator("#view-deployment")).isVisible()
+    assertThat(locator("#deployment-force")).isEnabled()
+    assertThat(locator("#deployment-deploy")).isDisabled()
+    assertThat(locator("#deployment-check")).hasClass(java.util.regex.Pattern.compile("btn-primary"))
     step("deployment")
-    locator("#deployment-check").click()
-    assertThat(locator("#view-plan")).isVisible()
-    assertThat(locator("#plan-deploy")).isHidden()
-    step("plan-check")
-    locator("#plan-cancel").click()
-    assertThat(locator("#view-deployment")).isVisible()
 
     // the list with it, and the password that opens it again
     locator("#deployment-back").click()

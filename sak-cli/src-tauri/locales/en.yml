@@ -234,7 +234,11 @@ ui:
   deployment:
     destroy: "Destroy"
     location: "Location"
-    check: "Check deployment"
+    check: "Check"
+    checking: "Checking the deployment…"
+    changes: "%{count} of its resources have changes."
+    up_to_date: "Everything is up-to-date."
+    not_checked: "Check the deployment first."
   password:
     title: "Password"
     intro: "The password of the deployment"
