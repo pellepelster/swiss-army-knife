@@ -60,8 +60,9 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   deploy changes (only when the check found changes). Check is the green button, deploy changes
   instead when there are changes.
 - **Maintenance.** Each entry of the maintenance menu opens its own view, a reboot only after a confirmation dialog: the lines of the server while it works,
-  then the answer, warnings in yellow, a failure in red. Cancel stops it; back is enabled once it ended and leads to
-  the page of the deployment, which checks again.
+  then the answer, warnings in yellow, a failure in red. Cancel stays disabled, a command on the server is not stopped
+  halfway; each has a timeout. Back is enabled once it ended and leads to the page of the deployment, which checks
+  again.
 - **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed, created anew
   or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes something, and it shows each resource as it goes, with the output of the
   provisioning below.

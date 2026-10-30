@@ -808,22 +808,20 @@ async fn maintenance(
     };
     let lines = match command {
         MaintenanceCommand::Status(_) => {
-            let status = tokio::task::spawn_blocking(move || {
+            let status = maintenance::limited(maintenance::STATUS_TIMEOUT, move || {
                 maintenance::status(runtime, &target, &mut on_line)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             if json {
                 return print_json(&status);
             }
             maintenance::status_lines(&name, &status)
         }
         MaintenanceCommand::Update(_) => {
-            let update = tokio::task::spawn_blocking(move || {
+            let update = maintenance::limited(maintenance::UPDATE_TIMEOUT, move || {
                 maintenance::update(runtime, &target, &mut on_line)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             if json {
                 return print_json(&update);
             }
@@ -835,11 +833,10 @@ async fn maintenance(
             ..
         } => {
             let if_pending = *if_pending;
-            let reboot = tokio::task::spawn_blocking(move || {
+            let reboot = maintenance::limited(maintenance::REBOOT_TIMEOUT, move || {
                 maintenance::reboot(runtime, &target, if_pending, &mut on_line)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             if json {
                 print_json(&reboot)?;
             } else {

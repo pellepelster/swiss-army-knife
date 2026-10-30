@@ -68,7 +68,7 @@ model {
     description 'Each resource as it is destroyed. Done only when every resource was destroyed, no Next; Cancel stops the run, also while it runs, and is the way out after a failure'
   }
   maintenance = screen 'Maintenance' {
-    description 'The status, the update or the reboot of the server: the lines of the server while it runs, then the answer. Cancel stops it; Back only once it ended'
+    description 'The status, the update or the reboot of the server: the lines of the server while it runs, then the answer. Cancel stays disabled, each command has a timeout; Back only once it ended'
   }
   rebootConfirm = dialog 'Reboot {name}?' {
     description 'The confirmation of a reboot: the deployment is unreachable until its server is back'

@@ -168,6 +168,7 @@ shared:
     updated: "updated"
     destroyed: "destroyed"
   maintenance:
+    timeout: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."
     connecting: "Asking the server of %{name} at root@%{host}…"
     pending: "A reboot of %{name} is pending: %{reasons}."
     not_pending: "No reboot of %{name} is pending."
@@ -250,7 +251,6 @@ ui:
     running_update: "Upgrading the packages of the server…"
     running_reboot: "Stopping the deployment and rebooting its server…"
     finished: "Finished."
-    cancelled: "Cancelled. What the server started may still finish there."
     reboot_hint: "A reboot is pending: Maintenance, Reboot reboots the server."
   password:
     title: "Password"

@@ -9,9 +9,16 @@ use crate::core::providers::ProviderType;
 use crate::core::ssh::{SshTarget, Stream, run_streaming};
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// the exit code of `sak-backend` when another backup, restore, update or reboot holds its lock
 const BUSY: i32 = 2;
+
+/// how long each command may take on the server. `sak-backend` waits up to 10 minutes for an apt
+/// or dpkg that runs (`backend_apt_wait`) before an update or a reboot starts
+pub const STATUS_TIMEOUT: Duration = Duration::from_secs(2 * 60);
+pub const UPDATE_TIMEOUT: Duration = Duration::from_secs(45 * 60);
+pub const REBOOT_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// a package that changed: its version before (none for one installed new) and after
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -94,6 +101,21 @@ pub fn reboot(
         command.push("--if-pending");
     }
     run(runtime, target, &command, on_line)
+}
+
+/// `command`, one of the commands above, until it ends or `limit` passes: then its ssh session is
+/// stopped, and with it the wait of sakctl; what the server started may still finish there
+pub async fn limited<T: Send + 'static>(
+    limit: Duration,
+    command: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    match tokio::time::timeout(limit, tokio::task::spawn_blocking(command)).await {
+        Ok(done) => done.map_err(|error| error.to_string())?,
+        Err(_) => {
+            crate::core::provision::stop_runs();
+            Err(t!("shared.maintenance.timeout", minutes = limit.as_secs() / 60).to_string())
+        }
+    }
 }
 
 /// a line of an answer; `warn` for one that asks for something to be done
@@ -229,14 +251,14 @@ pub async fn wait_after_reboot(
     let (api, trust, address) = manager.public_endpoint(tokens, name, password).await?;
     // the server goes down some seconds after the answer; before that it answers no request,
     // the ingress stopped first
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
     on_line(t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string());
     crate::core::config::wait_for_api(
         &api,
         address,
         trust,
         crate::core::config::API_WAIT,
-        std::time::Duration::from_secs(5),
+        Duration::from_secs(5),
     )
     .await
 }
@@ -321,5 +343,25 @@ mod tests {
             t!("shared.backup.no_script", script = SCRIPT).to_string()
         );
         assert!(answer::<RebootStatus>(0, b"not json").is_err());
+    }
+
+    #[tokio::test]
+    async fn a_command_ends_with_its_answer_or_at_its_timeout() {
+        let answer = limited(Duration::from_secs(5), || Ok(7)).await;
+        assert_eq!(answer, Ok(7));
+        let failed = limited(Duration::from_secs(5), || {
+            Err::<i32, _>("failed".to_string())
+        })
+        .await;
+        assert_eq!(failed, Err("failed".to_string()));
+        let late = limited(Duration::from_millis(50), || {
+            std::thread::sleep(Duration::from_millis(500));
+            Ok(7)
+        })
+        .await;
+        assert_eq!(
+            late,
+            Err(t!("shared.maintenance.timeout", minutes = 0).to_string())
+        );
     }
 }

@@ -332,8 +332,8 @@
       </div>
     </main>
     <!-- the status, the update or the reboot of the server of a deployment as it runs: each line
-         of the server, then the answer. Cancel stops it; back to the page of the deployment once
-         it ended -->
+         of the server, then the answer. It cannot be cancelled, each step has its timeout; back to
+         the page of the deployment once it ended -->
     <main class="view page" id="view-maintenance" hidden>
       <header class="page-header">
         <div class="page-title">
@@ -348,7 +348,7 @@
       <div class="page-footer">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="maintenance-back" data-text="ui.back" disabled></button>
-          <button type="button" class="btn btn-outline-secondary" id="maintenance-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-outline-secondary" id="maintenance-cancel" data-text="ui.cancel" disabled></button>
         </div>
       </div>
     </main>

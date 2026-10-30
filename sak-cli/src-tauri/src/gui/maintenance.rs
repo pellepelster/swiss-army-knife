@@ -1,6 +1,7 @@
 //! the command of the maintenance view: the status, the update or the reboot of the server of a
 //! deployment, as `sakctl maintenance` has them. Each line of the server goes to the view while it
-//! runs, the answer comes as lines; cancel stops it as it stops an apply
+//! runs, the answer comes as lines. It cannot be cancelled, each command on the server has its
+//! timeout; while it runs, sakctl is not restarted
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentManager;
@@ -47,7 +48,8 @@ pub async fn run_maintenance(
         &request.password,
         on_line,
     );
-    running.run(work, "ui.maintenance.cancelled").await
+    // the view has no cancel; this keeps a restart from stopping it halfway
+    running.run(work, "shared.deployments.cancelled").await
 }
 
 async fn run(
@@ -78,19 +80,17 @@ async fn run(
     let mut on_server = send.clone();
     match action {
         Action::Status => {
-            let status = tokio::task::spawn_blocking(move || {
+            let status = maintenance::limited(maintenance::STATUS_TIMEOUT, move || {
                 maintenance::status(runtime, &target, &mut on_server)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             Ok(maintenance::status_lines(name, &status))
         }
         Action::Update => {
-            let update = tokio::task::spawn_blocking(move || {
+            let update = maintenance::limited(maintenance::UPDATE_TIMEOUT, move || {
                 maintenance::update(runtime, &target, &mut on_server)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             let mut lines = maintenance::update_lines(name, &update);
             if update.reboot_pending {
                 lines.push(Line {
@@ -101,11 +101,10 @@ async fn run(
             Ok(lines)
         }
         Action::Reboot => {
-            let reboot = tokio::task::spawn_blocking(move || {
+            let reboot = maintenance::limited(maintenance::REBOOT_TIMEOUT, move || {
                 maintenance::reboot(runtime, &target, false, &mut on_server)
             })
-            .await
-            .map_err(|error| error.to_string())??;
+            .await?;
             let mut lines = vec![maintenance::reboot_line(name, &reboot)];
             if reboot.rebooting {
                 // the wait takes minutes, the view says why already

@@ -168,6 +168,7 @@ shared:
     updated: "aktualisiert"
     destroyed: "zerstört"
   maintenance:
+    timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     connecting: "Frage den Server von %{name} unter root@%{host}…"
     pending: "Ein Neustart von %{name} steht an: %{reasons}."
     not_pending: "Kein Neustart von %{name} steht an."
@@ -250,7 +251,6 @@ ui:
     running_update: "Aktualisiere die Pakete des Servers…"
     running_reboot: "Stoppe das Deployment und starte seinen Server neu…"
     finished: "Fertig."
-    cancelled: "Abgebrochen. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     reboot_hint: "Ein Neustart steht an: Wartung, Neu starten startet den Server neu."
   password:
     title: "Passwort"
