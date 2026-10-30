@@ -83,16 +83,16 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
   --push sak-backend
 """
 
-[tasks."ingress:docker:build"]
+[tasks."ingress:image:build"]
 description = "Build the sak-ingress image"
 run = """
 docker buildx build --load --tag {{vars.ingress_image}}:latest \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache sak-ingress
 """
 
-[tasks."ingress:docker:test"]
+[tasks."ingress:image:test"]
 description = "Test the sak-ingress image"
-depends = ["ingress:docker:build"]
+depends = ["ingress:image:build"]
 run = """
 set -e
 image={{vars.ingress_image}}:latest
@@ -102,7 +102,7 @@ docker run --rm "$image" validate --config /etc/caddy/Caddyfile --adapter caddyf
 echo "the image of sak-ingress works"
 """
 
-[tasks."ingress:docker:push"]
+[tasks."ingress:image:push"]
 description = "Push the sak-ingress image"
 run = """
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
@@ -180,7 +180,7 @@ fi
 # msi and nsis on windows) land in sak-cli/src-tauri/target/release/bundle/
 [tasks."cli:build"]
 description = "Build the sakctl installers"
-depends = ["cli:theme", "cli:image:build", "cli:canary:build"]
+depends = ["cli:theme", "tools:image:build", "canary:image:build"]
 dir = "{{config_root}}/sak-cli"
 run = "tauri build"
 
@@ -269,7 +269,7 @@ cargo run -q -- "$@"
 # push writes it. A build is for the platform it runs on, into the local images; --load keeps it
 # there when buildx builds in a container of its own (the github workflow). The context is the
 # repository, the image takes the ansible collection of ansible/
-[tasks."cli:image:build"]
+[tasks."tools:image:build"]
 description = "Build the tools image"
 dir = "{{config_root}}/sak-cli"
 run = """
@@ -277,9 +277,9 @@ docker buildx build --load --file Dockerfile --tag {{vars.cli_image}}:latest \
   --cache-from type=registry,ref={{vars.cli_image}}:buildcache ..
 """
 
-[tasks."cli:image:test"]
+[tasks."tools:image:test"]
 description = "Test the tools image"
-depends = ["cli:image:build"]
+depends = ["tools:image:build"]
 run = """
 set -e
 image={{vars.cli_image}}:latest
@@ -298,7 +298,7 @@ echo "the image of the tools works"
 
 # for amd64 and arm64 (the macs), tagged <VERSION>-rc (`release:docker` makes it <VERSION>) and with the
 # commit it was built from; the platform not running here needs qemu (binfmt)
-[tasks."cli:image:push"]
+[tasks."tools:image:push"]
 description = "Push the tools image"
 dir = "{{config_root}}/sak-cli"
 run = """
@@ -309,7 +309,7 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
   --push ..
 """
 
-[tasks."cli:canary:build"]
+[tasks."canary:image:build"]
 description = "Build the canary image"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
@@ -317,15 +317,15 @@ docker buildx build --load --tag {{vars.cli_canary}}:latest \
   --cache-from type=registry,ref={{vars.cli_canary}}:buildcache .
 """
 
-[tasks."cli:canary:test"]
+[tasks."canary:image:test"]
 description = "Test the canary image"
-depends = ["cli:canary:build"]
+depends = ["canary:image:build"]
 run = """
 [ "$(docker run --rm {{vars.cli_canary}}:latest)" = "sak-cli-docker-canary" ]
 echo "the canary works"
 """
 
-[tasks."cli:canary:push"]
+[tasks."canary:image:push"]
 description = "Push the canary image"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
@@ -357,14 +357,14 @@ echo "tagged $version, the workflow builds and releases it"
 # sak-ingress) and sakctl (the tools, the canary)
 [tasks."docker:all:build"]
 description = "Build all images"
-depends = ["backend:image:build", "ingress:docker:build", "cli:image:build", "cli:canary:build"]
+depends = ["backend:image:build", "ingress:image:build", "tools:image:build", "canary:image:build"]
 
 # every image of SAK for amd64 and arm64, pushed to ghcr.io as <VERSION>-rc (and with the commit);
 # `release:docker` makes them <VERSION>. Needs a login to ghcr.io (registry:login). SAK_DOCKER_PLATFORMS
 # selects other platforms, e.g. only the one of this machine, which needs no qemu
 [tasks."docker:all:push"]
 description = "Push all images as <VERSION>-rc"
-depends = ["backend:image:push", "ingress:docker:push", "cli:image:push", "cli:canary:push"]
+depends = ["backend:image:push", "ingress:image:push", "tools:image:push", "canary:image:push"]
 
 # the images of a build, pushed as <VERSION>-rc by their push tasks, as <VERSION>: the registry
 # copies the manifest of both platforms, nothing is pulled. Run when all images are pushed (the

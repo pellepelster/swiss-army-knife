@@ -106,7 +106,7 @@ jobs:
           - image: backend
             tasks: backend:image
           - image: ingress
-            tasks: ingress:docker
+            tasks: ingress:image
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -138,8 +138,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # the mise tasks cli:<image>:test and cli:<image>:push
-        image: [image, canary]
+        # the mise tasks <image>:image:test and <image>:image:push
+        image: [tools, canary]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -154,9 +154,9 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: mise run cli:${{ matrix.image }}:test
+      - run: mise run ${{ matrix.image }}:image:test
       - if: github.ref_type == 'tag'
-        run: mise run cli:${{ matrix.image }}:push
+        run: mise run ${{ matrix.image }}:image:push
 
   # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
   # one native binary with the page built in, no installers, zipped as

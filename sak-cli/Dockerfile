@@ -1,7 +1,7 @@
 # the tools sakctl runs in a container instead of on the user's machine: ansible, the version
 # of the root mise.toml (ansible-core 2.18 of ansible 11), and the
 # pelle_io.sak collection of ../ansible that provisions the server of a deployment. The build context
-# is the repository (mise run cli:image:build), Dockerfile.dockerignore lets only ansible/ in
+# is the repository (mise run tools:image:build), Dockerfile.dockerignore lets only ansible/ in
 FROM debian:13.7-slim
 
 ARG ANSIBLE_VERSION=11.13.0
