@@ -700,17 +700,6 @@ failed)` in `views.js`.
 `deployment.js:86-88` disables Deploy when every resource is `up_to_date`; `run.js:92` hides it. One rule, two
 behaviours.
 
-#### UI-21 (Low): Locale inconsistencies
-
-- `shared.deployments.weak_password`: en has `%{hint}` (`en.yml:90`), de drops it (`de.yml:90`); German users never
-  see the strength hint.
-- `shared.plan.intro_deploy` de ends with ":" (`de.yml:151`), en and the other intros do not; the page renders
-  "…aus: alpha".
-- de has sentences en lacks: `container_runtime.needed`, `image.wrong_answer`, `provider_tokens.invalid`
-  (`de.yml:49, 60, 66`).
-- `shared.provision.no_volume` (`en.yml:85`) is defined and used nowhere.
-- `ui_texts` (`gui/i18n.rs:14-24`) ships every `shared.` text to the page, the cli-worded ones of UI-5 included.
-
 ### Structure
 
 #### UI-25: A small router in `views.js`, no dynamic `import()`

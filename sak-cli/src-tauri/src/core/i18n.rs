@@ -46,6 +46,35 @@ mod tests {
         }
     }
 
+    /// a text of another language fills the same values as the english one, no more and no less
+    #[test]
+    fn every_text_has_the_placeholders_of_english() {
+        let placeholders = |text: &str| -> BTreeSet<String> {
+            text.split("%{")
+                .skip(1)
+                .filter_map(|rest| rest.split_once('}').map(|(name, _)| name.to_string()))
+                .collect()
+        };
+        let texts = |locale: &str| -> std::collections::BTreeMap<String, String> {
+            crate::_rust_i18n_backend()
+                .messages_for_locale(locale)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(key, text)| (key.to_string(), text.to_string()))
+                .collect()
+        };
+        let english = texts("en");
+        for locale in rust_i18n::available_locales!() {
+            for (key, text) in texts(&locale) {
+                assert_eq!(
+                    placeholders(&text),
+                    placeholders(&english[&key]),
+                    "{key} in {locale}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn the_language_of_the_system_is_selected() {
         assert_eq!(select_locale(Some("de-DE".to_string())), "de");

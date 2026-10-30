@@ -81,12 +81,11 @@ shared:
     timed_out: "Ansible ist nicht innerhalb von %{minutes} Minuten fertig geworden und wurde gestoppt. Rolle erneut aus, ein Deploy macht dort weiter, wo er aufgehört hat."
     task_failed: "Ansible ist bei der Aufgabe '%{task}' fehlgeschlagen: %{message}"
     no_address: "Der Server von %{name} hat keine öffentliche Adresse."
-    no_volume: "Das Datenvolume von %{name} ist nicht angehängt."
     resource: "Einrichtung '%{name}'"
   deployments:
     invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
     short_password: "Das Passwort braucht mindestens %{min} Zeichen."
-    weak_password: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen."
+    weak_password: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen. %{hint}"
     password_mismatch: "Die Passwörter stimmen nicht überein."
     plan_failed: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"
     create_failed: "Das Deployment konnte bei %{provider} nicht erstellt werden: %{error}"
@@ -151,7 +150,7 @@ shared:
     has_changes: "hat Änderungen"
   plan:
     intro: "Erstelle das Swiss-Army-Knife-Deployment"
-    intro_deploy: "Rolle das Swiss-Army-Knife-Deployment erneut aus:"
+    intro_deploy: "Rolle das Swiss-Army-Knife-Deployment erneut aus"
     intro_destroy: "Zerstöre das Swiss-Army-Knife-Deployment"
     will_create: "wird erstellt"
     will_update: "wird aktualisiert"

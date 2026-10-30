@@ -44,7 +44,7 @@ shared:
       running: "Verifying container runtime…"
       done: "Found %{text}"
       passed: "%{runtime} %{version}"
-      needed: "Swiss Army Knife needs docker or podman to run containers."
+      needed: "Swiss Army Knife needs docker or podman to run containers. Install one of them, make sure it runs containers without sudo, and start Swiss Army Knife again."
       not_working: "%{runtime} does not work: %{error}"
       wrong_answer: "The image %{image} answered '%{answer}' instead of '%{expected}'."
     image:
@@ -55,13 +55,13 @@ shared:
       not_pulled: "The tool image %{image} could not be pulled, make sure %{runtime} can reach ghcr.io: %{error}"
       not_run: "%{runtime} could not run the tool image %{image}: %{error}"
       progress: "%{downloaded} MB of %{total} MB"
-      wrong_answer: "The tool image %{image} runs as '%{answer}' instead of '%{expected}'."
+      wrong_answer: "The tool image %{image} runs as '%{answer}' instead of '%{expected}', it is not the image of Swiss Army Knife."
     provider_tokens:
       name: "Verify the provider API tokens"
       running: "Verifying provider API tokens…"
       done: "All cloud provider API tokens are valid"
       passed: "The API tokens of %{variables} are valid"
-      invalid: "%{variable} holds no valid %{provider} API token: %{error}"
+      invalid: "%{variable} holds no valid %{provider} API token: %{error} Correct or remove %{variable} and start Swiss Army Knife again."
   providers:
     empty_token: "Enter the provider API token."
     duplicate: "This token was already added."
@@ -81,7 +81,6 @@ shared:
     timed_out: "ansible did not finish within %{minutes} minutes and was stopped. Deploy again, a deploy goes on from where it stopped."
     task_failed: "ansible failed at the task '%{task}': %{message}"
     no_address: "The server of %{name} has no public address."
-    no_volume: "The data volume of %{name} is not attached."
     resource: "provisioning '%{name}'"
   deployments:
     invalid_name: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
