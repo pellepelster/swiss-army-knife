@@ -54,9 +54,9 @@ the review found them; the sections below hold the ones still open.
 
 ### The structural threads that run through all slices
 
-- **One thing written more than once.** The request plumbing of the api (CA-9) and the provisioner skeleton
-  (CP-12) are left. *Done: the maintenance flow, the deploy completion, the checks, the lookup of a deployment, the
-  driver of `sak-backend`.*
+- **One thing written more than once.** The provisioner skeleton (CP-12) is left. *Done: the maintenance flow,
+  the deploy completion, the checks, the lookup of a deployment, the driver of `sak-backend`, the request plumbing
+  of the api (one `ResourceApi<T>`; the dns zones keep theirs).*
 - **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
   CA-3), a destroy plans with the create registry (CD-2), the playbook decision differs (CD-4), a pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
@@ -134,22 +134,6 @@ as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()
 
 ### Smells
 
-#### CA-9 (Medium): Seven copies of the request plumbing
-
-Each api file repeats `get::<XResponse>(..).map(|r| r.x)`, `put::<XResponse,_>(..).x`,
-`post::<ActionResponse,_>(..).action`, `get_by_name = list(name).next()` (`ssh_keys.rs:58`, `servers.rs:154`,
-`volumes.rs:91`, `primary_ips.rs:122`, `firewalls.rs:211`), `change_protection` four times, `wait_for_action` six
-times. Only the wrapper key varies. See CA-19.
-
-#### CA-10 (Low): `post(path, Option<&B>)` with `NO_BODY: Option<&Empty>`
-
-`hetzner/api/mod.rs:179-190, 407-411`: an optional body makes every call site spell `Some(&request)`. Split into
-`post` and `post_empty`.
-
-#### CA-11 (Low): `send` rebuilds the request to learn its method
-
-`mod.rs:316-324`: `try_clone().and_then(build)` just to read the `Method`. The callers know it; pass it in.
-
 #### CA-12 (Low): `Lookup::depends_on` is dead
 
 `api/lookup.rs:26`: never overridden, never called (the registry reads `Resource::depends_on`); the doc says so.
@@ -193,13 +177,6 @@ a `pub(crate)` method the child module could call already.
   Hetzner label and the comment at `:8-9` says 63.
 
 ### Structure
-
-#### CA-19: One generic `ResourceApi<T>` for the six CRUD apis
-
-A `trait HetznerResource { const PATH; const KEY; type Create; type Update; }` with a generic
-`list/get/get_by_name/create/update/delete/change_protection/wait_for_action` removes most of `servers.rs`,
-`volumes.rs`, `primary_ips.rs`, `firewalls.rs`, `ssh_keys.rs`; a new kind is a type and its action methods. The
-`list_page!` macro does half of this for pages already. Resolves CA-9, CA-10, CA-11.
 
 #### CA-20: The apply diffs everything twice
 
