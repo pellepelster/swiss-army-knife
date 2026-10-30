@@ -17,15 +17,6 @@ const runList = document.getElementById('run-resources');
 const runStatus = document.getElementById('run-status');
 const doneButton = document.getElementById('run-done');
 
-// the text of an apply's result, as the command line has it (applied_key in rust): a resource
-// created anew reads as created, one that stays as up-to-date
-const APPLIED = {
-  created: 'shared.done.created',
-  recreated: 'shared.done.created',
-  updated: 'shared.done.updated',
-  unchanged: 'shared.resource_status.up_to_date',
-};
-
 // the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
@@ -111,13 +102,14 @@ function onEvent(message) {
       led.dataset.sakState = 'busy';
       detail.textContent = text(`shared.working.${item.dataset.working}`);
       break;
+    // rust names the text of what was done, the command line shows the same
     case 'applied':
       led.dataset.sakState = 'ok';
-      detail.textContent = text(APPLIED[message.applied]);
+      detail.textContent = text(message.text);
       break;
     case 'destroyed':
       led.dataset.sakState = 'neutral';
-      detail.textContent = text(message.gone ? 'shared.done.destroyed' : 'shared.plan.already_deleted');
+      detail.textContent = text(message.text);
       break;
     case 'taskStarted':
       led.dataset.sakState = 'busy';

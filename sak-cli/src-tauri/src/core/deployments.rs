@@ -186,37 +186,123 @@ pub struct PlannedResource {
     /// provider: the page and the command line show the resource with them, in their language
     pub(crate) kind: String,
     pub(crate) name: String,
-    /// `up_to_date`, `missing` or `has_changes`, the resource status of the glossary
-    pub(crate) resource_status: &'static str,
-    /// what the plan does to it, `will_create`, `will_update`, `will_destroy`, `will_keep`,
-    /// `already_deleted`, `will_run` or `runs_when_forced`; none for a resource that stays as it is
-    pub(crate) action: Option<&'static str>,
-    /// what the apply does to it when it starts, `working`, `working_update`, `working_recreate`,
-    /// `working_check` or `working_destroy`: the command line shows `cli.<working>`, the window
-    /// `ui.plan.<working>`
-    pub(crate) working: &'static str,
+    /// the resource status of the glossary
+    pub(crate) resource_status: ResourceStatus,
+    /// what the plan does to it; none for a resource that stays as it is
+    pub(crate) action: Option<PlanAction>,
+    /// what the apply does to it when it starts
+    pub(crate) working: Working,
     pub(crate) status: DiffStatus,
     /// a destroy keeps it: the data volume, unless `delete_data` is set
     pub(crate) keep: bool,
     pub(crate) changes: Vec<String>,
 }
 
-/// the key of the text of an apply's result, for the command line and the window alike: a
-/// resource created anew reads as created, one that stays as up-to-date
-pub fn applied_key(applied: Applied) -> &'static str {
+/// the resource status of the glossary for a status of a diff. A resource whose parent is missing
+/// is missing too. A resource found under another name stops the plan before (NotOwned)
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResourceStatus {
+    UpToDate,
+    Missing,
+    HasChanges,
+}
+
+impl ResourceStatus {
+    pub fn of(status: DiffStatus) -> Self {
+        match status {
+            DiffStatus::UpToDate => ResourceStatus::UpToDate,
+            DiffStatus::Missing | DiffStatus::ParentMissing => ResourceStatus::Missing,
+            DiffStatus::HasChanges | DiffStatus::Duplicate => ResourceStatus::HasChanges,
+        }
+    }
+
+    /// the key of its text, for the command line and the window alike
+    pub fn text_key(self) -> &'static str {
+        match self {
+            ResourceStatus::UpToDate => "shared.resource_status.up_to_date",
+            ResourceStatus::Missing => "shared.resource_status.missing",
+            ResourceStatus::HasChanges => "shared.resource_status.has_changes",
+        }
+    }
+}
+
+/// what the plan does to a resource
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanAction {
+    WillCreate,
+    WillUpdate,
+    WillDestroy,
+    /// a destroy keeps it: the data volume
+    WillKeep,
+    /// a destroy finds it gone already
+    AlreadyDeleted,
+    /// the playbook runs
+    WillRun,
+    /// the playbook is up to date, it runs on a forced deploy
+    RunsWhenForced,
+}
+
+impl PlanAction {
+    pub fn text_key(self) -> &'static str {
+        match self {
+            PlanAction::WillCreate => "shared.plan.will_create",
+            PlanAction::WillUpdate => "shared.plan.will_update",
+            PlanAction::WillDestroy => "shared.plan.will_destroy",
+            PlanAction::WillKeep => "shared.plan.will_keep",
+            PlanAction::AlreadyDeleted => "shared.plan.already_deleted",
+            PlanAction::WillRun => "shared.plan.will_run",
+            PlanAction::RunsWhenForced => "shared.plan.runs_when_forced",
+        }
+    }
+}
+
+/// what the apply does to a resource when it starts
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub enum Working {
+    /// creates it
+    #[serde(rename = "working")]
+    Create,
+    #[serde(rename = "working_update")]
+    Update,
+    #[serde(rename = "working_recreate")]
+    Recreate,
+    /// compares it, it is up to date
+    #[serde(rename = "working_check")]
+    Check,
+    #[serde(rename = "working_destroy")]
+    Destroy,
+}
+
+impl Working {
+    pub fn text_key(self) -> &'static str {
+        match self {
+            Working::Create => "shared.working.working",
+            Working::Update => "shared.working.working_update",
+            Working::Recreate => "shared.working.working_recreate",
+            Working::Check => "shared.working.working_check",
+            Working::Destroy => "shared.working.working_destroy",
+        }
+    }
+}
+
+/// the key of the text of an apply's result: a resource created anew reads as created, one that
+/// stays as up-to-date
+fn applied_key(applied: Applied) -> &'static str {
     match applied {
         Applied::Created | Applied::Recreated => "shared.done.created",
         Applied::Updated => "shared.done.updated",
-        Applied::Unchanged => "shared.resource_status.up_to_date",
+        Applied::Unchanged => ResourceStatus::UpToDate.text_key(),
     }
 }
 
 /// the key of the text of a destroyed resource: destroyed, or gone already
-pub fn destroyed_key(gone: bool) -> &'static str {
+fn destroyed_key(gone: bool) -> &'static str {
     if gone {
         "shared.done.destroyed"
     } else {
-        "shared.plan.already_deleted"
+        PlanAction::AlreadyDeleted.text_key()
     }
 }
 
@@ -228,14 +314,15 @@ pub enum CreateEvent {
     Started {
         resource: String,
     },
+    /// a resource done; `text` is the key of what was done, for the command line and the window
     Applied {
         resource: String,
-        applied: Applied,
+        text: &'static str,
     },
-    /// a resource removed (`gone` false: it was gone already)
+    /// a resource removed, or gone already; `text` is the key of which
     Destroyed {
         resource: String,
-        gone: bool,
+        text: &'static str,
     },
     /// a message about the provisioning: it starts, or sakctl waits for the api
     Provisioning {
@@ -873,16 +960,6 @@ fn complete(
     Ok(deployment)
 }
 
-/// the resource status of the glossary for a status of a diff. A resource whose parent is missing
-/// is missing too. A resource found under another name stops the plan before (NotOwned)
-pub fn resource_status(status: DiffStatus) -> &'static str {
-    match status {
-        DiffStatus::UpToDate => "up_to_date",
-        DiffStatus::Missing | DiffStatus::ParentMissing => "missing",
-        DiffStatus::HasChanges | DiffStatus::Duplicate => "has_changes",
-    }
-}
-
 /// what the plan does to a resource, from its status. A stale dns record (`remove`) goes. A
 /// destroy keeps the data volume (`keep`), leaves what is gone and removes the rest. A create or
 /// deploy creates what is missing or must be created anew and updates what has changes
@@ -892,30 +969,30 @@ fn action(
     recreate: bool,
     keep: bool,
     remove: bool,
-) -> Option<&'static str> {
+) -> Option<PlanAction> {
     let missing = matches!(status, DiffStatus::Missing | DiffStatus::ParentMissing);
     match intent {
-        _ if remove => Some("will_destroy"),
-        Intent::Destroy if keep => Some("will_keep"),
-        Intent::Destroy if missing => Some("already_deleted"),
-        Intent::Destroy => Some("will_destroy"),
-        _ if missing || recreate => Some("will_create"),
+        _ if remove => Some(PlanAction::WillDestroy),
+        Intent::Destroy if keep => Some(PlanAction::WillKeep),
+        Intent::Destroy if missing => Some(PlanAction::AlreadyDeleted),
+        Intent::Destroy => Some(PlanAction::WillDestroy),
+        _ if missing || recreate => Some(PlanAction::WillCreate),
         _ if status == DiffStatus::UpToDate => None,
-        _ => Some("will_update"),
+        _ => Some(PlanAction::WillUpdate),
     }
 }
 
 /// what the apply does to a resource when it starts, from what the plan found: it creates what is
 /// missing, checks what is up-to-date, updates or recreates what has changes, and destroys on a
 /// destroy and a stale dns record
-fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> &'static str {
+fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> Working {
     match (intent, status) {
-        _ if remove => "working_destroy",
-        (Intent::Destroy, _) => "working_destroy",
-        (_, DiffStatus::Missing | DiffStatus::ParentMissing) => "working",
-        (_, DiffStatus::UpToDate) => "working_check",
-        _ if recreate => "working_recreate",
-        _ => "working_update",
+        _ if remove => Working::Destroy,
+        (Intent::Destroy, _) => Working::Destroy,
+        (_, DiffStatus::Missing | DiffStatus::ParentMissing) => Working::Create,
+        (_, DiffStatus::UpToDate) => Working::Check,
+        _ if recreate => Working::Recreate,
+        _ => Working::Update,
     }
 }
 
@@ -931,9 +1008,6 @@ fn verify_password(
     check_password(&hashes, key, name, password)
 }
 
-/// where `config show` asks and with which key: the api of the base domain on the labels of the
-/// deployment, and the api key of the password. sakctl checks the password first, so it signs
-/// nothing with the key of a wrong password
 /// where a deployment answers its users: its api, the key a request to it is signed with, the trust
 /// of its certificates and the address of its server, which a request asks directly because a
 /// resolver of this machine can still know the address of an earlier server of the name
@@ -978,6 +1052,9 @@ async fn running_config_of(
     .await
 }
 
+/// where `config show` asks and with which key: the api of the base domain on the labels of the
+/// deployment, and the api key of the password. sakctl checks the password first, so it signs
+/// nothing with the key of a wrong password
 fn config_endpoint(
     deployment: &DiscoveredDeployment,
     name: &str,
@@ -1579,15 +1656,15 @@ impl DeploymentManager {
                             None => String::new(),
                         },
                         name: diff.resource.name.clone(),
-                        resource_status: resource_status(diff.status),
+                        resource_status: ResourceStatus::of(diff.status),
                         // the playbook runs when a role is not up to date, an up to date one only
                         // on a forced deploy
                         action: if provisioning {
                             Some(
                                 if diff.status == DiffStatus::UpToDate && !deployment.force {
-                                    "runs_when_forced"
+                                    PlanAction::RunsWhenForced
                                 } else {
-                                    "will_run"
+                                    PlanAction::WillRun
                                 },
                             )
                         } else {
@@ -1622,7 +1699,7 @@ impl DeploymentManager {
                     resource: record.log_text(),
                     kind: key(&ResourceKind::DnsRecord),
                     name: record.resource_ref().name,
-                    resource_status: resource_status(DiffStatus::UpToDate),
+                    resource_status: ResourceStatus::UpToDate,
                     action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
                     working: working(deployment.intent, DiffStatus::UpToDate, false, true),
                     status: DiffStatus::UpToDate,
@@ -1681,7 +1758,7 @@ impl DeploymentManager {
                     },
                     ApplyEvent::Destroyed(resource, gone) => CreateEvent::Destroyed {
                         resource: resource.log_text,
-                        gone,
+                        text: destroyed_key(gone),
                     },
                     ApplyEvent::Applied(_) => return,
                 };
@@ -1738,7 +1815,7 @@ impl DeploymentManager {
                             }
                             CreateEvent::Applied {
                                 resource: result.resource.log_text,
-                                applied: result.applied,
+                                text: applied_key(result.applied),
                             }
                         }
                         ApplyEvent::Destroyed(..) => return,
@@ -1840,7 +1917,7 @@ impl DeploymentManager {
             &mut |record, gone| {
                 on_event(CreateEvent::Destroyed {
                     resource: record.log_text(),
-                    gone,
+                    text: destroyed_key(gone),
                 })
             },
         )
@@ -1856,32 +1933,80 @@ mod tests {
     use super::*;
     use sak_cloud::hetzner::{DNS_MODE_LABEL, ROOT_DOMAIN_LABEL};
 
+    /// the page shows a plan by these words (`shared.resource_status.<status>`, `shared.plan.<action>`,
+    /// `shared.working.<working>` in run.js); each has its text
+    #[test]
+    fn the_words_of_a_plan_are_those_of_the_texts() {
+        let word = |value: serde_json::Value| value.as_str().unwrap().to_string();
+        for status in [
+            ResourceStatus::UpToDate,
+            ResourceStatus::Missing,
+            ResourceStatus::HasChanges,
+        ] {
+            let key = format!("shared.resource_status.{}", word(serde_json::json!(status)));
+            assert_eq!(key, status.text_key());
+        }
+        for action in [
+            PlanAction::WillCreate,
+            PlanAction::WillUpdate,
+            PlanAction::WillDestroy,
+            PlanAction::WillKeep,
+            PlanAction::AlreadyDeleted,
+            PlanAction::WillRun,
+            PlanAction::RunsWhenForced,
+        ] {
+            let key = format!("shared.plan.{}", word(serde_json::json!(action)));
+            assert_eq!(key, action.text_key());
+        }
+        for working in [
+            Working::Create,
+            Working::Update,
+            Working::Recreate,
+            Working::Check,
+            Working::Destroy,
+        ] {
+            let key = format!("shared.working.{}", word(serde_json::json!(working)));
+            assert_eq!(key, working.text_key());
+        }
+        // and every key has a text
+        let texts = crate::_rust_i18n_backend()
+            .messages_for_locale("en")
+            .unwrap_or_default();
+        for key in [
+            "shared.plan.will_run",
+            "shared.working.working_check",
+            "shared.done.created",
+        ] {
+            assert!(texts.iter().any(|(known, _)| &**known == key), "{key}");
+        }
+    }
+
     #[test]
     fn the_start_of_an_apply_says_what_is_done_to_the_resource() {
         assert_eq!(
             working(Intent::Create, DiffStatus::Missing, false, false),
-            "working"
+            Working::Create
         );
         assert_eq!(
             working(Intent::Deploy, DiffStatus::HasChanges, false, false),
-            "working_update"
+            Working::Update
         );
         assert_eq!(
             working(Intent::Deploy, DiffStatus::HasChanges, true, false),
-            "working_recreate"
+            Working::Recreate
         );
         assert_eq!(
             working(Intent::Deploy, DiffStatus::UpToDate, false, false),
-            "working_check"
+            Working::Check
         );
         assert_eq!(
             working(Intent::Destroy, DiffStatus::UpToDate, false, false),
-            "working_destroy"
+            Working::Destroy
         );
         // a dns record of the old dns mode goes on a deploy
         assert_eq!(
             working(Intent::Deploy, DiffStatus::UpToDate, false, true),
-            "working_destroy"
+            Working::Destroy
         );
     }
 

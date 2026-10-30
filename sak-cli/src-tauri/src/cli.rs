@@ -12,9 +12,9 @@ use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, AcmeCa, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS,
     DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment,
-    PASSWORD_VARIABLE, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE,
-    SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome, USER_MODE_VARIABLE,
-    UserMode, applied_key, destroyed_key, key, parse_flag, resource_status,
+    PASSWORD_VARIABLE, PlanAction, ResourceStatus, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE,
+    SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome,
+    USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
 };
 use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, WizardError};
 use crate::core::providers::ProviderType;
@@ -704,17 +704,15 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
         for resource in deployment.resources {
             let resource_name = title(&key(&resource.kind), &resource.name);
             // its status, then its detail; a resource that was not compared shows its detail only
-            let status = resource.status.map(resource_status);
-            let detail = resource.detail.filter(|_| status != Some("missing"));
+            let status = resource.status.map(ResourceStatus::of);
+            let detail = resource
+                .detail
+                .filter(|_| status != Some(ResourceStatus::Missing));
             let line = match (status, detail) {
-                (Some(status), Some(detail)) => format!(
-                    "{resource_name} {}, {detail}",
-                    t!(format!("shared.resource_status.{status}"))
-                ),
-                (Some(status), None) => format!(
-                    "{resource_name} {}",
-                    t!(format!("shared.resource_status.{status}"))
-                ),
+                (Some(status), Some(detail)) => {
+                    format!("{resource_name} {}, {detail}", t!(status.text_key()))
+                }
+                (Some(status), None) => format!("{resource_name} {}", t!(status.text_key())),
                 (None, detail) => format!("{resource_name} {}", detail.unwrap_or_default()),
             };
             log(Level::Info, line.trim_end());
@@ -1040,16 +1038,13 @@ async fn plan_and_apply(
     };
     for resource in &plan.resources {
         // its status, then what the plan does to it
-        let status = t!(format!(
-            "shared.resource_status.{}",
-            resource.resource_status
-        ));
+        let status = t!(resource.resource_status.text_key());
         let action = resource
             .action
-            .map(|action| format!(", {}", t!(format!("shared.plan.{action}"))))
+            .map(|action| format!(", {}", t!(action.text_key())))
             .unwrap_or_default();
         // a resource that the apply removes is a warning
-        let level = if resource.action == Some("will_destroy") {
+        let level = if resource.action == Some(PlanAction::WillDestroy) {
             Level::Warn
         } else {
             Level::Info
@@ -1062,7 +1057,7 @@ async fn plan_and_apply(
     }
 
     // what the apply does to a resource when it starts, from what the plan found
-    let working: HashMap<String, &str> = plan
+    let working: HashMap<String, Working> = plan
         .resources
         .iter()
         .map(|resource| (resource.resource.clone(), resource.working))
@@ -1070,24 +1065,15 @@ async fn plan_and_apply(
     // a resource, then what is done to it, with the texts of the window: `Server 'alpha': created`
     let mut report = |event: CreateEvent| match event {
         CreateEvent::Started { resource } => {
-            let key = working.get(&resource).copied().unwrap_or("working");
+            let working = working.get(&resource).copied().unwrap_or(Working::Create);
             log(
                 Level::Info,
-                format!(
-                    "{}: {}",
-                    titled(&resource),
-                    t!(format!("shared.working.{key}"))
-                ),
+                format!("{}: {}", titled(&resource), t!(working.text_key())),
             )
         }
-        CreateEvent::Applied { resource, applied } => log(
-            Level::Info,
-            format!("{}: {}", titled(&resource), t!(applied_key(applied))),
-        ),
-        CreateEvent::Destroyed { resource, gone } => log(
-            Level::Info,
-            format!("{}: {}", titled(&resource), t!(destroyed_key(gone))),
-        ),
+        CreateEvent::Applied { resource, text } | CreateEvent::Destroyed { resource, text } => {
+            log(Level::Info, format!("{}: {}", titled(&resource), t!(text)))
+        }
         CreateEvent::Provisioning { message } => log(Level::Info, message),
         // the log keeps the text of a line of ansible without its spaces and empty lines
         CreateEvent::Output { line } => {

@@ -658,11 +658,12 @@ The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_ro
 `failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
 message. A typed error variant removes the mutex and the second tracker (CD-25).
 
-#### CD-13 (Low): Stringly typed plan vocabulary
+#### CD-13 (Low): Stringly typed plan vocabulary — *partly fixed*
 
 `resource_status`, `action`, `working` are `&'static str` (`deployments.rs:187-194`), produced by `action()` with
 three booleans (`:886-892`) and `working()`; `kind` is a `String` from a serde round trip in `key()` (`:567-572`),
 which yields `""` for a non-string. `TaskOutcome` shows the right pattern (enum + serde rename). Also UI-17.
+*`resource_status`, `action` and `working` are enums now (with UI-17); `kind` is still a string.*
 
 #### CD-14 (Low): `NewDeployment` is a union of three intents
 
@@ -869,7 +870,7 @@ and the tokens. Core could return a `Found` plus a `ContainerRuntime` from one `
 show_log)` (`:1071`), `quit(failed)` (`gui/checks.rs:46`), `apply_checked(force)`; in JS `setBusy`, `setStatus(msg,
 failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`).
 
-#### UI-17 (Low): Stringly typed plan and events across the boundary, the texts of an apply mapped twice
+#### ~~UI-17 (Low): Stringly typed plan and events across the boundary, the texts of an apply mapped twice~~ **fixed**
 
 `cli.rs:1117` compares `resource.action == Some("will_destroy")`; `PlannedResource.working/resource_status/action`
 are `&'static str` keys (CD-13). `ui/run.js:22-27` `APPLIED` re-implements `applied_key`

@@ -117,7 +117,7 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
             .map(|kind| key(&kind))
             .unwrap_or_default(),
         name: reference.name.clone(),
-        resource_status: resource_status(status),
+        resource_status: ResourceStatus::of(status),
         action: action(intent, status, false, false, false),
         working: working(intent, status, false, false),
         status,
@@ -129,11 +129,11 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
         resource: provisioning(spec),
         kind: "provisioning".to_string(),
         name: spec.resource_name(),
-        resource_status: resource_status(status),
+        resource_status: ResourceStatus::of(status),
         action: Some(if intent == Intent::Create {
-            "will_run"
+            PlanAction::WillRun
         } else {
-            "runs_when_forced"
+            PlanAction::RunsWhenForced
         }),
         working: working(intent, status, false, false),
         status,
@@ -169,7 +169,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
             busy,
             CreateEvent::Applied {
                 resource,
-                applied: Applied::Created,
+                text: applied_key(Applied::Created),
             },
         ));
     }
@@ -227,7 +227,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
         300,
         CreateEvent::Applied {
             resource,
-            applied: Applied::Created,
+            text: applied_key(Applied::Created),
         },
     ));
     let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
