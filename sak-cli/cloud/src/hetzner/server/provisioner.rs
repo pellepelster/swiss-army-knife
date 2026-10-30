@@ -3,6 +3,7 @@ use crate::api::{
     ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Labels, Lookup, LookupContext,
     LookupContextExt, LookupProvider, Provisioner, Resource, ResourceDiff, Result,
 };
+use crate::hetzner::api::primary_ips::PrimaryIpType;
 use crate::hetzner::api::servers::{PublicNetCreate, ServerCreate, ServerStatus, ServerUpdate};
 use crate::hetzner::api::volumes::VolumeStatus;
 use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery, Location, ServerType};
@@ -168,7 +169,8 @@ impl HetznerServerProvisioner {
     }
 
     /// assigns the primary ips to the server, those it has not already. Hetzner assigns one only
-    /// to a stopped server, so the server is stopped once and started again
+    /// to a stopped server, so the server is stopped once and started again, also when an assign
+    /// fails: its error is the one reported
     async fn assign(
         &self,
         ips: &[&HetznerPrimaryIpRuntime],
@@ -183,17 +185,47 @@ impl HetznerServerProvisioner {
             return Ok(());
         }
         let servers = self.api.servers();
-        let primary_ips = self.api.primary_ips();
         if server.status != ServerStatus::Off {
             servers
                 .wait_for_action(&servers.power_off(server.id).await?)
                 .await?;
         }
-        for ip in unassigned {
+        let assigned = self.assign_stopped(&unassigned, server).await;
+        let started = async {
+            servers
+                .wait_for_action(&servers.power_on(server.id).await?)
+                .await
+        }
+        .await;
+        assigned?;
+        started?;
+        Ok(())
+    }
+
+    /// assigns each ip to the stopped server. A server holds one primary ip of a type: the one it
+    /// has of the type now is unassigned first, as is the ip from another server
+    async fn assign_stopped(
+        &self,
+        ips: &[&HetznerPrimaryIpRuntime],
+        server: &HetznerServerRuntime,
+    ) -> Result<()> {
+        let primary_ips = self.api.primary_ips();
+        for ip in ips {
             info!(
                 "assigning primary ip '{}' to server '{}'",
                 ip.name, server.name
             );
+            let current = match ip.ip_type {
+                PrimaryIpType::Ipv4 => server.ipv4_id,
+                PrimaryIpType::Ipv6 => server.ipv6_id,
+            };
+            if let Some(current) = current
+                && current != ip.id
+            {
+                primary_ips
+                    .wait_for_action(&primary_ips.unassign(current).await?)
+                    .await?;
+            }
             if ip.assignee_id.is_some() {
                 primary_ips
                     .wait_for_action(&primary_ips.unassign(ip.id).await?)
@@ -203,9 +235,6 @@ impl HetznerServerProvisioner {
                 .wait_for_action(&primary_ips.assign(ip.id, server.id).await?)
                 .await?;
         }
-        servers
-            .wait_for_action(&servers.power_on(server.id).await?)
-            .await?;
         Ok(())
     }
 }
@@ -874,6 +903,56 @@ mod tests {
         );
     }
 
+    /// every action of the mock server succeeds at once
+    async fn mock_actions(mock_server: &MockServer) {
+        let done = json!({
+            "action": {
+                "id": 1, "command": "any", "status": "success", "progress": 100,
+                "started": "2026-01-01T00:00:00+00:00", "finished": null, "error": null, "resources": []
+            }
+        });
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(done.clone()))
+            .mount(mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"/actions/\d+$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(done))
+            .mount(mock_server)
+            .await;
+    }
+
+    /// the paths of the posts the mock server received, in order
+    async fn posts(mock_server: &MockServer) -> Vec<String> {
+        mock_server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.method == wiremock::http::Method::POST)
+            .map(|request| request.url.path().to_string())
+            .collect()
+    }
+
+    /// assigns the primary ips of the `names` to the server `backend` of the mock server
+    async fn assign(api: &Arc<HetznerApi>, names: &[&str]) -> Result<()> {
+        let provisioner = HetznerServerProvisioner::new(api.clone());
+        let context = context(api);
+        let mut runtimes = Vec::new();
+        for name in names {
+            let lookup = HetznerPrimaryIpLookup::new(name);
+            runtimes.push(context.lookup(&lookup).await.unwrap().unwrap());
+        }
+        let runtime = provisioner
+            .find(&resource().as_lookup())
+            .await
+            .unwrap()
+            .unwrap();
+        provisioner
+            .assign(&runtimes.iter().collect::<Vec<_>>(), &runtime)
+            .await
+    }
+
     #[tokio::test]
     async fn both_primary_ips_are_assigned_in_one_power_cycle() {
         let (mock_server, api) = mock(vec![server(
@@ -884,48 +963,75 @@ mod tests {
             created_labels(&[("app", "sak")]),
         )])
         .await;
-        let done = json!({
-            "action": {
-                "id": 1, "command": "any", "status": "success", "progress": 100,
-                "started": "2026-01-01T00:00:00+00:00", "finished": null, "error": null, "resources": []
-            }
-        });
-        Mock::given(method("POST"))
-            .respond_with(ResponseTemplate::new(201).set_body_json(done.clone()))
-            .mount(&mock_server)
-            .await;
-        Mock::given(method("GET"))
-            .and(path_regex(r"/actions/\d+$"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(done))
-            .mount(&mock_server)
-            .await;
-        let provisioner = HetznerServerProvisioner::new(api.clone());
-        let lookup = |name| HetznerPrimaryIpLookup::new(name);
-        let context = context(&api);
-        let ipv4 = context.lookup(&lookup("ipv4")).await.unwrap().unwrap();
-        let ipv6 = context.lookup(&lookup("ipv6")).await.unwrap().unwrap();
-        let runtime = provisioner
-            .find(&resource().as_lookup())
-            .await
-            .unwrap()
-            .unwrap();
+        mock_actions(&mock_server).await;
 
-        provisioner.assign(&[&ipv4, &ipv6], &runtime).await.unwrap();
+        assign(&api, &["ipv4", "ipv6"]).await.unwrap();
 
-        let posts: Vec<String> = mock_server
-            .received_requests()
-            .await
-            .unwrap()
-            .iter()
-            .filter(|request| request.method == wiremock::http::Method::POST)
-            .map(|request| request.url.path().to_string())
-            .collect();
         assert_eq!(
-            posts,
+            posts(&mock_server).await,
             vec![
                 "/servers/1/actions/poweroff",
                 "/primary_ips/21/actions/assign",
                 "/primary_ips/22/actions/assign",
+                "/servers/1/actions/poweron",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_primary_ip_the_server_has_of_the_type_is_unassigned_first() {
+        // created with the ipv4 20, by hand or without the declared ip
+        let (mock_server, api) = mock(vec![server(
+            "backend",
+            "debian-13",
+            vec![3],
+            Some(20),
+            created_labels(&[("app", "sak")]),
+        )])
+        .await;
+        mock_actions(&mock_server).await;
+
+        assign(&api, &["ipv4"]).await.unwrap();
+
+        assert_eq!(
+            posts(&mock_server).await,
+            vec![
+                "/servers/1/actions/poweroff",
+                "/primary_ips/20/actions/unassign",
+                "/primary_ips/21/actions/assign",
+                "/servers/1/actions/poweron",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_assign_starts_the_server_again() {
+        let (mock_server, api) = mock(vec![server(
+            "backend",
+            "debian-13",
+            vec![3],
+            None,
+            created_labels(&[("app", "sak")]),
+        )])
+        .await;
+        Mock::given(method("POST"))
+            .and(path("/primary_ips/21/actions/assign"))
+            .respond_with(ResponseTemplate::new(422).set_body_json(
+                json!({ "error": { "code": "server_has_ipv4", "message": "server already has an ipv4" } }),
+            ))
+            .with_priority(1)
+            .mount(&mock_server)
+            .await;
+        mock_actions(&mock_server).await;
+
+        let error = assign(&api, &["ipv4"]).await.unwrap_err();
+
+        assert!(error.to_string().contains("already has an ipv4"), "{error}");
+        assert_eq!(
+            posts(&mock_server).await,
+            vec![
+                "/servers/1/actions/poweroff",
+                "/primary_ips/21/actions/assign",
                 "/servers/1/actions/poweron",
             ]
         );
