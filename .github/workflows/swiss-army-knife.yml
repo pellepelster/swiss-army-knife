@@ -11,7 +11,8 @@ name: swiss-army-knife
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    # v0.0.0 is the start of the versions of svu (mise run release), never a release
+    tags: ['v*', '!v0.0.0']
   pull_request:
   workflow_dispatch:
 
