@@ -185,11 +185,11 @@ deployButton.addEventListener('click', () => apply(false));
 forceButton.addEventListener('click', () => apply(true));
 document.getElementById('plan-cancel').addEventListener('click', () => cancelPlan?.());
 
-// the deploy of the last check of a deployment's page (rust keeps what it checked), forced or
-// not; done opens the page of the deployment again
+// the deploy of the check of a deployment's page (rust keeps what it checked, `plan.check` names
+// it), forced or not; done opens the page of the deployment again
 export function runChecked(plan, name, password, force) {
   const deployment = { name, password, intent: 'deploy', deleteData: false };
-  run(plan, deployment, () => showApplied(deployment), (channel) => invoke('apply_checked', { force, onEvent: channel }));
+  run(plan, deployment, () => showApplied(deployment), (channel) => invoke('apply_checked', { deploy: { check: plan.check, force }, onEvent: channel }));
 }
 
 // a destroy: its plan for the rows, then the run; done opens the list

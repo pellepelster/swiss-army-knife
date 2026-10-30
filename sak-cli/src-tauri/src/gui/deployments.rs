@@ -111,9 +111,67 @@ impl RunningApply {
     }
 }
 
-/// the deploy the last check of the page of a deployment planned, as `apply_checked` applies it
+/// the deploy the last check of the page of a deployment planned, as `apply_checked` applies it.
+/// Each check has its number; only the newest one is kept, and a deploy names the check it applies.
+/// So a check that ends after a newer one (of another deployment, after the user went back and
+/// opened it) is never what a deploy applies
 #[derive(Default)]
-pub struct CheckedDeployment(Mutex<Option<NewDeployment>>);
+pub struct CheckedDeployment(Mutex<Checks>);
+
+#[derive(Default)]
+struct Checks {
+    /// the number of the newest check that started
+    newest: u64,
+    /// the newest check that ended, with its number
+    done: Option<(u64, NewDeployment)>,
+}
+
+impl CheckedDeployment {
+    /// the number of a check that starts; what an older check kept goes
+    fn start(&self) -> u64 {
+        let mut checks = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        checks.newest += 1;
+        checks.done = None;
+        checks.newest
+    }
+
+    /// keeps the deploy of the check `number`, unless a newer check started meanwhile
+    fn done(&self, number: u64, deployment: NewDeployment) {
+        let mut checks = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if checks.newest == number {
+            checks.done = Some((number, deployment));
+        }
+    }
+
+    /// the deploy of the check `number`, once; none when it is not the newest check that ended
+    fn take(&self, number: u64) -> Option<NewDeployment> {
+        let mut checks = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match checks.done.take() {
+            Some((done, deployment)) if done == number => Some(deployment),
+            other => {
+                checks.done = other;
+                None
+            }
+        }
+    }
+}
+
+/// the plan of a check and its number, which the deploy names
+#[derive(serde::Serialize)]
+pub struct CheckResponse {
+    check: u64,
+    #[serde(flatten)]
+    plan: PlanResponse,
+}
 
 /// the check of the page of a deployment: a deploy of the deployment as it is, its settings
 /// detected and completed as the command line does (`deployments::complete`), and its plan. The
@@ -127,11 +185,9 @@ pub async fn check_deployment(
     name: String,
     password: String,
     location: sak_cloud::hetzner::api::Location,
-) -> Result<PlanResponse, WizardError> {
+) -> Result<CheckResponse, WizardError> {
     let tokens = tokens.tokens();
-    if let Ok(mut checked) = checked.0.lock() {
-        *checked = None;
-    }
+    let number = checked.start();
     let deployment = NewDeployment {
         name: name.clone(),
         password: password.clone(),
@@ -150,13 +206,21 @@ pub async fn check_deployment(
     let detected = manager.detected(tokens.clone(), &name, &password).await?;
     let deployment = complete(deployment, &detected, "")?;
     let plan = manager.plan(tokens, &deployment, &container).await?;
-    if let Ok(mut checked) = checked.0.lock() {
-        *checked = Some(deployment);
-    }
-    Ok(plan)
+    checked.done(number, deployment);
+    Ok(CheckResponse {
+        check: number,
+        plan,
+    })
 }
 
-/// the deploy of the last check, forced or not
+/// which check a deploy applies, forced or not
+#[derive(serde::Deserialize)]
+pub struct CheckedDeploy {
+    check: u64,
+    force: bool,
+}
+
+/// the deploy of a check; refused when it is not the newest check
 #[tauri::command]
 pub async fn apply_checked(
     manager: State<'_, DeploymentManager>,
@@ -164,14 +228,12 @@ pub async fn apply_checked(
     container: State<'_, ContainerRuntime>,
     running: State<'_, RunningApply>,
     checked: State<'_, CheckedDeployment>,
-    force: bool,
+    deploy: CheckedDeploy,
     on_event: Channel<CreateEvent>,
 ) -> Result<(), WizardError> {
+    let CheckedDeploy { check, force } = deploy;
     let deployment = checked
-        .0
-        .lock()
-        .ok()
-        .and_then(|mut checked| checked.take())
+        .take(check)
         .ok_or_else(|| t!("ui.deployment.not_checked").to_string())?;
     let deployment = NewDeployment {
         force,
@@ -272,6 +334,51 @@ pub async fn list_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn deployment(name: &str) -> NewDeployment {
+        NewDeployment {
+            name: name.to_string(),
+            password: String::new(),
+            password_repeat: String::new(),
+            location: sak_cloud::hetzner::api::Location::nbg1,
+            dns_mode: None,
+            root_domain: None,
+            intent: Intent::Deploy,
+            delete_data: false,
+            user_mode: None,
+            acme_ca: None,
+            smtp: None,
+            admin_email: None,
+            force: false,
+        }
+    }
+
+    #[test]
+    fn a_deploy_applies_only_the_newest_check_it_names() {
+        let checked = CheckedDeployment::default();
+        // the page of alpha checks, the user goes back and opens beta, which checks too
+        let alpha = checked.start();
+        let beta = checked.start();
+        // beta ends first, alpha after it: alpha is not kept
+        checked.done(beta, deployment("beta"));
+        checked.done(alpha, deployment("alpha"));
+        assert!(checked.take(alpha).is_none());
+        assert_eq!(checked.take(beta).unwrap().name, "beta");
+        // once
+        assert!(checked.take(beta).is_none());
+
+        // a deploy that names an older check leaves the newest one as it is
+        let gamma = checked.start();
+        checked.done(gamma, deployment("gamma"));
+        assert!(checked.take(beta).is_none());
+        assert_eq!(checked.take(gamma).unwrap().name, "gamma");
+
+        // a check that starts drops what the one before kept
+        let delta = checked.start();
+        checked.done(delta, deployment("delta"));
+        checked.start();
+        assert!(checked.take(delta).is_none());
+    }
 
     #[test]
     fn only_the_frontend_of_a_listed_deployment_reaches_the_browser() {

@@ -757,7 +757,7 @@ CD-12).
 
 ### Bugs
 
-#### UI-1 (High, confirmed): The deploy of the page can apply another deployment than the one shown
+#### UI-1 (High, confirmed, fixed): The deploy of the page can apply another deployment than the one shown
 
 `gui/deployments.rs:132-157` stores the *last check that finished* with no link to the page; `apply_checked`
 (`:170-182`) takes whatever is there. `ui/deployment.js:80-90` guards its own view with `current !== shown`, but the
