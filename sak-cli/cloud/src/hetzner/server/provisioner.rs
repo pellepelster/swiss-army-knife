@@ -52,7 +52,7 @@ impl HetznerServerProvisioner {
             .get_by_name(&lookup.name)
             .await?
             .map(Into::into);
-        identity::check(found, lookup.identity(), &lookup.log_text())
+        identity::check_lookup(found, lookup)
     }
 
     /// the server of the name; one Hetzner deletes is gone already: a plan creates it anew, a
@@ -362,11 +362,14 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             }
         };
 
-        let request = ServerUpdate {
-            name: Some(resource.name.clone()),
-            labels: Some(labels),
-        };
-        servers.update(runtime.id, &request).await?;
+        // only when they differ: a created server has them already
+        if runtime.labels != labels {
+            let request = ServerUpdate {
+                name: Some(resource.name.clone()),
+                labels: Some(labels),
+            };
+            servers.update(runtime.id, &request).await?;
+        }
 
         for (ip, assigned) in [
             (&dependencies.ipv4, runtime.ipv4_id),

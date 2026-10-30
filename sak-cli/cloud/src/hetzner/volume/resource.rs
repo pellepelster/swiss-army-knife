@@ -1,6 +1,7 @@
-use crate::api::{Labeled, Labels, Resource};
+use crate::api::{Labels, Resource};
 use crate::hetzner::api::Location;
 use crate::hetzner::api::volumes::VolumeFormat;
+use crate::hetzner::kind::declared_labels;
 use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
 
 /// a block volume in a location; the server resource attaches it to a server
@@ -36,25 +37,6 @@ impl HetznerVolume {
         }
     }
 
-    pub fn with_labels(mut self, labels: Labels) -> Self {
-        self.labels = labels;
-        self
-    }
-
-    /// sets the identity labels and adds them to the labels
-    pub fn with_identity(mut self, identity: Labels) -> Self {
-        self.labels.extend(identity.clone());
-        self.identity = identity;
-        self
-    }
-
-    /// sets the info labels and adds them to the labels
-    pub fn with_info(mut self, info: Labels) -> Self {
-        self.labels.extend(info.clone());
-        self.info = info;
-        self
-    }
-
     pub fn with_protected(mut self, protected: bool) -> Self {
         self.protected = protected;
         self
@@ -79,12 +61,4 @@ impl Resource for HetznerVolume {
     }
 }
 
-impl Labeled for HetznerVolume {
-    fn labels(&self) -> &Labels {
-        &self.labels
-    }
-
-    fn info(&self) -> &Labels {
-        &self.info
-    }
-}
+declared_labels!(HetznerVolume);

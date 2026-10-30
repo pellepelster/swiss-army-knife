@@ -1,13 +1,8 @@
-use crate::api::Lookup as _;
-use crate::api::identity;
-use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Listable, LookupContext, LookupProvider,
-    Provisioner, Resource, ResourceDiff, Result,
-};
+use crate::api::{DiffItem, Resource, Result};
 use crate::hetzner::api::zones::{RRSet, ZoneCreate, ZoneMode, ZoneUpdate};
 use crate::hetzner::api::{HetznerApi, ListQuery};
-use crate::hetzner::dns_zone::{HetznerDnsZone, HetznerDnsZoneLookup, HetznerDnsZoneRuntime};
-use crate::hetzner::hetzner_label_diff;
+use crate::hetzner::dns_zone::{HetznerDnsZone, HetznerDnsZoneRuntime};
+use crate::hetzner::kind::HetznerKind;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::info;
@@ -30,13 +25,6 @@ impl HetznerDnsZoneProvisioner {
         HetznerDnsZoneProvisioner { api }
     }
 
-    /// the zone of the name; a zone lookup has no identity labels, so any zone of the name
-    async fn find(&self, lookup: &HetznerDnsZoneLookup) -> Result<Option<HetznerDnsZoneRuntime>> {
-        let found: Result<Option<HetznerDnsZoneRuntime>> =
-            { Ok(self.api.zones().get(&lookup.name).await?.map(Into::into)) };
-        identity::check(found?, lookup.identity(), &lookup.log_text())
-    }
-
     /// every zone of the project with its rrsets, sorted by the name of the zone
     pub async fn list_all(&self) -> Result<Vec<HetznerDnsZoneListing>> {
         let zones = self.api.zones();
@@ -53,93 +41,93 @@ impl HetznerDnsZoneProvisioner {
     }
 }
 
+/// a zone lookup has no identity labels, so any zone of the name is the zone
 #[async_trait]
-impl LookupProvider<HetznerDnsZoneLookup> for HetznerDnsZoneProvisioner {
-    async fn lookup(
+impl HetznerKind for HetznerDnsZoneProvisioner {
+    type Resource = HetznerDnsZone;
+    type Runtime = HetznerDnsZoneRuntime;
+
+    async fn fetch(&self, name: &str) -> Result<Option<HetznerDnsZoneRuntime>> {
+        Ok(self.api.zones().get(name).await?.map(Into::into))
+    }
+
+    async fn names(&self) -> Result<Vec<String>> {
+        let zones = self.api.zones().list(&ListQuery::new()).await?;
+        Ok(zones.into_iter().map(|zone| zone.name).collect())
+    }
+
+    fn compare(
         &self,
-        lookup: &HetznerDnsZoneLookup,
-        _: &dyn LookupContext,
-    ) -> Result<Option<HetznerDnsZoneRuntime>> {
-        self.find(lookup).await
-    }
-}
-
-#[async_trait]
-impl Listable<HetznerDnsZoneLookup> for HetznerDnsZoneProvisioner {
-    async fn list(&self) -> Result<Vec<HetznerDnsZoneLookup>> {
-        Ok(self
-            .api
-            .zones()
-            .list(&ListQuery::new())
-            .await?
-            .iter()
-            .map(|zone| HetznerDnsZoneLookup::new(&zone.name))
-            .collect())
-    }
-}
-
-#[async_trait]
-impl Provisioner<HetznerDnsZone> for HetznerDnsZoneProvisioner {
-    async fn diff(&self, resource: &HetznerDnsZone, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
-            return Ok(ResourceDiff::missing(resource));
-        };
-
+        resource: &HetznerDnsZone,
+        runtime: &HetznerDnsZoneRuntime,
+    ) -> Result<Vec<DiffItem>> {
         let mut changes = Vec::new();
         if let Some(ttl) = resource.ttl
             && ttl != runtime.ttl
         {
             changes.push(DiffItem::changed("ttl", ttl, runtime.ttl));
         }
-        changes.extend(hetzner_label_diff(resource, &runtime));
-
-        Ok(ResourceDiff::from_changes(resource, changes))
+        Ok(changes)
     }
 
-    async fn apply(
+    async fn create(&self, resource: &HetznerDnsZone) -> Result<HetznerDnsZoneRuntime> {
+        info!("{} not found, creating", resource.log_text());
+        let zones = self.api.zones();
+        let request = ZoneCreate {
+            name: resource.name.clone(),
+            mode: ZoneMode::Primary,
+            ttl: resource.ttl,
+            labels: Some(resource.labels.clone()),
+        };
+        let created = zones.create(&request).await?;
+        if let Some(action) = &created.action {
+            zones.wait_for_action(action).await?;
+        }
+        Ok(created.zone.into())
+    }
+
+    /// the default ttl, when one is declared
+    async fn update(
         &self,
         resource: &HetznerDnsZone,
-        _: &dyn ApplyContext,
-    ) -> Result<HetznerDnsZoneRuntime> {
-        let zones = self.api.zones();
-        let runtime = match self.find(&resource.as_lookup()).await? {
-            Some(runtime) => runtime,
-            None => {
-                info!("{} not found, creating", resource.log_text());
-                let request = ZoneCreate {
-                    name: resource.name.clone(),
-                    mode: ZoneMode::Primary,
-                    ttl: resource.ttl,
-                    labels: Some(resource.labels.clone()),
-                };
-                let created = zones.create(&request).await?;
-                if let Some(action) = &created.action {
-                    zones.wait_for_action(action).await?;
-                }
-                created.zone.into()
-            }
-        };
-
+        runtime: &HetznerDnsZoneRuntime,
+    ) -> Result<()> {
         if let Some(ttl) = resource.ttl
             && ttl != runtime.ttl
         {
+            let zones = self.api.zones();
             let action = zones.change_ttl(&resource.name, ttl).await?;
             zones.wait_for_action(&action).await?;
         }
+        Ok(())
+    }
 
+    /// a zone has no other name: only the labels
+    async fn update_labels(
+        &self,
+        resource: &HetznerDnsZone,
+        _: &HetznerDnsZoneRuntime,
+    ) -> Result<()> {
         let request = ZoneUpdate {
             labels: Some(resource.labels.clone()),
         };
-        Ok(zones.update(&resource.name, &request).await?.into())
+        self.api.zones().update(&resource.name, &request).await?;
+        Ok(())
     }
 
-    /// deletes the zone with every rrset in it
-    async fn destroy(&self, runtime: &HetznerDnsZoneRuntime, _: &dyn DestroyContext) -> Result<()> {
-        let zones = self.api.zones();
+    /// removes the delete protection
+    async fn prepare_destroy(&self, runtime: &HetznerDnsZoneRuntime) -> Result<()> {
         if runtime.delete_protected {
+            let zones = self.api.zones();
             let action = zones.change_protection(&runtime.name, false).await?;
             zones.wait_for_action(&action).await?;
         }
+        Ok(())
+    }
+
+    /// deletes the zone with every rrset in it
+    async fn delete(&self, runtime: &HetznerDnsZoneRuntime) -> Result<()> {
+        let zones = self.api.zones();
         if let Some(action) = zones.delete(&runtime.name).await? {
             zones.wait_for_action(&action).await?;
         }

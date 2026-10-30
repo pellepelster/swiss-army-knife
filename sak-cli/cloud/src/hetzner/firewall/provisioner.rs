@@ -1,15 +1,10 @@
-use crate::api::Lookup as _;
-use crate::api::identity;
-use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Labels, Listable, LookupContext,
-    LookupProvider, Provisioner, Resource, ResourceDiff, Result,
-};
+use crate::api::{DiffItem, Labels, Resource, Result};
 use crate::hetzner::api::firewalls::{
     FirewallCreate, FirewallResource, FirewallRule, FirewallUpdate,
 };
 use crate::hetzner::api::{ErrorCode, HetznerApi, ListQuery};
-use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallLookup, HetznerFirewallRuntime};
-use crate::hetzner::hetzner_label_diff;
+use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallRuntime};
+use crate::hetzner::kind::HetznerKind;
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -22,17 +17,6 @@ pub struct HetznerFirewallProvisioner {
 impl HetznerFirewallProvisioner {
     pub fn new(api: Arc<HetznerApi>) -> Self {
         HetznerFirewallProvisioner { api }
-    }
-
-    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
-    async fn find(&self, lookup: &HetznerFirewallLookup) -> Result<Option<HetznerFirewallRuntime>> {
-        let found: Result<Option<HetznerFirewallRuntime>> = {
-            match self.api.firewalls().get_by_name(&lookup.name).await? {
-                Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
-                None => Ok(None),
-            }
-        };
-        identity::check(found?, lookup.identity(), &lookup.log_text())
     }
 }
 
@@ -57,37 +41,30 @@ fn selector_text(labels: &Labels) -> String {
 }
 
 #[async_trait]
-impl LookupProvider<HetznerFirewallLookup> for HetznerFirewallProvisioner {
-    async fn lookup(
-        &self,
-        lookup: &HetznerFirewallLookup,
-        _: &dyn LookupContext,
-    ) -> Result<Option<HetznerFirewallRuntime>> {
-        self.find(lookup).await
-    }
-}
+impl HetznerKind for HetznerFirewallProvisioner {
+    type Resource = HetznerFirewall;
+    type Runtime = HetznerFirewallRuntime;
 
-#[async_trait]
-impl Listable<HetznerFirewallLookup> for HetznerFirewallProvisioner {
-    async fn list(&self) -> Result<Vec<HetznerFirewallLookup>> {
-        Ok(self
-            .api
-            .firewalls()
-            .list(&ListQuery::new())
-            .await?
-            .iter()
-            .map(|firewall| HetznerFirewallLookup::new(&firewall.name))
+    async fn fetch(&self, name: &str) -> Result<Option<HetznerFirewallRuntime>> {
+        match self.api.firewalls().get_by_name(name).await? {
+            Some(firewall) => Ok(Some(HetznerFirewallRuntime::from_firewall(firewall)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn names(&self) -> Result<Vec<String>> {
+        let firewalls = self.api.firewalls().list(&ListQuery::new()).await?;
+        Ok(firewalls
+            .into_iter()
+            .map(|firewall| firewall.name)
             .collect())
     }
-}
 
-#[async_trait]
-impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
-    async fn diff(&self, resource: &HetznerFirewall, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
-            return Ok(ResourceDiff::missing(resource));
-        };
-
+    fn compare(
+        &self,
+        resource: &HetznerFirewall,
+        runtime: &HetznerFirewallRuntime,
+    ) -> Result<Vec<DiffItem>> {
         let mut changes = Vec::new();
         if !same_rules(&resource.rules, &runtime.rules) {
             changes.push(DiffItem::changed(
@@ -103,44 +80,34 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
                 selector_text(&runtime.applied_to_labels),
             ));
         }
-        changes.extend(hetzner_label_diff(resource, &runtime));
-
-        Ok(ResourceDiff::from_changes(resource, changes))
+        Ok(changes)
     }
 
-    async fn apply(
+    async fn create(&self, resource: &HetznerFirewall) -> Result<HetznerFirewallRuntime> {
+        info!("{} not found, creating", resource.log_text());
+        let firewalls = self.api.firewalls();
+        let request = FirewallCreate {
+            name: resource.name.clone(),
+            rules: resource.rules.clone(),
+            apply_to: vec![],
+            labels: Some(resource.labels.clone()),
+        };
+        let created = firewalls.create(&request).await?;
+        firewalls.wait_for_actions(&created.actions).await?;
+        HetznerFirewallRuntime::from_firewall(created.firewall)
+    }
+
+    /// the rules, and the label selectors, which a create does not set
+    async fn update(
         &self,
         resource: &HetznerFirewall,
-        _: &dyn ApplyContext,
-    ) -> Result<HetznerFirewallRuntime> {
+        runtime: &HetznerFirewallRuntime,
+    ) -> Result<()> {
         let firewalls = self.api.firewalls();
-        let runtime = match self.find(&resource.as_lookup()).await? {
-            Some(runtime) => {
-                let request = FirewallUpdate {
-                    name: Some(resource.name.clone()),
-                    labels: Some(resource.labels.clone()),
-                };
-                firewalls.update(runtime.id, &request).await?;
-                if !same_rules(&resource.rules, &runtime.rules) {
-                    let actions = firewalls.set_rules(runtime.id, &resource.rules).await?;
-                    firewalls.wait_for_actions(&actions).await?;
-                }
-                runtime
-            }
-            None => {
-                info!("{} not found, creating", resource.log_text());
-                let request = FirewallCreate {
-                    name: resource.name.clone(),
-                    rules: resource.rules.clone(),
-                    apply_to: vec![],
-                    labels: Some(resource.labels.clone()),
-                };
-                let created = firewalls.create(&request).await?;
-                firewalls.wait_for_actions(&created.actions).await?;
-                HetznerFirewallRuntime::from_firewall(created.firewall)?
-            }
-        };
-
+        if !same_rules(&resource.rules, &runtime.rules) {
+            let actions = firewalls.set_rules(runtime.id, &resource.rules).await?;
+            firewalls.wait_for_actions(&actions).await?;
+        }
         if runtime.applied_to_labels != resource.applied_to_labels {
             if !runtime.applied_to_labels.is_empty() {
                 let selectors: Vec<FirewallResource> = runtime
@@ -163,27 +130,36 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
                 }
             }
         }
-
-        self.find(&resource.as_lookup()).await?.ok_or_else(|| {
-            crate::api::Error::message(format!("{} is gone after apply", resource.log_text()))
-        })
+        Ok(())
     }
 
-    /// removes the firewall from all resources first, because hetzner does not delete a
-    /// firewall that is applied
-    async fn destroy(
+    async fn update_labels(
         &self,
+        resource: &HetznerFirewall,
         runtime: &HetznerFirewallRuntime,
-        _: &dyn DestroyContext,
     ) -> Result<()> {
+        let request = FirewallUpdate {
+            name: Some(resource.name.clone()),
+            labels: Some(resource.labels.clone()),
+        };
+        self.api.firewalls().update(runtime.id, &request).await?;
+        Ok(())
+    }
+
+    /// removes the firewall from all resources, because hetzner does not delete a firewall
+    /// that is applied
+    async fn prepare_destroy(&self, runtime: &HetznerFirewallRuntime) -> Result<()> {
         if !runtime.applied_to.is_empty() {
-            let actions = self
-                .api
-                .firewalls()
+            let firewalls = self.api.firewalls();
+            let actions = firewalls
                 .remove_from_resources(runtime.id, &runtime.applied_to)
                 .await?;
-            self.api.firewalls().wait_for_actions(&actions).await?;
+            firewalls.wait_for_actions(&actions).await?;
         }
+        Ok(())
+    }
+
+    async fn delete(&self, runtime: &HetznerFirewallRuntime) -> Result<()> {
         self.api.firewalls().delete(runtime.id).await?;
         Ok(())
     }
@@ -192,7 +168,7 @@ impl Provisioner<HetznerFirewall> for HetznerFirewallProvisioner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{DiffStatus, LookupProviders};
+    use crate::api::{DiffStatus, LookupProviders, Provisioner};
     use crate::hetzner::firewall::resource::{inbound_icmp, inbound_tcp};
     use crate::hetzner::test_support::{labels, mock_api};
     use serde_json::{Value, json};

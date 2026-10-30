@@ -39,6 +39,10 @@ impl HetznerFirewallRuntime {
 
 impl Runtime for HetznerFirewallRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerFirewallRuntime {
+    const KIND: &'static str = "firewall";
+}
+
 impl Labeled for HetznerFirewallRuntime {
     fn labels(&self) -> &Labels {
         &self.labels

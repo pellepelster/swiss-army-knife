@@ -25,6 +25,10 @@ impl From<SshKey> for HetznerSshKeyRuntime {
 
 impl Runtime for HetznerSshKeyRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerSshKeyRuntime {
+    const KIND: &'static str = "ssh key";
+}
+
 impl Labeled for HetznerSshKeyRuntime {
     fn labels(&self) -> &Labels {
         &self.labels

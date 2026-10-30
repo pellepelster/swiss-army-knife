@@ -1,7 +1,8 @@
-use crate::api::{Labeled, Labels, Lookup, Resource, ResourceRef};
+use crate::api::{Labels, Lookup, Resource, ResourceRef};
 use crate::hetzner::api::zones::RRType;
 use crate::hetzner::dns_record::{HetznerDnsRecordLookup, HetznerDnsRecordRuntime};
 use crate::hetzner::dns_zone::HetznerDnsZoneLookup;
+use crate::hetzner::kind::declared_labels;
 use crate::hetzner::primary_ip::HetznerPrimaryIpLookup;
 use crate::hetzner::server::HetznerServerLookup;
 
@@ -76,25 +77,6 @@ impl HetznerDnsRecord {
         self.ttl = Some(ttl);
         self
     }
-
-    pub fn with_labels(mut self, labels: Labels) -> Self {
-        self.labels = labels;
-        self
-    }
-
-    /// sets the identity labels and adds them to the labels
-    pub fn with_identity(mut self, identity: Labels) -> Self {
-        self.labels.extend(identity.clone());
-        self.identity = identity;
-        self
-    }
-
-    /// sets the info labels and adds them to the labels
-    pub fn with_info(mut self, info: Labels) -> Self {
-        self.labels.extend(info.clone());
-        self.info = info;
-        self
-    }
 }
 
 impl Resource for HetznerDnsRecord {
@@ -117,12 +99,4 @@ impl Resource for HetznerDnsRecord {
     }
 }
 
-impl Labeled for HetznerDnsRecord {
-    fn labels(&self) -> &Labels {
-        &self.labels
-    }
-
-    fn info(&self) -> &Labels {
-        &self.info
-    }
-}
+declared_labels!(HetznerDnsRecord);

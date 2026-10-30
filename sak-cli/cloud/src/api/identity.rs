@@ -3,6 +3,7 @@
 //! (`Error::NotOwned`), so no diff, apply or destroy touches it
 
 use crate::api::error::{Error, Result};
+use crate::api::lookup::Lookup;
 use crate::api::resource::{Labeled, Labels};
 
 /// `found` when it has every label of `identity` with the same value; `None` when nothing has
@@ -25,6 +26,15 @@ pub fn check<R: Labeled>(found: Option<R>, identity: &Labels, log_text: &str) ->
         }
     }
     Ok(Some(found))
+}
+
+/// `check` with the identity labels of the lookup: what a lookup provider found by the name of
+/// `lookup`, or `NotOwned`
+pub fn check_lookup<L: Lookup>(
+    found: Option<L::Runtime>,
+    lookup: &L,
+) -> Result<Option<L::Runtime>> {
+    check(found, lookup.identity(), &lookup.log_text())
 }
 
 fn not_owned(log_text: &str, reason: String) -> Error {

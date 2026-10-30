@@ -33,6 +33,10 @@ impl From<Volume> for HetznerVolumeRuntime {
 
 impl Runtime for HetznerVolumeRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerVolumeRuntime {
+    const KIND: &'static str = "volume";
+}
+
 impl Labeled for HetznerVolumeRuntime {
     fn labels(&self) -> &Labels {
         &self.labels

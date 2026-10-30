@@ -24,18 +24,19 @@ impl HetznerDnsRecordProvisioner {
         HetznerDnsRecordProvisioner { api }
     }
 
+    /// the record set of the lookup; `NotOwned` when it lacks an identity label of the lookup
     async fn find(
         &self,
         lookup: &HetznerDnsRecordLookup,
     ) -> Result<Option<HetznerDnsRecordRuntime>> {
-        Ok(self
+        let found = self
             .api
             .zones()
             .rrsets(&lookup.zone.name)
             .get(&lookup.record, lookup.rr_type)
             .await?
-            .map(|rrset| HetznerDnsRecordRuntime::from_rrset(rrset, &lookup.zone.name)))
-        .and_then(|found| identity::check(found, lookup.identity(), &lookup.log_text()))
+            .map(|rrset| HetznerDnsRecordRuntime::from_rrset(rrset, &lookup.zone.name));
+        identity::check_lookup(found, lookup)
     }
 
     /// the declared values of the records, resolved through the context
@@ -180,12 +181,14 @@ impl Provisioner<HetznerDnsRecord> for HetznerDnsRecordProvisioner {
                         .await?;
                     rrsets.wait_for_action(&action).await?;
                 }
-                let request = RRSetUpdate {
-                    labels: Some(resource.labels.clone()),
-                };
-                rrsets
-                    .update(&resource.name, resource.rr_type, &request)
-                    .await?;
+                if runtime.labels != resource.labels {
+                    let request = RRSetUpdate {
+                        labels: Some(resource.labels.clone()),
+                    };
+                    rrsets
+                        .update(&resource.name, resource.rr_type, &request)
+                        .await?;
+                }
             }
             None => {
                 info!(

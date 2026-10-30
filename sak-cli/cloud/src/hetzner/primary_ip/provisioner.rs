@@ -1,15 +1,8 @@
-use crate::api::Lookup as _;
-use crate::api::identity;
-use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Listable, LookupContext, LookupProvider,
-    Provisioner, Resource, ResourceDiff, Result,
-};
+use crate::api::{DiffItem, Labeled, Resource, Result};
 use crate::hetzner::api::primary_ips::{PrimaryIpCreate, PrimaryIpUpdate};
 use crate::hetzner::api::{HetznerApi, ListQuery};
-use crate::hetzner::hetzner_label_diff;
-use crate::hetzner::primary_ip::{
-    HetznerPrimaryIp, HetznerPrimaryIpLookup, HetznerPrimaryIpRuntime,
-};
+use crate::hetzner::kind::HetznerKind;
+use crate::hetzner::primary_ip::{HetznerPrimaryIp, HetznerPrimaryIpRuntime};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::info;
@@ -22,56 +15,32 @@ impl HetznerPrimaryIpProvisioner {
     pub fn new(api: Arc<HetznerApi>) -> Self {
         HetznerPrimaryIpProvisioner { api }
     }
-
-    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
-    async fn find(
-        &self,
-        lookup: &HetznerPrimaryIpLookup,
-    ) -> Result<Option<HetznerPrimaryIpRuntime>> {
-        let found: Result<Option<HetznerPrimaryIpRuntime>> = {
-            Ok(self
-                .api
-                .primary_ips()
-                .get_by_name(&lookup.name)
-                .await?
-                .map(Into::into))
-        };
-        identity::check(found?, lookup.identity(), &lookup.log_text())
-    }
 }
 
 #[async_trait]
-impl LookupProvider<HetznerPrimaryIpLookup> for HetznerPrimaryIpProvisioner {
-    async fn lookup(
-        &self,
-        lookup: &HetznerPrimaryIpLookup,
-        _: &dyn LookupContext,
-    ) -> Result<Option<HetznerPrimaryIpRuntime>> {
-        self.find(lookup).await
-    }
-}
+impl HetznerKind for HetznerPrimaryIpProvisioner {
+    type Resource = HetznerPrimaryIp;
+    type Runtime = HetznerPrimaryIpRuntime;
 
-#[async_trait]
-impl Listable<HetznerPrimaryIpLookup> for HetznerPrimaryIpProvisioner {
-    async fn list(&self) -> Result<Vec<HetznerPrimaryIpLookup>> {
+    async fn fetch(&self, name: &str) -> Result<Option<HetznerPrimaryIpRuntime>> {
         Ok(self
             .api
             .primary_ips()
-            .list(&ListQuery::new())
+            .get_by_name(name)
             .await?
-            .iter()
-            .map(|ip| HetznerPrimaryIpLookup::new(&ip.name))
-            .collect())
+            .map(Into::into))
     }
-}
 
-#[async_trait]
-impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
-    async fn diff(&self, resource: &HetznerPrimaryIp, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
-            return Ok(ResourceDiff::missing(resource));
-        };
+    async fn names(&self) -> Result<Vec<String>> {
+        let ips = self.api.primary_ips().list(&ListQuery::new()).await?;
+        Ok(ips.into_iter().map(|ip| ip.name).collect())
+    }
 
+    fn compare(
+        &self,
+        resource: &HetznerPrimaryIp,
+        runtime: &HetznerPrimaryIpRuntime,
+    ) -> Result<Vec<DiffItem>> {
         let mut changes = Vec::new();
         if resource.ip_type != runtime.ip_type {
             changes.push(DiffItem::recreate(
@@ -97,83 +66,88 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
         if runtime.auto_delete {
             changes.push(DiffItem::changed("auto delete", false, true));
         }
-        changes.extend(hetzner_label_diff(resource, &runtime));
-
-        Ok(ResourceDiff::from_changes(resource, changes))
+        Ok(changes)
     }
 
-    async fn apply(
+    async fn create(&self, resource: &HetznerPrimaryIp) -> Result<HetznerPrimaryIpRuntime> {
+        info!(
+            "{} not found, creating ({}) in '{}'",
+            resource.log_text(),
+            resource.ip_type,
+            resource.location
+        );
+        let request = PrimaryIpCreate {
+            name: resource.name.clone(),
+            ip_type: resource.ip_type,
+            assignee_type: None,
+            assignee_id: None,
+            location: Some(resource.location),
+            auto_delete: false,
+            labels: Some(resource.labels.clone()),
+        };
+        Ok(self
+            .api
+            .primary_ips()
+            .create(&request)
+            .await?
+            .primary_ip
+            .into())
+    }
+
+    /// the delete protection, which a create cannot set
+    async fn update(
         &self,
         resource: &HetznerPrimaryIp,
-        _: &dyn ApplyContext,
-    ) -> Result<HetznerPrimaryIpRuntime> {
-        let runtime = match self.find(&resource.as_lookup()).await? {
-            Some(runtime) => runtime,
-            None => {
-                info!(
-                    "{} not found, creating ({}) in '{}'",
-                    resource.log_text(),
-                    resource.ip_type,
-                    resource.location
-                );
-                let request = PrimaryIpCreate {
-                    name: resource.name.clone(),
-                    ip_type: resource.ip_type,
-                    assignee_type: None,
-                    assignee_id: None,
-                    location: Some(resource.location),
-                    auto_delete: false,
-                    labels: Some(resource.labels.clone()),
-                };
-                self.api
-                    .primary_ips()
-                    .create(&request)
-                    .await?
-                    .primary_ip
-                    .into()
-            }
-        };
-
+        runtime: &HetznerPrimaryIpRuntime,
+    ) -> Result<()> {
         if runtime.delete_protected != resource.protected {
-            let action = self
-                .api
-                .primary_ips()
+            let ips = self.api.primary_ips();
+            let action = ips
                 .change_protection(runtime.id, resource.protected)
                 .await?;
-            self.api.primary_ips().wait_for_action(&action).await?;
+            ips.wait_for_action(&action).await?;
         }
+        Ok(())
+    }
 
+    /// the auto delete is written with the labels
+    fn labels_differ(
+        &self,
+        resource: &HetznerPrimaryIp,
+        runtime: &HetznerPrimaryIpRuntime,
+    ) -> bool {
+        resource.labels() != runtime.labels() || runtime.auto_delete
+    }
+
+    async fn update_labels(
+        &self,
+        resource: &HetznerPrimaryIp,
+        runtime: &HetznerPrimaryIpRuntime,
+    ) -> Result<()> {
         let request = PrimaryIpUpdate {
             name: Some(resource.name.clone()),
             labels: Some(resource.labels.clone()),
             auto_delete: Some(false),
         };
-        Ok(self
-            .api
-            .primary_ips()
-            .update(runtime.id, &request)
-            .await?
-            .into())
+        self.api.primary_ips().update(runtime.id, &request).await?;
+        Ok(())
     }
 
-    /// removes the delete protection and unassigns the ip first
-    async fn destroy(
-        &self,
-        runtime: &HetznerPrimaryIpRuntime,
-        _: &dyn DestroyContext,
-    ) -> Result<()> {
+    /// removes the delete protection and unassigns the ip
+    async fn prepare_destroy(&self, runtime: &HetznerPrimaryIpRuntime) -> Result<()> {
+        let ips = self.api.primary_ips();
         if runtime.delete_protected {
-            let action = self
-                .api
-                .primary_ips()
-                .change_protection(runtime.id, false)
-                .await?;
-            self.api.primary_ips().wait_for_action(&action).await?;
+            let action = ips.change_protection(runtime.id, false).await?;
+            ips.wait_for_action(&action).await?;
         }
         if runtime.assignee_id.is_some() {
-            let action = self.api.primary_ips().unassign(runtime.id).await?;
-            self.api.primary_ips().wait_for_action(&action).await?;
+            let action = ips.unassign(runtime.id).await?;
+            ips.wait_for_action(&action).await?;
         }
+        Ok(())
+    }
+
+    async fn delete(&self, runtime: &HetznerPrimaryIpRuntime) -> Result<()> {
         self.api.primary_ips().delete(runtime.id).await?;
         Ok(())
     }
@@ -182,7 +156,7 @@ impl Provisioner<HetznerPrimaryIp> for HetznerPrimaryIpProvisioner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{DiffStatus, LookupProviders};
+    use crate::api::{DiffStatus, LookupProviders, Provisioner};
     use crate::hetzner::api::Location;
     use crate::hetzner::test_support::{labels, mock_api};
     use serde_json::{Value, json};
@@ -266,5 +240,38 @@ mod tests {
                 DiffItem::changed("auto delete", "false", "true"),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn an_apply_writes_the_auto_delete_with_the_labels_and_nothing_when_both_are_as_declared()
+    {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let resource = HetznerPrimaryIp::ipv4("backend", Location::nbg1)
+            .with_labels(labels(&[("app", "sak")]));
+        for (auto_delete, writes) in [(false, 0), (true, 1)] {
+            let live = primary_ip(
+                "backend",
+                "ipv4",
+                "nbg1",
+                auto_delete,
+                json!({ "app": "sak" }),
+            );
+            let (server, provisioner) = provisioner_with(vec![live.clone()]).await;
+            Mock::given(method("PUT"))
+                .and(path("/primary_ips/11"))
+                .respond_with(
+                    ResponseTemplate::new(200).set_body_json(json!({ "primary_ip": live })),
+                )
+                .expect(writes)
+                .mount(&server)
+                .await;
+
+            provisioner
+                .apply(&resource, &LookupProviders::new())
+                .await
+                .unwrap();
+        }
     }
 }

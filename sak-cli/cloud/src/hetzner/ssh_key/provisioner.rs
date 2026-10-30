@@ -1,13 +1,8 @@
-use crate::api::Lookup as _;
-use crate::api::identity;
-use crate::api::{
-    ApplyContext, DestroyContext, DiffContext, DiffItem, Error, Listable, LookupContext,
-    LookupProvider, Provisioner, Resource, ResourceDiff, Result,
-};
+use crate::api::{DiffItem, Error, Resource, Result};
 use crate::hetzner::api::ssh_keys::{SshKeyCreate, SshKeyUpdate};
 use crate::hetzner::api::{HetznerApi, ListQuery};
-use crate::hetzner::hetzner_label_diff;
-use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyLookup, HetznerSshKeyRuntime};
+use crate::hetzner::kind::HetznerKind;
+use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyRuntime};
 use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -33,6 +28,17 @@ pub fn fingerprint(public_key: &str) -> Result<String> {
         .join(":"))
 }
 
+/// the fingerprint of the declared key; `None` for a key declared without its public key (the
+/// deployment it is declared for has none left, `DeploymentSpec::declared_by`): it is missing,
+/// or compared by its labels only
+fn expected_fingerprint(resource: &HetznerSshKey) -> Result<Option<String>> {
+    if resource.public_key.is_empty() {
+        Ok(None)
+    } else {
+        fingerprint(&resource.public_key).map(Some)
+    }
+}
+
 pub struct HetznerSshKeyProvisioner {
     api: Arc<HetznerApi>,
 }
@@ -41,83 +47,29 @@ impl HetznerSshKeyProvisioner {
     pub fn new(api: Arc<HetznerApi>) -> Self {
         HetznerSshKeyProvisioner { api }
     }
-
-    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
-    async fn find(&self, lookup: &HetznerSshKeyLookup) -> Result<Option<HetznerSshKeyRuntime>> {
-        let found: Result<Option<HetznerSshKeyRuntime>> = {
-            Ok(self
-                .api
-                .ssh_keys()
-                .get_by_name(&lookup.name)
-                .await?
-                .map(Into::into))
-        };
-        identity::check(found?, lookup.identity(), &lookup.log_text())
-    }
 }
 
 #[async_trait]
-impl LookupProvider<HetznerSshKeyLookup> for HetznerSshKeyProvisioner {
-    async fn lookup(
+impl HetznerKind for HetznerSshKeyProvisioner {
+    type Resource = HetznerSshKey;
+    type Runtime = HetznerSshKeyRuntime;
+
+    async fn fetch(&self, name: &str) -> Result<Option<HetznerSshKeyRuntime>> {
+        Ok(self.api.ssh_keys().get_by_name(name).await?.map(Into::into))
+    }
+
+    async fn names(&self) -> Result<Vec<String>> {
+        let keys = self.api.ssh_keys().list(&ListQuery::new()).await?;
+        Ok(keys.into_iter().map(|key| key.name).collect())
+    }
+
+    fn compare(
         &self,
-        lookup: &HetznerSshKeyLookup,
-        _: &dyn LookupContext,
-    ) -> Result<Option<HetznerSshKeyRuntime>> {
-        self.find(lookup).await
-    }
-}
-
-#[async_trait]
-impl Listable<HetznerSshKeyLookup> for HetznerSshKeyProvisioner {
-    async fn list(&self) -> Result<Vec<HetznerSshKeyLookup>> {
-        Ok(self
-            .api
-            .ssh_keys()
-            .list(&ListQuery::new())
-            .await?
-            .iter()
-            .map(|key| HetznerSshKeyLookup::new(&key.name))
-            .collect())
-    }
-}
-
-#[async_trait]
-impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
-    async fn diff(&self, resource: &HetznerSshKey, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        // a key declared without its public key (the deployment it is declared for has none
-        // left, `DeploymentSpec::declared_by`) is missing, or compared by its labels only
-        let expected = if resource.public_key.is_empty() {
-            None
-        } else {
-            Some(fingerprint(&resource.public_key)?)
-        };
-
-        let Some(runtime) = self.find(&resource.as_lookup()).await? else {
-            let Some(expected) = expected else {
-                return Ok(ResourceDiff::missing(resource));
-            };
-            // hetzner refuses a second key with the same fingerprint, also under another name
-            let duplicate = self
-                .api
-                .ssh_keys()
-                .list(&ListQuery::new())
-                .await?
-                .into_iter()
-                .find(|key| key.fingerprint == expected);
-            return Ok(match duplicate {
-                Some(key) => ResourceDiff::duplicate(
-                    resource,
-                    format!(
-                        "another key with the fingerprint '{}' already exists ({})",
-                        key.fingerprint, key.name
-                    ),
-                ),
-                None => ResourceDiff::missing(resource),
-            });
-        };
-
+        resource: &HetznerSshKey,
+        runtime: &HetznerSshKeyRuntime,
+    ) -> Result<Vec<DiffItem>> {
         let mut changes = Vec::new();
-        if let Some(expected) = expected
+        if let Some(expected) = expected_fingerprint(resource)?
             && runtime.fingerprint != expected
         {
             changes.push(DiffItem::recreate(
@@ -126,42 +78,53 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
                 &runtime.fingerprint,
             ));
         }
-        changes.extend(hetzner_label_diff(resource, &runtime));
-
-        Ok(ResourceDiff::from_changes(resource, changes))
+        Ok(changes)
     }
 
-    async fn apply(
+    /// hetzner refuses a second key with the same fingerprint, also under another name
+    async fn duplicate_of(&self, resource: &HetznerSshKey) -> Result<Option<String>> {
+        let Some(expected) = expected_fingerprint(resource)? else {
+            return Ok(None);
+        };
+        let duplicate = self
+            .api
+            .ssh_keys()
+            .list(&ListQuery::new())
+            .await?
+            .into_iter()
+            .find(|key| key.fingerprint == expected);
+        Ok(duplicate.map(|key| {
+            format!(
+                "another key with the fingerprint '{}' already exists ({})",
+                key.fingerprint, key.name
+            )
+        }))
+    }
+
+    async fn create(&self, resource: &HetznerSshKey) -> Result<HetznerSshKeyRuntime> {
+        info!("{} not found, creating", resource.log_text());
+        let request = SshKeyCreate {
+            name: resource.name.clone(),
+            public_key: resource.public_key.clone(),
+            labels: Some(resource.labels.clone()),
+        };
+        Ok(self.api.ssh_keys().create(&request).await?.into())
+    }
+
+    async fn update_labels(
         &self,
         resource: &HetznerSshKey,
-        _: &dyn ApplyContext,
-    ) -> Result<HetznerSshKeyRuntime> {
-        let runtime = match self.find(&resource.as_lookup()).await? {
-            Some(runtime) => runtime,
-            None => {
-                info!("{} not found, creating", resource.log_text());
-                let request = SshKeyCreate {
-                    name: resource.name.clone(),
-                    public_key: resource.public_key.clone(),
-                    labels: Some(resource.labels.clone()),
-                };
-                self.api.ssh_keys().create(&request).await?.into()
-            }
-        };
-
+        runtime: &HetznerSshKeyRuntime,
+    ) -> Result<()> {
         let request = SshKeyUpdate {
             name: Some(resource.name.clone()),
             labels: Some(resource.labels.clone()),
         };
-        Ok(self
-            .api
-            .ssh_keys()
-            .update(runtime.id, &request)
-            .await?
-            .into())
+        self.api.ssh_keys().update(runtime.id, &request).await?;
+        Ok(())
     }
 
-    async fn destroy(&self, runtime: &HetznerSshKeyRuntime, _: &dyn DestroyContext) -> Result<()> {
+    async fn delete(&self, runtime: &HetznerSshKeyRuntime) -> Result<()> {
         self.api.ssh_keys().delete(runtime.id).await?;
         Ok(())
     }
@@ -170,7 +133,7 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{DiffStatus, LookupProviders};
+    use crate::api::{DiffStatus, LookupProviders, Provisioner};
     use crate::hetzner::test_support::{labels, mock_api};
     use serde_json::{Value, json};
 

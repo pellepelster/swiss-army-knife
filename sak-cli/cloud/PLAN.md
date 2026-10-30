@@ -73,8 +73,12 @@ sak-cli/cloud/            the crate sak-cloud, next to the tauri app in src-taur
         model.rs             Location, ServerType enums, Meta/List envelopes, Action
         ssh_keys.rs servers.rs firewalls.rs volumes.rs primary_ips.rs
       labels.rs              Labels: chunk values > 62 chars, add_hashed_label, hash_label_matches
+      lookup.rs              NamedLookup<Runtime>: the lookup by name of every kind but the
+                             dns record
+      kind.rs                HetznerKind: fetch, compare, create, update, delete of a kind; one
+                             blanket Provisioner for ssh key, volume, primary ip, firewall, zone
       ssh_key/ server/ firewall/ volume/ primary_ip/
-        mod.rs resource.rs lookup.rs runtime.rs provisioner.rs
+        mod.rs resource.rs runtime.rs provisioner.rs
   examples/
     backend.rs               declares ssh key + volume + firewall + primary ip + server,
                              prints the diff, applies when --apply is given

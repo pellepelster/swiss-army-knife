@@ -35,6 +35,10 @@ impl From<PrimaryIp> for HetznerPrimaryIpRuntime {
 
 impl Runtime for HetznerPrimaryIpRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerPrimaryIpRuntime {
+    const KIND: &'static str = "primary ip";
+}
+
 impl Labeled for HetznerPrimaryIpRuntime {
     fn labels(&self) -> &Labels {
         &self.labels

@@ -52,6 +52,10 @@ impl From<Server> for HetznerServerRuntime {
 
 impl Runtime for HetznerServerRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerServerRuntime {
+    const KIND: &'static str = "server";
+}
+
 impl Labeled for HetznerServerRuntime {
     fn labels(&self) -> &Labels {
         &self.labels

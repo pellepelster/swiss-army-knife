@@ -1,6 +1,7 @@
-use crate::api::{Labeled, Labels, Resource};
+use crate::api::{Labels, Resource};
 use crate::hetzner::api::firewalls::{FirewallRule, RuleDirection, RuleProtocol};
 use crate::hetzner::firewall::{HetznerFirewallLookup, HetznerFirewallRuntime};
+use crate::hetzner::kind::declared_labels;
 
 /// a firewall at hetzner: its rules and the labels that select its servers
 #[derive(Clone, Debug)]
@@ -27,25 +28,6 @@ impl HetznerFirewall {
             applied_to_labels: Labels::new(),
             labels: Labels::new(),
         }
-    }
-
-    pub fn with_labels(mut self, labels: Labels) -> Self {
-        self.labels = labels;
-        self
-    }
-
-    /// sets the identity labels and adds them to the labels
-    pub fn with_identity(mut self, identity: Labels) -> Self {
-        self.labels.extend(identity.clone());
-        self.identity = identity;
-        self
-    }
-
-    /// sets the info labels and adds them to the labels
-    pub fn with_info(mut self, info: Labels) -> Self {
-        self.labels.extend(info.clone());
-        self.info = info;
-        self
     }
 
     pub fn applied_to(mut self, labels: Labels) -> Self {
@@ -91,12 +73,4 @@ impl Resource for HetznerFirewall {
     }
 }
 
-impl Labeled for HetznerFirewall {
-    fn labels(&self) -> &Labels {
-        &self.labels
-    }
-
-    fn info(&self) -> &Labels {
-        &self.info
-    }
-}
+declared_labels!(HetznerFirewall);

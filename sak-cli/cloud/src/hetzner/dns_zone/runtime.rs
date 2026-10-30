@@ -33,6 +33,10 @@ impl From<Zone> for HetznerDnsZoneRuntime {
 
 impl Runtime for HetznerDnsZoneRuntime {}
 
+impl crate::hetzner::lookup::NamedRuntime for HetznerDnsZoneRuntime {
+    const KIND: &'static str = "dns zone";
+}
+
 impl Labeled for HetznerDnsZoneRuntime {
     fn labels(&self) -> &Labels {
         &self.labels
