@@ -495,12 +495,6 @@ a narrow window: `run-cancel` fires `cancel_apply` without awaiting (`ui/run.js:
 `None` on its next poll; a maintenance started in between is then unregistered. **Fix:** compare the handle (or a
 generation id) before clearing. Related CU-2.
 
-#### UI-9 (Low): The password of an opened deployment is never dropped on the page
-
-`ui/password.js:35-44`: `opened` is set and only overwritten. `deployment-back` (`ui/deployment.js:156-160`) clears
-`current` but not `opened`; the list and the providers page keep it in module state. `showCreate` of a new
-deployment could read it (`create.js:311` guards with `existing`, so no leak today).
-
 #### UI-10 (Low): Focus and keyboard on the maintenance menu
 
 `ui/deployment.js:130-141`: after a choice the view switches while the focus is on the now-hidden `menuitem`, so it

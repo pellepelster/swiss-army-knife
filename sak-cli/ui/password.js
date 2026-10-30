@@ -43,6 +43,11 @@ export function openDeployment(data, password) {
   opened = { deployment: data, password };
 }
 
+// the deployment closed: its password is forgotten when its pages are left for the list
+export function closeDeployment() {
+  opened = null;
+}
+
 
 export async function showPassword(data) {
   deployment = data;

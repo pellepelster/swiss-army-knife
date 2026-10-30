@@ -3,7 +3,7 @@
 // password the list sees only the labels, the page of a deployment checks it with its password. The header of a deployment asks for its password, then opens its page; create opens
 // the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
-import { showPassword } from './password.js';
+import { closeDeployment, showPassword } from './password.js';
 import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -93,6 +93,8 @@ function deployment(data) {
 
 
 export async function showDeployments() {
+  // no page of a deployment is open while the list shows, nothing here needs its password
+  closeDeployment();
   list.replaceChildren();
   setStatus(status, text('ui.deployments.loading'));
   show('view-deployments');
