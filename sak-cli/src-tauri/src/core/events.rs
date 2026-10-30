@@ -2,6 +2,7 @@
 //! collection pelle_io.sak): a small http server on the loopback for one run, which takes an event
 //! only with the token of the run (docs/development/fdr/FDR-006-provisioning-events.md)
 
+use rust_i18n::t;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -94,7 +95,7 @@ impl EventServer {
         let address = server
             .server_addr()
             .to_ip()
-            .ok_or_else(|| "the events endpoint has no address".to_string())?;
+            .ok_or_else(|| t!("shared.provision.no_events_address").to_string())?;
         let token = crate::core::encoding::random_hex::<32>()?;
         let stop = Arc::new(AtomicBool::new(false));
         let thread = {

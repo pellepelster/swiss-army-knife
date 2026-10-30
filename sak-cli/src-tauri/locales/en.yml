@@ -73,6 +73,7 @@ shared:
       refused: "The Hetzner Cloud API refused the token: %{error}"
       not_deleted: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
   provision:
+    no_events_address: "The endpoint for the events of the playbook got no address on this machine."
     markers_failed: "Reading the markers of the roles on the server ended with exit code %{code}."
     no_runtime: "No container runtime to run ansible in, docker or podman is needed."
     running: "Provisioning server %{name} (%{host})…"

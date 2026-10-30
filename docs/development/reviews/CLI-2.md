@@ -448,10 +448,6 @@ none at `:1222`); the `verify_password` doc (`:919-921`) says "without a hash on
 `provision.rs:539-547` spawns `/bin/kill -0`; EPERM means the process exists. Harmless only because the following
 `remove_dir_all` fails. `libc::kill(pid, 0)` with EPERM → alive is the right check.
 
-#### CD-20 (Low): Untranslated user-visible literals
-
-`events.rs:97`, `ansible_roles.rs:160, 206`.
-
 #### CD-21 (Low): Tests that test more or less than their name
 
 `a_failure_that_stops_the_run_names_its_task` also asserts `events_host` (`provision.rs:610-614`);
