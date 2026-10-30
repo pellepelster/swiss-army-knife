@@ -100,18 +100,33 @@ pub(super) fn users(
     admin_email: Option<&str>,
 ) -> Result<Users, SakctlError> {
     match user_mode {
-        None => Err(t!("shared.deployments.no_user_mode").to_string().into()),
+        None => Err(t!(
+            "shared.deployments.no_user_mode",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
+        )
+        .to_string()
+        .into()),
         Some(UserMode::Single) => Ok(Users::Single),
         Some(UserMode::Multi) => {
-            let smtp = smtp
-                .cloned()
-                .ok_or_else(|| t!("shared.deployments.invalid_smtp_host").to_string())?;
+            let smtp = smtp.cloned().ok_or_else(|| {
+                t!(
+                    "shared.deployments.invalid_smtp_host",
+                    hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
+                )
+                .to_string()
+            })?;
             check_smtp(&smtp)?;
             let admin_email = admin_email
                 .map(str::trim)
                 .filter(|address| is_address(address))
                 .map(str::to_lowercase)
-                .ok_or_else(|| t!("shared.deployments.invalid_admin_email").to_string())?;
+                .ok_or_else(|| {
+                    t!(
+                        "shared.deployments.invalid_admin_email",
+                        hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
+                    )
+                    .to_string()
+                })?;
             Ok(Users::Multi { smtp, admin_email })
         }
     }

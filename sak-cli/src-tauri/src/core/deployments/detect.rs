@@ -125,7 +125,10 @@ pub(super) fn complete(
             ("", Some(running)) => running.clone(),
             ("", None) if smtp.password_set => {
                 return Err(SakctlError::new(
-                    t!("shared.deployments.smtp_password_needed"),
+                    t!(
+                        "shared.deployments.smtp_password_needed",
+                        hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpPassword)
+                    ),
                     crate::core::error::EXIT_USAGE,
                 ));
             }

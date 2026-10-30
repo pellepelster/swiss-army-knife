@@ -88,7 +88,11 @@ pub struct Smtp {
 pub(super) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
-        return Err(t!("shared.deployments.invalid_smtp_host").to_string());
+        return Err(t!(
+            "shared.deployments.invalid_smtp_host",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
+        )
+        .to_string());
     }
     if smtp.port == 0 {
         return Err(t!("shared.deployments.invalid_smtp_port").to_string());

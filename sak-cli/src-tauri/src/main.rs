@@ -17,6 +17,7 @@ fn main() {
     // a command as the first argument: the command line, without a window
     let args: Vec<String> = std::env::args().skip(1).collect();
     if cli::is_command_line(&args) {
+        core::i18n::set_frontend(core::i18n::Frontend::CommandLine);
         use clap::Parser;
         let code = match cli::Cli::parse().command {
             Some(command) => cli::run(command),
@@ -24,5 +25,6 @@ fn main() {
         };
         std::process::exit(code);
     }
+    core::i18n::set_frontend(core::i18n::Frontend::Window);
     gui::run();
 }

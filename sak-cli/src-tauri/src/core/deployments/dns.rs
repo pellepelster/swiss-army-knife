@@ -121,7 +121,12 @@ pub(super) fn resolve_dns(
         Intent::Create => Ok((given_mode.unwrap_or_default(), given_domain)),
         Intent::Deploy => {
             let domain = given_domain.or(labeled_domain).ok_or_else(|| {
-                t!("shared.deployments.deploy_without_root_domain", name = name).to_string()
+                t!(
+                    "shared.deployments.deploy_without_root_domain",
+                    name = name,
+                    hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
+                )
+                .to_string()
             })?;
             Ok((
                 given_mode.or(labeled_mode).unwrap_or_default(),

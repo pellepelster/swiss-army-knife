@@ -48,7 +48,7 @@ the review found them; the sections below hold the ones still open.
 
 ### Fix first
 
-1. **UI-5** the window shows command-line instructions it cannot act on.
+Nothing of the list is left.
 
 ### The structural threads that run through all slices
 
@@ -264,15 +264,6 @@ The registry exposes "applied with a change in this run" to the diffs (removes `
 ## UI: command line, window commands, pages, locales
 
 ### Bugs
-
-#### UI-5 (Medium): The window shows command-line instructions it cannot act on
-
-`gui/deployments.rs:154` calls `complete(deployment, &detected, "")`; its errors are `shared.` texts with cli
-wording: `smtp_password_needed` "give it again with SAK_SMTP_PASSWORD" (`en.yml:106`), and via `prepare`
-`no_user_mode` "(--user-mode)" (`:109`), `invalid_smtp_host` "(--smtp-host)" (`:110`), `invalid_admin_email`
-"(--admin-email)" (`:113`), `deploy_without_root_domain` "--root-domain" (`:104`), `config.no_root_domain` (`:139`).
-**Scenario:** a multi-user deployment whose backend does not answer the smtp password → the page says to
-set an environment variable. Either `ui.`/`cli.` variants, or the window gets the fields to supply what is missing.
 
 #### UI-8 (Low, suspected): `RunningApply` can lose the running handle when two runs overlap
 

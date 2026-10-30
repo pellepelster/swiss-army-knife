@@ -67,9 +67,14 @@ pub(super) fn config_endpoint(
     password: &str,
 ) -> Result<(String, crate::core::keys::ApiKey), String> {
     verify_password(deployment, name, password)?;
-    let root_domain = deployment
-        .root_domain()
-        .ok_or_else(|| t!("shared.config.no_root_domain", name = name).to_string())?;
+    let root_domain = deployment.root_domain().ok_or_else(|| {
+        t!(
+            "shared.config.no_root_domain",
+            name = name,
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
+        )
+        .to_string()
+    })?;
     let base = sak_cloud::hetzner::deployment::base_domain(
         name,
         deployment.dns_mode().unwrap_or_default(),

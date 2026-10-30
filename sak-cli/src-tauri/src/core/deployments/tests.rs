@@ -191,7 +191,14 @@ fn config_show_without_a_root_domain_label_says_so() {
     let deployment = deployment_with(password, serde_json::json!({ DNS_MODE_LABEL: "domain" }));
     assert_eq!(
         config_endpoint(&deployment, "alpha", password).err(),
-        Some(t!("shared.config.no_root_domain", name = "alpha").to_string())
+        Some(
+            t!(
+                "shared.config.no_root_domain",
+                name = "alpha",
+                hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
+            )
+            .to_string()
+        )
     );
 }
 
@@ -735,7 +742,10 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
     };
     assert_eq!(
         error(users(None, None, None)),
-        t!("shared.deployments.no_user_mode")
+        t!(
+            "shared.deployments.no_user_mode",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
+        )
     );
     // single user takes neither, also when they are given
     let single = users(
@@ -750,7 +760,10 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
             None,
             Some("admin@example.org")
         )),
-        t!("shared.deployments.invalid_smtp_host")
+        t!(
+            "shared.deployments.invalid_smtp_host",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
+        )
     );
     assert_eq!(
         error(users(
@@ -758,7 +771,10 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
             Some(&smtp("mail.example.org", 587)),
             Some("admin")
         )),
-        t!("shared.deployments.invalid_admin_email")
+        t!(
+            "shared.deployments.invalid_admin_email",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
+        )
     );
     let Ok(Users::Multi { smtp, admin_email }) = users(
         Some(UserMode::Multi),
@@ -821,7 +837,11 @@ fn a_mail_server_needs_a_host_and_a_port() {
     assert!(check_smtp(&smtp(" smtp.example.org ", 465)).is_ok());
     assert_eq!(
         check_smtp(&smtp("", 587)),
-        Err(t!("shared.deployments.invalid_smtp_host").to_string())
+        Err(t!(
+            "shared.deployments.invalid_smtp_host",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
+        )
+        .to_string())
     );
     assert!(check_smtp(&smtp("smtp example.org", 587)).is_err());
     assert!(check_smtp(&smtp(&"a".repeat(MAX_HOST_LEN + 1), 587)).is_err());
@@ -943,7 +963,8 @@ fn a_deploy_keeps_the_dns_mode_and_root_domain_of_the_deployment_unless_given() 
         resolve_dns("beta", Intent::Deploy, None, None, None, None),
         Err(t!(
             "shared.deployments.deploy_without_root_domain",
-            name = "beta"
+            name = "beta",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
         )
         .to_string())
     );
