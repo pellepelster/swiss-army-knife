@@ -50,8 +50,7 @@ the review found them; the sections below hold the ones still open. The first re
 ### Fix first
 
 1. **UI-2** a destroy runs after Cancel.
-2. **UI-4** a deployment without a location cannot be checked in the window.
-3. **UI-5** the window shows command-line instructions it cannot act on.
+2. **UI-5** the window shows command-line instructions it cannot act on.
 
 ### The structural threads that run through all slices
 
@@ -469,14 +468,6 @@ awaits `plan_deployment` (`ui/run.js:196-199`). **Scenario:** Destroy → confir
 list shows → the plan resolves → `run()` switches to the run view and starts the destroy. A create is safe only
 because `setBusy(true)` disables the cancel button (`create.js:386, 261-264`). **Fix:** a generation guard in
 `run()` (UI-25) and the busy state for the destroy.
-
-#### UI-4 (Medium, confirmed): A deployment without a located resource cannot be checked in the window
-
-`gui/deployments.rs:132` takes `location: Location`, but `DeploymentResponse.location` is `Option<Location>`
-(`core/deployments.rs:40`; `None` without server, volume or primary ip). `ui/deployment.js:80` passes
-`shown.location` as is → tauri rejects the call with a raw "invalid args `location` … invalid type: null" on the
-page. Hits a half-destroyed or half-created deployment, the one the user wants to check. The command line has a
-default (`cli.rs:264`); the window needs `Option<Location>` and the same fallback.
 
 #### UI-5 (Medium): The window shows command-line instructions it cannot act on
 

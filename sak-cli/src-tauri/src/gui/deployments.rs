@@ -103,9 +103,10 @@ pub async fn check_deployment(
     checked: State<'_, CheckedDeployment>,
     name: String,
     password: String,
-    location: sak_cloud::hetzner::api::Location,
+    location: Option<sak_cloud::hetzner::api::Location>,
 ) -> Result<CheckResponse, SakctlError> {
     let number = checked.start();
+    let location = location.unwrap_or_else(default_location);
     let (deployment, plan) = manager
         .check(tokens.tokens(), &name, &password, location, &container)
         .await?;
@@ -114,6 +115,21 @@ pub async fn check_deployment(
         check: number,
         plan,
     })
+}
+
+/// the location of a deployment that has no located resource left (no server, volume or
+/// address): SAK_LOCATION, else nbg1, as on the command line. It counts only for what a deploy
+/// creates anew
+fn default_location() -> sak_cloud::hetzner::api::Location {
+    std::env::var(crate::core::deployments::LOCATION_VARIABLE)
+        .ok()
+        .and_then(|value| {
+            crate::core::deployments::LOCATIONS
+                .iter()
+                .find(|location| location.id.to_string() == value.trim())
+                .map(|location| location.id)
+        })
+        .unwrap_or(sak_cloud::hetzner::api::Location::nbg1)
 }
 
 /// which check a deploy applies, forced or not
@@ -238,6 +254,21 @@ pub async fn list_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_deployment_without_a_location_is_checked_at_the_one_of_the_environment_else_nbg1() {
+        use crate::core::deployments::LOCATION_VARIABLE;
+        use sak_cloud::hetzner::api::Location;
+        // SAFETY: nextest runs each test in a process of its own, nothing reads the variable
+        // at the same time
+        unsafe { std::env::remove_var(LOCATION_VARIABLE) };
+        assert_eq!(default_location(), Location::nbg1);
+        unsafe { std::env::set_var(LOCATION_VARIABLE, " hel1 ") };
+        assert_eq!(default_location(), Location::hel1);
+        // a location sakctl does not offer counts as none
+        unsafe { std::env::set_var(LOCATION_VARIABLE, "unknown") };
+        assert_eq!(default_location(), Location::nbg1);
+    }
 
     #[test]
     fn only_the_frontend_of_a_listed_deployment_reaches_the_browser() {
