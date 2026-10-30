@@ -533,6 +533,10 @@ impl DeploymentManager {
             .as_ref()
             .map(|existing| existing.left_out.clone())
             .unwrap_or_default();
+        let server_type = existing
+            .as_ref()
+            .and_then(|existing| existing.server.as_ref())
+            .map(|server| server.server_type);
         let location = location_of(
             name,
             password,
@@ -554,6 +558,7 @@ impl DeploymentManager {
             name,
             password,
             location,
+            server_type_of(server_type, location),
             dns_mode,
             purpose.provisioning(),
             acme_ca,
@@ -1127,7 +1132,8 @@ struct Keys {
     api_public_key: String,
 }
 
-/// the keys of `name` and `password` and the resource group they lay out in `location`: every
+/// the keys of `name` and `password` and the resource group they lay out in `location`, the server
+/// of `server_type`: every
 /// resource with the dns mode and the hash of the password, the server with the cloud-init of its
 /// host key. A create or deploy also puts its root domain, user mode, acme ca and the version on
 /// every resource, so a deploy keeps them; `settings` is none for a destroy
@@ -1135,6 +1141,7 @@ fn laid_out(
     name: &str,
     password: &str,
     location: Location,
+    server_type: ServerType,
     dns_mode: DnsMode,
     settings: Option<&Settings>,
     acme_ca: AcmeCa,
@@ -1144,7 +1151,7 @@ fn laid_out(
     let public_key = client_key.public_key();
     let password_hash = crate::core::keys::password_hash(name, password)?;
     let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
-    let mut spec = DeploymentSpec::new(name, &public_key, location, server_type_for(location))
+    let mut spec = DeploymentSpec::new(name, &public_key, location, server_type)
         .map_err(|error| error.to_string())?
         .with_dns_mode(dns_mode)
         .with_password_hash(&password_hash);

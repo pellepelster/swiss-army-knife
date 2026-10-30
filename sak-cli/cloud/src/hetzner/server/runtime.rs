@@ -7,8 +7,8 @@ pub struct HetznerServerRuntime {
     pub id: u64,
     pub name: String,
     pub status: ServerStatus,
-    /// `unknown` when the image was deleted
-    pub image: String,
+    /// none when Hetzner deleted the image
+    pub image: Option<String>,
     pub server_type: ServerType,
     pub location: Location,
     /// the ids of the attached volumes
@@ -27,7 +27,7 @@ impl From<Server> for HetznerServerRuntime {
             id: server.id,
             name: server.name.clone(),
             status: server.status,
-            image: server.image_name().unwrap_or("unknown").to_string(),
+            image: server.image_name().map(str::to_string),
             server_type: server.server_type.name,
             location: server.location.name,
             volumes: server.volumes.clone(),

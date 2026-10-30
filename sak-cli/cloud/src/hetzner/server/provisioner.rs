@@ -263,7 +263,8 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             );
         }
 
-        // a location or type this sakctl does not know is no reason to recreate the server
+        // a location, type or image this sakctl does not know is no reason to recreate the server;
+        // Hetzner forgets the image of a server once the image is deleted
         if resource.location != runtime.location && runtime.location != Location::unknown {
             changes.push(DiffItem::recreate(
                 "location",
@@ -279,8 +280,10 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
                 runtime.server_type,
             ));
         }
-        if resource.image != runtime.image {
-            changes.push(DiffItem::recreate("image", &resource.image, &runtime.image));
+        if let Some(image) = &runtime.image
+            && *image != resource.image
+        {
+            changes.push(DiffItem::recreate("image", &resource.image, image));
         }
 
         let declared: HashSet<u64> = dependencies
@@ -739,6 +742,26 @@ mod tests {
                 DiffItem::recreate("image", "debian-13", "debian-12"),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn an_image_hetzner_deleted_is_no_recreate() {
+        let mut deleted = server(
+            "backend",
+            "",
+            vec![3],
+            None,
+            created_labels(&[("app", "sak")]),
+        );
+        deleted["image"] = Value::Null;
+        let (_server, api) = mock(vec![deleted]).await;
+
+        let diff = HetznerServerProvisioner::new(api.clone())
+            .diff(&resource(), &context(&api))
+            .await
+            .unwrap();
+
+        assert_eq!(diff.status, DiffStatus::UpToDate, "{:?}", diff.changes);
     }
 
     #[tokio::test]

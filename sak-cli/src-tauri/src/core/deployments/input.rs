@@ -174,8 +174,15 @@ pub(crate) const LOCATIONS: &[LocationResponse] = &[
     },
 ];
 
-/// the server type of a deployment: cx23 where hetzner offers it (the european locations), cpx21
-/// in the other locations
+/// the server type of a deployment: the type its server `has`, so a server resized in the console
+/// is not recreated by a deploy. A new server gets the type of its location
+pub(super) fn server_type_of(has: Option<ServerType>, location: Location) -> ServerType {
+    has.filter(|server_type| *server_type != ServerType::unknown)
+        .unwrap_or_else(|| server_type_for(location))
+}
+
+/// the server type of a new deployment: cx23 where hetzner offers it (the european locations),
+/// cpx21 in the other locations
 pub(super) fn server_type_for(location: Location) -> ServerType {
     match location {
         Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,

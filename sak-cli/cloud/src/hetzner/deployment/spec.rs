@@ -413,7 +413,9 @@ impl ObservedSpec {
         }
         let mut user_data_hash = None;
         if let Some(server) = server {
-            spec.image = server.image.clone();
+            if let Some(image) = &server.image {
+                spec.image = image.clone();
+            }
             user_data_hash = HetznerLabels::from_raw(server.labels.clone())
                 .labels()
                 .get(USER_DATA_LABEL)

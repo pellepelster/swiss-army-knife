@@ -1008,6 +1008,20 @@ fn the_server_type_follows_the_location() {
     assert_eq!(LOCATIONS[0].id, Location::nbg1);
 }
 
+#[test]
+fn a_deploy_keeps_the_type_of_the_server() {
+    // resized in the console: a deploy declares the larger type, not the one of the location
+    assert_eq!(
+        server_type_of(Some(ServerType::cx33), Location::nbg1),
+        ServerType::cx33
+    );
+    assert_eq!(server_type_of(None, Location::sin), ServerType::cpx21);
+    assert_eq!(
+        server_type_of(Some(ServerType::unknown), Location::hel1),
+        ServerType::cx23
+    );
+}
+
 /// a project where only the data volume of the spec is left, of `size` GB in its location, and
 /// nothing else
 async fn only_the_volume(spec: &DeploymentSpec, size: u64) -> wiremock::MockServer {
