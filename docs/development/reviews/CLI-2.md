@@ -325,7 +325,7 @@ non-backup commands. `ansible_roles.rs:150-165` is a third `run_streaming` calle
 (`ssh.rs:45-51`), `client_builder(https_only: bool, ..)` (`config.rs:217`) although a `Transport` enum exists and
 is converted back to a bool at `config.rs:174, 277`.
 
-#### CU-14 (Low): Stringly typed reasons
+#### ~~CU-14 (Low): Stringly typed reasons~~ **fixed**
 
 `reasons: Vec<String>` matched against `"kernel"`/`"reboot-required"` (`maintenance.rs:152-160`); the script emits
 exactly those two (`sak-backend.j2:82-86`). An enum with `#[serde(other)] Other` catches typos at the type.

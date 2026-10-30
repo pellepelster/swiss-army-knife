@@ -30,6 +30,19 @@ pub struct PackageChange {
     pub time: Option<String>,
 }
 
+/// why a reboot is pending, as `sak-backend` names it
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Reason {
+    /// a newer kernel is installed than the one running
+    Kernel,
+    /// a package asked for it (`/run/reboot-required`)
+    RebootRequired,
+    /// one a newer script names, shown as it is
+    #[serde(untagged)]
+    Other(String),
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Kernel {
     pub running: String,
@@ -41,7 +54,7 @@ pub struct Kernel {
 pub struct RebootStatus {
     pub reboot_pending: bool,
     /// `reboot-required` (a package asked for it), `kernel` (a newer one is installed)
-    pub reasons: Vec<String>,
+    pub reasons: Vec<Reason>,
     pub kernel: Kernel,
     /// the services that still run old libraries
     pub services: Vec<String>,
@@ -55,7 +68,7 @@ pub struct UpdateResult {
     pub upgraded: Vec<PackageChange>,
     pub installed: Vec<PackageChange>,
     pub reboot_pending: bool,
-    pub reasons: Vec<String>,
+    pub reasons: Vec<Reason>,
 }
 
 /// `sak-backend reboot`
@@ -65,7 +78,7 @@ pub struct RebootResult {
     /// when the server goes down
     #[serde(default)]
     pub at: Option<String>,
-    pub reasons: Vec<String>,
+    pub reasons: Vec<Reason>,
 }
 
 /// whether a reboot of the server is pending, why, and what dpkg upgraded since its boot
@@ -257,15 +270,17 @@ fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
         let reasons: Vec<String> = status
             .reasons
             .iter()
-            .map(|reason| match reason.as_str() {
-                "kernel" => t!(
+            .map(|reason| match reason {
+                Reason::Kernel => t!(
                     "shared.maintenance.reason_kernel",
                     running = status.kernel.running.as_str(),
                     installed = status.kernel.installed.as_str()
                 )
                 .to_string(),
-                "reboot-required" => t!("shared.maintenance.reason_reboot_required").to_string(),
-                other => other.to_string(),
+                Reason::RebootRequired => {
+                    t!("shared.maintenance.reason_reboot_required").to_string()
+                }
+                Reason::Other(other) => other.clone(),
             })
             .collect();
         lines.push(Line::warn(t!(
@@ -406,6 +421,22 @@ mod tests {
         let reboot: RebootResult =
             serde_json::from_slice(br#"{"rebooting": false, "reasons": []}"#).unwrap();
         assert!(!reboot.rebooting);
+
+        // the reasons by name, one the script names later as it is, and back to json the same
+        let reasons: Vec<Reason> =
+            serde_json::from_slice(br#"["kernel", "reboot-required", "firmware"]"#).unwrap();
+        assert_eq!(
+            reasons,
+            [
+                Reason::Kernel,
+                Reason::RebootRequired,
+                Reason::Other("firmware".to_string())
+            ]
+        );
+        assert_eq!(
+            serde_json::to_string(&reasons).unwrap(),
+            r#"["kernel","reboot-required","firmware"]"#
+        );
     }
 
     #[test]
@@ -418,7 +449,7 @@ mod tests {
         };
         let status = RebootStatus {
             reboot_pending: true,
-            reasons: vec!["kernel".to_string()],
+            reasons: vec![Reason::Kernel],
             kernel: Kernel {
                 running: "6.12.38".to_string(),
                 installed: "6.12.41".to_string(),
@@ -443,7 +474,7 @@ mod tests {
             upgraded: vec![change("openssl", Some("3.5.1-1"), "3.5.4-1")],
             installed: vec![change("linux-image-6.12.41", None, "6.12.41-1")],
             reboot_pending: true,
-            reasons: vec!["kernel".to_string()],
+            reasons: vec![Reason::Kernel],
         };
         let lines: Vec<String> = Answer::Update(update)
             .lines("alpha", "HINT")
