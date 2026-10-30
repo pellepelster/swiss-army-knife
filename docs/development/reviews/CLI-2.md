@@ -117,13 +117,6 @@ not the existing type, so a server upgraded in the console is silently recreated
 on the volume, but a recreate of a running server should not follow from "unknown": compare only when the image is
 known, or make the recreate a confirmed step.
 
-#### CP-6 (Low): Growing the data volume is a recreate, which is refused
-
-`hetzner/volume/provisioner.rs:80-86`: declared size > live → `DiffItem::recreate("size")`; the volume is never
-recreatable (`deployment.rs:1037-1046`) → `RecreateRefused`. Hetzner grows a volume in place
-(`volumes/{id}/actions/resize`; `api/volumes.rs` has no such call). Raising `data_volume_gb` from 16
-(`deployment.rs:771`) in a release would refuse the deploy of every existing deployment. Latent until then.
-
 #### CP-7 (Low, suspected): The volume is used while still `creating`
 
 `volume/provisioner.rs:120` `create(..)?.into()` ignores the create action (`api/volumes.rs:95` says the api
