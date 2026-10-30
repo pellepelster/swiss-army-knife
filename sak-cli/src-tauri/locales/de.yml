@@ -24,8 +24,10 @@ cli:
   backup_done: "Sicherung von %{name} nach %{path} geschrieben (%{size})."
   restore_started: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
   restore_done: "Das Deployment %{name} ist aus %{path} wiederhergestellt."
+  not_confirmed: "Nicht bestätigt, nichts wurde geändert."
+  plan_confirm: "Der Plan löscht oder legt neu an, was oben mit WARN markiert ist. Gib den Namen von %{name} ein, um fortzufahren: "
+  plan_no_terminal: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
   restore_confirm: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
-  restore_not_confirmed: "Nicht bestätigt, nichts wurde geändert."
   restore_no_terminal: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
   update_hint: "sakctl update installiert es."
   maintenance:

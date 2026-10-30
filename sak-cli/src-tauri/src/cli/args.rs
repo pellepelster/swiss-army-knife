@@ -354,6 +354,9 @@ pub struct DeploymentArgs {
     /// Show the output of ansible while it provisions the server
     #[arg(long)]
     pub(super) show_log: bool,
+    /// Apply a plan that destroys or creates resources anew without asking, e.g. in a script
+    #[arg(long)]
+    pub(super) yes: bool,
 }
 
 pub(super) fn parse_location(value: &str) -> Result<Location, String> {

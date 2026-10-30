@@ -65,13 +65,14 @@ pub(super) async fn list(
 }
 
 /// a create, deploy or destroy: plans, prints the plan and applies it, as the plan page of the
-/// window does. Prints each resource when it is done; the output of ansible only with `show_log`
+/// window does; a plan that destroys or creates anew asks first, unless `yes`. Prints each resource when it is done; the output of ansible only with `show_log`
 pub(super) async fn plan_and_apply(
     manager: &DeploymentManager,
     provider: &HetznerToken,
     deployment: &DeploymentRequest,
     runtime: &ContainerRuntime,
     show_log: bool,
+    yes: bool,
 ) -> Result<(), SakctlError> {
     // the project is read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
@@ -117,6 +118,14 @@ pub(super) async fn plan_and_apply(
         for change in &resource.changes {
             log(Level::Warn, format!("{title} {change}"));
         }
+    }
+
+    // a plan that destroys or creates anew what exists asks first, the name typed or --yes
+    let destroys = plan.resources.iter().any(|resource| {
+        resource.action == Some(PlanAction::WillDestroy) || resource.working == Working::Recreate
+    });
+    if destroys && !yes {
+        confirm_plan(&plan.name)?;
     }
 
     // what the apply does to a resource when it starts, from what the plan found

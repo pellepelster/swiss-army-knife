@@ -196,6 +196,7 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
                 &deployment.deployment(Intent::Create, false, password, &smtp_password),
                 &runtime,
                 deployment.show_log,
+                deployment.yes,
             )
             .await
         }
@@ -208,7 +209,15 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
                     &smtp_password,
                 )
                 .await?;
-            plan_and_apply(&manager, &token, &new, &runtime, deployment.show_log).await
+            plan_and_apply(
+                &manager,
+                &token,
+                &new,
+                &runtime,
+                deployment.show_log,
+                deployment.yes,
+            )
+            .await
         }
         ProjectCommand::Destroy {
             deployment,
@@ -221,6 +230,7 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
                 &deployment.deployment(Intent::Destroy, delete_data, password, ""),
                 &runtime,
                 deployment.show_log,
+                deployment.yes,
             )
             .await
         }

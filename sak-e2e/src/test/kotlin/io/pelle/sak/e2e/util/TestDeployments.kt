@@ -165,7 +165,7 @@ class TestEnvironment : AutoCloseable {
         val failures = mutableListOf<String>()
         for (deployment in deployments) {
             step("destroying the deployment and its data", deployment)
-            val exit = deployment.sakctl.run("destroy", deployment.name, "--delete-data")
+            val exit = deployment.sakctl.run("destroy", deployment.name, "--delete-data", "--yes")
             if (exit != 0) failures += "sakctl destroy ${deployment.name} ended with $exit"
             File(System.getProperty("user.home"), ".sak/backups/${deployment.name}").deleteRecursively()
         }

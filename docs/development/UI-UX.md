@@ -107,6 +107,10 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them.
   `sakctl ssh` ends with the exit code of the command on the server, as ssh does; when sakctl or ssh itself fails,
   it ends with 255.
+- **A plan that destroys asks first.** `create`, `deploy` and `destroy` print the plan; when it destroys a resource
+  or creates one anew, the command asks for the name of the deployment on the terminal before it applies. `--yes`
+  applies without asking, for scripts; without a terminal and without `--yes` it stops with a usage error and
+  changes nothing.
 - **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color on a
   terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
   the plan found or a resource a destroy will remove.

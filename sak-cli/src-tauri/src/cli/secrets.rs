@@ -78,19 +78,14 @@ pub(super) fn password_variable() -> Option<String> {
     std::env::var(PASSWORD_VARIABLE).ok()
 }
 
-/// the name of the deployment typed on the terminal; anything else changes nothing
-pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), SakctlError> {
+/// the name of the deployment typed on the terminal after `prompt`; anything else changes nothing.
+/// Without a terminal the error `no_terminal`, a usage error: a script gives --yes
+fn confirm(name: &str, prompt: &str, no_terminal: String) -> Result<(), SakctlError> {
     use std::io::Write;
     if !std::io::stdin().is_terminal() {
-        return Err(SakctlError::new(
-            t!("cli.restore_no_terminal", name = name),
-            EXIT_USAGE,
-        ));
+        return Err(SakctlError::new(no_terminal, EXIT_USAGE));
     }
-    eprint!(
-        "{}",
-        t!("cli.restore_confirm", name = name, path = file.display())
-    );
+    eprint!("{prompt}");
     std::io::stderr()
         .flush()
         .map_err(|error| error.to_string())?;
@@ -101,6 +96,24 @@ pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), 
     if typed.trim() == name {
         Ok(())
     } else {
-        Err(t!("cli.restore_not_confirmed").to_string().into())
+        Err(t!("cli.not_confirmed").to_string().into())
     }
+}
+
+/// the restore of the backup `file` over the data of the deployment `name`, confirmed
+pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), SakctlError> {
+    confirm(
+        name,
+        &t!("cli.restore_confirm", name = name, path = file.display()),
+        t!("cli.restore_no_terminal", name = name).to_string(),
+    )
+}
+
+/// a plan of `name` that destroys or creates resources anew, confirmed
+pub(super) fn confirm_plan(name: &str) -> Result<(), SakctlError> {
+    confirm(
+        name,
+        &t!("cli.plan_confirm", name = name),
+        t!("cli.plan_no_terminal", name = name).to_string(),
+    )
 }

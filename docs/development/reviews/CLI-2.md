@@ -35,8 +35,7 @@ reviewer's reading. A finding that is fixed is removed; one that an open finding
 ## Summary
 
 The review found 118 findings: 5 High, 28 Medium, 65 Low, and 20 proposals of structure. The table counts them as
-the review found them; the sections below hold the ones still open. The first review adds 7 open findings
-(`R1-`: 2 Medium, 5 Low).
+the review found them; the sections below hold the ones still open.
 
 | Slice                          | High | Medium | Low | Structure |
 |--------------------------------|-----:|-------:|----:|----------:|
@@ -471,32 +470,14 @@ enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-w
 
 ## R1: open from the first review
 
-The first review (2026-10-29) had 31 findings. Checked again against the code on 2026-10-30, 24 are fixed: the
-ownership checks of every provisioner (S1, S2), secrets never as arguments (S3), the strong key derivation with its
-password check (S4), the run directory and the signal handling (S5), the accepted risk of the host key (S7), the
-label of the token check (S8), `open_url` (S9), the structs with secrets (S10, moot since S3), the rule about the
-addresses of the user's servers (S11), the recreate set and the location of a deploy (C1), the settings a deploy
-reads back (C2), foreign records of any type (C3), "unverifiable" when nothing proves a password (C4), the retries
-and the time limit of ansible (C5), the text of a removed record (C7), the trimmed token (C8), the mail server (C9),
-every resource in the state (C11), and the smells M1, M2, M3, M6, M7. These are left:
-
 ### Bugs and security
 
-#### R1-1 (Medium): The images of the tools are pinned to a tag only (was S6)
+#### R1-3 (Medium): The window applies the project as it is at the click, not the plan it showed (was C6)
 
-`core/container.rs:20-28` runs `ghcr.io/pellepelster/sak-cli-tools:<version>` (and the canary of the same tag), and
-the server pulls the backend images by tag (`sak_image_tag`). A tag on ghcr.io can be replaced; the image of the
-tools gets the private client key of every server sakctl provisions. **Fix:** verify a signature (cosign) before a
-run, or pin each release to digests. GitHub issue #91 tracks it.
-
-#### R1-3 (Medium): The command line applies a plan that removes or recreates without asking (was C6)
-
-`cli/deploy.rs` prints the plan and applies it at once; a `sakctl deploy` that would create the server anew or
-remove records goes ahead with no confirmation and there is no `--yes`. In the window the apply of a check diffs the
-project again (the registry diffs before it applies, `cloud/src/api/registry.rs:313`), so a project that changed
-between the check and the click is applied as it is then, not as the page showed it. **Fix:** on a terminal, ask
-before a plan that destroys or recreates, with `--yes` for scripts; let the apply stop when its diff differs from
-the plan it was given (CA-20 keeps the plan's diffs for the apply).
+The apply of a check diffs the project again (the registry diffs before it applies), so a project that changed
+between the check and the click is applied as it is then, not as the page showed it. The command line asks before a
+plan that destroys or creates anew (`--yes` for scripts). **Fix:** let the apply stop when its diff differs from the
+plan it was given (CA-20 keeps the plan's diffs for the apply).
 
 ---
 

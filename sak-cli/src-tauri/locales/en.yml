@@ -24,8 +24,10 @@ cli:
   backup_done: "Backup of %{name} written to %{path} (%{size})."
   restore_started: "Restoring %{name} on root@%{host} from %{path}…"
   restore_done: "The deployment %{name} is restored from %{path}."
+  not_confirmed: "Not confirmed, nothing was changed."
+  plan_confirm: "The plan destroys or creates anew what is marked WARN above. Type the name of %{name} to continue: "
+  plan_no_terminal: "No terminal to confirm a plan that destroys or creates anew: give --yes to apply it to %{name}."
   restore_confirm: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
-  restore_not_confirmed: "Not confirmed, nothing was changed."
   restore_no_terminal: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
   update_hint: "Run sakctl update to install it."
   maintenance:

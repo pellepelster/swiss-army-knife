@@ -74,7 +74,7 @@ class SakctlTest {
             val sakctl = environment.single.sakctl
             // a destroy finds the key by its name, but it has neither the name label nor the
             // password hash of the deployment
-            sakctl.run("destroy", name, "--delete-data") shouldBe EXIT_NOT_OWNED
+            sakctl.run("destroy", name, "--delete-data", "--yes") shouldBe EXIT_NOT_OWNED
             environment.project.sshKeyExists(keyName) shouldBe true
             // a create stops at the plan, before anything is created
             create(sakctl, name, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_NOT_OWNED

@@ -91,6 +91,21 @@ fn maintenance_takes_the_name_and_its_options() {
 }
 
 #[test]
+fn yes_applies_a_plan_that_destroys_without_asking() {
+    for command in ["create", "deploy", "destroy"] {
+        let Some(
+            ProjectCommand::Create { deployment, .. }
+            | ProjectCommand::Deploy { deployment, .. }
+            | ProjectCommand::Destroy { deployment, .. },
+        ) = project(parse(&[command, "alpha", "--yes"]).unwrap())
+        else {
+            panic!("{command}");
+        };
+        assert!(deployment.yes, "{command}");
+    }
+}
+
+#[test]
 fn the_commands_are_told_from_the_window_a_word_is_the_command_line() {
     let args = |args: &[&str]| args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>();
     for command_line in [
@@ -349,6 +364,8 @@ fn the_arguments_of_the_commands() {
         panic!("a destroy");
     };
     assert!(!delete_data);
+    // without --yes a plan that destroys asks first
+    assert!(!deployment.yes);
     assert_eq!(
         deployment
             .deployment(Intent::Destroy, false, Default::default(), "")
