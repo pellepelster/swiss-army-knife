@@ -34,12 +34,13 @@ use sak_cloud::api::{Applied, ApplyEvent, DiffStatus};
 use sak_cloud::api::{Lookup, Resource};
 use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
-    DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
-    ResourceKind, ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records,
-    discover, foreign_records, remove_records, root_domains, set_server_labels, stale_records,
-    state,
+    DeploymentRecord, DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment,
+    DnsMode, MAX_NAME_LEN, ResourceKind, ResourceState, RootDomain, RootDomainConflict, check_name,
+    deployment_records, discover, foreign_records, remove_records, root_domains, set_server_labels,
+    stale_records, state,
 };
 use sak_cloud::hetzner::dns_record::{HetznerDnsRecordLookup, first_address};
+use sak_cloud::hetzner::dns_zone::{HetznerDnsZoneListing, HetznerDnsZoneProvisioner};
 use sak_cloud::hetzner::labels::HetznerLabels;
 use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, VERSION_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;

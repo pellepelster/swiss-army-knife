@@ -483,214 +483,72 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         deployment: &DeploymentRequest,
     ) -> Result<Prepared, SakctlError> {
-        let DeploymentRequest {
-            name,
-            password,
-            password_repeat,
-            location,
-            dns_mode,
-            root_domain,
-            intent,
-            delete_data,
-            user_mode,
-            acme_ca,
-            smtp,
-            admin_email,
-            force,
-        } = deployment;
-        let (location, intent) = (*location, *intent);
-        let name = checked_name(name)?;
-        // a location Hetzner added after this release can be read, but nothing is created in it; a
-        // destroy needs no location
-        if location == Location::unknown && intent != Intent::Destroy {
-            return Err(SakctlError::new(
-                t!("shared.deployments.unknown_location", name = name),
-                crate::core::error::EXIT_USAGE,
-            ));
-        }
-        if password.chars().count() < MIN_PASSWORD_CHARS {
-            return Err(t!(
-                "shared.deployments.short_password",
-                min = MIN_PASSWORD_CHARS
-            )
-            .to_string()
-            .into());
-        }
-        if password != password_repeat {
-            return Err(t!("shared.deployments.password_mismatch")
-                .to_string()
-                .into());
-        }
-        // a new password must be hard to guess: whoever reads the project can try guesses offline
-        // against the label and the public keys of the deployment
-        if intent == Intent::Create
-            && let Some(hint) = crate::core::keys::weak_password(name, password)
-        {
-            return Err(t!("shared.deployments.weak_password", hint = hint)
-                .to_string()
-                .into());
-        }
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string().into());
-        };
-        let api = Arc::new(HetznerApi::new(&token));
+        let name = checked_request(deployment)?;
+        let (password, intent) = (deployment.password.as_str(), deployment.intent);
+        let (provider, api) = hetzner_api(tokens)?;
         let existing = discover(&api)
             .await
             .map_err(|error| failed(provider, error))?
             .into_iter()
             .find(|deployment| deployment.name == name);
-        // the user mode given, else the one on the deployment (a deploy keeps it)
-        let user_mode = user_mode.or_else(|| {
-            existing
-                .as_ref()
-                .and_then(DiscoveredDeployment::user_mode)
-                .and_then(|mode| UserMode::parse(&mode))
-        });
-        // the acme ca given, else the one of the deployment, else production
-        let acme_ca = acme_ca
-            .or_else(|| {
-                existing
-                    .as_ref()
-                    .and_then(DiscoveredDeployment::acme_ca)
-                    .and_then(|ca| AcmeCa::parse(&ca))
-            })
-            .unwrap_or_default();
-        let purpose = match intent {
-            Intent::Destroy => Purpose::Destroy {
-                delete_data: *delete_data,
-            },
-            Intent::Create => Purpose::Create {
-                provisioning: users(user_mode, smtp.as_ref(), admin_email.as_deref())?,
-            },
-            Intent::Deploy => Purpose::Deploy {
-                provisioning: users(user_mode, smtp.as_ref(), admin_email.as_deref())?,
-            },
-        };
+        let (purpose, acme_ca) = users_and_acme_ca(deployment, existing.as_ref())?;
         let (dns_mode, root_domain) = resolve_dns(
             name,
             intent,
-            *dns_mode,
-            root_domain.as_deref(),
+            deployment.dns_mode,
+            deployment.root_domain.as_deref(),
             existing.as_ref().and_then(DiscoveredDeployment::dns_mode),
             existing
                 .as_ref()
                 .and_then(DiscoveredDeployment::root_domain),
         )?;
-        let runtime =
-            HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
         // one read of the zones gives the root domains, the records of the deployment and the
-        // records in the way
-        let listings = runtime
-            .dns_zones()
+        // records in the way; it needs no location, so the runtime is built once it is known
+        let listings = HetznerDnsZoneProvisioner::new(api.clone())
             .list_all()
             .await
             .map_err(|error| failed(provider, error))?;
         let records = deployment_records(&listings, name);
-        let location = match (intent, existing) {
-            (Intent::Create, Some(_)) => {
-                return Err(t!("shared.deployments.name_taken", name = name)
-                    .to_string()
-                    .into());
-            }
-            (Intent::Create, None) => location,
-            (Intent::Deploy, None) => {
-                return Err(t!("shared.deployments.not_found", name = name)
-                    .to_string()
-                    .into());
-            }
-            // destroyed already, maybe with records left: check the password against their hashes.
-            // A destroy removes only records with the hash of the password (the identity of the
-            // spec), so records without one stay and need no check; without records nothing of the
-            // deployment is left to change, the plan stops at a resource of someone else
-            (Intent::Destroy, None) => {
-                let hashes: Vec<String> = records
-                    .iter()
-                    .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
-                    .collect();
-                if !hashes.is_empty() {
-                    check_password(&hashes, None, name, password)?;
-                }
-                location
-            }
-            (Intent::Deploy | Intent::Destroy, Some(existing)) => {
-                verify_password(&existing, name, password)?;
-                // the location of the deployment: its server, volume and addresses never move, so
-                // the given location counts only when none of them exists
-                existing
-                    .location()
-                    .map_err(|resources| {
-                        t!(
-                            "shared.deployments.mixed_locations",
-                            name = name,
-                            resources = resources
-                        )
-                        .to_string()
-                    })?
-                    .unwrap_or(location)
-            }
-        };
-        let runtime =
-            HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
+        let location = location_of(
+            name,
+            password,
+            intent,
+            existing,
+            deployment.location,
+            &records,
+        )?;
+        let runtime = HetznerProviderRuntime::from_api(api, location, server_type_for(location));
         // a create or deploy gets its root domain checked against the zones; a destroy has none
         let purpose = purpose.then(|users| {
             let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
-            let root_domain = check_root_domain(&domains, root_domain.as_deref(), name, dns_mode)?;
-            Ok::<_, SakctlError>((users, root_domain))
+            Ok::<_, SakctlError>(Settings {
+                users,
+                root_domain: check_root_domain(&domains, root_domain.as_deref(), name, dns_mode)?,
+            })
         })?;
-
-        let client_key = crate::core::keys::derive_key(name, password)?;
-        let host_key = crate::core::keys::derive_host_key(name, password)?;
-        let public_key = client_key.public_key();
-        let password_hash = crate::core::keys::password_hash(name, password)?;
-        let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
-        let mut spec = DeploymentSpec::new(
+        let (spec, keys) = laid_out(
             name,
-            &public_key,
-            runtime.default_location,
-            runtime.default_server_type,
-        )
-        .map_err(|error| error.to_string())?
-        .with_dns_mode(dns_mode)
-        .with_password_hash(&password_hash);
-        // the root domain, the user mode and the acme ca on every resource, so a deploy keeps them
-        if let Some((users, root_domain)) = purpose.provisioning() {
-            spec = spec
-                .with_root_domain(root_domain)
-                .with_user_mode(users.mode().as_str())
-                .with_acme_ca(acme_ca.as_str())
-                .with_version(crate::core::VERSION);
-        }
-        spec.user_data = user_data(&host_key);
+            password,
+            &runtime,
+            dns_mode,
+            purpose.provisioning(),
+            acme_ca,
+        )?;
         let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
-        // a record of another owner, of any type, on a name of the deployment stops the apply
-        // here, before anything is created
-        let in_the_way = foreign_records(&listings, &spec);
-        if intent != Intent::Destroy && !in_the_way.is_empty() {
-            return Err(SakctlError::new(
-                t!(
-                    "shared.deployments.not_owned",
-                    error = t!(
-                        "shared.deployments.records_in_the_way",
-                        records = in_the_way.join(", ")
-                    )
-                ),
-                EXIT_NOT_OWNED,
-            ));
+        if intent != Intent::Destroy {
+            check_records_in_the_way(&listings, &spec)?;
         }
         // a destroy provisions nothing, the argon2id of the admin password would be for nothing
-        let purpose = purpose.then(|(users, root_domain)| {
+        let purpose = purpose.then(|settings| {
             Ok::<_, SakctlError>(Provisioning {
-                root_domain,
-                users,
+                root_domain: settings.root_domain,
+                users: settings.users,
                 acme_ca,
-                client_key,
-                host_key,
-                api_public_key,
+                client_key: keys.client_key,
+                host_key: keys.host_key,
+                api_public_key: keys.api_public_key,
                 admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
-                force: *force,
+                force: deployment.force,
             })
         })?;
         Ok(Prepared {
@@ -835,47 +693,74 @@ impl DeploymentManager {
         let provisioning = match &prepared.purpose {
             Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => provisioning,
             Purpose::Destroy { delete_data } => {
-                self.remove_records(&prepared, on_event)
-                    .await
-                    .map_err(|error| {
-                        cloud_failure(
-                            "shared.deployments.destroy_failed",
-                            prepared.provider,
-                            error,
-                        )
-                    })?;
-                let mut registry = prepared
-                    .spec
-                    .destroy_registry(&prepared.runtime, *delete_data)
-                    .map_err(|error| error.to_string())?;
-                let mut report = |event: ApplyEvent| {
-                    let event = match event {
-                        ApplyEvent::Started(resource) => DeploymentEvent::Started {
-                            resource: resource.log_text,
-                        },
-                        ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
-                            resource: resource.log_text,
-                            text: destroyed_key(gone),
-                        },
-                        ApplyEvent::Applied(_) => return,
-                    };
-                    on_event(event);
-                };
-                registry
-                    .destroy_all_with(&mut report)
-                    .await
-                    .map_err(|error| {
-                        cloud_failure(
-                            "shared.deployments.destroy_failed",
-                            prepared.provider,
-                            error,
-                        )
-                    })?;
-                return Ok(());
+                return self.destroy(&prepared, *delete_data, on_event).await;
             }
         };
-        // the events of the resources and of the playbook go through one channel to `on_event`
-        // while the registry applies; it closes when the registry and its report are gone
+        let provisioned = self.apply_resources(&prepared, container, on_event).await?;
+        self.remove_records(&prepared, on_event)
+            .await
+            .map_err(|error| {
+                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
+            })?;
+        if provisioned {
+            self.after_provisioning(&prepared, provisioning, on_event)
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// a destroy: the dns records of the deployment, then every resource but the data volume
+    /// (also that with `delete_data`), dependents first
+    async fn destroy(
+        &self,
+        prepared: &Prepared,
+        delete_data: bool,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakctlError> {
+        let destroy_failed = |error| {
+            cloud_failure(
+                "shared.deployments.destroy_failed",
+                prepared.provider,
+                error,
+            )
+        };
+        self.remove_records(prepared, on_event)
+            .await
+            .map_err(destroy_failed)?;
+        let mut registry = prepared
+            .spec
+            .destroy_registry(&prepared.runtime, delete_data)
+            .map_err(|error| error.to_string())?;
+        let mut report = |event: ApplyEvent| {
+            let event = match event {
+                ApplyEvent::Started(resource) => DeploymentEvent::Started {
+                    resource: resource.log_text,
+                },
+                ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
+                    resource: resource.log_text,
+                    text: destroyed_key(gone),
+                },
+                ApplyEvent::Applied(_) => return,
+            };
+            on_event(event);
+        };
+        registry
+            .destroy_all_with(&mut report)
+            .await
+            .map_err(destroy_failed)?;
+        Ok(())
+    }
+
+    /// the resources of a create or deploy in the order of their dependencies, the roles of the
+    /// playbook after the server and the volume. Their events and those of the playbook go
+    /// through one channel to `on_event` while the registry applies. Whether the roles ran
+    async fn apply_resources(
+        &self,
+        prepared: &Prepared,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<bool, SakctlError> {
+        // the channel closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
         let server_changed = Arc::new(AtomicBool::new(false));
         let failure = Arc::new(Mutex::new(None));
@@ -943,15 +828,18 @@ impl DeploymentManager {
                 error,
             ));
         }
-        self.remove_records(&prepared, on_event)
-            .await
-            .map_err(|error| {
-                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
-            })?;
-        if !provisioned.load(Ordering::SeqCst) {
-            return Ok(());
-        }
+        Ok(provisioned.load(Ordering::SeqCst))
+    }
 
+    /// after the roles ran: waits until the deployment answers as its users reach it, through its
+    /// ingress with its certificate, then sets the version label of the server. A backend that
+    /// did not start or a missing certificate stops the apply here
+    async fn after_provisioning(
+        &self,
+        prepared: &Prepared,
+        provisioning: &Provisioning,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakctlError> {
         // the server just provisioned: the wait for the api goes to its address
         let server = discover(&prepared.runtime.api)
             .await
@@ -966,8 +854,6 @@ impl DeploymentManager {
             .public_ipv4
             .as_deref()
             .and_then(|host| host.parse::<std::net::IpAddr>().ok());
-        // done when the deployment answers as its users reach it: through its ingress, with its
-        // certificate. A backend that did not start or a missing certificate stops the apply here
         let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
             &prepared.spec.name,
             prepared.spec.dns_mode,
@@ -1019,4 +905,235 @@ impl DeploymentManager {
         )
         .await
     }
+}
+
+/// the checks of a request that need nothing of the project: the name, a location sakctl knows
+/// (a destroy needs none) and the password, long enough, the same two times and, for a create,
+/// hard to guess. Gives the name, trimmed
+fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> {
+    let DeploymentRequest {
+        name,
+        password,
+        password_repeat,
+        location,
+        intent,
+        ..
+    } = deployment;
+    let name = checked_name(name)?;
+    // a location Hetzner added after this release can be read, but nothing is created in it; a
+    // destroy needs no location
+    if *location == Location::unknown && *intent != Intent::Destroy {
+        return Err(SakctlError::new(
+            t!("shared.deployments.unknown_location", name = name),
+            crate::core::error::EXIT_USAGE,
+        ));
+    }
+    if password.chars().count() < MIN_PASSWORD_CHARS {
+        return Err(t!(
+            "shared.deployments.short_password",
+            min = MIN_PASSWORD_CHARS
+        )
+        .to_string()
+        .into());
+    }
+    if password != password_repeat {
+        return Err(t!("shared.deployments.password_mismatch")
+            .to_string()
+            .into());
+    }
+    // a new password must be hard to guess: whoever reads the project can try guesses offline
+    // against the label and the public keys of the deployment
+    if *intent == Intent::Create
+        && let Some(hint) = crate::core::keys::weak_password(name, password)
+    {
+        return Err(t!("shared.deployments.weak_password", hint = hint)
+            .to_string()
+            .into());
+    }
+    Ok(name)
+}
+
+/// the api of the first hetzner project of `tokens`
+fn hetzner_api(
+    tokens: Vec<(ProviderType, String)>,
+) -> Result<(ProviderType, Arc<HetznerApi>), SakctlError> {
+    let Some((provider, token)) = tokens
+        .into_iter()
+        .find(|(provider, _)| *provider == ProviderType::Hetzner)
+    else {
+        return Err(t!("shared.deployments.no_provider").to_string().into());
+    };
+    Ok((provider, Arc::new(HetznerApi::new(&token))))
+}
+
+/// the purpose of the request with who signs in for a create or deploy, and the acme ca: each the
+/// one given, else the one on the `existing` deployment (a deploy keeps them); the ca else
+/// production
+fn users_and_acme_ca(
+    deployment: &DeploymentRequest,
+    existing: Option<&DiscoveredDeployment>,
+) -> Result<(Purpose<Users>, AcmeCa), SakctlError> {
+    let user_mode = deployment.user_mode.or_else(|| {
+        existing
+            .and_then(DiscoveredDeployment::user_mode)
+            .and_then(|mode| UserMode::parse(&mode))
+    });
+    let acme_ca = deployment
+        .acme_ca
+        .or_else(|| {
+            existing
+                .and_then(DiscoveredDeployment::acme_ca)
+                .and_then(|ca| AcmeCa::parse(&ca))
+        })
+        .unwrap_or_default();
+    let users = || {
+        users(
+            user_mode,
+            deployment.smtp.as_ref(),
+            deployment.admin_email.as_deref(),
+        )
+    };
+    let purpose = match deployment.intent {
+        Intent::Destroy => Purpose::Destroy {
+            delete_data: deployment.delete_data,
+        },
+        Intent::Create => Purpose::Create {
+            provisioning: users()?,
+        },
+        Intent::Deploy => Purpose::Deploy {
+            provisioning: users()?,
+        },
+    };
+    Ok((purpose, acme_ca))
+}
+
+/// where the deployment goes, once its existence fits the intent: a create needs a free name, a
+/// deploy an existing deployment. The password is checked against the `existing` deployment, or
+/// for a destroy of what is left against the hashes of its `records`. An existing deployment
+/// stays where it is; the `given` location counts only when none of its server, volume and
+/// addresses exists
+fn location_of(
+    name: &str,
+    password: &str,
+    intent: Intent,
+    existing: Option<DiscoveredDeployment>,
+    given: Location,
+    records: &[DeploymentRecord],
+) -> Result<Location, SakctlError> {
+    match (intent, existing) {
+        (Intent::Create, Some(_)) => Err(t!("shared.deployments.name_taken", name = name)
+            .to_string()
+            .into()),
+        (Intent::Create, None) => Ok(given),
+        (Intent::Deploy, None) => Err(t!("shared.deployments.not_found", name = name)
+            .to_string()
+            .into()),
+        // destroyed already, maybe with records left: check the password against their hashes.
+        // A destroy removes only records with the hash of the password (the identity of the
+        // spec), so records without one stay and need no check; without records nothing of the
+        // deployment is left to change, the plan stops at a resource of someone else
+        (Intent::Destroy, None) => {
+            let hashes: Vec<String> = records
+                .iter()
+                .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
+                .collect();
+            if !hashes.is_empty() {
+                check_password(&hashes, None, name, password)?;
+            }
+            Ok(given)
+        }
+        (Intent::Deploy | Intent::Destroy, Some(existing)) => {
+            verify_password(&existing, name, password)?;
+            Ok(existing
+                .location()
+                .map_err(|resources| {
+                    t!(
+                        "shared.deployments.mixed_locations",
+                        name = name,
+                        resources = resources
+                    )
+                    .to_string()
+                })?
+                .unwrap_or(given))
+        }
+    }
+}
+
+/// what a create or deploy is set up with, its root domain checked against the zones; the keys
+/// come with the spec
+struct Settings {
+    users: Users,
+    root_domain: String,
+}
+
+/// the keys derived from the name and the password that a provisioning needs
+struct Keys {
+    client_key: DerivedKey,
+    host_key: DerivedKey,
+    /// the public half of the api key
+    api_public_key: String,
+}
+
+/// the keys of `name` and `password` and the resource group they lay out at `runtime`: every
+/// resource with the dns mode and the hash of the password, the server with the cloud-init of its
+/// host key. A create or deploy also puts its root domain, user mode, acme ca and the version on
+/// every resource, so a deploy keeps them; `settings` is none for a destroy
+fn laid_out(
+    name: &str,
+    password: &str,
+    runtime: &HetznerProviderRuntime,
+    dns_mode: DnsMode,
+    settings: Option<&Settings>,
+    acme_ca: AcmeCa,
+) -> Result<(DeploymentSpec, Keys), SakctlError> {
+    let client_key = crate::core::keys::derive_key(name, password)?;
+    let host_key = crate::core::keys::derive_host_key(name, password)?;
+    let public_key = client_key.public_key();
+    let password_hash = crate::core::keys::password_hash(name, password)?;
+    let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
+    let mut spec = DeploymentSpec::new(
+        name,
+        &public_key,
+        runtime.default_location,
+        runtime.default_server_type,
+    )
+    .map_err(|error| error.to_string())?
+    .with_dns_mode(dns_mode)
+    .with_password_hash(&password_hash);
+    if let Some(settings) = settings {
+        spec = spec
+            .with_root_domain(&settings.root_domain)
+            .with_user_mode(settings.users.mode().as_str())
+            .with_acme_ca(acme_ca.as_str())
+            .with_version(crate::core::VERSION);
+    }
+    spec.user_data = user_data(&host_key);
+    let keys = Keys {
+        client_key,
+        host_key,
+        api_public_key,
+    };
+    Ok((spec, keys))
+}
+
+/// a record of another owner, of any type, on a name of the deployment stops a create or deploy
+/// here, before anything is created
+fn check_records_in_the_way(
+    listings: &[HetznerDnsZoneListing],
+    spec: &DeploymentSpec,
+) -> Result<(), SakctlError> {
+    let in_the_way = foreign_records(listings, spec);
+    if in_the_way.is_empty() {
+        return Ok(());
+    }
+    Err(SakctlError::new(
+        t!(
+            "shared.deployments.not_owned",
+            error = t!(
+                "shared.deployments.records_in_the_way",
+                records = in_the_way.join(", ")
+            )
+        ),
+        EXIT_NOT_OWNED,
+    ))
 }

@@ -192,11 +192,7 @@ impl ProvisionManager {
             .get()
             .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
         let dir = RunDir::create(runtime)?;
-        dir.write("inventory.yml", &run.inventory())?;
-        dir.write("ssh_config", &run.ssh_config())?;
-        dir.write("known_hosts", &run.known_hosts())?;
-        dir.write("id_ed25519.pub", &run.client_key.public_key())?;
-        dir.write("backend.env", &run.backend_env())?;
+        dir.write_run(run)?;
 
         // the lines and the events go into one channel in the order they arrive; the endpoint
         // lives as long as the run
@@ -208,148 +204,191 @@ impl ProvisionManager {
             })?
         };
         dir.write("events_token", events.token())?;
-        let (network, host) = events_host(runtime);
 
-        let mut command = container::command(runtime);
-        // a name of its own, so that `stop_runs` can stop it
-        command.args(["run", "--rm", "-i", "--name", &dir.container]);
-        // the files belong to the user, the container reads them as that user
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::MetadataExt;
-            let meta = std::fs::metadata(&dir.path).map_err(|e| e.to_string())?;
-            command.args(["--user", &format!("{}:{}", meta.uid(), meta.gid())]);
-            if runtime == "podman" {
-                command.args(["--userns=keep-id", "--security-opt", "label=disable"]);
-            }
-        }
-        command
-            .args(network)
-            .args([
-                "-e",
-                "HOME=/tmp",
-                "-e",
-                "ANSIBLE_NOCOLOR=1",
-                "-e",
-                "PYTHONUNBUFFERED=1",
-                "-e",
-                "ANSIBLE_CALLBACKS_ENABLED=pelle_io.sak.http_notify",
-                "-e",
-                &format!("SAK_EVENTS_TOKEN_FILE={RUN_DIR}/events_token"),
-                "-e",
-                &format!(
-                    "SAK_EVENTS_URL=http://{host}:{}{EVENTS_PATH}",
-                    events.port()
-                ),
-            ])
-            .args(["-v", &format!("{}:{RUN_DIR}:ro", dir.path.display())])
-            .arg(container::image())
-            // the private key from the standard input into an agent, then ansible
-            .args([
-                "sh",
-                "-c",
-                "eval \"$(ssh-agent -s)\" >/dev/null && ssh-add -q - && exec ansible-playbook -i \"$0\" \"$1\"",
-                &format!("{RUN_DIR}/inventory.yml"),
-                PLAYBOOK,
-            ])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        let mut child = command.spawn().map_err(|e| {
-            t!("shared.provision.not_started", runtime = runtime, error = e).to_string()
-        })?;
+        let mut child = container_command(runtime, &dir, events.port())?
+            .spawn()
+            .map_err(|e| {
+                t!("shared.provision.not_started", runtime = runtime, error = e).to_string()
+            })?;
         // the key, then the end of the input (the drop of `stdin`): ssh-add reads until there
         if let Some(mut stdin) = child.stdin.take() {
             let key = run.client_key.private_key();
             // the error is ignored: a container that stopped at once tells why in its output
             let _ = stdin.write_all(key.as_bytes());
         }
-        // both output streams line by line into the channel
-        let mut readers = Vec::new();
-        for stream in [
-            child
-                .stdout
-                .take()
-                .map(|out| Box::new(out) as Box<dyn std::io::Read + Send>),
-            child
-                .stderr
-                .take()
-                .map(|err| Box::new(err) as Box<dyn std::io::Read + Send>),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            let sender = sender.clone();
-            readers.push(std::thread::spawn(move || {
-                for line in BufReader::new(stream).lines().map_while(Result::ok) {
-                    if sender.send(ProvisionOutput::Line(line)).is_err() {
-                        break;
-                    }
-                }
-            }));
-        }
-        drop(sender);
-        // the loop ends when both streams are read to the end: the endpoint holds a sender until
-        // it stops, so the channel does not close before
-        let mut failed = None;
-        let started = std::time::Instant::now();
-        let mut timed_out = false;
-        let readers_done = std::thread::spawn(move || {
-            for reader in readers {
-                let _ = reader.join();
-            }
-        });
-        loop {
-            match receiver.recv_timeout(std::time::Duration::from_millis(100)) {
-                Ok(output) => {
-                    if let ProvisionOutput::Event(event) = &output {
-                        failed = failed.take().or_else(|| failure_of(event));
-                    }
-                    on_output(output);
-                }
-                Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {
-                    // the streams end once the container is gone
-                    if !timed_out && started.elapsed() > RUN_TIMEOUT {
-                        timed_out = true;
-                        remove_container(runtime, &dir.container);
-                        let _ = child.kill();
-                    }
-                }
-                Err(_) => break,
-            }
-        }
+        let mut pumped = pump_output(
+            &mut child,
+            sender,
+            &receiver,
+            RUN_TIMEOUT,
+            &mut || remove_container(runtime, &dir.container),
+            on_output,
+        );
         let status = child.wait().map_err(|e| e.to_string())?;
         // stop the endpoint, then pass on the events it got after the last line
         drop(events);
         for output in receiver.try_iter() {
-            if let ProvisionOutput::Event(event) = &output {
-                failed = failed.take().or_else(|| failure_of(event));
-            }
-            on_output(output);
+            pumped.pass(output, on_output);
         }
         drop(dir);
-        if timed_out {
-            return Err(t!(
-                "shared.provision.timed_out",
-                minutes = RUN_TIMEOUT.as_secs() / 60
-            )
-            .to_string());
+        outcome(status, pumped)
+    }
+}
+
+/// the command that runs the playbook in the image of the tools: a container of the name of the
+/// run, as the user that owns its files, with the directory of the run mounted read-only and the
+/// endpoint of the events at `events_port`. The private key comes through the standard input
+fn container_command(
+    runtime: &str,
+    dir: &RunDir,
+    events_port: u16,
+) -> Result<std::process::Command, String> {
+    let (network, host) = events_host(runtime);
+    let mut command = container::command(runtime);
+    // a name of its own, so that `stop_runs` can stop it
+    command.args(["run", "--rm", "-i", "--name", &dir.container]);
+    // the files belong to the user, the container reads them as that user
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = std::fs::metadata(&dir.path).map_err(|e| e.to_string())?;
+        command.args(["--user", &format!("{}:{}", meta.uid(), meta.gid())]);
+        if runtime == "podman" {
+            command.args(["--userns=keep-id", "--security-opt", "label=disable"]);
         }
-        match (status.success(), failed) {
-            (true, _) => Ok(()),
-            (false, Some((task, message))) => Err(t!(
-                "shared.provision.task_failed",
-                task = task,
-                message = message.unwrap_or_default()
-            )
-            .to_string()),
-            (false, None) => Err(t!(
-                "shared.provision.failed",
-                status = status.code().unwrap_or(-1)
-            )
-            .to_string()),
+    }
+    command
+        .args(network)
+        .args([
+            "-e",
+            "HOME=/tmp",
+            "-e",
+            "ANSIBLE_NOCOLOR=1",
+            "-e",
+            "PYTHONUNBUFFERED=1",
+            "-e",
+            "ANSIBLE_CALLBACKS_ENABLED=pelle_io.sak.http_notify",
+            "-e",
+            &format!("SAK_EVENTS_TOKEN_FILE={RUN_DIR}/events_token"),
+            "-e",
+            &format!("SAK_EVENTS_URL=http://{host}:{events_port}{EVENTS_PATH}"),
+        ])
+        .args(["-v", &format!("{}:{RUN_DIR}:ro", dir.path.display())])
+        .arg(container::image())
+        // the private key from the standard input into an agent, then ansible
+        .args([
+            "sh",
+            "-c",
+            "eval \"$(ssh-agent -s)\" >/dev/null && ssh-add -q - && exec ansible-playbook -i \"$0\" \"$1\"",
+            &format!("{RUN_DIR}/inventory.yml"),
+            PLAYBOOK,
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    Ok(command)
+}
+
+/// what the output of a run told: the failure of a task that stopped it, and whether it took
+/// longer than its timeout
+#[derive(Default)]
+struct Pumped {
+    failed: Option<(String, Option<String>)>,
+    timed_out: bool,
+}
+
+impl Pumped {
+    /// passes `output` on, the failure of a task kept
+    fn pass(&mut self, output: ProvisionOutput, on_output: &mut dyn FnMut(ProvisionOutput)) {
+        if let ProvisionOutput::Event(event) = &output {
+            self.failed = self.failed.take().or_else(|| failure_of(event));
         }
+        on_output(output);
+    }
+}
+
+/// both output streams of `child` line by line into the channel of `sender`, and everything of
+/// `receiver` to `on_output`, until both streams are read to the end: the endpoint holds a
+/// sender until it stops, so the channel does not close before. A run longer than `timeout` is
+/// stopped with `stop` and a kill; its streams end once the container is gone
+fn pump_output(
+    child: &mut std::process::Child,
+    sender: mpsc::Sender<ProvisionOutput>,
+    receiver: &mpsc::Receiver<ProvisionOutput>,
+    timeout: std::time::Duration,
+    stop: &mut dyn FnMut(),
+    on_output: &mut dyn FnMut(ProvisionOutput),
+) -> Pumped {
+    let mut readers = Vec::new();
+    for stream in [
+        child
+            .stdout
+            .take()
+            .map(|out| Box::new(out) as Box<dyn std::io::Read + Send>),
+        child
+            .stderr
+            .take()
+            .map(|err| Box::new(err) as Box<dyn std::io::Read + Send>),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let sender = sender.clone();
+        readers.push(std::thread::spawn(move || {
+            for line in BufReader::new(stream).lines().map_while(Result::ok) {
+                if sender.send(ProvisionOutput::Line(line)).is_err() {
+                    break;
+                }
+            }
+        }));
+    }
+    drop(sender);
+    let mut pumped = Pumped::default();
+    let started = std::time::Instant::now();
+    let readers_done = std::thread::spawn(move || {
+        for reader in readers {
+            let _ = reader.join();
+        }
+    });
+    loop {
+        match receiver.recv_timeout(std::time::Duration::from_millis(100)) {
+            Ok(output) => pumped.pass(output, on_output),
+            Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {
+                if !pumped.timed_out && started.elapsed() > timeout {
+                    pumped.timed_out = true;
+                    stop();
+                    let _ = child.kill();
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    pumped
+}
+
+/// the result of a run from the status of its container and what its output told: a timeout,
+/// else the failed task, else the exit status
+fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), String> {
+    if pumped.timed_out {
+        return Err(t!(
+            "shared.provision.timed_out",
+            minutes = RUN_TIMEOUT.as_secs() / 60
+        )
+        .to_string());
+    }
+    match (status.success(), pumped.failed) {
+        (true, _) => Ok(()),
+        (false, Some((task, message))) => Err(t!(
+            "shared.provision.task_failed",
+            task = task,
+            message = message.unwrap_or_default()
+        )
+        .to_string()),
+        (false, None) => Err(t!(
+            "shared.provision.failed",
+            status = status.code().unwrap_or(-1)
+        )
+        .to_string()),
     }
 }
 
@@ -412,6 +451,16 @@ impl RunDir {
             path,
             container: name,
         })
+    }
+
+    /// the files of `run`: inventory, ssh configuration, known host key, public client key and
+    /// environment of the backend. The token of the events endpoint follows once it runs
+    fn write_run(&self, run: &ProvisionRun) -> Result<(), String> {
+        self.write("inventory.yml", &run.inventory())?;
+        self.write("ssh_config", &run.ssh_config())?;
+        self.write("known_hosts", &run.known_hosts())?;
+        self.write("id_ed25519.pub", &run.client_key.public_key())?;
+        self.write("backend.env", &run.backend_env())
     }
 
     /// a new file only the user can read; the container reads it as the user
