@@ -59,10 +59,26 @@ object NotesPage {
     private const val SAVED_AFTER_MS = 1_500.0
     private const val UNDO_MS = 7_000.0
 
+    /** the notes page once its notes are loaded: a note, or the text of a page without notes */
     fun open(page: Page) {
-        step("opening the notes")
+        step("opening the notes, waiting until they are loaded")
         page.navigate("/notes")
         assertThat(page.locator("button[aria-label='New note']:visible").first()).isVisible()
+        page.waitForFunction(
+            "() => document.querySelector(\"[data-testid^='note-']\") !== null || document.body.innerText.includes('No notes yet')",
+        )
+    }
+
+    /** waits until the note with `text` is on the page */
+    private fun await(
+        page: Page,
+        text: String,
+    ) {
+        page.waitForFunction(
+            "text => [...document.querySelectorAll(\"[data-testid^='note-'] textarea\")].some(area => area.value === text)",
+            text,
+            Page.WaitForFunctionOptions().setTimeout(15_000.0),
+        )
     }
 
     /** the texts of the notes on the page */
@@ -70,7 +86,7 @@ object NotesPage {
     fun texts(page: Page): List<String> =
         page.locator("[data-testid^='note-'] textarea").evaluateAll("areas => areas.map(area => area.value)") as List<String>
 
-    /** a new text note, saved */
+    /** a new text note, saved: the notes opened again have it */
     fun create(
         page: Page,
         text: String,
@@ -80,6 +96,8 @@ object NotesPage {
         page.locator("button[aria-label='New note']:visible").first().click()
         newest.fill(text)
         page.waitForTimeout(SAVED_AFTER_MS)
+        open(page)
+        await(page, text)
     }
 
     /** deletes the note with `text` and waits until its undo is over, so the backend deleted it */
@@ -87,6 +105,7 @@ object NotesPage {
         page: Page,
         text: String,
     ) {
+        await(page, text)
         val card =
             page.evaluate(
                 "text => [...document.querySelectorAll(\"[data-testid^='note-']\")]" +
