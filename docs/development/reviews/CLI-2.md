@@ -88,27 +88,12 @@ as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()
 `from_raw(..).labels()` (`server/provisioner.rs:185` does for the hash labels) or compares raw labels
 (`hetzner/mod.rs:79` does), which would limit the impact to `hash_matches`.
 
-### Smells
-
-#### CA-13 (Low): `ProviderManager`, `ProviderConfiguration` and `validate` serve only the example
-
-sakctl constructs `HetznerProviderRuntime::from_api` everywhere (`src-tauri/src/core/deployments.rs:1062, 1271,
-1392, 1444`) and checks tokens itself. `validate` (`providers/hetzner.rs:116-129`) lists every page of ssh keys to
-test a token and wraps the `ApiError` into `Error::Message`, losing the code. `#[async_trait]` on `ProviderRuntime`
-(`providers/mod.rs:20`) has no async method.
-
 ### Structure
 
 #### CA-21: `pending` as a per-run value, `diff_all` takes `&self`
 
 `diff_all` needs `&mut self` only for `pending`. A `DiffRun<'a> { providers: &'a LookupProviders, pending }` that
 implements `DiffContext` makes `diff_all` `&self`, and a plan cannot leak pending state into the next run.
-
-#### CA-22: The erased layers are duplicated
-
-`api/context.rs:57-89` and `api/registry.rs:18-128` each have an `Erased<_, _>` with an `expect`ed downcast. One
-`ErasedProvisioner` that also implements `ErasedLookupProvider` (a `Provisioner<R>` is a
-`LookupProvider<R::Lookup>` already) halves that code.
 
 ---
 
@@ -209,15 +194,6 @@ not found" (`server/provisioner.rs:63-69`) instead of the duplicate message.
 `find` fail with "invalid label selector", and with it the diff, state and apply of the deployment. Several
 selectors merge into one map (`a=1` + `a=2` collapse).
 
-### Smells
-
-#### CP-14 (Low): `DeploymentSpec` has two roles
-
-A declaration (`new`/`with_*`) and a spec reverse-engineered from labels (`declared_by`, `:800-838`, with
-`user_data_hash` and the `UserData::Hash` escape that cannot create: `server/resource.rs:16`,
-`server/provisioner.rs:297-302`). `Option` fields meaning "none for a destroy" (`deployment.rs:758-767`) encode the
-intent as nullability.
-
 ### Structure
 
 #### CP-22: Pending carries whether the dependency's value changes
@@ -273,24 +249,12 @@ remembers names to remove once they appear.
 
 ### Smells
 
-#### CD-12 (Low): One playbook failure travels on three channels
+#### ~~CD-12 (Low): One playbook failure travels on three channels~~ **fixed**
 
 The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_roles.rs:276-278`, read at
 `deployments.rs:1747`) that exists only to skip the `cloud_failure` wrapping, and the `ProvisionFailed` event.
 `failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
 message. A typed error variant removes the mutex and the second tracker (CD-25).
-
-#### CD-16 (Low): The markers are read twice per deploy
-
-Each a container and an ssh session: the plan sakctl shows (the check of the window, the plan the command line
-prints) and the plan the apply makes before it changes anything. The apply diffs again only what depends on a
-change. The plan shown could be handed to the apply instead of being made twice.
-
-#### CD-17 (Low): A runtime with a made-up location to reach `state()`
-
-`DeploymentManager::list` and `root_domains` build a `HetznerProviderRuntime` with `Location::nbg1`/`cx23`
-(`deployments.rs:1062-1066, 1271-1275`) only to call `state()`/`dns_zones()`. `DeploymentManager` and
-`ProvisionManager` are stateless unit structs; `&self` buys a tauri `State` and nothing else.
 
 ### Structure
 
