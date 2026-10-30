@@ -67,7 +67,7 @@ pub(super) fn check_root_domain(
     chosen: Option<&str>,
     name: &str,
     dns_mode: DnsMode,
-) -> Result<String, WizardError> {
+) -> Result<String, SakctlError> {
     if domains.is_empty() {
         return Err(t!("shared.deployments.no_zones").to_string().into());
     }
@@ -93,7 +93,7 @@ pub(super) fn check_root_domain(
         .into());
     };
     domain.check(name, dns_mode).map_err(|conflict| {
-        WizardError::new(
+        SakctlError::new(
             conflict_text(&domain.name, &conflict),
             conflict_exit_code(&conflict),
         )

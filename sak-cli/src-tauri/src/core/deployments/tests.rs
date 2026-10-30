@@ -213,7 +213,7 @@ fn a_name_is_checked_once_and_a_wrong_one_is_a_usage_error() {
     for wrong in ["", "Alpha", "-alpha", "a_b", &"a".repeat(MAX_NAME_LEN + 1)] {
         assert_eq!(
             checked_name(wrong),
-            Err(WizardError::new(
+            Err(SakctlError::new(
                 t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
                 EXIT_USAGE
             )),
@@ -236,7 +236,7 @@ fn a_task_is_shown_without_its_role() {
                 task: "pelle_io.sak.common : Install nftables".into()
             }
         ),
-        Some(CreateEvent::TaskStarted { task, .. }) if task == "Install nftables"
+        Some(DeploymentEvent::TaskStarted { task, .. }) if task == "Install nftables"
     ));
 }
 
@@ -256,8 +256,8 @@ fn running(smtp_password: Option<&str>, password_set: bool) -> crate::core::conf
     }
 }
 
-fn deploy() -> NewDeployment {
-    NewDeployment {
+fn deploy() -> DeploymentRequest {
+    DeploymentRequest {
         name: "alpha".into(),
         password: "p".into(),
         password_repeat: "p".into(),
@@ -276,7 +276,7 @@ fn deploy() -> NewDeployment {
 
 #[tokio::test]
 async fn nothing_is_created_in_a_location_this_sakctl_does_not_know() {
-    let unknown = NewDeployment {
+    let unknown = DeploymentRequest {
         location: Location::unknown,
         ..deploy()
     };
@@ -311,7 +311,7 @@ async fn a_wrong_name_is_a_usage_error_before_the_provider_is_asked() {
 async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_read_is_the_error() {
     // no provider token: a deploy that needs the deployment read fails, one that does not
     // never asks
-    let single = NewDeployment {
+    let single = DeploymentRequest {
         user_mode: Some(UserMode::Single),
         ..deploy()
     };
@@ -321,7 +321,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
         .unwrap();
     assert_eq!(completed.user_mode, Some(UserMode::Single));
 
-    let given = NewDeployment {
+    let given = DeploymentRequest {
         user_mode: Some(UserMode::Multi),
         admin_email: Some("admin@example.com".into()),
         smtp: Some(Smtp {
@@ -370,7 +370,7 @@ fn a_backend_that_does_not_answer_is_the_error_when_its_settings_are_needed() {
     // no label: the user mode itself is unknown
     assert!(completed_from(deploy(), &unread(None), "").is_err());
     // what is given needs nothing of the backend
-    let given = NewDeployment {
+    let given = DeploymentRequest {
         user_mode: Some(UserMode::Multi),
         admin_email: Some("admin@example.com".into()),
         smtp: Some(Smtp {
@@ -383,7 +383,7 @@ fn a_backend_that_does_not_answer_is_the_error_when_its_settings_are_needed() {
         ..deploy()
     };
     assert!(completed_from(given, &unread(Some(UserMode::Multi)), "").is_ok());
-    let single = NewDeployment {
+    let single = DeploymentRequest {
         user_mode: Some(UserMode::Single),
         ..deploy()
     };
@@ -471,7 +471,7 @@ fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
 fn the_tasks_of_the_playbook_show_on_the_row_of_the_provisioning() {
     let row = "provisioning 'sak-alpha'";
     let done = |event| match task_event(row, event) {
-        Some(CreateEvent::TaskDone {
+        Some(DeploymentEvent::TaskDone {
             resource,
             outcome,
             message,
@@ -505,12 +505,12 @@ fn the_tasks_of_the_playbook_show_on_the_row_of_the_provisioning() {
     );
     assert!(matches!(
         task_event(row, AnsibleEvent::TaskStart { task: "t".into() }),
-        Some(CreateEvent::TaskStarted { task, .. }) if task == "t"
+        Some(DeploymentEvent::TaskStarted { task, .. }) if task == "t"
     ));
     assert!(task_event(row, AnsibleEvent::PlayStart { play: "p".into() }).is_none());
     // the window reads the events by these names
     assert_eq!(
-        serde_json::to_value(CreateEvent::ProvisionFailed {
+        serde_json::to_value(DeploymentEvent::ProvisionFailed {
             resource: row.into(),
             task: None,
             message: "no".into()
@@ -583,7 +583,7 @@ fn domains() -> Vec<RootDomain> {
 #[test]
 fn a_root_domain_must_be_a_zone_of_the_project() {
     // a failure of its own, not one of the root domain conflicts
-    let en = |result: Result<String, WizardError>| {
+    let en = |result: Result<String, SakctlError>| {
         let error = result.unwrap_err();
         assert_eq!(error.exit_code, crate::core::error::EXIT_FAILED);
         error.message
@@ -644,7 +644,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
 fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
     assert_eq!(
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Domain),
-        Err(WizardError::new(
+        Err(SakctlError::new(
             t!(
                 "shared.deployments.domain_taken",
                 domain = "pelle.io",
@@ -655,7 +655,7 @@ fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
     );
     assert_eq!(
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Subdomain),
-        Err(WizardError::new(
+        Err(SakctlError::new(
             t!(
                 "shared.deployments.domain_mixed",
                 domain = "pelle.io",
@@ -675,7 +675,7 @@ fn a_root_domain_of_subdomain_deployments_takes_only_the_subdomain_mode() {
     let by = format!("gamma, {}", t!("shared.deployments.unnamed"));
     assert_eq!(
         check_root_domain(&domains(), Some("example.com"), "alpha", DnsMode::Domain),
-        Err(WizardError::new(
+        Err(SakctlError::new(
             t!(
                 "shared.deployments.subdomain_only",
                 domain = "example.com",

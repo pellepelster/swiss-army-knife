@@ -6,7 +6,7 @@ use super::*;
 /// The command itself answers when everything is done or failed
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
-pub enum CreateEvent {
+pub enum DeploymentEvent {
     Started {
         resource: String,
     },
@@ -62,9 +62,9 @@ pub enum TaskOutcome {
 }
 
 /// the event of the apply for an event of the playbook; none for an event the apply does not show
-pub(crate) fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEvent> {
+pub(crate) fn task_event(resource: &str, event: AnsibleEvent) -> Option<DeploymentEvent> {
     let done = |task: String, outcome, message| {
-        Some(CreateEvent::TaskDone {
+        Some(DeploymentEvent::TaskDone {
             resource: resource.to_string(),
             task: task_name(&task),
             outcome,
@@ -72,7 +72,7 @@ pub(crate) fn task_event(resource: &str, event: AnsibleEvent) -> Option<CreateEv
         })
     };
     match event {
-        AnsibleEvent::TaskStart { task } => Some(CreateEvent::TaskStarted {
+        AnsibleEvent::TaskStart { task } => Some(DeploymentEvent::TaskStarted {
             resource: resource.to_string(),
             task: task_name(&task),
         }),

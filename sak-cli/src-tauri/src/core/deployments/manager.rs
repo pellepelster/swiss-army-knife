@@ -122,13 +122,13 @@ pub(super) fn cloud_failure(
     key: &str,
     provider: ProviderType,
     error: sak_cloud::api::Error,
-) -> WizardError {
+) -> SakctlError {
     match error {
-        sak_cloud::api::Error::NotOwned { .. } => WizardError::new(
+        sak_cloud::api::Error::NotOwned { .. } => SakctlError::new(
             t!("shared.deployments.not_owned", error = error.to_string()),
             EXIT_NOT_OWNED,
         ),
-        sak_cloud::api::Error::RecreateRefused { .. } => WizardError::new(
+        sak_cloud::api::Error::RecreateRefused { .. } => SakctlError::new(
             t!(
                 "shared.deployments.recreate_refused",
                 error = error.to_string()
@@ -190,11 +190,11 @@ impl DeploymentManager {
         password: &str,
         location: Location,
         container: &ContainerRuntime,
-    ) -> Result<(NewDeployment, PlanResponse), WizardError> {
+    ) -> Result<(DeploymentRequest, PlanResponse), SakctlError> {
         let deployment = self
             .completed(
                 tokens.clone(),
-                NewDeployment::as_it_is(name, password, location),
+                DeploymentRequest::as_it_is(name, password, location),
                 "",
             )
             .await?;
@@ -209,9 +209,9 @@ impl DeploymentManager {
     pub async fn completed(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        deployment: NewDeployment,
+        deployment: DeploymentRequest,
         smtp_password: &str,
-    ) -> Result<NewDeployment, WizardError> {
+    ) -> Result<DeploymentRequest, SakctlError> {
         let incomplete = deployment.user_mode != Some(UserMode::Single)
             && (deployment.user_mode.is_none()
                 || deployment.smtp.is_none()
@@ -231,7 +231,7 @@ impl DeploymentManager {
         &self,
         tokens: &[(ProviderType, String)],
         name: &str,
-    ) -> Result<DiscoveredDeployment, WizardError> {
+    ) -> Result<DiscoveredDeployment, SakctlError> {
         let name = checked_name(name)?;
         let Some((provider, token)) = tokens
             .iter()
@@ -261,7 +261,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<Detected, WizardError> {
+    ) -> Result<Detected, SakctlError> {
         let deployment = self.find(&tokens, name).await?;
         let label = deployment
             .user_mode()
@@ -287,7 +287,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(), WizardError> {
+    ) -> Result<(), SakctlError> {
         let deployment = self.find(&tokens, name).await?;
         Ok(verify_password(&deployment, &deployment.name, password)?)
     }
@@ -299,7 +299,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<crate::core::ssh::SshTarget, WizardError> {
+    ) -> Result<crate::core::ssh::SshTarget, SakctlError> {
         let deployment = self.find(&tokens, name).await?;
         let name = deployment.name.as_str();
         verify_password(&deployment, name, password)?;
@@ -327,7 +327,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<Endpoint, WizardError> {
+    ) -> Result<Endpoint, SakctlError> {
         let deployment = self.find(&tokens, name).await?;
         Ok(endpoint(&deployment, password)?)
     }
@@ -340,7 +340,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(String, crate::core::config::RunningConfig), WizardError> {
+    ) -> Result<(String, crate::core::config::RunningConfig), SakctlError> {
         let deployment = self.find(&tokens, name).await?;
         let endpoint = endpoint(&deployment, password)?;
         let config = crate::core::config::fetch(
@@ -388,9 +388,9 @@ impl DeploymentManager {
     pub async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        deployment: &NewDeployment,
-    ) -> Result<Prepared, WizardError> {
-        let NewDeployment {
+        deployment: &DeploymentRequest,
+    ) -> Result<Prepared, SakctlError> {
+        let DeploymentRequest {
             name,
             password,
             password_repeat,
@@ -410,7 +410,7 @@ impl DeploymentManager {
         // a location Hetzner added after this release can be read, but nothing is created in it; a
         // destroy needs no location
         if location == Location::unknown && intent != Intent::Destroy {
-            return Err(WizardError::new(
+            return Err(SakctlError::new(
                 t!("shared.deployments.unknown_location", name = name),
                 crate::core::error::EXIT_USAGE,
             ));
@@ -595,7 +595,7 @@ impl DeploymentManager {
         // here, before anything is created
         let in_the_way = foreign_records(&listings, &spec);
         if intent != Intent::Destroy && !in_the_way.is_empty() {
-            return Err(WizardError::new(
+            return Err(SakctlError::new(
                 t!(
                     "shared.deployments.not_owned",
                     error = t!(
@@ -632,9 +632,9 @@ impl DeploymentManager {
     pub async fn plan(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        deployment: &NewDeployment,
+        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
-    ) -> Result<PlanResponse, WizardError> {
+    ) -> Result<PlanResponse, SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
         self.plan_prepared(&prepared, deployment, container).await
     }
@@ -643,9 +643,9 @@ impl DeploymentManager {
     pub async fn plan_prepared(
         &self,
         prepared: &Prepared,
-        deployment: &NewDeployment,
+        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
-    ) -> Result<PlanResponse, WizardError> {
+    ) -> Result<PlanResponse, SakctlError> {
         let volume = prepared.spec.data_volume().name;
         let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
             run,
@@ -673,7 +673,7 @@ impl DeploymentManager {
                         None if provisioning => PlannedKind::Provisioning,
                         // the registry is built here, of the kinds above only
                         None => {
-                            return Err(WizardError::from(format!(
+                            return Err(SakctlError::from(format!(
                                 "{} is of no kind sakctl knows",
                                 diff.resource.log_text
                             )));
@@ -735,7 +735,7 @@ impl DeploymentManager {
                         changes: Vec::new(),
                     })
                 }))
-                .collect::<Result<Vec<_>, WizardError>>()?,
+                .collect::<Result<Vec<_>, SakctlError>>()?,
         })
     }
 
@@ -747,13 +747,13 @@ impl DeploymentManager {
     /// so the next run finishes a run that failed. A destroy removes the dns records of the
     /// deployment, then every resource but the data volume (also that with `delete_data`),
     /// dependents first
-    pub async fn create(
+    pub async fn prepare_and_apply(
         &self,
         tokens: Vec<(ProviderType, String)>,
-        deployment: &NewDeployment,
+        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
-        on_event: &mut (dyn FnMut(CreateEvent) + Send),
-    ) -> Result<(), WizardError> {
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
         self.apply(prepared, deployment, container, on_event).await
     }
@@ -762,10 +762,10 @@ impl DeploymentManager {
     pub async fn apply(
         &self,
         prepared: Prepared,
-        deployment: &NewDeployment,
+        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
-        on_event: &mut (dyn FnMut(CreateEvent) + Send),
-    ) -> Result<(), WizardError> {
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakctlError> {
         if deployment.intent == Intent::Destroy {
             self.remove_records(&prepared, on_event)
                 .await
@@ -782,10 +782,10 @@ impl DeploymentManager {
                 .map_err(|error| error.to_string())?;
             let mut report = |event: ApplyEvent| {
                 let event = match event {
-                    ApplyEvent::Started(resource) => CreateEvent::Started {
+                    ApplyEvent::Started(resource) => DeploymentEvent::Started {
                         resource: resource.log_text,
                     },
-                    ApplyEvent::Destroyed(resource, gone) => CreateEvent::Destroyed {
+                    ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
                         resource: resource.log_text,
                         text: destroyed_key(gone),
                     },
@@ -807,7 +807,7 @@ impl DeploymentManager {
         }
         // the events of the resources and of the playbook go through one channel to `on_event`
         // while the registry applies; it closes when the registry and its report are gone
-        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<CreateEvent>();
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
         let server_changed = Arc::new(AtomicBool::new(false));
         let failure = Arc::new(Mutex::new(None));
         let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
@@ -827,7 +827,7 @@ impl DeploymentManager {
                 // markers say
                 let mut report = |event: ApplyEvent| {
                     let event = match event {
-                        ApplyEvent::Started(resource) => CreateEvent::Started {
+                        ApplyEvent::Started(resource) => DeploymentEvent::Started {
                             resource: resource.log_text,
                         },
                         ApplyEvent::Applied(result) => {
@@ -842,7 +842,7 @@ impl DeploymentManager {
                             {
                                 provisioned.store(true, Ordering::SeqCst);
                             }
-                            CreateEvent::Applied {
+                            DeploymentEvent::Applied {
                                 resource: result.resource.log_text,
                                 text: applied_key(result.applied),
                             }
@@ -905,7 +905,7 @@ impl DeploymentManager {
                 prepared.spec.dns_mode,
                 root_domain,
             ));
-            on_event(CreateEvent::Provisioning {
+            on_event(DeploymentEvent::Provisioning {
                 message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
             });
             crate::core::config::wait_for_api(
@@ -933,10 +933,10 @@ impl DeploymentManager {
     pub(super) async fn remove_records(
         &self,
         prepared: &Prepared,
-        on_event: &mut (dyn FnMut(CreateEvent) + Send),
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> sak_cloud::api::Result<()> {
         for record in &prepared.stale_records {
-            on_event(CreateEvent::Started {
+            on_event(DeploymentEvent::Started {
                 resource: record.log_text(),
             });
         }
@@ -944,7 +944,7 @@ impl DeploymentManager {
             &prepared.runtime,
             &prepared.stale_records,
             &mut |record, gone| {
-                on_event(CreateEvent::Destroyed {
+                on_event(DeploymentEvent::Destroyed {
                     resource: record.log_text(),
                     text: destroyed_key(gone),
                 })

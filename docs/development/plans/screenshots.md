@@ -48,7 +48,7 @@ Playwright records a video of each browser context (`setRecordVideoDir`, `setRec
 ## 2. Screenshots and video of the window of sakctl
 
 The window is plain HTML and JavaScript (`sak-cli/ui`), and talks to Rust only through `window.__TAURI__.core`: 16
-commands with `invoke` (`run_checks`, `list_deployments`, `plan_deployment`, `create_deployment`, …) and `Channel` for
+commands with `invoke` (`run_checks`, `list_deployments`, `plan_deployment`, `apply_deployment`, …) and `Channel` for
 the events of the checks and of a create. Playwright shows it in Chromium, with a fake bridge in place of tauri.
 
 ### The page
@@ -69,7 +69,7 @@ The answers must be what Rust really sends, not hand-written JSON that goes out 
 - the deployments, the plan and the providers as the real types (`DeploymentResponse`, `PlanResponse`, …),
   serialized with serde from values built in the test: a deployment `demo` that is up to date, one with changes, one
   missing a resource;
-- the events of the checks and of a create (`CheckEvent`, `CreateEvent`), with the tasks of the playbook as the real
+- the events of the checks and of a create (`CheckEvent`, `DeploymentEvent`), with the tasks of the playbook as the real
   run reports them, each with a delay.
 
 A change of a type or a text changes the fixtures with the next run; a field the window reads and the fixture lacks

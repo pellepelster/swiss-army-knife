@@ -26,34 +26,34 @@ pub const EXIT_RECREATE_REFUSED: i32 = 6;
 pub const EXIT_UPDATE_AVAILABLE: i32 = 7;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WizardError {
+pub struct SakctlError {
     pub message: String,
     pub exit_code: i32,
 }
 
-impl WizardError {
+impl SakctlError {
     pub fn new(message: impl ToString, exit_code: i32) -> Self {
-        WizardError {
+        SakctlError {
             message: message.to_string(),
             exit_code,
         }
     }
 }
 
-impl From<String> for WizardError {
+impl From<String> for SakctlError {
     fn from(message: String) -> Self {
-        WizardError::new(message, EXIT_FAILED)
+        SakctlError::new(message, EXIT_FAILED)
     }
 }
 
-impl fmt::Display for WizardError {
+impl fmt::Display for SakctlError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message)
     }
 }
 
 /// the page gets only the message
-impl Serialize for WizardError {
+impl Serialize for SakctlError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.message)
     }
@@ -65,14 +65,14 @@ mod tests {
 
     #[test]
     fn an_error_is_its_message_to_the_page_and_fails_with_one_unless_told() {
-        let error = WizardError::from("no".to_string());
+        let error = SakctlError::from("no".to_string());
         assert_eq!(error.exit_code, EXIT_FAILED);
         assert_eq!(
             serde_json::to_value(&error).unwrap(),
             serde_json::json!("no")
         );
         assert_eq!(
-            WizardError::new("taken", EXIT_DOMAIN_TAKEN).to_string(),
+            SakctlError::new("taken", EXIT_DOMAIN_TAKEN).to_string(),
             "taken"
         );
     }

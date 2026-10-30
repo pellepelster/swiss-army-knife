@@ -574,8 +574,7 @@ Each a container and an ssh session: the plan's `diff_all`, the apply's own `dif
 
 `deployments.rs:1120-1124` is two doc comments merged (the first paragraph belongs to `running_config`, which has
 none at `:1222`); the `verify_password` doc (`:919-921`) says "without a hash on a resource … against the key" but
-`check_password` (`:998-1004`) uses the key only when there is no hash at all; `CreateEvent`/`create()` also serve
-deploy and destroy; `WizardError` is a leftover name.
+`check_password` (`:998-1004`) uses the key only when there is no hash at all.
 
 #### CD-19 (Low): `alive()` counts EPERM as dead
 
@@ -776,14 +775,6 @@ Nothing stops two sakctl (two machines, or the command line and the window) from
 deployment at once; the two applies can destroy and create the server at the same time. `sak-backend` locks only
 the backup, restore and maintenance on the server. **Fix:** a lock label on the ssh key of the deployment for the
 time of an apply, refused when another value is there; or record it as an accepted risk.
-
-### Smells
-
-#### R1-6 (Low): The names say "create" for create, deploy and destroy (was M4)
-
-`CreateEvent` (`core/deployments/progress.rs:9`), `DeploymentManager::create` (`core/deployments/manager.rs:750`),
-`create_deployment` (`gui/deployments.rs:157`) and `NewDeployment` serve all three intents; `WizardError` is a
-leftover name. Rename them (e.g. `ApplyEvent`, `apply`, `DeploymentRequest`, `Error`). Overlaps CD-18.
 
 ---
 

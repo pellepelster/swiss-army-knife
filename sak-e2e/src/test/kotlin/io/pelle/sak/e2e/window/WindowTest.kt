@@ -137,7 +137,7 @@ class WindowScreenshotTest {
     fun `the window in the light and the dark theme`() {
         for ((scheme, suffix) in listOf(ColorScheme.LIGHT to "", ColorScheme.DARK to "-dark")) {
             val context = browser.window(scheme)
-            val page = context.openWindow(pace = 0.05, hold = mapOf("run_checks" to CHECKS_HOLD, "create_deployment" to CREATE_HOLD))
+            val page = context.openWindow(pace = 0.05, hold = mapOf("run_checks" to CHECKS_HOLD, "apply_deployment" to CREATE_HOLD))
             fun shot(name: String) =
                 page.screenshot(
                     Page
@@ -156,9 +156,9 @@ class WindowScreenshotTest {
                             page.resume("run_checks")
                         }
                         "provisioning" -> {
-                            page.waitForHold("create_deployment")
+                            page.waitForHold("apply_deployment")
                             shot(view)
-                            page.resume("create_deployment")
+                            page.resume("apply_deployment")
                         }
                         else -> shot(view)
                     }

@@ -9,13 +9,13 @@ use super::*;
 pub(super) fn hcloud_token(
     ask: bool,
     from_env: Option<String>,
-) -> Result<HetznerToken, WizardError> {
+) -> Result<HetznerToken, SakctlError> {
     // a token copied with a line break or a space around it is the token
     if !ask && let Some(token) = from_env.filter(|token| !token.trim().is_empty()) {
         return Ok(HetznerToken(token.trim().to_string()));
     }
     if !std::io::stdin().is_terminal() {
-        return Err(WizardError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
+        return Err(SakctlError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
     }
     rpassword::prompt_password(t!("cli.hcloud_token_prompt").as_ref())
         .map(|token| HetznerToken(token.trim().to_string()))
@@ -36,12 +36,12 @@ pub(super) fn password(
     ask: bool,
     typed: Typed,
     from_env: Option<String>,
-) -> Result<(String, String), WizardError> {
+) -> Result<(String, String), SakctlError> {
     if !ask && let Some(password) = from_env.filter(|password| !password.is_empty()) {
         return Ok((password.clone(), password));
     }
     if !std::io::stdin().is_terminal() {
-        return Err(WizardError::new(t!("cli.no_password"), EXIT_USAGE));
+        return Err(SakctlError::new(t!("cli.no_password"), EXIT_USAGE));
     }
     let prompt = |prompt: std::borrow::Cow<'_, str>| {
         rpassword::prompt_password(prompt.as_ref()).map_err(|error| error.to_string())
@@ -57,12 +57,12 @@ pub(super) fn password(
 /// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed on the terminal
 /// without echo; empty when the variable is not set. Never an argument, because every process of
 /// the machine can read the arguments
-pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, WizardError> {
+pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, SakctlError> {
     if !ask {
         return Ok(from_env.unwrap_or_default());
     }
     if !std::io::stdin().is_terminal() {
-        return Err(WizardError::new(t!("cli.no_smtp_password"), EXIT_USAGE));
+        return Err(SakctlError::new(t!("cli.no_smtp_password"), EXIT_USAGE));
     }
     rpassword::prompt_password(t!("cli.smtp_password_prompt").as_ref())
         .map_err(|error| error.to_string().into())
@@ -79,10 +79,10 @@ pub(super) fn password_variable() -> Option<String> {
 }
 
 /// the name of the deployment typed on the terminal; anything else changes nothing
-pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), WizardError> {
+pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), SakctlError> {
     use std::io::Write;
     if !std::io::stdin().is_terminal() {
-        return Err(WizardError::new(
+        return Err(SakctlError::new(
             t!("cli.restore_no_terminal", name = name),
             EXIT_USAGE,
         ));

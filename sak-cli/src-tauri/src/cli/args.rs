@@ -400,8 +400,8 @@ impl DeploymentArgs {
         delete_data: bool,
         (password, password_repeat): (String, String),
         smtp_password: &str,
-    ) -> NewDeployment {
-        NewDeployment {
+    ) -> DeploymentRequest {
+        DeploymentRequest {
             name: self.name.clone(),
             password,
             password_repeat,

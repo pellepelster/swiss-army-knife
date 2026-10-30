@@ -16,7 +16,7 @@ use crate::core::ansible_roles::{AnsibleRoles, AnsibleRolesProvisioner, is_provi
 use crate::core::container::ContainerRuntime;
 use crate::core::error::{
     EXIT_DOMAIN_TAKEN, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED, EXIT_USAGE,
-    WizardError,
+    SakctlError,
 };
 use crate::core::events::{AnsibleEvent, task_name};
 use crate::core::keys::DerivedKey;

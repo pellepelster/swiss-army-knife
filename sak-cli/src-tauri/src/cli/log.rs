@@ -12,7 +12,7 @@ pub(super) fn title(kind: &str, name: &str) -> String {
     )
 }
 
-pub(super) fn print_json(value: &impl serde::Serialize) -> Result<(), WizardError> {
+pub(super) fn print_json(value: &impl serde::Serialize) -> Result<(), SakctlError> {
     let text = serde_json::to_string_pretty(value).map_err(|error| error.to_string())?;
     anstream::println!("{text}");
     Ok(())

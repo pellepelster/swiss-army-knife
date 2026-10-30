@@ -280,7 +280,7 @@ pub enum Intent {
 /// a deployment to plan and apply, as the page sends it or the command line builds it
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NewDeployment {
+pub struct DeploymentRequest {
     pub name: String,
     pub password: String,
     pub password_repeat: String,
@@ -322,10 +322,10 @@ pub struct NewDeployment {
 /// so hetzner and dns take it with the prefix and suffix of the cloud names. The only check of a
 /// name; the window calls it when the user leaves the field. A wrong name is a usage error
 /// (`EXIT_USAGE`)
-pub fn checked_name(name: &str) -> Result<&str, WizardError> {
+pub fn checked_name(name: &str) -> Result<&str, SakctlError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
-        WizardError::new(
+        SakctlError::new(
             t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
             EXIT_USAGE,
         )
@@ -333,11 +333,11 @@ pub fn checked_name(name: &str) -> Result<&str, WizardError> {
     Ok(name)
 }
 
-impl NewDeployment {
+impl DeploymentRequest {
     /// a deploy of the deployment `name` as it is: nothing given, its settings come from the
     /// deployment (`DeploymentManager::completed`)
     pub fn as_it_is(name: &str, password: &str, location: Location) -> Self {
-        NewDeployment {
+        DeploymentRequest {
             name: name.to_string(),
             password: password.to_string(),
             password_repeat: password.to_string(),

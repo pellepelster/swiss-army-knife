@@ -43,7 +43,7 @@ pub fn run() {
             deployments::open_url,
             deployments::root_domains,
             deployments::plan_deployment,
-            deployments::create_deployment,
+            deployments::apply_deployment,
             deployments::check_deployment,
             deployments::apply_checked,
             deployments::cancel_apply,

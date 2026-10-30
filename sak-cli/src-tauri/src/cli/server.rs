@@ -11,7 +11,7 @@ async fn session(
     runtime: &ContainerRuntime,
     name: &str,
     password: &str,
-) -> Result<(String, crate::core::ssh::SshTarget, &'static str), WizardError> {
+) -> Result<(String, crate::core::ssh::SshTarget, &'static str), SakctlError> {
     let name = name.trim().to_string();
     let target = manager
         .ssh_target(provider.tokens(), &name, password)
@@ -30,7 +30,7 @@ pub(super) async fn ssh(
     name: &str,
     password: &str,
     command: &[String],
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     log(
         Level::Info,
@@ -48,7 +48,7 @@ pub(super) async fn ssh(
     .map_err(|error| error.to_string())??;
     match code {
         0 => Ok(()),
-        code => Err(WizardError::new(
+        code => Err(SakctlError::new(
             t!("cli.ssh_ended", code = code).to_string(),
             code,
         )),
@@ -63,7 +63,7 @@ pub(super) async fn maintenance(
     runtime: &ContainerRuntime,
     command: &MaintenanceCommand,
     password: &str,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     use crate::core::maintenance::{self, Action, Answer};
     let args = command.args();
     let name = args.name.trim();
@@ -116,7 +116,7 @@ pub(super) async fn backup(
     runtime: &ContainerRuntime,
     name: &str,
     password: &str,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
     let directory = crate::core::backup::directory(&name)?;
@@ -158,7 +158,7 @@ pub(super) async fn restore(
     password: &str,
     file: &std::path::Path,
     yes: bool,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
     if !yes {
@@ -194,7 +194,7 @@ pub(super) async fn show_config(
     provider: &HetznerToken,
     name: &str,
     password: &str,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let (url, config) = manager
         .running_config(provider.tokens(), name, password)
         .await?;

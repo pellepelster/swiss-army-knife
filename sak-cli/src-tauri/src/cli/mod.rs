@@ -18,13 +18,13 @@ use crate::core::backup::BackupManager;
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    ADMIN_EMAIL_VARIABLE, AcmeCa, CreateEvent, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS,
-    DeploymentManager, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE, NewDeployment,
+    ADMIN_EMAIL_VARIABLE, AcmeCa, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentEvent,
+    DeploymentManager, DeploymentRequest, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE,
     PASSWORD_VARIABLE, PlanAction, ResourceStatus, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE,
     SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome,
     USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
 };
-use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, WizardError};
+use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakctlError};
 use crate::core::providers::ProviderType;
 use crate::core::update::{self, RECEIVER, Status};
 use anstyle::{AnsiColor, Style};
@@ -75,7 +75,7 @@ pub fn run(command: Command) -> i32 {
 
 /// compares sakctl with the newest release on github.com and, unless `check`, installs a newer one.
 /// With `check` a newer release ends with `EXIT_UPDATE_AVAILABLE`
-async fn update(check: bool) -> Result<i32, WizardError> {
+async fn update(check: bool) -> Result<i32, SakctlError> {
     if !update::is_release() {
         log(Level::Info, Status::NoRelease.message());
         return Ok(EXIT_OK);
@@ -149,7 +149,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     Ok(runtime)
 }
 
-async fn execute(command: ProjectCommand) -> Result<(), WizardError> {
+async fn execute(command: ProjectCommand) -> Result<(), SakctlError> {
     let manager = DeploymentManager;
     let needs = command.needs();
     // asked before the checks, because they take some time

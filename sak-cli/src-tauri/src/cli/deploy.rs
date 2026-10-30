@@ -6,7 +6,7 @@ use super::*;
 pub(super) async fn list(
     manager: &DeploymentManager,
     provider: &HetznerToken,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
         log(Level::Info, t!("shared.deployments.empty"));
@@ -69,10 +69,10 @@ pub(super) async fn list(
 pub(super) async fn plan_and_apply(
     manager: &DeploymentManager,
     provider: &HetznerToken,
-    deployment: &NewDeployment,
+    deployment: &DeploymentRequest,
     runtime: &ContainerRuntime,
     show_log: bool,
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     // the project is read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
     let plan = manager
@@ -128,26 +128,27 @@ pub(super) async fn plan_and_apply(
         .map(|resource| (resource.resource.clone(), resource.working))
         .collect();
     // a resource, then what is done to it, with the texts of the window: `Server 'alpha': created`
-    let mut report = |event: CreateEvent| match event {
-        CreateEvent::Started { resource } => {
+    let mut report = |event: DeploymentEvent| match event {
+        DeploymentEvent::Started { resource } => {
             let working = working.get(&resource).copied().unwrap_or(Working::Create);
             log(
                 Level::Info,
                 format!("{}: {}", titled(&resource), t!(working.text_key())),
             )
         }
-        CreateEvent::Applied { resource, text } | CreateEvent::Destroyed { resource, text } => {
+        DeploymentEvent::Applied { resource, text }
+        | DeploymentEvent::Destroyed { resource, text } => {
             log(Level::Info, format!("{}: {}", titled(&resource), t!(text)))
         }
-        CreateEvent::Provisioning { message } => log(Level::Info, message),
+        DeploymentEvent::Provisioning { message } => log(Level::Info, message),
         // the log keeps the text of a line of ansible without its spaces and empty lines
-        CreateEvent::Output { line } => {
+        DeploymentEvent::Output { line } => {
             if show_log && !line.trim().is_empty() {
                 log(Level::Info, format!("[ansible] {}", line.trim()))
             }
         }
         // one line for each task of the playbook when it ends; a failure as an error
-        CreateEvent::TaskDone {
+        DeploymentEvent::TaskDone {
             task,
             outcome,
             message,
@@ -168,7 +169,7 @@ pub(super) async fn plan_and_apply(
             )
         }
         // the error of the run tells what failed, the command ends with it
-        CreateEvent::TaskStarted { .. } | CreateEvent::ProvisionFailed { .. } => {}
+        DeploymentEvent::TaskStarted { .. } | DeploymentEvent::ProvisionFailed { .. } => {}
     };
     manager
         .apply(prepared, deployment, runtime, &mut report)

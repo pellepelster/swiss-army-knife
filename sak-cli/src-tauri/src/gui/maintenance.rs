@@ -5,7 +5,7 @@
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentManager;
-use crate::core::error::WizardError;
+use crate::core::error::SakctlError;
 use crate::core::maintenance::{self, Line};
 use crate::core::providers::ProviderTokens;
 use crate::gui::state::RunningWork;
@@ -39,7 +39,7 @@ pub async fn run_maintenance(
     running: State<'_, RunningWork>,
     request: MaintenanceRequest,
     on_line: Channel<String>,
-) -> Result<Vec<Line>, WizardError> {
+) -> Result<Vec<Line>, SakctlError> {
     let name = request.name.trim();
     let action = match request.action {
         Action::Status => maintenance::Action::Status,

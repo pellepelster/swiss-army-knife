@@ -3,10 +3,10 @@
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
-    CreateEvent, DeploymentDefaults, DeploymentManager, DeploymentResponse, LocationResponse,
-    NewDeployment, PlanResponse, RootDomainResponse, defaults,
+    DeploymentDefaults, DeploymentEvent, DeploymentManager, DeploymentRequest, DeploymentResponse,
+    LocationResponse, PlanResponse, RootDomainResponse, defaults,
 };
-use crate::core::error::WizardError;
+use crate::core::error::SakctlError;
 use crate::core::providers::{ProviderTokens, ProviderType};
 use crate::gui::state::{CheckedDeployment, RunningWork};
 use rust_i18n::t;
@@ -79,8 +79,8 @@ pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
-    deployment: NewDeployment,
-) -> Result<PlanResponse, WizardError> {
+    deployment: DeploymentRequest,
+) -> Result<PlanResponse, SakctlError> {
     let tokens = tokens.tokens();
     manager.plan(tokens, &deployment, &container).await
 }
@@ -104,7 +104,7 @@ pub async fn check_deployment(
     name: String,
     password: String,
     location: sak_cloud::hetzner::api::Location,
-) -> Result<CheckResponse, WizardError> {
+) -> Result<CheckResponse, SakctlError> {
     let number = checked.start();
     let (deployment, plan) = manager
         .check(tokens.tokens(), &name, &password, location, &container)
@@ -132,13 +132,13 @@ pub async fn apply_checked(
     running: State<'_, RunningWork>,
     checked: State<'_, CheckedDeployment>,
     deploy: CheckedDeploy,
-    on_event: Channel<CreateEvent>,
-) -> Result<(), WizardError> {
+    on_event: Channel<DeploymentEvent>,
+) -> Result<(), SakctlError> {
     let CheckedDeploy { check, force } = deploy;
     let deployment = checked
         .take(check)
         .ok_or_else(|| t!("ui.deployment.not_checked").to_string())?;
-    let deployment = NewDeployment {
+    let deployment = DeploymentRequest {
         force,
         ..deployment
     };
@@ -154,14 +154,14 @@ pub async fn apply_checked(
 }
 
 #[tauri::command]
-pub async fn create_deployment(
+pub async fn apply_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
     running: State<'_, RunningWork>,
-    deployment: NewDeployment,
-    on_event: Channel<CreateEvent>,
-) -> Result<(), WizardError> {
+    deployment: DeploymentRequest,
+    on_event: Channel<DeploymentEvent>,
+) -> Result<(), SakctlError> {
     apply(
         &manager,
         tokens.tokens(),
@@ -179,16 +179,16 @@ async fn apply(
     tokens: Vec<(ProviderType, String)>,
     container: &ContainerRuntime,
     running: &RunningWork,
-    deployment: &NewDeployment,
-    on_event: &Channel<CreateEvent>,
-) -> Result<(), WizardError> {
+    deployment: &DeploymentRequest,
+    on_event: &Channel<DeploymentEvent>,
+) -> Result<(), SakctlError> {
     // a progress event that cannot be sent is no reason to stop the apply
     let mut report = |event| {
         let _ = on_event.send(event);
     };
     running
         .run(
-            manager.create(tokens, deployment, container, &mut report),
+            manager.prepare_and_apply(tokens, deployment, container, &mut report),
             "shared.deployments.cancelled",
         )
         .await

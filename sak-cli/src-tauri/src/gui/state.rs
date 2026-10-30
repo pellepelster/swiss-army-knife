@@ -1,7 +1,7 @@
 //! what the window keeps between its commands: the work that runs and the deploy the last check
 //! planned
 
-use crate::core::deployments::NewDeployment;
+use crate::core::deployments::DeploymentRequest;
 use futures_util::future::{AbortHandle, Abortable};
 use rust_i18n::t;
 use std::sync::Mutex;
@@ -46,7 +46,7 @@ struct Checks {
     /// the number of the newest check that started
     newest: u64,
     /// the newest check that ended, with its number
-    done: Option<(u64, NewDeployment)>,
+    done: Option<(u64, DeploymentRequest)>,
 }
 
 impl CheckedDeployment {
@@ -62,7 +62,7 @@ impl CheckedDeployment {
     }
 
     /// keeps the deploy of the check `number`, unless a newer check started meanwhile
-    pub(crate) fn done(&self, number: u64, deployment: NewDeployment) {
+    pub(crate) fn done(&self, number: u64, deployment: DeploymentRequest) {
         let mut checks = self
             .0
             .lock()
@@ -73,7 +73,7 @@ impl CheckedDeployment {
     }
 
     /// the deploy of the check `number`, once; none when it is not the newest check that ended
-    pub(crate) fn take(&self, number: u64) -> Option<NewDeployment> {
+    pub(crate) fn take(&self, number: u64) -> Option<DeploymentRequest> {
         let mut checks = self
             .0
             .lock()
@@ -92,8 +92,8 @@ impl CheckedDeployment {
 mod tests {
     use super::*;
 
-    fn deployment(name: &str) -> NewDeployment {
-        NewDeployment::as_it_is(name, "", sak_cloud::hetzner::api::Location::nbg1)
+    fn deployment(name: &str) -> DeploymentRequest {
+        DeploymentRequest::as_it_is(name, "", sak_cloud::hetzner::api::Location::nbg1)
     }
 
     #[test]

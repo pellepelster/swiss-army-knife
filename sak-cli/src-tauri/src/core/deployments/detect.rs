@@ -78,10 +78,10 @@ pub(super) fn detect(
 /// tells (the user mode, or the admin and mail server of multi user) and that could not be read,
 /// the reason it could not is the error, not a missing value later
 pub(super) fn completed_from(
-    deployment: NewDeployment,
+    deployment: DeploymentRequest,
     detected: &Detected,
     smtp_password: &str,
-) -> Result<NewDeployment, WizardError> {
+) -> Result<DeploymentRequest, SakctlError> {
     let deployment = complete(deployment, detected, smtp_password)?;
     let lacking = match deployment.user_mode {
         None => true,
@@ -105,10 +105,10 @@ pub(super) fn completed_from(
 /// older backend does not answer the password; then the password must be given, because a deploy
 /// without it removes it
 pub(super) fn complete(
-    mut deployment: NewDeployment,
+    mut deployment: DeploymentRequest,
     detected: &Detected,
     smtp_password: &str,
-) -> Result<NewDeployment, WizardError> {
+) -> Result<DeploymentRequest, SakctlError> {
     if deployment.user_mode.is_none() {
         deployment.user_mode = detected.user_mode;
     }
@@ -124,7 +124,7 @@ pub(super) fn complete(
         let password = match (smtp_password, &smtp.password) {
             ("", Some(running)) => running.clone(),
             ("", None) if smtp.password_set => {
-                return Err(WizardError::new(
+                return Err(SakctlError::new(
                     t!("shared.deployments.smtp_password_needed"),
                     crate::core::error::EXIT_USAGE,
                 ));

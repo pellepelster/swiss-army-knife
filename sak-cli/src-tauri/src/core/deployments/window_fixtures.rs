@@ -159,13 +159,13 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
         };
         events.push(after(
             150,
-            CreateEvent::Started {
+            DeploymentEvent::Started {
                 resource: resource.clone(),
             },
         ));
         events.push(after(
             busy,
-            CreateEvent::Applied {
+            DeploymentEvent::Applied {
                 resource,
                 text: applied_key(Applied::Created),
             },
@@ -174,13 +174,13 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     let resource = provisioning(spec);
     events.push(after(
         150,
-        CreateEvent::Started {
+        DeploymentEvent::Started {
             resource: resource.clone(),
         },
     ));
     events.push(after(
         400,
-        CreateEvent::Provisioning {
+        DeploymentEvent::Provisioning {
             message: t!(
                 "shared.provision.running",
                 name = spec.resource_name(),
@@ -192,7 +192,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     for (index, task) in TASKS.iter().enumerate() {
         events.push(after(
             150,
-            CreateEvent::TaskStarted {
+            DeploymentEvent::TaskStarted {
                 resource: resource.clone(),
                 task: task.to_string(),
             },
@@ -213,7 +213,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
         };
         events.push(after(
             busy,
-            CreateEvent::TaskDone {
+            DeploymentEvent::TaskDone {
                 resource: resource.clone(),
                 task: task.to_string(),
                 outcome,
@@ -223,7 +223,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     }
     events.push(after(
         300,
-        CreateEvent::Applied {
+        DeploymentEvent::Applied {
             resource,
             text: applied_key(Applied::Created),
         },
@@ -235,7 +235,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     ));
     events.push(after(
         2_000,
-        CreateEvent::Provisioning {
+        DeploymentEvent::Provisioning {
             message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
         },
     ));
@@ -395,7 +395,7 @@ fn window_fixtures() {
             "check_deployment": [plan(&spec, Intent::Deploy)],
             "check_deployment_password": [null],
             "cancel_apply": [null],
-            "create_deployment": [null],
+            "apply_deployment": [null],
             "open_url": [null],
             "quit": [null],
             "run_checks": [null],
@@ -404,7 +404,7 @@ fn window_fixtures() {
         // the events a command sends to its channel before it answers
         "channels": {
             "run_checks": checks(),
-            "create_deployment": create(&spec),
+            "apply_deployment": create(&spec),
         },
     });
     let path = std::env::var("SAK_WINDOW_FIXTURES")

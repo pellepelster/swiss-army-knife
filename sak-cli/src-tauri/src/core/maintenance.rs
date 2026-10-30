@@ -4,7 +4,7 @@
 //! The answers as lines are the same on the command line and in the window
 
 use crate::core::deployments::DeploymentManager;
-use crate::core::error::WizardError;
+use crate::core::error::SakctlError;
 use crate::core::providers::ProviderType;
 use crate::core::sak_backend;
 use crate::core::ssh::SshTarget;
@@ -192,7 +192,7 @@ pub async fn perform(
     password: &str,
     action: Action,
     on_line: impl FnMut(String) + Send + Clone + 'static,
-) -> Result<Answer, WizardError> {
+) -> Result<Answer, SakctlError> {
     let target = manager.ssh_target(tokens.clone(), name, password).await?;
     let runtime = container
         .get()
@@ -370,7 +370,7 @@ async fn wait_after_reboot(
     name: &str,
     password: &str,
     on_line: &mut (dyn FnMut(String) + Send),
-) -> Result<(), WizardError> {
+) -> Result<(), SakctlError> {
     let endpoint = manager.public_endpoint(tokens, name, password).await?;
     // the server goes down some seconds after the answer; before that it answers no request,
     // the ingress stopped first

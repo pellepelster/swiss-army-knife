@@ -126,7 +126,7 @@ function onEvent(message) {
 
 // runs `deployment` with the rows of `plan`; `afterDone` is what done opens. `start` starts the
 // apply in rust with the channel of its events: the deployment as it is, or the checked one
-async function run(plan, deployment, afterDone, start = (channel) => invoke('create_deployment', { deployment, onEvent: channel })) {
+async function run(plan, deployment, afterDone, start = (channel) => invoke('apply_deployment', { deployment, onEvent: channel })) {
   running = { deployment, afterDone };
   const { intent } = deployment;
   document.getElementById('run-title').textContent = text(`ui.plan.title_${intent}`);

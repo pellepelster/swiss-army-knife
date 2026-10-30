@@ -7,7 +7,7 @@
 //! destroy: the markers go with the server. sakctl declares it, sak-cloud does not know ansible
 
 use crate::core::container::ContainerRuntime;
-use crate::core::deployments::CreateEvent;
+use crate::core::deployments::DeploymentEvent;
 use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
 use crate::core::roles;
 use crate::core::ssh::{SSH_FAILED, SshTarget, Stream, run_streaming};
@@ -98,12 +98,12 @@ pub struct AnsibleRolesProvisioner {
     /// set by the run when it created or changed the server; the registry forgets what is pending
     /// once it applies
     pub server_changed: Arc<AtomicBool>,
-    pub events: Option<UnboundedSender<CreateEvent>>,
+    pub events: Option<UnboundedSender<DeploymentEvent>>,
     pub failure: Arc<Mutex<Option<String>>>,
 }
 
 impl AnsibleRolesProvisioner {
-    fn send(&self, event: CreateEvent) {
+    fn send(&self, event: DeploymentEvent) {
         if let Some(events) = &self.events {
             let _ = events.send(event);
         }
@@ -231,7 +231,7 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
             ))
         })?;
         let name = resource.as_lookup().log_text();
-        self.send(CreateEvent::Provisioning {
+        self.send(DeploymentEvent::Provisioning {
             message: t!(
                 "shared.provision.running",
                 name = run.name.as_str(),
@@ -250,10 +250,10 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
         let mut failed_task = None;
         while let Some(output) = receiver.recv().await {
             let event = match output {
-                ProvisionOutput::Line(line) => Some(CreateEvent::Output { line }),
+                ProvisionOutput::Line(line) => Some(DeploymentEvent::Output { line }),
                 ProvisionOutput::Event(event) => crate::core::deployments::task_event(&name, event),
             };
-            if let Some(CreateEvent::TaskDone {
+            if let Some(DeploymentEvent::TaskDone {
                 task,
                 outcome:
                     crate::core::deployments::TaskOutcome::Failed
@@ -271,7 +271,7 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
             .await
             .map_err(|error| Error::message(error.to_string()))?;
         if let Err(message) = result {
-            self.send(CreateEvent::ProvisionFailed {
+            self.send(DeploymentEvent::ProvisionFailed {
                 resource: name,
                 task: failed_task,
                 message: message.clone(),
