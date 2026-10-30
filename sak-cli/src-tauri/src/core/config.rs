@@ -7,13 +7,14 @@ use crate::core::keys::ApiKey;
 use reqwest::redirect::Policy;
 use reqwest::{Client, StatusCode};
 use rust_i18n::t;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 /// what `GET /v1/config` answers. It holds the password of the mail server, because a redeploy
-/// takes the mail server over from it (`deployments::detect`)
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+/// takes the mail server over from it (`deployments::detect`). Read from the backend only, never
+/// written: no `Serialize`, so the password cannot reach an output
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct RunningConfig {
     /// the mail server of the login links, none without the login
     pub smtp: Option<RunningSmtp>,
@@ -22,8 +23,8 @@ pub struct RunningConfig {
     pub admins: Vec<String>,
 }
 
-/// no derived Debug, the password never shows
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
+/// no derived Debug and no Serialize, the password never shows
+#[derive(Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RunningSmtp {
     pub host: String,

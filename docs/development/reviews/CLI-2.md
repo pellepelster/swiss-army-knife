@@ -299,7 +299,7 @@ path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
 has "tauri" in a comment, `deployments/window_fixtures.rs` too. **Fix:** walk `src/core` in the test; fix the
 comments.
 
-#### CU-10 (Low): `RunningSmtp` serializes its password
+#### ~~CU-10 (Low): `RunningSmtp` serializes its password~~ **fixed**
 
 `config.rs:26-40` derives `Serialize` with `password: Option<String>`. Nothing serializes it today (`cli.rs` prints
 "set"/"-"), one `print_json(&config)` away from stdout. `#[serde(skip_serializing)]` costs nothing.
