@@ -77,17 +77,6 @@ the review found them; the sections below hold the ones still open. The first re
 
 ### Bugs
 
-#### ~~CA-1 (High, confirmed): A server of an unknown type or location fails every list of deployments~~ **fixed**
-
-`hetzner/api/model.rs:12` (`Location`) and `:30` (`ServerType`) and `hetzner/api/servers.rs:11` (`ServerStatus`)
-are closed enums without a `#[serde(other)]` fallback; only `hetzner/api/error.rs:33` has one. `Server.server_type`
-and `location` are required, and `list_all` deserializes a whole page strictly. **Scenario:** the project holds one
-server of a type the enum does not know (an older generation, or a type Hetzner adds after this release) →
-`deployment::discover` (`hetzner/deployment.rs:410`) and `Listable for HetznerServerProvisioner`
-(`hetzner/server/provisioner.rs:166`) fail → sakctl cannot list deployments at all. Same shape, lower likelihood:
-`VolumeStatus` (`volumes.rs:18`), `RRType` (`zones.rs:156`). **Fix:** `Named<String>` (or an `Unknown(String)`
-variant) for what comes back from Hetzner; keep the typed enums for requests.
-
 #### CA-2 (Medium, confirmed): A recreate without owner labels passes the plan and fails half way through the apply
 
 `api/registry.rs:313` runs the plan so that nothing changes when it fails, but the owner check `self.owner()?` sits
@@ -144,8 +133,7 @@ test a token and wraps the `ApiError` into `Error::Message`, losing the code. `#
 
 #### CA-15 (Low): `Listable` is implemented six times for one test
 
-`api/provisioner.rs:17`, used by `tests/hetzner_dns.rs` only. It lists the whole project without a label filter,
-which is what makes CA-1 bite in `server/provisioner.rs:166`.
+`api/provisioner.rs:17`, used by `tests/hetzner_dns.rs` only. It lists the whole project without a label filter.
 
 #### CA-16 (Low): Stringly typed errors and states
 
@@ -194,15 +182,6 @@ implements `DiffContext` makes `diff_all` `&self`, removes `mark_pending`/`clear
 
 ### Bugs and security
 
-#### ~~CU-1 (High, confirmed): A backup or restore hangs forever on a dropped connection~~ **fixed**
-
-`ssh.rs:65-70` sets `ConnectTimeout=30` only; no `ServerAliveInterval`/`ServerAliveCountMax`. `run_streaming`
-(`ssh.rs:236-293`) blocks in `io::copy` until ssh exits. The maintenance wraps this in `limited`
-(`maintenance.rs:108-119`); `BackupManager::backup/restore` are called bare (`cli.rs:919`, `cli.rs:970`).
-**Scenario:** the network drops mid-backup → ssh waits for the TCP keepalive (hours), sakctl shows nothing, the
-`.partial` file stays. **Fix:** `-o ServerAliveInterval=15 -o ServerAliveCountMax=4` (and `BatchMode=yes`) in
-`ssh_arguments`; a `limited` around backup and restore.
-
 #### CU-2 (Medium, confirmed): A maintenance timeout stops every tracked run, not its own session
 
 `maintenance.rs:115` calls `provision::stop_runs()`, which drains the global `RUNS` and removes all containers and
@@ -239,19 +218,7 @@ to the accepted risks.
 which waits forever. A daemon that accepts the connection but never answers hangs the splash screen. The bollard
 path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
 
-#### ~~CU-9 (Low, confirmed): The boundary test lists its files by hand and omits the ones that would fail it~~ **fixed**
-
-`core_knows_neither_tauri_nor_clap` (`mod.rs:48-78`) omits `ssh.rs`, `events.rs` and `deployments/*.rs`. `ssh.rs:180`
-has "tauri" in a comment, `deployments/window_fixtures.rs` too. **Fix:** walk `src/core` in the test; fix the
-comments.
-
 ### Smells
-
-#### ~~CU-15 (Low): Five copies of hex encoding, three of random bytes~~ **fixed**
-
-Hex: `keys.rs:86`, `providers/hetzner.rs:91`, `config.rs:109-112`, `update.rs:303-306`, `provision.rs:557`. Random:
-`hetzner::random<N>` (`hetzner.rs:85`), `provision::random_hex` (`provision.rs:554`), `events::random_token`
-(`events.rs:183`).
 
 #### CU-16 (Low): `BackupManager` is a unit struct with `&self` methods
 
@@ -270,31 +237,18 @@ progress disappeared.
 
 `run_streaming` returns or takes a handle that removes its own `SessionContainer`; `limited` stops that handle
 instead of `stop_runs()`. With `ServerAlive*`/`BatchMode` in `ssh_arguments` and a `limited` around backup and
-restore this resolves CU-1, CU-2.
+restore this resolves CU-2.
 
-#### CU-22: Smaller moves
+#### CU-22: Split `container.rs`
 
 - Split `container.rs`: runtime detection, canary and `command()` stay; `PullProgress` and the bollard pull go to
   `container/pull.rs`; `block_on` to a small `core::runtime`.
-- ~~One `core::encoding` (or `keys::hex`/`keys::random`) for hex and random bytes (CU-15).~~ Done.
-- The boundary test walks `src/core` instead of a list (CU-9).
 
 ---
 
 ## CP: sak-cloud, deployment and provisioners
 
 ### Bugs
-
-#### ~~CP-1 (High, confirmed): One odd deployment fails the whole list of deployments~~ **fixed**
-
-`hetzner/deployment.rs:800-812` `declared_by` passes `""` as the public key when the deployment has no ssh key;
-`hetzner/ssh_key/provisioner.rs:87` `fingerprint("")?` fails, so `deployment.rs:561` `diff_all()?` fails and
-`state()` returns `Err`; `src-tauri/src/core/deployments.rs:1071-1073` propagates it with `?` for every discovered
-deployment. **Scenario:** a destroy without `delete_data` keeps the volume with its name label → the next listing
-says "invalid ssh public key" and shows no deployment at all. The same path hides every deployment when one has
-resources in two locations (`:802-805`), a `NotOwned` resource of its name, or a `RecreateRefused` on its volume
-(`refuse_recreate` inside `diff_all`, CA-2). **Fix:** `state()` is total, an error per resource or deployment; an
-empty declared key diffs as unknown instead of failing.
 
 #### CP-2 (Medium): A server apply can leave the server powered off; an ip it already has is not unassigned
 
@@ -354,7 +308,7 @@ checks `volume.server` only, never `status`.
 
 `deployment.rs:413-446`: a second server, key or firewall with the name label is dropped with a warning;
 `:448-457` every volume and ip is collected; `declared_by:835` takes `volumes.first()` as the data volume, so a
-second labelled volume listed first sets the declared size (then CP-1). Only the ssh key knows `Duplicate`
+second labelled volume listed first sets the declared size. Only the ssh key knows `Duplicate`
 (`ssh_key/provisioner.rs:90-109`); with the server present and its key renamed, the server diff fails with "ssh key
 not found" (`server/provisioner.rs:63-69`) instead of the duplicate message.
 
@@ -407,27 +361,6 @@ the ARCHITECTURE sentence.
 
 ### Bugs
 
-#### ~~CD-1 (High, confirmed): A multi-user deploy is impossible, with a misleading error, when the backend does not answer~~ **fixed**
-
-`deployments.rs:1109-1116` (`detected`) turns any failure of `running_config` into `None` with `.ok()`; both
-callers swallow again (`gui/deployments.rs:152-153`, `cli.rs:665-669` `if let Ok(detected)`). `complete`
-then leaves `smtp = None` (`deployments.rs:849`), and `prepare` fails with `shared.deployments.invalid_smtp_host`
-(`:1368-1370`). **Scenario:** the backend is down, the certificate expired or the DNS broken on a multi-user
-deployment — exactly when a redeploy is wanted → window and command line say "invalid smtp host", the window has no
-way to supply the mail server, the cause (TLS, 5xx, wrong password) is lost. **Fix:** `detected` distinguishes
-"labels only" from "the backend did not answer: <cause>"; `prepare` says "mail server unknown, give it".
-
-#### ~~CD-2 (Medium, confirmed): A destroy plan runs through the create registry and its recreate refusal~~ **fixed**
-
-`plan_prepared` (`deployments.rs:1538`) calls `Prepared::registry` (`:743-746`), which is `spec.registry()` for
-every intent, with `.recreatable(server, ssh_key)`; `diff_all` calls `refuse_recreate`. The volume provisioner marks
-a smaller-than-declared volume as a recreate (`cloud/hetzner/volume/provisioner.rs:79-84`), the primary ips type and
-location likewise. **Scenario:** `sakctl destroy` of a deployment whose volume is smaller than the current default
-(an older sakctl, or `data_volume_gb` raised) → `EXIT_RECREATE_REFUSED` "volume would have to be created anew",
-although a destroy creates nothing. The apply uses `destroy_registry` (`:1658-1661`), so plan and apply disagree on
-which resources are diffed. The destroy spec also omits the user_mode, acme and version labels and uses the dns_mode
-default (`:1445-1485`), so a destroy plan shows "has_changes" for a domain-mode deployment. See CD-24.
-
 #### CD-3 (Medium): The version label of the server can stay stale for good
 
 `apply` sets `VERSION_LABEL` only after `wait_for_api` succeeds (`deployments.rs:1790-1806`). When the wait times
@@ -464,17 +397,6 @@ the container starts on the detached blocking thread and ansible runs to complet
 says "cancelled". **Fix:** `ProvisionManager::provision` checks a stopped flag after the spawn, or `stop_runs`
 remembers names to remove once they appear.
 
-#### ~~CD-8 (Low): The usage exit code is lost~~ **fixed**
-
-`checked_name(..).map_err(|error| error.message)` in `detected`, `check_password`, `ssh_target`,
-`public_endpoint`, `running_config` (`deployments.rs:1093, 1131, 1155, 1195, 1228`) turns `EXIT_USAGE` into
-`EXIT_FAILED`, because these return `Result<_, String>` while `prepare` returns `WizardError`.
-
-#### ~~CD-9 (Low): Costly work for a destroy~~ **fixed**
-
-`prepare` computes `admin_password_hash` (argon2id 64 MiB × 3, not derived from the cached master key) for every
-intent (`deployments.rs:1512`), plus the host key and the user data, which a destroy never uses.
-
 #### CD-10 (Low): A destroy with leftover records without a hash label says "unverifiable"
 
 `deployments.rs:1416-1425`: records of an old deployment with the name label but no hash → `check_password` says
@@ -482,13 +404,6 @@ intent (`deployments.rs:1512`), plus the host key and the user data, which a des
 `cloud/hetzner/deployment.rs:302-322`). The user should hear "nothing of the deployment is left".
 
 ### Smells
-
-#### ~~CD-11 (Medium): Five copies of "find the token → discover → find by name → not_found → verify_password"~~ **fixed**
-
-`deployments.rs:1094-1107, 1132-1144, 1156-1168, 1196-1208, 1229-1242`. `detected` discovers twice (`:1101`, and
-again via `running_config` at `:1112`: ten list calls); `public_endpoint` and `running_config` duplicate the trust
-and address derivation (`:1209-1218` vs `:1243-1253`); `apply` discovers a third time after the provisioning
-(`:1766-1774`) although `run.host` holds the address. See CD-23.
 
 #### CD-12 (Low): One playbook failure travels on three channels
 
@@ -549,18 +464,16 @@ list (`:26-68`), which drift from `DeploymentSpec::registry` and the playbook.
 
 ### Structure
 
-#### CD-23: One `find_deployment` and one `Endpoint`
+#### CD-23: The wait after the provisioning discovers the deployment again
 
-`find_deployment(tokens, name) -> (ProviderType, Arc<HetznerApi>, DiscoveredDeployment)` and
-`Endpoint { url, trust, address }` built once; `detected`, `check_password`, `ssh_target`, `public_endpoint`,
-`running_config` and the wait in `apply` use them and return `WizardError`. Resolves CD-8, CD-11. *Done, except
-the wait in `apply`, which still discovers the deployment after the provisioning.*
+`DeploymentManager::find` and `Endpoint` serve every lookup of a deployment but one: the wait in `apply` still
+discovers the deployment after the provisioning, although `run.host` holds the address.
 
 #### CD-24: A typed intent on `Prepared`
 
 `Create { provisioning }`, `Deploy { provisioning }`, `Destroy { delete_data }`; a destroy gets its own
 `plan_destroy`/`destroy` pair that builds `destroy_registry` for plan and apply; `ProvisionRun` is built for create
-and deploy only. Resolves CD-2, CD-9, CD-14.
+and deploy only. Resolves CD-14.
 
 #### CD-25: sak-cloud tells the provisioners what was applied with a change
 
@@ -602,7 +515,7 @@ default (`cli.rs:264`); the window needs `Option<Location>` and the same fallbac
 wording: `smtp_password_needed` "give it again with SAK_SMTP_PASSWORD" (`en.yml:106`), and via `prepare`
 `no_user_mode` "(--user-mode)" (`:109`), `invalid_smtp_host` "(--smtp-host)" (`:110`), `invalid_admin_email`
 "(--admin-email)" (`:113`), `deploy_without_root_domain` "--root-domain" (`:104`), `config.no_root_domain` (`:139`).
-**Scenario:** a multi-user deployment whose backend does not answer the smtp password (CD-1) → the page says to
+**Scenario:** a multi-user deployment whose backend does not answer the smtp password → the page says to
 set an environment variable. Either `ui.`/`cli.` variants, or the window gets the fields to supply what is missing.
 
 #### UI-8 (Low, suspected): `RunningApply` can lose the running handle when two runs overlap
@@ -635,13 +548,6 @@ show_log)` (`:1071`), `quit(failed)` (`gui/checks.rs:46`), `apply_checked(force)
 failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`). *`password` takes `Typed::Once`/`Typed::Twice`; the others carry a
 named flag of the command line or the page through and stay bools.*
 
-#### ~~UI-18 (Low): Six copies of `setStatus`, five hand-rolled `%{…}` substitutions~~ **fixed**
-
-`providers.js:73`, `deployments.js:89`, `password.js:46`, `deployment.js:30`, `create.js:254`, `run.js:45`,
-`maintenance.js:26`; `replaceAll('%{name}')` in `deployment.js:122`, `create.js:52, 176`, `run.js:133`,
-`deployment.js:91`, plus `fill()` in `update.js:16`. One `text(key, values)` and one `status(element, message,
-failed)` in `views.js`.
-
 ### Structure
 
 #### UI-25: A small router in `views.js`, no dynamic `import()`
@@ -652,7 +558,7 @@ used only inside handlers, so static imports in a cycle work in ES modules. A ro
 showDeployments)`, `navigate('deployments', data)` — hands each view a generation token (`const gen =
 enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-written `current !== shown` /
 `running === current` guards (`deployment.js:81, 93, 98`, `run.js:164, 171`, `maintenance.js:50, 56, 61, 65`,
-`password.js:61`) and fixes UI-2. `text(key, values)` and `status()` live there too (UI-18).
+`password.js:61`) and fixes UI-2.
 
 ---
 
