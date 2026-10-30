@@ -9,7 +9,7 @@ The apps in chromium, against the local environment:
 
 ```sh
 mise run local:run              # ingress, victorialogs, vector, mailpit, the backend and the frontend
-mise run e2e:test:local         # in another terminal, once `mise run local:run` lists the addresses
+mise run test:e2e:local         # in another terminal, once `mise run local:run` lists the addresses
 ```
 
 The login tests read the links from mailpit (http://localhost:8025) and sign in as
@@ -49,7 +49,7 @@ The command line of sakctl, against the Hetzner Cloud project of `HCLOUD_TOKEN` 
 when not set):
 
 ```sh
-mise run e2e:test:integration   # builds sakctl, then runs the tests
+mise run test:e2e:integration   # builds sakctl, then runs the tests
 ```
 
 The tests create, provision and destroy real servers, so a run takes long and costs money.

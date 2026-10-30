@@ -105,7 +105,10 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "reporters": ["default", ["junit", { "outputFile": "build/test-results/unit/junit.xml" }]]
+          }
         }
       }
     }

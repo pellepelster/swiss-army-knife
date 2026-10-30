@@ -2,7 +2,7 @@
 # the tests of sak-backup and sak-restore (templates/), in docker: a debian 13 like the servers
 # next to a real victorialogs of the image the role pins, sharing its network; systemctl and
 # podman are stubs, the backend is a static answer of /api/v1/info. Run by `mise run
-# ansible:backup:test`
+# test:backend:integration`
 set -euo pipefail
 
 role=$(cd "$(dirname "$0")/.." && pwd)

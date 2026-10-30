@@ -183,9 +183,9 @@ Integration (need `HCLOUD_TOKEN`, skip themselves without one, so `cargo test` r
 * `tests/support/hetzner.rs`: test id label on everything, cleanup of every resource with
   that label on drop, also after a failed assertion
 
-mise task `cli:cloud:test` (in the root `mise.toml`): `cargo test` with `HCLOUD_TOKEN`
-from `pass show hetzner/pelle.io/hcloud_api_token` when not set; the github workflow runs
-it after `cli:test`, without a token.
+mise tasks `test:cli:unit` (`cargo test --lib`) and `test:cli:integration` (`cargo test
+--test '*'` with `HCLOUD_TOKEN` from `pass show hetzner/pelle.io/hcloud_api_token` when not
+set) in the root `mise.toml`.
 
 ## Steps
 

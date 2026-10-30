@@ -2,8 +2,8 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import java.time.Duration
 
 // end to end tests: the local tests, the apps in a browser against the local environment
-// (e2eLocal, `mise run e2e:test:local`), and the integration tests, the command line of sakctl
-// against a real Hetzner Cloud project (e2eIntegration, `mise run e2e:test:integration`). Neither
+// (e2eLocal, `mise run test:e2e:local`), and the integration tests, the command line of sakctl
+// against a real Hetzner Cloud project (e2eIntegration, `mise run test:e2e:integration`). Neither
 // runs with `gradle test` or `gradle build`, both need more than the build has
 plugins {
     id("sak.kotlin-conventions")

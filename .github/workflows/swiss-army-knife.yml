@@ -1,6 +1,6 @@
-# builds and tests everything: the backend and the frontend with gradle, the images of the server
-# (sak-backend-images: sak-backend and sak-ingress) and of sak-cli (sak-cli-images: the tools and
-# the canary), each in a job of its own, sakctl as a native binary for linux, macOS and windows, and
+# tests and builds everything: the unit tests of the backend and the frontend first, then, when
+# they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress) and of
+# sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a native binary for linux, macOS and windows, and
 # the documentation of docs/ as a site. Only the build of a tag v<version> (mise run release)
 # publishes: the images pushed to ghcr.io as <VERSION>-rc, then all of them as <VERSION> (release),
 # and after the release the documentation as the github pages of the repository. Everything that
@@ -35,8 +35,23 @@ env:
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
-  gradle:
+  # the unit tests of the backend (mise run test:backend:unit) and of the frontend (mise run
+  # test:frontend:unit), each in a job of its own; their junit reports show as a check of the run,
+  # failed tests also when the tests fail. The images are built only when both are green
+  test-unit:
+    name: test-unit (${{ matrix.part }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: backend
+            reports: '**/build/test-results/test/*.xml'
+          - part: frontend
+            reports: sak-frontend/build/test-results/unit/*.xml
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v7
       # the jdk of the gradle toolchain, node for the frontend the build calls npm for
@@ -49,10 +64,18 @@ jobs:
           path: ~/.npm
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
-      - run: ./gradlew build
+      - run: mise run test:${{ matrix.part }}:unit
+      - if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v6
+        with:
+          check_name: unit tests (${{ matrix.part }})
+          report_paths: ${{ matrix.reports }}
+          require_tests: true
+          detailed_summary: true
 
   sak-backend-images:
     name: sak-backend-images (${{ matrix.image }})
+    needs: test-unit
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +112,7 @@ jobs:
 
   sak-cli-images:
     name: sak-cli-images (${{ matrix.image }})
+    needs: test-unit
     strategy:
       fail-fast: false
       matrix:

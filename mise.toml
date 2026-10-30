@@ -220,22 +220,6 @@ gh release create "v${VERSION}" --verify-tag --title "sakctl $VERSION" \
   --notes "sakctl for linux, macOS and windows, built from $(git rev-parse --short=12 HEAD)." $files
 """
 
-# the checks run real containers with the docker or podman installed, skipped without one
-[tasks."cli:test"]
-description = "Run the tests of sakctl"
-depends = ["cli:theme"]
-dir = "{{config_root}}/sak-cli/src-tauri"
-run = "cargo test"
-
-# sak-cloud in sak-cli/cloud/, the crate that declares the cloud resources of sakctl; the tests
-# against the real hetzner cloud api need HCLOUD_TOKEN, taken from pass when not set, and
-# skip themselves without one (the github workflow has no pass)
-[tasks."cli:cloud:test"]
-description = "Run the tests of sak-cloud, those against the hetzner cloud api with the token from pass"
-dir = "{{config_root}}/sak-cli/cloud"
-env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-run = "cargo test"
-
 # the wizard on the command line, the same code as its pages: list, create [<name>],
 # deploy <name> or destroy <name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
 # environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run cli:sakctl -- create
@@ -405,13 +389,6 @@ run = """
 npx ng serve
 """
 
-# the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
-# playwright downloads its chromium on the first run
-[tasks."e2e:test:local"]
-description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
-dir = "{{config_root}}"
-run = "./gradlew :sak-e2e:e2eLocal"
-
 # the page of sakctl's window and the answers of rust for it, what the window screenshots and its
 # video show (sak-cli/src-tauri/src/core/deployments/window_fixtures.rs)
 [tasks."docs:window"]
@@ -482,10 +459,73 @@ done
 ls -lh build/videos/*.mp4 build/videos/*.gif
 '''
 
+# the tests: test:<part>:unit need nothing but the tools of mise.toml, test:<part>:integration
+# need docker, a browser or a real Hetzner Cloud project. The unit tests of the backend and the
+# frontend write junit reports to build/test-results/ of each module, the github workflow shows them
+
+# the unit tests of every gradle module of the backend; the build of sak-backend builds the
+# frontend with npm
+[tasks."test:backend:unit"]
+description = "Run the unit tests of all gradle modules of the backend"
+dir = "{{config_root}}"
+run = "./gradlew test"
+
+[tasks."test:frontend:unit"]
+description = "Run the unit tests of sak-frontend"
+dir = "{{config_root}}"
+run = "./gradlew :sak-frontend:npmTest"
+
+# sakctl and sak-cloud (sak-cli/cloud/, the crate that declares the cloud resources of sakctl);
+# the checks of sakctl that run real containers are skipped without docker or podman
+[tasks."test:cli:unit"]
+description = "Run the unit tests of sakctl and sak-cloud"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli"
+run = """
+(cd src-tauri && cargo test)
+(cd cloud && cargo test --lib)
+"""
+
+# in docker: the vector configuration the backend role deploys, with its image, and sak-backup and
+# sak-restore of the role as it renders them, next to a real victorialogs
+# (ansible/roles/backend/tests/backup-test.sh)
+[tasks."test:backend:integration"]
+description = "Run the integration tests of the backend in docker: the vector configuration, backup and restore"
+dir = "{{config_root}}"
+run = """
+./gradlew :sak-backend:vectorTest
+ansible/roles/backend/tests/backup-test.sh
+"""
+
+# the apps in a browser against the controller and a mailpit e-mail sink (docker); playwright
+# downloads its chromium on the first run
+[tasks."test:frontend:integration"]
+description = "Run the integration tests of sak-frontend: the apps in a browser against the controller"
+dir = "{{config_root}}"
+run = "./gradlew :sak-frontend:e2eTest"
+
+# the tests of sak-cloud against the real hetzner cloud api, with HCLOUD_TOKEN (from pass unless
+# set); without a token the tests would skip themselves, so the task refuses to run
+[tasks."test:cli:integration"]
+description = "Run the integration tests of sak-cloud against a real Hetzner Cloud project"
+dir = "{{config_root}}/sak-cli/cloud"
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
+run = """
+[ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN to the token of a Hetzner Cloud project" >&2; exit 1; }
+cargo test --test '*'
+"""
+
+# the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
+# playwright downloads its chromium on the first run
+[tasks."test:e2e:local"]
+description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
+dir = "{{config_root}}"
+run = "./gradlew :sak-e2e:e2eLocal"
+
 # the integration tests of sak-e2e: the command line of sakctl, built first, against the Hetzner
 # Cloud project of HCLOUD_TOKEN (from pass unless set). They create and destroy real servers
 # (test-<id>), which takes long and costs money
-[tasks."e2e:test:integration"]
+[tasks."test:e2e:integration"]
 description = "Run the integration tests of sak-e2e: sakctl against a real Hetzner Cloud project"
 dir = "{{config_root}}"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
@@ -493,13 +533,6 @@ run = """
 (cd sak-cli/src-tauri && cargo build)
 ./gradlew :sak-e2e:e2eIntegration
 """
-
-# sak-backup and sak-restore of the role backend as the role renders them, in docker next to a real
-# victorialogs (ansible/roles/backend/tests/backup-test.sh)
-[tasks."ansible:backup:test"]
-description = "Run the tests of the backup and restore scripts of the server in docker"
-dir = "{{config_root}}"
-run = "ansible/roles/backend/tests/backup-test.sh"
 
 # everything at once, each in its own process group with its log in build/local/logs; the backend
 # first, its build installs the npm dependencies of the frontend, which must not change under its

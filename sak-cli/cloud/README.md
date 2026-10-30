@@ -32,7 +32,8 @@ resources with its owner labels (`Registry::owned_by`) and refuses to destroy wi
 `examples/backend.rs` declares a backend with everything, `HCLOUD_TOKEN=... SSH_PUBLIC_KEY=...
 cargo run --example backend -- --apply`.
 
-`mise run cli:cloud:test` runs the tests; those against the real api need `HCLOUD_TOKEN`
+`mise run test:cli:unit` runs the unit tests (with those of sakctl), `mise run
+test:cli:integration` the tests against the real api. They need `HCLOUD_TOKEN`
 (taken from pass when not set) and label everything they create with a test id that is
 cleaned up at the end. [PLAN.md](PLAN.md) has the layout and the mapping to the Kotlin
 code of blcks this is a port of.

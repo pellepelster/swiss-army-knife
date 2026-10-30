@@ -7,7 +7,7 @@ weight: 1
 
 # Plan: Backup and Restore of a Deployment
 
-**Status:** Built; the integration test (`mise run e2e:test:integration`) passed against a real project on 2026-10-29
+**Status:** Built; the integration test (`mise run test:e2e:integration`) passed against a real project on 2026-10-29
 **Created:** 2026-10-29
 **Last reviewed:** 2026-10-29
 
@@ -199,7 +199,7 @@ for a lost or a deleted volume, or to go back to an earlier state.
   for another purpose), its recipient is what `age-keygen -y` gives for it, a stream that the `age` command encrypts
   to the recipient decrypts with the crate, a truncated or a changed file fails, the manifest check refuses another
   name.
-- `ansible` (`mise run ansible:backup:test`): the scripts against a container with a data directory and a
+- `ansible` (`mise run test:backend:integration`): the scripts against a container with a data directory and a
   database that a writer changes during the backup. The archive decrypts only with the identity of the
   recipient; the copy of the database passes `integrity_check`; a restore of the archive gives the same rows and
   files. A restore that fails at extraction leaves the data as it was. A victorialogs that receives lines during

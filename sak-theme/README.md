@@ -31,7 +31,7 @@ sakctl's tests check that for its `ui/style.css`.
   `sak-cli/ui/theme/` (not committed, tauri bundles that one directory); `index.html` links
   `theme/bootstrap.min.css`, `fonts.css`, `tokens.css`, `bootstrap.css` and `components.css`
   before its own `style.css`, which holds the layout alone. `cli:run`, `cli:build` and
-  `cli:test` copy first. The toolbars are button groups: the one at the bottom right moves
+  `test:cli:unit` copy first. The toolbars are button groups: the one at the bottom right moves
   through the wizard, the one at the top right acts on the data of the view.
 - sak-frontend: not wired yet. The way to do it: depend on `"sak-theme": "file:../sak-theme"`
   instead of on bootstrap, list `node_modules/sak-theme/{fonts,tokens,bootstrap,components}.css`
