@@ -249,7 +249,9 @@ pub enum Stream<'a> {
 }
 
 /// `command` on the server, without a terminal, its data through `stream`; each line it writes to
-/// its standard error goes to `on_line`, while it runs. The exit code of ssh. A stream that fails
+/// its standard error goes to `on_line`, while it runs. ssh joins the words of `command` with
+/// spaces into one line for the shell of the server, so a word is never quoted: each must be a
+/// word the shell takes as it is (no space, no quote), or the whole command one line for the shell. The exit code of ssh. A stream that fails
 /// on the side of sakctl (a full disk, a backup that does not decrypt) is the error, whatever the
 /// command answered
 pub fn run_streaming(

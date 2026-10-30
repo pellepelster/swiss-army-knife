@@ -59,10 +59,9 @@ fn role_digests() {
 /// the files below `dir` by their path relative to `root`, `/` between the parts on every
 /// platform; the tests of a role do not change what it does
 fn collect(root: &Path, dir: &Path, files: &mut Vec<(String, PathBuf)>) {
-    for entry in std::fs::read_dir(dir)
-        .expect("a directory of a role")
-        .flatten()
-    {
+    // a file that cannot be read stops the build: left out, it would change the digest of its role
+    for entry in std::fs::read_dir(dir).expect("a directory of a role") {
+        let entry = entry.expect("an entry of a directory of a role");
         let path = entry.path();
         if path.is_dir() {
             if dir == root && entry.file_name() == "tests" {

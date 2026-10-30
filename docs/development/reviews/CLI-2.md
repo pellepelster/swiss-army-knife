@@ -300,14 +300,6 @@ under a loaded CI this can flake. Count the argon2 invocations instead.
 on a comment. `pull()` discards the bollard error silently (`container.rs:130`), so the user never learns why the
 progress disappeared.
 
-#### CU-19 (Low): Small things
-
-- `build.rs:62-64` `collect` uses `.flatten()` on `read_dir` while every other failure `expect`s; an unreadable
-  file would change a role digest silently.
-- `run_streaming(.., command: &[String], ..)` joins the elements with spaces for the remote shell (`ssh.rs:76`);
-  internal callers pass safe tokens, `roles::read_command()` is one shell string already. A `command: &str`
-  signature or a doc note keeps someone from passing a filename with a space.
-
 ### Structure
 
 #### CU-21: A cancellable ssh session per call
