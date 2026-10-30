@@ -398,12 +398,19 @@ fn hcloud_token(ask: bool, from_env: Option<String>) -> Result<HetznerToken, Wiz
         .map_err(|error| error.to_string().into())
 }
 
+/// how often a password is typed: twice for a new one, so a typo does not become the password
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Typed {
+    Once,
+    Twice,
+}
+
 /// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed on the
 /// terminal without echo, two times for a create. Never an argument, because every process of the
 /// machine can read the arguments. Without SAK_PASSWORD and a terminal, a usage error
 fn password(
     ask: bool,
-    twice: bool,
+    typed: Typed,
     from_env: Option<String>,
 ) -> Result<(String, String), WizardError> {
     if !ask && let Some(password) = from_env.filter(|password| !password.is_empty()) {
@@ -412,14 +419,13 @@ fn password(
     if !std::io::stdin().is_terminal() {
         return Err(WizardError::new(t!("cli.no_password"), EXIT_USAGE));
     }
-    let typed = |prompt: std::borrow::Cow<'_, str>| {
+    let prompt = |prompt: std::borrow::Cow<'_, str>| {
         rpassword::prompt_password(prompt.as_ref()).map_err(|error| error.to_string())
     };
-    let first = typed(t!("cli.password_prompt"))?;
-    let second = if twice {
-        typed(t!("cli.password_repeat_prompt"))?
-    } else {
-        first.clone()
+    let first = prompt(t!("cli.password_prompt"))?;
+    let second = match typed {
+        Typed::Twice => prompt(t!("cli.password_repeat_prompt"))?,
+        Typed::Once => first.clone(),
     };
     Ok((first, second))
 }
@@ -569,26 +575,29 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
 async fn execute(command: Command) -> Result<(), WizardError> {
     let manager = DeploymentManager;
     // asked before the checks, because they take some time
-    let password = match &command {
-        Command::List(_) | Command::Update { .. } => None,
-        Command::Create { deployment, .. } => {
-            Some(password(deployment.password, true, password_variable())?)
-        }
-        Command::Deploy { deployment, .. } | Command::Destroy { deployment, .. } => {
-            Some(password(deployment.password, false, password_variable())?)
-        }
-        Command::Maintenance(maintenance) => Some(password(
-            maintenance.args().password,
-            false,
-            password_variable(),
-        )?),
-        Command::Config(ConfigCommand::Show { password: ask, .. })
-        | Command::Ssh { password: ask, .. }
-        | Command::Backup { password: ask, .. }
-        | Command::Restore { password: ask, .. } => {
-            Some(password(*ask, false, password_variable())?)
-        }
-    };
+    let password =
+        match &command {
+            Command::List(_) | Command::Update { .. } => None,
+            Command::Create { deployment, .. } => Some(password(
+                deployment.password,
+                Typed::Twice,
+                password_variable(),
+            )?),
+            Command::Deploy { deployment, .. } | Command::Destroy { deployment, .. } => Some(
+                password(deployment.password, Typed::Once, password_variable())?,
+            ),
+            Command::Maintenance(maintenance) => Some(password(
+                maintenance.args().password,
+                Typed::Once,
+                password_variable(),
+            )?),
+            Command::Config(ConfigCommand::Show { password: ask, .. })
+            | Command::Ssh { password: ask, .. }
+            | Command::Backup { password: ask, .. }
+            | Command::Restore { password: ask, .. } => {
+                Some(password(*ask, Typed::Once, password_variable())?)
+            }
+        };
     let password = password.unwrap_or_default();
     let smtp_password = match &command {
         Command::Create { deployment, .. } | Command::Deploy { deployment, .. } => {
@@ -1449,7 +1458,7 @@ mod tests {
     fn the_password_comes_from_sak_password_or_is_typed_never_from_an_argument() {
         // SAK_PASSWORD, for both fields
         assert_eq!(
-            password(false, true, Some("from the environment".into())).unwrap(),
+            password(false, Typed::Twice, Some("from the environment".into())).unwrap(),
             ("from the environment".into(), "from the environment".into())
         );
         // asked for, or no SAK_PASSWORD: typed, which needs a terminal; the tests have none
@@ -1460,7 +1469,7 @@ mod tests {
                 (false, Some(String::new())),
             ] {
                 assert_eq!(
-                    password(ask, false, from_env).unwrap_err().exit_code,
+                    password(ask, Typed::Once, from_env).unwrap_err().exit_code,
                     EXIT_USAGE
                 );
             }

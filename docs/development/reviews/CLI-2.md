@@ -319,11 +319,12 @@ non-backup commands. `ansible_roles.rs:150-165` is a third `run_streaming` calle
 "ssh ended with exit code". Both build `[SCRIPT, cmd, args…]` as `Vec<String>` by hand (`backup.rs:154, 197`,
 `maintenance.rs:272-275`). See CU-20.
 
-#### CU-13 (Low): Boolean parameters
+#### ~~CU-13 (Low): Boolean parameters~~ **fixed**
 
 `reboot(.., if_pending: bool, ..)` (`maintenance.rs:93-104`), `ssh_arguments(.., terminal: bool, ..)`
 (`ssh.rs:45-51`), `client_builder(https_only: bool, ..)` (`config.rs:217`) although a `Transport` enum exists and
-is converted back to a bool at `config.rs:174, 277`.
+is converted back to a bool at `config.rs:174, 277`. *`client_builder` takes the `Transport`, `if_pending` is a field of
+`sak_backend::Command::Reboot`; `terminal` of `ssh_arguments` stays a bool, its main caller computes it.*
 
 #### ~~CU-14 (Low): Stringly typed reasons~~ **fixed**
 
@@ -864,11 +865,12 @@ and the tokens. Core could return a `Found` plus a `ContainerRuntime` from one `
 `ssh_target` (`:747`) but trims it for the message (`:756`); backup, restore and maintenance trim first. One
 `session(...) -> (SshTarget, runtime)` helper.
 
-#### UI-16 (Low): Boolean parameters
+#### UI-16 (Low): Boolean parameters — *partly fixed*
 
 `password(ask, twice, from_env)` (`cli.rs:417`), `deployment(intent, delete_data, …)` (`:474`), `deploy(…,
 show_log)` (`:1071`), `quit(failed)` (`gui/checks.rs:46`), `apply_checked(force)`; in JS `setBusy`, `setStatus(msg,
-failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`).
+failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`). *`password` takes `Typed::Once`/`Typed::Twice`; the others carry a
+named flag of the command line or the page through and stay bools.*
 
 #### ~~UI-17 (Low): Stringly typed plan and events across the boundary, the texts of an apply mapped twice~~ **fixed**
 

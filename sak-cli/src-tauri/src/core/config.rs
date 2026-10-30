@@ -176,7 +176,7 @@ async fn fetch_from(
         return Err(t!("shared.config.not_https", url = api).to_string());
     }
     let parsed = reqwest::Url::parse(&url).map_err(|error| error.to_string())?;
-    let response = pinned(client_builder(https_only, trust)?, &url, address)
+    let response = pinned(client_builder(transport, trust)?, &url, address)
         .build()
         .map_err(|error| error.to_string())?
         .get(&url)
@@ -214,12 +214,12 @@ async fn fetch_from(
 
 /// the client of the api of a deployment: it follows no redirect, plain http only for the tests.
 /// With `Trust::LetsEncryptStaging` it also trusts the roots of the staging ca
-fn client_builder(https_only: bool, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
+fn client_builder(transport: Transport, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
         .user_agent(concat!("sakctl/", env!("SAK_VERSION")))
         .timeout(Duration::from_secs(30))
         .redirect(Policy::none())
-        .https_only(https_only);
+        .https_only(transport == Transport::HttpsOnly);
     if trust == Trust::LetsEncryptStaging {
         for root in STAGING_ROOTS {
             builder = builder.add_root_certificate(
@@ -273,13 +273,9 @@ async fn wait_from(
     trust: Trust,
 ) -> Result<(), String> {
     let url = format!("{api}/v1/info");
-    let client = pinned(
-        client_builder(transport == Transport::HttpsOnly, trust)?,
-        &url,
-        address,
-    )
-    .build()
-    .map_err(|error| error.to_string())?;
+    let client = pinned(client_builder(transport, trust)?, &url, address)
+        .build()
+        .map_err(|error| error.to_string())?;
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
         let last = match client.get(&url).send().await {
@@ -700,7 +696,7 @@ mod tests {
             assert!(root.contains("BEGIN CERTIFICATE"));
             assert!(reqwest::Certificate::from_pem(root.as_bytes()).is_ok());
         }
-        assert!(client_builder(true, Trust::LetsEncryptStaging).is_ok());
+        assert!(client_builder(Transport::HttpsOnly, Trust::LetsEncryptStaging).is_ok());
     }
 
     #[tokio::test]
