@@ -442,13 +442,6 @@ mod tests {
         .unwrap();
         deployment.ssh_key = Some(key.into());
         assert_eq!(deployment.dns_mode(), Some(DnsMode::Domain));
-
-        assert_eq!(DnsMode::parse("subdomain"), Some(DnsMode::Subdomain));
-        assert_eq!(DnsMode::parse("whole"), None);
-        assert_eq!(
-            serde_json::to_value(DnsMode::Domain).unwrap(),
-            json!("domain")
-        );
     }
 
     #[test]

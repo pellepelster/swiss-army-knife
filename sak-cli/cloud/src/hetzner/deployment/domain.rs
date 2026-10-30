@@ -219,6 +219,16 @@ mod tests {
     }
 
     #[test]
+    fn the_dns_mode_is_its_label_value_in_json_and_parsed() {
+        assert_eq!(DnsMode::parse("subdomain"), Some(DnsMode::Subdomain));
+        assert_eq!(DnsMode::parse("whole"), None);
+        assert_eq!(
+            serde_json::to_value(DnsMode::Domain).unwrap(),
+            json!("domain")
+        );
+    }
+
+    #[test]
     fn a_root_domain_nobody_uses_takes_both_modes() {
         let free = domain(Labels::new(), vec![Labels::new()]);
         assert!(free.uses.is_empty());

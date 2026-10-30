@@ -147,8 +147,8 @@ async fn compare(
         .into_iter()
         .filter_map(|diff| {
             let kind = ResourceKind::of(&diff.resource)?;
-            let name = diff.resource.name.clone();
-            let detail = detail(deployment, kind, &name);
+            let detail = detail(deployment, kind, &diff.resource.name);
+            let name = diff.resource.name;
             Some(ResourceState {
                 kind,
                 name,
@@ -237,13 +237,12 @@ fn deployment_state(
     DeploymentState {
         name: deployment.name.clone(),
         status,
-        // of the server, else of a volume or a primary ip; the first when they differ
+        // of the server, else of a volume or a primary ip; the first when they differ, the error
+        // of the state names them
         location: deployment
-            .server
-            .as_ref()
-            .map(|server| server.location)
-            .or_else(|| deployment.volumes.first().map(|volume| volume.location))
-            .or_else(|| deployment.primary_ips.first().map(|ip| ip.location)),
+            .locations()
+            .first()
+            .map(|(_, location)| *location),
         dns_mode: deployment.dns_mode(),
         resources,
         error,
@@ -452,10 +451,6 @@ mod tests {
             .collect();
         // @ and * of the domain mode, each an A and an AAAA record
         assert_eq!(records.len(), 4, "{:?}", alpha.resources);
-        assert_eq!(
-            serde_json::to_value(ResourceKind::DnsRecord).unwrap(),
-            json!("dns_record")
-        );
     }
 
     #[tokio::test]
@@ -518,6 +513,14 @@ mod tests {
             server.changes
         );
         assert_eq!(server.detail.as_deref(), Some("cx23 in hel1, 1.2.3.4"));
+    }
+
+    #[test]
+    fn kinds_and_statuses_are_snake_case_in_json() {
+        assert_eq!(
+            serde_json::to_value(ResourceKind::DnsRecord).unwrap(),
+            json!("dns_record")
+        );
         assert_eq!(
             serde_json::to_value(DeploymentStatus::Changed).unwrap(),
             json!("changed")

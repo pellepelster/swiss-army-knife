@@ -89,6 +89,22 @@ impl DiscoveredDeployment {
     /// them. Resources in different locations are an error that names them: a deploy must not
     /// guess
     pub fn location(&self) -> std::result::Result<Option<Location>, String> {
+        let found = self.locations();
+        let Some((_, location)) = found.first() else {
+            return Ok(None);
+        };
+        if found.iter().any(|(_, other)| other != location) {
+            let all: Vec<String> = found
+                .iter()
+                .map(|(resource, location)| format!("{resource} in {location}"))
+                .collect();
+            return Err(all.join(", "));
+        }
+        Ok(Some(*location))
+    }
+
+    /// the location of each of its server, volumes and primary ips, in this order
+    pub(super) fn locations(&self) -> Vec<(String, Location)> {
         let mut found: Vec<(String, Location)> = Vec::new();
         found.extend(
             self.server
@@ -105,17 +121,7 @@ impl DiscoveredDeployment {
                 .iter()
                 .map(|ip| (format!("primary ip '{}'", ip.name), ip.location)),
         );
-        let Some((_, location)) = found.first() else {
-            return Ok(None);
-        };
-        if found.iter().any(|(_, other)| other != location) {
-            let all: Vec<String> = found
-                .iter()
-                .map(|(resource, location)| format!("{resource} in {location}"))
-                .collect();
-            return Err(all.join(", "));
-        }
-        Ok(Some(*location))
+        found
     }
 
     /// the labels of each of its resources: the server, the ssh key, the firewall, the primary

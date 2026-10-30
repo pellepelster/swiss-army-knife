@@ -138,32 +138,42 @@ impl HetznerServerProvisioner {
         Ok(labels.into_raw())
     }
 
-    /// assigns the primary ip to the server. Hetzner assigns it only to a stopped server, so
-    /// the server is stopped and started again
+    /// assigns the primary ips to the server, those it has not already. Hetzner assigns one only
+    /// to a stopped server, so the server is stopped once and started again
     async fn assign(
         &self,
-        ip: &HetznerPrimaryIpRuntime,
+        ips: &[&HetznerPrimaryIpRuntime],
         server: &HetznerServerRuntime,
     ) -> Result<()> {
-        if ip.assignee_id == Some(server.id) {
+        let unassigned: Vec<&HetznerPrimaryIpRuntime> = ips
+            .iter()
+            .copied()
+            .filter(|ip| ip.assignee_id != Some(server.id))
+            .collect();
+        if unassigned.is_empty() {
             return Ok(());
         }
-        info!(
-            "assigning primary ip '{}' to server '{}'",
-            ip.name, server.name
-        );
         let servers = self.api.servers();
-        let ips = self.api.primary_ips();
+        let primary_ips = self.api.primary_ips();
         if server.status != ServerStatus::Off {
             servers
                 .wait_for_action(&servers.power_off(server.id).await?)
                 .await?;
         }
-        if ip.assignee_id.is_some() {
-            ips.wait_for_action(&ips.unassign(ip.id).await?).await?;
+        for ip in unassigned {
+            info!(
+                "assigning primary ip '{}' to server '{}'",
+                ip.name, server.name
+            );
+            if ip.assignee_id.is_some() {
+                primary_ips
+                    .wait_for_action(&primary_ips.unassign(ip.id).await?)
+                    .await?;
+            }
+            primary_ips
+                .wait_for_action(&primary_ips.assign(ip.id, server.id).await?)
+                .await?;
         }
-        ips.wait_for_action(&ips.assign(ip.id, server.id).await?)
-            .await?;
         servers
             .wait_for_action(&servers.power_on(server.id).await?)
             .await?;
@@ -357,16 +367,14 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             servers.update(runtime.id, &request).await?;
         }
 
-        for (ip, assigned) in [
+        let unassigned: Vec<&HetznerPrimaryIpRuntime> = [
             (&dependencies.ipv4, runtime.ipv4_id),
             (&dependencies.ipv6, runtime.ipv6_id),
-        ] {
-            if let Some(ip) = ip
-                && assigned != Some(ip.id)
-            {
-                self.assign(ip, &runtime).await?;
-            }
-        }
+        ]
+        .into_iter()
+        .filter_map(|(ip, assigned)| ip.as_ref().filter(|ip| assigned != Some(ip.id)))
+        .collect();
+        self.assign(&unassigned, &runtime).await?;
 
         let runtime = self.find(&resource.as_lookup()).await?.ok_or_else(|| {
             Error::message(format!("{} is gone after apply", resource.log_text()))
@@ -445,12 +453,13 @@ mod tests {
     use crate::api::{DiffStatus, LookupProviders};
     use crate::hetzner::api::{Backoff, Location, ServerType};
     use crate::hetzner::labels::label_hash;
+    use crate::hetzner::primary_ip::HetznerPrimaryIpProvisioner;
     use crate::hetzner::ssh_key::{HetznerSshKeyLookup, HetznerSshKeyProvisioner};
     use crate::hetzner::test_support::{labels, page};
     use crate::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeProvisioner};
     use serde_json::{Value, json};
     use std::time::Duration;
-    use wiremock::matchers::{method, path, query_param};
+    use wiremock::matchers::{method, path, path_regex, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     const FINGERPRINT: &str = "99:fc:9b:f4:04:69:2c:9d:30:d5:2c:d9:1e:ca:b2:76";
@@ -482,6 +491,14 @@ mod tests {
         })
     }
 
+    /// an unassigned primary ip
+    fn ip(id: u64, name: &str, ip_type: &str) -> Value {
+        json!({
+            "id": id, "name": name, "ip": "1.2.3.4", "type": ip_type, "assignee_id": null, "assignee_type": "unassigned",
+            "auto_delete": false, "protection": { "delete": true }, "location": { "id": 3, "name": "nbg1" }, "labels": {}
+        })
+    }
+
     async fn mock(servers: Vec<Value>) -> (MockServer, Arc<HetznerApi>) {
         let server = MockServer::start().await;
         for (key, items) in [
@@ -498,6 +515,10 @@ mod tests {
                     "id": 3, "name": "data", "format": "ext4", "linux_device": "/dev/sdb", "size": 16, "protection": { "delete": true },
                     "server": 1, "status": "available", "location": { "id": 3, "name": "nbg1" }, "labels": {}
                 })],
+            ),
+            (
+                "primary_ips",
+                vec![ip(21, "ipv4", "ipv4"), ip(22, "ipv6", "ipv6")],
             ),
         ] {
             for item in &items {
@@ -528,6 +549,9 @@ mod tests {
         LookupProviders::new()
             .with::<HetznerSshKeyLookup, _>(Arc::new(HetznerSshKeyProvisioner::new(api.clone())))
             .with::<HetznerVolumeLookup, _>(Arc::new(HetznerVolumeProvisioner::new(api.clone())))
+            .with::<HetznerPrimaryIpLookup, _>(Arc::new(HetznerPrimaryIpProvisioner::new(
+                api.clone(),
+            )))
     }
 
     fn resource() -> HetznerServer {
@@ -685,16 +709,77 @@ mod tests {
             created_labels(&[("app", "sak")]),
         )])
         .await;
-        let ip_server = MockServer::start().await;
-        let _ = ip_server;
+        let resource = resource().with_ipv4(HetznerPrimaryIpLookup::new("ipv4"));
+
         let diff = HetznerServerProvisioner::new(api.clone())
-            .diff(&resource(), &context(&api))
+            .diff(&resource, &context(&api))
             .await
             .unwrap();
 
+        // the volume 9 is not 3, the ip 20 is not 21
         assert_eq!(
             diff.changes,
-            vec![DiffItem::recreate("volumes", "data", "9")]
+            vec![
+                DiffItem::recreate("volumes", "data", "9"),
+                DiffItem::changed("ipv4", "ipv4", "").with_actual(Some(20)),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn both_primary_ips_are_assigned_in_one_power_cycle() {
+        let (mock_server, api) = mock(vec![server(
+            "backend",
+            "debian-13",
+            vec![3],
+            None,
+            created_labels(&[("app", "sak")]),
+        )])
+        .await;
+        let done = json!({
+            "action": {
+                "id": 1, "command": "any", "status": "success", "progress": 100,
+                "started": "2026-01-01T00:00:00+00:00", "finished": null, "error": null, "resources": []
+            }
+        });
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(done.clone()))
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"/actions/\d+$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(done))
+            .mount(&mock_server)
+            .await;
+        let provisioner = HetznerServerProvisioner::new(api.clone());
+        let lookup = |name| HetznerPrimaryIpLookup::new(name);
+        let context = context(&api);
+        let ipv4 = context.lookup(&lookup("ipv4")).await.unwrap().unwrap();
+        let ipv6 = context.lookup(&lookup("ipv6")).await.unwrap().unwrap();
+        let runtime = provisioner
+            .find(&resource().as_lookup())
+            .await
+            .unwrap()
+            .unwrap();
+
+        provisioner.assign(&[&ipv4, &ipv6], &runtime).await.unwrap();
+
+        let posts: Vec<String> = mock_server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.method == wiremock::http::Method::POST)
+            .map(|request| request.url.path().to_string())
+            .collect();
+        assert_eq!(
+            posts,
+            vec![
+                "/servers/1/actions/poweroff",
+                "/primary_ips/21/actions/assign",
+                "/primary_ips/22/actions/assign",
+                "/servers/1/actions/poweron",
+            ]
         );
     }
 }

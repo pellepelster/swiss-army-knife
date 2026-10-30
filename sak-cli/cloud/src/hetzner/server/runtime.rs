@@ -21,16 +21,6 @@ pub struct HetznerServerRuntime {
     pub labels: Labels,
 }
 
-impl HetznerServerRuntime {
-    pub fn ssh_user(&self) -> &'static str {
-        "root"
-    }
-
-    pub fn ssh_port(&self) -> u16 {
-        22
-    }
-}
-
 impl From<Server> for HetznerServerRuntime {
     fn from(server: Server) -> Self {
         HetznerServerRuntime {
