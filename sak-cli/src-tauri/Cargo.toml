@@ -52,6 +52,10 @@ async-trait = "0.1.89"
 # the copies of the password and of the keys are wiped when they go, not left in freed memory
 zeroize = "1.8"
 
+[target.'cfg(unix)'.dependencies]
+# whether a process lives, without a process of its own (`provision::alive`)
+libc = "0.2"
+
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 wiremock = "0.6.5"

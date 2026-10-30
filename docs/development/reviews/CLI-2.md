@@ -443,11 +443,6 @@ Each a container and an ssh session: the plan's `diff_all`, the apply's own `dif
 none at `:1222`); the `verify_password` doc (`:919-921`) says "without a hash on a resource … against the key" but
 `check_password` (`:998-1004`) uses the key only when there is no hash at all.
 
-#### CD-19 (Low): `alive()` counts EPERM as dead
-
-`provision.rs:539-547` spawns `/bin/kill -0`; EPERM means the process exists. Harmless only because the following
-`remove_dir_all` fails. `libc::kill(pid, 0)` with EPERM → alive is the right check.
-
 #### CD-21 (Low): Tests that test more or less than their name
 
 `a_failure_that_stops_the_run_names_its_task` also asserts `events_host` (`provision.rs:610-614`);

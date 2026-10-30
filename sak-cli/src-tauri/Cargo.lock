@@ -4656,6 +4656,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf",
  "hmac",
+ "libc",
  "reqwest",
  "rpassword",
  "rust-i18n",

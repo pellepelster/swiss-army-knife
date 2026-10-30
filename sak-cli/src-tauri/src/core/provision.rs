@@ -539,15 +539,16 @@ fn remove_left_behind(base: &Path) {
     }
 }
 
+/// whether the process `pid` lives: signal 0 checks without sending anything. A process of
+/// another user answers EPERM, and lives too
 #[cfg(unix)]
 fn alive(pid: u32) -> bool {
-    container::command("kill")
-        .args(["-0", &pid.to_string()])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    let Ok(pid) = libc::pid_t::try_from(pid) else {
+        return false;
+    };
+    // SAFETY: kill with signal 0 sends no signal and touches no memory of this process
+    let answer = unsafe { libc::kill(pid, 0) };
+    answer == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
 #[cfg(not(unix))]
@@ -559,6 +560,16 @@ fn alive(_pid: u32) -> bool {
 pub(crate) mod tests {
     use super::*;
     use crate::core::keys::{derive_host_key, derive_key};
+
+    #[cfg(unix)]
+    #[test]
+    fn a_process_lives_also_when_it_belongs_to_another_user() {
+        assert!(alive(std::process::id()));
+        // the first process belongs to root: signal 0 is refused with EPERM, it lives
+        assert!(alive(1));
+        // no process has the largest id a pid_t can hold
+        assert!(!alive(libc::pid_t::MAX as u32));
+    }
 
     pub(crate) fn run() -> ProvisionRun {
         ProvisionRun {
