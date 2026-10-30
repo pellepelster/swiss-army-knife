@@ -728,6 +728,50 @@ fn smtp(host: &str, port: u16) -> Smtp {
 }
 
 #[test]
+fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
+    let error = |result: Result<Users, SakctlError>| match result {
+        Err(error) => error.message,
+        Ok(users) => panic!("{:?}", users.mode()),
+    };
+    assert_eq!(
+        error(users(None, None, None)),
+        t!("shared.deployments.no_user_mode")
+    );
+    // single user takes neither, also when they are given
+    let single = users(
+        Some(UserMode::Single),
+        Some(&smtp("", 0)),
+        Some("not an address"),
+    );
+    assert!(matches!(single, Ok(Users::Single)));
+    assert_eq!(
+        error(users(
+            Some(UserMode::Multi),
+            None,
+            Some("admin@example.org")
+        )),
+        t!("shared.deployments.invalid_smtp_host")
+    );
+    assert_eq!(
+        error(users(
+            Some(UserMode::Multi),
+            Some(&smtp("mail.example.org", 587)),
+            Some("admin")
+        )),
+        t!("shared.deployments.invalid_admin_email")
+    );
+    let Ok(Users::Multi { smtp, admin_email }) = users(
+        Some(UserMode::Multi),
+        Some(&smtp("mail.example.org", 587)),
+        Some(" Admin@Example.org "),
+    ) else {
+        panic!("multi user");
+    };
+    assert_eq!(smtp.host, "mail.example.org");
+    assert_eq!(admin_email, "admin@example.org");
+}
+
+#[test]
 fn an_address_is_plain_enough_for_backend_env_and_yaml() {
     for address in [
         "admin@example.org",
@@ -999,33 +1043,41 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
         ),
     );
     let key = crate::core::keys::derive_key("alpha", "a password of sixteen").unwrap();
-    let prepared = Prepared {
+    let api = Arc::new(api);
+    let prepared = |purpose| Prepared {
         provider: ProviderType::Hetzner,
-        runtime: HetznerProviderRuntime::from_api(Arc::new(api), Location::nbg1, ServerType::cx23),
-        spec,
+        runtime: HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23),
+        spec: spec.clone(),
         stale_records: Vec::new(),
-        client_key: key.clone(),
-        host_key: key,
-        api_public_key: String::new(),
-        admin_email: None,
-        admin_password_hash: String::new(),
-        smtp: None,
-        acme_ca: AcmeCa::default(),
+        purpose,
     };
-    let roles = |run| AnsibleRolesProvisioner {
+    let deploy = prepared(Purpose::Deploy {
+        provisioning: Provisioning {
+            root_domain: "example.com".to_string(),
+            users: Users::Single,
+            acme_ca: AcmeCa::default(),
+            client_key: key.clone(),
+            host_key: key,
+            api_public_key: String::new(),
+            admin_password_hash: String::new(),
+            force: false,
+        },
+    });
+    let destroy = prepared(Purpose::Destroy { delete_data: false });
+    let roles = |run, force| AnsibleRolesProvisioner {
         run,
         runtime: ContainerRuntime::default(),
-        force: false,
+        force,
         server_changed: Default::default(),
         events: None,
         failure: Default::default(),
     };
 
     // a deploy must not create the volume anew: refused
-    let mut deploy = prepared.registry(Intent::Deploy, roles).unwrap();
+    let mut deploy = deploy.registry(roles).unwrap();
     assert!(deploy.diff_all().await.is_err());
     // a destroy creates nothing: its plan goes through, the volume still shows
-    let mut destroy = prepared.registry(Intent::Destroy, roles).unwrap();
+    let mut destroy = destroy.registry(roles).unwrap();
     let diffs = destroy.diff_all().await.unwrap();
     assert!(
         diffs

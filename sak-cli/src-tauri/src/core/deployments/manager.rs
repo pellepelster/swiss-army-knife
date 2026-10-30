@@ -26,57 +26,149 @@ pub struct Prepared {
     pub(super) spec: DeploymentSpec,
     /// the dns records of the deployment that the apply removes
     pub(super) stale_records: Vec<HetznerDnsRecordLookup>,
+    /// a create or deploy with what it provisions the server with, or a destroy
+    pub(super) purpose: Purpose<Provisioning>,
+}
+
+/// what a plan or an apply is for, typed: a create and a deploy with `P`, what they provision
+/// with; a destroy with only whether the data volume goes too. `prepare` builds it from the
+/// `Intent` of the request, one step at a time
+pub(super) enum Purpose<P> {
+    Create { provisioning: P },
+    Deploy { provisioning: P },
+    Destroy { delete_data: bool },
+}
+
+impl<P> Purpose<P> {
+    pub(super) fn intent(&self) -> Intent {
+        match self {
+            Purpose::Create { .. } => Intent::Create,
+            Purpose::Deploy { .. } => Intent::Deploy,
+            Purpose::Destroy { .. } => Intent::Destroy,
+        }
+    }
+
+    /// what a create or deploy provisions with; none for a destroy
+    pub(super) fn provisioning(&self) -> Option<&P> {
+        match self {
+            Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => {
+                Some(provisioning)
+            }
+            Purpose::Destroy { .. } => None,
+        }
+    }
+
+    /// the same purpose with what `next` makes of the provisioning; a destroy goes as it is
+    pub(super) fn then<Q, E>(self, next: impl FnOnce(P) -> Result<Q, E>) -> Result<Purpose<Q>, E> {
+        Ok(match self {
+            Purpose::Create { provisioning } => Purpose::Create {
+                provisioning: next(provisioning)?,
+            },
+            Purpose::Deploy { provisioning } => Purpose::Deploy {
+                provisioning: next(provisioning)?,
+            },
+            Purpose::Destroy { delete_data } => Purpose::Destroy { delete_data },
+        })
+    }
+}
+
+/// who signs in to a create or deploy: one user with the password, or users with a link by
+/// e-mail, which needs the mail server and the address of the admin
+pub(super) enum Users {
+    Single,
+    Multi { smtp: Smtp, admin_email: String },
+}
+
+impl Users {
+    pub(super) fn mode(&self) -> UserMode {
+        match self {
+            Users::Single => UserMode::Single,
+            Users::Multi { .. } => UserMode::Multi,
+        }
+    }
+}
+
+/// who signs in to a create or deploy, from the user mode given or on the deployment: multi user
+/// needs the mail server and the address of the admin, single user uses neither
+pub(super) fn users(
+    user_mode: Option<UserMode>,
+    smtp: Option<&Smtp>,
+    admin_email: Option<&str>,
+) -> Result<Users, SakctlError> {
+    match user_mode {
+        None => Err(t!("shared.deployments.no_user_mode").to_string().into()),
+        Some(UserMode::Single) => Ok(Users::Single),
+        Some(UserMode::Multi) => {
+            let smtp = smtp
+                .cloned()
+                .ok_or_else(|| t!("shared.deployments.invalid_smtp_host").to_string())?;
+            check_smtp(&smtp)?;
+            let admin_email = admin_email
+                .map(str::trim)
+                .filter(|address| is_address(address))
+                .map(str::to_lowercase)
+                .ok_or_else(|| t!("shared.deployments.invalid_admin_email").to_string())?;
+            Ok(Users::Multi { smtp, admin_email })
+        }
+    }
+}
+
+/// what a create or deploy provisions the server with, checked by `prepare`; a destroy has none
+pub(super) struct Provisioning {
+    /// the root domain, a zone of the project the deployment can use in its dns mode
+    pub(super) root_domain: String,
+    pub(super) users: Users,
+    /// where the certificates come from; it sets what sakctl trusts when it waits for the api
+    pub(super) acme_ca: AcmeCa,
     pub(super) client_key: DerivedKey,
     pub(super) host_key: DerivedKey,
     /// the public half of the api key; the backend checks a signed request with it
     pub(super) api_public_key: String,
-    /// the admin of a multi user deployment; none for single user and on a destroy
-    pub(super) admin_email: Option<String>,
     /// the argon2id hash of the admin password (the deployment password)
     pub(super) admin_password_hash: String,
-    /// the mail server of the e-mail login; none for the password login only
-    pub(super) smtp: Option<Smtp>,
-    /// where the certificates come from; it sets what sakctl trusts when it waits for the api
-    pub(super) acme_ca: AcmeCa,
+    /// the playbook runs even when the provisioning is up to date
+    pub(super) force: bool,
 }
 
 impl Prepared {
     /// what the playbook gets; the provisioner adds the addresses of the server and the device of
     /// the volume as it finds them
-    pub(super) fn provision_run(&self) -> ProvisionRun {
+    pub(super) fn provision_run(&self, provisioning: &Provisioning) -> ProvisionRun {
+        let (admin_email, smtp) = match &provisioning.users {
+            Users::Single => (String::new(), None),
+            Users::Multi { smtp, admin_email } => (admin_email.clone(), Some(smtp.clone())),
+        };
         ProvisionRun {
             name: self.spec.name.clone(),
             dns_mode: self.spec.dns_mode,
-            // a create or deploy has one, prepare checked it
-            root_domain: self.spec.root_domain.clone().unwrap_or_default(),
-            api_public_key: self.api_public_key.clone(),
+            root_domain: provisioning.root_domain.clone(),
+            api_public_key: provisioning.api_public_key.clone(),
             host: String::new(),
             host_ipv6: None,
-            client_key: self.client_key.clone(),
-            host_key: self.host_key.clone(),
+            client_key: provisioning.client_key.clone(),
+            host_key: provisioning.host_key.clone(),
             storage_device: String::new(),
-            // a create or deploy has them, prepare checked them
-            admin_email: self.admin_email.clone().unwrap_or_default(),
-            smtp: self.smtp.clone(),
-            admin_password_hash: self.admin_password_hash.clone(),
-            acme_ca: self.acme_ca.directory().map(String::from),
+            admin_email,
+            smtp,
+            admin_password_hash: provisioning.admin_password_hash.clone(),
+            acme_ca: provisioning.acme_ca.directory().map(String::from),
         }
     }
 
     /// the resources a create or deploy plans and applies: those of the spec and, after the
-    /// server and the volume, the roles of the playbook on the server (`core::ansible_roles`). A
-    /// destroy has no roles, they go with the server; and it creates nothing, so no resource of
-    /// its plan is refused for a recreate (a volume smaller than the size of today is no reason)
+    /// server and the volume, the roles of the playbook on the server (`core::ansible_roles`),
+    /// whose provisioner `provisioner` makes of the run and the force. A destroy has no roles,
+    /// they go with the server; and it creates nothing, so no resource of its plan is refused for
+    /// a recreate (a volume smaller than the size of today is no reason)
     pub(super) fn registry(
         &self,
-        intent: Intent,
-        provisioner: impl FnOnce(ProvisionRun) -> AnsibleRolesProvisioner,
+        provisioner: impl FnOnce(ProvisionRun, bool) -> AnsibleRolesProvisioner,
     ) -> Result<sak_cloud::api::Registry, String> {
         let mut registry = self
             .spec
             .registry(&self.runtime)
             .map_err(|error| error.to_string())?;
-        if intent == Intent::Destroy {
+        let Some(provisioning) = self.purpose.provisioning() else {
             let spec = &self.spec;
             let resources = [
                 spec.ssh_key().resource_ref(),
@@ -95,18 +187,19 @@ impl Prepared {
             for resource in resources {
                 registry = registry.recreatable(resource);
             }
-        } else {
-            registry.register::<AnsibleRoles, AnsibleRolesProvisioner>(Arc::new(provisioner(
-                self.provision_run(),
-            )));
-            registry
-                .add(AnsibleRoles {
-                    name: self.spec.resource_name(),
-                    server: self.spec.server().as_lookup(),
-                    volume: self.spec.data_volume().as_lookup(),
-                })
-                .map_err(|error| error.to_string())?;
-        }
+            return Ok(registry);
+        };
+        registry.register::<AnsibleRoles, AnsibleRolesProvisioner>(Arc::new(provisioner(
+            self.provision_run(provisioning),
+            provisioning.force,
+        )));
+        registry
+            .add(AnsibleRoles {
+                name: self.spec.resource_name(),
+                server: self.spec.server().as_lookup(),
+                volume: self.spec.data_volume().as_lookup(),
+            })
+            .map_err(|error| error.to_string())?;
         Ok(registry)
     }
 }
@@ -384,7 +477,7 @@ impl DeploymentManager {
     /// (long enough, the same two times, hard to guess for a create, the one of the deployment
     /// otherwise) and, but for a destroy, the root domain (a zone of the project that allows the
     /// dns mode). Then derives the keys and labels and lays out the resource group at the first
-    /// hetzner project
+    /// hetzner project. The request becomes its typed `Purpose` here
     pub async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -398,12 +491,12 @@ impl DeploymentManager {
             dns_mode,
             root_domain,
             intent,
-            delete_data: _,
+            delete_data,
             user_mode,
             acme_ca,
             smtp,
             admin_email,
-            force: _,
+            force,
         } = deployment;
         let (location, intent) = (*location, *intent);
         let name = checked_name(name)?;
@@ -465,24 +558,16 @@ impl DeploymentManager {
                     .and_then(|ca| AcmeCa::parse(&ca))
             })
             .unwrap_or_default();
-        // multi user needs the mail server and the address of the admin, single user uses neither
-        let (smtp, admin_email) = match (intent, user_mode) {
-            (Intent::Destroy, _) => (None, None),
-            (_, None) => return Err(t!("shared.deployments.no_user_mode").to_string().into()),
-            (_, Some(UserMode::Single)) => (None, None),
-            (_, Some(UserMode::Multi)) => {
-                let smtp = smtp
-                    .clone()
-                    .ok_or_else(|| t!("shared.deployments.invalid_smtp_host").to_string())?;
-                check_smtp(&smtp)?;
-                let admin_email = admin_email
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|address| is_address(address))
-                    .map(str::to_lowercase)
-                    .ok_or_else(|| t!("shared.deployments.invalid_admin_email").to_string())?;
-                (Some(smtp), Some(admin_email))
-            }
+        let purpose = match intent {
+            Intent::Destroy => Purpose::Destroy {
+                delete_data: *delete_data,
+            },
+            Intent::Create => Purpose::Create {
+                provisioning: users(user_mode, smtp.as_ref(), admin_email.as_deref())?,
+            },
+            Intent::Deploy => Purpose::Deploy {
+                provisioning: users(user_mode, smtp.as_ref(), admin_email.as_deref())?,
+            },
         };
         let (dns_mode, root_domain) = resolve_dns(
             name,
@@ -549,18 +634,12 @@ impl DeploymentManager {
         };
         let runtime =
             HetznerProviderRuntime::from_api(api.clone(), location, server_type_for(location));
-        let root_domain = match intent {
-            Intent::Destroy => None,
-            Intent::Create | Intent::Deploy => {
-                let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
-                Some(check_root_domain(
-                    &domains,
-                    root_domain.as_deref(),
-                    name,
-                    dns_mode,
-                )?)
-            }
-        };
+        // a create or deploy gets its root domain checked against the zones; a destroy has none
+        let purpose = purpose.then(|users| {
+            let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
+            let root_domain = check_root_domain(&domains, root_domain.as_deref(), name, dns_mode)?;
+            Ok::<_, SakctlError>((users, root_domain))
+        })?;
 
         let client_key = crate::core::keys::derive_key(name, password)?;
         let host_key = crate::core::keys::derive_host_key(name, password)?;
@@ -576,17 +655,11 @@ impl DeploymentManager {
         .map_err(|error| error.to_string())?
         .with_dns_mode(dns_mode)
         .with_password_hash(&password_hash);
-        if let Some(root_domain) = &root_domain {
-            spec = spec.with_root_domain(root_domain);
-        }
-        // the user mode on every resource, so a deploy keeps it
-        if intent != Intent::Destroy
-            && let Some(user_mode) = user_mode
-        {
-            spec = spec.with_user_mode(user_mode.as_str());
-        }
-        if intent != Intent::Destroy {
+        // the root domain, the user mode and the acme ca on every resource, so a deploy keeps them
+        if let Some((users, root_domain)) = purpose.provisioning() {
             spec = spec
+                .with_root_domain(root_domain)
+                .with_user_mode(users.mode().as_str())
                 .with_acme_ca(acme_ca.as_str())
                 .with_version(crate::core::VERSION);
         }
@@ -607,24 +680,25 @@ impl DeploymentManager {
                 EXIT_NOT_OWNED,
             ));
         }
+        // a destroy provisions nothing, the argon2id of the admin password would be for nothing
+        let purpose = purpose.then(|(users, root_domain)| {
+            Ok::<_, SakctlError>(Provisioning {
+                root_domain,
+                users,
+                acme_ca,
+                client_key,
+                host_key,
+                api_public_key,
+                admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
+                force: *force,
+            })
+        })?;
         Ok(Prepared {
             provider,
             runtime,
             spec,
             stale_records,
-            client_key,
-            host_key,
-            api_public_key,
-            admin_email,
-            // a destroy provisions nothing, the argon2id of the hash would be for nothing
-            admin_password_hash: match intent {
-                Intent::Destroy => String::new(),
-                Intent::Create | Intent::Deploy => {
-                    crate::core::keys::admin_password_hash(name, password)?
-                }
-            },
-            smtp,
-            acme_ca,
+            purpose,
         })
     }
 
@@ -637,21 +711,27 @@ impl DeploymentManager {
         container: &ContainerRuntime,
     ) -> Result<PlanResponse, SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
-        self.plan_prepared(&prepared, deployment, container).await
+        self.plan_prepared(&prepared, container).await
     }
 
     /// the plan of a deployment prepared already
     pub async fn plan_prepared(
         &self,
         prepared: &Prepared,
-        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
     ) -> Result<PlanResponse, SakctlError> {
+        let intent = prepared.purpose.intent();
+        let delete_data = matches!(prepared.purpose, Purpose::Destroy { delete_data: true });
+        // a destroy has no roles and so nothing to force
+        let force = prepared
+            .purpose
+            .provisioning()
+            .is_some_and(|provisioning| provisioning.force);
         let volume = prepared.spec.data_volume().name;
-        let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
+        let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
-            force: deployment.force,
+            force,
             server_changed: Default::default(),
             events: None,
             failure: Default::default(),
@@ -665,9 +745,8 @@ impl DeploymentManager {
             resources: diffs
                 .iter()
                 .map(|diff| {
-                    let keep = deployment.intent == Intent::Destroy
-                        && !deployment.delete_data
-                        && diff.resource.name == volume;
+                    let keep =
+                        intent == Intent::Destroy && !delete_data && diff.resource.name == volume;
                     let provisioning = is_provisioning(&diff.resource);
                     let kind = match ResourceKind::of(&diff.resource) {
                         Some(kind) => PlannedKind::Resource(kind),
@@ -688,32 +767,19 @@ impl DeploymentManager {
                         // the playbook runs when a role is not up to date, an up to date one only
                         // on a forced deploy
                         action: if provisioning {
-                            Some(
-                                if diff.status == DiffStatus::UpToDate && !deployment.force {
-                                    PlanAction::RunsWhenForced
-                                } else {
-                                    PlanAction::WillRun
-                                },
-                            )
+                            Some(if diff.status == DiffStatus::UpToDate && !force {
+                                PlanAction::RunsWhenForced
+                            } else {
+                                PlanAction::WillRun
+                            })
                         } else {
-                            action(
-                                deployment.intent,
-                                diff.status,
-                                diff.needs_recreate(),
-                                keep,
-                                false,
-                            )
+                            action(intent, diff.status, diff.needs_recreate(), keep, false)
                         },
-                        working: working(
-                            deployment.intent,
-                            diff.status,
-                            diff.needs_recreate(),
-                            false,
-                        ),
+                        working: working(intent, diff.status, diff.needs_recreate(), false),
                         status: diff.status,
                         keep,
                         // a destroy removes everything, so the changes are of no interest
-                        changes: match deployment.intent {
+                        changes: match intent {
                             Intent::Destroy => Vec::new(),
                             Intent::Create | Intent::Deploy => diff
                                 .changes
@@ -729,8 +795,8 @@ impl DeploymentManager {
                         kind: PlannedKind::Resource(ResourceKind::DnsRecord),
                         name: record.resource_ref().name,
                         resource_status: ResourceStatus::UpToDate,
-                        action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
-                        working: working(deployment.intent, DiffStatus::UpToDate, false, true),
+                        action: action(intent, DiffStatus::UpToDate, false, false, true),
+                        working: working(intent, DiffStatus::UpToDate, false, true),
                         status: DiffStatus::UpToDate,
                         keep: false,
                         changes: Vec::new(),
@@ -756,65 +822,67 @@ impl DeploymentManager {
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
         let prepared = self.prepare(tokens, deployment).await?;
-        self.apply(prepared, deployment, container, on_event).await
+        self.apply(prepared, container, on_event).await
     }
 
     /// applies a deployment prepared already, as `create` does
     pub async fn apply(
         &self,
         prepared: Prepared,
-        deployment: &DeploymentRequest,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
-        if deployment.intent == Intent::Destroy {
-            self.remove_records(&prepared, on_event)
-                .await
-                .map_err(|error| {
-                    cloud_failure(
-                        "shared.deployments.destroy_failed",
-                        prepared.provider,
-                        error,
-                    )
-                })?;
-            let mut registry = prepared
-                .spec
-                .destroy_registry(&prepared.runtime, deployment.delete_data)
-                .map_err(|error| error.to_string())?;
-            let mut report = |event: ApplyEvent| {
-                let event = match event {
-                    ApplyEvent::Started(resource) => DeploymentEvent::Started {
-                        resource: resource.log_text,
-                    },
-                    ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
-                        resource: resource.log_text,
-                        text: destroyed_key(gone),
-                    },
-                    ApplyEvent::Applied(_) => return,
+        let provisioning = match &prepared.purpose {
+            Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => provisioning,
+            Purpose::Destroy { delete_data } => {
+                self.remove_records(&prepared, on_event)
+                    .await
+                    .map_err(|error| {
+                        cloud_failure(
+                            "shared.deployments.destroy_failed",
+                            prepared.provider,
+                            error,
+                        )
+                    })?;
+                let mut registry = prepared
+                    .spec
+                    .destroy_registry(&prepared.runtime, *delete_data)
+                    .map_err(|error| error.to_string())?;
+                let mut report = |event: ApplyEvent| {
+                    let event = match event {
+                        ApplyEvent::Started(resource) => DeploymentEvent::Started {
+                            resource: resource.log_text,
+                        },
+                        ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
+                            resource: resource.log_text,
+                            text: destroyed_key(gone),
+                        },
+                        ApplyEvent::Applied(_) => return,
+                    };
+                    on_event(event);
                 };
-                on_event(event);
-            };
-            registry
-                .destroy_all_with(&mut report)
-                .await
-                .map_err(|error| {
-                    cloud_failure(
-                        "shared.deployments.destroy_failed",
-                        prepared.provider,
-                        error,
-                    )
-                })?;
-            return Ok(());
-        }
+                registry
+                    .destroy_all_with(&mut report)
+                    .await
+                    .map_err(|error| {
+                        cloud_failure(
+                            "shared.deployments.destroy_failed",
+                            prepared.provider,
+                            error,
+                        )
+                    })?;
+                return Ok(());
+            }
+        };
         // the events of the resources and of the playbook go through one channel to `on_event`
         // while the registry applies; it closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
         let server_changed = Arc::new(AtomicBool::new(false));
         let failure = Arc::new(Mutex::new(None));
-        let mut registry = prepared.registry(deployment.intent, |run| AnsibleRolesProvisioner {
+        let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
-            force: deployment.force,
+            force,
             server_changed: server_changed.clone(),
             events: Some(sender.clone()),
             failure: failure.clone(),
@@ -900,24 +968,22 @@ impl DeploymentManager {
             .and_then(|host| host.parse::<std::net::IpAddr>().ok());
         // done when the deployment answers as its users reach it: through its ingress, with its
         // certificate. A backend that did not start or a missing certificate stops the apply here
-        if let Some(root_domain) = &prepared.spec.root_domain {
-            let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
-                &prepared.spec.name,
-                prepared.spec.dns_mode,
-                root_domain,
-            ));
-            on_event(DeploymentEvent::Provisioning {
-                message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
-            });
-            crate::core::config::wait_for_api(
-                &api,
-                address,
-                prepared.acme_ca.trust(),
-                crate::core::config::API_WAIT,
-                std::time::Duration::from_secs(5),
-            )
-            .await?;
-        }
+        let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
+            &prepared.spec.name,
+            prepared.spec.dns_mode,
+            &provisioning.root_domain,
+        ));
+        on_event(DeploymentEvent::Provisioning {
+            message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
+        });
+        crate::core::config::wait_for_api(
+            &api,
+            address,
+            provisioning.acme_ca.trust(),
+            crate::core::config::API_WAIT,
+            std::time::Duration::from_secs(5),
+        )
+        .await?;
         // the server runs the images of this version now, its version label says so
         set_server_labels(
             &prepared.runtime.api,
