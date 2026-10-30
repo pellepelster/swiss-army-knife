@@ -264,7 +264,7 @@ mod tests {
             ),
         ])
         .await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
         let listings = provider.dns_zones().list_all().await.unwrap();
 
         let records = deployment_records(&listings, "alpha");

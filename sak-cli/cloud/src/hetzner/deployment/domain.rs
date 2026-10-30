@@ -174,7 +174,6 @@ impl fmt::Display for DnsMode {
 mod tests {
     use super::*;
     use crate::api::Labels;
-    use crate::hetzner::api::{Location, ServerType};
     use crate::hetzner::deployment::fixtures::*;
     use crate::hetzner::deployment::*;
     use crate::hetzner::dns_zone::HetznerDnsZoneListing;
@@ -352,7 +351,7 @@ mod tests {
             (zone(2, "example.com", json!({})), vec![]),
         ])
         .await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
 
         let domains = root_domains(&provider).await.unwrap();
 

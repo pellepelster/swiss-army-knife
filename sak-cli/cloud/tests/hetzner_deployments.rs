@@ -5,7 +5,6 @@ mod support;
 
 use sak_cloud::api::{DiffStatus, LookupProviders, Provisioner};
 use sak_cloud::hetzner::NAME_LABEL;
-use sak_cloud::hetzner::api::{Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentStatus, RESOURCE_PREFIX, ResourceKind, discover, state,
 };
@@ -26,11 +25,7 @@ async fn discovers_a_deployment_by_its_name_label() {
     hetzner
         .run(|hetzner| async move {
             let name = hetzner.test_id.clone();
-            let provider = HetznerProviderRuntime::from_api(
-                hetzner.api.clone(),
-                Location::hel1,
-                ServerType::cx23,
-            );
+            let provider = HetznerProviderRuntime::from_api(hetzner.api.clone());
             let context = LookupProviders::new();
             let labels = hetzner.labels_with(&[(NAME_LABEL, &name)]);
             // the cloud names of a deployment, sak-<name>

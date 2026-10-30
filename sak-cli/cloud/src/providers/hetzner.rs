@@ -1,6 +1,5 @@
 use crate::api::Registry;
-use crate::api::error::{Error, Result};
-use crate::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
+use crate::hetzner::api::HetznerApi;
 use crate::hetzner::dns_record::{HetznerDnsRecord, HetznerDnsRecordProvisioner};
 use crate::hetzner::dns_zone::{HetznerDnsZone, HetznerDnsZoneProvisioner};
 use crate::hetzner::firewall::{HetznerFirewall, HetznerFirewallProvisioner};
@@ -8,67 +7,20 @@ use crate::hetzner::primary_ip::{HetznerPrimaryIp, HetznerPrimaryIpProvisioner};
 use crate::hetzner::server::{HetznerServer, HetznerServerProvisioner};
 use crate::hetzner::ssh_key::{HetznerSshKey, HetznerSshKeyProvisioner};
 use crate::hetzner::volume::{HetznerVolume, HetznerVolumeProvisioner};
-use crate::providers::{ProviderConfiguration, ProviderManager, ProviderRuntime};
-use async_trait::async_trait;
 use std::sync::Arc;
 
-pub const HETZNER_PROVIDER_TYPE: &str = "hcloud";
-
-/// a hetzner cloud project and an api token of it; its `Debug` never shows the token
-#[derive(Clone)]
-pub struct HetznerProviderConfiguration {
-    pub name: String,
-    pub token: String,
-    pub default_location: Location,
-    pub default_server_type: ServerType,
-}
-
-impl std::fmt::Debug for HetznerProviderConfiguration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HetznerProviderConfiguration")
-            .field("name", &self.name)
-            .field("token", &"***")
-            .field("default_location", &self.default_location)
-            .field("default_server_type", &self.default_server_type)
-            .finish()
-    }
-}
-
-impl HetznerProviderConfiguration {
-    pub fn new(name: &str, token: &str) -> Self {
-        HetznerProviderConfiguration {
-            name: name.to_string(),
-            token: token.to_string(),
-            default_location: Location::nbg1,
-            default_server_type: ServerType::cx23,
-        }
-    }
-
-    pub fn with_defaults(mut self, location: Location, server_type: ServerType) -> Self {
-        self.default_location = location;
-        self.default_server_type = server_type;
-        self
-    }
-}
-
-impl ProviderConfiguration for HetznerProviderConfiguration {
-    fn provider_type(&self) -> &'static str {
-        HETZNER_PROVIDER_TYPE
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-/// the validated configuration with its api client; all provisioners use this client
+/// a hetzner cloud project by its api client; all provisioners use this client. Where a
+/// resource goes is part of the resource, so the runtime has no location
 pub struct HetznerProviderRuntime {
     pub api: Arc<HetznerApi>,
-    pub default_location: Location,
-    pub default_server_type: ServerType,
 }
 
 impl HetznerProviderRuntime {
+    /// a runtime of an existing api client; the token is not checked
+    pub fn from_api(api: Arc<HetznerApi>) -> Self {
+        HetznerProviderRuntime { api }
+    }
+
     pub fn ssh_keys(&self) -> Arc<HetznerSshKeyProvisioner> {
         Arc::new(HetznerSshKeyProvisioner::new(self.api.clone()))
     }
@@ -103,10 +55,9 @@ impl HetznerProviderRuntime {
         self.register(&mut registry);
         registry
     }
-}
 
-impl ProviderRuntime for HetznerProviderRuntime {
-    fn register(&self, registry: &mut Registry) {
+    /// registers the provisioners of every hetzner resource type
+    pub fn register(&self, registry: &mut Registry) {
         registry.register::<HetznerSshKey, _>(self.ssh_keys());
         registry.register::<HetznerVolume, _>(self.volumes());
         registry.register::<HetznerPrimaryIp, _>(self.primary_ips());
@@ -114,64 +65,5 @@ impl ProviderRuntime for HetznerProviderRuntime {
         registry.register::<HetznerServer, _>(self.servers());
         registry.register::<HetznerDnsZone, _>(self.dns_zones());
         registry.register::<HetznerDnsRecord, _>(self.dns_records());
-    }
-}
-
-pub struct HetznerProviderManager;
-
-#[async_trait]
-impl ProviderManager<HetznerProviderConfiguration> for HetznerProviderManager {
-    type Runtime = HetznerProviderRuntime;
-
-    /// the token must be able to read the project: it lists the ssh keys to check this
-    async fn validate(
-        &self,
-        configuration: &HetznerProviderConfiguration,
-    ) -> Result<HetznerProviderRuntime> {
-        let api = Arc::new(HetznerApi::new(&configuration.token));
-        api.ssh_keys()
-            .list(&ListQuery::new())
-            .await
-            .map_err(|error| {
-                Error::message(format!(
-                    "hetzner provider '{}': {error}",
-                    configuration.name
-                ))
-            })?;
-        Ok(HetznerProviderRuntime {
-            api,
-            default_location: configuration.default_location,
-            default_server_type: configuration.default_server_type,
-        })
-    }
-}
-
-impl HetznerProviderRuntime {
-    /// a runtime from an existing api client, without validation
-    pub fn from_api(
-        api: Arc<HetznerApi>,
-        default_location: Location,
-        default_server_type: ServerType,
-    ) -> Self {
-        HetznerProviderRuntime {
-            api,
-            default_location,
-            default_server_type,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_debug_of_a_configuration_never_shows_its_token() {
-        let configuration = HetznerProviderConfiguration::new("default", "the-secret-token");
-        let shown = format!("{configuration:?}");
-        assert!(
-            !shown.contains("the-secret-token") && shown.contains("default"),
-            "{shown}"
-        );
     }
 }

@@ -622,7 +622,7 @@ mod tests {
     #[tokio::test]
     async fn a_destroy_leaves_the_resources_of_someone_else_alone() {
         let (mock, api) = foreign_web().await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
 
         let error = web()
             .destroy_registry(&provider, DataVolume::Delete)
@@ -667,7 +667,7 @@ mod tests {
                 })
                 .collect();
             let (mock, api) = mock_api_all(&lists).await;
-            let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+            let provider = HetznerProviderRuntime::from_api(api);
 
             let error = web()
                 .registry(&provider)
@@ -687,7 +687,7 @@ mod tests {
     #[tokio::test]
     async fn a_plan_stops_at_a_resource_of_someone_else_before_anything_is_created() {
         let (mock, api) = foreign_web().await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
 
         let error = web()
             .registry(&provider)
@@ -721,7 +721,7 @@ mod tests {
             )],
         )])
         .await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
         let spec = web();
 
         let error = crate::api::LookupProvider::lookup(
@@ -756,7 +756,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
 
         let error = web()
             .registry(&provider)
@@ -787,7 +787,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider = HetznerProviderRuntime::from_api(api, Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api);
         let spec = spec(DnsMode::Domain);
         let mut planned = Vec::new();
         for data_volume in [DataVolume::Keep, DataVolume::Delete] {
@@ -846,8 +846,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let spec = DeploymentSpec::new(
             "alpha",
             "ssh-ed25519 AAAA",

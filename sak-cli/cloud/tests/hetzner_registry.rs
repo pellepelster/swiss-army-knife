@@ -26,8 +26,7 @@ async fn backend_flow() {
             let cloud_name = format!("{RESOURCE_PREFIX}{name}");
             let location = hetzner.location();
             let server_type = hetzner.server_type();
-            let provider =
-                HetznerProviderRuntime::from_api(hetzner.api.clone(), location, server_type);
+            let provider = HetznerProviderRuntime::from_api(hetzner.api.clone());
 
             let declare = |user_data: &str, recreatable: bool| {
                 let mut spec = DeploymentSpec::new(&name, PUBLIC_KEY, location, server_type)

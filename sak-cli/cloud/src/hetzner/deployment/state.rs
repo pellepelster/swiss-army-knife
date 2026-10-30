@@ -299,7 +299,6 @@ fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> 
 mod tests {
     use super::*;
     use crate::api::DiffStatus;
-    use crate::hetzner::api::{Location, ServerType};
     use crate::hetzner::deployment::fixtures::*;
     use crate::hetzner::deployment::*;
     use crate::hetzner::test_support::mock_api_all;
@@ -321,8 +320,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let deployments = discover(&api).await.unwrap();
 
         let gamma = state(&provider, &deployments[0]).await;
@@ -359,8 +357,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let deployments = discover(&api).await.unwrap();
 
         let delta = state(&provider, &deployments[0]).await;
@@ -387,8 +384,7 @@ mod tests {
     #[tokio::test]
     async fn the_state_shows_every_resource_a_deploy_declares() {
         let (_server, api) = project().await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let deployments = discover(&api).await.unwrap();
 
         // beta has only its ssh key: all other resources that a deploy declares are missing
@@ -438,8 +434,7 @@ mod tests {
             ("primary_ips", vec![]),
         ])
         .await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let deployments = discover(&api).await.unwrap();
 
         let alpha = state(&provider, &deployments[0]).await;
@@ -487,8 +482,7 @@ mod tests {
             ),
         ])
         .await;
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::hel1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let deployments = discover(&api).await.unwrap();
 
         let alpha = state(&provider, &deployments[0]).await;

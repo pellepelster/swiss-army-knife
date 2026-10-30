@@ -35,7 +35,7 @@ zones/records came in as step 8.
 | `ProvisionerLookup/Diff/Apply/DestroyContext`          | `api::context`                         |
 | `Result<T>` sealed (`Success`/`Error`)                 | `Result<T, Error>` with `thiserror`    |
 | `ProvisionersRegistry`                                 | `api::registry::Registry` (orders by dependencies, diffs and applies a whole set) |
-| solidblocks `providers/*` (configuration → runtime → provisioners) | `providers::{ProviderConfiguration, ProviderRuntime, ProviderManager}`, `providers::hetzner` |
+| solidblocks `providers/*` (configuration → runtime → provisioners) | `providers::hetzner::HetznerProviderRuntime` (an api client → provisioners) |
 | `blcks-hetzner-cloud` (ktor client)                    | `hetzner::api` (reqwest client)        |
 | `blcks-provisioner-hetzner/cloud/<resource>/{X,XLookup,XRuntime,XProvisioner}.kt` | `hetzner::<resource>::{resource, lookup, runtime, provisioner}.rs` |
 | `HetznerLabels` (chunked, hashed labels)               | `hetzner::labels::Labels`              |
@@ -60,10 +60,7 @@ sak-cli/cloud/            the crate sak-cloud, next to the tauri app in src-taur
                              in dependency order, destroy_all in reverse
       error.rs               Error (Api, NotFound, Timeout, Duplicate, ...)
     providers/
-      mod.rs                 ProviderConfiguration, ProviderRuntime, ProviderManager
-      hetzner.rs             HetznerProviderConfiguration { name, token, default_location,
-                             default_server_type } → HetznerProviderRuntime → provisioners +
-                             lookup providers
+      hetzner.rs             HetznerProviderRuntime { api } → provisioners + lookup providers
     hetzner/
       mod.rs
       api/

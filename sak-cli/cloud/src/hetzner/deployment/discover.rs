@@ -256,8 +256,7 @@ mod tests {
             labels.get("sak.pelle.io/password-hash") == Some(&"another".to_string())
         }));
 
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let listed = state(&provider, alpha).await;
         assert!(
             listed
@@ -314,8 +313,7 @@ mod tests {
         assert_eq!(server.server_type, ServerType::unknown);
         assert_eq!(server.location, Location::unknown);
 
-        let provider =
-            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let provider = HetznerProviderRuntime::from_api(api.clone());
         let alpha = state(&provider, &deployments[0]).await;
         assert_eq!(alpha.error, None);
         let changes: Vec<&String> = alpha

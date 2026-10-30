@@ -1046,7 +1046,7 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
     let api = Arc::new(api);
     let prepared = |purpose| Prepared {
         provider: ProviderType::Hetzner,
-        runtime: HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23),
+        runtime: HetznerProviderRuntime::from_api(api.clone()),
         spec: spec.clone(),
         stale_records: Vec::new(),
         purpose,
@@ -1100,7 +1100,7 @@ async fn the_window_fixtures_apply_in_the_order_of_the_registry() {
             std::time::Duration::ZERO,
         ),
     );
-    let runtime = HetznerProviderRuntime::from_api(Arc::new(api), Location::nbg1, ServerType::cx23);
+    let runtime = HetznerProviderRuntime::from_api(Arc::new(api));
     let diffs = spec.registry(&runtime).unwrap().diff_all().await.unwrap();
     let applied: Vec<String> = diffs
         .iter()
@@ -1126,7 +1126,7 @@ async fn the_plan_of_a_destroy_shows_a_second_server_it_leaves() {
     );
     let prepared = Prepared {
         provider: ProviderType::Hetzner,
-        runtime: HetznerProviderRuntime::from_api(Arc::new(api), spec.location, ServerType::cx23),
+        runtime: HetznerProviderRuntime::from_api(Arc::new(api)),
         spec,
         stale_records: Vec::new(),
         purpose: Purpose::Destroy { delete_data: false },

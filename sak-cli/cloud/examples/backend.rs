@@ -5,15 +5,18 @@
 //!     HCLOUD_TOKEN=... cargo run --example backend -- --apply
 
 use sak_cloud::api::{Resource, diff};
-use sak_cloud::hetzner::api::{Location, ServerType};
+use sak_cloud::hetzner::api::{HetznerApi, ListQuery, Location, ServerType};
 use sak_cloud::hetzner::firewall::{HetznerFirewall, inbound_icmp, inbound_tcp};
 use sak_cloud::hetzner::primary_ip::HetznerPrimaryIp;
 use sak_cloud::hetzner::server::HetznerServer;
 use sak_cloud::hetzner::ssh_key::HetznerSshKey;
 use sak_cloud::hetzner::volume::HetznerVolume;
-use sak_cloud::providers::ProviderManager;
-use sak_cloud::providers::hetzner::{HetznerProviderConfiguration, HetznerProviderManager};
+use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use std::collections::BTreeMap;
+use std::sync::Arc;
+
+const LOCATION: Location = Location::hel1;
+const SERVER_TYPE: ServerType = ServerType::cx23;
 
 const USER_DATA: &str = "#cloud-config
 package_update: true
@@ -29,32 +32,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let public_key = std::env::var("SSH_PUBLIC_KEY")
         .map_err(|_| "SSH_PUBLIC_KEY is not set, the key to log in with")?;
 
-    let configuration = HetznerProviderConfiguration::new("default", &token)
-        .with_defaults(Location::hel1, ServerType::cx23);
-    let hetzner = HetznerProviderManager.validate(&configuration).await?;
+    // the token must be able to read the project: listing the ssh keys checks it
+    let api = Arc::new(HetznerApi::new(&token));
+    api.ssh_keys()
+        .list(&ListQuery::new())
+        .await
+        .map_err(|error| format!("hetzner provider 'default': {error}"))?;
+    let hetzner = HetznerProviderRuntime::from_api(api);
 
     let labels: BTreeMap<String, String> = [("app".to_string(), "sak".to_string())].into();
     let key = HetznerSshKey::new("sak-admin", &public_key).with_labels(labels.clone());
-    let volume =
-        HetznerVolume::new("sak-data", hetzner.default_location, 16).with_labels(labels.clone());
-    let ip =
-        HetznerPrimaryIp::ipv4("sak-backend", hetzner.default_location).with_labels(labels.clone());
+    let volume = HetznerVolume::new("sak-data", LOCATION, 16).with_labels(labels.clone());
+    let ip = HetznerPrimaryIp::ipv4("sak-backend", LOCATION).with_labels(labels.clone());
     let firewall = HetznerFirewall::new(
         "sak-backend",
         vec![inbound_tcp("22"), inbound_tcp("443"), inbound_icmp()],
     )
     .applied_to(labels.clone())
     .with_labels(labels.clone());
-    let server = HetznerServer::new(
-        "sak-backend",
-        hetzner.default_location,
-        hetzner.default_server_type,
-        USER_DATA,
-    )
-    .with_ssh_keys(vec![key.as_lookup()])
-    .with_volumes(vec![volume.as_lookup()])
-    .with_ipv4(ip.as_lookup())
-    .with_labels(labels.clone());
+    let server = HetznerServer::new("sak-backend", LOCATION, SERVER_TYPE, USER_DATA)
+        .with_ssh_keys(vec![key.as_lookup()])
+        .with_volumes(vec![volume.as_lookup()])
+        .with_ipv4(ip.as_lookup())
+        .with_labels(labels.clone());
 
     let server_ref = server.resource_ref();
     // what a destroy may remove: only resources that carry these labels

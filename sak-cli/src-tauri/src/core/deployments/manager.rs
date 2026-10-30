@@ -257,11 +257,7 @@ impl DeploymentManager {
             match provider {
                 ProviderType::Hetzner => {
                     let api = Arc::new(HetznerApi::new(&token));
-                    let runtime = HetznerProviderRuntime::from_api(
-                        api.clone(),
-                        Location::nbg1,
-                        ServerType::cx23,
-                    );
+                    let runtime = HetznerProviderRuntime::from_api(api.clone());
                     let discovered = discover(&api)
                         .await
                         .map_err(|error| failed(provider, error))?;
@@ -460,11 +456,7 @@ impl DeploymentManager {
         else {
             return Err(t!("shared.deployments.no_provider").to_string());
         };
-        let runtime = HetznerProviderRuntime::from_api(
-            Arc::new(HetznerApi::new(&token)),
-            Location::nbg1,
-            ServerType::cx23,
-        );
+        let runtime = HetznerProviderRuntime::from_api(Arc::new(HetznerApi::new(&token)));
         let domains = root_domains(&runtime)
             .await
             .map_err(|error| failed(provider, error))?;
@@ -504,7 +496,7 @@ impl DeploymentManager {
                 .and_then(DiscoveredDeployment::root_domain),
         )?;
         // one read of the zones gives the root domains, the records of the deployment and the
-        // records in the way; it needs no location, so the runtime is built once it is known
+        // records in the way
         let listings = HetznerDnsZoneProvisioner::new(api.clone())
             .list_all()
             .await
@@ -522,7 +514,7 @@ impl DeploymentManager {
             deployment.location,
             &records,
         )?;
-        let runtime = HetznerProviderRuntime::from_api(api, location, server_type_for(location));
+        let runtime = HetznerProviderRuntime::from_api(api);
         // a create or deploy gets its root domain checked against the zones; a destroy has none
         let purpose = purpose.then(|users| {
             let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
@@ -534,7 +526,7 @@ impl DeploymentManager {
         let (spec, keys) = laid_out(
             name,
             password,
-            &runtime,
+            location,
             dns_mode,
             purpose.provisioning(),
             acme_ca,
@@ -1098,14 +1090,14 @@ struct Keys {
     api_public_key: String,
 }
 
-/// the keys of `name` and `password` and the resource group they lay out at `runtime`: every
+/// the keys of `name` and `password` and the resource group they lay out in `location`: every
 /// resource with the dns mode and the hash of the password, the server with the cloud-init of its
 /// host key. A create or deploy also puts its root domain, user mode, acme ca and the version on
 /// every resource, so a deploy keeps them; `settings` is none for a destroy
 fn laid_out(
     name: &str,
     password: &str,
-    runtime: &HetznerProviderRuntime,
+    location: Location,
     dns_mode: DnsMode,
     settings: Option<&Settings>,
     acme_ca: AcmeCa,
@@ -1115,15 +1107,10 @@ fn laid_out(
     let public_key = client_key.public_key();
     let password_hash = crate::core::keys::password_hash(name, password)?;
     let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
-    let mut spec = DeploymentSpec::new(
-        name,
-        &public_key,
-        runtime.default_location,
-        runtime.default_server_type,
-    )
-    .map_err(|error| error.to_string())?
-    .with_dns_mode(dns_mode)
-    .with_password_hash(&password_hash);
+    let mut spec = DeploymentSpec::new(name, &public_key, location, server_type_for(location))
+        .map_err(|error| error.to_string())?
+        .with_dns_mode(dns_mode)
+        .with_password_hash(&password_hash);
     if let Some(settings) = settings {
         spec = spec
             .with_root_domain(&settings.root_domain)
