@@ -404,14 +404,56 @@ async fn a_conflict_of_another_kind_is_an_error_at_once() {
 
 #[tokio::test]
 async fn a_read_is_sent_again_after_a_connection_error() {
-    // nothing listens there: every attempt fails to connect, the last one is the error
-    let api = HetznerApi::with_base_url(TOKEN, "http://127.0.0.1:1").with_retry(Backoff::new(
-        3,
-        Duration::from_millis(1),
-        Duration::from_millis(2),
-    ));
+    // a listener that closes every connection at once: every attempt fails, the last one is the
+    // error
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let connections = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = connections.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            drop(stream);
+        }
+    });
+    let api = HetznerApi::with_base_url(TOKEN, &format!("http://{address}")).with_retry(
+        Backoff::new(3, Duration::from_millis(1), Duration::from_millis(2)),
+    );
+
     let error = api.ssh_keys().get(7).await.unwrap_err();
+
     assert!(matches!(error, ApiError::Request { .. }), "{error}");
+    assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 3);
+}
+
+#[tokio::test]
+async fn a_backoff_of_zero_attempts_tries_once() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/ssh_keys/7"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({ "ssh_key": ssh_key(7, "admin") })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/servers/actions/8"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(action(8, "running")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let none = Backoff::new(0, Duration::ZERO, Duration::ZERO);
+    let api = HetznerApi::with_base_url(TOKEN, &server.uri())
+        .with_retry(none)
+        .with_wait(none);
+
+    assert!(api.ssh_keys().get(7).await.unwrap().is_some());
+    let error = api.wait_for_action("servers", 8).await.unwrap_err();
+    assert!(
+        matches!(error, ApiError::ActionTimeout { id: 8, .. }),
+        "{error}"
+    );
 }
 
 #[test]
@@ -493,23 +535,23 @@ async fn a_failed_action_is_an_error_and_a_running_one_times_out() {
         .mount(&server)
         .await;
 
-    let error = api(&server).api_wait("servers", 6).await.unwrap_err();
+    let error = api(&server)
+        .wait_for_action("servers", 6)
+        .await
+        .unwrap_err();
     assert_eq!(
         error.to_string(),
         "action 'create_server' (6) failed: no capacity (server_error)"
     );
 
-    let error = api(&server).api_wait("servers", 7).await.unwrap_err();
+    let error = api(&server)
+        .wait_for_action("servers", 7)
+        .await
+        .unwrap_err();
     assert!(
         matches!(error, ApiError::ActionTimeout { id: 7, .. }),
         "{error}"
     );
-}
-
-impl HetznerApi {
-    async fn api_wait(&self, resource: &str, id: u64) -> super::Result<super::Action> {
-        self.wait_for_action(resource, id).await
-    }
 }
 
 #[tokio::test]

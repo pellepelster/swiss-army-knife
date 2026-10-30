@@ -71,18 +71,20 @@ async fn has_code(response: Response, code: ErrorCode) -> (Response, bool) {
 }
 
 /// how often to try again and how long to wait between the attempts, e.g. for a rate limited
-/// request or a running action. The delay doubles up to `max_delay`
+/// request or a running action. The delay doubles up to `max_delay`. There is at least one
+/// attempt
 #[derive(Clone, Copy, Debug)]
 pub struct Backoff {
-    pub attempts: u32,
-    pub initial_delay: Duration,
-    pub max_delay: Duration,
+    attempts: u32,
+    initial_delay: Duration,
+    max_delay: Duration,
 }
 
 impl Backoff {
+    /// zero attempts are one
     pub const fn new(attempts: u32, initial_delay: Duration, max_delay: Duration) -> Self {
         Backoff {
-            attempts,
+            attempts: if attempts == 0 { 1 } else { attempts },
             initial_delay,
             max_delay,
         }
