@@ -351,12 +351,6 @@ continues in an action); `change_protection` at `:124` and the server create wit
 423 retry of the api (`api/mod.rs:310-312`, 5 attempts ≈ 30 s). `server/provisioner.rs:410-422` `wait_for_volumes`
 checks `volume.server` only, never `status`.
 
-#### CP-8 (Low): A server mid-deletion counts as present
-
-`server/provisioner.rs:46-57` returns a server with `ServerStatus::Deleting` (`api/servers.rs:17`); the diff
-compares it, the apply updates its labels (`:341`), the roles would ssh into it; a destroy sends a second delete.
-Treat `Deleting` as missing and wait, as `destroy` does at `:371-377`.
-
 #### CP-9 (Low): Two power cycles when both ips need assigning
 
 `server/provisioner.rs:343-351` calls `assign` once per ip; each powers off and on (`:132-146`) with the stale

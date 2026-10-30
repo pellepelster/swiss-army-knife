@@ -43,17 +43,42 @@ impl HetznerServerProvisioner {
         HetznerServerProvisioner { api }
     }
 
-    /// the resource of the name; `NotOwned` when it lacks an identity label of the lookup
+    /// the server of the name as the api has it, one it deletes included; `NotOwned` when it lacks
+    /// an identity label of the lookup
+    async fn find_any(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
+        let found = self
+            .api
+            .servers()
+            .get_by_name(&lookup.name)
+            .await?
+            .map(Into::into);
+        identity::check(found, lookup.identity(), &lookup.log_text())
+    }
+
+    /// the server of the name; one Hetzner deletes is gone already: a plan creates it anew, a
+    /// destroy has nothing left to do
     async fn find(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
-        let found: Result<Option<HetznerServerRuntime>> = {
-            Ok(self
-                .api
-                .servers()
-                .get_by_name(&lookup.name)
-                .await?
-                .map(Into::into))
+        Ok(self
+            .find_any(lookup)
+            .await?
+            .filter(|server| server.status != ServerStatus::Deleting))
+    }
+
+    /// before a create: waits until a server of the name that Hetzner deletes is gone, its name
+    /// is taken until then
+    async fn wait_for_deleted(&self, lookup: &HetznerServerLookup) -> Result<()> {
+        let Some(server) = self.find_any(lookup).await? else {
+            return Ok(());
         };
-        identity::check(found?, lookup.identity(), &lookup.log_text())
+        if server.status != ServerStatus::Deleting {
+            return Ok(());
+        }
+        let (api, id) = (&self.api, server.id);
+        api.wait_until("the server to be deleted", || async move {
+            Ok(api.servers().get(id).await?.is_none())
+        })
+        .await?;
+        Ok(())
     }
 
     async fn dependencies(
@@ -298,6 +323,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
                         resource.log_text()
                     )));
                 };
+                self.wait_for_deleted(&resource.as_lookup()).await?;
                 self.wait_for_volumes(&dependencies.volumes).await?;
                 let request = ServerCreate {
                     name: resource.name.clone(),
@@ -520,6 +546,30 @@ mod tests {
             .with_ssh_keys(vec![HetznerSshKeyLookup::new("admin")])
             .with_volumes(vec![HetznerVolumeLookup::new("data")])
             .with_labels(labels(&[("app", "sak")]))
+    }
+
+    #[tokio::test]
+    async fn a_server_hetzner_deletes_is_gone_and_a_create_waits_for_its_name() {
+        let mut deleting = server("backend", "debian-13", vec![3], None, created_labels(&[]));
+        deleting["status"] = json!("deleting");
+        let (mock_server, api) = mock(vec![deleting]).await;
+        let provisioner = HetznerServerProvisioner::new(api.clone());
+
+        let diff = provisioner.diff(&resource(), &context(&api)).await.unwrap();
+        assert_eq!(diff.status, DiffStatus::Missing);
+
+        // the api answers it no more once it is deleted
+        Mock::given(method("GET"))
+            .and(path("/servers/1"))
+            .respond_with(ResponseTemplate::new(404).set_body_json(
+                json!({ "error": { "code": "not_found", "message": "server not found" } }),
+            ))
+            .mount(&mock_server)
+            .await;
+        provisioner
+            .wait_for_deleted(&resource().as_lookup())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
