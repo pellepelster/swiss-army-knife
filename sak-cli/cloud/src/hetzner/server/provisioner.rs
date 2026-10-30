@@ -478,6 +478,7 @@ impl HetznerServerProvisioner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::context::DiffRun;
     use crate::api::{DiffStatus, LookupProviders};
     use crate::hetzner::api::{Backoff, Location, ServerType};
     use crate::hetzner::labels::label_hash;
@@ -693,7 +694,8 @@ mod tests {
             created_labels(&[("app", "sak")]),
         )])
         .await;
-        let mut context = context(&api);
+        let providers = context(&api);
+        let mut context = DiffRun::new(&providers);
         context.mark_pending(HetznerSshKeyLookup::new("admin").resource_ref());
 
         let diff = HetznerServerProvisioner::new(api.clone())

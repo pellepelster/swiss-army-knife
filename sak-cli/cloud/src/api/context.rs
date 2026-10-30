@@ -95,14 +95,11 @@ impl<L: Lookup, P: LookupProvider<L> + 'static> ErasedLookupProvider for Erased<
     }
 }
 
-/// the lookup providers of a run, one per lookup type. It is the context of the provisioners.
-/// While the registry diffs, it marks on it the resources that are not up to date, while it
-/// applies those it applied with a change
+/// the lookup providers of a run, one per lookup type. It is the context of the provisioners
+/// outside a plan or apply of the registry: nothing is pending, nothing applied
 #[derive(Default)]
 pub struct LookupProviders {
     providers: HashMap<TypeId, Box<dyn ErasedLookupProvider>>,
-    pending: HashSet<ResourceRef>,
-    applied: HashSet<ResourceRef>,
 }
 
 impl LookupProviders {
@@ -125,22 +122,6 @@ impl LookupProviders {
         self.register::<L, P>(provider);
         self
     }
-
-    /// only the registry marks what is pending, as it diffs
-    pub(crate) fn mark_pending(&mut self, resource: ResourceRef) {
-        self.pending.insert(resource);
-    }
-
-    /// forgets what is pending and what was applied, before a plan or an apply
-    pub(crate) fn clear_pending(&mut self) {
-        self.pending.clear();
-        self.applied.clear();
-    }
-
-    /// only the registry marks what it applied with a change, as it applies
-    pub(crate) fn mark_applied(&mut self, resource: ResourceRef) {
-        self.applied.insert(resource);
-    }
 }
 
 #[async_trait]
@@ -158,6 +139,54 @@ impl LookupContext for LookupProviders {
 }
 
 impl DiffContext for LookupProviders {
+    fn has_pending_change(&self, _: &ResourceRef) -> bool {
+        false
+    }
+}
+
+impl ApplyContext for LookupProviders {}
+
+impl DestroyContext for LookupProviders {}
+
+/// one plan or apply of the registry: the lookup providers, and what it found pending or
+/// applied with a change so far. Each run starts empty; nothing of a plan leaks into the next
+pub(crate) struct DiffRun<'a> {
+    providers: &'a LookupProviders,
+    pending: HashSet<ResourceRef>,
+    applied: HashSet<ResourceRef>,
+}
+
+impl<'a> DiffRun<'a> {
+    pub(crate) fn new(providers: &'a LookupProviders) -> Self {
+        DiffRun {
+            providers,
+            pending: HashSet::new(),
+            applied: HashSet::new(),
+        }
+    }
+
+    /// only the registry marks what is pending, as it diffs
+    pub(crate) fn mark_pending(&mut self, resource: ResourceRef) {
+        self.pending.insert(resource);
+    }
+
+    /// only the registry marks what it applied with a change, as it applies
+    pub(crate) fn mark_applied(&mut self, resource: ResourceRef) {
+        self.applied.insert(resource);
+    }
+}
+
+#[async_trait]
+impl LookupContext for DiffRun<'_> {
+    async fn lookup_erased(
+        &self,
+        lookup: &dyn AnyLookup,
+    ) -> Result<Option<Box<dyn Any + Send + Sync>>> {
+        self.providers.lookup_erased(lookup).await
+    }
+}
+
+impl DiffContext for DiffRun<'_> {
     fn has_pending_change(&self, resource: &ResourceRef) -> bool {
         self.pending.contains(resource)
     }
@@ -167,9 +196,7 @@ impl DiffContext for LookupProviders {
     }
 }
 
-impl ApplyContext for LookupProviders {}
-
-impl DestroyContext for LookupProviders {}
+impl ApplyContext for DiffRun<'_> {}
 
 #[cfg(test)]
 mod tests {
@@ -261,23 +288,25 @@ mod tests {
         assert_eq!(error.to_string(), "no lookup provider for other");
     }
 
-    #[test]
-    fn tracks_pending_changes() {
-        let mut context = LookupProviders::new();
+    #[tokio::test]
+    async fn a_run_tracks_what_is_pending_and_applied_and_looks_up_through_its_providers() {
+        let providers = LookupProviders::new().with::<KeyLookup, _>(Arc::new(KeyProvider));
         let key = KeyLookup("a".into()).resource_ref();
+        let mut run = DiffRun::new(&providers);
 
-        assert!(!context.has_pending_change(&key));
-        context.mark_pending(key.clone());
-        assert!(context.has_pending_change(&key));
-        assert!(!context.has_pending_change(&KeyLookup("b".into()).resource_ref()));
-        context.clear_pending();
-        assert!(!context.has_pending_change(&key));
+        assert!(!run.has_pending_change(&key));
+        run.mark_pending(key.clone());
+        assert!(run.has_pending_change(&key));
+        assert!(!run.has_pending_change(&KeyLookup("b".into()).resource_ref()));
+        assert!(!run.applied_with_change(&key));
+        run.mark_applied(key.clone());
+        assert!(run.applied_with_change(&key));
+        let found = run.lookup(&KeyLookup("known".into())).await.unwrap();
+        assert_eq!(found.unwrap().id, 42);
 
-        assert!(!context.applied_with_change(&key));
-        context.mark_applied(key.clone());
-        assert!(context.applied_with_change(&key));
-        assert!(!context.has_pending_change(&key));
-        context.clear_pending();
-        assert!(!context.applied_with_change(&key));
+        // the next run, and the providers outside a run, know nothing of it
+        let next = DiffRun::new(&providers);
+        assert!(!next.has_pending_change(&key) && !next.applied_with_change(&key));
+        assert!(!providers.has_pending_change(&key) && !providers.applied_with_change(&key));
     }
 }

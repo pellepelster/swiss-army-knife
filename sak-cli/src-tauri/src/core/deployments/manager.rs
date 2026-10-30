@@ -611,7 +611,7 @@ impl DeploymentManager {
             .provisioning()
             .is_some_and(|provisioning| provisioning.force);
         let volume = prepared.spec.data_volume().name;
-        let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
+        let registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
             force,
@@ -799,7 +799,7 @@ impl DeploymentManager {
         self.remove_records(prepared, on_event)
             .await
             .map_err(destroy_failed)?;
-        let mut registry = prepared
+        let registry = prepared
             .spec
             .destroy_registry(&prepared.runtime, data_volume)
             .map_err(|error| error.to_string())?;
@@ -836,7 +836,7 @@ impl DeploymentManager {
     ) -> Result<bool, SakctlError> {
         // the channel closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
-        let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
+        let registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
             force,

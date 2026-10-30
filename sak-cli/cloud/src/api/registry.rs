@@ -1,7 +1,7 @@
 //! a set of declared resources and the provisioners of their types. The registry diffs,
 //! applies and destroys the set as a whole, in the order of the dependencies
 
-use crate::api::context::LookupProviders;
+use crate::api::context::{ApplyContext, DiffContext, DiffRun, LookupProviders};
 use crate::api::diff::{DiffStatus, ResourceDiff};
 use crate::api::error::{Error, Result};
 use crate::api::identity;
@@ -43,10 +43,10 @@ trait ErasedProvisioner: Send + Sync {
     async fn diff(
         &self,
         resource: &dyn AnyResource,
-        context: &LookupProviders,
+        context: &dyn DiffContext,
     ) -> Result<ResourceDiff>;
 
-    async fn apply(&self, resource: &dyn AnyResource, context: &LookupProviders) -> Result<()>;
+    async fn apply(&self, resource: &dyn AnyResource, context: &dyn ApplyContext) -> Result<()>;
 
     /// looks the resource up, checks it against the owner labels and destroys it; `false`
     /// when nothing has the name
@@ -87,14 +87,14 @@ impl<R: Resource, P: Provisioner<R> + 'static> ErasedProvisioner for Erased<R, P
     async fn diff(
         &self,
         resource: &dyn AnyResource,
-        context: &LookupProviders,
+        context: &dyn DiffContext,
     ) -> Result<ResourceDiff> {
         self.provisioner
             .diff(self.downcast(resource), context)
             .await
     }
 
-    async fn apply(&self, resource: &dyn AnyResource, context: &LookupProviders) -> Result<()> {
+    async fn apply(&self, resource: &dyn AnyResource, context: &dyn ApplyContext) -> Result<()> {
         self.provisioner
             .apply(self.downcast(resource), context)
             .await?;
@@ -278,7 +278,7 @@ impl Registry {
     /// `ParentMissing`. A resource sees each dependency that is not up to date as pending. The
     /// plan is the gate of the apply: a duplicate, a recreate the registry may not do and a
     /// resource of someone else fail here, before anything changes
-    pub async fn diff_all(&mut self) -> Result<Vec<ResourceDiff>> {
+    pub async fn diff_all(&self) -> Result<Vec<ResourceDiff>> {
         Ok(self
             .plan(Gate::Apply)
             .await?
@@ -290,7 +290,7 @@ impl Registry {
     /// the diff of every resource as `diff_all` has it, without its gates: a duplicate and a
     /// recreate show as their status and changes. For what applies nothing of it, the state of a
     /// deployment in a list or the plan of a destroy; an apply plans with its gates again first
-    pub async fn compare_all(&mut self) -> Result<Vec<ResourceDiff>> {
+    pub async fn compare_all(&self) -> Result<Vec<ResourceDiff>> {
         Ok(self
             .plan(Gate::None)
             .await?
@@ -301,8 +301,8 @@ impl Registry {
 
     /// `diff_all` with the index of each resource; with `Gate::Apply` it stops at what the apply
     /// must not do
-    async fn plan(&mut self, gate: Gate) -> Result<Vec<(usize, ResourceDiff)>> {
-        self.context.clear_pending();
+    async fn plan(&self, gate: Gate) -> Result<Vec<(usize, ResourceDiff)>> {
+        let mut run = DiffRun::new(&self.context);
         let mut diffs: Vec<(usize, ResourceDiff)> = Vec::new();
         for index in self.order()? {
             let resource = self.resources[index].as_ref();
@@ -325,9 +325,7 @@ impl Registry {
                     duplicate_message: None,
                 }
             } else {
-                self.provisioner_of(resource)?
-                    .diff(resource, &self.context)
-                    .await?
+                self.provisioner_of(resource)?.diff(resource, &run).await?
             };
             // a plan that would recreate a resource that must stay, or create a duplicate, fails
             // here, before the apply
@@ -335,7 +333,7 @@ impl Registry {
                 self.refuse(resource, &diff).await?;
             }
             if diff.status != DiffStatus::UpToDate {
-                self.context.mark_pending(reference);
+                run.mark_pending(reference);
             }
             diffs.push((index, diff));
         }
@@ -345,13 +343,13 @@ impl Registry {
     /// applies every resource, dependencies first: creates it when missing, updates it when
     /// changed, leaves it when up to date. When its changes need a recreate, a recreatable
     /// resource is destroyed and created again; any other fails. A duplicate fails
-    pub async fn apply_all(&mut self) -> Result<Vec<ApplyResult>> {
+    pub async fn apply_all(&self) -> Result<Vec<ApplyResult>> {
         self.apply_all_with(&mut |_| {}).await
     }
 
     /// `apply_all` that tells `on_event` when each resource starts and is done
     pub async fn apply_all_with(
-        &mut self,
+        &self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
         // the whole plan first: a refused recreate, a duplicate or a resource of someone else
@@ -365,7 +363,7 @@ impl Registry {
     /// change, as in `apply_all`. The gates hold: a duplicate or a recreate that is refused stops
     /// it before anything changes. A plan of other resources fails
     pub async fn apply_planned_with(
-        &mut self,
+        &self,
         plan: Vec<ResourceDiff>,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
@@ -389,11 +387,11 @@ impl Registry {
 
     /// applies `plan`, the diff of each resource with its index in the order of the dependencies
     async fn apply_plan(
-        &mut self,
+        &self,
         plan: Vec<(usize, ResourceDiff)>,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
-        self.context.clear_pending();
+        let mut run = DiffRun::new(&self.context);
         // what the plan found not up to date and what the apply changed: the plan's diff of a
         // resource that depends on one is stale, it is diffed again once that is applied
         let mut changed: HashSet<ResourceRef> = plan
@@ -412,7 +410,7 @@ impl Registry {
                 .iter()
                 .any(|dependency| changed.contains(dependency))
             {
-                let diff = provisioner.diff(resource, &self.context).await?;
+                let diff = provisioner.diff(resource, &run).await?;
                 self.refuse(resource, &diff).await?;
                 diff
             } else {
@@ -422,7 +420,7 @@ impl Registry {
                 DiffStatus::UpToDate => Applied::Unchanged,
                 DiffStatus::Missing | DiffStatus::ParentMissing => {
                     info!("creating {reference}");
-                    provisioner.apply(resource, &self.context).await?;
+                    provisioner.apply(resource, &run).await?;
                     Applied::Created
                 }
                 DiffStatus::Duplicate => return Err(duplicate(&diff)),
@@ -431,19 +429,19 @@ impl Registry {
                     provisioner
                         .destroy(resource, &self.context, self.owner()?)
                         .await?;
-                    provisioner.apply(resource, &self.context).await?;
+                    provisioner.apply(resource, &run).await?;
                     Applied::Recreated
                 }
                 DiffStatus::HasChanges => {
                     info!("updating {reference}: {diff}");
-                    provisioner.apply(resource, &self.context).await?;
+                    provisioner.apply(resource, &run).await?;
                     Applied::Updated
                 }
             };
             if applied != Applied::Unchanged {
                 changed.insert(reference.clone());
                 // what depends on it and is diffed again sees it
-                self.context.mark_applied(reference.clone());
+                run.mark_applied(reference.clone());
             }
             let result = ApplyResult {
                 resource: reference,
@@ -456,13 +454,13 @@ impl Registry {
     }
 
     /// destroys every resource, dependents first; returns the refs of the destroyed resources
-    pub async fn destroy_all(&mut self) -> Result<Vec<ResourceRef>> {
+    pub async fn destroy_all(&self) -> Result<Vec<ResourceRef>> {
         self.destroy_all_with(&mut |_| {}).await
     }
 
     /// `destroy_all` that tells `on_event` when each resource starts and is gone
     pub async fn destroy_all_with(
-        &mut self,
+        &self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ResourceRef>> {
         let owner = self.owner()?.clone();
@@ -769,7 +767,7 @@ mod tests {
     #[tokio::test]
     async fn applies_in_dependency_order_and_destroys_in_reverse() {
         let cloud = Arc::new(Cloud::default());
-        let mut registry = registry(&cloud)
+        let registry = registry(&cloud)
             .with(thing("server", 1, &["key", "volume"]))
             .unwrap()
             .with(thing("volume", 1, &[]))
@@ -835,7 +833,7 @@ mod tests {
             .lock()
             .unwrap()
             .insert("key".to_string(), (1, owner()));
-        let mut registry = registry(&cloud)
+        let registry = registry(&cloud)
             .with(thing("key", 2, &[]))
             .unwrap()
             .with(thing("server", 1, &["key"]))
@@ -875,7 +873,7 @@ mod tests {
             strict: true,
             ..thing("key", 2, &[])
         };
-        let mut registry = registry(&cloud).with(strict).unwrap();
+        let registry = registry(&cloud).with(strict).unwrap();
 
         // not recreatable: neither the plan nor the apply recreate it
         let error = registry.diff_all().await.unwrap_err();
@@ -890,7 +888,7 @@ mod tests {
         ));
         assert!(!log(&cloud).iter().any(|line| line.starts_with("destroy")));
 
-        let mut registry = registry.recreatable(Resource::resource_ref(&thing("key", 2, &[])));
+        let registry = registry.recreatable(Resource::resource_ref(&thing("key", 2, &[])));
         let results = registry.apply_all().await.unwrap();
         assert_eq!(results[0].applied, Applied::Recreated);
         assert_eq!(
@@ -913,7 +911,7 @@ mod tests {
         };
         let mut registry = Registry::new();
         registry.register::<Thing, Cloud>(cloud.clone());
-        let mut registry = registry
+        let registry = registry
             .with(thing("key", 1, &[]))
             .unwrap()
             .with(strict)
@@ -930,7 +928,7 @@ mod tests {
     async fn a_duplicate_stops_the_plan_before_anything_is_applied() {
         let cloud = Arc::new(Cloud::default());
         cloud.duplicated.lock().unwrap().insert("key".to_string());
-        let mut registry = registry(&cloud)
+        let registry = registry(&cloud)
             .with(thing("volume", 1, &[]))
             .unwrap()
             .with(thing("key", 1, &[]))
@@ -1061,7 +1059,7 @@ mod tests {
     #[tokio::test]
     async fn a_thing_of_someone_else_stops_the_destroy_before_anything_is_gone() {
         let cloud = Arc::new(Cloud::default());
-        let mut registry = registry(&cloud)
+        let registry = registry(&cloud)
             .with(thing("key", 1, &[]))
             .unwrap()
             .with(thing("server", 1, &["key"]))
@@ -1098,7 +1096,7 @@ mod tests {
         let cloud = Arc::new(Cloud::default());
         let mut registry = Registry::new();
         registry.register::<Thing, Cloud>(cloud.clone());
-        let mut registry = registry.with(thing("key", 1, &[])).unwrap();
+        let registry = registry.with(thing("key", 1, &[])).unwrap();
         registry.apply_all().await.unwrap();
         log(&cloud);
 
@@ -1124,7 +1122,7 @@ mod tests {
     async fn a_thing_without_the_owner_labels_is_neither_destroyed_nor_recreated() {
         let cloud = Arc::new(Cloud::default());
         cloud.plant("key", 1);
-        let mut destroying = registry(&cloud).with(thing("key", 1, &[])).unwrap();
+        let destroying = registry(&cloud).with(thing("key", 1, &[])).unwrap();
 
         let error = destroying.destroy_all().await.unwrap_err();
 
@@ -1136,7 +1134,7 @@ mod tests {
 
         let mut strict = thing("key", 2, &[]);
         strict.strict = true;
-        let mut changed = registry(&cloud)
+        let changed = registry(&cloud)
             .with(strict)
             .unwrap()
             .recreatable(Resource::resource_ref(&thing("key", 2, &[])));
@@ -1155,7 +1153,7 @@ mod tests {
     async fn a_thing_of_someone_else_stops_the_plan_also_when_its_parent_is_missing() {
         let cloud = Arc::new(Cloud::default());
         cloud.foreign.lock().unwrap().insert("server".to_string());
-        let mut registry = registry(&cloud)
+        let registry = registry(&cloud)
             .with(thing("key", 1, &[]))
             .unwrap()
             .with(thing("server", 1, &["key"]))

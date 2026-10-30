@@ -745,7 +745,7 @@ mod tests {
         );
         assert_eq!(writes(&mock).await, Vec::<String>::new());
         // an apply does not take it over either
-        let mut registry = web().registry(&provider).unwrap();
+        let registry = web().registry(&provider).unwrap();
         assert!(matches!(
             registry.apply_all().await,
             Err(Error::NotOwned { .. })

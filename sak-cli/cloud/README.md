@@ -14,7 +14,7 @@ let hetzner = HetznerProviderRuntime::from_api(Arc::new(HetznerApi::new(&token))
 let key = HetznerSshKey::new("admin", &public_key);
 let server = HetznerServer::new("backend", Location::hel1, ServerType::cx23, "#cloud-config\n")
     .with_ssh_keys(vec![key.as_lookup()]);
-let mut registry = hetzner.registry().with(key)?.with(server)?;
+let registry = hetzner.registry().with(key)?.with(server)?;
 print!("{}", diff::log_text(&registry.diff_all().await?));
 registry.apply_all().await?;
 ```

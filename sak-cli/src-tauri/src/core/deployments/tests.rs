@@ -1094,10 +1094,10 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
     };
 
     // a deploy must not create the volume anew: refused
-    let mut deploy = deploy.registry(roles).unwrap();
+    let deploy = deploy.registry(roles).unwrap();
     assert!(deploy.diff_all().await.is_err());
     // a destroy creates nothing: its plan goes through, the volume still shows
-    let mut destroy = destroy.registry(roles).unwrap();
+    let destroy = destroy.registry(roles).unwrap();
     let diffs = destroy.diff_all().await.unwrap();
     assert!(
         diffs

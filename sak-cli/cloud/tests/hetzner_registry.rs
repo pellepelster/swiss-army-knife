@@ -48,7 +48,7 @@ async fn backend_flow() {
                 registry
             };
 
-            let mut registry = declare("#cloud-config\n", true);
+            let registry = declare("#cloud-config\n", true);
             let diffs = registry.diff_all().await.unwrap();
             let statuses: Vec<DiffStatus> = diffs.iter().map(|diff| diff.status).collect();
             assert_eq!(
@@ -100,14 +100,14 @@ async fn backend_flow() {
             );
 
             // the server is not recreatable unless declared so: the plan refuses it
-            let mut refused = declare("#cloud-config\npackage_update: true\n", false);
+            let refused = declare("#cloud-config\npackage_update: true\n", false);
             let error = refused.diff_all().await.unwrap_err();
             assert!(
                 matches!(error, sak_cloud::api::Error::RecreateRefused { .. }),
                 "{error}"
             );
 
-            let mut changed = declare("#cloud-config\npackage_update: true\n", true);
+            let changed = declare("#cloud-config\npackage_update: true\n", true);
             let diffs = changed.diff_all().await.unwrap();
             let server = diffs
                 .iter()
