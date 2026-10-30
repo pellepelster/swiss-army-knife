@@ -72,7 +72,7 @@ backend_victorialogs_snapshots_max_age: 1d
 backend_vector_image: docker.io/timberio/vector:0.60.0-alpine
 backend_vector_data_path: "{{ sak_data_dir }}/vector"
 backend_vector_config_file: "{{ backend_base_path }}/vector.yaml"
-# sak-backend backup and restore (docs/development/plans/backup.md) keep their working copies on the data volume,
+# sak-backend backup and restore (docs/development/fdr/FDR-007-backup.md) keep their working copies on the data volume,
 # next to the data of the deployment, so a hard link or a rename stays on one filesystem
 backend_backup_staging_path: "{{ sak_mount_dir }}/.backup-{{ sak_name }}"
 backend_restore_staging_path: "{{ sak_mount_dir }}/.restore-{{ sak_name }}"
