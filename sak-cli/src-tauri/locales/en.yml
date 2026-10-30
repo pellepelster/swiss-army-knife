@@ -237,6 +237,8 @@ ui:
     up_to_date: "Everything is up-to-date."
     not_checked: "Check the deployment first."
   maintenance:
+    confirm_title: "Reboot %{name}?"
+    confirm_text: "The deployment is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."
     title_status: "Server status"
     title_update: "Update the server"
     title_reboot: "Reboot the server"

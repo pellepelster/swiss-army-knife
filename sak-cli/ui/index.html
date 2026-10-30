@@ -363,6 +363,17 @@
         </div>
       </form>
     </dialog>
+    <!-- the confirmation before a reboot: the deployment is down until its server is back -->
+    <dialog class="confirm" id="reboot-confirm">
+      <form method="dialog">
+        <h2 class="confirm-title" id="reboot-confirm-title"></h2>
+        <p data-text="ui.maintenance.confirm_text"></p>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
+          <button type="submit" class="btn btn-primary" value="reboot" data-text="ui.maintenance.reboot"></button>
+        </div>
+      </form>
+    </dialog>
     <!-- below every view, one line: the version of sakctl, the button of the next step of its
          update and what happens (update.js); github is asked on a click only -->
     <footer class="app-footer">

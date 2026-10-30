@@ -237,6 +237,8 @@ ui:
     up_to_date: "Alles ist aktuell."
     not_checked: "Prüfe das Deployment zuerst."
   maintenance:
+    confirm_title: "%{name} neu starten?"
+    confirm_text: "Das Deployment wird gestoppt und sein Server neu gestartet. Bis es wieder antwortet, ist es nicht erreichbar, meist einige Minuten."
     title_status: "Serverstatus"
     title_update: "Server aktualisieren"
     title_reboot: "Server neu starten"

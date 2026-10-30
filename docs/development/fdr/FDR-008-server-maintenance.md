@@ -26,8 +26,8 @@ deployment safe. `sak-backend` on the server does the work; sakctl calls it thro
   deployment answers again. `--if-pending` reboots only when a reboot is pending.
 - **In the window.** The page of a deployment has a Maintenance menu with Status, Update and Reboot. Each opens a
   view with the lines of the server as it works, then the answer as the command line has it. Cancel stops the
-  wait; back to the page of the deployment once it ended. A reboot always reboots and waits until the deployment
-  answers again.
+  wait; back to the page of the deployment once it ended. A reboot asks for a confirmation first, always reboots and
+  waits until the deployment answers again.
 - **JSON for scripts.** `--json` prints the answer of the server as it is.
 - **One at a time.** A backup, a restore, an update and a reboot never run at the same time. A command that finds
   another one running stops and says so; nothing changes.

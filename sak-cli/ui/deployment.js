@@ -2,7 +2,7 @@
 // checks the deployment when it opens: a deploy of the deployment as it is, planned in rust, its
 // rows those of the plan, the provisioning included. The toolbar at the top right: destroy, which
 // opens the form of a destroy, maintenance, a menu of status, update and reboot that each open the
-// maintenance view, and check, which checks again. At the bottom right, one group:
+// maintenance view (a reboot after a confirmation), and check, which checks again. At the bottom right, one group:
 // back to the list, force deploy (after a check, the playbook runs again) and deploy changes (only
 // when the check found changes). The one green button is check, or deploy changes when there are changes
 import { showCreate } from './create.js';
@@ -22,6 +22,7 @@ const deployButton = document.getElementById('deployment-deploy');
 const forceButton = document.getElementById('deployment-force');
 const maintenanceButton = document.getElementById('deployment-maintenance');
 const maintenanceMenu = document.getElementById('deployment-maintenance-menu');
+const rebootDialog = document.getElementById('reboot-confirm');
 let current = null;
 // the plan of the last check, its rows are those of the run
 let checked = null;
@@ -116,12 +117,27 @@ maintenanceButton.addEventListener('click', (event) => {
   event.stopPropagation();
   setMenu(!maintenanceMenu.classList.contains('show'));
 });
-maintenanceMenu.addEventListener('click', (event) => {
+// whether the user confirms the reboot of the deployment `name`
+function confirmReboot(name) {
+  document.getElementById('reboot-confirm-title').textContent = text('ui.maintenance.confirm_title').replaceAll('%{name}', name);
+  rebootDialog.returnValue = '';
+  rebootDialog.showModal();
+  return new Promise((resolve) => {
+    rebootDialog.addEventListener('close', () => resolve(rebootDialog.returnValue === 'reboot'), { once: true });
+  });
+}
+
+maintenanceMenu.addEventListener('click', async (event) => {
   const item = event.target.closest('[data-action]');
-  if (item) {
-    setMenu(false);
-    showMaintenance(current, item.dataset.action);
+  if (!item) {
+    return;
   }
+  setMenu(false);
+  const { action } = item.dataset;
+  if (action === 'reboot' && !(await confirmReboot(current.name))) {
+    return;
+  }
+  showMaintenance(current, action);
 });
 document.addEventListener('click', () => setMenu(false));
 document.addEventListener('keydown', (event) => {
