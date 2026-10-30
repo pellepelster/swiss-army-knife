@@ -50,7 +50,7 @@ names its ID.
    command-line instructions in the window.
 4. ~~**CU-1** a backup or restore hangs forever on a dropped connection~~; **CU-3 / CU-4** ssh's and the lock's exit
    codes are blamed on `sak-backend`.
-5. **UI-2 / UI-3** a destroy runs after Cancel; "delete the data volume" stays ticked.
+5. **UI-2** a destroy runs after Cancel; ~~**UI-3** "delete the data volume" stays ticked~~.
 6. **CD-2** a destroy plan is refused for a volume it would never recreate.
 7. **UI-4** a deployment without a location cannot be checked in the window.
 
@@ -775,7 +775,7 @@ list shows → the plan resolves → `run()` switches to the run view and starts
 because `setBusy(true)` disables the cancel button (`create.js:386, 261-264`). **Fix:** a generation guard in
 `run()` (UI-25) and the busy state for the destroy.
 
-#### UI-3 (Medium, confirmed): "Also delete the data volume" stays ticked for the next destroy
+#### ~~UI-3 (Medium, confirmed): "Also delete the data volume" stays ticked for the next destroy~~ **fixed**
 
 `ui/create.js:329-365` (`showCreate`) never resets `deleteDataInput.checked`; only `resetForm` (`:408-424`,
 `form.reset()`) does, on Cancel only. After a destroy ran (`run(plan, deployment, showList)`, `run.js:198`) nothing

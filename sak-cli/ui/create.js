@@ -326,13 +326,13 @@ async function prefill() {
   }
 }
 
+// the form, always empty when it opens: nothing of an earlier create or destroy stays, not the
+// ticked box of the data volume, not a password of the users. Then the environment and, for a
+// destroy, the deployment fill it
 export async function showCreate(options = {}) {
+  resetForm();
   existing = options.existing ?? null;
   intent = existing ? options.intent : 'create';
-  setStatus('');
-  repeatInput.classList.remove('is-invalid');
-  passwordInput.value = '';
-  repeatInput.value = '';
   nameRefusal = null;
   nameInput.classList.remove('is-invalid');
   document.getElementById('create-title').textContent = intentText('ui.create.title');
