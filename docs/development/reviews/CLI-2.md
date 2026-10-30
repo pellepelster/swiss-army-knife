@@ -695,11 +695,6 @@ named flag of the command line or the page through and stay bools.*
 `deployment.js:91`, plus `fill()` in `update.js:16`. One `text(key, values)` and one `status(element, message,
 failed)` in `views.js`.
 
-#### UI-19 (Low): The "has changes" rule and its button differ between pages
-
-`deployment.js:86-88` disables Deploy when every resource is `up_to_date`; `run.js:92` hides it. One rule, two
-behaviours.
-
 ### Structure
 
 #### UI-25: A small router in `views.js`, no dynamic `import()`

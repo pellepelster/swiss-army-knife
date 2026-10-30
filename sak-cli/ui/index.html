@@ -30,9 +30,9 @@
           <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
         </div>
       </div>
-      <!-- quit only after a check failed -->
-      <div class="splash-footer btn-group" role="group" id="splash-footer" hidden>
-        <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit"></button>
+      <!-- quit, enabled only after a check failed -->
+      <div class="splash-footer btn-group" role="group" id="splash-footer">
+        <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit" disabled></button>
       </div>
     </main>
 

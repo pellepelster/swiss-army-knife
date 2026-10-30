@@ -75,8 +75,8 @@ export function showPlan(plan, deployment, onCancel) {
   document.getElementById('plan-name').textContent = plan.name;
   document.getElementById('plan-intro').textContent = intentText('shared.plan.intro', deployment.intent);
   planList.replaceChildren(...plan.resources.map(row));
-  // deploy changes only when there is something to change
-  deployButton.hidden = plan.resources.every((resource) => resource.resourceStatus === 'up_to_date');
+  // deploy changes only when there is something to change; the button stays, disabled
+  deployButton.disabled = plan.resources.every((resource) => resource.resourceStatus === 'up_to_date');
   setStatus(planStatus, '');
   show('view-plan');
 }

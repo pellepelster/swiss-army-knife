@@ -43,6 +43,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 ## sakctl window
 
+- **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows, stays in
+  its place, disabled; the layout of a page does not change under the user's hand.
 - **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the window
   fills its password fields with them, which the user can change; an accepted risk of ARCHITECTURE.md.
 - **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move through
@@ -51,8 +53,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   One action of a page is the primary one, the one green button.
 - **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an update.
   The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs it.
-- **Start-up checks.** The splash screen runs the checks and has a Quit button. A failed check shows its reason in
-  its own row, never in a dialog. Quit is then the only action left.
+- **Start-up checks.** The splash screen runs the checks and has a Quit button, disabled while the checks run. A
+  failed check shows its reason in its own row, never in a dialog. Quit is then enabled, the only action left.
 - **A deployment and its page.** The list shows each deployment with its resources, what each is (the size of a
   volume, the address of a server) and the link to its frontend; the link opens the browser of the system. The list
   shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened

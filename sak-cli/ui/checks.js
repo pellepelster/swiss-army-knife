@@ -24,7 +24,7 @@ function fail(error) {
     errorText.hidden = false;
   }
   quitButton.classList.replace('btn-outline-secondary', 'btn-primary');
-  document.getElementById('splash-footer').hidden = false;
+  quitButton.disabled = false;
   quitButton.focus();
 }
 
