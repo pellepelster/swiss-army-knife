@@ -12,8 +12,15 @@ export async function loadTexts() {
   }
 }
 
-export function text(key) {
-  return texts[key] ?? key;
+// the text of `key` in the language of the system, its `%{name}` placeholders filled from `values`
+export function text(key, values = {}) {
+  return Object.entries(values).reduce((filled, [name, value]) => filled.replaceAll(`%{${name}}`, value), texts[key] ?? key);
+}
+
+// a status line of a view: what happens or happened, in the colour of danger when it failed
+export function setStatus(element, message, failed = false) {
+  element.textContent = message;
+  element.classList.toggle('status-failed', failed);
 }
 
 export function show(id) {

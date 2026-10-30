@@ -4,7 +4,7 @@
 // not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
 // deployment again
 import { openedDeployment } from './password.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -23,10 +23,6 @@ function line(value, warn = false) {
   return item;
 }
 
-function setStatus(value, failed = false) {
-  status.textContent = value;
-  status.classList.toggle('status-failed', failed);
-}
 
 function finished() {
   backButton.disabled = false;
@@ -43,7 +39,7 @@ export async function showMaintenance(deployment, action) {
   progress.replaceChildren();
   answer.replaceChildren();
   backButton.disabled = true;
-  setStatus(text(`ui.maintenance.running_${action}`));
+  setStatus(status, text(`ui.maintenance.running_${action}`));
   show('view-maintenance');
   const channel = new Channel();
   channel.onmessage = (message) => {
@@ -55,11 +51,11 @@ export async function showMaintenance(deployment, action) {
     const lines = await invoke('run_maintenance', { request: { action, name: deployment.name, password }, onLine: channel });
     if (running === current) {
       answer.replaceChildren(...lines.map(({ text: value, warn }) => line(value, warn)));
-      setStatus(text('ui.maintenance.finished'));
+      setStatus(status, text('ui.maintenance.finished'));
     }
   } catch (error) {
     if (running === current) {
-      setStatus(String(error), true);
+      setStatus(status, String(error), true);
     }
   } finally {
     if (running === current) {

@@ -876,7 +876,7 @@ are `&'static str` keys (CD-13). `ui/run.js:22-27` `APPLIED` re-implements `appl
 (`core/deployments.rs:203`), `run.js:124` re-implements `destroyed_key`. Let `CreateEvent::Applied/Destroyed` carry
 the text key once.
 
-#### UI-18 (Low): Six copies of `setStatus`, five hand-rolled `%{…}` substitutions
+#### ~~UI-18 (Low): Six copies of `setStatus`, five hand-rolled `%{…}` substitutions~~ **fixed**
 
 `providers.js:73`, `deployments.js:89`, `password.js:46`, `deployment.js:30`, `create.js:254`, `run.js:45`,
 `maintenance.js:26`; `replaceAll('%{name}')` in `deployment.js:122`, `create.js:52, 176`, `run.js:133`,

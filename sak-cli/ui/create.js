@@ -7,7 +7,7 @@
 // deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -49,7 +49,7 @@ deleteDataInput.addEventListener('change', showDeleteData);
 // the last confirmation before a destroy: true to continue; Escape cancels
 function confirmDestroy(name) {
   const withData = deleteDataInput.checked;
-  document.getElementById('destroy-confirm-title').textContent = text('ui.confirm.title').replaceAll('%{name}', name);
+  document.getElementById('destroy-confirm-title').textContent = text('ui.confirm.title', { name });
   document.getElementById('destroy-confirm-text').textContent = text(withData ? 'ui.confirm.text_with_data' : 'ui.confirm.text');
   confirmDialog.classList.toggle('danger-zone', withData);
   confirmDialog.returnValue = '';
@@ -173,7 +173,7 @@ function setDnsMode(mode) {
 // domain
 function showDnsModeHint() {
   const name = nameInput.value.trim() || '<name>';
-  const hint = text(`ui.create.dns_mode_hint_${dnsMode()}`).replaceAll('%{name}', name);
+  const hint = text(`ui.create.dns_mode_hint_${dnsMode()}`, { name });
   dnsModeHint.textContent = rootDomainInput.value ? hint.replaceAll('<root domain>', rootDomainInput.value) : hint;
 }
 
@@ -251,10 +251,6 @@ const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 
 
-function setStatus(message, failed = false) {
-  status.textContent = message;
-  status.classList.toggle('status-failed', failed);
-}
 
 // every field is disabled while rust plans. After the plan, the fields that the intent or the
 // root domain disable stay disabled
@@ -356,7 +352,7 @@ export async function showCreate(options = {}) {
   try {
     await prefill();
   } catch (error) {
-    setStatus(String(error), true);
+    setStatus(status, String(error), true);
   }
   // a destroy needs no users: their hidden fields must not stop the form
   showUserMode();
@@ -368,7 +364,7 @@ export async function showCreate(options = {}) {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!passwordsMatch()) {
-    setStatus('');
+    setStatus(status, '');
     repeatInput.focus();
     return;
   }
@@ -378,20 +374,20 @@ form.addEventListener('submit', async (event) => {
       try {
         await runDestroy(newDeployment());
       } catch (error) {
-        setStatus(String(error), true);
+        setStatus(status, String(error), true);
       }
     }
     return;
   }
   setBusy(true);
-  setStatus(text('ui.create.planning'));
+  setStatus(status, text('ui.create.planning'));
   try {
     const deployment = newDeployment();
     const plan = await invoke('plan_deployment', { deployment });
-    setStatus('');
+    setStatus(status, '');
     showPlan(plan, deployment, backToDeployments);
   } catch (error) {
-    setStatus(String(error), true);
+    setStatus(status, String(error), true);
   } finally {
     setBusy(false);
   }
@@ -420,7 +416,7 @@ function resetForm() {
   repeatInput.required = true;
   existing = null;
   intent = 'create';
-  setStatus('');
+  setStatus(status, '');
 }
 
 document.getElementById('create-cancel').addEventListener('click', backToDeployments);

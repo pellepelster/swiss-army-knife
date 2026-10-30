@@ -5,7 +5,7 @@
 // as rust works on it; done only when every resource was done, cancel stops the run and leads to
 // the list of the deployments
 import { openDeployment } from './password.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -42,10 +42,6 @@ function intentText(key, intent) {
   return text(intent === 'create' ? key : `${key}_${intent}`);
 }
 
-function setStatus(element, message, failed = false) {
-  element.textContent = message;
-  element.classList.toggle('status-failed', failed);
-}
 
 // a resource of the plan: its kind, name and resource status, then what the plan does to it.
 // Rust decides the action and the working text (`shared.working.<working>`) that the row shows when the
@@ -130,7 +126,7 @@ function onEvent(message) {
     case 'provisionFailed':
       led.dataset.sakState = 'danger';
       detail.textContent = message.task
-        ? text('ui.plan.provisioning.failed').replaceAll('%{task}', message.task).replaceAll('%{message}', message.message)
+        ? text('ui.plan.provisioning.failed', { task: message.task, message: message.message })
         : message.message;
       break;
   }

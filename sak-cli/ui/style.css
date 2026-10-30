@@ -296,9 +296,9 @@ body {
 
 /* the frontend of the deployment: the last line of its resources, below a rule, centered, with
    the same space above and below */
-/* why the list could not compare a deployment, across the whole card */
+/* why the list could not compare a deployment, below the resources from their kind on */
 .deployment-error {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   font-size: var(--sak-text-sm);
   overflow-wrap: anywhere;
 }

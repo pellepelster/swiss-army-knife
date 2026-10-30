@@ -2,7 +2,7 @@
 // deployment while it is typed, a moment after the last key; next only with the right one, cancel
 // back to the list. The password stays with the opened deployment for its check and its destroy.
 // With SAK_PASSWORD set, the field starts with it and rust checks it at once
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -43,17 +43,13 @@ export function openDeployment(data, password) {
   opened = { deployment: data, password };
 }
 
-function setStatus(message, failed = false) {
-  status.textContent = message;
-  status.classList.toggle('status-failed', failed);
-}
 
 export async function showPassword(data) {
   deployment = data;
   input.value = '';
   showTyped(false);
   next.disabled = true;
-  setStatus('');
+  setStatus(status, '');
   document.getElementById('password-name').textContent = data.name;
   show('view-password');
   input.focus();
@@ -68,19 +64,19 @@ async function check() {
   const password = input.value;
   asked = password;
   if (!password) {
-    setStatus('');
+    setStatus(status, '');
     return;
   }
-  setStatus(text('ui.password.checking'));
+  setStatus(status, text('ui.password.checking'));
   try {
     await invoke('check_deployment_password', { name: deployment.name, password });
     if (asked === password) {
       next.disabled = false;
-      setStatus(text('ui.password.right'));
+      setStatus(status, text('ui.password.right'));
     }
   } catch (error) {
     if (asked === password) {
-      setStatus(String(error), true);
+      setStatus(status, String(error), true);
     }
   }
 }

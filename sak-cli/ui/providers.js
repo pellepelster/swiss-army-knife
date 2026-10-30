@@ -1,7 +1,7 @@
 // the provider tokens: the list, the selection of the provider for a new token and the entry of
 // the token. Rust validates a token before it adds it, and gives it back only masked
 import { showDeployments } from './deployments.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -65,15 +65,11 @@ function showEntry(type) {
   document.getElementById('token-provider').textContent = type.name;
   document.getElementById('token-hint').textContent = type.tokenHint;
   input.value = '';
-  setStatus('');
+  setStatus(status, '');
   show('view-token');
   input.focus();
 }
 
-function setStatus(message, failed = false) {
-  status.textContent = message;
-  status.classList.toggle('status-failed', failed);
-}
 
 function setBusy(busy) {
   for (const element of form.elements) {
@@ -84,13 +80,13 @@ function setBusy(busy) {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   setBusy(true);
-  setStatus(text('ui.token.checking'));
+  setStatus(status, text('ui.token.checking'));
   try {
     await invoke('add_provider_token', { provider: selected.id, token: input.value });
     input.value = '';
     await showProviders();
   } catch (error) {
-    setStatus(String(error), true);
+    setStatus(status, String(error), true);
     input.focus();
   } finally {
     setBusy(false);

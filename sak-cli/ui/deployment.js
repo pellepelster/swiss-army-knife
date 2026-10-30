@@ -10,7 +10,7 @@ import { STATES, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -27,10 +27,6 @@ let current = null;
 // the plan of the last check, its rows are those of the run
 let checked = null;
 
-function setMessage(value, failed = false) {
-  message.textContent = value;
-  message.classList.toggle('status-failed', failed);
-}
 
 // the state the check found; none before it
 function setState(state) {
@@ -75,7 +71,7 @@ async function check() {
     led.classList.add('sak-led');
     led.dataset.sakState = 'busy';
   }
-  setMessage(text('ui.deployment.checking'));
+  setStatus(message, text('ui.deployment.checking'));
   try {
     const plan = await invoke('check_deployment', { name: shown.name, password, location: shown.location });
     if (current !== shown) {
@@ -88,11 +84,11 @@ async function check() {
     deployButton.disabled = changes === 0;
     forceButton.disabled = false;
     setPrimary(changes ? deployButton : checkButton);
-    setMessage(changes ? text('ui.deployment.changes').replaceAll('%{count}', changes) : text('ui.deployment.up_to_date'));
+    setStatus(message, changes ? text('ui.deployment.changes', { count: changes }) : text('ui.deployment.up_to_date'));
   } catch (error) {
     if (current === shown) {
       list.replaceChildren(...shown.resources.map(resource));
-      setMessage(String(error), true);
+      setStatus(message, String(error), true);
     }
   } finally {
     if (current === shown) {
@@ -119,7 +115,7 @@ maintenanceButton.addEventListener('click', (event) => {
 });
 // whether the user confirms the reboot of the deployment `name`
 function confirmReboot(name) {
-  document.getElementById('reboot-confirm-title').textContent = text('ui.maintenance.confirm_title').replaceAll('%{name}', name);
+  document.getElementById('reboot-confirm-title').textContent = text('ui.maintenance.confirm_title', { name });
   rebootDialog.returnValue = '';
   rebootDialog.showModal();
   return new Promise((resolve) => {

@@ -4,7 +4,7 @@
 // the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
 import { showPassword } from './password.js';
-import { show, text } from './views.js';
+import { setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -51,9 +51,7 @@ function frontendLink(url) {
   link.textContent = url ?? '';
   link.addEventListener('click', (event) => {
     event.preventDefault();
-    invoke('open_url', { url }).catch((error) => {
-      status.textContent = String(error);
-    });
+    invoke('open_url', { url }).catch((error) => setStatus(status, String(error), true));
   });
   line.append(label, link);
   return line;
@@ -83,7 +81,7 @@ function deployment(data) {
   if (data.error) {
     const error = document.createElement('li');
     error.className = 'deployment-error status-failed';
-    error.textContent = text('shared.deployments.not_compared').replaceAll('%{name}', name).replaceAll('%{error}', data.error);
+    error.textContent = text('shared.deployments.not_compared', { name, error: data.error });
     group.append(error);
   }
   // the last line of the list, so it starts where the resources start; hidden for a deployment
@@ -93,21 +91,17 @@ function deployment(data) {
   return item;
 }
 
-function setStatus(message, failed = false) {
-  status.textContent = message;
-  status.classList.toggle('status-failed', failed);
-}
 
 export async function showDeployments() {
   list.replaceChildren();
-  setStatus(text('ui.deployments.loading'));
+  setStatus(status, text('ui.deployments.loading'));
   show('view-deployments');
   try {
     const deployments = await invoke('list_deployments');
     list.replaceChildren(...deployments.map(deployment));
-    setStatus(deployments.length === 0 ? text('shared.deployments.empty') : '');
+    setStatus(status, deployments.length === 0 ? text('shared.deployments.empty') : '');
   } catch (error) {
-    setStatus(String(error), true);
+    setStatus(status, String(error), true);
   }
 }
 

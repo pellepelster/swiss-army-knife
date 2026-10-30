@@ -1,7 +1,7 @@
 // the footer of the window: the version of sakctl, one button and one line that says what happens.
 // The button goes through the steps of an update: check, update to the newer version, restart.
 // Only a click asks github, the line names it first; while a step runs the button is disabled
-import { text } from './views.js';
+import { setStatus, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -12,29 +12,23 @@ let receiver = '';
 let step = 'check';
 let newest = null;
 
-// rust gives the texts as they are, the footer fills in their values
-function fill(key, values = {}) {
-  return Object.entries(values).reduce((filled, [name, value]) => filled.replaceAll(`%{${name}}`, value), text(key));
-}
-
 // the one line: the button of the next step and the text of what happens or happened
 function show(next, message, { busy = false, failed = false } = {}) {
   step = next;
   button.textContent = {
-    check: fill('ui.update.check'),
-    install: fill('ui.update.install', { version: newest }),
-    restart: fill('ui.update.restart'),
+    check: text('ui.update.check'),
+    install: text('ui.update.install', { version: newest }),
+    restart: text('ui.update.restart'),
   }[next];
   button.classList.toggle('btn-primary', next === 'restart');
   button.classList.toggle('btn-outline-secondary', next !== 'restart');
   button.disabled = busy;
-  status.textContent = message;
+  setStatus(status, message, failed);
   status.title = message;
-  status.classList.toggle('status-failed', failed);
 }
 
 async function check() {
-  show('check', fill('shared.update.checking', { receiver }), { busy: true });
+  show('check', text('shared.update.checking', { receiver }), { busy: true });
   try {
     const answer = await invoke('check_update');
     newest = answer.newest;
@@ -45,11 +39,11 @@ async function check() {
 }
 
 async function install() {
-  show('install', fill('shared.update.installing', { version: newest, receiver }), { busy: true });
+  show('install', text('shared.update.installing', { version: newest, receiver }), { busy: true });
   try {
     const answer = await invoke('install_update');
     if (answer.installed) {
-      show('restart', fill('ui.update.restart_hint', { version: answer.newest }));
+      show('restart', text('ui.update.restart_hint', { version: answer.newest }));
     } else {
       newest = null;
       show('check', answer.message);
@@ -73,6 +67,6 @@ button.addEventListener('click', () => ({ check, install, restart })[step]());
 export async function showVersion() {
   const answer = await invoke('version');
   receiver = answer.receiver;
-  document.getElementById('update-version').textContent = fill('ui.update.version', { version: answer.version });
-  show('check', fill('ui.update.idle', { receiver }));
+  document.getElementById('update-version').textContent = text('ui.update.version', { version: answer.version });
+  show('check', text('ui.update.idle', { receiver }));
 }
