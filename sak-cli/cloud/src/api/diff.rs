@@ -194,23 +194,34 @@ impl fmt::Display for ResourceDiff {
     }
 }
 
-/// the diffs of a run as a report: the changed resources with their changes, then the
-/// missing resources
+/// the diffs of a run as a report, every resource under its status: the changed resources with
+/// their changes, the missing ones, those with a missing parent, the duplicates with what they
+/// duplicate, the up to date ones
 pub fn log_text(diffs: &[ResourceDiff]) -> String {
     let mut text = String::new();
     writeln!(text, "changed resources:").unwrap();
-    for diff in diffs.iter().filter(|diff| diff.has_changes()) {
+    for diff in diffs
+        .iter()
+        .filter(|diff| diff.status == DiffStatus::HasChanges)
+    {
         writeln!(text, "    - {}", diff.resource).unwrap();
         for change in &diff.changes {
             writeln!(text, "        - {}", change.log_text()).unwrap();
         }
     }
-    writeln!(text, "missing resources:").unwrap();
-    for diff in diffs
-        .iter()
-        .filter(|diff| diff.status == DiffStatus::Missing)
-    {
-        writeln!(text, "    - {}", diff.resource).unwrap();
+    for (title, status) in [
+        ("missing resources", DiffStatus::Missing),
+        ("resources with a missing parent", DiffStatus::ParentMissing),
+        ("duplicate resources", DiffStatus::Duplicate),
+        ("up to date resources", DiffStatus::UpToDate),
+    ] {
+        writeln!(text, "{title}:").unwrap();
+        for diff in diffs.iter().filter(|diff| diff.status == status) {
+            match &diff.duplicate_message {
+                Some(message) => writeln!(text, "    - {}: {message}", diff.resource).unwrap(),
+                None => writeln!(text, "    - {}", diff.resource).unwrap(),
+            }
+        }
     }
     text
 }
@@ -307,6 +318,42 @@ mod tests {
             |key: &str| key.starts_with("sak/user-data") || key.starts_with("sak/ssh-keys");
         assert!(label_diff(&declared, &live, managed).is_empty());
         assert_eq!(label_diff(&declared, &live, |_| false).len(), 3);
+    }
+
+    #[test]
+    fn the_report_shows_every_status() {
+        let diff = |name: &str, status: DiffStatus| ResourceDiff {
+            resource: ResourceRef {
+                type_id: std::any::TypeId::of::<()>(),
+                name: name.to_string(),
+                log_text: format!("thing '{name}'"),
+            },
+            status,
+            changes: Vec::new(),
+            duplicate_message: None,
+        };
+        let diffs = [
+            ResourceDiff {
+                changes: vec![DiffItem::changed("size", 2, 1)],
+                ..diff("a", DiffStatus::HasChanges)
+            },
+            diff("b", DiffStatus::Missing),
+            diff("c", DiffStatus::ParentMissing),
+            ResourceDiff {
+                duplicate_message: Some("another key has its fingerprint".to_string()),
+                ..diff("d", DiffStatus::Duplicate)
+            },
+            diff("e", DiffStatus::UpToDate),
+        ];
+
+        assert_eq!(
+            log_text(&diffs),
+            "changed resources:\n    - thing 'a'\n        - size should be '2' but was '1'\n\
+             missing resources:\n    - thing 'b'\n\
+             resources with a missing parent:\n    - thing 'c'\n\
+             duplicate resources:\n    - thing 'd': another key has its fingerprint\n\
+             up to date resources:\n    - thing 'e'\n"
+        );
     }
 
     #[test]

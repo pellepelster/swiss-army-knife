@@ -58,11 +58,13 @@ trait ErasedProvisioner: Send + Sync {
     ) -> Result<bool>;
 
     /// looks the resource up for the identity check only: a resource of the name that belongs
-    /// to someone else fails here, also when the resource is not diffed
+    /// to someone else fails here, also when the resource is not diffed. With `owner`, also one
+    /// without the owner labels of the run
     async fn check_owned(
         &self,
         resource: &dyn AnyResource,
         context: &LookupProviders,
+        owner: Option<&Labels>,
     ) -> Result<()>;
 }
 
@@ -120,9 +122,13 @@ impl<R: Resource, P: Provisioner<R> + 'static> ErasedProvisioner for Erased<R, P
         &self,
         resource: &dyn AnyResource,
         context: &LookupProviders,
+        owner: Option<&Labels>,
     ) -> Result<()> {
         let lookup = self.downcast(resource).as_lookup();
-        self.provisioner.lookup(&lookup, context).await?;
+        let found = self.provisioner.lookup(&lookup, context).await?;
+        if let Some(owner) = owner {
+            identity::check(found, owner, &lookup.log_text())?;
+        }
         Ok(())
     }
 }
@@ -199,9 +205,17 @@ impl Registry {
         self
     }
 
-    /// `RecreateRefused` for a diff that needs a recreate of a resource that is not recreatable
-    fn refuse_recreate(&self, diff: &ResourceDiff) -> Result<()> {
-        if diff.needs_recreate() && !self.recreatable.contains(&diff.resource) {
+    /// why the apply must not start on the diff: `Duplicate` for a duplicate; for a recreate,
+    /// `RecreateRefused` when the resource is not recreatable, and as a recreate destroys first,
+    /// `NoOwner` without owner labels and `NotOwned` for a resource without them
+    async fn refuse(&self, resource: &dyn AnyResource, diff: &ResourceDiff) -> Result<()> {
+        if diff.status == DiffStatus::Duplicate {
+            return Err(duplicate(diff));
+        }
+        if !diff.needs_recreate() {
+            return Ok(());
+        }
+        if !self.recreatable.contains(&diff.resource) {
             return Err(Error::RecreateRefused {
                 resource: diff.resource.log_text.clone(),
                 changes: diff
@@ -213,7 +227,10 @@ impl Registry {
                     .join(", "),
             });
         }
-        Ok(())
+        let owner = self.owner()?;
+        self.provisioner_of(resource)?
+            .check_owned(resource, &self.context, Some(owner))
+            .await
     }
 
     /// the owner labels, or why nothing may be destroyed
@@ -251,23 +268,35 @@ impl Registry {
     }
 
     /// the diff of every resource, dependencies first. A resource with a missing dependency is
-    /// `ParentMissing`. A resource sees each dependency that is not up to date as pending
+    /// `ParentMissing`. A resource sees each dependency that is not up to date as pending. The
+    /// plan is the gate of the apply: a duplicate, a recreate the registry may not do and a
+    /// resource of someone else fail here, before anything changes
     pub async fn diff_all(&mut self) -> Result<Vec<ResourceDiff>> {
+        Ok(self
+            .plan()
+            .await?
+            .into_iter()
+            .map(|(_, diff)| diff)
+            .collect())
+    }
+
+    /// `diff_all` with the index of each resource
+    async fn plan(&mut self) -> Result<Vec<(usize, ResourceDiff)>> {
         self.context.clear_pending();
-        let mut diffs: Vec<ResourceDiff> = Vec::new();
+        let mut diffs: Vec<(usize, ResourceDiff)> = Vec::new();
         for index in self.order()? {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
             let parent_missing = resource.depends_on().iter().any(|dependency| {
-                diffs
-                    .iter()
-                    .any(|diff| diff.resource == *dependency && diff.status == DiffStatus::Missing)
+                diffs.iter().any(|(_, diff)| {
+                    diff.resource == *dependency && diff.status == DiffStatus::Missing
+                })
             });
             let diff = if parent_missing {
                 // not diffed, but a resource of its name that belongs to someone else stops the
                 // plan here, before anything is created
                 self.provisioner_of(resource)?
-                    .check_owned(resource, &self.context)
+                    .check_owned(resource, &self.context, None)
                     .await?;
                 ResourceDiff {
                     resource: reference.clone(),
@@ -280,12 +309,13 @@ impl Registry {
                     .diff(resource, &self.context)
                     .await?
             };
-            // a plan that would recreate a resource that must stay fails here, before the apply
-            self.refuse_recreate(&diff)?;
+            // a plan that would recreate a resource that must stay, or create a duplicate, fails
+            // here, before the apply
+            self.refuse(resource, &diff).await?;
             if diff.status != DiffStatus::UpToDate {
                 self.context.mark_pending(reference);
             }
-            diffs.push(diff);
+            diffs.push((index, diff));
         }
         Ok(diffs)
     }
@@ -302,17 +332,34 @@ impl Registry {
         &mut self,
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ApplyResult>> {
-        // the whole plan first: a refused recreate or a resource of someone else stops the apply
-        // before anything is created, not half way
-        self.diff_all().await?;
+        // the whole plan first: a refused recreate, a duplicate or a resource of someone else
+        // stops the apply before anything is created, not half way
+        let plan = self.plan().await?;
         self.context.clear_pending();
+        // what the plan found not up to date and what the apply changed: the plan's diff of a
+        // resource that depends on one is stale, it is diffed again once that is applied
+        let mut changed: HashSet<ResourceRef> = plan
+            .iter()
+            .filter(|(_, diff)| diff.status != DiffStatus::UpToDate)
+            .map(|(_, diff)| diff.resource.clone())
+            .collect();
         let mut results = Vec::new();
-        for index in self.order()? {
+        for (index, planned) in plan {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
             on_event(ApplyEvent::Started(reference.clone()));
             let provisioner = self.provisioner_of(resource)?;
-            let diff = provisioner.diff(resource, &self.context).await?;
+            let diff = if resource
+                .depends_on()
+                .iter()
+                .any(|dependency| changed.contains(dependency))
+            {
+                let diff = provisioner.diff(resource, &self.context).await?;
+                self.refuse(resource, &diff).await?;
+                diff
+            } else {
+                planned
+            };
             let applied = match diff.status {
                 DiffStatus::UpToDate => Applied::Unchanged,
                 DiffStatus::Missing | DiffStatus::ParentMissing => {
@@ -320,17 +367,8 @@ impl Registry {
                     provisioner.apply(resource, &self.context).await?;
                     Applied::Created
                 }
-                DiffStatus::Duplicate => {
-                    return Err(Error::Duplicate {
-                        resource: reference.to_string(),
-                        message: diff
-                            .duplicate_message
-                            .clone()
-                            .unwrap_or_else(|| "is duplicated".to_string()),
-                    });
-                }
+                DiffStatus::Duplicate => return Err(duplicate(&diff)),
                 DiffStatus::HasChanges if diff.needs_recreate() => {
-                    self.refuse_recreate(&diff)?;
                     info!("recreating {reference}: {diff}");
                     provisioner
                         .destroy(resource, &self.context, self.owner()?)
@@ -344,6 +382,9 @@ impl Registry {
                     Applied::Updated
                 }
             };
+            if applied != Applied::Unchanged {
+                changed.insert(reference.clone());
+            }
             let result = ApplyResult {
                 resource: reference,
                 applied,
@@ -365,8 +406,17 @@ impl Registry {
         on_event: &mut (dyn FnMut(ApplyEvent) + Send),
     ) -> Result<Vec<ResourceRef>> {
         let owner = self.owner()?.clone();
+        let order = self.order()?;
+        // every resource first, in the order of the destroy: one of someone else stops it before
+        // anything is gone, not with its dependents gone already
+        for &index in order.iter().rev() {
+            let resource = self.resources[index].as_ref();
+            self.provisioner_of(resource)?
+                .check_owned(resource, &self.context, Some(&owner))
+                .await?;
+        }
         let mut destroyed = Vec::new();
-        for index in self.order()?.into_iter().rev() {
+        for index in order.into_iter().rev() {
             let resource = self.resources[index].as_ref();
             let reference = resource.resource_ref();
             info!("destroying {reference}");
@@ -436,6 +486,17 @@ impl Registry {
     }
 }
 
+/// the error of a duplicate, with the message that names it
+fn duplicate(diff: &ResourceDiff) -> Error {
+    Error::Duplicate {
+        resource: diff.resource.to_string(),
+        message: diff
+            .duplicate_message
+            .clone()
+            .unwrap_or_else(|| "is duplicated".to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,6 +515,8 @@ mod tests {
         existing: Mutex<HashMap<String, (u32, Labels)>>,
         /// names whose lookup fails with `NotOwned`, as a lookup with an identity does
         foreign: Mutex<HashSet<String>>,
+        /// missing names that another thing duplicates, as an ssh key of the same fingerprint
+        duplicated: Mutex<HashSet<String>>,
         log: Mutex<Vec<String>>,
     }
 
@@ -577,6 +640,12 @@ mod tests {
                 .unwrap()
                 .push(format!("diff {} pending {pending:?}", resource.name));
             let Some(runtime) = self.lookup(&resource.as_lookup(), context).await? else {
+                if self.duplicated.lock().unwrap().contains(&resource.name) {
+                    return Ok(ResourceDiff::duplicate(
+                        resource,
+                        "another thing is the same",
+                    ));
+                }
                 return Ok(ResourceDiff::missing(resource));
             };
             let mut changes = Vec::new();
@@ -649,15 +718,14 @@ mod tests {
                 .iter()
                 .all(|result| result.applied == Applied::Created)
         );
-        // the plan first (the server not diffed, its parents are missing), then the apply
+        // the plan first (the server not diffed, its parents are missing), then the apply; only
+        // the server is diffed again, once its parents are there
         assert_eq!(
             log(&cloud),
             vec![
                 "diff key pending []",
                 "diff volume pending []",
-                "diff key pending []",
                 "apply key",
-                "diff volume pending []",
                 "apply volume",
                 "diff server pending []",
                 "apply server"
@@ -669,6 +737,15 @@ mod tests {
             results
                 .iter()
                 .all(|result| result.applied == Applied::Unchanged)
+        );
+        // all up to date: the plan's diffs, nothing diffed twice
+        assert_eq!(
+            log(&cloud),
+            vec![
+                "diff key pending []",
+                "diff volume pending []",
+                "diff server pending []"
+            ]
         );
 
         let destroyed = registry.destroy_all().await.unwrap();
@@ -747,13 +824,90 @@ mod tests {
         assert_eq!(results[0].applied, Applied::Recreated);
         assert_eq!(
             log(&cloud),
-            vec![
-                "diff key pending []",
-                "diff key pending []",
-                "destroy key",
-                "apply key"
-            ]
+            vec!["diff key pending []", "destroy key", "apply key"]
         );
+    }
+
+    #[tokio::test]
+    async fn a_recreate_without_owner_labels_stops_the_plan() {
+        let cloud = Arc::new(Cloud::default());
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("server".to_string(), (1, owner()));
+        let strict = Thing {
+            strict: true,
+            ..thing("server", 2, &[])
+        };
+        let mut registry = Registry::new();
+        registry.register::<Thing, Cloud>(cloud.clone());
+        let mut registry = registry
+            .with(thing("key", 1, &[]))
+            .unwrap()
+            .with(strict)
+            .unwrap()
+            .recreatable(Resource::resource_ref(&thing("server", 2, &[])));
+
+        assert!(matches!(registry.diff_all().await, Err(Error::NoOwner)));
+        assert!(matches!(registry.apply_all().await, Err(Error::NoOwner)));
+        // the key before the server is not created either
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+    }
+
+    #[tokio::test]
+    async fn a_duplicate_stops_the_plan_before_anything_is_applied() {
+        let cloud = Arc::new(Cloud::default());
+        cloud.duplicated.lock().unwrap().insert("key".to_string());
+        let mut registry = registry(&cloud)
+            .with(thing("volume", 1, &[]))
+            .unwrap()
+            .with(thing("key", 1, &[]))
+            .unwrap();
+
+        let error = registry.apply_all().await.unwrap_err();
+
+        assert!(
+            matches!(&error, Error::Duplicate { resource, message }
+                if resource == "thing 'key'" && message == "another thing is the same"),
+            "{error}"
+        );
+        assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+    }
+
+    #[tokio::test]
+    async fn a_thing_of_someone_else_stops_the_destroy_before_anything_is_gone() {
+        let cloud = Arc::new(Cloud::default());
+        let mut registry = registry(&cloud)
+            .with(thing("key", 1, &[]))
+            .unwrap()
+            .with(thing("server", 1, &["key"]))
+            .unwrap();
+        registry.apply_all().await.unwrap();
+        log(&cloud);
+        // the key, destroyed after the server, lost its owner label
+        cloud.plant("key", 1);
+
+        let error = registry.destroy_all().await.unwrap_err();
+
+        assert!(
+            matches!(&error, Error::NotOwned { resource, .. } if resource == "thing 'key'"),
+            "{error}"
+        );
+        assert!(log(&cloud).is_empty());
+        assert!(cloud.existing.lock().unwrap().contains_key("server"));
+        // one whose lookup refuses it
+        cloud
+            .existing
+            .lock()
+            .unwrap()
+            .insert("key".to_string(), (1, owner()));
+        cloud.foreign.lock().unwrap().insert("key".to_string());
+        assert!(matches!(
+            registry.destroy_all().await,
+            Err(Error::NotOwned { .. })
+        ));
+        assert!(cloud.existing.lock().unwrap().contains_key("server"));
     }
 
     #[tokio::test]
