@@ -74,35 +74,6 @@ the review found them; the sections below hold the ones still open.
 
 ### Bugs
 
-#### CA-2 (Medium, confirmed): A recreate without owner labels passes the plan and fails half way through the apply
-
-`api/registry.rs:313` runs the plan so that nothing changes when it fails, but the owner check `self.owner()?` sits
-only in the recreate branch of the apply at `:339`. **Scenario:** a registry without `owned_by` (a library user;
-`deployment.rs` does set it), a recreatable server that needs a recreate → `diff_all` passes, key, volume, ips and
-firewall are applied, the server fails with "nothing is destroyed without the owner labels". **Fix:**
-`refuse_recreate` (`:203`) also requires the owner when `needs_recreate()`.
-
-#### CA-3 (Medium, confirmed): A `Duplicate` passes the plan and fails during the apply
-
-`diff_all` (`registry.rs:261-297`) refuses only recreates; `DiffStatus::Duplicate` becomes an error only in
-`apply_all_with` at `:329-334`, after earlier resources were applied. In the deployment the ssh key is first in the
-order, so nothing precedes it today, but the registry's own contract ("never stops half way") does not hold for any
-other order. `diff::log_text` (`api/diff.rs:196-213`) prints neither `Duplicate` nor `ParentMissing` resources, so
-a plan report can hide the thing that fails. **Fix:** refuse `Duplicate` in `diff_all`; print every status.
-
-#### CA-4 (Medium): A destroy has no plan phase, a `NotOwned` resource stops it with dependents already gone
-
-`registry.rs:366-387` looks each resource up only as it destroys it, in reverse order. **Scenario:** the server is
-deleted, then the firewall of the name belongs to someone else → `NotOwned` → ips, volume and key remain; a second
-destroy stops at the same firewall. **Fix:** run `check_owned` on every resource before the first delete, as
-`apply_all_with` runs `diff_all` first.
-
-#### CA-5 (Low, confirmed): `unreachable!` is reachable with zero attempts
-
-`Backoff::new` is `pub` and `with_retry`/`with_wait` (`hetzner/api/mod.rs:130-138`) accept any value; `send`
-(`:365`) and `wait_for_action` (`:306`) then panic instead of returning an error. **Fix:** `attempts: NonZeroU32`,
-or clamp in `Backoff::new`.
-
 #### CA-6 (Low): A parent that is itself `ParentMissing` or `Duplicate` counts as present
 
 `registry.rs:267-271` marks a child `ParentMissing` only when a dependency's diff is `Missing`. **Scenario:** the
@@ -128,38 +99,12 @@ sakctl constructs `HetznerProviderRuntime::from_api` everywhere (`src-tauri/src/
 test a token and wraps the `ApiError` into `Error::Message`, losing the code. `#[async_trait]` on `ProviderRuntime`
 (`providers/mod.rs:20`) has no async method.
 
-#### CA-15 (Low): `Listable` is implemented six times for one test
-
-`api/provisioner.rs:17`, used by `tests/hetzner_dns.rs` only. It lists the whole project without a label filter.
-
-#### CA-17 (Low): A test that does not test its name
-
-`hetzner/api/tests.rs:404-413` `a_read_is_sent_again_after_a_connection_error` asserts only that the result is an
-error; nothing counts attempts, so it passes with zero retries. `tests.rs:507-511` adds an `impl HetznerApi` to call
-a `pub(crate)` method the child module could call already.
-
-#### CA-18 (Low): Small things
-
-- `LookupProviders::mark_pending`/`clear_pending` are `pub` (`api/context.rs:120-126`) on an exported type; only
-  the registry should drive them.
-- `label_diff` collects both maps into `Vec`s and does a linear `find` (`api/diff.rs:224-232`) although `Labels`
-  is a `BTreeMap`.
-- The chunk threshold is off by one (`labels.rs:102`): `>=` 62 chunks a 62-character value, though 63 fits a
-  Hetzner label and the comment at `:8-9` says 63.
-
 ### Structure
-
-#### CA-20: The apply diffs everything twice
-
-`apply_all_with` runs `diff_all` and then re-diffs each resource before applying it (`registry.rs:313, 321`); the
-server diff alone does five lookups. The second diff is needed only for resources with a pending dependency. Keep
-the plan's `ResourceDiff` and re-diff only when `depends_on` intersects the pending set.
 
 #### CA-21: `pending` as a per-run value, `diff_all` takes `&self`
 
 `diff_all` needs `&mut self` only for `pending`. A `DiffRun<'a> { providers: &'a LookupProviders, pending }` that
-implements `DiffContext` makes `diff_all` `&self`, removes `mark_pending`/`clear_pending` from the public surface
-(CA-18), and a plan cannot leak pending state into the next run.
+implements `DiffContext` makes `diff_all` `&self`, and a plan cannot leak pending state into the next run.
 
 #### CA-22: The erased layers are duplicated
 
@@ -252,11 +197,6 @@ continues in an action); `change_protection` at `:124` and the server create wit
 423 retry of the api (`api/mod.rs:310-312`, 5 attempts ≈ 30 s). `server/provisioner.rs:410-422` `wait_for_volumes`
 checks `volume.server` only, never `status`.
 
-#### CP-9 (Low): Two power cycles when both ips need assigning
-
-`server/provisioner.rs:343-351` calls `assign` once per ip; each powers off and on (`:132-146`) with the stale
-`server.status` from before the first cycle.
-
 #### CP-10 (Low): Duplicates are handled differently per kind
 
 `deployment.rs:413-446`: a second server, key or firewall with the name label is dropped with a warning;
@@ -279,23 +219,6 @@ A declaration (`new`/`with_*`) and a spec reverse-engineered from labels (`decla
 `user_data_hash` and the `UserData::Hash` escape that cannot create: `server/resource.rs:16`,
 `server/provisioner.rs:297-302`). `Option` fields meaning "none for a destroy" (`deployment.rs:758-767`) encode the
 intent as nullability.
-
-#### CP-15 (Low): Duplicated and unnecessary code
-
-`deployment.rs:595-599` re-implements `DiscoveredDeployment::location()` (`:91-121`), silently taking the first;
-`deployment.rs:569` `&diff.resource.name.clone()` clones to borrow; `server/runtime.rs:25-31` `ssh_user`/`ssh_port`
-constants on a runtime.
-
-#### CP-16 (Low): Tests
-
-`server/provisioner.rs:638-660` `volumes_and_the_primary_ip_are_compared_by_id` declares no ipv4 lookup, asserts
-only volumes, and starts an unused `MockServer` (`:647-648`); `deployment.rs:1303` `let _ = sha256_hex;` silences
-an unused import; `deployment.rs:1234, 1338-1342` assert serde and parse behaviour inside state and dns-mode tests.
-
-#### CP-17 (Low): Stringly typed values and boolean parameters
-
-`dns_zone/runtime.rs:11` `status: String`; `deployment.rs:762-764` `user_mode: Option<String>` ("single"/"multi"),
-`acme_ca: Option<String>` next to the `DnsMode` enum; `destroy_registry(provider, delete_data: bool)` (`:1058`).
 
 ### Structure
 
@@ -359,10 +282,11 @@ The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_ro
 `failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
 message. A typed error variant removes the mutex and the second tracker (CD-25).
 
-#### CD-16 (Low): The markers are read up to three times per deploy
+#### CD-16 (Low): The markers are read twice per deploy
 
-Each a container and an ssh session: the plan's `diff_all`, the apply's own `diff_all`
-(`cloud/api/registry.rs:313`) and the per-resource `diff` in the apply loop (`:319`). Same root as CA-20.
+Each a container and an ssh session: the plan sakctl shows (the check of the window, the plan the command line
+prints) and the plan the apply makes before it changes anything. The apply diffs again only what depends on a
+change. The plan shown could be handed to the apply instead of being made twice.
 
 #### CD-17 (Low): A runtime with a made-up location to reach `state()`
 
@@ -380,8 +304,7 @@ discovers the deployment after the provisioning, although `run.host` holds the a
 #### CD-25: sak-cloud tells the provisioners what was applied with a change
 
 The registry exposes "applied with a change in this run" to the diffs (removes `server_changed`,
-`ansible_roles.rs:98-100`, `deployments.rs:1690`; CD-4), caches the plan's diffs for the apply (CD-16, CA-20), and
-gets an `Error::Provisioning { task, message }` (removes the `failure` mutex and the duplicate task tracking,
+`ansible_roles.rs:98-100`, `deployments.rs:1690`; CD-4) and gets an `Error::Provisioning { task, message }` (removes the `failure` mutex and the duplicate task tracking,
 CD-12).
 
 ---
@@ -424,13 +347,6 @@ enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-w
 ## R1: open from the first review
 
 ### Bugs and security
-
-#### R1-3 (Medium): The window applies the project as it is at the click, not the plan it showed (was C6)
-
-The apply of a check diffs the project again (the registry diffs before it applies), so a project that changed
-between the check and the click is applied as it is then, not as the page showed it. The command line asks before a
-plan that destroys or creates anew (`--yes` for scripts). **Fix:** let the apply stop when its diff differs from the
-plan it was given (CA-20 keeps the plan's diffs for the apply).
 
 ---
 
