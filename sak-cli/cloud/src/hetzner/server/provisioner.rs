@@ -368,8 +368,15 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
 
     /// the volumes and primary ips of the server stay: they are resources of their own
     async fn destroy(&self, runtime: &HetznerServerRuntime, _: &dyn DestroyContext) -> Result<()> {
-        if let Some(action) = self.api.servers().delete(runtime.id).await? {
-            self.api.servers().wait_for_action(&action).await?;
+        if self.api.servers().delete(runtime.id).await?.is_some() {
+            // until the server is gone, not until its action is done: hetzner marks the action of
+            // a delete done up to half an hour after the server went when it is busy
+            let api = &self.api;
+            let id = runtime.id;
+            api.wait_until("the server to be deleted", || async move {
+                Ok(api.servers().get(id).await?.is_none())
+            })
+            .await?;
             // hetzner detaches the volumes after the delete; until then it refuses a new
             // server with them
             self.wait_for_detach(&runtime.volumes).await?;
