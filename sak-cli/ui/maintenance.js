@@ -1,7 +1,7 @@
 // the maintenance of the server of a deployment, from the menu of its page: the status, the update
 // or the reboot, as `sakctl maintenance` has them. The view shows each line of the server while it
-// runs, then the answer, warnings in their colour. Cancel stays disabled, a command on the server
-// is not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
+// runs, then the answer, warnings in their colour. There is no cancel, a command on the server is
+// not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
 // deployment again
 import { openedDeployment } from './password.js';
 import { show, text } from './views.js';
