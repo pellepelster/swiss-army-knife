@@ -48,36 +48,33 @@ mod tests {
     /// the boundary: the shared code names neither the window nor the command line
     #[test]
     fn core_knows_neither_tauri_nor_clap() {
-        for (name, source) in [
-            ("checks/mod.rs", include_str!("checks/mod.rs")),
-            (
-                "checks/container_runtime.rs",
-                include_str!("checks/container_runtime.rs"),
-            ),
-            ("checks/image.rs", include_str!("checks/image.rs")),
-            (
-                "checks/provider_tokens.rs",
-                include_str!("checks/provider_tokens.rs"),
-            ),
-            ("ansible_roles.rs", include_str!("ansible_roles.rs")),
-            ("backup.rs", include_str!("backup.rs")),
-            ("config.rs", include_str!("config.rs")),
-            ("container.rs", include_str!("container.rs")),
-            ("deployments.rs", include_str!("deployments.rs")),
-            ("encoding.rs", include_str!("encoding.rs")),
-            ("error.rs", include_str!("error.rs")),
-            ("provision.rs", include_str!("provision.rs")),
-            ("roles.rs", include_str!("roles.rs")),
-            ("sak_backend.rs", include_str!("sak_backend.rs")),
-            ("i18n.rs", include_str!("i18n.rs")),
-            ("keys.rs", include_str!("keys.rs")),
-            ("maintenance.rs", include_str!("maintenance.rs")),
-            ("update.rs", include_str!("update.rs")),
-            ("providers/mod.rs", include_str!("providers/mod.rs")),
-            ("providers/hetzner.rs", include_str!("providers/hetzner.rs")),
-        ] {
+        // every file below src/core, so a new one is checked too
+        fn sources(dir: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    sources(&path, found);
+                } else if path.extension().is_some_and(|extension| extension == "rs") {
+                    found.push(path);
+                }
+            }
+        }
+        let core = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/core");
+        let mut found = Vec::new();
+        sources(&core, &mut found);
+        assert!(found.len() > 20, "{found:?}");
+        // this file names the words, in its doc and here
+        for path in found
+            .into_iter()
+            .filter(|path| *path != core.join("mod.rs"))
+        {
+            let source = std::fs::read_to_string(&path).unwrap();
             for word in ["tauri", "clap"] {
-                assert!(!source.contains(word), "core/{name} mentions {word}");
+                assert!(
+                    !source.contains(word),
+                    "{} mentions {word}",
+                    path.strip_prefix(&core).unwrap().display()
+                );
             }
         }
     }

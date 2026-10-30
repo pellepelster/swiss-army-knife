@@ -65,8 +65,8 @@ the review found them; the sections below hold the ones still open.
 - **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the kind of a planned
   resource (CD-13), the strings and flags of the deployment spec (CP-17), a few flags of the command line (UI-16).
   *Done: `DiffItem`, the plan words, the reasons of a reboot, the password prompt, the transport.*
-- **Files that have outgrown themselves.** `core/deployments.rs` (CD-22), `cloud/hetzner/deployment.rs` (CP-20).
-  *Done: `cli.rs`.*
+- **Files that have outgrown themselves.** `cloud/hetzner/deployment.rs` (CP-20). *Done: `cli.rs`,
+  `core/deployments.rs`.*
 
 ---
 
@@ -245,7 +245,7 @@ to the accepted risks.
 which waits forever. A daemon that accepts the connection but never answers hangs the splash screen. The bollard
 path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
 
-#### CU-9 (Low, confirmed): The boundary test lists its files by hand and omits the ones that would fail it
+#### ~~CU-9 (Low, confirmed): The boundary test lists its files by hand and omits the ones that would fail it~~ **fixed**
 
 `core_knows_neither_tauri_nor_clap` (`mod.rs:48-78`) omits `ssh.rs`, `events.rs` and `deployments/*.rs`. `ssh.rs:180`
 has "tauri" in a comment, `deployments/window_fixtures.rs` too. **Fix:** walk `src/core` in the test; fix the
@@ -601,17 +601,6 @@ is a substring of a comment passes; `window_fixtures.rs` hand-maintains the regi
 list (`:26-68`), which drift from `DeploymentSpec::registry` and the playbook.
 
 ### Structure
-
-#### CD-22: Split `core/deployments.rs`
-
-`deployments/input.rs` (NewDeployment, Smtp, UserMode, AcmeCa, defaults, env vars, check_smtp, is_address,
-parse_flag), `deployments/password.rs` (verify/check_password, password_proofs, config_endpoint),
-`deployments/plan.rs` (PlanResponse, PlannedResource, enums for status/action/working, applied_key/destroyed_key),
-`deployments/events.rs` (CreateEvent, TaskOutcome, task_event merged with `events.rs::AnsibleEvent` and
-`provision.rs::failure_of`), `deployments/manager.rs` (prepare, plan, apply, destroy); the tests next to each.
-Today the file mixes seven concerns: input types and env defaults (`:337-600`), validation (`:469-518, 953-966`),
-password proofs (`:919-1014`), plan vocabulary (`:168-218, 873-917`), event mapping (`:220-320`), the manager
-(`:1045-1834`), 800 lines of tests.
 
 #### CD-23: One `find_deployment` and one `Endpoint`
 

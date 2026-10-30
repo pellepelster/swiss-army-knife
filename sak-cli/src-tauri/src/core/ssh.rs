@@ -197,7 +197,7 @@ impl Drop for SessionContainer {
 }
 
 /// the terminal sakctl runs in, also when its own input and output are pipes (a mise task, the dev
-/// runner of tauri); none without one, e.g. in a script, and off unix, where the session takes the
+/// runner of the window); none without one, e.g. in a script, and off unix, where the session takes the
 /// input of sakctl
 fn controlling_terminal() -> Option<std::fs::File> {
     if cfg!(unix) {
