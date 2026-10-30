@@ -99,6 +99,12 @@ pub async fn plan_deployment(
 #[derive(Default)]
 pub struct RunningApply(Mutex<Option<AbortHandle>>);
 
+impl RunningApply {
+    pub fn is_running(&self) -> bool {
+        self.0.lock().is_ok_and(|running| running.is_some())
+    }
+}
+
 #[tauri::command]
 pub async fn create_deployment(
     manager: State<'_, DeploymentManager>,

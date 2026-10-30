@@ -46,7 +46,8 @@ pub fn run() {
             deployments::check_deployment_password,
             update::version,
             update::check_update,
-            update::install_update
+            update::install_update,
+            update::restart
         ])
         .build(tauri::generate_context!())
         .expect("sakctl failed to start")

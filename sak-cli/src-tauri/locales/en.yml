@@ -190,6 +190,8 @@ ui:
     version: "sakctl %{version}"
     check: "Check for updates on %{receiver}"
     install: "Update to %{version}"
+    restart: "Restart"
+    restart_while_running: "A deployment is being changed, restart when it is done."
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
