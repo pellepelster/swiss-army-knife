@@ -27,10 +27,13 @@ prefix, so an ID is unique across the review:
 Each finding has a severity: **High** (wrong result or data at risk in a realistic scenario), **Medium** (a bug on a
 less common path, or a smell that hides bugs), **Low** (a smell or a simplification). Findings marked *(confirmed)*
 were checked a second time against the code after the slice reviewer reported them; the others rest on the slice
-reviewer's reading. A finding that is fixed is ~~struck through~~ and marked **fixed**; the commit that fixes it
-names its ID.
+reviewer's reading. A finding that is fixed is removed; one that an open finding still refers to stays,
+~~struck through~~ and marked **fixed**. The commit that fixes a finding names its ID.
 
 ## Summary
+
+The review found 118 findings: 5 High, 28 Medium, 65 Low, and 20 proposals of structure. The table counts them as
+the review found them; the sections below hold the ones still open.
 
 | Slice                          | High | Medium | Low | Structure |
 |--------------------------------|-----:|-------:|----:|----------:|
@@ -43,34 +46,29 @@ names its ID.
 
 ### Fix first
 
-1. ~~**UI-1** the page can deploy another deployment than the one shown (`CheckedDeployment` has no identity).~~
-2. ~~**CP-1** one odd deployment (a kept volume after a destroy) hides the whole list~~; **CA-1** one unknown
-   server type does the same.
-3. ~~**CD-1 / UI-6**~~ / **UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host"
-   and command-line instructions in the window.
-4. ~~**CU-1** a backup or restore hangs forever on a dropped connection; **CU-3 / CU-4** ssh's and the lock's
-   exit codes are blamed on `sak-backend`~~.
-5. **UI-2** a destroy runs after Cancel; ~~**UI-3** "delete the data volume" stays ticked~~.
-6. **CD-2** a destroy plan is refused for a volume it would never recreate.
-7. **UI-4** a deployment without a location cannot be checked in the window.
+1. **CA-1** one server of an unknown type fails every list of deployments.
+2. **UI-2** a destroy runs after Cancel.
+3. **CD-2** a destroy plan is refused for a volume it would never recreate.
+4. **UI-4** a deployment without a location cannot be checked in the window.
+5. **UI-5** the window shows command-line instructions it cannot act on.
 
 ### The structural threads that run through all slices
 
-- **One thing written twice (or five times).** The maintenance flow (UI-11), the deploy completion (UI-12), the
-  checks (UI-13), "find the deployment and verify the password" (CD-11), the `sak-backend` driver (CU-12), the
-  request plumbing of the api (CA-9), the provisioner skeleton (CP-12). The cure is the same each time: the logic
-  goes into core or into one generic, the two frontends keep their sinks.
+- **One thing written more than once.** The request plumbing of the api (CA-9) and the provisioner skeleton
+  (CP-12) are left. *Done: the maintenance flow, the deploy completion, the checks, the lookup of a deployment, the
+  driver of `sak-backend`.*
 - **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
   CA-3), a destroy plans with the create registry (CD-2), the playbook decision differs (CD-4), a pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
   resolves all of them (CD-25, CP-22).
-- **Errors that lose their cause.** `.ok()` on the running config (CD-1), stderr thrown away when the markers are
-  read (CD-6), exit 255 as a script code (CU-3), a `state()` that fails the list (CP-1, CA-1). Typed errors and total
-  functions where a list is shown.
-- **Booleans and strings standing in for enums.** `DiffItem` (CA-8), the plan vocabulary (CD-13, UI-17), the
-  reasons (CU-14), the intents on `NewDeployment` (CD-14), a dozen boolean parameters (CU-13, UI-16, CP-17).
-- **Three files that have outgrown themselves.** `core/deployments.rs` (CD-22), `cloud/hetzner/deployment.rs`
-  (CP-20), `cli.rs` (UI-24).
+- **Errors that lose their cause.** Stderr thrown away when the markers are read (CD-6), one unknown server type
+  that fails the list (CA-1). *Done: the running configuration, the exit codes of ssh and of the lock, a deployment
+  that cannot be compared.*
+- **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the kind of a planned
+  resource (CD-13), the strings and flags of the deployment spec (CP-17), a few flags of the command line (UI-16).
+  *Done: `DiffItem`, the plan words, the reasons of a reboot, the password prompt, the transport.*
+- **Files that have outgrown themselves.** `core/deployments.rs` (CD-22), `cloud/hetzner/deployment.rs` (CP-20).
+  *Done: `cli.rs`.*
 
 ---
 
@@ -135,12 +133,6 @@ as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()
 (`hetzner/mod.rs:79` does), which would limit the impact to `hash_matches`.
 
 ### Smells
-
-#### ~~CA-8 (Medium): `DiffItem` is three booleans standing in for an enum~~ **fixed**
-
-`api/diff.rs:9-12` has `changed`/`triggers_recreate`/`missing`; a removed label (`:59-68`) is `changed: true` with
-no values, so its text (`:97-99`) reads "label 'd' changed" when it was removed (the test at `:283` asserts this). A
-`Kind { Changed, Recreate, Missing, Removed }` removes the invalid states and the four-way `if` in `log_text`.
 
 #### CA-9 (Medium): Seven copies of the request plumbing
 
@@ -258,13 +250,6 @@ the cause went by as a stderr line. **Scenario:** the server was recreated by so
 verification failed." scrolls past, the error blames sak-backend. **Fix:** map 255 to an ssh error that carries the
 last stderr line.
 
-#### ~~CU-4 (Medium, confirmed): The busy exit code is handled for the maintenance only~~ **fixed**
-
-The script's `lock()` (`ansible/roles/backend/templates/sak-backend.j2:35-41`) guards backup, restore, update and
-reboot and exits 2 for all of them. `maintenance.rs:15, 287` maps it to `shared.maintenance.busy`; `backup.rs:204-209`
-has no such arm, so `sakctl backup` during an update says "ended with exit code 2". Same root cause as CU-3: two
-interpreters of one script's exit codes. See CU-20.
-
 #### CU-5 (Medium, confirmed): The self-update has no architecture in the platform and checks nothing about the binary
 
 `PLATFORM` (`update.rs:27-32`) is `linux|macos|windows`; `verify` (`update.rs:297-312`) proves integrity only. The
@@ -299,37 +284,12 @@ path has `API_TIMEOUT_SECONDS`; the command-line fallback has nothing.
 has "tauri" in a comment, `deployments/window_fixtures.rs` too. **Fix:** walk `src/core` in the test; fix the
 comments.
 
-#### ~~CU-10 (Low): `RunningSmtp` serializes its password~~ **fixed**
-
-`config.rs:26-40` derives `Serialize` with `password: Option<String>`. Nothing serializes it today (`cli.rs` prints
-"set"/"-"), one `print_json(&config)` away from stdout. `#[serde(skip_serializing)]` costs nothing.
-
 #### CU-11 (Low): No zeroization of secrets
 
 `normalized(password)` (`keys.rs:36-38`), the master-key cache (`keys.rs:43`), `private_key()` as a `String`
 (`keys.rs:105`), provider tokens (`providers/mod.rs:65-68`) are plain heap data. `age` already pulls in `secrecy`.
 
 ### Smells
-
-#### ~~CU-12 (Medium): `backup.rs` and `maintenance.rs` are one driver in two files~~ **fixed**
-
-`SCRIPT` and `ended()` live in `backup.rs` (`:18, :204`), `BUSY` in `maintenance.rs` (`:15`); maintenance imports
-both from backup (`maintenance.rs:6, 294`) and reuses `shared.backup.no_script`/`shared.backup.failed` for
-non-backup commands. `ansible_roles.rs:150-165` is a third `run_streaming` caller with its own untranslated
-"ssh ended with exit code". Both build `[SCRIPT, cmd, args…]` as `Vec<String>` by hand (`backup.rs:154, 197`,
-`maintenance.rs:272-275`). See CU-20.
-
-#### ~~CU-13 (Low): Boolean parameters~~ **fixed**
-
-`reboot(.., if_pending: bool, ..)` (`maintenance.rs:93-104`), `ssh_arguments(.., terminal: bool, ..)`
-(`ssh.rs:45-51`), `client_builder(https_only: bool, ..)` (`config.rs:217`) although a `Transport` enum exists and
-is converted back to a bool at `config.rs:174, 277`. *`client_builder` takes the `Transport`, `if_pending` is a field of
-`sak_backend::Command::Reboot`; `terminal` of `ssh_arguments` stays a bool, its main caller computes it.*
-
-#### ~~CU-14 (Low): Stringly typed reasons~~ **fixed**
-
-`reasons: Vec<String>` matched against `"kernel"`/`"reboot-required"` (`maintenance.rs:152-160`); the script emits
-exactly those two (`sak-backend.j2:82-86`). An enum with `#[serde(other)] Other` catches typos at the type.
 
 #### CU-15 (Low): Five copies of hex encoding, three of random bytes
 
@@ -369,7 +329,7 @@ progress disappeared.
 one `run(runtime, target, command, stream, on_line) -> Result<Outcome, Failure>` where `Failure` is typed
 (`Ssh { code, last_line }`, `NotInstalled`, `Busy`, `Failed { error }`, `ExitCode(i32)`). `backup.rs` keeps the file
 and age work, `maintenance.rs` the typed answers and their lines; `ansible_roles.rs` uses the same runner. Resolves
-CU-3, CU-4, CU-12 and the cross-import.
+CU-3, the busy code of a backup and the cross-import.
 
 #### CU-21: A cancellable ssh session per call
 
@@ -399,7 +359,7 @@ deployment. **Scenario:** a destroy without `delete_data` keeps the volume with 
 says "invalid ssh public key" and shows no deployment at all. The same path hides every deployment when one has
 resources in two locations (`:802-805`), a `NotOwned` resource of its name, or a `RecreateRefused` on its volume
 (`refuse_recreate` inside `diff_all`, CA-2). **Fix:** `state()` is total, an error per resource or deployment; an
-empty declared key diffs as unknown instead of failing. See CP-21.
+empty declared key diffs as unknown instead of failing.
 
 #### CP-2 (Medium): A server apply can leave the server powered off; an ip it already has is not unassigned
 
@@ -542,10 +502,6 @@ check_name), `deployment/state.rs` (ResourceKind/State, state, detail), `dns/roo
 base and frontend host), `dns/records.rs` (deployment/foreign/stale/remove records); `set_server_labels` next to
 the server api. Resolves CP-18.
 
-#### ~~CP-21: Make `state()` total~~ **fixed**
-
-A per-resource `Error` status instead of propagating, so one broken deployment cannot hide the list (CP-1).
-
 #### CP-22: Pending carries whether the dependency's value changes
 
 A fingerprint recreate: yes; a label change: no (CP-3). The volume size recreate becomes an in-place resize (CP-6).
@@ -564,7 +520,7 @@ the ARCHITECTURE sentence.
 #### ~~CD-1 (High, confirmed): A multi-user deploy is impossible, with a misleading error, when the backend does not answer~~ **fixed**
 
 `deployments.rs:1109-1116` (`detected`) turns any failure of `running_config` into `None` with `.ok()`; both
-callers swallow again (`gui/deployments.rs:152-153`, `cli.rs:665-669` `if let Ok(detected)`, see UI-6). `complete`
+callers swallow again (`gui/deployments.rs:152-153`, `cli.rs:665-669` `if let Ok(detected)`). `complete`
 then leaves `smtp = None` (`deployments.rs:849`), and `prepare` fails with `shared.deployments.invalid_smtp_host`
 (`:1368-1370`). **Scenario:** the backend is down, the certificate expired or the DNS broken on a multi-user
 deployment — exactly when a redeploy is wanted → window and command line say "invalid smtp host", the window has no
@@ -761,15 +717,6 @@ CD-12).
 
 ### Bugs
 
-#### ~~UI-1 (High, confirmed): The deploy of the page can apply another deployment than the one shown~~ **fixed**
-
-`gui/deployments.rs:132-157` stores the *last check that finished* with no link to the page; `apply_checked`
-(`:170-182`) takes whatever is there. `ui/deployment.js:80-90` guards its own view with `current !== shown`, but the
-Rust state is uncorrelated. **Scenario:** open A (its check is slow: ssh reads the markers) → Back → open B → B's
-check finishes first → A's check finishes and overwrites the state with A → "Deploy changes" on B's page runs
-`apply_checked` → A is deployed with A's password. **Fix:** `check_deployment` returns an id, `apply_checked(id,
-force)` refuses a mismatch; and the state is cleared when the page leaves.
-
 #### UI-2 (Medium, confirmed): A destroy runs after the user cancelled the form
 
 `ui/create.js:375-384`: for a destroy the submit does not `setBusy`, so Cancel stays enabled while `runDestroy`
@@ -777,14 +724,6 @@ awaits `plan_deployment` (`ui/run.js:196-199`). **Scenario:** Destroy → confir
 list shows → the plan resolves → `run()` switches to the run view and starts the destroy. A create is safe only
 because `setBusy(true)` disables the cancel button (`create.js:386, 261-264`). **Fix:** a generation guard in
 `run()` (UI-25) and the busy state for the destroy.
-
-#### ~~UI-3 (Medium, confirmed): "Also delete the data volume" stays ticked for the next destroy~~ **fixed**
-
-`ui/create.js:329-365` (`showCreate`) never resets `deleteDataInput.checked`; only `resetForm` (`:408-424`,
-`form.reset()`) does, on Cancel only. After a destroy ran (`run(plan, deployment, showList)`, `run.js:198`) nothing
-resets the form. **Scenario:** destroy A with its data → Done → open B → Destroy → the form is red with the box
-ticked. Against "Cancel is the safe default" (UI-UX). Same cause: the name and the smtp fields, the smtp password
-included, of the previous create stay in the form (`:319, 152-159`).
 
 #### UI-4 (Medium, confirmed): A deployment without a located resource cannot be checked in the window
 
@@ -802,12 +741,6 @@ wording: `smtp_password_needed` "give it again with SAK_SMTP_PASSWORD" (`en.yml:
 "(--admin-email)" (`:113`), `deploy_without_root_domain` "--root-domain" (`:104`), `config.no_root_domain` (`:139`).
 **Scenario:** a multi-user deployment whose backend does not answer the smtp password (CD-1) → the page says to
 set an environment variable. Either `ui.`/`cli.` variants, or the window gets the fields to supply what is missing.
-
-#### ~~UI-6 (Medium): `sakctl deploy` swallows the detection failure and fails later with the wrong cause~~ **fixed**
-
-`cli.rs:664-670`: `if incomplete && let Ok(detected) = …` ignores an `Err` (api unreachable, wrong password, no
-provider) and continues; `prepare` then fails with `no_user_mode` or `invalid_admin_email`. The window propagates it
-(`gui/deployments.rs:150`). The same root as CD-1; see UI-12.
 
 #### UI-7 (Low): `sakctl ssh -- <cmd>` exit codes collide with the documented table
 
@@ -843,16 +776,6 @@ confirmation.
 reboot hint → `wait_after_reboot` → back line), differing in the hint key and the sink. Belongs in core:
 `maintenance::perform(action, manager, tokens, runtime, name, password, on_line) -> Result<Vec<Line>>`; the
 command line logs, the window sends.
-
-#### ~~UI-12 (Medium): The detect-and-complete of a deploy is written twice~~ **fixed**
-
-`cli.rs:659-671` and `gui/deployments.rs:135-154` both build the `NewDeployment`, call `detected`, then `complete`.
-A `DeploymentManager::completed(new, smtp_password)` in core removes both, and UI-6 with them.
-
-#### ~~UI-13 (Low): The startup checks are run twice~~ **fixed**
-
-`cli.rs:541-584` and `gui/checks.rs:13-36` both build the checks, run them on a blocking thread, set the runtime
-and the tokens. Core could return a `Found` plus a `ContainerRuntime` from one `checks::run_all(tokens, on_event)`.
 
 #### UI-14 (Low): `execute` matches the same enum four times
 
@@ -891,11 +814,6 @@ failed)` in `views.js`.
 `deployment.js:86-88` disables Deploy when every resource is `up_to_date`; `run.js:92` hides it. One rule, two
 behaviours.
 
-#### ~~UI-20 (Low): `MaintenanceRequest` derives `Debug` with its `password`~~ **fixed**
-
-`gui/maintenance.rs:26-31`. Nothing prints it today, but `HetznerToken` (`cli.rs:250`) and `DeploymentDefaults`
-(`core/deployments.rs:338`) deliberately have no `Debug` (S10 of the first review).
-
 #### UI-21 (Low): Locale inconsistencies
 
 - `shared.deployments.weak_password`: en has `%{hint}` (`en.yml:90`), de drops it (`de.yml:90`); German users never
@@ -907,25 +825,7 @@ behaviours.
 - `shared.provision.no_volume` (`en.yml:85`) is defined and used nowhere.
 - `ui_texts` (`gui/i18n.rs:14-24`) ships every `shared.` text to the page, the cli-worded ones of UI-5 included.
 
-#### ~~UI-22 (Low): Stale docs and names~~ **fixed**
-
-`cli.rs:736-737` "prints the running configuration…" sits on `ssh`; `deploy()` (`:1071`) also runs destroys.
-
-#### ~~UI-23 (Low): An unknown first word opens the window~~ **fixed**
-
-`main.rs:19`: `sakctl lst` silently starts the window instead of a usage error; `is_command_line` (`cli.rs:352`)
-duplicates the subcommand list clap knows.
-
 ### Structure
-
-#### ~~UI-24: Split `cli.rs`~~ **fixed**
-
-1724 lines, three responsibilities: `cli/mod.rs` (Cli, Command, `is_command_line`, `run`, `execute`);
-`cli/args.rs` (Provider, DeploymentArgs, MaintenanceArgs, the `parse_*`); `cli/secrets.rs` (`hcloud_token`,
-`password`, `smtp_password`, `confirm_restore`); `cli/log.rs` (Level, `log`, `log_line`, `print_json`, `size`);
-`cli/deploy.rs` (`list`, `deploy`); `cli/server.rs` (`ssh`, `backup`, `restore`, `maintenance`, `show_config`).
-The tests move with their functions. With UI-14, UI-15. *Done as `cli/{mod,args,secrets,log,deploy,server}.rs`; the tests stay
-one module, `cli/tests.rs`.*
 
 #### UI-25: A small router in `views.js`, no dynamic `import()`
 
@@ -953,5 +853,5 @@ domain logic and belong in core. `RunningApply` and `CheckedDeployment` are used
   `self_replace`, which renames atomically; a symlinked install path resolves through `current_exe()`.
 - The contract between the rust side and `sak-backend.j2`: exit codes 0/1/2/127 and the three json shapes match
   the types (`from`, `time`, `at` optional, `kernel.installed` always present); apt output goes to stderr so stdout
-  stays json. The two mismatches are CU-3 and CU-4.
+  stays json. The two mismatches it found (the exit codes of ssh and of the lock) are fixed.
 - `config.rs`: the signed request never carries the password; the errors carry no signature.
