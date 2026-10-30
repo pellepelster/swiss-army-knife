@@ -185,7 +185,8 @@ dir = "{{config_root}}/sak-cli"
 run = "tauri build"
 
 # sakctl as one native binary for a platform, without installers, zipped with its executable bit
-# to sak-cli/build/sak-cli-<platform>-<VERSION>.zip, its sha-256 next to it in <zip>.sha256; each
+# to sak-cli/build/sak-cli-<platform>-<architecture>-<VERSION>.zip (x86_64, universal for macos), its
+# sha-256 next to it in <zip>.sha256; each
 # runs on its own platform (the workflow, job sakctl). macOS gets one universal binary for apple
 # silicon and intel
 [tasks."cli:build:linux"]
@@ -195,9 +196,9 @@ dir = "{{config_root}}/sak-cli"
 run = """
 tauri build --no-bundle
 mkdir -p build
-rm -f "build/sak-cli-linux-${VERSION}.zip"
-zip -j "build/sak-cli-linux-${VERSION}.zip" src-tauri/target/release/sakctl
-(cd build && sha256sum "sak-cli-linux-${VERSION}.zip" > "sak-cli-linux-${VERSION}.zip.sha256")
+rm -f "build/sak-cli-linux-x86_64-${VERSION}.zip"
+zip -j "build/sak-cli-linux-x86_64-${VERSION}.zip" src-tauri/target/release/sakctl
+(cd build && sha256sum "sak-cli-linux-x86_64-${VERSION}.zip" > "sak-cli-linux-x86_64-${VERSION}.zip.sha256")
 """
 
 [tasks."cli:build:macos"]
@@ -208,9 +209,9 @@ run = """
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 tauri build --target universal-apple-darwin --no-bundle
 mkdir -p build
-rm -f "build/sak-cli-macos-${VERSION}.zip"
-zip -j "build/sak-cli-macos-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakctl
-(cd build && shasum -a 256 "sak-cli-macos-${VERSION}.zip" > "sak-cli-macos-${VERSION}.zip.sha256")
+rm -f "build/sak-cli-macos-universal-${VERSION}.zip"
+zip -j "build/sak-cli-macos-universal-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakctl
+(cd build && shasum -a 256 "sak-cli-macos-universal-${VERSION}.zip" > "sak-cli-macos-universal-${VERSION}.zip.sha256")
 """
 
 # in git bash, which has no zip; 7-Zip is there instead. -e: a failed step ends the task, as sh
@@ -223,14 +224,14 @@ shell = "bash -e -c"
 run = """
 tauri build --no-bundle
 mkdir -p build
-rm -f "build/sak-cli-windows-${VERSION}.zip"
-7z a -tzip "build/sak-cli-windows-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe
-(cd build && sha256sum "sak-cli-windows-${VERSION}.zip" > "sak-cli-windows-${VERSION}.zip.sha256")
+rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
+7z a -tzip "build/sak-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe
+(cd build && sha256sum "sak-cli-windows-x86_64-${VERSION}.zip" > "sak-cli-windows-x86_64-${VERSION}.zip.sha256")
 """
 
 # the zips of all platforms and their checksums (sak-cli/build/, from cli:build:<platform>) as the
 # assets of the github release of the tag v<VERSION>, where the installation downloads them:
-# .../releases/download/v<VERSION>/sak-cli-<platform>-<VERSION>.zip. Needs gh and GH_TOKEN with
+# .../releases/download/v<VERSION>/sak-cli-<platform>-<architecture>-<VERSION>.zip. Needs gh and GH_TOKEN with
 # contents: write (the workflow, job release, on a tag only)
 [tasks."cli:release"]
 description = "Publish the sakctl GitHub release"
@@ -238,7 +239,7 @@ dir = "{{config_root}}/sak-cli"
 run = """
 set -eu
 files=""
-for platform in linux macos windows; do
+for platform in linux-x86_64 macos-universal windows-x86_64; do
   zip="build/sak-cli-${platform}-${VERSION}.zip"
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
   files="$files $zip $zip.sha256"
@@ -450,7 +451,8 @@ mkdir -p data
   [ "$VERSION" = latest ] && echo "release: 'latest'" || echo "release: 'v$VERSION'"
   echo "checksums:"
   for platform in linux macos windows; do
-    checksum="../sak-cli/build/sak-cli-${platform}-${VERSION}.zip.sha256"
+    case "$platform" in macos) architecture=universal ;; *) architecture=x86_64 ;; esac
+    checksum="../sak-cli/build/sak-cli-${platform}-${architecture}-${VERSION}.zip.sha256"
     [ -f "$checksum" ] && echo "  $platform: '$(cut -d ' ' -f 1 "$checksum")'"
   done
   true

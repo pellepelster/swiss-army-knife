@@ -160,7 +160,7 @@ jobs:
 
   # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
   # one native binary with the page built in, no installers, zipped as
-  # sak-cli-<platform>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
+  # sak-cli-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
   # (<zip>.sha256). Nothing is signed: macOS and windows warn on the first start
   sakctl:
     name: sakctl (${{ matrix.platform }})

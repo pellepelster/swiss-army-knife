@@ -6,7 +6,9 @@
 {{- $version := hugo.Data.sakctl.version | default "latest" }}
 {{- $release := hugo.Data.sakctl.release | default "latest" }}
 {{- $checksum := (index (hugo.Data.sakctl.checksums | default dict) $platform) | default "<sha256>" }}
-{{- $zip := printf "sak-cli-%s-%s.zip" $platform $version }}
+{{- /* the zip names the architecture too: x86_64, one universal binary for macos */ -}}
+{{- $architecture := index (dict "linux" "x86_64" "macos" "universal" "windows" "x86_64") $platform }}
+{{- $zip := printf "sak-cli-%s-%s-%s.zip" $platform $architecture $version }}
 {{- $url := printf "%s/%s/%s" site.Params.sakctlDownloads $release $zip }}
 {{- $code := "" }}
 {{- $language := "sh" }}

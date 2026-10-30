@@ -23,13 +23,16 @@ pub const RECEIVER: &str = "github.com";
 /// a pre-release
 const API: &str = "https://api.github.com/repos/pellepelster/swiss-army-knife";
 
-/// the platform in the names of the zips of a release, `sak-cli-<platform>-<version>.zip`
-#[cfg(target_os = "linux")]
-const PLATFORM: &str = "linux";
-#[cfg(target_os = "macos")]
-const PLATFORM: &str = "macos";
-#[cfg(target_os = "windows")]
-const PLATFORM: &str = "windows";
+/// the system and architecture in the names of the zips of a release,
+/// `sak-cli-<system>-<architecture>-<version>.zip`: `linux-x86_64`, `windows-x86_64`, and
+/// `macos-universal` for the one binary of both macOS architectures. A sakctl of an architecture
+/// the release does not build finds no zip of its own and installs nothing
+fn platform() -> String {
+    match std::env::consts::OS {
+        "macos" => "macos-universal".to_string(),
+        system => format!("{system}-{}", std::env::consts::ARCH),
+    }
+}
 
 /// the binary in the zip
 #[cfg(windows)]
@@ -187,7 +190,7 @@ impl Updater {
             )
             .to_string()
         })?;
-        let zip_name = format!("sak-cli-{PLATFORM}-{version}.zip");
+        let zip_name = format!("sak-cli-{}-{version}.zip", platform());
         let asset = |name: &str| {
             latest
                 .assets
@@ -366,6 +369,22 @@ fn write_and_replace(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_zip_of_a_release_names_the_system_and_the_architecture() {
+        let platform = platform();
+        if cfg!(target_os = "macos") {
+            assert_eq!(platform, "macos-universal");
+        } else {
+            assert_eq!(
+                platform,
+                format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
+            );
+        }
+        if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            assert_eq!(platform, "linux-x86_64");
+        }
+    }
     use std::io::Write;
     use std::sync::Mutex;
     use wiremock::matchers::{method, path};
@@ -387,7 +406,7 @@ mod tests {
     async fn github(tag: &str, zip: Vec<u8>, checksum: &str) -> MockServer {
         let server = MockServer::start().await;
         let version = tag.trim_start_matches('v');
-        let name = format!("sak-cli-{PLATFORM}-{version}.zip");
+        let name = format!("sak-cli-{}-{version}.zip", platform());
         Mock::given(method("GET"))
             .and(path("/releases/latest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -532,7 +551,7 @@ mod tests {
             .await;
         let error = updater(&server, "0.1.1").check().await.unwrap_err();
         assert!(
-            error.contains(&format!("sak-cli-{PLATFORM}-0.2.0.zip")),
+            error.contains(&format!("sak-cli-{}-0.2.0.zip", platform())),
             "{error}"
         );
     }

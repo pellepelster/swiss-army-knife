@@ -76,14 +76,6 @@ Nothing of the list is left.
 
 ### Bugs and security
 
-#### CU-5 (Medium, confirmed): The self-update has no architecture in the platform and checks nothing about the binary
-
-`PLATFORM` (`update.rs:27-32`) is `linux|macos|windows`; `verify` (`update.rs:297-312`) proves integrity only. The
-release builds macOS universal, Linux and Windows x86_64 only (`mise.toml`). **Scenario:** a release-versioned
-sakctl on aarch64 Linux downloads the x86_64 zip, the checksum matches, `self_replace` installs a binary that does
-not run. Low likelihood for official releases, cheap to guard: the architecture in the asset name, or a check of
-the ELF/Mach-O machine. Downgrades, partial writes and symlinked install paths are handled correctly.
-
 ---
 
 ## CP: sak-cloud, deployment and provisioners
