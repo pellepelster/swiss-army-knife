@@ -174,6 +174,11 @@ and the health of the domains.
   transfer and knows where the data goes. No default activates such a connection.
 - **Updates on request only.** sakctl asks GitHub for the newest release only when the user asks for an update, and
   names GitHub before it connects. GitHub then sees the IP address of the user. sakctl never asks on its own.
+- **Exemption: the container registry.** sakctl and the server pull the images of SAK from the GitHub container
+  registry (ghcr.io) without asking: sakctl the image of its tools and the canary on each start, the server the
+  images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's machine
+  and of the server, and which images they pull, nothing else. Communication with the registry is allowed; SAK
+  cannot run without its images.
 - **User data stays.** User data leaves the backend only when the user asks for it (for example text discovery), and
   only to providers that do not collect it.
 
