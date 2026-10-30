@@ -325,18 +325,18 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --push .
 """
 
-# the next minor version of main as the tag v<version>, pushed: the workflow builds the tag and
+# the next patch version of main as the tag v<version>, pushed: the workflow builds the tag and
 # releases it as <version> (the images, sakctl and the documentation). Only from a clean main that
 # is the same as origin/main, the commit of the tag must be on github
 [tasks."release"]
-description = "Tag the next minor version of a clean main as v<version> and push the tag, which builds the release"
+description = "Tag the next patch version of a clean main as v<version> and push the tag, which builds the release"
 run = """
 set -eu
 [ -z "$(git status --porcelain)" ] || { echo "the repository is not clean" >&2; exit 1; }
 [ "$(git branch --show-current)" = main ] || { echo "a release is made from main only" >&2; exit 1; }
 git fetch --tags origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "main is not the same as origin/main" >&2; exit 1; }
-version=$(svu minor)
+version=$(svu patch)
 git tag -a "$version" -m "Release $version"
 git push origin "$version"
 echo "tagged $version, the workflow builds and releases it"
