@@ -247,15 +247,6 @@ the container starts on the detached blocking thread and ansible runs to complet
 says "cancelled". **Fix:** `ProvisionManager::provision` checks a stopped flag after the spawn, or `stop_runs`
 remembers names to remove once they appear.
 
-### Smells
-
-#### ~~CD-12 (Low): One playbook failure travels on three channels~~ **fixed**
-
-The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_roles.rs:276-278`, read at
-`deployments.rs:1747`) that exists only to skip the `cloud_failure` wrapping, and the `ProvisionFailed` event.
-`failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
-message. A typed error variant removes the mutex and the second tracker (CD-25).
-
 ### Structure
 
 #### CD-23: The wait after the provisioning discovers the deployment again
@@ -265,9 +256,8 @@ discovers the deployment after the provisioning, although `run.host` holds the a
 
 #### CD-25: sak-cloud tells the provisioners what was applied with a change
 
-The registry exposes "applied with a change in this run" to the diffs (removes `server_changed`,
-`ansible_roles.rs:98-100`, `deployments.rs:1690`; CD-4) and gets an `Error::Provisioning { task, message }` (removes the `failure` mutex and the duplicate task tracking,
-CD-12).
+The registry exposes "applied with a change in this run" to the diffs (removes `server_changed` of
+`core/ansible_roles.rs` and its setting in the apply; CD-4).
 
 ---
 
