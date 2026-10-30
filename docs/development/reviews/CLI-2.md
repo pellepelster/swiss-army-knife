@@ -63,8 +63,8 @@ the review found them; the sections below hold the ones still open. The first re
   resolves all of them (CD-25, CP-22).
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
-- **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the strings and flags
-  of the deployment spec (CP-17), a few flags of the command line (UI-16).
+- **Booleans and strings standing in for enums.** The strings and flags of the deployment spec (CP-17), a few
+  flags of the command line (UI-16). *Done: the intent of a prepared deployment.*
   *Done: `DiffItem`, the plan words and kinds, the reasons of a reboot, the password prompt, the transport.*
 - **Files that have outgrown themselves.** *Done: `cli.rs`, `core/deployments.rs`,
   `cloud/hetzner/deployment.rs`.*
@@ -398,20 +398,6 @@ The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_ro
 `failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
 message. A typed error variant removes the mutex and the second tracker (CD-25).
 
-#### CD-14 (Low): `NewDeployment` is a union of three intents
-
-`:621-657`: "needed for X, not used for Y" on half the fields, `password_repeat` on a destroy, `match intent`
-through `prepare`, `unwrap_or_default()` with "prepare checked it" comments in `provision_run` (`:720, 728`). See
-CD-24.
-
-#### CD-15 (Low): Functions too long with mixed responsibilities
-
-`prepare` ≈ 225 lines (`:1290-1516`: validation, discovery, dns resolution, key derivation, spec building, record
-checks; `location` rebound three times, `HetznerProviderRuntime` built twice at `:1391` and `:1443` because the zone
-listing needs a runtime before the location is known); `apply` ≈ 170 lines (`:1641-1808`: destroy branch, channel
-plumbing, wait, label); `ProvisionManager::provision` ≈ 170 lines (`provision.rs:185-353`: dir, command, spawn,
-pumping, timeout, result mapping). See CD-26.
-
 #### CD-16 (Low): The markers are read up to three times per deploy
 
 Each a container and an ssh session: the plan's `diff_all`, the apply's own `diff_all`
@@ -430,23 +416,12 @@ Each a container and an ssh session: the plan's `diff_all`, the apply's own `dif
 `DeploymentManager::find` and `Endpoint` serve every lookup of a deployment but one: the wait in `apply` still
 discovers the deployment after the provisioning, although `run.host` holds the address.
 
-#### CD-24: A typed intent on `Prepared`
-
-`Create { provisioning }`, `Deploy { provisioning }`, `Destroy { delete_data }`; a destroy gets its own
-`plan_destroy`/`destroy` pair that builds `destroy_registry` for plan and apply; `ProvisionRun` is built for create
-and deploy only. Resolves CD-14.
-
 #### CD-25: sak-cloud tells the provisioners what was applied with a change
 
 The registry exposes "applied with a change in this run" to the diffs (removes `server_changed`,
 `ansible_roles.rs:98-100`, `deployments.rs:1690`; CD-4), caches the plan's diffs for the apply (CD-16, CA-20), and
 gets an `Error::Provisioning { task, message }` (removes the `failure` mutex and the duplicate task tracking,
 CD-12).
-
-#### CD-26: Break `ProvisionManager::provision` apart
-
-`RunFiles::write(run)`, `container_command(runtime, dir, events)`, `pump_output(child, receiver, timeout)`,
-`outcome(status, failed, timed_out)`; the "cancelled before the spawn" check goes there (CD-7).
 
 ---
 
