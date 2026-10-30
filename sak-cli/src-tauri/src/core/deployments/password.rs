@@ -2,9 +2,10 @@
 
 use super::*;
 
-/// checks the password of an existing deployment before anything changes: against the hash label
-/// on its resources, where every hash must match. Without a hash on a resource (created before
-/// every resource carried it), against the public client key
+/// checks the password of an existing deployment before anything changes: against the hash labels
+/// on its resources, where every hash must match. Only when no resource has one (created before
+/// the resources carried it), against the public client key; with neither, it is refused
+/// (`check_password`)
 pub(super) fn verify_password(
     deployment: &DiscoveredDeployment,
     name: &str,

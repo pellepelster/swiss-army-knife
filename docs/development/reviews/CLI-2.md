@@ -437,12 +437,6 @@ Each a container and an ssh session: the plan's `diff_all`, the apply's own `dif
 (`deployments.rs:1062-1066, 1271-1275`) only to call `state()`/`dns_zones()`. `DeploymentManager` and
 `ProvisionManager` are stateless unit structs; `&self` buys a tauri `State` and nothing else.
 
-#### CD-18 (Low): Docs out of sync
-
-`deployments.rs:1120-1124` is two doc comments merged (the first paragraph belongs to `running_config`, which has
-none at `:1222`); the `verify_password` doc (`:919-921`) says "without a hash on a resource … against the key" but
-`check_password` (`:998-1004`) uses the key only when there is no hash at all.
-
 #### CD-21 (Low): Tests that test more or less than their name
 
 `a_failure_that_stops_the_run_names_its_task` also asserts `events_host` (`provision.rs:610-614`);
