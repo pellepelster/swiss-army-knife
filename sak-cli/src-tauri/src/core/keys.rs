@@ -44,6 +44,10 @@ fn normalized(password: &str) -> Zeroizing<String> {
 #[allow(clippy::type_complexity)]
 static MASTER_KEYS: Mutex<Vec<(String, [u8; 32], [u8; 32])>> = Mutex::new(Vec::new());
 
+/// the names of the deployments an argon2id ran for, for the tests that count the runs
+#[cfg(test)]
+static DERIVED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
 /// the most master keys kept; the oldest goes first
 const MASTER_KEYS_KEPT: usize = 16;
 
@@ -60,6 +64,10 @@ fn master_key(name: &str, password: &str) -> Result<Zeroizing<[u8; 32]>, String>
         .and_then(|keys| keys.iter().find(|(n, i, _)| n == name && *i == id).cloned())
     {
         return Ok(Zeroizing::new(key));
+    }
+    #[cfg(test)]
+    if let Ok(mut derived) = DERIVED.lock() {
+        derived.push(name.to_string());
     }
     let mut key = Zeroizing::new([0u8; 32]);
     argon2(MASTER_PARAMS)?
@@ -523,16 +531,25 @@ mod tests {
     /// one argon2id for all values of a deployment, also when many values are asked for
     #[test]
     fn the_master_key_is_derived_once() {
-        let password = "a password only this test uses";
-        let start = std::time::Instant::now();
-        derive_key("gamma", password).unwrap();
-        let first = start.elapsed();
-        let start = std::time::Instant::now();
+        // a name only this test uses, so the tests running beside it do not count
+        let (name, password) = ("derived-once", "a password only this test uses");
+        let runs = || {
+            DERIVED
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|derived| *derived == name)
+                .count()
+        };
+        derive_key(name, password).unwrap();
         for _ in 0..5 {
-            password_hash("gamma", password).unwrap();
-            api_key("gamma", password).unwrap();
+            password_hash(name, password).unwrap();
+            api_key(name, password).unwrap();
         }
-        assert!(start.elapsed() < first, "{:?} {first:?}", start.elapsed());
+        assert_eq!(runs(), 1);
+        // another password is another master key
+        derive_key(name, "another password only this test uses").unwrap();
+        assert_eq!(runs(), 2);
     }
 
     #[test]

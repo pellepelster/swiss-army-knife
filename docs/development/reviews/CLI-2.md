@@ -289,11 +289,6 @@ Hex: `keys.rs:86`, `providers/hetzner.rs:91`, `config.rs:109-112`, `update.rs:30
 `backup.rs:32, 139, 187`, called as `BackupManager.backup(...)`; the receiver carries nothing. The doc line at
 `backup.rs:16-17` is duplicated.
 
-#### CU-17 (Low): A timing-based test
-
-`the_master_key_is_derived_once` (`keys.rs:519-530`) asserts ten hkdf calls take less than one 256 MiB argon2;
-under a loaded CI this can flake. Count the argon2 invocations instead.
-
 #### CU-18 (Low): `block_on` hides in `container.rs`
 
 `container.rs:116-125`, used by `checks/provider_tokens.rs:2`; it panics when called from an async task and relies
