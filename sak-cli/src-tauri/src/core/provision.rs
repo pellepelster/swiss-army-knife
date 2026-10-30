@@ -161,6 +161,24 @@ pub enum ProvisionOutput {
     Event(AnsibleEvent),
 }
 
+/// why a run failed: the task that stopped it when its events tell it, and the message that says
+/// what failed, with the task
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProvisionFailure {
+    pub task: Option<String>,
+    pub message: String,
+}
+
+/// a failure that no task tells, e.g. a container that did not start
+impl From<String> for ProvisionFailure {
+    fn from(message: String) -> Self {
+        ProvisionFailure {
+            task: None,
+            message,
+        }
+    }
+}
+
 /// the arguments of `run` and the host of the url with which the container reaches the endpoint
 /// of the run on the loopback of the machine. On linux the container shares the network of the
 /// machine; docker desktop and a podman machine (macos, windows) give the machine a name
@@ -187,7 +205,7 @@ impl ProvisionManager {
         runtime: &ContainerRuntime,
         run: &ProvisionRun,
         on_output: &mut dyn FnMut(ProvisionOutput),
-    ) -> Result<(), String> {
+    ) -> Result<(), ProvisionFailure> {
         let runtime = runtime
             .get()
             .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
@@ -367,29 +385,32 @@ fn pump_output(
 }
 
 /// the result of a run from the status of its container and what its output told: a timeout,
-/// else the failed task, else the exit status
-fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), String> {
-    if pumped.timed_out {
-        return Err(t!(
+/// else the failed task, else the exit status. A failure names the task that failed first
+fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), ProvisionFailure> {
+    let task = pumped.failed.as_ref().map(|(task, _)| task.clone());
+    let message = if pumped.timed_out {
+        t!(
             "shared.provision.timed_out",
             minutes = RUN_TIMEOUT.as_secs() / 60
         )
-        .to_string());
-    }
-    match (status.success(), pumped.failed) {
-        (true, _) => Ok(()),
-        (false, Some((task, message))) => Err(t!(
-            "shared.provision.task_failed",
-            task = task,
-            message = message.unwrap_or_default()
-        )
-        .to_string()),
-        (false, None) => Err(t!(
-            "shared.provision.failed",
-            status = status.code().unwrap_or(-1)
-        )
-        .to_string()),
-    }
+    } else {
+        match (status.success(), pumped.failed) {
+            (true, _) => return Ok(()),
+            (false, Some((task, message))) => t!(
+                "shared.provision.task_failed",
+                task = task,
+                message = message.unwrap_or_default()
+            ),
+            (false, None) => t!(
+                "shared.provision.failed",
+                status = status.code().unwrap_or(-1)
+            ),
+        }
+    };
+    Err(ProvisionFailure {
+        task,
+        message: message.to_string(),
+    })
 }
 
 /// the task of a failure that stops the run and what ansible says about it; none for an ignored
@@ -665,6 +686,29 @@ pub(crate) mod tests {
             })
             .is_some()
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_run_names_the_task_that_failed_first() {
+        use std::os::unix::process::ExitStatusExt;
+        let failed = std::process::ExitStatus::from_raw(2 << 8);
+        let pumped = |timed_out| Pumped {
+            failed: Some(("Start the backend".into(), Some("no".into()))),
+            timed_out,
+        };
+        let failure = outcome(failed, pumped(false)).unwrap_err();
+        assert_eq!(failure.task.as_deref(), Some("Start the backend"));
+        assert!(failure.message.contains("Start the backend"), "{failure:?}");
+        // a timeout says so, the task stays
+        let failure = outcome(failed, pumped(true)).unwrap_err();
+        assert_eq!(failure.task.as_deref(), Some("Start the backend"));
+        // a run that ends well has no failure, whatever its events told
+        let ok = std::process::ExitStatus::from_raw(0);
+        assert_eq!(outcome(ok, pumped(false)), Ok(()));
+        // without a task the status tells
+        let failure = outcome(failed, Pumped::default()).unwrap_err();
+        assert_eq!(failure.task, None);
     }
 
     #[test]

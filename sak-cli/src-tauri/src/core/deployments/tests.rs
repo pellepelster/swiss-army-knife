@@ -1071,7 +1071,6 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
         force,
         server_changed: Default::default(),
         events: None,
-        failure: Default::default(),
     };
 
     // a deploy must not create the volume anew: refused

@@ -213,7 +213,8 @@ pub(super) fn failed(provider: ProviderType, error: impl ToString) -> String {
 
 /// a failure of the provider in a plan or an apply. A resource of a declared name that belongs
 /// to someone else, and a resource that must stay but would be created anew, each have an exit
-/// code of their own; nothing of them was changed
+/// code of their own; nothing of them was changed. A failed playbook says what failed in its own
+/// words, without the name of the provider
 pub(super) fn cloud_failure(
     key: &str,
     provider: ProviderType,
@@ -231,6 +232,7 @@ pub(super) fn cloud_failure(
             ),
             EXIT_RECREATE_REFUSED,
         ),
+        sak_cloud::api::Error::Provisioning { message, .. } => message.into(),
         error => message(key, provider, error).into(),
     }
 }
@@ -590,7 +592,6 @@ impl DeploymentManager {
             force,
             server_changed: Default::default(),
             events: None,
-            failure: Default::default(),
         })?;
         // a destroy creates nothing: what a create or deploy must not do does not stop its plan
         let diffs = match prepared.purpose {
@@ -785,14 +786,12 @@ impl DeploymentManager {
         // the channel closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
         let server_changed = Arc::new(AtomicBool::new(false));
-        let failure = Arc::new(Mutex::new(None));
         let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
             force,
             server_changed: server_changed.clone(),
             events: Some(sender.clone()),
-            failure: failure.clone(),
         })?;
         let server_name = prepared.spec.resource_name();
         let provisioned = Arc::new(AtomicBool::new(false));
@@ -838,18 +837,9 @@ impl DeploymentManager {
             }
         };
         let (result, ()) = tokio::join!(apply, forward);
-        if let Err(error) = result {
-            // a failed playbook says what failed in its own words, a failure at the provider with
-            // its name
-            if let Some(message) = failure.lock().ok().and_then(|mut failure| failure.take()) {
-                return Err(message.into());
-            }
-            return Err(cloud_failure(
-                "shared.deployments.create_failed",
-                prepared.provider,
-                error,
-            ));
-        }
+        result.map_err(|error| {
+            cloud_failure("shared.deployments.create_failed", prepared.provider, error)
+        })?;
         Ok(provisioned.load(Ordering::SeqCst))
     }
 

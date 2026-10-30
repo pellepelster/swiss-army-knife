@@ -46,8 +46,8 @@ use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, VERSION_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

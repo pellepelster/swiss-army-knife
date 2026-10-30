@@ -8,7 +8,7 @@
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentEvent;
-use crate::core::provision::{ProvisionManager, ProvisionOutput, ProvisionRun};
+use crate::core::provision::{ProvisionFailure, ProvisionManager, ProvisionOutput, ProvisionRun};
 use crate::core::roles;
 use crate::core::ssh::{SSH_FAILED, SshTarget, Stream, run_streaming};
 use async_trait::async_trait;
@@ -22,8 +22,8 @@ use sak_cloud::api::{
 use sak_cloud::hetzner::dns_record::first_address;
 use sak_cloud::hetzner::server::{HetznerServerLookup, HetznerServerRuntime};
 use sak_cloud::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// the roles of the playbook on the server of a deployment, named like the server
@@ -89,8 +89,8 @@ pub fn is_provisioning(reference: &ResourceRef) -> bool {
 
 /// the provisioner of one run: what the playbook gets but the addresses and the device (the
 /// lookups of the server and the volume tell them), the container runtime, whether the deploy is
-/// forced, whether the server changed in this run, where the events of the playbook go, and the
-/// failure of the playbook for the error of the run
+/// forced, whether the server changed in this run and where the events of the playbook go. A
+/// failed playbook is an `Error::Provisioning` with its task
 pub struct AnsibleRolesProvisioner {
     pub run: ProvisionRun,
     pub runtime: ContainerRuntime,
@@ -99,7 +99,6 @@ pub struct AnsibleRolesProvisioner {
     /// once it applies
     pub server_changed: Arc<AtomicBool>,
     pub events: Option<UnboundedSender<DeploymentEvent>>,
-    pub failure: Arc<Mutex<Option<String>>>,
 }
 
 impl AnsibleRolesProvisioner {
@@ -247,22 +246,11 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
                 let _ = sender.send(output);
             })
         });
-        let mut failed_task = None;
         while let Some(output) = receiver.recv().await {
             let event = match output {
                 ProvisionOutput::Line(line) => Some(DeploymentEvent::Output { line }),
                 ProvisionOutput::Event(event) => crate::core::deployments::task_event(&name, event),
             };
-            if let Some(DeploymentEvent::TaskDone {
-                task,
-                outcome:
-                    crate::core::deployments::TaskOutcome::Failed
-                    | crate::core::deployments::TaskOutcome::Unreachable,
-                ..
-            }) = &event
-            {
-                failed_task.get_or_insert_with(|| task.clone());
-            }
             if let Some(event) = event {
                 self.send(event);
             }
@@ -270,16 +258,13 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
         let result = provisioning
             .await
             .map_err(|error| Error::message(error.to_string()))?;
-        if let Err(message) = result {
+        if let Err(ProvisionFailure { task, message }) = result {
             self.send(DeploymentEvent::ProvisionFailed {
                 resource: name,
-                task: failed_task,
+                task: task.clone(),
                 message: message.clone(),
             });
-            if let Ok(mut failure) = self.failure.lock() {
-                *failure = Some(message.clone());
-            }
-            return Err(Error::message(message));
+            return Err(Error::Provisioning { task, message });
         }
         Ok(AnsibleRolesRuntime)
     }
@@ -319,7 +304,6 @@ mod tests {
             force,
             server_changed: Default::default(),
             events: None,
-            failure: Default::default(),
         }
     }
 

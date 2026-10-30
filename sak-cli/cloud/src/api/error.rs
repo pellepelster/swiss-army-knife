@@ -50,6 +50,14 @@ pub enum Error {
     #[error("{resource}: {message}")]
     Duplicate { resource: String, message: String },
 
+    /// what a provisioner runs on a resource failed, e.g. a playbook on a server: at `task` when
+    /// it tells it; the message says what failed in its own words
+    #[error("{message}")]
+    Provisioning {
+        task: Option<String>,
+        message: String,
+    },
+
     /// the api of a provider failed; the source is the error of the provider
     #[error("{0}")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),
