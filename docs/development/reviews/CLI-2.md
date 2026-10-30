@@ -908,7 +908,7 @@ behaviours.
 
 `cli.rs:736-737` "prints the running configuration…" sits on `ssh`; `deploy()` (`:1071`) also runs destroys.
 
-#### UI-23 (Low): An unknown first word opens the window
+#### ~~UI-23 (Low): An unknown first word opens the window~~ **fixed**
 
 `main.rs:19`: `sakctl lst` silently starts the window instead of a usage error; `is_command_line` (`cli.rs:352`)
 duplicates the subcommand list clap knows.

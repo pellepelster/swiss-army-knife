@@ -347,28 +347,15 @@ fn parse_dns_mode(value: &str) -> Result<DnsMode, String> {
     })
 }
 
-/// whether the arguments ask for the command line: a command, help or the version as the first
-/// argument. Anything else (nothing, or what a desktop passes) opens the window
+/// whether the arguments ask for the command line: a word (a command, a mistyped one too, which
+/// clap answers with its usage error), help or the version as the first argument. Nothing, or
+/// another flag (what a desktop passes, e.g. `-psn_…` on macOS), opens the window
 pub fn is_command_line(args: &[String]) -> bool {
-    matches!(
-        args.first().map(String::as_str),
-        Some(
-            "list"
-                | "create"
-                | "deploy"
-                | "destroy"
-                | "config"
-                | "ssh"
-                | "backup"
-                | "restore"
-                | "maintenance"
-                | "update"
-                | "--help"
-                | "-h"
-                | "--version"
-                | "-V"
-        )
-    )
+    match args.first().map(String::as_str) {
+        Some("--help" | "-h" | "--version" | "-V") => true,
+        Some(first) => !first.starts_with('-'),
+        None => false,
+    }
 }
 
 /// runs the command and gives the exit code of the process
@@ -1277,6 +1264,27 @@ mod tests {
     }
 
     #[test]
+    fn the_commands_are_told_from_the_window_a_word_is_the_command_line() {
+        let args = |args: &[&str]| args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>();
+        for command_line in [
+            &["list"][..],
+            &["lst"],
+            &["--help"],
+            &["-V"],
+            &["deploy", "alpha"],
+        ] {
+            assert!(is_command_line(&args(command_line)), "{command_line:?}");
+        }
+        for window in [&[][..], &["-psn_0_12345"], &["--some-desktop-flag"]] {
+            assert!(!is_command_line(&args(window)), "{window:?}");
+        }
+        // a mistyped command is a usage error of clap, which names the command meant
+        let error = parse(&["lst"]).err().unwrap().to_string();
+        assert!(error.contains("list"), "{error}");
+        assert_eq!(parse(&[]).unwrap().command, None);
+    }
+
+    #[test]
     fn config_show_takes_the_name_and_password_and_prints_no_secret() {
         let cli = parse(&["config", "show", "alpha", "--hcloud-token", "--password"]).unwrap();
         let Some(Command::Config(ConfigCommand::Show { name, password, .. })) = cli.command else {
@@ -1471,16 +1479,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn the_commands_are_told_from_the_window() {
-        assert!(!is_command_line(&[]));
-        assert!(!is_command_line(&["-psn_0_1".to_string()]));
-        assert!(is_command_line(&["list".to_string()]));
-        assert!(is_command_line(&["destroy".to_string()]));
-        assert!(is_command_line(&["--help".to_string()]));
-        assert_eq!(parse(&[]).unwrap().command, None);
     }
 
     #[test]
