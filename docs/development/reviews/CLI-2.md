@@ -80,14 +80,6 @@ their lookups of the server return `None`. Each provisioner guards this itself t
 (`dns_record/provisioner.rs:107`, `src-tauri/src/core/ansible_roles.rs:197`), which makes the registry's check
 half-redundant. **Fix:** include `ParentMissing | Duplicate` at `:270`, or make it the provisioner's job alone.
 
-#### CA-7 (Low, suspected): A user's label with a numeric `_n` suffix is folded on read
-
-`hetzner/labels.rs:142-147` `key_of` turns a raw `foo_1` into `foo`; `labels()` (`:71-80`) concatenates the values.
-`add` refuses `_` on the write side only. A live resource carrying someone's `backup_1=a`, `backup_2=b` would show
-as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()` is built through
-`from_raw(..).labels()` (`server/provisioner.rs:185` does for the hash labels) or compares raw labels
-(`hetzner/mod.rs:79` does), which would limit the impact to `hash_matches`.
-
 ### Structure
 
 #### CA-21: `pending` as a per-run value, `diff_all` takes `&self`
