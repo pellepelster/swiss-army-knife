@@ -55,9 +55,9 @@ the review found them; the sections below hold the ones still open. The first re
 
 ### The structural threads that run through all slices
 
-- **One thing written more than once.** The provisioner skeleton (CP-12) is left. *Done: the maintenance flow,
-  the deploy completion, the checks, the lookup of a deployment, the driver of `sak-backend`, the request plumbing
-  of the api (one `ResourceApi<T>`; the dns zones keep theirs).*
+- **One thing written more than once.** *Done: the maintenance flow, the deploy completion, the checks, the
+  lookup of a deployment, the driver of `sak-backend`, the request plumbing of the api (one `ResourceApi<T>`; the
+  dns zones keep theirs), the provisioner skeleton (`HetznerKind`; the server and the dns record keep theirs).*
 - **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
   CA-3), the apply diffs again instead of applying the plan shown (R1-3), the playbook decision differs (CD-4), a
   pending label
@@ -68,8 +68,8 @@ the review found them; the sections below hold the ones still open. The first re
 - **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the strings and flags
   of the deployment spec (CP-17), a few flags of the command line (UI-16).
   *Done: `DiffItem`, the plan words and kinds, the reasons of a reboot, the password prompt, the transport.*
-- **Files that have outgrown themselves.** `cloud/hetzner/deployment.rs` (CP-20). *Done: `cli.rs`,
-  `core/deployments.rs`.*
+- **Files that have outgrown themselves.** *Done: `cli.rs`, `core/deployments.rs`,
+  `cloud/hetzner/deployment.rs`.*
 
 ---
 
@@ -375,22 +375,6 @@ selectors merge into one map (`a=1` + `a=2` collapse).
 
 ### Smells
 
-#### CP-12 (Medium): The seven provisioners repeat one skeleton, about 500 near-identical lines
-
-`find` = get_by_name → map → `identity::check`, each with a pointless `let found: Result<_> = { Ok(..) }; found?`
-block (`server:48-56`, `volume:26-34`, `primary_ip:31-39`, `firewall:29-36`, `ssh_key:47-55`, `dns_zone:35-37`);
-identical `LookupProvider` impls (7×); identical `Listable` impls (6×, CA-15); apply = find-or-create →
-unconditional name+labels PUT → find again; identical `with_labels/with_identity/with_info` builders on six
-resources; identical `{name, identity}` lookup structs (5 × 40 lines). What differs per kind: the endpoint and its
-create/update types, the `DiffItem`s, the pre-destroy steps (unprotect, detach, unassign, remove_from), the
-post-create wait, dependency resolution (server, dns record), the duplicate check (ssh key). See CP-19.
-
-#### CP-13 (Low): The apply always writes
-
-The name+labels PUT runs on every apply, also when only protection, rules or values changed and right after a
-create that set them (`server/provisioner.rs:337-341`, `volume:133-141`, `primary_ip:146-156`, `firewall:120-123`,
-`ssh_key:142-150`, `dns_record:183-187`). Doubles the calls; `Applied::Updated` says nothing about what changed.
-
 #### CP-14 (Low): `DeploymentSpec` has two roles
 
 A declaration (`new`/`with_*`) and a spec reverse-engineered from labels (`declared_by`, `:800-838`, with
@@ -415,30 +399,7 @@ an unused import; `deployment.rs:1234, 1338-1342` assert serde and parse behavio
 `dns_zone/runtime.rs:11` `status: String`; `deployment.rs:762-764` `user_mode: Option<String>` ("single"/"multi"),
 `acme_ca: Option<String>` next to the `DnsMode` enum; `destroy_registry(provider, delete_data: bool)` (`:1058`).
 
-#### CP-18 (Low): What is in `deployment.rs` that belongs elsewhere
-
-About 1030 non-test and 1220 test lines. `RootDomain`/`DomainUse`/`RootDomainConflict`/`root_domains`
-(`:156-266, 352-362`) and `deployment_records`/`foreign_records`/`stale_records`/`remove_records` (`:268-350`) are
-dns-zone bookkeeping; `DnsMode`, `base_domain`, `frontend_host` (`:364-402`) are naming; `set_server_labels`
-(`:672-697`) is an api helper; `check_name`/`MAX_NAME_LEN` (`:700-736`) are validation;
-`ResourceKind`/`ResourceState`/`DeploymentState`/`state`/`detail` (`:475-670`) are a presentation of a plan.
-
 ### Structure
-
-#### CP-19: A `HetznerKind` trait with one blanket `Provisioner`
-
-`fetch(api, name)`, `compare(resource, runtime, ctx) -> Vec<DiffItem>`, `create`, `update` only when changed,
-`prepare_destroy`, `delete`, an optional `duplicate_of`; one blanket `Provisioner` impl does find + identity,
-missing/duplicate, the label diff, the waits and the find after the apply. Volume, primary ip, firewall, ssh key
-and dns zone fit it and lose about 400 lines; the server keeps its own impl (dependencies, assign, detach waits).
-One generic `NamedLookup<R>` replaces the five lookup structs. Resolves CP-12, CP-13.
-
-#### CP-20: Split `deployment.rs`
-
-`deployment/discover.rs` (DiscoveredDeployment, discover), `deployment/spec.rs` (DeploymentSpec, registries, names,
-check_name), `deployment/state.rs` (ResourceKind/State, state, detail), `dns/root_domain.rs` (RootDomain, DnsMode,
-base and frontend host), `dns/records.rs` (deployment/foreign/stale/remove records); `set_server_labels` next to
-the server api. Resolves CP-18.
 
 #### CP-22: Pending carries whether the dependency's value changes
 
