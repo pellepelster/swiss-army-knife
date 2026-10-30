@@ -3,6 +3,8 @@
 
 pub mod checks;
 pub mod deployments;
+#[cfg(target_os = "linux")]
+mod desktop;
 pub mod i18n;
 pub mod providers;
 pub mod update;
@@ -13,6 +15,9 @@ use crate::core::providers::ProviderTokens;
 /// runs the window until it closes; then a provisioning that runs stops and its files go
 pub fn run() {
     crate::core::provision::stop_runs_on_signal();
+    // the icon of the window in the taskbar and the dock
+    #[cfg(target_os = "linux")]
+    desktop::install();
     tauri::Builder::default()
         .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())

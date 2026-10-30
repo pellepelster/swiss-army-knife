@@ -39,6 +39,9 @@ libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedor
 
 Start `sakctl`. When the shell does not find it, add `~/.local/bin` to your `PATH`.
 
+When its window opens, sakctl adds **Swiss Army Knife** with its icon to the applications of your desktop
+(`~/.local/share/applications/sakctl.desktop`), so the taskbar shows its icon and you can start it from the menu.
+
 ## macOS
 
 The program works on Apple silicon and on Intel. In the Terminal:
