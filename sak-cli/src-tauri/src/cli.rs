@@ -642,7 +642,7 @@ async fn execute(command: Command) -> Result<(), WizardError> {
             name, file, yes, ..
         } => restore(&manager, &token, &runtime, &name, &password.0, &file, yes).await,
         Command::Create { deployment, .. } => {
-            deploy(
+            plan_and_apply(
                 &manager,
                 &token,
                 &deployment.deployment(Intent::Create, false, password, &smtp_password),
@@ -660,14 +660,14 @@ async fn execute(command: Command) -> Result<(), WizardError> {
                     &smtp_password,
                 )
                 .await?;
-            deploy(&manager, &token, &new, &runtime, deployment.show_log).await
+            plan_and_apply(&manager, &token, &new, &runtime, deployment.show_log).await
         }
         Command::Destroy {
             deployment,
             delete_data,
             ..
         } => {
-            deploy(
+            plan_and_apply(
                 &manager,
                 &token,
                 &deployment.deployment(Intent::Destroy, delete_data, password, ""),
@@ -739,7 +739,6 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
     Ok(())
 }
 
-/// prints the running configuration of the deployment, one line for each setting
 /// a session on the server, or its command; the exit code of ssh is the exit code of sakctl
 async fn ssh(
     manager: &DeploymentManager,
@@ -972,6 +971,7 @@ fn size(bytes: u64) -> String {
     }
 }
 
+/// prints the running configuration of the deployment, one line for each setting
 async fn show_config(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -1014,9 +1014,9 @@ fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
     ]
 }
 
-/// plans, prints the plan and applies it, as the plan page of the window does. Prints each
-/// resource when it is done; the output of ansible only with `show_log`
-async fn deploy(
+/// a create, deploy or destroy: plans, prints the plan and applies it, as the plan page of the
+/// window does. Prints each resource when it is done; the output of ansible only with `show_log`
+async fn plan_and_apply(
     manager: &DeploymentManager,
     provider: &HetznerToken,
     deployment: &NewDeployment,

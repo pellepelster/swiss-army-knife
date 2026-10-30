@@ -904,7 +904,7 @@ behaviours.
 - `shared.provision.no_volume` (`en.yml:85`) is defined and used nowhere.
 - `ui_texts` (`gui/i18n.rs:14-24`) ships every `shared.` text to the page, the cli-worded ones of UI-5 included.
 
-#### UI-22 (Low): Stale docs and names
+#### ~~UI-22 (Low): Stale docs and names~~ **fixed**
 
 `cli.rs:736-737` "prints the running configuration…" sits on `ssh`; `deploy()` (`:1071`) also runs destroys.
 
