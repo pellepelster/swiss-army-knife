@@ -206,6 +206,7 @@ shared:
     unreachable: "%{url} ist nicht erreichbar: %{error}"
     failed: "%{url} hat %{status} geantwortet."
     not_https: "%{url} ist keine https-Adresse, sakctl fragt github nur über https."
+    not_github: "%{url} ist keine Adresse von github, sakctl lädt nur von github herunter."
     unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
     no_asset: "Das Release %{version} hat kein %{name}."
     checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."

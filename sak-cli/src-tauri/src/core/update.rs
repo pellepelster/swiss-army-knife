@@ -224,8 +224,8 @@ impl Updater {
     }
 
     async fn get(&self, url: &str) -> Result<reqwest::Response, String> {
-        if self.https_only && !url.starts_with("https://") {
-            return Err(t!("shared.update.not_https", url = url).to_string());
+        if self.https_only {
+            to_github(url)?;
         }
         let response = client(self.https_only)?
             .get(url)
@@ -287,6 +287,20 @@ fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
     } else {
         attempt.stop()
     }
+}
+
+/// the first url as the redirects after it: https, to github or its storage
+fn to_github(url: &str) -> Result<(), String> {
+    if !url.starts_with("https://") {
+        return Err(t!("shared.update.not_https", url = url).to_string());
+    }
+    let host = reqwest::Url::parse(url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string));
+    if !host.as_deref().is_some_and(is_github) {
+        return Err(t!("shared.update.not_github", url = url).to_string());
+    }
+    Ok(())
 }
 
 fn is_github(host: &str) -> bool {
@@ -547,5 +561,28 @@ mod tests {
             https_only: true,
         };
         assert!(updater.check().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_download_is_asked_of_github_only() {
+        let updater = Updater {
+            api: API.into(),
+            current: "0.1.1",
+            https_only: true,
+        };
+        let error = updater
+            .download("https://example.org/sak-cli.zip")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error,
+            "https://example.org/sak-cli.zip is no address of github, sakctl downloads from github only."
+        );
+        assert_eq!(
+            to_github("https://github.com.example.org/x"),
+            Err("https://github.com.example.org/x is no address of github, sakctl downloads from github only.".into())
+        );
+        assert_eq!(to_github("https://objects.githubusercontent.com/x"), Ok(()));
+        assert_eq!(to_github(API), Ok(()));
     }
 }
