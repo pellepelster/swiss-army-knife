@@ -187,6 +187,8 @@ and the health of the domains.
   images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's machine
   and of the server, and which images they pull, nothing else. Communication with the registry is allowed; SAK
   cannot run without its images.
+- **Exemption: tests.** Tests may use third-party services made for tests (refer to [Tests](#tests)). They send only
+  synthetic test data; a deployment of a user never connects to them.
 - **User data stays.** User data leaves the backend only when the user asks for it (for example text discovery), and
   only to providers that do not collect it.
 
@@ -235,6 +237,9 @@ Each test is of one kind, by what it needs to run:
 - **Exemption: the container registry.** An integration test may pull images from the GitHub container registry
   (ghcr.io), for example the images of SAK and of the tools it runs. Communication with the registry is allowed and
   does not make it an end to end test.
+- **Third-party services for tests.** A test may use a third-party service made for tests, for example a mail
+  sandbox that receives the login links and lets the test read them through its API. It sends only test data:
+  synthetic names and addresses, never data of a user.
 
 Each part (backend, frontend, cli) has one task for each kind it has. The build pipeline runs the unit tests and
 reports their results; nothing is built into an image before they pass.
