@@ -136,7 +136,7 @@ as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()
 
 ### Smells
 
-#### CA-8 (Medium): `DiffItem` is three booleans standing in for an enum
+#### ~~CA-8 (Medium): `DiffItem` is three booleans standing in for an enum~~ **fixed**
 
 `api/diff.rs:9-12` has `changed`/`triggers_recreate`/`missing`; a removed label (`:59-68`) is `changed: true` with
 no values, so its text (`:97-99`) reads "label 'd' changed" when it was removed (the test at `:283` asserts this). A

@@ -194,7 +194,7 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
             || context.has_pending_change(&resource.volume.resource_ref())
             || self.server_changed.load(Ordering::SeqCst);
         if server_changes {
-            return Ok(changed(vec![DiffItem::removed("server")]));
+            return Ok(changed(vec![DiffItem::changed_unknown("server")]));
         }
         let Some(run) = self.run_on(resource, context).await? else {
             return Ok(ResourceDiff::missing(resource));

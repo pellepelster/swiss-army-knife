@@ -1,20 +1,39 @@
 use crate::api::resource::{Labels, Resource, ResourceRef};
 use std::fmt::{self, Write};
 
+/// what kind of difference a [DiffItem] is
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChangeKind {
+    /// a value the provider can change in place
+    Changed,
+    /// a value that only a recreate of the resource can change
+    Recreate,
+    /// something declared that the runtime does not have
+    Missing,
+    /// something the runtime has that is not declared
+    Removed,
+}
+
 /// one difference between a declared resource and its runtime
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DiffItem {
     /// what differs, e.g. `image` or `label 'foo'`
     pub name: String,
-    pub changed: bool,
-    /// the provider cannot change this in place: the resource must be destroyed and created
-    pub triggers_recreate: bool,
-    pub missing: bool,
+    pub kind: ChangeKind,
     pub expected: Option<String>,
     pub actual: Option<String>,
 }
 
 impl DiffItem {
+    fn new(name: impl Into<String>, kind: ChangeKind) -> Self {
+        DiffItem {
+            name: name.into(),
+            kind,
+            expected: None,
+            actual: None,
+        }
+    }
+
     /// a value the provider can change in place
     pub fn changed(
         name: impl Into<String>,
@@ -22,13 +41,16 @@ impl DiffItem {
         actual: impl ToString,
     ) -> Self {
         DiffItem {
-            name: name.into(),
-            changed: true,
-            triggers_recreate: false,
-            missing: false,
             expected: Some(expected.to_string()),
             actual: Some(actual.to_string()),
+            ..DiffItem::new(name, ChangeKind::Changed)
         }
+    }
+
+    /// something that changes in place without values to show, e.g. a server another resource
+    /// runs on
+    pub fn changed_unknown(name: impl Into<String>) -> Self {
+        DiffItem::new(name, ChangeKind::Changed)
     }
 
     /// a value that only a recreate of the resource can change
@@ -38,33 +60,19 @@ impl DiffItem {
         actual: impl ToString,
     ) -> Self {
         DiffItem {
-            triggers_recreate: true,
+            kind: ChangeKind::Recreate,
             ..DiffItem::changed(name, expected, actual)
         }
     }
 
     /// something declared that the runtime does not have
     pub fn missing(name: impl Into<String>) -> Self {
-        DiffItem {
-            name: name.into(),
-            changed: false,
-            triggers_recreate: false,
-            missing: true,
-            expected: None,
-            actual: None,
-        }
+        DiffItem::new(name, ChangeKind::Missing)
     }
 
     /// something the runtime has that is not declared
     pub fn removed(name: impl Into<String>) -> Self {
-        DiffItem {
-            name: name.into(),
-            changed: true,
-            triggers_recreate: false,
-            missing: false,
-            expected: None,
-            actual: None,
-        }
+        DiffItem::new(name, ChangeKind::Removed)
     }
 
     pub fn with_actual(mut self, actual: Option<impl ToString>) -> Self {
@@ -72,33 +80,28 @@ impl DiffItem {
         self
     }
 
-    pub fn has_changes(&self) -> bool {
-        self.missing || self.changed || self.triggers_recreate
+    /// the provider cannot change this in place: the resource must be destroyed and created
+    pub fn triggers_recreate(&self) -> bool {
+        self.kind == ChangeKind::Recreate
     }
 
     pub fn log_text(&self) -> String {
-        if self.missing {
-            return format!("{} is missing", self.name);
+        match self.kind {
+            ChangeKind::Missing => format!("{} is missing", self.name),
+            ChangeKind::Removed => format!("{} is not declared", self.name),
+            ChangeKind::Changed | ChangeKind::Recreate
+                if self.expected.is_some() || self.actual.is_some() =>
+            {
+                format!(
+                    "{} should be '{}' but was '{}'",
+                    self.name,
+                    self.expected.as_deref().unwrap_or("<empty>"),
+                    self.actual.as_deref().unwrap_or("<empty>")
+                )
+            }
+            ChangeKind::Recreate => format!("{} changed and requires recreate", self.name),
+            ChangeKind::Changed => format!("{} changed", self.name),
         }
-
-        if self.expected.is_some() || self.actual.is_some() {
-            return format!(
-                "{} should be '{}' but was '{}'",
-                self.name,
-                self.expected.as_deref().unwrap_or("<empty>"),
-                self.actual.as_deref().unwrap_or("<empty>")
-            );
-        }
-
-        if self.triggers_recreate {
-            return format!("{} changed and requires recreate", self.name);
-        }
-
-        if self.changed {
-            return format!("{} changed", self.name);
-        }
-
-        format!("{} has no changes", self.name)
     }
 }
 
@@ -164,11 +167,11 @@ impl ResourceDiff {
     }
 
     pub fn needs_recreate(&self) -> bool {
-        self.changes.iter().any(|change| change.triggers_recreate)
+        self.changes.iter().any(|change| change.triggers_recreate())
     }
 
     pub fn has_changes(&self) -> bool {
-        self.changes.iter().any(DiffItem::has_changes)
+        !self.changes.is_empty()
     }
 }
 
@@ -280,7 +283,7 @@ mod tests {
             diff[1].log_text(),
             "label 'b' should be '2' but was 'changed'"
         );
-        assert_eq!(diff[2].log_text(), "label 'd' changed");
+        assert_eq!(diff[2].log_text(), "label 'd' is not declared");
     }
 
     #[test]
@@ -318,7 +321,15 @@ mod tests {
                 .log_text(),
             "ip should be '10.0.0.1' but was '<empty>'"
         );
-        assert!(DiffItem::recreate("type", "a", "b").has_changes());
-        assert!(DiffItem::recreate("type", "a", "b").triggers_recreate);
+        assert!(DiffItem::recreate("type", "a", "b").triggers_recreate());
+        assert!(!DiffItem::changed("type", "a", "b").triggers_recreate());
+        assert_eq!(
+            DiffItem::changed_unknown("server").log_text(),
+            "server changed"
+        );
+        assert_eq!(
+            DiffItem::removed("label 'd'").log_text(),
+            "label 'd' is not declared"
+        );
     }
 }

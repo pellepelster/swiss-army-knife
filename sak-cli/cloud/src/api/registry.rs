@@ -207,7 +207,7 @@ impl Registry {
                 changes: diff
                     .changes
                     .iter()
-                    .filter(|change| change.triggers_recreate)
+                    .filter(|change| change.triggers_recreate())
                     .map(|change| change.log_text())
                     .collect::<Vec<_>>()
                     .join(", "),

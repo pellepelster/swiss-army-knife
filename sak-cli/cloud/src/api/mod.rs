@@ -13,7 +13,7 @@ pub mod resource;
 pub use context::{
     ApplyContext, DestroyContext, DiffContext, LookupContext, LookupContextExt, LookupProviders,
 };
-pub use diff::{DiffItem, DiffStatus, ResourceDiff, label_diff};
+pub use diff::{ChangeKind, DiffItem, DiffStatus, ResourceDiff, label_diff};
 pub use error::{Error, Result};
 pub use lookup::{AnyLookup, Lookup};
 pub use provisioner::{Listable, LookupProvider, Provisioner, destroy_resource};

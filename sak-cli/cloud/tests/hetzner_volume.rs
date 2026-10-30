@@ -58,7 +58,7 @@ async fn volume_flow() {
             let diff = provisioner.diff(&new_label, &context).await.unwrap();
             assert_eq!(diff.status, DiffStatus::HasChanges);
             assert_eq!(diff.changes.len(), 1);
-            assert!(diff.changes[0].missing);
+            assert_eq!(diff.changes[0].kind, sak_cloud::api::ChangeKind::Missing);
             assert_eq!(diff.changes[0].name, "label 'foo'");
             assert_eq!(
                 provisioner.apply(&new_label, &context).await.unwrap().name,

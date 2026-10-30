@@ -62,7 +62,7 @@ async fn primary_ip_flow() {
             assert_eq!(diff.status, DiffStatus::HasChanges);
             assert_eq!(diff.changes.len(), 1);
             assert_eq!(diff.changes[0].name, "type");
-            assert!(diff.changes[0].triggers_recreate);
+            assert!(diff.changes[0].triggers_recreate());
             assert_eq!(diff.changes[0].expected.as_deref(), Some("ipv6"));
             assert_eq!(diff.changes[0].actual.as_deref(), Some("ipv4"));
 
@@ -71,7 +71,7 @@ async fn primary_ip_flow() {
             let diff = provisioner.diff(&new_label, &context).await.unwrap();
             assert_eq!(diff.status, DiffStatus::HasChanges);
             assert_eq!(diff.changes.len(), 1);
-            assert!(diff.changes[0].missing);
+            assert_eq!(diff.changes[0].kind, sak_cloud::api::ChangeKind::Missing);
             assert_eq!(diff.changes[0].name, "label 'foo'");
             assert_eq!(
                 provisioner.apply(&new_label, &context).await.unwrap().name,

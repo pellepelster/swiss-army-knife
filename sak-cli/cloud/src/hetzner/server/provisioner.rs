@@ -610,7 +610,7 @@ mod tests {
 
         assert_eq!(diff.changes.len(), 1);
         assert_eq!(diff.changes[0].name, "ssh keys");
-        assert!(diff.changes[0].triggers_recreate);
+        assert!(diff.changes[0].triggers_recreate());
         assert_eq!(
             diff.changes[0].expected.as_deref(),
             Some("<known after apply>")

@@ -67,7 +67,7 @@ async fn ssh_key_flow() {
             assert_eq!(diff.status, DiffStatus::HasChanges);
             assert_eq!(diff.changes.len(), 1);
             assert_eq!(diff.changes[0].name, "fingerprint");
-            assert!(diff.changes[0].triggers_recreate);
+            assert!(diff.changes[0].triggers_recreate());
             assert_eq!(
                 diff.changes[0].expected.as_deref(),
                 Some("d3:16:bf:af:b2:60:3e:e1:56:0d:54:3d:73:bb:9a:38")
@@ -88,7 +88,7 @@ async fn ssh_key_flow() {
             let diff = provisioner.diff(&new_label, &context).await.unwrap();
             assert_eq!(diff.status, DiffStatus::HasChanges);
             assert_eq!(diff.changes.len(), 1);
-            assert!(diff.changes[0].missing);
+            assert_eq!(diff.changes[0].kind, sak_cloud::api::ChangeKind::Missing);
             assert_eq!(diff.changes[0].name, "label 'foo'");
             assert_eq!(
                 provisioner.apply(&new_label, &context).await.unwrap().name,
