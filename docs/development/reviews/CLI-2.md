@@ -135,21 +135,12 @@ as one label `backup` in the diff. **To confirm:** whether a runtime's `labels()
 
 ### Smells
 
-#### CA-12 (Low): `Lookup::depends_on` is dead
-
-`api/lookup.rs:26`: never overridden, never called (the registry reads `Resource::depends_on`); the doc says so.
-
 #### CA-13 (Low): `ProviderManager`, `ProviderConfiguration` and `validate` serve only the example
 
 sakctl constructs `HetznerProviderRuntime::from_api` everywhere (`src-tauri/src/core/deployments.rs:1062, 1271,
 1392, 1444`) and checks tokens itself. `validate` (`providers/hetzner.rs:116-129`) lists every page of ssh keys to
 test a token and wraps the `ApiError` into `Error::Message`, losing the code. `#[async_trait]` on `ProviderRuntime`
 (`providers/mod.rs:20`) has no async method.
-
-#### CA-14 (Low): `HetznerProviderConfiguration` derives `Debug` with a public `token`
-
-`providers/hetzner.rs:18-21`. Nothing prints it today; one `{:?}` away from a token in a log. A newtype with a
-redacting `Debug` (compare S10 of the first review).
 
 #### CA-15 (Low): `Listable` is implemented six times for one test
 

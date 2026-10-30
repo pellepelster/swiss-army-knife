@@ -14,13 +14,24 @@ use std::sync::Arc;
 
 pub const HETZNER_PROVIDER_TYPE: &str = "hcloud";
 
-/// a hetzner cloud project and an api token of it
-#[derive(Clone, Debug)]
+/// a hetzner cloud project and an api token of it; its `Debug` never shows the token
+#[derive(Clone)]
 pub struct HetznerProviderConfiguration {
     pub name: String,
     pub token: String,
     pub default_location: Location,
     pub default_server_type: ServerType,
+}
+
+impl std::fmt::Debug for HetznerProviderConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HetznerProviderConfiguration")
+            .field("name", &self.name)
+            .field("token", &"***")
+            .field("default_location", &self.default_location)
+            .field("default_server_type", &self.default_server_type)
+            .finish()
+    }
 }
 
 impl HetznerProviderConfiguration {
@@ -147,5 +158,20 @@ impl HetznerProviderRuntime {
             default_location,
             default_server_type,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_debug_of_a_configuration_never_shows_its_token() {
+        let configuration = HetznerProviderConfiguration::new("default", "the-secret-token");
+        let shown = format!("{configuration:?}");
+        assert!(
+            !shown.contains("the-secret-token") && shown.contains("default"),
+            "{shown}"
+        );
     }
 }

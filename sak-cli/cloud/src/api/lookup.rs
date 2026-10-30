@@ -21,12 +21,6 @@ pub trait Lookup: Clone + Send + Sync + 'static {
         &NO_IDENTITY
     }
 
-    /// what must exist before this lookup resolves, for a lookup of a nested resource. No
-    /// lookup of this crate overrides it
-    fn depends_on(&self) -> Vec<ResourceRef> {
-        Vec::new()
-    }
-
     fn resource_ref(&self) -> ResourceRef {
         ResourceRef::of::<Self>(self.name(), self.log_text())
     }
