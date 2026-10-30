@@ -14,7 +14,7 @@ mod server;
 #[cfg(test)]
 mod tests;
 
-use crate::core::backup::BackupManager;
+use crate::core::backup;
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{

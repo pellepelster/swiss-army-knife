@@ -21,9 +21,6 @@ pub struct Backup {
     pub size: u64,
 }
 
-/// the one place the backups of the deployments are made and restored
-pub struct BackupManager;
-
 /// `~/.sak/backups/<name>`, where the backups of a deployment are
 pub fn directory(name: &str) -> Result<PathBuf, String> {
     let home = std::env::home_dir().ok_or_else(|| t!("shared.backup.no_home").to_string())?;
@@ -125,85 +122,80 @@ fn partial(path: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-impl BackupManager {
-    /// a backup of the deployment of `target` to `path` (`directory` and `file_name`), its
-    /// directories made when they are not there; each message of the server goes to `on_line`. A
-    /// backup that fails leaves no file
-    pub fn backup(
-        &self,
-        runtime: &str,
-        target: &SshTarget,
-        key: &BackupKey,
-        path: &Path,
-        on_line: &mut (dyn FnMut(String) + Send),
-    ) -> Result<Backup, String> {
-        if let Some(directory) = path.parent() {
-            create_private_dir(directory)?;
-        }
-        let path = path.to_path_buf();
-        let partial = partial(&path);
-        let result = (|| {
-            let mut file = std::io::BufWriter::new(create_private_file(&partial)?);
-            let recipient = key.recipient();
-            sak_backend::run(
-                runtime,
-                target,
-                Command::Backup {
-                    recipient: &recipient,
-                },
-                Stream::Out(&mut file),
-                on_line,
-            )?;
-            file.into_inner()
-                .map_err(|error| error.to_string())?
-                .sync_all()
-                .map_err(|error| error.to_string())?;
-            check(&partial, key)?;
-            std::fs::rename(&partial, &path).map_err(|error| {
-                t!(
-                    "shared.backup.not_written",
-                    path = path.display(),
-                    error = error
-                )
-                .to_string()
-            })?;
-            let size = std::fs::metadata(&path)
-                .map_err(|error| error.to_string())?
-                .len();
-            Ok(Backup {
-                path: path.clone(),
-                size,
-            })
-        })();
-        if result.is_err() {
-            let _ = std::fs::remove_file(&partial);
-        }
-        result
+/// a backup of the deployment of `target` to `path` (`directory` and `file_name`), its
+/// directories made when they are not there; each message of the server goes to `on_line`. A
+/// backup that fails leaves no file
+pub fn backup(
+    runtime: &str,
+    target: &SshTarget,
+    key: &BackupKey,
+    path: &Path,
+    on_line: &mut (dyn FnMut(String) + Send),
+) -> Result<Backup, String> {
+    if let Some(directory) = path.parent() {
+        create_private_dir(directory)?;
     }
-
-    /// replaces the data of the deployment with the backup at `path`, checked first in full, so
-    /// a wrong password or a damaged file fails before the server changes. `sak-backend restore` checks
-    /// the name of the deployment and the database before it replaces anything
-    pub fn restore(
-        &self,
-        runtime: &str,
-        target: &SshTarget,
-        key: &BackupKey,
-        path: &Path,
-        on_line: &mut (dyn FnMut(String) + Send),
-    ) -> Result<(), String> {
-        check(path, key)?;
-        let mut plain = decrypted(path, key)?;
+    let path = path.to_path_buf();
+    let partial = partial(&path);
+    let result = (|| {
+        let mut file = std::io::BufWriter::new(create_private_file(&partial)?);
+        let recipient = key.recipient();
         sak_backend::run(
             runtime,
             target,
-            Command::Restore,
-            Stream::In(&mut plain),
+            Command::Backup {
+                recipient: &recipient,
+            },
+            Stream::Out(&mut file),
             on_line,
-        )
+        )?;
+        file.into_inner()
+            .map_err(|error| error.to_string())?
+            .sync_all()
+            .map_err(|error| error.to_string())?;
+        check(&partial, key)?;
+        std::fs::rename(&partial, &path).map_err(|error| {
+            t!(
+                "shared.backup.not_written",
+                path = path.display(),
+                error = error
+            )
+            .to_string()
+        })?;
+        let size = std::fs::metadata(&path)
+            .map_err(|error| error.to_string())?
+            .len();
+        Ok(Backup {
+            path: path.clone(),
+            size,
+        })
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&partial);
     }
+    result
 }
 
+/// replaces the data of the deployment with the backup at `path`, checked first in full, so
+/// a wrong password or a damaged file fails before the server changes. `sak-backend restore` checks
+/// the name of the deployment and the database before it replaces anything
+pub fn restore(
+    runtime: &str,
+    target: &SshTarget,
+    key: &BackupKey,
+    path: &Path,
+    on_line: &mut (dyn FnMut(String) + Send),
+) -> Result<(), String> {
+    check(path, key)?;
+    let mut plain = decrypted(path, key)?;
+    sak_backend::run(
+        runtime,
+        target,
+        Command::Restore,
+        Stream::In(&mut plain),
+        on_line,
+    )
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -128,7 +128,7 @@ pub(super) async fn backup(
     );
     let path = directory.join(crate::core::backup::file_name(&name, chrono::Utc::now()));
     let backup = tokio::task::spawn_blocking(move || {
-        BackupManager.backup(runtime, &target, &key, &path, &mut |line| {
+        backup::backup(runtime, &target, &key, &path, &mut |line| {
             log(Level::Info, line)
         })
     })
@@ -173,7 +173,7 @@ pub(super) async fn restore(
     );
     let path = file.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        BackupManager.restore(runtime, &target, &key, &path, &mut |line| {
+        backup::restore(runtime, &target, &key, &path, &mut |line| {
             log(Level::Info, line)
         })
     })
