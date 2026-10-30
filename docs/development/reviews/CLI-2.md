@@ -61,9 +61,9 @@ the review found them; the sections below hold the ones still open.
   resolves all of them (CD-25, CP-22).
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
-- **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the kind of a planned
-  resource (CD-13), the strings and flags of the deployment spec (CP-17), a few flags of the command line (UI-16).
-  *Done: `DiffItem`, the plan words, the reasons of a reboot, the password prompt, the transport.*
+- **Booleans and strings standing in for enums.** The intents on `NewDeployment` (CD-14), the strings and flags
+  of the deployment spec (CP-17), a few flags of the command line (UI-16).
+  *Done: `DiffItem`, the plan words and kinds, the reasons of a reboot, the password prompt, the transport.*
 - **Files that have outgrown themselves.** `cloud/hetzner/deployment.rs` (CP-20). *Done: `cli.rs`,
   `core/deployments.rs`.*
 
@@ -541,13 +541,6 @@ The `Err` of `provision`, the `failure: Arc<Mutex<Option<String>>>` (`ansible_ro
 `failed_task` (`ansible_roles.rs:247-262`) recomputes what `failure_of` (`provision.rs:358-369`) put into the
 message. A typed error variant removes the mutex and the second tracker (CD-25).
 
-#### CD-13 (Low): Stringly typed plan vocabulary — *partly fixed*
-
-`resource_status`, `action`, `working` are `&'static str` (`deployments.rs:187-194`), produced by `action()` with
-three booleans (`:886-892`) and `working()`; `kind` is a `String` from a serde round trip in `key()` (`:567-572`),
-which yields `""` for a non-string. `TaskOutcome` shows the right pattern (enum + serde rename). Also UI-17.
-*`resource_status`, `action` and `working` are enums now (with UI-17); `kind` is still a string.*
-
 #### CD-14 (Low): `NewDeployment` is a union of three intents
 
 `:621-657`: "needed for X, not used for Y" on half the fields, `password_repeat` on a destroy, `match intent`
@@ -691,13 +684,6 @@ confirmation.
 show_log)` (`:1071`), `quit(failed)` (`gui/checks.rs:46`), `apply_checked(force)`; in JS `setBusy`, `setStatus(msg,
 failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`). *`password` takes `Typed::Once`/`Typed::Twice`; the others carry a
 named flag of the command line or the page through and stay bools.*
-
-#### ~~UI-17 (Low): Stringly typed plan and events across the boundary, the texts of an apply mapped twice~~ **fixed**
-
-`cli.rs:1117` compares `resource.action == Some("will_destroy")`; `PlannedResource.working/resource_status/action`
-are `&'static str` keys (CD-13). `ui/run.js:22-27` `APPLIED` re-implements `applied_key`
-(`core/deployments.rs:203`), `run.js:124` re-implements `destroyed_key`. Let `CreateEvent::Applied/Destroyed` carry
-the text key once.
 
 #### ~~UI-18 (Low): Six copies of `setStatus`, five hand-rolled `%{…}` substitutions~~ **fixed**
 

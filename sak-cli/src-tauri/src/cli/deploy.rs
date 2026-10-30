@@ -91,7 +91,7 @@ pub(super) async fn plan_and_apply(
         .map(|resource| {
             (
                 resource.resource.clone(),
-                title(&resource.kind, &resource.name),
+                title(&key(&resource.kind), &resource.name),
             )
         })
         .collect();

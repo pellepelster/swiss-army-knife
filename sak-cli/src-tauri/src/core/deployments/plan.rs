@@ -19,7 +19,7 @@ pub struct PlannedResource {
     pub(crate) resource: String,
     /// the kind of resource, `ssh_key`, `volume`, …, `provisioning`, and its name at the
     /// provider: the page and the command line show the resource with them, in their language
-    pub(crate) kind: String,
+    pub(crate) kind: PlannedKind,
     pub(crate) name: String,
     /// the resource status of the glossary
     pub(crate) resource_status: ResourceStatus,
@@ -31,6 +31,16 @@ pub struct PlannedResource {
     /// a destroy keeps it: the data volume, unless `delete_data` is set
     pub(crate) keep: bool,
     pub(crate) changes: Vec<String>,
+}
+
+/// the kind of a planned resource: one of the cloud, or the provisioning of the server. It is the
+/// word of its text, `shared.deployments.resource.<kind>`
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlannedKind {
+    Provisioning,
+    #[serde(untagged)]
+    Resource(ResourceKind),
 }
 
 /// the resource status of the glossary for a status of a diff. A resource whose parent is missing

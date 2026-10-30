@@ -668,13 +668,20 @@ impl DeploymentManager {
                         && !deployment.delete_data
                         && diff.resource.name == volume;
                     let provisioning = is_provisioning(&diff.resource);
-                    PlannedResource {
+                    let kind = match ResourceKind::of(&diff.resource) {
+                        Some(kind) => PlannedKind::Resource(kind),
+                        None if provisioning => PlannedKind::Provisioning,
+                        // the registry is built here, of the kinds above only
+                        None => {
+                            return Err(WizardError::from(format!(
+                                "{} is of no kind sakctl knows",
+                                diff.resource.log_text
+                            )));
+                        }
+                    };
+                    Ok(PlannedResource {
                         resource: diff.resource.log_text.clone(),
-                        kind: match ResourceKind::of(&diff.resource) {
-                            Some(kind) => key(&kind),
-                            None if provisioning => "provisioning".to_string(),
-                            None => String::new(),
-                        },
+                        kind,
                         name: diff.resource.name.clone(),
                         resource_status: ResourceStatus::of(diff.status),
                         // the playbook runs when a role is not up to date, an up to date one only
@@ -713,20 +720,22 @@ impl DeploymentManager {
                                 .map(|change| change.log_text())
                                 .collect(),
                         },
-                    }
+                    })
                 })
-                .chain(prepared.stale_records.iter().map(|record| PlannedResource {
-                    resource: record.log_text(),
-                    kind: key(&ResourceKind::DnsRecord),
-                    name: record.resource_ref().name,
-                    resource_status: ResourceStatus::UpToDate,
-                    action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
-                    working: working(deployment.intent, DiffStatus::UpToDate, false, true),
-                    status: DiffStatus::UpToDate,
-                    keep: false,
-                    changes: Vec::new(),
+                .chain(prepared.stale_records.iter().map(|record| {
+                    Ok(PlannedResource {
+                        resource: record.log_text(),
+                        kind: PlannedKind::Resource(ResourceKind::DnsRecord),
+                        name: record.resource_ref().name,
+                        resource_status: ResourceStatus::UpToDate,
+                        action: action(deployment.intent, DiffStatus::UpToDate, false, false, true),
+                        working: working(deployment.intent, DiffStatus::UpToDate, false, true),
+                        status: DiffStatus::UpToDate,
+                        keep: false,
+                        changes: Vec::new(),
+                    })
                 }))
-                .collect(),
+                .collect::<Result<Vec<_>, WizardError>>()?,
         })
     }
 

@@ -38,6 +38,12 @@ fn the_words_of_a_plan_are_those_of_the_texts() {
         let key = format!("shared.working.{}", word(serde_json::json!(working)));
         assert_eq!(key, working.text_key());
     }
+    // the kind of a planned resource is the word of its text
+    assert_eq!(serde_json::json!(PlannedKind::Provisioning), "provisioning");
+    assert_eq!(
+        serde_json::json!(PlannedKind::Resource(ResourceKind::SshKey)),
+        "ssh_key"
+    );
     // and every key has a text
     let texts = crate::_rust_i18n_backend()
         .messages_for_locale("en")

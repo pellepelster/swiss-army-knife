@@ -113,9 +113,7 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
     };
     let created = |reference: &sak_cloud::api::ResourceRef| PlannedResource {
         resource: reference.log_text.clone(),
-        kind: ResourceKind::of(reference)
-            .map(|kind| key(&kind))
-            .unwrap_or_default(),
+        kind: PlannedKind::Resource(ResourceKind::of(reference).expect("a resource of the spec")),
         name: reference.name.clone(),
         resource_status: ResourceStatus::of(status),
         action: action(intent, status, false, false, false),
@@ -127,7 +125,7 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
     let mut resources: Vec<PlannedResource> = resources(spec).iter().map(created).collect();
     resources.push(PlannedResource {
         resource: provisioning(spec),
-        kind: "provisioning".to_string(),
+        kind: PlannedKind::Provisioning,
         name: spec.resource_name(),
         resource_status: ResourceStatus::of(status),
         action: Some(if intent == Intent::Create {
