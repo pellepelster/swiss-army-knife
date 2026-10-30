@@ -1245,7 +1245,13 @@ impl DeploymentManager {
             .and_then(|ca| AcmeCa::parse(&ca))
             .unwrap_or_default()
             .trust();
-        let config = crate::core::config::fetch(&url, &key, trust).await?;
+        // the server of the deployment answers, whatever a resolver of this machine still knows
+        let address = deployment
+            .server
+            .as_ref()
+            .and_then(|server| server.public_ipv4.as_deref())
+            .and_then(|address| address.parse().ok());
+        let config = crate::core::config::fetch(&url, &key, trust, address).await?;
         Ok((url, config))
     }
 

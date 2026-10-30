@@ -61,9 +61,31 @@ pub fn api_url(base_domain: &str) -> String {
 
 /// `GET <api>/v1/config`, signed with the api key. A refused signature means that the backend
 /// does not know the key of this password (yet). Over https only and to the api only: sakctl
-/// refuses a plain http api before any request, and a redirect fails
-pub async fn fetch(api: &str, key: &ApiKey, trust: Trust) -> Result<RunningConfig, String> {
-    fetch_from(api, key, Transport::HttpsOnly, trust).await
+/// refuses a plain http api before any request, and a redirect fails. The request goes to
+/// `address`, the server of the deployment, when it is known: a resolver of this machine can still
+/// know the address of an earlier server of the name
+pub async fn fetch(
+    api: &str,
+    key: &ApiKey,
+    trust: Trust,
+    address: Option<std::net::IpAddr>,
+) -> Result<RunningConfig, String> {
+    fetch_from(api, key, Transport::HttpsOnly, trust, address).await
+}
+
+/// the client of `url` that connects to `address` for the host of the url, when it is given
+fn pinned(
+    builder: reqwest::ClientBuilder,
+    url: &str,
+    address: Option<std::net::IpAddr>,
+) -> reqwest::ClientBuilder {
+    if let Some(address) = address
+        && let Ok(parsed) = url::Url::parse(url)
+        && let (Some(host), Some(port)) = (parsed.host_str(), parsed.port_or_known_default())
+    {
+        return builder.resolve(host, std::net::SocketAddr::new(address, port));
+    }
+    builder
 }
 
 /// the scheme of the `Authorization` header of a signed request
@@ -146,6 +168,7 @@ async fn fetch_from(
     key: &ApiKey,
     transport: Transport,
     trust: Trust,
+    address: Option<std::net::IpAddr>,
 ) -> Result<RunningConfig, String> {
     let url = format!("{api}/v1/config");
     let https_only = transport == Transport::HttpsOnly;
@@ -153,7 +176,9 @@ async fn fetch_from(
         return Err(t!("shared.config.not_https", url = api).to_string());
     }
     let parsed = reqwest::Url::parse(&url).map_err(|error| error.to_string())?;
-    let response = client(https_only, trust)?
+    let response = pinned(client_builder(https_only, trust)?, &url, address)
+        .build()
+        .map_err(|error| error.to_string())?
         .get(&url)
         .header(
             reqwest::header::AUTHORIZATION,
@@ -189,12 +214,6 @@ async fn fetch_from(
 
 /// the client of the api of a deployment: it follows no redirect, plain http only for the tests.
 /// With `Trust::LetsEncryptStaging` it also trusts the roots of the staging ca
-fn client(https_only: bool, trust: Trust) -> Result<Client, String> {
-    client_builder(https_only, trust)?
-        .build()
-        .map_err(|error| error.to_string())
-}
-
 fn client_builder(https_only: bool, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
         .user_agent(concat!("sakctl/", env!("SAK_VERSION")))
@@ -254,14 +273,13 @@ async fn wait_from(
     trust: Trust,
 ) -> Result<(), String> {
     let url = format!("{api}/v1/info");
-    let mut builder = client_builder(transport == Transport::HttpsOnly, trust)?;
-    if let Some(address) = address
-        && let Ok(parsed) = url::Url::parse(&url)
-        && let (Some(host), Some(port)) = (parsed.host_str(), parsed.port_or_known_default())
-    {
-        builder = builder.resolve(host, std::net::SocketAddr::new(address, port));
-    }
-    let client = builder.build().map_err(|error| error.to_string())?;
+    let client = pinned(
+        client_builder(transport == Transport::HttpsOnly, trust)?,
+        &url,
+        address,
+    )
+    .build()
+    .map_err(|error| error.to_string())?;
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
         let last = match client.get(&url).send().await {
@@ -422,19 +440,31 @@ mod tests {
         )
         .await;
 
-        let config = fetch_from(&server.uri(), &key(), Transport::PlainHttp, Trust::Public)
-            .await
-            .unwrap();
+        let config = fetch_from(
+            &server.uri(),
+            &key(),
+            Transport::PlainHttp,
+            Trust::Public,
+            None,
+        )
+        .await
+        .unwrap();
 
         let smtp = config.smtp.unwrap();
         assert_eq!((smtp.host.as_str(), smtp.port), ("smtp.example.org", 465));
         assert!(smtp.password_set && smtp.tls && !smtp.starttls);
         let none = backend(200, serde_json::json!({ "smtp": null })).await;
         assert_eq!(
-            fetch_from(&none.uri(), &key(), Transport::PlainHttp, Trust::Public)
-                .await
-                .unwrap()
-                .smtp,
+            fetch_from(
+                &none.uri(),
+                &key(),
+                Transport::PlainHttp,
+                Trust::Public,
+                None
+            )
+            .await
+            .unwrap()
+            .smtp,
             None
         );
     }
@@ -448,33 +478,67 @@ mod tests {
                 &server.uri(),
                 &api_key("beta", "a password of sixteen").unwrap(),
                 Transport::PlainHttp,
-                Trust::Public
+                Trust::Public,
+                None
             )
             .await
             .is_err()
         );
         let refused = backend(401, serde_json::json!({})).await;
         assert_eq!(
-            fetch_from(&refused.uri(), &key(), Transport::PlainHttp, Trust::Public).await,
+            fetch_from(
+                &refused.uri(),
+                &key(),
+                Transport::PlainHttp,
+                Trust::Public,
+                None
+            )
+            .await,
             Err(t!("shared.config.refused").to_string())
         );
         let failing = backend(500, serde_json::json!({})).await;
         assert!(
-            fetch_from(&failing.uri(), &key(), Transport::PlainHttp, Trust::Public)
-                .await
-                .unwrap_err()
-                .contains("500")
+            fetch_from(
+                &failing.uri(),
+                &key(),
+                Transport::PlainHttp,
+                Trust::Public,
+                None
+            )
+            .await
+            .unwrap_err()
+            .contains("500")
         );
         assert!(
             fetch_from(
                 "http://127.0.0.1:1",
                 &key(),
                 Transport::PlainHttp,
-                Trust::Public
+                Trust::Public,
+                None
             )
             .await
             .unwrap_err()
             .contains("127.0.0.1:1")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_config_is_asked_at_the_address_of_the_server_whatever_its_name_resolves_to() {
+        let server = backend(200, serde_json::json!({ "smtp": null })).await;
+        let port = server.address().port();
+        // a name no resolver knows, the request goes to the address of the server
+        let api = format!("http://api.sak-test.invalid:{port}");
+        let address = Some(std::net::IpAddr::from([127, 0, 0, 1]));
+        assert!(
+            fetch_from(&api, &key(), Transport::PlainHttp, Trust::Public, address)
+                .await
+                .is_ok()
+        );
+        assert!(
+            fetch_from(&api, &key(), Transport::PlainHttp, Trust::Public, None)
+                .await
+                .is_err()
         );
     }
 
@@ -486,7 +550,8 @@ mod tests {
                 &forbidden.uri(),
                 &key(),
                 Transport::PlainHttp,
-                Trust::Public
+                Trust::Public,
+                None
             )
             .await,
             Err(t!("shared.config.refused").to_string())
@@ -498,7 +563,7 @@ mod tests {
         let server = backend(200, serde_json::json!({ "smtp": null })).await;
 
         assert_eq!(
-            fetch(&server.uri(), &key(), Trust::Public).await,
+            fetch(&server.uri(), &key(), Trust::Public, None).await,
             Err(t!("shared.config.not_https", url = server.uri()).to_string())
         );
         assert!(server.received_requests().await.unwrap().is_empty());
@@ -523,9 +588,15 @@ mod tests {
             .mount(&api)
             .await;
 
-        let error = fetch_from(&api.uri(), &key(), Transport::PlainHttp, Trust::Public)
-            .await
-            .unwrap_err();
+        let error = fetch_from(
+            &api.uri(),
+            &key(),
+            Transport::PlainHttp,
+            Trust::Public,
+            None,
+        )
+        .await
+        .unwrap_err();
 
         assert_eq!(
             error,
@@ -549,17 +620,26 @@ mod tests {
                 &key(),
                 Transport::PlainHttp,
                 Trust::Public,
+                None,
             )
             .await,
-            fetch_from(&failing.uri(), &key(), Transport::PlainHttp, Trust::Public).await,
+            fetch_from(
+                &failing.uri(),
+                &key(),
+                Transport::PlainHttp,
+                Trust::Public,
+                None,
+            )
+            .await,
             fetch_from(
                 &unreadable.uri(),
                 &key(),
                 Transport::PlainHttp,
                 Trust::Public,
+                None,
             )
             .await,
-            fetch("http://api.example.org", &key(), Trust::Public).await,
+            fetch("http://api.example.org", &key(), Trust::Public, None).await,
         ];
         for error in errors {
             let error = error.unwrap_err();
@@ -620,7 +700,7 @@ mod tests {
             assert!(root.contains("BEGIN CERTIFICATE"));
             assert!(reqwest::Certificate::from_pem(root.as_bytes()).is_ok());
         }
-        assert!(client(true, Trust::LetsEncryptStaging).is_ok());
+        assert!(client_builder(true, Trust::LetsEncryptStaging).is_ok());
     }
 
     #[tokio::test]
