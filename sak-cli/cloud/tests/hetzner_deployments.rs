@@ -63,7 +63,7 @@ async fn discovers_a_deployment_by_its_name_label() {
             assert!(deployment.firewall.is_some());
             assert!(deployment.server.is_none());
 
-            let state = state(&provider, deployment).await.unwrap();
+            let state = state(&provider, deployment).await;
             assert_eq!(state.status, DeploymentStatus::Incomplete);
             // every resource a deploy declares shows: the key and the firewall are there (the
             // firewall with other rules than a deploy declares), the rest is missing
@@ -88,7 +88,7 @@ async fn discovers_a_deployment_by_its_name_label() {
                     .resources
                     .iter()
                     .filter(|resource| resource.kind == kind)
-                    .map(|resource| resource.status)
+                    .filter_map(|resource| resource.status)
                     .collect::<Vec<_>>()
             };
             assert!(!status(ResourceKind::SshKey).contains(&DiffStatus::Missing));

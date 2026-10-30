@@ -130,6 +130,8 @@ shared:
       ok: "aktuell"
       incomplete: "unvollständig"
       changed: "hat Änderungen"
+      unknown: "unbekannt"
+    not_compared: "%{name} konnte nicht mit dem verglichen werden, was ein Deployment anlegt: %{error}"
     empty: "Kein Deployment gefunden. Installiere eines mit dem Knopf oben."
   config:
     unreachable: "Das Backend unter %{url} ist nicht erreichbar: %{error}"

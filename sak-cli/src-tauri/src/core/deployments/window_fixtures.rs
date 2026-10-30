@@ -264,7 +264,7 @@ fn created(spec: &DeploymentSpec) -> DeploymentResponse {
         ResourceState {
             kind,
             name: reference.name.clone(),
-            status: DiffStatus::UpToDate,
+            status: Some(DiffStatus::UpToDate),
             changes: Vec::new(),
             detail,
         }
@@ -278,6 +278,7 @@ fn created(spec: &DeploymentSpec) -> DeploymentResponse {
         root_domain: Some(ROOT_DOMAIN.to_string()),
         frontend_url: Some(format!("https://sak.{ROOT_DOMAIN}")),
         resources: resources(spec).iter().map(state).collect(),
+        error: None,
     }
 }
 

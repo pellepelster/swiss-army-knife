@@ -130,6 +130,8 @@ shared:
       ok: "up-to-date"
       incomplete: "incomplete"
       changed: "has changes"
+      unknown: "unknown"
+    not_compared: "%{name} could not be compared with what a deploy declares: %{error}"
     empty: "No deployment found. Install one with the button at the top."
   config:
     unreachable: "The backend at %{url} could not be reached: %{error}"

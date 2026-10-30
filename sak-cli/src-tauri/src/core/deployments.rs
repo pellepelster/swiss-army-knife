@@ -45,6 +45,8 @@ pub struct DeploymentResponse {
     /// where its frontend is, `https://sak.<base domain>`; none without a root domain
     pub(crate) frontend_url: Option<String>,
     pub(crate) resources: Vec<ResourceState>,
+    /// why the deployment could not be compared with its declaration, with the status `unknown`
+    pub(crate) error: Option<String>,
 }
 
 impl DeploymentResponse {
@@ -62,6 +64,7 @@ impl DeploymentResponse {
             root_domain: deployment.root_domain(),
             frontend_url: deployment.frontend_url(),
             resources: state.resources,
+            error: state.error,
         }
     }
 }
@@ -1068,9 +1071,8 @@ impl DeploymentManager {
                         .await
                         .map_err(|error| failed(provider, error))?;
                     for deployment in &discovered {
-                        let state = state(&runtime, deployment)
-                            .await
-                            .map_err(|error| failed(provider, error))?;
+                        // a deployment that cannot be compared says why, the others still show
+                        let state = state(&runtime, deployment).await;
                         deployments.push(DeploymentResponse::of(provider, state, deployment));
                     }
                 }

@@ -12,7 +12,7 @@ const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
 // the led of the theme for the state of a deployment, on its pill on its page
-export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn' };
+export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn', unknown: 'danger' };
 
 // a resource as the list knows it: its kind, its name and its detail. The place of the led stays
 // empty, the page of the deployment puts the led of its check there
@@ -79,6 +79,13 @@ function deployment(data) {
   const group = document.createElement('ul');
   group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));
+  // a deployment the list could not compare says why; its page checks it again
+  if (data.error) {
+    const error = document.createElement('li');
+    error.className = 'deployment-error status-failed';
+    error.textContent = text('shared.deployments.not_compared').replaceAll('%{name}', name).replaceAll('%{error}', data.error);
+    group.append(error);
+  }
   // the last line of the list, so it starts where the resources start; hidden for a deployment
   // without a root domain on its resources
   group.append(frontendLink(data.frontendUrl));

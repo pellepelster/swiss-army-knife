@@ -84,9 +84,18 @@ impl Listable<HetznerSshKeyLookup> for HetznerSshKeyProvisioner {
 #[async_trait]
 impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
     async fn diff(&self, resource: &HetznerSshKey, _: &dyn DiffContext) -> Result<ResourceDiff> {
-        let expected = fingerprint(&resource.public_key)?;
+        // a key declared without its public key (the deployment it is declared for has none
+        // left, `DeploymentSpec::declared_by`) is missing, or compared by its labels only
+        let expected = if resource.public_key.is_empty() {
+            None
+        } else {
+            Some(fingerprint(&resource.public_key)?)
+        };
 
         let Some(runtime) = self.find(&resource.as_lookup()).await? else {
+            let Some(expected) = expected else {
+                return Ok(ResourceDiff::missing(resource));
+            };
             // hetzner refuses a second key with the same fingerprint, also under another name
             let duplicate = self
                 .api
@@ -108,7 +117,9 @@ impl Provisioner<HetznerSshKey> for HetznerSshKeyProvisioner {
         };
 
         let mut changes = Vec::new();
-        if runtime.fingerprint != expected {
+        if let Some(expected) = expected
+            && runtime.fingerprint != expected
+        {
             changes.push(DiffItem::recreate(
                 "fingerprint",
                 &expected,

@@ -712,19 +712,33 @@ async fn list(manager: &DeploymentManager, provider: &HetznerToken) -> Result<()
             )
             .trim_end(),
         );
+        if let Some(error) = &deployment.error {
+            log(
+                Level::Warn,
+                t!(
+                    "shared.deployments.not_compared",
+                    name = deployment.name,
+                    error = error
+                ),
+            );
+        }
         for resource in deployment.resources {
             let resource_name = title(&key(&resource.kind), &resource.name);
-            // its status, then its detail
-            let status = t!(format!(
-                "shared.resource_status.{}",
-                resource_status(resource.status)
-            ));
-            let detail = resource
-                .detail
-                .filter(|_| resource_status(resource.status) != "missing")
-                .map(|detail| format!(", {detail}"))
-                .unwrap_or_default();
-            log(Level::Info, format!("{resource_name} {status}{detail}"));
+            // its status, then its detail; a resource that was not compared shows its detail only
+            let status = resource.status.map(resource_status);
+            let detail = resource.detail.filter(|_| status != Some("missing"));
+            let line = match (status, detail) {
+                (Some(status), Some(detail)) => format!(
+                    "{resource_name} {}, {detail}",
+                    t!(format!("shared.resource_status.{status}"))
+                ),
+                (Some(status), None) => format!(
+                    "{resource_name} {}",
+                    t!(format!("shared.resource_status.{status}"))
+                ),
+                (None, detail) => format!("{resource_name} {}", detail.unwrap_or_default()),
+            };
+            log(Level::Info, line.trim_end());
             for change in resource.changes {
                 log(Level::Warn, format!("{resource_name} {change}"));
             }

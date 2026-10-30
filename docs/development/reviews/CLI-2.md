@@ -27,7 +27,8 @@ prefix, so an ID is unique across the review:
 Each finding has a severity: **High** (wrong result or data at risk in a realistic scenario), **Medium** (a bug on a
 less common path, or a smell that hides bugs), **Low** (a smell or a simplification). Findings marked *(confirmed)*
 were checked a second time against the code after the slice reviewer reported them; the others rest on the slice
-reviewer's reading.
+reviewer's reading. A finding that is fixed is ~~struck through~~ and marked **fixed**; the commit that fixes it
+names its ID.
 
 ## Summary
 
@@ -42,9 +43,9 @@ reviewer's reading.
 
 ### Fix first
 
-1. **UI-1** the page can deploy another deployment than the one shown (`CheckedDeployment` has no identity).
-2. **CP-1** one odd deployment (a kept volume after a destroy) hides the whole list; **CA-1** one unknown server
-   type does the same.
+1. ~~**UI-1** the page can deploy another deployment than the one shown (`CheckedDeployment` has no identity).~~
+2. ~~**CP-1** one odd deployment (a kept volume after a destroy) hides the whole list~~; **CA-1** one unknown
+   server type does the same.
 3. **CD-1 / UI-6 / UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host" and
    command-line instructions in the window.
 4. **CU-1** a backup or restore hangs forever on a dropped connection; **CU-3 / CU-4** ssh's and the lock's exit
@@ -388,7 +389,7 @@ restore this resolves CU-1, CU-2.
 
 ### Bugs
 
-#### CP-1 (High, confirmed): One odd deployment fails the whole list of deployments
+#### ~~CP-1 (High, confirmed): One odd deployment fails the whole list of deployments~~ **fixed**
 
 `hetzner/deployment.rs:800-812` `declared_by` passes `""` as the public key when the deployment has no ssh key;
 `hetzner/ssh_key/provisioner.rs:87` `fingerprint("")?` fails, so `deployment.rs:561` `diff_all()?` fails and
@@ -540,7 +541,7 @@ check_name), `deployment/state.rs` (ResourceKind/State, state, detail), `dns/roo
 base and frontend host), `dns/records.rs` (deployment/foreign/stale/remove records); `set_server_labels` next to
 the server api. Resolves CP-18.
 
-#### CP-21: Make `state()` total
+#### ~~CP-21: Make `state()` total~~ **fixed**
 
 A per-resource `Error` status instead of propagating, so one broken deployment cannot hide the list (CP-1).
 
@@ -757,7 +758,7 @@ CD-12).
 
 ### Bugs
 
-#### UI-1 (High, confirmed, fixed): The deploy of the page can apply another deployment than the one shown
+#### ~~UI-1 (High, confirmed): The deploy of the page can apply another deployment than the one shown~~ **fixed**
 
 `gui/deployments.rs:132-157` stores the *last check that finished* with no link to the page; `apply_checked`
 (`:170-182`) takes whatever is there. `ui/deployment.js:80-90` guards its own view with `current !== shown`, but the
