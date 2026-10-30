@@ -667,13 +667,12 @@ fn resource_state(
     }
 }
 
-/// sets the label `key` of the server `id` to `value`, or removes it when `value` is `None`;
-/// the other labels of the server stay
-pub async fn set_server_label(
+/// sets each label `key` of the server `id` to its `value`, or removes it when the value is
+/// `None`, in one request; the other labels of the server stay
+pub async fn set_server_labels(
     api: &HetznerApi,
     id: u64,
-    key: &str,
-    value: Option<&str>,
+    changes: &[(&str, Option<&str>)],
 ) -> Result<()> {
     let server = api
         .servers()
@@ -681,10 +680,12 @@ pub async fn set_server_label(
         .await?
         .ok_or_else(|| Error::message(format!("the server {id} is gone")))?;
     let mut labels = server.labels;
-    match value {
-        Some(value) => labels.insert(key.to_string(), value.to_string()),
-        None => labels.remove(key),
-    };
+    for (key, value) in changes {
+        match value {
+            Some(value) => labels.insert(key.to_string(), value.to_string()),
+            None => labels.remove(*key),
+        };
+    }
     api.servers()
         .update(
             id,
@@ -880,8 +881,8 @@ impl DeploymentSpec {
     }
 
     /// the labels of a resource: those of `labels()`, the dns mode, the user mode, the acme ca,
-    /// the version, the root domain and the password hash. The firewall selects its servers by
-    /// `labels()` alone
+    /// the root domain and the password hash. The firewall selects its servers by `labels()`
+    /// alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
@@ -891,9 +892,6 @@ impl DeploymentSpec {
         if let Some(acme_ca) = &self.acme_ca {
             labels.insert(ACME_CA_LABEL.to_string(), acme_ca.clone());
         }
-        if let Some(version) = &self.version {
-            labels.insert(VERSION_LABEL.to_string(), version.clone());
-        }
         if let Some(root_domain) = &self.root_domain {
             labels.insert(ROOT_DOMAIN_LABEL.to_string(), root_domain.clone());
         }
@@ -901,6 +899,14 @@ impl DeploymentSpec {
             labels.insert(PASSWORD_HASH_LABEL.to_string(), hash.clone());
         }
         labels
+    }
+
+    /// the info labels of a resource, written and never compared: the version
+    fn resource_info(&self) -> Labels {
+        self.version
+            .iter()
+            .map(|version| (VERSION_LABEL.to_string(), version.clone()))
+            .collect()
     }
 
     /// the cloud name of the resources of the deployment, `sak-<name>`; the volume and the
@@ -913,6 +919,7 @@ impl DeploymentSpec {
         HetznerSshKey::new(&self.resource_name(), &self.public_key)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
+            .with_info(self.resource_info())
     }
 
     pub fn data_volume(&self) -> HetznerVolume {
@@ -923,18 +930,21 @@ impl DeploymentSpec {
         )
         .with_labels(self.resource_labels())
         .with_identity(self.identity())
+        .with_info(self.resource_info())
     }
 
     pub fn ipv4(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv4(&format!("{}-ipv4", self.resource_name()), self.location)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
+            .with_info(self.resource_info())
     }
 
     pub fn ipv6(&self) -> HetznerPrimaryIp {
         HetznerPrimaryIp::ipv6(&format!("{}-ipv6", self.resource_name()), self.location)
             .with_labels(self.resource_labels())
             .with_identity(self.identity())
+            .with_info(self.resource_info())
     }
 
     /// ssh, https and icmp from anywhere, applied to the servers of the deployment
@@ -946,6 +956,7 @@ impl DeploymentSpec {
         .applied_to(self.labels())
         .with_labels(self.resource_labels())
         .with_identity(self.identity())
+        .with_info(self.resource_info())
     }
 
     pub fn server(&self) -> HetznerServer {
@@ -961,7 +972,8 @@ impl DeploymentSpec {
         .with_ipv4(self.ipv4().as_lookup())
         .with_ipv6(self.ipv6().as_lookup())
         .with_labels(self.resource_labels())
-        .with_identity(self.identity());
+        .with_identity(self.identity())
+        .with_info(self.resource_info());
         if let Some(hash) = &self.user_data_hash {
             server.user_data = UserData::Hash(hash.clone());
         }
@@ -1000,6 +1012,7 @@ impl DeploymentSpec {
                     )
                     .with_labels(self.resource_labels())
                     .with_identity(self.identity())
+                    .with_info(self.resource_info())
                 })
             })
             .collect()
@@ -1623,7 +1636,8 @@ mod tests {
     }
 
     #[test]
-    fn the_version_is_on_every_resource_and_read_back_from_them() {
+    fn the_version_is_an_info_label_of_every_resource_and_read_back_from_them() {
+        use crate::api::Labeled;
         let spec = DeploymentSpec::new(
             "alpha",
             "ssh-ed25519 AAAA",
@@ -1635,18 +1649,24 @@ mod tests {
         .with_version("0.1.1");
         let records = spec.dns_records();
         assert!(!records.is_empty());
-        for labels in [
-            spec.ssh_key().labels,
-            spec.data_volume().labels,
-            spec.ipv4().labels,
-            spec.ipv6().labels,
-            spec.firewall().labels,
-            spec.server().labels,
-        ]
-        .into_iter()
-        .chain(records.into_iter().map(|record| record.labels))
-        {
-            assert_eq!(labels[VERSION_LABEL], "0.1.1");
+        // through the trait, as the diff reads them: a resource type without info would compare it
+        let resources: Vec<Box<dyn Labeled>> = vec![
+            Box::new(spec.ssh_key()),
+            Box::new(spec.data_volume()),
+            Box::new(spec.ipv4()),
+            Box::new(spec.ipv6()),
+            Box::new(spec.firewall()),
+            Box::new(spec.server()),
+        ];
+        for resource in resources.into_iter().chain(
+            records
+                .into_iter()
+                .map(|record| Box::new(record) as Box<dyn Labeled>),
+        ) {
+            assert_eq!(resource.labels()[VERSION_LABEL], "0.1.1");
+            assert_eq!(resource.info()[VERSION_LABEL], "0.1.1");
+            // the version is no declared label
+            assert_eq!(resource.info().len(), 1);
         }
         // a destroy declares no version
         let without = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();

@@ -149,8 +149,9 @@ and the health of the domains.
   record) carries `sak.pelle.io/name=<name>`. It tells the resources of one deployment from those of another
   and from everything else in the project.
 - **The version label.** Every resource of a deployment also carries `sak.pelle.io/version=<version>`, the version of
-  the sakctl that created or deployed it last. A deploy with another version changes the label, never creates the
-  resource anew.
+  the sakctl that created it or changed it last. It is an info label: written with the other labels, never compared,
+  so another version alone is no change of a resource. The server gets the version after each provisioning, so its
+  label is the version it runs.
 - **The password hash label.** Every resource of a deployment, the DNS records included, also carries
   `sak.pelle.io/password-hash=<hash>`, a hash derived from the password. sakctl checks a password against it before
   it changes anything. The password itself is nowhere.
@@ -160,6 +161,9 @@ and the health of the domains.
 - **The settings of a deployment** are labels too: `sak.pelle.io/dns-mode`, `sak.pelle.io/root-domain` and
   `sak.pelle.io/user-mode`. A deploy reads them back; a change of one is a label change, never a recreate. The dns mode on a DNS record tells which
   deployments use a root domain.
+- **Kinds of labels.** The plan compares the identity labels and the settings. It never compares the labels that
+  sakctl keeps on the server itself (the hashes of its ssh keys and user data, the provisioned configuration) or the
+  info labels (the version).
 - **Own prefix.** Labels of SAK are under `sak.pelle.io/`, labels of the user never are.
 - **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the data volume
   unless the user asks to delete it.

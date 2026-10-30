@@ -37,6 +37,9 @@ pub struct HetznerDnsRecord {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
+    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
+    /// the labels when it is created or changed for another reason
+    pub info: Labels,
     pub zone: HetznerDnsZoneLookup,
     pub rr_type: RRType,
     /// in seconds; `None` for the default of the zone
@@ -55,6 +58,7 @@ impl HetznerDnsRecord {
         HetznerDnsRecord {
             name: name.to_string(),
             identity: Labels::new(),
+            info: Labels::new(),
             zone,
             rr_type,
             ttl: None,
@@ -84,6 +88,13 @@ impl HetznerDnsRecord {
         self.identity = identity;
         self
     }
+
+    /// sets the info labels and adds them to the labels
+    pub fn with_info(mut self, info: Labels) -> Self {
+        self.labels.extend(info.clone());
+        self.info = info;
+        self
+    }
 }
 
 impl Resource for HetznerDnsRecord {
@@ -109,5 +120,9 @@ impl Resource for HetznerDnsRecord {
 impl Labeled for HetznerDnsRecord {
     fn labels(&self) -> &Labels {
         &self.labels
+    }
+
+    fn info(&self) -> &Labels {
+        &self.info
     }
 }

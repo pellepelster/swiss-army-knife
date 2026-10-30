@@ -213,14 +213,14 @@ pub fn log_text(diffs: &[ResourceDiff]) -> String {
 }
 
 /// compares the declared labels with the live labels: missing, changed and not declared.
-/// Keys that start with one of `ignored_prefixes` are ignored on both sides: these are the
-/// labels that the provisioners keep for themselves (e.g. the hash of the user data)
-pub fn label_diff(declared: &Labels, live: &Labels, ignored_prefixes: &[&str]) -> Vec<DiffItem> {
-    let ignored = |key: &String| {
-        ignored_prefixes
-            .iter()
-            .any(|prefix| key.starts_with(prefix))
-    };
+/// The keys `ignored` tells are left out on both sides: the labels the provisioners keep for
+/// themselves (e.g. the hash of the user data) and the info labels, which are never compared
+pub fn label_diff(
+    declared: &Labels,
+    live: &Labels,
+    ignored: impl Fn(&str) -> bool,
+) -> Vec<DiffItem> {
+    let ignored = |key: &String| ignored(key);
     let declared: Vec<(&String, &String)> =
         declared.iter().filter(|(key, _)| !ignored(key)).collect();
     let live: Vec<(&String, &String)> = live.iter().filter(|(key, _)| !ignored(key)).collect();
@@ -265,7 +265,7 @@ mod tests {
         let declared = labels(&[("a", "1"), ("b", "2"), ("c", "3")]);
         let live = labels(&[("b", "changed"), ("c", "3"), ("d", "4")]);
 
-        let diff = label_diff(&declared, &live, &[]);
+        let diff = label_diff(&declared, &live, |_| false);
 
         assert_eq!(
             diff,
@@ -287,11 +287,11 @@ mod tests {
     fn label_diff_is_empty_for_equal_labels() {
         let declared = labels(&[("a", "1")]);
 
-        assert!(label_diff(&declared, &declared.clone(), &[]).is_empty());
+        assert!(label_diff(&declared, &declared.clone(), |_| false).is_empty());
     }
 
     #[test]
-    fn label_diff_leaves_ignored_prefixes_out_on_both_sides() {
+    fn label_diff_leaves_ignored_keys_out_on_both_sides() {
         let declared = labels(&[("a", "1"), ("sak/user-data_0", "abc")]);
         let live = labels(&[
             ("a", "1"),
@@ -300,8 +300,10 @@ mod tests {
             ("sak/ssh-keys_0", "x"),
         ]);
 
-        assert!(label_diff(&declared, &live, &["sak/user-data", "sak/ssh-keys"]).is_empty());
-        assert_eq!(label_diff(&declared, &live, &[]).len(), 3);
+        let managed =
+            |key: &str| key.starts_with("sak/user-data") || key.starts_with("sak/ssh-keys");
+        assert!(label_diff(&declared, &live, managed).is_empty());
+        assert_eq!(label_diff(&declared, &live, |_| false).len(), 3);
     }
 
     #[test]

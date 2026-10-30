@@ -14,6 +14,14 @@ pub trait Runtime: Labeled + Send + Sync + 'static {}
 /// a resource or runtime with labels; the label diff compares them
 pub trait Labeled {
     fn labels(&self) -> &Labels;
+
+    /// the info labels among the labels: written, never compared, so a change of one alone is no
+    /// diff (the version of SAK that created or changed a resource). Next to the identity labels,
+    /// which every lookup checks
+    fn info(&self) -> &Labels {
+        static NONE: Labels = Labels::new();
+        &NONE
+    }
 }
 
 /// a resource declared in code; the provisioner of its type reconciles it

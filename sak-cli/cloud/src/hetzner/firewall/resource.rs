@@ -8,6 +8,9 @@ pub struct HetznerFirewall {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
+    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
+    /// the labels when it is created or changed for another reason
+    pub info: Labels,
     pub rules: Vec<FirewallRule>,
     /// the firewall applies to each server with all of these labels; empty for no server
     pub applied_to_labels: Labels,
@@ -19,6 +22,7 @@ impl HetznerFirewall {
         HetznerFirewall {
             name: name.to_string(),
             identity: Labels::new(),
+            info: Labels::new(),
             rules,
             applied_to_labels: Labels::new(),
             labels: Labels::new(),
@@ -34,6 +38,13 @@ impl HetznerFirewall {
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;
+        self
+    }
+
+    /// sets the info labels and adds them to the labels
+    pub fn with_info(mut self, info: Labels) -> Self {
+        self.labels.extend(info.clone());
+        self.info = info;
         self
     }
 
@@ -83,5 +94,9 @@ impl Resource for HetznerFirewall {
 impl Labeled for HetznerFirewall {
     fn labels(&self) -> &Labels {
         &self.labels
+    }
+
+    fn info(&self) -> &Labels {
+        &self.info
     }
 }

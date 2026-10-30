@@ -215,6 +215,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn another_or_no_version_is_no_diff_a_declared_label_is() {
+        use crate::hetzner::{NAME_LABEL, VERSION_LABEL};
+        let resource = HetznerVolume::new("data", Location::nbg1, 16)
+            .with_labels(labels(&[(NAME_LABEL, "alpha")]))
+            .with_info(labels(&[(VERSION_LABEL, "0.1.2")]));
+        for live in [
+            json!({ NAME_LABEL: "alpha", VERSION_LABEL: "0.1.1" }),
+            json!({ NAME_LABEL: "alpha" }),
+        ] {
+            let (_server, provisioner) =
+                provisioner_with(vec![volume("data", 16, true, live)]).await;
+            let diff = provisioner
+                .diff(&resource, &LookupProviders::new())
+                .await
+                .unwrap();
+            assert_eq!(diff.status, DiffStatus::UpToDate, "{:?}", diff.changes);
+        }
+
+        let (_server, provisioner) = provisioner_with(vec![volume(
+            "data",
+            16,
+            true,
+            json!({ NAME_LABEL: "beta", VERSION_LABEL: "0.1.1" }),
+        )])
+        .await;
+        let diff = provisioner
+            .diff(&resource, &LookupProviders::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            diff.changes,
+            vec![DiffItem::changed(
+                format!("label '{NAME_LABEL}'"),
+                "alpha",
+                "beta"
+            )]
+        );
+    }
+
+    #[tokio::test]
     async fn a_volume_grown_beyond_its_declared_size_is_up_to_date() {
         // grown in the console from the declared 16 to 32 GB; a volume does not shrink
         let (_server, provisioner) =

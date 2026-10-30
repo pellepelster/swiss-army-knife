@@ -8,6 +8,9 @@ pub struct HetznerSshKey {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
+    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
+    /// the labels when it is created or changed for another reason
+    pub info: Labels,
     /// `ssh-ed25519 AAAA... comment`
     pub public_key: String,
     pub labels: Labels,
@@ -18,6 +21,7 @@ impl HetznerSshKey {
         HetznerSshKey {
             name: name.to_string(),
             identity: Labels::new(),
+            info: Labels::new(),
             public_key: public_key.to_string(),
             labels: Labels::new(),
         }
@@ -32,6 +36,13 @@ impl HetznerSshKey {
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.labels.extend(identity.clone());
         self.identity = identity;
+        self
+    }
+
+    /// sets the info labels and adds them to the labels
+    pub fn with_info(mut self, info: Labels) -> Self {
+        self.labels.extend(info.clone());
+        self.info = info;
         self
     }
 }
@@ -52,5 +63,9 @@ impl Resource for HetznerSshKey {
 impl Labeled for HetznerSshKey {
     fn labels(&self) -> &Labels {
         &self.labels
+    }
+
+    fn info(&self) -> &Labels {
+        &self.info
     }
 }

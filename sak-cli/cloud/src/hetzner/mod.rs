@@ -68,17 +68,69 @@ pub fn is_managed_label(key: &str) -> bool {
         || key == PROVISIONED_CONFIG_LABEL
 }
 
-/// the label diff of a hetzner resource, without the labels that the provisioners keep
+/// the label diff of a hetzner resource, without the managed labels (`is_managed_label`) and the
+/// info labels of the resource (`Labeled::info`). The kinds of the labels of a deployment:
+///
+/// - identity: the name and the password hash, every lookup checks them, compared
+/// - declared: the dns mode, the user mode, the acme ca, the root domain, compared
+/// - managed: the hashes of the ssh keys and the user data, the provisioned configuration; the
+///   provisioners and sakctl keep them, never compared
+/// - info: the version, written with the other labels, never compared
 pub(crate) fn hetzner_label_diff(resource: &impl Labeled, runtime: &impl Labeled) -> Vec<DiffItem> {
-    label_diff(
-        resource.labels(),
-        runtime.labels(),
-        &[SSH_KEYS_LABEL, USER_DATA_LABEL, PROVISIONED_CONFIG_LABEL],
-    )
+    let info = resource.info();
+    label_diff(resource.labels(), runtime.labels(), |key| {
+        is_managed_label(key) || info.contains_key(key)
+    })
 }
 
 impl From<api::ApiError> for crate::api::Error {
     fn from(error: api::ApiError) -> Self {
         crate::api::Error::Provider(Box::new(error))
+    }
+}
+
+#[cfg(test)]
+mod label_kind_tests {
+    use super::*;
+    use crate::api::Labels;
+    use crate::hetzner::test_support::labels;
+
+    struct Live(Labels);
+
+    impl Labeled for Live {
+        fn labels(&self) -> &Labels {
+            &self.0
+        }
+    }
+
+    #[test]
+    fn the_managed_and_the_info_labels_are_no_diff_the_others_are() {
+        let resource = volume::HetznerVolume::new("data", api::Location::nbg1, 16)
+            .with_labels(labels(&[(NAME_LABEL, "alpha"), (DNS_MODE_LABEL, "domain")]))
+            .with_info(labels(&[(VERSION_LABEL, "0.1.2")]));
+        let live = |pairs: &[(&str, &str)]| Live(labels(pairs));
+
+        // another version, the hashes of the server, the provisioned configuration
+        let same = live(&[
+            (NAME_LABEL, "alpha"),
+            (DNS_MODE_LABEL, "domain"),
+            (VERSION_LABEL, "0.1.1"),
+            ("sak.pelle.io/user-data_0", "abc"),
+            (PROVISIONED_CONFIG_LABEL, "def"),
+        ]);
+        assert_eq!(hetzner_label_diff(&resource, &same), vec![]);
+        // no version yet: a resource of a sakctl before the label
+        let before = live(&[(NAME_LABEL, "alpha"), (DNS_MODE_LABEL, "domain")]);
+        assert_eq!(hetzner_label_diff(&resource, &before), vec![]);
+        // a declared label is compared
+        let other = live(&[(NAME_LABEL, "alpha"), (DNS_MODE_LABEL, "subdomain")]);
+        assert_eq!(
+            hetzner_label_diff(&resource, &other),
+            vec![DiffItem::changed(
+                format!("label '{DNS_MODE_LABEL}'"),
+                "domain",
+                "subdomain"
+            )]
+        );
     }
 }

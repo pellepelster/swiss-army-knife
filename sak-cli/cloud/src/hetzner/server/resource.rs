@@ -37,6 +37,9 @@ pub struct HetznerServer {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
+    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
+    /// the labels when it is created or changed for another reason
+    pub info: Labels,
     pub location: Location,
     pub server_type: ServerType,
     /// `debian-13`
@@ -57,6 +60,7 @@ impl HetznerServer {
         HetznerServer {
             name: name.to_string(),
             identity: Labels::new(),
+            info: Labels::new(),
             location,
             server_type,
             image: "debian-13".to_string(),
@@ -105,6 +109,13 @@ impl HetznerServer {
         self.identity = identity;
         self
     }
+
+    /// sets the info labels and adds them to the labels
+    pub fn with_info(mut self, info: Labels) -> Self {
+        self.labels.extend(info.clone());
+        self.info = info;
+        self
+    }
 }
 
 impl Resource for HetznerServer {
@@ -134,5 +145,9 @@ impl Resource for HetznerServer {
 impl Labeled for HetznerServer {
     fn labels(&self) -> &Labels {
         &self.labels
+    }
+
+    fn info(&self) -> &Labels {
+        &self.info
     }
 }

@@ -11,6 +11,9 @@ pub struct HetznerPrimaryIp {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
+    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
+    /// the labels when it is created or changed for another reason
+    pub info: Labels,
     pub ip_type: PrimaryIpType,
     pub location: Location,
     /// the delete protection at hetzner, on by default; destroy removes it
@@ -23,6 +26,7 @@ impl HetznerPrimaryIp {
         HetznerPrimaryIp {
             name: name.to_string(),
             identity: Labels::new(),
+            info: Labels::new(),
             ip_type,
             location,
             protected: true,
@@ -50,6 +54,13 @@ impl HetznerPrimaryIp {
         self
     }
 
+    /// sets the info labels and adds them to the labels
+    pub fn with_info(mut self, info: Labels) -> Self {
+        self.labels.extend(info.clone());
+        self.info = info;
+        self
+    }
+
     pub fn with_protected(mut self, protected: bool) -> Self {
         self.protected = protected;
         self
@@ -72,5 +83,9 @@ impl Resource for HetznerPrimaryIp {
 impl Labeled for HetznerPrimaryIp {
     fn labels(&self) -> &Labels {
         &self.labels
+    }
+
+    fn info(&self) -> &Labels {
+        &self.info
     }
 }

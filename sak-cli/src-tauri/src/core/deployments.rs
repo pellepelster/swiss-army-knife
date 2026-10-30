@@ -18,12 +18,12 @@ use sak_cloud::hetzner::api::{HetznerApi, Location, ServerType};
 use sak_cloud::hetzner::deployment::{
     DeploymentSpec, DeploymentState, DeploymentStatus, DiscoveredDeployment, DnsMode, MAX_NAME_LEN,
     ResourceKind, ResourceState, RootDomain, RootDomainConflict, check_name, deployment_records,
-    discover, foreign_records, remove_records, root_domains, set_server_label, stale_records,
+    discover, foreign_records, remove_records, root_domains, set_server_labels, stale_records,
     state,
 };
 use sak_cloud::hetzner::dns_record::{HetznerDnsRecordLookup, first_address};
 use sak_cloud::hetzner::labels::HetznerLabels;
-use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, PROVISIONED_CONFIG_LABEL};
+use sak_cloud::hetzner::{PASSWORD_HASH_LABEL, PROVISIONED_CONFIG_LABEL, VERSION_LABEL};
 use sak_cloud::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -1771,7 +1771,7 @@ impl DeploymentManager {
         let provisioned_config = prepared.provisioned_config.clone();
         // remove the label first: after a run that fails or is stopped the plan shows the
         // provisioning as missing
-        set_server_label(&api, server_id, PROVISIONED_CONFIG_LABEL, None)
+        set_server_labels(&api, server_id, &[(PROVISIONED_CONFIG_LABEL, None)])
             .await
             .map_err(|error| failed(prepared.provider, error))?;
         let host = server.public_ipv4.clone().ok_or_else(|| {
@@ -1872,11 +1872,14 @@ impl DeploymentManager {
             )
             .await?;
         }
-        set_server_label(
+        // the server runs the images of this version now, its version label says so
+        set_server_labels(
             &api,
             server_id,
-            PROVISIONED_CONFIG_LABEL,
-            Some(&provisioned_config),
+            &[
+                (PROVISIONED_CONFIG_LABEL, Some(&provisioned_config)),
+                (VERSION_LABEL, Some(crate::core::VERSION)),
+            ],
         )
         .await
         .map_err(|error| failed(provider, error))?;
