@@ -567,13 +567,6 @@ checked against their hashes too. The plan of a deploy or destroy still shows on
 duplicate stays out of sight there, and a destroy leaves it. **Fix:** show the left-out resources in the plan as
 duplicates; with CP-10, handle duplicates the same way for every kind.
 
-#### R1-5 (Low): Two runs on the same deployment are not prevented (was C12)
-
-Nothing stops two sakctl (two machines, or the command line and the window) from deploying or destroying the same
-deployment at once; the two applies can destroy and create the server at the same time. `sak-backend` locks only
-the backup, restore and maintenance on the server. **Fix:** a lock label on the ssh key of the deployment for the
-time of an apply, refused when another value is there; or record it as an accepted risk.
-
 ---
 
 ## Areas examined with no finding worth the name

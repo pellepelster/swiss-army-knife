@@ -307,6 +307,13 @@ Known weaknesses that are kept on purpose. A change that touches one keeps the t
   only the pages of sakctl, its content security policy loads nothing from elsewhere, the page writes every value
   with `textContent`, and the same process holds the secrets anyway; whoever can read the web view can read sakctl.
 
+- **Two runs on one deployment at the same time.** Nothing stops two sakctl, on two machines or the command line
+  next to the window, from deploying or destroying the same deployment at once; the two applies can destroy and
+  create the server at the same time. On the server, `sak-backend` lets only one backup, restore, update or reboot
+  run at a time; the cloud resources have no such lock. Accepted: a deployment has one user, who starts its runs by
+  hand; each run plans first and stops at what it does not expect, and the next deploy repairs what two runs left
+  half done. A lock label on the resources would stay behind after a run that was killed.
+
 - **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
   proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
   Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.
