@@ -17,10 +17,16 @@ export function text(key, values = {}) {
   return Object.entries(values).reduce((filled, [name, value]) => filled.replaceAll(`%{${name}}`, value), texts[key] ?? key);
 }
 
-// a status line of a view: what happens or happened, in the colour of danger when it failed
-export function setStatus(element, message, failed = false) {
+// a status line of a view: what happens or happened
+export function setStatus(element, message) {
   element.textContent = message;
-  element.classList.toggle('status-failed', failed);
+  element.classList.remove('status-failed');
+}
+
+// a status line of a view that says what failed, in the colour of danger
+export function setFailure(element, message) {
+  element.textContent = message;
+  element.classList.add('status-failed');
 }
 
 export function show(id) {

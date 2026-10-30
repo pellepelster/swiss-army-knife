@@ -5,7 +5,7 @@
 // as rust works on it; done only when every resource was done, cancel stops the run and leads to
 // the list of the deployments
 import { openDeployment } from './password.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -158,7 +158,11 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('app
     // only cancel leads on after a failure; a failure a row shows already is not said again
     if (running === current) {
       const shown = [...rows.values()].some((item) => item.dataset.status === 'failed');
-      setStatus(runStatus, shown ? '' : String(error), !shown);
+      if (shown) {
+        setStatus(runStatus, '');
+      } else {
+        setFailure(runStatus, String(error));
+      }
     }
   }
 }

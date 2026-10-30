@@ -2,7 +2,7 @@
 // deployment while it is typed, a moment after the last key; next only with the right one, cancel
 // back to the list. The password stays with the opened deployment for its check and its destroy.
 // With SAK_PASSWORD set, the field starts with it and rust checks it at once
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -81,7 +81,7 @@ async function check() {
     }
   } catch (error) {
     if (asked === password) {
-      setStatus(status, String(error), true);
+      setFailure(status, String(error));
     }
   }
 }

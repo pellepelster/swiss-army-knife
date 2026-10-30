@@ -65,15 +65,16 @@ pub(super) async fn list(
 }
 
 /// a create, deploy or destroy: plans, prints the plan and applies it, as the plan page of the
-/// window does; a plan that destroys or creates anew asks first, unless `yes`. Prints each resource when it is done; the output of ansible only with `show_log`
+/// window does; a plan that destroys or creates anew asks first, unless --yes. Prints each
+/// resource when it is done; the output of ansible only with --show-log
 pub(super) async fn plan_and_apply(
     manager: &DeploymentManager,
     provider: &HetznerToken,
     deployment: &DeploymentRequest,
     runtime: &ContainerRuntime,
-    show_log: bool,
-    yes: bool,
+    args: &DeploymentArgs,
 ) -> Result<(), SakctlError> {
+    let DeploymentArgs { show_log, yes, .. } = *args;
     // the project is read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;
     let plan = manager.plan_prepared(&prepared, runtime).await?;

@@ -7,7 +7,7 @@
 // deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -352,7 +352,7 @@ export async function showCreate(options = {}) {
   try {
     await prefill();
   } catch (error) {
-    setStatus(status, String(error), true);
+    setFailure(status, String(error));
   }
   // a destroy needs no users: their hidden fields must not stop the form
   showUserMode();
@@ -384,7 +384,7 @@ form.addEventListener('submit', async (event) => {
     try {
       plan = await invoke('plan_deployment', { deployment });
     } catch (error) {
-      setStatus(status, String(error), true);
+      setFailure(status, String(error));
       return;
     } finally {
       setBusy(false);
@@ -401,7 +401,7 @@ form.addEventListener('submit', async (event) => {
     setStatus(status, '');
     showPlan(plan, deployment, backToDeployments);
   } catch (error) {
-    setStatus(status, String(error), true);
+    setFailure(status, String(error));
   } finally {
     setBusy(false);
   }

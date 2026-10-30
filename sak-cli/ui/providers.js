@@ -1,7 +1,7 @@
 // the provider tokens: the list, the selection of the provider for a new token and the entry of
 // the token. Rust validates a token before it adds it, and gives it back only masked
 import { showDeployments } from './deployments.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -86,7 +86,7 @@ form.addEventListener('submit', async (event) => {
     input.value = '';
     await showProviders();
   } catch (error) {
-    setStatus(status, String(error), true);
+    setFailure(status, String(error));
     input.focus();
   } finally {
     setBusy(false);

@@ -193,10 +193,9 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
             plan_and_apply(
                 &manager,
                 &token,
-                &deployment.deployment(Intent::Create, false, password, &smtp_password),
+                &deployment.deployment(Intent::Create, password, &smtp_password),
                 &runtime,
-                deployment.show_log,
-                deployment.yes,
+                &deployment,
             )
             .await
         }
@@ -205,19 +204,11 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
             let new = manager
                 .completed(
                     token.tokens(),
-                    deployment.deployment(Intent::Deploy, false, password, &smtp_password),
+                    deployment.deployment(Intent::Deploy, password, &smtp_password),
                     &smtp_password,
                 )
                 .await?;
-            plan_and_apply(
-                &manager,
-                &token,
-                &new,
-                &runtime,
-                deployment.show_log,
-                deployment.yes,
-            )
-            .await
+            plan_and_apply(&manager, &token, &new, &runtime, &deployment).await
         }
         ProjectCommand::Destroy {
             deployment,
@@ -227,10 +218,12 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
             plan_and_apply(
                 &manager,
                 &token,
-                &deployment.deployment(Intent::Destroy, delete_data, password, ""),
+                &DeploymentRequest {
+                    delete_data,
+                    ..deployment.deployment(Intent::Destroy, password, "")
+                },
                 &runtime,
-                deployment.show_log,
-                deployment.yes,
+                &deployment,
             )
             .await
         }

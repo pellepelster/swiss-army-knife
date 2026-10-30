@@ -62,8 +62,8 @@ the review found them; the sections below hold the ones still open.
   resolves all of them (CD-25, CP-22).
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
-- **Booleans and strings standing in for enums.** The strings and flags of the deployment spec (CP-17), a few
-  flags of the command line (UI-16). *Done: the intent of a prepared deployment.*
+- **Booleans and strings standing in for enums.** The strings and flags of the deployment spec (CP-17). *Done:
+  the intent of a prepared deployment, the flags of the command line and of the status lines of the pages.*
   *Done: `DiffItem`, the plan words and kinds, the reasons of a reboot, the password prompt, the transport.*
 - **Files that have outgrown themselves.** *Done: `cli.rs`, `core/deployments.rs`,
   `cloud/hetzner/deployment.rs`.*
@@ -406,15 +406,6 @@ and `restart`'s `is_running` (`gui/update.rs:68`) see nothing while the other st
 a narrow window: `run-cancel` fires `cancel_apply` without awaiting (`ui/run.js:225-228`), the aborted future sets
 `None` on its next poll; a maintenance started in between is then unregistered. **Fix:** compare the handle (or a
 generation id) before clearing. Related CU-2.
-
-### Smells
-
-#### UI-16 (Low): Boolean parameters — *partly fixed*
-
-`password(ask, twice, from_env)` (`cli.rs:417`), `deployment(intent, delete_data, …)` (`:474`), `deploy(…,
-show_log)` (`:1071`), `quit(failed)` (`gui/checks.rs:46`), `apply_checked(force)`; in JS `setBusy`, `setStatus(msg,
-failed)`, `showTyped`. The two-bool `password` reads worst at its call sites (`:592-606`). *`password` takes `Typed::Once`/`Typed::Twice`; the others carry a
-named flag of the command line or the page through and stay bools.*
 
 ### Structure
 

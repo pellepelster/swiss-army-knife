@@ -401,7 +401,6 @@ impl DeploymentArgs {
     pub(super) fn deployment(
         &self,
         intent: Intent,
-        delete_data: bool,
         (password, password_repeat): (String, String),
         smtp_password: &str,
     ) -> DeploymentRequest {
@@ -413,7 +412,8 @@ impl DeploymentArgs {
             dns_mode: self.dns_mode,
             root_domain: self.root_domain.clone(),
             intent,
-            delete_data,
+            // a destroy sets it, the only intent that has it
+            delete_data: false,
             user_mode: self.user_mode,
             acme_ca: self.acme_ca,
             smtp: self.smtp_host.as_ref().map(|host| Smtp {

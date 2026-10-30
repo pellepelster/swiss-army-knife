@@ -1,7 +1,7 @@
 // the footer of the window: the version of sakctl, one button and one line that says what happens.
 // The button goes through the steps of an update: check, update to the newer version, restart.
 // Only a click asks github, the line names it first; while a step runs the button is disabled
-import { setStatus, text } from './views.js';
+import { setFailure, setStatus, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -23,7 +23,7 @@ function show(next, message, { busy = false, failed = false } = {}) {
   button.classList.toggle('btn-primary', next === 'restart');
   button.classList.toggle('btn-outline-secondary', next !== 'restart');
   button.disabled = busy;
-  setStatus(status, message, failed);
+  (failed ? setFailure : setStatus)(status, message);
   status.title = message;
 }
 

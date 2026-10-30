@@ -4,7 +4,7 @@
 // the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
 import { closeDeployment, showPassword } from './password.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -51,7 +51,7 @@ function frontendLink(url) {
   link.textContent = url ?? '';
   link.addEventListener('click', (event) => {
     event.preventDefault();
-    invoke('open_url', { url }).catch((error) => setStatus(status, String(error), true));
+    invoke('open_url', { url }).catch((error) => setFailure(status, String(error)));
   });
   line.append(label, link);
   return line;
@@ -103,7 +103,7 @@ export async function showDeployments() {
     list.replaceChildren(...deployments.map(deployment));
     setStatus(status, deployments.length === 0 ? text('shared.deployments.empty') : '');
   } catch (error) {
-    setStatus(status, String(error), true);
+    setFailure(status, String(error));
   }
 }
 

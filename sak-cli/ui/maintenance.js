@@ -4,7 +4,7 @@
 // not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
 // deployment again
 import { openedDeployment } from './password.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -57,7 +57,7 @@ export async function showMaintenance(deployment, action) {
     }
   } catch (error) {
     if (running === current) {
-      setStatus(status, String(error), true);
+      setFailure(status, String(error));
     }
   } finally {
     if (running === current) {

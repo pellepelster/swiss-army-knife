@@ -349,7 +349,7 @@ fn the_arguments_of_the_commands() {
     assert!(!deployment.password);
     assert_eq!(
         deployment
-            .deployment(Intent::Deploy, false, ("p".into(), "q".into()), "")
+            .deployment(Intent::Deploy, ("p".into(), "q".into()), "")
             .password_repeat,
         "q"
     );
@@ -368,7 +368,7 @@ fn the_arguments_of_the_commands() {
     assert!(!deployment.yes);
     assert_eq!(
         deployment
-            .deployment(Intent::Destroy, false, Default::default(), "")
+            .deployment(Intent::Destroy, Default::default(), "")
             .intent,
         Intent::Destroy
     );
@@ -400,25 +400,25 @@ fn the_arguments_of_the_commands() {
     assert!(deployment.show_log);
     assert_eq!(
         deployment
-            .deployment(Intent::Create, false, Default::default(), "")
+            .deployment(Intent::Create, Default::default(), "")
             .dns_mode,
         Some(DnsMode::Domain)
     );
     assert_eq!(
         deployment
-            .deployment(Intent::Create, false, Default::default(), "")
+            .deployment(Intent::Create, Default::default(), "")
             .root_domain
             .as_deref(),
         Some("pelle.io")
     );
     assert_eq!(
         deployment
-            .deployment(Intent::Create, false, Default::default(), "")
+            .deployment(Intent::Create, Default::default(), "")
             .user_mode,
         Some(UserMode::Multi)
     );
     let smtp = deployment
-        .deployment(Intent::Create, false, Default::default(), "")
+        .deployment(Intent::Create, Default::default(), "")
         .smtp
         .unwrap();
     assert_eq!(

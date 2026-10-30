@@ -10,7 +10,7 @@ import { STATES, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
-import { setStatus, show, text } from './views.js';
+import { setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -88,7 +88,7 @@ async function check() {
   } catch (error) {
     if (current === shown) {
       list.replaceChildren(...shown.resources.map(resource));
-      setStatus(message, String(error), true);
+      setFailure(message, String(error));
     }
   } finally {
     if (current === shown) {
