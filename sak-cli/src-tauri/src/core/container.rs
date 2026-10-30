@@ -13,14 +13,27 @@ use std::sync::Mutex;
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
 // a small image that shows that a runtime pulls and runs images (canary/Dockerfile). The name
 // is fully qualified, because without a tty podman refuses a short name
-const CANARY: &str = concat!(
-    "ghcr.io/pellepelster/sak-cli-docker-canary:",
-    env!("SAK_VERSION")
-);
+fn canary_image() -> &'static str {
+    static CANARY: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        format!(
+            "ghcr.io/pellepelster/sak-cli-docker-canary:{}",
+            crate::core::image_tag()
+        )
+    });
+    &CANARY
+}
 const CANARY_ANSWER: &str = "sak-cli-docker-canary";
-// the image of the tools (Dockerfile) of the version of sakctl (`core::VERSION`), pulled on every
-// start
-pub const IMAGE: &str = concat!("ghcr.io/pellepelster/sak-cli-tools:", env!("SAK_VERSION"));
+// the image of the tools (Dockerfile) of the tag of sakctl (`core::image_tag`, its version unless
+// SAK_DOCKER_IMAGE_TAG says otherwise), pulled on every start
+pub fn image() -> &'static str {
+    static IMAGE: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        format!(
+            "ghcr.io/pellepelster/sak-cli-tools:{}",
+            crate::core::image_tag()
+        )
+    });
+    &IMAGE
+}
 // the user of the image; only this image answers `id -un` with it
 const IMAGE_USER: &str = "sak";
 // the timeout of each request to the docker api; the pull of the image is one request
@@ -82,12 +95,13 @@ fn canary(runtime: &str) -> Result<String, String> {
     };
     let version =
         output(runtime, &["version", "--format", "{{.Client.Version}}"]).map_err(not_working)?;
-    let answer = output(runtime, &["run", "--rm", "--pull=always", CANARY]).map_err(not_working)?;
+    let answer =
+        output(runtime, &["run", "--rm", "--pull=always", canary_image()]).map_err(not_working)?;
     if answer != CANARY_ANSWER {
         return Err(not_working(
             t!(
                 "shared.checks.container_runtime.wrong_answer",
-                image = CANARY,
+                image = canary_image(),
                 answer = answer,
                 expected = CANARY_ANSWER
             )
@@ -115,20 +129,20 @@ pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let pulled = runtime == "docker" && block_on(pull_with_api(on_progress)).is_ok();
     if !pulled {
-        output(runtime, &["pull", IMAGE]).map_err(|error| {
+        output(runtime, &["pull", image()]).map_err(|error| {
             t!(
                 "shared.checks.image.not_pulled",
-                image = IMAGE,
+                image = image(),
                 runtime = runtime,
                 error = error
             )
             .to_string()
         })?;
     }
-    let answer = output(runtime, &["run", "--rm", IMAGE, "id", "-un"]).map_err(|error| {
+    let answer = output(runtime, &["run", "--rm", image(), "id", "-un"]).map_err(|error| {
         t!(
             "shared.checks.image.not_run",
-            image = IMAGE,
+            image = image(),
             runtime = runtime,
             error = error
         )
@@ -137,7 +151,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     if answer != IMAGE_USER {
         return Err(t!(
             "shared.checks.image.wrong_answer",
-            image = IMAGE,
+            image = image(),
             answer = answer,
             expected = IMAGE_USER
         )
@@ -149,7 +163,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
 // on an error `pull` uses the command line, and shows its error
 async fn pull_with_api(on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let docker = docker_api().ok_or("no docker api")?;
-    let (image, tag) = IMAGE.rsplit_once(':').ok_or("no tag")?;
+    let (image, tag) = image().rsplit_once(':').ok_or("no tag")?;
     let options = CreateImageOptionsBuilder::new()
         .from_image(image)
         .tag(tag)

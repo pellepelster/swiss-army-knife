@@ -4,6 +4,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.e2e.util.DOMAIN_ZONE
+import io.pelle.sak.e2e.util.Deployment
 import io.pelle.sak.e2e.util.LOCATION
 import io.pelle.sak.e2e.util.STAGING_CA
 import io.pelle.sak.e2e.util.SUBDOMAIN_ZONE
@@ -84,13 +85,24 @@ class SakctlTest {
         }
     }
 
+    // `config show` once it succeeds: sakctl asks the api through the dns of this machine, which can
+    // remember an older address of a new name for some minutes. The lines it printed
+    private fun configShow(deployment: Deployment): List<String> {
+        repeat(30) { attempt ->
+            val (exit, lines) = deployment.sakctl.output("config", "show", deployment.name)
+            if (exit == EXIT_OK) return lines
+            step("config show ended with $exit, trying again in 10 s (${attempt + 1} of 30)", deployment)
+            Thread.sleep(10_000)
+        }
+        error("config show of ${deployment.name} did not succeed within 5 minutes")
+    }
+
     @Test
     fun `config show answers the running configuration without a secret`() {
         for (deployment in environment.deployments) {
             deployment.requireCreated()
             step("reading the running configuration with a signed request", deployment)
-            val (exit, lines) = deployment.sakctl.output("config", "show", deployment.name)
-            exit shouldBe EXIT_OK
+            val lines = configShow(deployment)
             lines.none { it.contains(deployment.password) || it.contains("sak_") } shouldBe true
             when (deployment.userMode) {
                 UserMode.SINGLE -> lines.any { it.contains("No mail server") } shouldBe true

@@ -1404,13 +1404,17 @@ impl DeploymentManager {
                     .to_string()
                     .into());
             }
-            // destroyed already, maybe with records left: check the password against them
+            // destroyed already, maybe with records left: check the password against them. Without
+            // records nothing of the deployment is left to change, the plan stops at a resource of
+            // someone else with its name
             (Intent::Destroy, None) => {
-                let hashes: Vec<String> = records
-                    .iter()
-                    .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
-                    .collect();
-                check_password(&hashes, None, name, password)?;
+                if !records.is_empty() {
+                    let hashes: Vec<String> = records
+                        .iter()
+                        .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
+                        .collect();
+                    check_password(&hashes, None, name, password)?;
+                }
                 location
             }
             (Intent::Deploy | Intent::Destroy, Some(existing)) => {

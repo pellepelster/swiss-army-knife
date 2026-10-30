@@ -15,8 +15,9 @@ deployment right after creating it: it waits for ssh, then `common` and `storage
 
 The `storage` role needs `storage_device`, the data volume's device (sakctl sets it in the inventory of the run).
 The `backend` role pulls its images (`backend_image`, `backend_ingress_image` and the two
-log images) on every run. The tag of `backend_image` and `backend_ingress_image` is `sak_version`
-(`latest` by default), sakctl sets its own version, so a server runs the version of the sakctl that deployed it.
+log images) on every run. The tag of `backend_image` and `backend_ingress_image` is `sak_image_tag`,
+`sak_version` by default (`latest`); sakctl sets its own version, so a server runs the version of the sakctl that
+deployed it, and `SAK_DOCKER_IMAGE_TAG` of sakctl sets another tag, e.g. `<version>-rc` for the tests.
 It needs `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_public_key`
 (the public half of the key sakctl signs its requests with, never the key), and, for the e-mail login (multi user),
 `sak_smtp_enabled`, `sak_admin_email`, `sak_smtp_tls` and `sak_smtp_starttls`; the login mails come from

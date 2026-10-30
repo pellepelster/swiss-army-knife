@@ -24,6 +24,23 @@ pub mod update;
 /// it pulls and deploys; `latest` for a build that is no release
 pub const VERSION: &str = env!("SAK_VERSION");
 
+/// the variable that sets another tag of the images than the version, e.g. `<version>-rc` to test
+/// the images of a release before it is released
+pub const IMAGE_TAG_VARIABLE: &str = "SAK_DOCKER_IMAGE_TAG";
+
+/// the tag of the images sakctl runs and the server pulls: `SAK_DOCKER_IMAGE_TAG` when it is set,
+/// else the version
+pub fn image_tag() -> &'static str {
+    static TAG: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        std::env::var(IMAGE_TAG_VARIABLE)
+            .ok()
+            .map(|tag| tag.trim().to_string())
+            .filter(|tag| !tag.is_empty())
+            .unwrap_or_else(|| VERSION.to_string())
+    });
+    &TAG
+}
+
 #[cfg(test)]
 mod tests {
     /// the boundary: the shared code names neither the window nor the command line

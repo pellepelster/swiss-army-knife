@@ -134,7 +134,7 @@ impl SessionContainer {
                 "--rm",
                 "--name",
                 &container.name,
-                container::IMAGE,
+                container::image(),
             ])
             .args(["ssh-agent", "-D", "-a", AGENT_SOCKET])
             .stdin(Stdio::null())
@@ -369,13 +369,13 @@ mod tests {
         fn the_agent_of_the_session_holds_the_key_and_the_container_goes() {
             let runtime = "docker";
             let image_there = container::command(runtime)
-                .args(["image", "inspect", container::IMAGE])
+                .args(["image", "inspect", container::image()])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status()
                 .is_ok_and(|status| status.success());
             if !image_there {
-                eprintln!("no docker with {}, skipped", container::IMAGE);
+                eprintln!("no docker with {}, skipped", container::image());
                 return;
             }
             let target = target();

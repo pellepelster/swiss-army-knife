@@ -76,7 +76,7 @@ echo "the image of sak-backend works"
 description = "Build the image of sak-backend for amd64 and arm64 and push it to ghcr.io"
 run = """
 ./gradlew :sak-backend:installDist
-docker buildx build --platform linux/amd64,linux/arm64 \
+docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
   --tag {{vars.backend_image}}:${VERSION}-rc --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.backend_image}}:buildcache \
   --cache-to type=registry,ref={{vars.backend_image}}:buildcache,mode=max,image-manifest=true \
@@ -105,7 +105,7 @@ echo "the image of sak-ingress works"
 [tasks."ingress:docker:push"]
 description = "Build the image of sak-ingress for amd64 and arm64 and push it to ghcr.io"
 run = """
-docker buildx build --platform linux/amd64,linux/arm64 \
+docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
   --tag {{vars.ingress_image}}:${VERSION}-rc --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache \
   --cache-to type=registry,ref={{vars.ingress_image}}:buildcache,mode=max,image-manifest=true \
@@ -278,7 +278,7 @@ echo "the image of the tools works"
 description = "Build the image of the tools for amd64 and arm64 and push it to ghcr.io"
 dir = "{{config_root}}/sak-cli"
 run = """
-docker buildx build --platform linux/amd64,linux/arm64 --file Dockerfile \
+docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" --file Dockerfile \
   --tag {{vars.cli_image}}:${VERSION}-rc --tag {{vars.cli_image}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.cli_image}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_image}}:buildcache,mode=max,image-manifest=true \
@@ -305,7 +305,7 @@ echo "the canary works"
 description = "Build the canary for amd64 and arm64 and push it to ghcr.io"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
-docker buildx build --platform linux/amd64,linux/arm64 \
+docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
   --tag {{vars.cli_canary}}:${VERSION}-rc --tag {{vars.cli_canary}}:$(git rev-parse --short=12 HEAD) \
   --cache-from type=registry,ref={{vars.cli_canary}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_canary}}:buildcache,mode=max,image-manifest=true \
@@ -328,6 +328,19 @@ git tag -a "$version" -m "Release $version"
 git push origin "$version"
 echo "tagged $version, the workflow builds and releases it"
 """
+
+# every image of SAK for the platform it runs on, into the local images: the server (sak-backend,
+# sak-ingress) and sakctl (the tools, the canary)
+[tasks."docker:all:build"]
+description = "Build all images of SAK into the local images"
+depends = ["backend:image:build", "ingress:docker:build", "cli:image:build", "cli:canary:build"]
+
+# every image of SAK for amd64 and arm64, pushed to ghcr.io as <VERSION>-rc (and with the commit);
+# `release:docker` makes them <VERSION>. Needs a login to ghcr.io (registry:login). SAK_DOCKER_PLATFORMS
+# selects other platforms, e.g. only the one of this machine, which needs no qemu
+[tasks."docker:all:push"]
+description = "Build all images of SAK for amd64 and arm64 and push them to ghcr.io as <VERSION>-rc"
+depends = ["backend:image:push", "ingress:docker:push", "cli:image:push", "cli:canary:push"]
 
 # the images of a build, pushed as <VERSION>-rc by their push tasks, as <VERSION>: the registry
 # copies the manifest of both platforms, nothing is pulled. Run when all images are pushed (the
@@ -531,9 +544,12 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # cloud api, then sak-e2e: two deployments created with sakctl, built first, the logins and the apps
 # in a browser against them, the login mails in a mailtrap sandbox. They create and destroy real
 # resources and servers (test-<id>), which takes long and costs money. The token and the mailtrap
-# credentials come from pass unless set; without them the task refuses to run
+# credentials come from pass unless set; without them the task refuses to run. The deployments run
+# the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
+# pushes them first (docker:all:push), in CI the jobs of the images pushed them
 [tasks."test:cli:e2e"]
 description = "Run the e2e tests of sak-cloud and sakctl against a real Hetzner Cloud project"
+depends = ["cli:theme"]
 dir = "{{config_root}}"
 env = {
     HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}",
@@ -548,8 +564,22 @@ set -e
 for variable in HCLOUD_TOKEN MAILTRAP_API_TOKEN SAK_E2E_SMTP_HOST SAK_E2E_SMTP_PORT SAK_E2E_SMTP_USERNAME SAK_E2E_SMTP_PASSWORD; do
   [ -n "$(printenv "$variable")" ] || { echo "set $variable, refer to sak-e2e/README.md" >&2; exit 1; }
 done
-(cd sak-cli/cloud && cargo nextest run --no-fail-fast -E 'kind(test)')
+# sakctl first: a build that fails stops the task before any server is created
 (cd sak-cli/src-tauri && cargo build)
+# the images of this source, as the deployments of the tests run them
+# for amd64, the servers of the tests, and the platform of this machine, which runs the tools,
+# unless SAK_DOCKER_PLATFORMS says otherwise
+if [ -z "${CI:-}" ]; then
+  case "$(uname -m)" in
+    aarch64 | arm64) platform=linux/amd64,linux/arm64 ;;
+    *) platform=linux/amd64 ;;
+  esac
+  mise run docker:all:build
+  SAK_DOCKER_PLATFORMS="${SAK_DOCKER_PLATFORMS:-$platform}" mise run docker:all:push
+fi
+export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
+# one test at a time: the tests against the hetzner cloud api share their ssh key and names
+(cd sak-cli/cloud && cargo nextest run --no-fail-fast --test-threads 1 -E 'kind(test)')
 ./gradlew :sak-e2e:e2eIntegration --console=plain
 """
 

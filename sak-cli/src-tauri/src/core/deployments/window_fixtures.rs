@@ -350,7 +350,7 @@ fn checks() -> Vec<Value> {
             name: image.name(),
             text: t!(
                 "shared.checks.image.passed",
-                image = crate::core::container::IMAGE
+                image = crate::core::container::image()
             )
             .to_string(),
         },

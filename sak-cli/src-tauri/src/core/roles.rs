@@ -39,6 +39,7 @@ const INPUTS: &[(&str, &[&str])] = &[
             "sak_smtp_starttls",
             "backend_env_src",
             "sak_version",
+            "sak_image_tag",
         ],
     ),
 ];

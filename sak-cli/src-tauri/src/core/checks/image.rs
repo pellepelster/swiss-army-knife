@@ -20,6 +20,6 @@ impl Check for ImageCheck {
             .runtime
             .ok_or_else(|| t!("shared.checks.container_runtime.needed").to_string())?;
         container::pull(runtime, &|fraction, text| progress.update(fraction, text))?;
-        Ok(t!("shared.checks.image.passed", image = container::IMAGE).to_string())
+        Ok(t!("shared.checks.image.passed", image = container::image()).to_string())
     }
 }

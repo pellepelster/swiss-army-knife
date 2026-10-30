@@ -140,7 +140,8 @@ and the health of the domains.
   through ssh. The files of the backups are data of the user, not state of sakctl. Refer to
   [FDR-007](fdr/FDR-007-backup.md).
 - **One version.** sakctl, the image of its tools and the images of the server have the same version, the version
-  of the release. A server runs the images of the version of the sakctl that deployed it.
+  of the release. A server runs the images of the version of the sakctl that deployed it. For the tests, another
+  tag of the images can be set, the images of a release before it is released (`<version>-rc`).
 - **Updates on request.** sakctl compares its version with the newest release on GitHub and replaces itself with it
   only when the user asks, on the command line or in the footer of the window. It checks the download against the
   checksum of the release before it replaces itself.

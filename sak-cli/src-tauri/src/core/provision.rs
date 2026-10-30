@@ -89,8 +89,9 @@ impl ProvisionRun {
                     .to_string(),
             ),
             ("backend_env_src", format!("{RUN_DIR}/backend.env")),
-            // the server runs the images of the version of this sakctl
+            // the server runs the images of the version of this sakctl, or of SAK_DOCKER_IMAGE_TAG
             ("sak_version", crate::core::VERSION.to_string()),
+            ("sak_image_tag", crate::core::image_tag().to_string()),
         ]
     }
 
@@ -242,7 +243,7 @@ impl ProvisionManager {
                 ),
             ])
             .args(["-v", &format!("{}:{RUN_DIR}:ro", dir.path.display())])
-            .arg(container::IMAGE)
+            .arg(container::image())
             // the private key from the standard input into an agent, then ansible
             .args([
                 "sh",

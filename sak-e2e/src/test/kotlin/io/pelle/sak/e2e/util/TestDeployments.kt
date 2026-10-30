@@ -50,8 +50,11 @@ class TestEnvironment : AutoCloseable {
     val mailtrap = MailtrapSandbox(requiredEnv("MAILTRAP_API_TOKEN"), requiredEnv("SAK_E2E_SMTP_USERNAME"))
     val smtpHost = requiredEnv("SAK_E2E_SMTP_HOST")
     private val smtpPort = requiredEnv("SAK_E2E_SMTP_PORT")
+    // the tag of the images the deployments run, when the run sets one: e.g. <version>-rc, the
+    // images of a release before it is released; else the version of sakctl
+    private val imageTag = listOfNotNull(System.getenv("SAK_DOCKER_IMAGE_TAG")?.takeIf { it.isNotBlank() }?.let { "SAK_DOCKER_IMAGE_TAG" to it }).toMap()
     private val smtpEnvironment =
-        mapOf("SAK_SMTP_USERNAME" to requiredEnv("SAK_E2E_SMTP_USERNAME"), "SAK_SMTP_PASSWORD" to requiredEnv("SAK_E2E_SMTP_PASSWORD"))
+        imageTag + mapOf("SAK_SMTP_USERNAME" to requiredEnv("SAK_E2E_SMTP_USERNAME"), "SAK_SMTP_PASSWORD" to requiredEnv("SAK_E2E_SMTP_PASSWORD"))
 
     private val base = testName()
 
@@ -59,7 +62,7 @@ class TestEnvironment : AutoCloseable {
 
     val single: Deployment =
         password().let { password ->
-            Deployment("$base-single", UserMode.SINGLE, "domain", DOMAIN_ZONE, password, "", Sakctl(token, password, prefix = "[$base-single] "))
+            Deployment("$base-single", UserMode.SINGLE, "domain", DOMAIN_ZONE, password, "", Sakctl(token, password, imageTag, prefix = "[$base-single] "))
         }
 
     // the admin is a synthetic address, the sandbox receives everything sent to it

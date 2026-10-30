@@ -52,7 +52,12 @@ against them:
 mise run test:cli:e2e   # builds sakctl, then runs the tests
 ```
 
-The tests create, provision and destroy real servers, so a run takes about 20 minutes and costs money. A server is
+Before the tests, the task runs the tests of sak-cloud against the API of Hetzner, and, outside of CI, builds and
+pushes all images of SAK as `<VERSION>-rc` (`mise run docker:all:push`, for amd64 and the platform of the machine;
+docker must be logged in to ghcr.io). The deployments run these images (`SAK_DOCKER_IMAGE_TAG`, `<VERSION>-rc` unless
+set), so they run the roles and the backend of this source; in CI the jobs of the images push them.
+
+The tests create, provision and destroy real servers, so a run takes about 30 minutes and costs money. A server is
 expensive, so all tests share two deployments (`util/TestDeployments.kt`):
 
 - `test-<id>-single`: single user, domain mode on `krawallbude.de`.
@@ -92,6 +97,7 @@ What the run needs, from pass unless set:
   whatever the DNS of the machine still remembers. The deployments get their certificates from the staging CA of
   Let's Encrypt (`--acme-ca staging`), which the browser does not check.
 - `SAK_E2E_SAKCTL` selects another sakctl binary than the one of `cargo build`.
+- `SAK_DOCKER_IMAGE_TAG` selects the tag of the images, `SAK_DOCKER_PLATFORMS` the platforms they are pushed for.
 - The servers are created in `hel1`, `SAK_E2E_LOCATION` selects another location (a server type can be sold out in
   one for a while).
 - A run sends one mail; the free plan of Mailtrap has 50 a month.
