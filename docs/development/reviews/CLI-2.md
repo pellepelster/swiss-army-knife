@@ -55,16 +55,14 @@ the review found them; the sections below hold the ones still open.
 - **One thing written more than once.** *Done: the maintenance flow, the deploy completion, the checks, the
   lookup of a deployment, the driver of `sak-backend`, the request plumbing of the api (one `ResourceApi<T>`; the
   dns zones keep theirs), the provisioner skeleton (`HetznerKind`; the server and the dns record keep theirs).*
-- **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
-  CA-3), the apply diffs again instead of applying the plan shown (R1-3), the playbook decision differs (CD-4), a
-  pending label
-  change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
-  resolves all of them (CD-25, CP-22).
+- **Plan and apply disagree.** The playbook decision differs (CD-4), a pending label change reads as a recreate
+  (CP-3). Letting the registry tell what it applied resolves both (CD-25, CP-22). *Done: the plan is the one gate
+  of the apply, and the window applies only what its check showed.*
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
   deployment that cannot be compared, the reading of the markers, a value of Hetzner this sakctl does not know.*
-- **Booleans and strings standing in for enums.** The strings and flags of the deployment spec (CP-17). *Done:
-  the intent of a prepared deployment, the flags of the command line and of the status lines of the pages.*
-  *Done: `DiffItem`, the plan words and kinds, the reasons of a reboot, the password prompt, the transport.*
+- **Booleans and strings standing in for enums.** *Done: `DiffItem`, the plan words and kinds, the reasons of a
+  reboot, the password prompt, the transport, the intent of a prepared deployment, the flags of the command line
+  and of the status lines of the pages, the settings of the deployment spec.*
 - **Files that have outgrown themselves.** *Done: `cli.rs`, `core/deployments.rs`,
   `cloud/hetzner/deployment.rs`.*
 
@@ -353,7 +351,8 @@ enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-w
 ## Areas examined with no finding worth the name
 
 - `keys.rs`: the derivation chain (argon2id → hkdf per purpose), the nfc normalisation and the password strength
-  check are consistent; no key reaches an argument or a file (CU-7 is the one caveat).
+  check are consistent; no key reaches an argument or a file (the key passing the container engine is an accepted
+  risk of ARCHITECTURE.md).
 - `update.rs`: downgrades are refused (`status()` requires strictly newer), the temp file is written fully before
   `self_replace`, which renames atomically; a symlinked install path resolves through `current_exe()`.
 - The contract between the rust side and `sak-backend.j2`: exit codes 0/1/2/127 and the three json shapes match
