@@ -103,13 +103,6 @@ known, or make the recreate a confirmed step.
 
 ## CD: core deployments and provisioning
 
-### Structure
-
-#### CD-23: The wait after the provisioning discovers the deployment again
-
-`DeploymentManager::find` and `Endpoint` serve every lookup of a deployment but one: the wait in `apply` still
-discovers the deployment after the provisioning, although `run.host` holds the address.
-
 ---
 
 ## UI: command line, window commands, pages, locales

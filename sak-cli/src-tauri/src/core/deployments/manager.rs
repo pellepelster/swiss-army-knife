@@ -895,13 +895,15 @@ impl DeploymentManager {
         provisioning: &Provisioning,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
-        // the server just provisioned: the wait for the api goes to its address
-        let server = discover(&prepared.runtime.api)
+        // the server just provisioned, by its declared name: the wait for the api goes to its
+        // address, its label gets the version
+        let server = prepared
+            .runtime
+            .api
+            .servers()
+            .get_by_name(&prepared.spec.server().name)
             .await
             .map_err(|error| failed(prepared.provider, error))?
-            .into_iter()
-            .find(|found| found.name == prepared.spec.name)
-            .and_then(|found| found.server)
             .ok_or_else(|| {
                 t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
             })?;
@@ -915,9 +917,10 @@ impl DeploymentManager {
         .await
         .map_err(|error| failed(prepared.provider, error))?;
         let address = server
-            .public_ipv4
-            .as_deref()
-            .and_then(|host| host.parse::<std::net::IpAddr>().ok());
+            .public_net
+            .ipv4
+            .as_ref()
+            .and_then(|ip| ip.ip.parse::<std::net::IpAddr>().ok());
         let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
             &prepared.spec.name,
             prepared.spec.dns_mode,
