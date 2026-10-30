@@ -43,10 +43,10 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 
 ## sakctl window
 
-- **One page at a time.** Each page has a header and, if needed, actions at the bottom. Back is always the leftmost
-  button at the bottom. The other buttons that move through the steps (next, cancel, plan, create) are at the bottom
-  right. Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the
-  header. One action of a page is the primary one, the one green button.
+- **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move through
+  the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost button.
+  Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the header.
+  One action of a page is the primary one, the one green button.
 - **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an update.
   The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs it.
 - **Start-up checks.** The splash screen runs the checks and has a Quit button. A failed check shows its reason in
@@ -56,8 +56,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
   shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened
   with the password, checks the deployment at once: each resource and the provisioning with its state and changes,
   as the plan of a deploy has them, and the state of the deployment. At the top right: destroy and check, which
-  checks again. At the bottom: back at the left, force deploy in the middle (after a check; the playbook runs again)
-  and deploy changes at the right (only when the check found changes). Check is the green button, deploy changes
+  checks again. At the bottom right, one group: back, force deploy (after a check; the playbook runs again) and
+  deploy changes (only when the check found changes). Check is the green button, deploy changes
   instead when there are changes.
 - **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed, created anew
   or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes something, and it shows each resource as it goes, with the output of the

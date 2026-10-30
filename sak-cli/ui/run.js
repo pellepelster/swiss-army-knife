@@ -70,7 +70,8 @@ export function row({ kind, name: resourceName, resourceStatus, action, working,
   const status = text(`shared.resource_status.${resourceStatus}`);
   detail.textContent = action ? `${status}, ${text(`shared.plan.${action}`)}` : status;
   item.append(mark, kindLabel, name, detail);
-  for (const change of changes) {
+  // the provisioning tells no more than that it runs
+  for (const change of kind === 'provisioning' ? [] : changes) {
     const line = document.createElement('span');
     line.className = 'resource-change';
     line.textContent = change;

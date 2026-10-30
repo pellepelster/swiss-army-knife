@@ -1,9 +1,9 @@
 // the page of one deployment, opened with its password: its state, location and resources. It
 // checks the deployment when it opens: a deploy of the deployment as it is, planned in rust, its
 // rows those of the plan, the provisioning included. The toolbar at the top right: destroy, which
-// opens the form of a destroy, and check, which checks again. At the bottom: back to the list,
-// force deploy (after a check, the playbook runs again) and deploy changes (only when the check
-// found changes). The one green button is check, or deploy changes when there are changes
+// opens the form of a destroy, and check, which checks again. At the bottom right, one group:
+// back to the list, force deploy (after a check, the playbook runs again) and deploy changes (only
+// when the check found changes). The one green button is check, or deploy changes when there are changes
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
 import { openedDeployment } from './password.js';
