@@ -300,10 +300,7 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
         .next()
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let actual: String = Sha256::digest(zip)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let actual = crate::core::encoding::hex(&Sha256::digest(zip));
     if expected == actual {
         Ok(())
     } else {
@@ -329,7 +326,7 @@ fn write_and_replace(
 ) -> Result<(), String> {
     let path = std::env::temp_dir().join(format!(
         "sakctl-update-{}",
-        crate::core::provision::random_hex()?
+        crate::core::encoding::random_hex::<16>()?
     ));
     let result = (|| {
         std::fs::write(&path, binary)?;
@@ -369,10 +366,7 @@ mod tests {
     }
 
     fn sha256_of(bytes: &[u8]) -> String {
-        Sha256::digest(bytes)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect()
+        crate::core::encoding::hex(&Sha256::digest(bytes))
     }
 
     /// a github with the release `tag`, its zip of this platform and the sha-256 `checksum`

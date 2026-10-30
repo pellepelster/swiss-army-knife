@@ -9,8 +9,9 @@
 //! restore reaches it
 
 use crate::core::container;
+use crate::core::encoding::random_hex;
 use crate::core::keys::DerivedKey;
-use crate::core::provision::{random_hex, remove_container, track_container, untrack_container};
+use crate::core::provision::{remove_container, track_container, untrack_container};
 use rust_i18n::t;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
@@ -140,7 +141,7 @@ struct SessionContainer {
 
 impl SessionContainer {
     fn start(runtime: &str) -> Result<Self, String> {
-        let name = format!("sakctl-ssh-{}-{}", std::process::id(), random_hex()?);
+        let name = format!("sakctl-ssh-{}-{}", std::process::id(), random_hex::<16>()?);
         track_container(runtime, &name);
         let container = SessionContainer {
             runtime: runtime.to_string(),

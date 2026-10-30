@@ -107,10 +107,7 @@ pub fn signed_text(
     format!(
         "sak-api-v1\n{method}\n{}\n{path_and_query}\n{timestamp}\n{nonce}\n{}",
         host.to_ascii_lowercase(),
-        Sha256::digest(body)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>()
+        crate::core::encoding::hex(&Sha256::digest(body))
     )
 }
 
@@ -120,9 +117,7 @@ fn authorization(key: &ApiKey, method: &str, url: &reqwest::Url) -> Result<Strin
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| error.to_string())?
         .as_secs();
-    let mut nonce = [0u8; 16];
-    getrandom::fill(&mut nonce).map_err(|error| error.to_string())?;
-    let nonce: String = nonce.iter().map(|byte| format!("{byte:02x}")).collect();
+    let nonce = crate::core::encoding::random_hex::<16>()?;
     let path_and_query = match url.query() {
         Some(query) => format!("{}?{query}", url.path()),
         None => url.path().to_string(),

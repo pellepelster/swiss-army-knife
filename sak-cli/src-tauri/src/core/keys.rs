@@ -8,6 +8,7 @@
 //! the public keys) must compute it for every guess. The admin password hash is the exception:
 //! the backend checks a typed password against it, so it is an argon2id of the password itself
 
+use crate::core::encoding::hex;
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -95,10 +96,6 @@ fn expand<const N: usize>(name: &str, password: &str, purpose: &str) -> Result<[
         .expand(format!("{VERSION}/{purpose}/{name}").as_bytes(), &mut out)
         .map_err(|e| e.to_string())?;
     Ok(out)
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// an ed25519 ssh key derived from the master key: the client key the server is created with,

@@ -253,7 +253,7 @@ comments.
 
 ### Smells
 
-#### CU-15 (Low): Five copies of hex encoding, three of random bytes
+#### ~~CU-15 (Low): Five copies of hex encoding, three of random bytes~~ **fixed**
 
 Hex: `keys.rs:86`, `providers/hetzner.rs:91`, `config.rs:109-112`, `update.rs:303-306`, `provision.rs:557`. Random:
 `hetzner::random<N>` (`hetzner.rs:85`), `provision::random_hex` (`provision.rs:554`), `events::random_token`
@@ -282,7 +282,7 @@ restore this resolves CU-1, CU-2.
 
 - Split `container.rs`: runtime detection, canary and `command()` stay; `PullProgress` and the bollard pull go to
   `container/pull.rs`; `block_on` to a small `core::runtime`.
-- One `core::encoding` (or `keys::hex`/`keys::random`) for hex and random bytes (CU-15).
+- ~~One `core::encoding` (or `keys::hex`/`keys::random`) for hex and random bytes (CU-15).~~ Done.
 - The boundary test walks `src/core` instead of a list (CU-9).
 
 ---

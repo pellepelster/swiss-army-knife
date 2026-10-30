@@ -1,6 +1,7 @@
 //! the check of a hetzner token, through the client of sak-cloud (`HetznerApi`), the one client of
 //! the hetzner api sakctl has
 
+use crate::core::encoding::{random, random_hex};
 use ed25519_dalek::SigningKey;
 use rust_i18n::t;
 use sak_cloud::api::Labels;
@@ -13,7 +14,7 @@ use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi, ListQuery};
 /// `sak.pelle.io/token-check`, so a key a check left behind (a delete that failed) is told from
 /// every other key and removed by the next check
 pub async fn validate(api: &HetznerApi) -> Result<(), String> {
-    let name = format!("sakctl-token-check-{}", hex(&random::<8>()?));
+    let name = format!("sakctl-token-check-{}", random_hex::<8>()?);
     let created = api
         .ssh_keys()
         .create(&SshKeyCreate {
@@ -80,16 +81,6 @@ fn message(error: &ApiError) -> String {
 fn public_key() -> Result<String, String> {
     let key = SigningKey::from_bytes(&random::<32>()?).verifying_key();
     Ok(crate::core::keys::encode_public_key(&key, "sakctl"))
-}
-
-fn random<const N: usize>() -> Result<[u8; N], String> {
-    let mut bytes = [0u8; N];
-    getrandom::fill(&mut bytes).map_err(|e| e.to_string())?;
-    Ok(bytes)
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[cfg(test)]

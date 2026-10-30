@@ -387,7 +387,11 @@ impl RunDir {
             .filter(|dir| dir.is_dir())
             .unwrap_or_else(std::env::temp_dir);
         remove_left_behind(&base);
-        let name = format!("{RUN_PREFIX}{}-{}", std::process::id(), random_hex()?);
+        let name = format!(
+            "{RUN_PREFIX}{}-{}",
+            std::process::id(),
+            crate::core::encoding::random_hex::<16>()?
+        );
         Self::create_at(base.join(&name), runtime, name)
     }
 
@@ -549,12 +553,6 @@ fn alive(pid: u32) -> bool {
 #[cfg(not(unix))]
 fn alive(_pid: u32) -> bool {
     true
-}
-
-pub(crate) fn random_hex() -> Result<String, String> {
-    let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).map_err(|e| e.to_string())?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 #[cfg(test)]
@@ -727,7 +725,10 @@ pub(crate) mod tests {
 
     #[test]
     fn a_run_dir_is_never_created_where_something_is() {
-        let base = std::env::temp_dir().join(format!("sakctl-test-{}", random_hex().unwrap()));
+        let base = std::env::temp_dir().join(format!(
+            "sakctl-test-{}",
+            crate::core::encoding::random_hex::<16>().unwrap()
+        ));
         std::fs::create_dir(&base).unwrap();
         let taken = base.join("taken");
         std::fs::create_dir(&taken).unwrap();
@@ -745,7 +746,10 @@ pub(crate) mod tests {
 
     #[test]
     fn a_run_dir_a_killed_sakctl_left_behind_goes_with_the_next_run() {
-        let base = std::env::temp_dir().join(format!("sakctl-test-{}", random_hex().unwrap()));
+        let base = std::env::temp_dir().join(format!(
+            "sakctl-test-{}",
+            crate::core::encoding::random_hex::<16>().unwrap()
+        ));
         std::fs::create_dir(&base).unwrap();
         // no process has this id, pid_max is much lower
         let gone = base.join(format!("{RUN_PREFIX}4294967294-ab"));

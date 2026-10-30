@@ -95,7 +95,7 @@ impl EventServer {
             .server_addr()
             .to_ip()
             .ok_or_else(|| "the events endpoint has no address".to_string())?;
-        let token = random_token()?;
+        let token = crate::core::encoding::random_hex::<32>()?;
         let stop = Arc::new(AtomicBool::new(false));
         let thread = {
             let (token, stop) = (token.clone(), stop.clone());
@@ -177,13 +177,6 @@ fn authorized(request: &tiny_http::Request, token: &str) -> bool {
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
-}
-
-/// 32 random bytes as hex
-fn random_token() -> Result<String, String> {
-    let mut bytes = [0u8; 32];
-    getrandom::fill(&mut bytes).map_err(|error| error.to_string())?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 #[cfg(test)]

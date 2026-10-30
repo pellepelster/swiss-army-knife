@@ -9,6 +9,7 @@ pub mod checks;
 pub mod config;
 pub mod container;
 pub mod deployments;
+pub mod encoding;
 pub mod error;
 pub mod events;
 pub mod i18n;
@@ -63,6 +64,7 @@ mod tests {
             ("config.rs", include_str!("config.rs")),
             ("container.rs", include_str!("container.rs")),
             ("deployments.rs", include_str!("deployments.rs")),
+            ("encoding.rs", include_str!("encoding.rs")),
             ("error.rs", include_str!("error.rs")),
             ("provision.rs", include_str!("provision.rs")),
             ("roles.rs", include_str!("roles.rs")),

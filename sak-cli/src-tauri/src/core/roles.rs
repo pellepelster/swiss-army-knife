@@ -82,11 +82,7 @@ pub fn fingerprints(run: &ProvisionRun) -> BTreeMap<String, String> {
             if *role == "backend" {
                 hash.update(run.backend_env().as_bytes());
             }
-            let hex: String = hash
-                .finalize()
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect();
+            let hex = crate::core::encoding::hex(&hash.finalize());
             (role.to_string(), hex)
         })
         .collect()
