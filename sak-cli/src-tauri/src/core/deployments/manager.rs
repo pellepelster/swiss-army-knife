@@ -600,7 +600,12 @@ impl DeploymentManager {
             events: None,
             failure: Default::default(),
         })?;
-        let diffs = registry.diff_all().await.map_err(|error| {
+        // a destroy creates nothing: what a create or deploy must not do does not stop its plan
+        let diffs = match prepared.purpose {
+            Purpose::Destroy { .. } => registry.compare_all().await,
+            Purpose::Create { .. } | Purpose::Deploy { .. } => registry.diff_all().await,
+        }
+        .map_err(|error| {
             cloud_failure("shared.deployments.plan_failed", prepared.provider, error)
         })?;
         Ok(PlanResponse {

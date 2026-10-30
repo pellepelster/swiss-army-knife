@@ -159,6 +159,13 @@ pub enum ApplyEvent {
     Destroyed(ResourceRef, bool),
 }
 
+/// whether a plan stops at what an apply must not do: a duplicate, a recreate that is refused
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Gate {
+    Apply,
+    None,
+}
+
 /// the resources declared for a run and the provisioners that reconcile them. There is one
 /// provisioner per resource type and one resource per type and name
 #[derive(Default)]
@@ -273,15 +280,28 @@ impl Registry {
     /// resource of someone else fail here, before anything changes
     pub async fn diff_all(&mut self) -> Result<Vec<ResourceDiff>> {
         Ok(self
-            .plan()
+            .plan(Gate::Apply)
             .await?
             .into_iter()
             .map(|(_, diff)| diff)
             .collect())
     }
 
-    /// `diff_all` with the index of each resource
-    async fn plan(&mut self) -> Result<Vec<(usize, ResourceDiff)>> {
+    /// the diff of every resource as `diff_all` has it, without its gates: a duplicate and a
+    /// recreate show as their status and changes. For what applies nothing of it, the state of a
+    /// deployment in a list or the plan of a destroy; an apply plans with its gates again first
+    pub async fn compare_all(&mut self) -> Result<Vec<ResourceDiff>> {
+        Ok(self
+            .plan(Gate::None)
+            .await?
+            .into_iter()
+            .map(|(_, diff)| diff)
+            .collect())
+    }
+
+    /// `diff_all` with the index of each resource; with `Gate::Apply` it stops at what the apply
+    /// must not do
+    async fn plan(&mut self, gate: Gate) -> Result<Vec<(usize, ResourceDiff)>> {
         self.context.clear_pending();
         let mut diffs: Vec<(usize, ResourceDiff)> = Vec::new();
         for index in self.order()? {
@@ -311,7 +331,9 @@ impl Registry {
             };
             // a plan that would recreate a resource that must stay, or create a duplicate, fails
             // here, before the apply
-            self.refuse(resource, &diff).await?;
+            if gate == Gate::Apply {
+                self.refuse(resource, &diff).await?;
+            }
             if diff.status != DiffStatus::UpToDate {
                 self.context.mark_pending(reference);
             }
@@ -334,7 +356,7 @@ impl Registry {
     ) -> Result<Vec<ApplyResult>> {
         // the whole plan first: a refused recreate, a duplicate or a resource of someone else
         // stops the apply before anything is created, not half way
-        let plan = self.plan().await?;
+        let plan = self.plan(Gate::Apply).await?;
         self.context.clear_pending();
         // what the plan found not up to date and what the apply changed: the plan's diff of a
         // resource that depends on one is stale, it is diffed again once that is applied
@@ -873,6 +895,18 @@ mod tests {
             "{error}"
         );
         assert!(!log(&cloud).iter().any(|line| line.starts_with("apply")));
+
+        // the plan of an apply fails on it; a comparison, for a list or a destroy, shows it
+        assert!(matches!(
+            registry.diff_all().await,
+            Err(Error::Duplicate { .. })
+        ));
+        let diffs = registry.compare_all().await.unwrap();
+        assert!(
+            diffs
+                .iter()
+                .any(|diff| diff.resource.name == "key" && diff.status == DiffStatus::Duplicate)
+        );
     }
 
     #[tokio::test]

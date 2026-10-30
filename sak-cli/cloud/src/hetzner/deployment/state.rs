@@ -142,7 +142,8 @@ async fn compare(
     deployment: &DiscoveredDeployment,
 ) -> Result<Vec<ResourceState>> {
     let spec = DeploymentSpec::declared_by(deployment)?;
-    let diffs = spec.registry(provider)?.diff_all().await?;
+    // a list applies nothing: a duplicate or a refused recreate shows, it does not fail
+    let diffs = spec.registry(provider)?.compare_all().await?;
     Ok(diffs
         .into_iter()
         .filter_map(|diff| {
