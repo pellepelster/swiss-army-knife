@@ -49,7 +49,7 @@ The command line of sakctl, against the Hetzner Cloud project of `HCLOUD_TOKEN` 
 when not set):
 
 ```sh
-mise run test:e2e:integration   # builds sakctl, then runs the tests
+mise run test:cli:e2e   # builds sakctl, then runs the tests
 ```
 
 The tests create, provision and destroy real servers, so a run takes long and costs money.

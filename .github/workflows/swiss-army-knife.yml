@@ -1,6 +1,7 @@
-# tests and builds everything: the unit tests of the backend and the frontend first, then, when
-# they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress) and of
-# sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a native binary for linux, macOS and windows, and
+# tests and builds everything: the unit tests of the backend, the frontend and the cli first, then,
+# when they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress)
+# and of sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a
+# native binary for linux, macOS and windows, and
 # the documentation of docs/ as a site. Only the build of a tag v<version> (mise run release)
 # publishes: the images pushed to ghcr.io as <VERSION>-rc, then all of them as <VERSION> (release),
 # and after the release the documentation as the github pages of the repository. Everything that
@@ -35,35 +36,56 @@ env:
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
-  # the unit tests of the backend (mise run test:backend:unit) and of the frontend (mise run
-  # test:frontend:unit), each in a job of its own; their junit reports show as a check of the run,
-  # failed tests also when the tests fail. The images are built only when both are green
+  # the unit tests of the backend, the frontend and the cli (mise run test:<part>:unit), each in a
+  # job of its own; their junit reports show as a check of the run, failed tests also when the
+  # tests fail. The images are built only when all of them are green
   test-unit:
     name: test-unit (${{ matrix.part }})
     strategy:
       fail-fast: false
       matrix:
         include:
+          # the jdk of the gradle toolchain, node for the frontend the build calls npm for
           - part: backend
+            tools: java node
             reports: '**/build/test-results/test/*.xml'
           - part: frontend
+            tools: java node
             reports: sak-frontend/build/test-results/unit/*.xml
+          # node copies sak-theme for sakctl, nextest writes the junit reports
+          - part: cli
+            tools: rust node github:nextest-rs/nextest
+            reports: sak-cli/*/target/nextest/default/junit.xml
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       checks: write
     steps:
       - uses: actions/checkout@v7
-      # the jdk of the gradle toolchain, node for the frontend the build calls npm for
+      # sakctl builds against webkitgtk
+      - if: matrix.part == 'cli'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          version: 1
       - uses: jdx/mise-action@v5
         with:
-          install_args: java node
-      - uses: gradle/actions/setup-gradle@v6
-      - uses: actions/cache@v6
+          install_args: ${{ matrix.tools }}
+      - if: matrix.part != 'cli'
+        uses: gradle/actions/setup-gradle@v6
+      - if: matrix.part != 'cli'
+        uses: actions/cache@v6
         with:
           path: ~/.npm
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
+      - if: matrix.part == 'cli'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            sak-cli/src-tauri -> target
+            sak-cli/cloud -> target
+          key: test-unit
       - run: mise run test:${{ matrix.part }}:unit
       - if: ${{ !cancelled() }}
         uses: mikepenz/action-junit-report@v6

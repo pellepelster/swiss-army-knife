@@ -322,56 +322,6 @@ mod tests {
         }
     }
 
-    // each test runs the real runtime and is skipped when it is not installed; they need the
-    // canary and the image on ghcr.io
-    #[test]
-    fn docker_runs_the_canary() {
-        if !installed("docker") {
-            eprintln!("docker is not installed, skipped");
-            return;
-        }
-        assert!(canary("docker").is_ok(), "{:?}", canary("docker"));
-    }
-
-    // reports progress only when the image is not pulled already
-    #[test]
-    fn docker_pulls_the_image() {
-        if !installed("docker") {
-            eprintln!("docker is not installed, skipped");
-            return;
-        }
-        let updates = Mutex::new(Vec::new());
-        let on_progress = |fraction: f64, text: &str| {
-            updates
-                .lock()
-                .unwrap()
-                .push(format!("{fraction:.3} {text}"));
-        };
-        assert_eq!(pull("docker", &on_progress), Ok(()));
-        let updates = updates.into_inner().unwrap();
-        eprintln!("{} updates, the last {:?}", updates.len(), updates.last());
-    }
-
-    #[test]
-    fn podman_runs_the_canary_and_pulls_the_image() {
-        if !installed("podman") {
-            eprintln!("podman is not installed, skipped");
-            return;
-        }
-        assert!(canary("podman").is_ok(), "{:?}", canary("podman"));
-        assert_eq!(pull("podman", &|_, _| {}), Ok(()));
-    }
-
-    #[test]
-    fn the_next_runtime_is_tried_when_one_is_missing() {
-        if !installed("docker") {
-            eprintln!("docker is not installed, skipped");
-            return;
-        }
-        let (runtime, _) = find(&["sakctl-no-such-runtime", "docker"]).unwrap();
-        assert_eq!(runtime, "docker");
-    }
-
     #[test]
     fn without_a_runtime_the_check_explains_what_is_needed() {
         let error = find(&["sakctl-no-such-docker", "sakctl-no-such-podman"]).unwrap_err();
@@ -408,5 +358,51 @@ mod tests {
         let mut progress = PullProgress::default();
         progress.update(&info("a", "Downloading", 312_000_000, 740_000_000));
         assert_eq!(progress.text(), "312 MB of 740 MB");
+    }
+
+    /// the integration tests (`mise run test:cli:integration`): the real runtimes, docker
+    /// required, podman skipped when it is not installed; they pull the canary and the image
+    /// from ghcr.io
+    mod integration {
+        use super::*;
+
+        #[test]
+        fn docker_runs_the_canary() {
+            assert!(installed("docker"), "the integration tests need docker");
+            assert!(canary("docker").is_ok(), "{:?}", canary("docker"));
+        }
+
+        // reports progress only when the image is not pulled already
+        #[test]
+        fn docker_pulls_the_image() {
+            assert!(installed("docker"), "the integration tests need docker");
+            let updates = Mutex::new(Vec::new());
+            let on_progress = |fraction: f64, text: &str| {
+                updates
+                    .lock()
+                    .unwrap()
+                    .push(format!("{fraction:.3} {text}"));
+            };
+            assert_eq!(pull("docker", &on_progress), Ok(()));
+            let updates = updates.into_inner().unwrap();
+            eprintln!("{} updates, the last {:?}", updates.len(), updates.last());
+        }
+
+        #[test]
+        fn podman_runs_the_canary_and_pulls_the_image() {
+            if !installed("podman") {
+                eprintln!("podman is not installed, skipped");
+                return;
+            }
+            assert!(canary("podman").is_ok(), "{:?}", canary("podman"));
+            assert_eq!(pull("podman", &|_, _| {}), Ok(()));
+        }
+
+        #[test]
+        fn the_next_runtime_is_tried_when_one_is_missing() {
+            assert!(installed("docker"), "the integration tests need docker");
+            let (runtime, _) = find(&["sakctl-no-such-runtime", "docker"]).unwrap();
+            assert_eq!(runtime, "docker");
+        }
     }
 }

@@ -1,6 +1,6 @@
 ---
 title: "Architecture"
-description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security and the accepted risks."
+description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security, the tests and the accepted risks."
 weight: 10
 ---
 
@@ -208,6 +208,20 @@ and the health of the domains.
   from the password, so changing the password does not change them. The user also supplies some credentials: the
   token of the cloud provider, given to sakctl for each run and never stored by it, and the mail server credentials,
   which sakctl writes to the server's environment for the backend.
+
+## Tests
+
+Each test is of one kind, by what it needs to run:
+
+- **Unit tests** run standalone, with no dependencies: nothing but the tools of the build. Mock servers and files
+  in the process are allowed. A unit test that needs more is an integration test.
+- **Integration tests** need resources of the machine that runs them: Docker, a browser, a specific program such
+  as `ssh-keygen`. A missing resource fails the test, unless the resource is optional.
+- **End to end tests** need resources outside of the machine: cloud servers, a cloud project, its API. They can
+  take long and cost money.
+
+Each part (backend, frontend, cli) has one task for each kind it has. The build pipeline runs the unit tests and
+reports their results; nothing is built into an image before they pass.
 
 ## Accepted risks
 

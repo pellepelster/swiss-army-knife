@@ -358,58 +358,64 @@ mod tests {
         );
     }
 
-    /// with docker and the image of the tools: the agent of the container holds the client key,
-    /// no file has it, and the container is gone afterwards
-    #[test]
-    fn the_agent_of_the_session_holds_the_key_and_the_container_goes() {
-        let runtime = "docker";
-        let image_there = container::command(runtime)
-            .args(["image", "inspect", container::IMAGE])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .is_ok_and(|status| status.success());
-        if !image_there {
-            eprintln!("no docker with {}, skipped", container::IMAGE);
-            return;
-        }
-        let target = target();
-        let name = {
-            let container = SessionContainer::start(runtime).unwrap();
-            exec_with_input(
-                runtime,
-                &container.name,
-                &["ssh-add", "-q", "-"],
-                &target.client_key.private_key(),
-            )
-            .unwrap();
-            let listed = container::command(runtime)
-                .args([
-                    "exec",
-                    "-e",
-                    &format!("SSH_AUTH_SOCK={AGENT_SOCKET}"),
+    /// the integration tests (`mise run test:cli:integration`), with docker and the image of the
+    /// tools, skipped when the image is not there
+    mod integration {
+        use super::*;
+
+        /// with docker and the image of the tools: the agent of the container holds the client key,
+        /// no file has it, and the container is gone afterwards
+        #[test]
+        fn the_agent_of_the_session_holds_the_key_and_the_container_goes() {
+            let runtime = "docker";
+            let image_there = container::command(runtime)
+                .args(["image", "inspect", container::IMAGE])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .is_ok_and(|status| status.success());
+            if !image_there {
+                eprintln!("no docker with {}, skipped", container::IMAGE);
+                return;
+            }
+            let target = target();
+            let name = {
+                let container = SessionContainer::start(runtime).unwrap();
+                exec_with_input(
+                    runtime,
                     &container.name,
-                    "ssh-add",
-                    "-L",
-                ])
-                .output()
+                    &["ssh-add", "-q", "-"],
+                    &target.client_key.private_key(),
+                )
                 .unwrap();
-            let blob = target
-                .client_key
-                .public_key()
-                .split(' ')
-                .nth(1)
-                .unwrap()
-                .to_string();
-            assert!(String::from_utf8_lossy(&listed.stdout).contains(&blob));
-            container.name.clone()
-        };
-        let gone = container::command(runtime)
-            .args(["inspect", &name])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .is_ok_and(|status| !status.success());
-        assert!(gone, "the container {name} is still there");
+                let listed = container::command(runtime)
+                    .args([
+                        "exec",
+                        "-e",
+                        &format!("SSH_AUTH_SOCK={AGENT_SOCKET}"),
+                        &container.name,
+                        "ssh-add",
+                        "-L",
+                    ])
+                    .output()
+                    .unwrap();
+                let blob = target
+                    .client_key
+                    .public_key()
+                    .split(' ')
+                    .nth(1)
+                    .unwrap()
+                    .to_string();
+                assert!(String::from_utf8_lossy(&listed.stdout).contains(&blob));
+                container.name.clone()
+            };
+            let gone = container::command(runtime)
+                .args(["inspect", &name])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .is_ok_and(|status| !status.success());
+            assert!(gone, "the container {name} is still there");
+        }
     }
 }

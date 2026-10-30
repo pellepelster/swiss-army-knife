@@ -14,6 +14,8 @@ rust = "1.99.1"
 # the documentation as a site (site/): hugo, and go for its modules (the theme relearn)
 "hugo-extended" = "0.168.0"
 go = "1.26.0"
+# runs the tests of sakctl and sak-cloud, with a junit report (.config/nextest.toml of each crate)
+"github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
 # the next version of `release`, from the tags v<version>
 svu = "3.4.1"
 
@@ -459,9 +461,11 @@ done
 ls -lh build/videos/*.mp4 build/videos/*.gif
 '''
 
-# the tests: test:<part>:unit need nothing but the tools of mise.toml, test:<part>:integration
-# need docker, a browser or a real Hetzner Cloud project. The unit tests of the backend and the
-# frontend write junit reports to build/test-results/ of each module, the github workflow shows them
+# the tests, test:<part>:<kind> (ARCHITECTURE.md, "Tests"): unit tests need nothing but the tools
+# of mise.toml, integration tests need what the machine that runs them has (docker, a browser,
+# ssh-keygen), e2e tests need resources outside of it (a Hetzner Cloud project). The unit tests
+# write junit reports, to build/test-results/ of each gradle module and target/nextest/ of each
+# crate; the github workflow shows them
 
 # the unit tests of every gradle module of the backend; the build of sak-backend builds the
 # frontend with npm
@@ -476,14 +480,15 @@ dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
 # sakctl and sak-cloud (sak-cli/cloud/, the crate that declares the cloud resources of sakctl);
-# the checks of sakctl that run real containers are skipped without docker or podman
+# the integration tests of sakctl are in modules named integration
 [tasks."test:cli:unit"]
 description = "Run the unit tests of sakctl and sak-cloud"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 run = """
-(cd src-tauri && cargo test)
-(cd cloud && cargo test --lib)
+set -e
+(cd src-tauri && cargo nextest run --no-fail-fast -E 'not test(/::integration::/)')
+(cd cloud && cargo nextest run --no-fail-fast -E 'kind(lib)')
 """
 
 # in docker: the vector configuration the backend role deploys, with its image, and sak-backup and
@@ -504,16 +509,13 @@ description = "Run the integration tests of sak-frontend: the apps in a browser 
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
 
-# the tests of sak-cloud against the real hetzner cloud api, with HCLOUD_TOKEN (from pass unless
-# set); without a token the tests would skip themselves, so the task refuses to run
+# the tests of sakctl in modules named integration: docker and podman (they pull the canary and
+# the image of the tools from ghcr.io), the ssh session in the image of the tools, ssh-keygen
 [tasks."test:cli:integration"]
-description = "Run the integration tests of sak-cloud against a real Hetzner Cloud project"
-dir = "{{config_root}}/sak-cli/cloud"
-env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-run = """
-[ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN to the token of a Hetzner Cloud project" >&2; exit 1; }
-cargo test --test '*'
-"""
+description = "Run the integration tests of sakctl: docker, podman and ssh-keygen"
+depends = ["cli:theme"]
+dir = "{{config_root}}/sak-cli/src-tauri"
+run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
 
 # the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
 # playwright downloads its chromium on the first run
@@ -522,14 +524,18 @@ description = "Run the local end to end tests of sak-e2e against the environment
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
 
-# the integration tests of sak-e2e: the command line of sakctl, built first, against the Hetzner
-# Cloud project of HCLOUD_TOKEN (from pass unless set). They create and destroy real servers
-# (test-<id>), which takes long and costs money
-[tasks."test:e2e:integration"]
-description = "Run the integration tests of sak-e2e: sakctl against a real Hetzner Cloud project"
+# against the Hetzner Cloud project of HCLOUD_TOKEN (from pass unless set): the tests of sak-cloud
+# against the hetzner cloud api, then the command line of sakctl, built first, in sak-e2e. They
+# create and destroy real resources and servers (test-<id>), which takes long and costs money;
+# without a token the tests would skip themselves, so the task refuses to run
+[tasks."test:cli:e2e"]
+description = "Run the e2e tests of sak-cloud and sakctl against a real Hetzner Cloud project"
 dir = "{{config_root}}"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = """
+set -e
+[ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN to the token of a Hetzner Cloud project" >&2; exit 1; }
+(cd sak-cli/cloud && cargo nextest run --no-fail-fast -E 'kind(test)')
 (cd sak-cli/src-tauri && cargo build)
 ./gradlew :sak-e2e:e2eIntegration
 """

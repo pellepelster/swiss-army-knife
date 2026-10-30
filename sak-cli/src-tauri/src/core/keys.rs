@@ -313,38 +313,13 @@ mod tests {
         assert!(key.ends_with(" sak-alpha"));
     }
 
-    /// ssh-keygen reads the private key back and derives the same public key from it;
-    /// without ssh-keygen the test checks the file's shape only
     #[test]
-    fn the_private_key_is_what_openssh_reads() {
-        let key = derive_key("alpha", "a password of sixteen").unwrap();
-        let private = key.private_key();
+    fn the_private_key_is_an_openssh_key() {
+        let private = derive_key("alpha", "a password of sixteen")
+            .unwrap()
+            .private_key();
         assert!(private.starts_with("-----BEGIN OPENSSH PRIVATE KEY-----\n"));
         assert!(private.ends_with("-----END OPENSSH PRIVATE KEY-----\n"));
-
-        let dir = std::env::temp_dir().join(format!("sakctl-keys-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("id_ed25519");
-        std::fs::write(&path, &private).unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-        }
-        let read = std::process::Command::new("ssh-keygen")
-            .args(["-y", "-f"])
-            .arg(&path)
-            .output();
-        std::fs::remove_dir_all(&dir).unwrap();
-        if let Ok(output) = read {
-            assert!(
-                output.status.success(),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            let public = String::from_utf8_lossy(&output.stdout);
-            assert_eq!(public.trim(), key.public_key());
-        }
     }
 
     #[test]
@@ -604,5 +579,39 @@ mod tests {
             derive_public_key("alpha", "another password here").unwrap(),
             key
         );
+    }
+
+    /// the integration tests (`mise run test:cli:integration`), they need ssh-keygen
+    mod integration {
+        use super::*;
+
+        /// ssh-keygen reads the private key back and derives the same public key from it
+        #[test]
+        fn the_private_key_is_what_openssh_reads() {
+            let key = derive_key("alpha", "a password of sixteen").unwrap();
+            let private = key.private_key();
+            let dir = std::env::temp_dir().join(format!("sakctl-keys-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let path = dir.join("id_ed25519");
+            std::fs::write(&path, &private).unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+            }
+            let read = std::process::Command::new("ssh-keygen")
+                .args(["-y", "-f"])
+                .arg(&path)
+                .output();
+            std::fs::remove_dir_all(&dir).unwrap();
+            let output = read.expect("the integration tests need ssh-keygen");
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let public = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(public.trim(), key.public_key());
+        }
     }
 }

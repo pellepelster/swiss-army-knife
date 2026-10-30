@@ -3,7 +3,7 @@ import java.time.Duration
 
 // end to end tests: the local tests, the apps in a browser against the local environment
 // (e2eLocal, `mise run test:e2e:local`), and the integration tests, the command line of sakctl
-// against a real Hetzner Cloud project (e2eIntegration, `mise run test:e2e:integration`). Neither
+// against a real Hetzner Cloud project (e2eIntegration, `mise run test:cli:e2e`). Neither
 // runs with `gradle test` or `gradle build`, both need more than the build has
 plugins {
     id("sak.kotlin-conventions")
