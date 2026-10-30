@@ -715,7 +715,7 @@ impl DeploymentManager {
     /// prepares the deployment and applies it. A create or deploy applies the resources in the
     /// order of their dependencies, the roles of the playbook after the server and the volume
     /// (`core::ansible_roles`), then removes the dns records of an old dns mode or root domain.
-    /// After a provisioning sakctl waits for the api and sets the version label of the server.
+    /// After a provisioning sakctl sets the version label of the server and waits for the api.
     /// Each resource, line and task goes to `on_event`. What is up-to-date stays as it is,
     /// so the next run finishes a run that failed. A destroy removes the dns records of the
     /// deployment, then every resource but the data volume (also that with `delete_data`),
@@ -898,8 +898,8 @@ impl DeploymentManager {
         Ok(provisioned.load(Ordering::SeqCst))
     }
 
-    /// after the roles ran: waits until the deployment answers as its users reach it, through its
-    /// ingress with its certificate, then sets the version label of the server. A backend that
+    /// after the roles ran: sets the version label of the server, then waits until the deployment
+    /// answers as its users reach it, through its ingress with its certificate. A backend that
     /// did not start or a missing certificate stops the apply here
     async fn after_provisioning(
         &self,
@@ -917,6 +917,15 @@ impl DeploymentManager {
             .ok_or_else(|| {
                 t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
             })?;
+        // the server runs the images of this version now, its version label says so; before the
+        // wait, which a next deploy does not repeat: the markers tell it the provisioning is done
+        set_server_labels(
+            &prepared.runtime.api,
+            server.id,
+            &[(VERSION_LABEL, Some(crate::core::VERSION))],
+        )
+        .await
+        .map_err(|error| failed(prepared.provider, error))?;
         let address = server
             .public_ipv4
             .as_deref()
@@ -937,14 +946,6 @@ impl DeploymentManager {
             std::time::Duration::from_secs(5),
         )
         .await?;
-        // the server runs the images of this version now, its version label says so
-        set_server_labels(
-            &prepared.runtime.api,
-            server.id,
-            &[(VERSION_LABEL, Some(crate::core::VERSION))],
-        )
-        .await
-        .map_err(|error| failed(prepared.provider, error))?;
         Ok(())
     }
 
