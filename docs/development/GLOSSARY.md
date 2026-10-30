@@ -9,7 +9,11 @@ weight: 30
 The canonical vocabulary of this repository. Use these terms in code, documentation and the
 user interface. Use the same term for the same thing every time.
 
-- **name**: The unique name of a swiss army knife deployment. Each deployment has one name. Two
+- **Swiss Army Knife**, short **SAK**: The name of the product, in the user interface, the documentation and the
+  code. Write it as three words, `Swiss Army Knife`, or as `SAK`; never `SwissArmyKnife`. In German compounds,
+  join it with hyphens: `Swiss-Army-Knife-Deployment`. Lower case `sak` is only a technical prefix, for example
+  `sakctl`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the icon shows.
+- **name**: The unique name of a SAK deployment. Each deployment has one name. Two
   deployments cannot have the same name. Each cloud resource of a deployment has
   the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in
   [ARCHITECTURE.md](ARCHITECTURE.md)).

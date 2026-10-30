@@ -169,7 +169,7 @@ body {
   gap: var(--sak-space-4);
 }
 
-/* the icon of SwissArmyKnife before the title of every page */
+/* the icon of Swiss Army Knife before the title of every page */
 .page-title {
   display: flex;
   align-items: center;

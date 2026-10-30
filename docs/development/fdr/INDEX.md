@@ -7,7 +7,7 @@ weight: 40
 
 # Feature Decision Records
 
-This directory contains Feature Decision Records (FDRs) for SwissArmyKnife. Each FDR documents one feature: what it does
+This directory contains Feature Decision Records (FDRs) for Swiss Army Knife. Each FDR documents one feature: what it does
 behaviorally, what design decisions shaped it, and the rationale behind those decisions.
 
 FDRs are siblings of the Architecture Decision Records (ADRs); the repository has none yet. ADRs cover cross-cutting architectural

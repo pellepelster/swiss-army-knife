@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SwissArmyKnife",
+  "productName": "Swiss Army Knife",
   "mainBinaryName": "sakctl",
   "version": "0.1.0",
   "identifier": "io.pelle.sak.cli",
@@ -11,7 +11,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "SwissArmyKnife",
+        "title": "Swiss Army Knife",
         "width": 736,
         "height": 686,
         "resizable": false,

@@ -1,12 +1,12 @@
 ---
 title: "Installation"
-description: "Install sakctl, the program that sets up and maintains your SwissArmyKnife, on Linux, macOS or Windows."
+description: "Install sakctl, the program that sets up and maintains your Swiss Army Knife, on Linux, macOS or Windows."
 weight: 5
 ---
 
 # Installation
 
-sakctl is the program on your computer that creates your SwissArmyKnife, keeps it up to date, makes backups and
+sakctl is the program on your computer that creates your Swiss Army Knife, keeps it up to date, makes backups and
 removes it again. It has a window, and on Linux and macOS also a command line. There is no installer: sakctl is one
 program.
 

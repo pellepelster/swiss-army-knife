@@ -6,7 +6,7 @@ weight: 10
 
 # Architecture
 
-How SwissArmyKnife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
+How Swiss Army Knife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
 code is in [AGENT.md](../../AGENT.md), how the apps look and behave in [UI-UX.md](UI-UX.md), the words in
 [GLOSSARY.md](GLOSSARY.md), and each feature in [fdr/INDEX.md](fdr/INDEX.md).
 
@@ -219,6 +219,9 @@ Each test is of one kind, by what it needs to run:
   as `ssh-keygen`. A missing resource fails the test, unless the resource is optional.
 - **End to end tests** need resources outside of the machine: cloud servers, a cloud project, its API. They can
   take long and cost money.
+- **Exemption: the container registry.** An integration test may pull images from the GitHub container registry
+  (ghcr.io), for example the images of SAK and of the tools it runs. Communication with the registry is allowed and
+  does not make it an end to end test.
 
 Each part (backend, frontend, cli) has one task for each kind it has. The build pipeline runs the unit tests and
 reports their results; nothing is built into an image before they pass.

@@ -129,6 +129,7 @@ mkdir -p ui/theme
 cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
 cp ../sak-theme/tokens.css ../sak-theme/bootstrap.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
 cp -r ../sak-theme/fonts ui/theme/fonts
+cp -r ../sak-theme/icons ui/theme/icons
 """
 
 # without arguments the window, with a command (list, create, deploy, destroy, --help) the command line:

@@ -94,14 +94,16 @@
 }
 
 /* the plus sign every button that creates or adds something starts with, `<i class="sak-icon-plus"
-   aria-hidden="true"></i>`; drawn in the color of the text around it */
+   aria-hidden="true"></i>`; drawn in the color of the text around it. A file next to the theme, no
+   data: url, which a content security policy of 'self' refuses (the window of sakctl) */
 .sak-icon-plus {
   display: inline-block;
   width: 1em;
   height: 1em;
   vertical-align: -0.125em;
   background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M7 2h2v5h5v2H9v5H7V9H2V7h5z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url('icons/plus.svg') center / contain no-repeat;
+  mask: url('icons/plus.svg') center / contain no-repeat;
 }
 
 /* a terminal: what a tool prints, always dark whatever the scheme */

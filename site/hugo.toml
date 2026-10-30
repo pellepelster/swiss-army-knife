@@ -1,7 +1,7 @@
 # the documentation of SAK as a site: the markdown of docs/ as it is in the repository, mounted
 # below as the content root, with the theme relearn (a hugo module, pinned in go.mod) in the colors
 # and fonts of sak-theme. `mise run docs:serve` serves it; nothing is loaded from outside
-title = 'SwissArmyKnife'
+title = 'Swiss Army Knife'
 baseURL = '/'
 locale = 'en'
 # the files are named like on github, e.g. FDR-001-dns-mode.md

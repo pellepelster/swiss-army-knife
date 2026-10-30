@@ -326,7 +326,7 @@ mod tests {
     fn without_a_runtime_the_check_explains_what_is_needed() {
         let error = find(&["sakctl-no-such-docker", "sakctl-no-such-podman"]).unwrap_err();
         assert!(
-            error.starts_with("SwissArmyKnife needs docker or podman"),
+            error.starts_with("Swiss Army Knife needs docker or podman"),
             "{error}"
         );
         assert!(

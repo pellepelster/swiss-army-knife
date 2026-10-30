@@ -155,4 +155,4 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 
 - [README.md](README.md) — general project overview.
 - [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md) — how the system is built.
-- `docs/development/fdr/INDEX.md` — SwissArmyKnife feature behavior and rationale.
+- `docs/development/fdr/INDEX.md` — Swiss Army Knife feature behavior and rationale.

@@ -46,7 +46,7 @@ shared:
       running: "Verifying container runtime…"
       done: "Found %{text}"
       passed: "%{runtime} %{version}"
-      needed: "SwissArmyKnife needs docker or podman to run containers."
+      needed: "Swiss Army Knife needs docker or podman to run containers."
       not_working: "%{runtime} does not work: %{error}"
       wrong_answer: "The image %{image} answered '%{answer}' instead of '%{expected}'."
     image:
@@ -149,9 +149,9 @@ shared:
     missing: "missing"
     has_changes: "has changes"
   plan:
-    intro: "Create the SwissArmyKnife deployment"
-    intro_deploy: "Redeploy the SwissArmyKnife deployment"
-    intro_destroy: "Destroy the SwissArmyKnife deployment"
+    intro: "Create the Swiss Army Knife deployment"
+    intro_deploy: "Redeploy the Swiss Army Knife deployment"
+    intro_destroy: "Destroy the Swiss Army Knife deployment"
     will_create: "will be created"
     will_update: "will be updated"
     will_destroy: "will be destroyed"
@@ -192,7 +192,7 @@ ui:
     install: "Update to %{version}"
   providers:
     title: "Provider tokens"
-    empty: "No provider tokens yet. Add the API tokens of the providers SwissArmyKnife creates resources at."
+    empty: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
     add: "Add"
   select:
     title: "Select the provider"

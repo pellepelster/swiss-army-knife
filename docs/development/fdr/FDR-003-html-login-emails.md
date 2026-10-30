@@ -13,7 +13,7 @@ weight: 3
 ## Overview
 
 The login of the apps sends a link by e-mail. Today the mail is plain text only. This feature sends the login mail as
-HTML, with the plain text as a fallback, so that the link is a clear button and the mail looks like SwissArmyKnife.
+HTML, with the plain text as a fallback, so that the link is a clear button and the mail looks like Swiss Army Knife.
 
 ## Behavior
 
@@ -46,6 +46,6 @@ HTML, with the plain text as a fallback, so that the link is a clear button and 
 
 ## Open Questions
 
-- Does the mail show the icon of SwissArmyKnife, embedded as an inline attachment (`cid:`), or no image at all?
+- Does the mail show the icon of Swiss Army Knife, embedded as an inline attachment (`cid:`), or no image at all?
 - Does the HTML follow the colors of `sak-theme`, and does it support the dark mode of mail clients?
 - Is the mail in the language of the user, and where does the backend get that language from?

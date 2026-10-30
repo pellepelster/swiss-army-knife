@@ -42,7 +42,7 @@ const EXIT_CODES: &str = "Exit codes:
      data or address. Nothing was changed.
   7  update --check: a newer release of sakctl exists.";
 
-/// SwissArmyKnife: list, create, deploy and destroy the deployments of a Hetzner Cloud project,
+/// Swiss Army Knife: list, create, deploy and destroy the deployments of a Hetzner Cloud project,
 /// and show their running configuration. Without a command the window opens.
 #[derive(Parser, Debug)]
 #[command(

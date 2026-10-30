@@ -1,6 +1,6 @@
-# SwissArmyKnife
+# Swiss Army Knife
 
-SwissArmyKnife is a self-hosted, privacy first micro-cloud offering various productivity apps. It is for families and
+Swiss Army Knife is a self-hosted, privacy first micro-cloud offering various productivity apps. It is for families and
 small groups: a few people who know and trust each other.
 
 ## Feature Overview

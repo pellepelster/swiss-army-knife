@@ -46,7 +46,7 @@ shared:
       running: "Prüfe docker oder podman…"
       done: "Verwende %{text}"
       passed: "%{runtime} %{version}"
-      needed: "SwissArmyKnife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte SwissArmyKnife erneut."
+      needed: "Swiss Army Knife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte Swiss Army Knife erneut."
       not_working: "%{runtime} funktioniert nicht: %{error}"
       wrong_answer: "Das Image %{image} antwortete '%{answer}' statt '%{expected}'."
     image:
@@ -57,13 +57,13 @@ shared:
       not_pulled: "Das Image %{image} konnte nicht geladen werden, stelle sicher, dass %{runtime} ghcr.io erreichen kann: %{error}"
       not_run: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
       progress: "%{downloaded} MB von %{total} MB"
-      wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von SwissArmyKnife."
+      wrong_answer: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von Swiss Army Knife."
     provider_tokens:
       name: "Provider-Tokens prüfen"
       running: "Prüfe die Provider-Tokens…"
       done: "Alle Cloud-Provider-Tokens sind gültig"
       passed: "Die Tokens von %{variables} sind gültig"
-      invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte SwissArmyKnife erneut."
+      invalid: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere oder entferne %{variable} und starte Swiss Army Knife erneut."
   providers:
     empty_token: "Gib das Token ein."
     duplicate: "Dieses Token wurde bereits hinzugefügt."
@@ -149,9 +149,9 @@ shared:
     missing: "fehlt"
     has_changes: "hat Änderungen"
   plan:
-    intro: "Erstelle das SwissArmyKnife-Deployment"
-    intro_deploy: "Rolle das SwissArmyKnife-Deployment erneut aus:"
-    intro_destroy: "Zerstöre das SwissArmyKnife-Deployment"
+    intro: "Erstelle das Swiss-Army-Knife-Deployment"
+    intro_deploy: "Rolle das Swiss-Army-Knife-Deployment erneut aus:"
+    intro_destroy: "Zerstöre das Swiss-Army-Knife-Deployment"
     will_create: "wird erstellt"
     will_update: "wird aktualisiert"
     will_destroy: "wird zerstört"
@@ -192,7 +192,7 @@ ui:
     install: "Auf %{version} aktualisieren"
   providers:
     title: "Provider-Tokens"
-    empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen SwissArmyKnife Ressourcen erstellt."
+    empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."
     add: "Hinzufügen"
   select:
     title: "Wähle den Provider"
