@@ -19,14 +19,14 @@ test('redirects a domain from its own page and stops redirecting it', async ({ p
   await page.getByLabel('An external domain').check();
   await page.getByLabel('External domain', { exact: true }).fill('example.org');
   await page.getByRole('button', { name: 'Create redirect' }).click();
+  // a created redirect opens on its own page
+  await expect(page).toHaveURL('/redirects/redirected.example.com/configuration');
+  await expect(page.getByTestId('location')).toHaveText('https://example.org');
+
+  await page.getByRole('button', { name: 'Delete the redirect of redirected.example.com' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page).toHaveURL('/redirects');
-
-  const row = page.getByTestId('redirect-redirected.example.com');
-  await expect(row.getByTestId('location')).toHaveText('https://example.org');
-
-  await row.getByRole('button', { name: 'Delete the redirect of redirected.example.com' }).click();
-  await row.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(row).toBeHidden();
+  await expect(page.getByTestId('redirect-redirected.example.com')).toBeHidden();
 
   expect(errors).toEqual([]);
 });

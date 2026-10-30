@@ -5,6 +5,8 @@ ktor:
 sak:
   data_dir: $SAK_E2E_DATA_DIR
   root_domain: example.org
+  # the apps at sak.example.org and the mails "Sign in to example.org", as the specs expect
+  dns_mode: domain
   # nothing listens here, the controller keeps retrying to configure caddy in the background
   caddy_admin_url: http://localhost:12019
   auth:

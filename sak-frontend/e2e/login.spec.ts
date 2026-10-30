@@ -30,7 +30,7 @@ test('signs in with the e-mailed link and returns to the requested page', async 
   // the session outlives the page, the index page names the signed in address
   await page.goto('/');
   await page.reload();
-  await expect(page.getByTestId('email')).toHaveText(ADMIN);
+  await expect(page.getByTestId('username')).toHaveText(ADMIN);
 
   // the signin page with the token is not in the history anymore
   await page.goBack();
@@ -56,7 +56,7 @@ test('a link can only be used once', async ({ browser, page, request }) => {
   const link = await loginLinkFor(request, ADMIN);
 
   await page.goto(link);
-  await expect(page.getByTestId('email')).toHaveText(ADMIN);
+  await expect(page.getByTestId('username')).toHaveText(ADMIN);
 
   // e.g. someone who read the link along the way
   const other = await browser.newContext({ baseURL: APPS_URL });
