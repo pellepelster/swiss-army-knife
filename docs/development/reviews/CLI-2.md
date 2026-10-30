@@ -163,20 +163,6 @@ continues in an action); `change_protection` at `:124` and the server create wit
 423 retry of the api (`api/mod.rs:310-312`, 5 attempts ≈ 30 s). `server/provisioner.rs:410-422` `wait_for_volumes`
 checks `volume.server` only, never `status`.
 
-#### CP-10 (Low): Duplicates are handled differently per kind
-
-`deployment.rs:413-446`: a second server, key or firewall with the name label is dropped with a warning;
-`:448-457` every volume and ip is collected; `declared_by:835` takes `volumes.first()` as the data volume, so a
-second labelled volume listed first sets the declared size. Only the ssh key knows `Duplicate`
-(`ssh_key/provisioner.rs:90-109`); with the server present and its key renamed, the server diff fails with "ssh key
-not found" (`server/provisioner.rs:63-69`) instead of the duplicate message.
-
-#### CP-11 (Low): A firewall selector the parser does not know fails the whole plan
-
-`hetzner/firewall/runtime.rs:19-25` splits on `,` and `=`; a valid selector with `!=`, `in (…)` or a bare key makes
-`find` fail with "invalid label selector", and with it the diff, state and apply of the deployment. Several
-selectors merge into one map (`a=1` + `a=2` collapse).
-
 ### Structure
 
 #### CP-22: Pending carries whether the dependency's value changes
