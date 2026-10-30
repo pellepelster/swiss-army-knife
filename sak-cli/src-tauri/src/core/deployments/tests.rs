@@ -1090,7 +1090,6 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
         run,
         runtime: ContainerRuntime::default(),
         force,
-        server_changed: Default::default(),
         events: None,
     };
 

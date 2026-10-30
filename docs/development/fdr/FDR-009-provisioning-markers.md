@@ -58,8 +58,8 @@ nothing else does.
 **Decision:** sakctl declares the roles as a resource with a provisioner of its own and adds it to the registry of
 the cloud resources. The cloud library knows nothing of ansible, ssh or containers.
 **Why:** One plan, one apply in the order of the dependencies, the same rows and events for every resource.
-**Tradeoff:** The registry forgets the pending changes once it applies, so the run tells the provisioner when it
-changed the server.
+**Tradeoff:** The plan sees a changed server or volume as pending, the apply as applied with a change in this run;
+the registry tells the provisioner both, so plan and apply run the playbook alike.
 
 ## Related
 

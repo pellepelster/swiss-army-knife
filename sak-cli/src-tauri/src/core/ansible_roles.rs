@@ -22,8 +22,6 @@ use sak_cloud::api::{
 use sak_cloud::hetzner::dns_record::first_address;
 use sak_cloud::hetzner::server::{HetznerServerLookup, HetznerServerRuntime};
 use sak_cloud::hetzner::volume::{HetznerVolumeLookup, HetznerVolumeRuntime};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// the roles of the playbook on the server of a deployment, named like the server
@@ -89,15 +87,12 @@ pub fn is_provisioning(reference: &ResourceRef) -> bool {
 
 /// the provisioner of one run: what the playbook gets but the addresses and the device (the
 /// lookups of the server and the volume tell them), the container runtime, whether the deploy is
-/// forced, whether the server changed in this run and where the events of the playbook go. A
-/// failed playbook is an `Error::Provisioning` with its task
+/// forced and where the events of the playbook go. A failed playbook is an
+/// `Error::Provisioning` with its task
 pub struct AnsibleRolesProvisioner {
     pub run: ProvisionRun,
     pub runtime: ContainerRuntime,
     pub force: bool,
-    /// set by the run when it created or changed the server; the registry forgets what is pending
-    /// once it applies
-    pub server_changed: Arc<AtomicBool>,
     pub events: Option<UnboundedSender<DeploymentEvent>>,
 }
 
@@ -192,9 +187,16 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
             changes,
             ..ResourceDiff::new(resource, DiffStatus::HasChanges)
         };
-        let server_changes = context.has_pending_change(&resource.server.resource_ref())
-            || context.has_pending_change(&resource.volume.resource_ref())
-            || self.server_changed.load(Ordering::SeqCst);
+        // a server or volume that changes in the plan, or changed in the apply of this run, runs
+        // the roles again, whatever the markers say
+        let server_changes = [
+            resource.server.resource_ref(),
+            resource.volume.resource_ref(),
+        ]
+        .iter()
+        .any(|dependency| {
+            context.has_pending_change(dependency) || context.applied_with_change(dependency)
+        });
         if server_changes {
             return Ok(changed(vec![DiffItem::changed_unknown("server")]));
         }
@@ -278,6 +280,7 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
 mod tests {
     use super::*;
     use sak_cloud::api::context::LookupProviders;
+    use std::sync::Arc;
 
     /// a provider that finds nothing of `L`
     struct Nothing;
@@ -302,7 +305,6 @@ mod tests {
             run: crate::core::provision::tests::run(),
             runtime: ContainerRuntime::default(),
             force,
-            server_changed: Default::default(),
             events: None,
         }
     }
@@ -313,10 +315,12 @@ mod tests {
             .with::<HetznerVolumeLookup, _>(Arc::new(Nothing))
     }
 
-    /// the context of a diff with one resource pending, as the registry marks it while it diffs
+    /// the context of a diff with one resource pending, as the registry marks it while it diffs,
+    /// or applied with a change, as it marks it while it applies
     struct Pending {
         context: LookupProviders,
-        pending: ResourceRef,
+        pending: Option<ResourceRef>,
+        applied: Option<ResourceRef>,
     }
 
     #[async_trait]
@@ -331,28 +335,29 @@ mod tests {
 
     impl DiffContext for Pending {
         fn has_pending_change(&self, resource: &ResourceRef) -> bool {
-            *resource == self.pending
+            self.pending.as_ref() == Some(resource)
+        }
+
+        fn applied_with_change(&self, resource: &ResourceRef) -> bool {
+            self.applied.as_ref() == Some(resource)
         }
     }
 
     #[tokio::test]
-    async fn a_server_that_changes_runs_the_roles_without_asking_it() {
-        let context = Pending {
-            context: context(),
-            pending: roles().server.resource_ref(),
-        };
-        let diff = provisioner(false).diff(&roles(), &context).await.unwrap();
-        assert_eq!(diff.status, DiffStatus::HasChanges);
-        assert_eq!(diff.changes[0].log_text(), "server changed");
-
-        // the registry forgets what is pending once it applies, the run tells it
-        let changed = provisioner(false);
-        changed.server_changed.store(true, Ordering::SeqCst);
-        let diff = changed
-            .diff(&roles(), &super::tests::context())
-            .await
-            .unwrap();
-        assert_eq!(diff.status, DiffStatus::HasChanges);
+    async fn a_server_or_volume_that_changes_runs_the_roles_without_asking_it() {
+        // the plan sees it pending, the apply sees it applied with a change: both run the roles
+        for dependency in [roles().server.resource_ref(), roles().volume.resource_ref()] {
+            for applied in [false, true] {
+                let context = Pending {
+                    context: context(),
+                    pending: (!applied).then(|| dependency.clone()),
+                    applied: applied.then(|| dependency.clone()),
+                };
+                let diff = provisioner(false).diff(&roles(), &context).await.unwrap();
+                assert_eq!(diff.status, DiffStatus::HasChanges);
+                assert_eq!(diff.changes[0].log_text(), "server changed");
+            }
+        }
     }
 
     #[tokio::test]

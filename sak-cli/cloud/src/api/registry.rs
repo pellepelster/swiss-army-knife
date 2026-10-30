@@ -442,6 +442,8 @@ impl Registry {
             };
             if applied != Applied::Unchanged {
                 changed.insert(reference.clone());
+                // what depends on it and is diffed again sees it
+                self.context.mark_applied(reference.clone());
             }
             let result = ApplyResult {
                 resource: reference,
@@ -693,10 +695,21 @@ mod tests {
                 .filter(|dependency| context.has_pending_change(&dependency.resource_ref()))
                 .map(|dependency| dependency.0.clone())
                 .collect();
-            self.log
-                .lock()
-                .unwrap()
-                .push(format!("diff {} pending {pending:?}", resource.name));
+            let applied: Vec<String> = resource
+                .depends_on
+                .iter()
+                .filter(|dependency| context.applied_with_change(&dependency.resource_ref()))
+                .map(|dependency| dependency.0.clone())
+                .collect();
+            let applied = if applied.is_empty() {
+                String::new()
+            } else {
+                format!(" applied {applied:?}")
+            };
+            self.log.lock().unwrap().push(format!(
+                "diff {} pending {pending:?}{applied}",
+                resource.name
+            ));
             let Some(runtime) = self.lookup(&resource.as_lookup(), context).await? else {
                 if self.duplicated.lock().unwrap().contains(&resource.name) {
                     return Ok(ResourceDiff::duplicate(
@@ -777,7 +790,7 @@ mod tests {
                 .all(|result| result.applied == Applied::Created)
         );
         // the plan first (the server not diffed, its parents are missing), then the apply; only
-        // the server is diffed again, once its parents are there
+        // the server is diffed again, once its parents are there, and sees them applied
         assert_eq!(
             log(&cloud),
             vec![
@@ -785,7 +798,7 @@ mod tests {
                 "diff volume pending []",
                 "apply key",
                 "apply volume",
-                "diff server pending []",
+                "diff server pending [] applied [\"key\", \"volume\"]",
                 "apply server"
             ]
         );
@@ -973,7 +986,7 @@ mod tests {
         log(&cloud);
 
         // another registry declared alike applies it: only the server, whose key is created, is
-        // diffed again
+        // diffed again and sees the key applied with a change
         let results = declare()
             .apply_planned_with(plan, &mut |_| {})
             .await
@@ -992,7 +1005,11 @@ mod tests {
         );
         assert_eq!(
             log(&cloud),
-            vec!["apply key", "diff server pending []", "apply server"]
+            vec![
+                "apply key",
+                "diff server pending [] applied [\"key\"]",
+                "apply server"
+            ]
         );
 
         // a plan of other resources is refused before anything is applied

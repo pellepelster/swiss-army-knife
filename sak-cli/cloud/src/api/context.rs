@@ -45,9 +45,16 @@ impl<C: LookupContext + ?Sized> LookupContextExt for C {
 }
 
 /// the context of a diff: the lookups, and which resources diffed before this one are not up
-/// to date. A dependent resource then reports their values as known after the apply
+/// to date. A dependent resource then reports their values as known after the apply. While the
+/// registry applies, nothing is pending; it tells which resources it applied with a change
 pub trait DiffContext: LookupContext {
     fn has_pending_change(&self, resource: &ResourceRef) -> bool;
+
+    /// whether the apply of this run created, updated or recreated `resource`; never outside an
+    /// apply
+    fn applied_with_change(&self, _resource: &ResourceRef) -> bool {
+        false
+    }
 }
 
 pub trait ApplyContext: LookupContext {}
@@ -89,11 +96,13 @@ impl<L: Lookup, P: LookupProvider<L> + 'static> ErasedLookupProvider for Erased<
 }
 
 /// the lookup providers of a run, one per lookup type. It is the context of the provisioners.
-/// While the registry diffs, it marks on it the resources that are not up to date
+/// While the registry diffs, it marks on it the resources that are not up to date, while it
+/// applies those it applied with a change
 #[derive(Default)]
 pub struct LookupProviders {
     providers: HashMap<TypeId, Box<dyn ErasedLookupProvider>>,
     pending: HashSet<ResourceRef>,
+    applied: HashSet<ResourceRef>,
 }
 
 impl LookupProviders {
@@ -122,8 +131,15 @@ impl LookupProviders {
         self.pending.insert(resource);
     }
 
+    /// forgets what is pending and what was applied, before a plan or an apply
     pub(crate) fn clear_pending(&mut self) {
         self.pending.clear();
+        self.applied.clear();
+    }
+
+    /// only the registry marks what it applied with a change, as it applies
+    pub(crate) fn mark_applied(&mut self, resource: ResourceRef) {
+        self.applied.insert(resource);
     }
 }
 
@@ -144,6 +160,10 @@ impl LookupContext for LookupProviders {
 impl DiffContext for LookupProviders {
     fn has_pending_change(&self, resource: &ResourceRef) -> bool {
         self.pending.contains(resource)
+    }
+
+    fn applied_with_change(&self, resource: &ResourceRef) -> bool {
+        self.applied.contains(resource)
     }
 }
 
@@ -252,5 +272,12 @@ mod tests {
         assert!(!context.has_pending_change(&KeyLookup("b".into()).resource_ref()));
         context.clear_pending();
         assert!(!context.has_pending_change(&key));
+
+        assert!(!context.applied_with_change(&key));
+        context.mark_applied(key.clone());
+        assert!(context.applied_with_change(&key));
+        assert!(!context.has_pending_change(&key));
+        context.clear_pending();
+        assert!(!context.applied_with_change(&key));
     }
 }

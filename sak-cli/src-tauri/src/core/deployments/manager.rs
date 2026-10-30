@@ -615,7 +615,6 @@ impl DeploymentManager {
             run,
             runtime: container.clone(),
             force,
-            server_changed: Default::default(),
             events: None,
         })?;
         // a destroy creates nothing: what a create or deploy must not do does not stop its plan
@@ -837,33 +836,22 @@ impl DeploymentManager {
     ) -> Result<bool, SakctlError> {
         // the channel closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
-        let server_changed = Arc::new(AtomicBool::new(false));
         let mut registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
             run,
             runtime: container.clone(),
             force,
-            server_changed: server_changed.clone(),
             events: Some(sender.clone()),
         })?;
-        let server_name = prepared.spec.resource_name();
         let provisioned = Arc::new(AtomicBool::new(false));
         let apply = {
             let provisioned = provisioned.clone();
             async move {
-                // a server created, created anew or changed runs the roles again, whatever its
-                // markers say
                 let mut report = |event: ApplyEvent| {
                     let event = match event {
                         ApplyEvent::Started(resource) => DeploymentEvent::Started {
                             resource: resource.log_text,
                         },
                         ApplyEvent::Applied(result) => {
-                            if ResourceKind::of(&result.resource) == Some(ResourceKind::Server)
-                                && result.resource.name == server_name
-                                && result.applied != Applied::Unchanged
-                            {
-                                server_changed.store(true, Ordering::SeqCst);
-                            }
                             if is_provisioning(&result.resource)
                                 && result.applied != Applied::Unchanged
                             {
