@@ -7,19 +7,12 @@
 //! the secret half of the key never on the server
 
 use crate::core::keys::BackupKey;
-use crate::core::ssh::{SshTarget, Stream, run_streaming};
+use crate::core::sak_backend::{self, Command};
+use crate::core::ssh::{SshTarget, Stream};
 use rust_i18n::t;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-
-/// the scripts of the role backend on the server
-/// the script of the role backend on the server; `backup` and `restore` are two of its commands
-pub const SCRIPT: &str = "sak-backend";
-
-/// what the shell answers for a command that is not there: a server provisioned before the
-/// backup existed
-const NOT_FOUND: i32 = 127;
 
 /// what a backup ends with: its file and its size in bytes
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,9 +144,16 @@ impl BackupManager {
         let partial = partial(&path);
         let result = (|| {
             let mut file = std::io::BufWriter::new(create_private_file(&partial)?);
-            let command = [SCRIPT.to_string(), "backup".to_string(), key.recipient()];
-            let code = run_streaming(runtime, target, &command, Stream::Out(&mut file), on_line)?;
-            ended(code, SCRIPT)?;
+            let recipient = key.recipient();
+            sak_backend::run(
+                runtime,
+                target,
+                Command::Backup {
+                    recipient: &recipient,
+                },
+                Stream::Out(&mut file),
+                on_line,
+            )?;
             file.into_inner()
                 .map_err(|error| error.to_string())?
                 .sync_all()
@@ -194,18 +194,13 @@ impl BackupManager {
     ) -> Result<(), String> {
         check(path, key)?;
         let mut plain = decrypted(path, key)?;
-        let command = [SCRIPT.to_string(), "restore".to_string()];
-        let code = run_streaming(runtime, target, &command, Stream::In(&mut plain), on_line)?;
-        ended(code, SCRIPT)
-    }
-}
-
-/// the exit code of a script on the server as the result
-pub(crate) fn ended(code: i32, script: &str) -> Result<(), String> {
-    match code {
-        0 => Ok(()),
-        NOT_FOUND => Err(t!("shared.backup.no_script", script = script).to_string()),
-        code => Err(t!("shared.backup.failed", script = script, code = code).to_string()),
+        sak_backend::run(
+            runtime,
+            target,
+            Command::Restore,
+            Stream::In(&mut plain),
+            on_line,
+        )
     }
 }
 
@@ -302,15 +297,5 @@ mod tests {
             assert_eq!(mode(&path), 0o600);
         }
         std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn a_script_that_is_not_on_the_server_says_to_deploy_first() {
-        assert!(ended(0, SCRIPT).is_ok());
-        assert_eq!(
-            ended(NOT_FOUND, SCRIPT).unwrap_err(),
-            t!("shared.backup.no_script", script = SCRIPT).to_string()
-        );
-        assert!(ended(1, SCRIPT).unwrap_err().contains(SCRIPT));
     }
 }

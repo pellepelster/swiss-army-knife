@@ -48,8 +48,8 @@ names its ID.
    server type does the same.
 3. ~~**CD-1 / UI-6**~~ / **UI-5** a multi-user redeploy while the backend is down fails with "invalid smtp host"
    and command-line instructions in the window.
-4. ~~**CU-1** a backup or restore hangs forever on a dropped connection~~; **CU-3 / CU-4** ssh's and the lock's exit
-   codes are blamed on `sak-backend`.
+4. ~~**CU-1** a backup or restore hangs forever on a dropped connection; **CU-3 / CU-4** ssh's and the lock's
+   exit codes are blamed on `sak-backend`~~.
 5. **UI-2** a destroy runs after Cancel; ~~**UI-3** "delete the data volume" stays ticked~~.
 6. **CD-2** a destroy plan is refused for a volume it would never recreate.
 7. **UI-4** a deployment without a location cannot be checked in the window.
@@ -250,7 +250,7 @@ run directories (`provision.rs:444-455`). The window cannot start a deploy and a
 `SessionContainer`, which needs a handle from `run_streaming`. The same `stop_runs` from an async context runs
 `docker rm --force` synchronously on a tokio worker (`provision.rs:472-478`).
 
-#### CU-3 (Medium, confirmed): ssh's own failure is reported as the script's exit code
+#### ~~CU-3 (Medium, confirmed): ssh's own failure is reported as the script's exit code~~ **fixed**
 
 ssh exits 255 on a host-key mismatch, a refused key, a reset. `backup::ended` (`backup.rs:204-209`) and
 `maintenance::answer` (`maintenance.rs:290-294`) turn that into "sak-backend on the server ended with exit code 255";
@@ -258,7 +258,7 @@ the cause went by as a stderr line. **Scenario:** the server was recreated by so
 verification failed." scrolls past, the error blames sak-backend. **Fix:** map 255 to an ssh error that carries the
 last stderr line.
 
-#### CU-4 (Medium, confirmed): The busy exit code is handled for the maintenance only
+#### ~~CU-4 (Medium, confirmed): The busy exit code is handled for the maintenance only~~ **fixed**
 
 The script's `lock()` (`ansible/roles/backend/templates/sak-backend.j2:35-41`) guards backup, restore, update and
 reboot and exits 2 for all of them. `maintenance.rs:15, 287` maps it to `shared.maintenance.busy`; `backup.rs:204-209`
@@ -311,7 +311,7 @@ comments.
 
 ### Smells
 
-#### CU-12 (Medium): `backup.rs` and `maintenance.rs` are one driver in two files
+#### ~~CU-12 (Medium): `backup.rs` and `maintenance.rs` are one driver in two files~~ **fixed**
 
 `SCRIPT` and `ended()` live in `backup.rs` (`:18, :204`), `BUSY` in `maintenance.rs` (`:15`); maintenance imports
 both from backup (`maintenance.rs:6, 294`) and reuses `shared.backup.no_script`/`shared.backup.failed` for
@@ -362,7 +362,7 @@ progress disappeared.
 
 ### Structure
 
-#### CU-20: One `core::sak_backend` module
+#### ~~CU-20: One `core::sak_backend` module~~ **fixed**
 
 `enum Command { Backup { recipient }, Restore, RebootPending, Update, Reboot { if_pending } }` with `fn argv(&self)`,
 one `run(runtime, target, command, stream, on_line) -> Result<Outcome, Failure>` where `Failure` is typed

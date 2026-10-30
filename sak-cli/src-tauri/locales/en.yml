@@ -36,8 +36,6 @@ shared:
     not_written: "%{path} could not be written: %{error}"
     not_read: "%{path} could not be read: %{error}"
     not_decrypted: "%{path} does not decrypt with the password of the deployment, or is damaged or not complete: %{error}"
-    no_script: "The server has no %{script}: deploy the deployment first."
-    failed: "%{script} on the server ended with exit code %{code}."
   checks:
     not_finished: "A check did not finish: %{error}"
     splash_not_updated: "The splash screen could not be updated: %{error}"
@@ -170,6 +168,13 @@ shared:
     created: "created"
     updated: "updated"
     destroyed: "destroyed"
+  sak_backend:
+    no_script: "The server has no %{script}: deploy the deployment first."
+    ended: "%{script} on the server ended with exit code %{code}."
+    busy: "Another backup, restore, update or reboot runs on the server, try again when it is done."
+    failed: "The server failed: %{error}"
+    unreadable: "The server answered something that is not readable: %{error}"
+    ssh_failed: "ssh to the server failed: %{error}"
   maintenance:
     timeout: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."
     connecting: "Asking the server of %{name} at root@%{host}…"
@@ -185,9 +190,6 @@ shared:
     rebooting: "The deployment %{name} is stopped, its server reboots at %{at}."
     reboot_not_pending: "No reboot of %{name} is pending, nothing was changed."
     back: "The deployment %{name} answers again."
-    busy: "Another backup, restore, update or reboot runs on the server, try again when it is done."
-    failed: "The server failed: %{error}"
-    unreadable: "The server answered something that is not readable: %{error}"
   update:
     checking: "Asking %{receiver} for the newest release of sakctl…"
     no_release: "This sakctl (%{version}) is no release, there is no version to compare it with."

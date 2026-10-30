@@ -17,6 +17,7 @@ pub mod maintenance;
 pub mod providers;
 pub mod provision;
 pub mod roles;
+pub mod sak_backend;
 pub mod ssh;
 pub mod update;
 
@@ -65,6 +66,7 @@ mod tests {
             ("error.rs", include_str!("error.rs")),
             ("provision.rs", include_str!("provision.rs")),
             ("roles.rs", include_str!("roles.rs")),
+            ("sak_backend.rs", include_str!("sak_backend.rs")),
             ("i18n.rs", include_str!("i18n.rs")),
             ("keys.rs", include_str!("keys.rs")),
             ("maintenance.rs", include_str!("maintenance.rs")),

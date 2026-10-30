@@ -3,17 +3,14 @@
 //! on its standard output; each line it writes to standard error goes to the caller while it runs.
 //! The answers as lines are the same on the command line and in the window
 
-use crate::core::backup::SCRIPT;
 use crate::core::deployments::DeploymentManager;
 use crate::core::error::WizardError;
 use crate::core::providers::ProviderType;
-use crate::core::ssh::{SshTarget, Stream, run_streaming};
+use crate::core::sak_backend;
+use crate::core::ssh::SshTarget;
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-
-/// the exit code of `sak-backend` when another backup, restore, update or reboot holds its lock
-const BUSY: i32 = 2;
 
 /// how long each command may take on the server. `sak-backend` waits up to 10 minutes for an apt
 /// or dpkg that runs (`backend_apt_wait`) before an update or a reboot starts
@@ -77,7 +74,12 @@ fn status(
     target: &SshTarget,
     on_line: &mut (dyn FnMut(String) + Send),
 ) -> Result<RebootStatus, String> {
-    run(runtime, target, &["reboot-pending"], on_line)
+    sak_backend::run_json(
+        runtime,
+        target,
+        sak_backend::Command::RebootPending,
+        on_line,
+    )
 }
 
 /// upgrades all packages of the server, none is removed
@@ -86,7 +88,7 @@ fn update(
     target: &SshTarget,
     on_line: &mut (dyn FnMut(String) + Send),
 ) -> Result<UpdateResult, String> {
-    run(runtime, target, &["update"], on_line)
+    sak_backend::run_json(runtime, target, sak_backend::Command::Update, on_line)
 }
 
 /// stops the deployment in order and reboots the server; with `if_pending` only when a reboot
@@ -97,11 +99,12 @@ fn reboot(
     if_pending: bool,
     on_line: &mut (dyn FnMut(String) + Send),
 ) -> Result<RebootResult, String> {
-    let mut command = vec!["reboot"];
-    if if_pending {
-        command.push("--if-pending");
-    }
-    run(runtime, target, &command, on_line)
+    sak_backend::run_json(
+        runtime,
+        target,
+        sak_backend::Command::Reboot { if_pending },
+        on_line,
+    )
 }
 
 /// `command`, one of the commands above, until it ends or `limit` passes: then its ssh session is
@@ -375,49 +378,13 @@ async fn wait_after_reboot(
     Ok(())
 }
 
-fn run<T: for<'de> Deserialize<'de>>(
-    runtime: &str,
-    target: &SshTarget,
-    command: &[&str],
-    on_line: &mut (dyn FnMut(String) + Send),
-) -> Result<T, String> {
-    let command: Vec<String> = std::iter::once(SCRIPT)
-        .chain(command.iter().copied())
-        .map(String::from)
-        .collect();
-    let mut out = Vec::new();
-    let code = run_streaming(runtime, target, &command, Stream::Out(&mut out), on_line)?;
-    answer(code, &out)
-}
-
-/// the answer of the script: its json, or the error it answered, or what its exit code says
-fn answer<T: for<'de> Deserialize<'de>>(code: i32, out: &[u8]) -> Result<T, String> {
-    #[derive(Deserialize)]
-    struct Failure {
-        error: String,
-    }
-    if code == BUSY {
-        return Err(t!("shared.maintenance.busy").to_string());
-    }
-    if code != 0 {
-        if let Ok(failure) = serde_json::from_slice::<Failure>(out) {
-            return Err(t!("shared.maintenance.failed", error = failure.error).to_string());
-        }
-        crate::core::backup::ended(code, SCRIPT)?;
-    }
-    serde_json::from_slice(out)
-        .map_err(|error| t!("shared.maintenance.unreadable", error = error.to_string()).to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn the_answers_of_the_script_are_read() {
-        let status: RebootStatus = answer(
-            0,
-            br#"{"reboot_pending": true, "reasons": ["kernel"],
+        let status: RebootStatus = serde_json::from_slice(br#"{"reboot_pending": true, "reasons": ["kernel"],
                  "kernel": {"running": "6.12.38+deb13-amd64", "installed": "6.12.41+deb13-amd64"},
                  "services": ["dbus.service"],
                  "updates_since_boot": [{"package": "openssl", "from": "3.5.1-1", "to": "3.5.4-1", "time": "2026-10-30T03:12:44Z"}],
@@ -430,31 +397,15 @@ mod tests {
             Some("3.5.1-1")
         );
 
-        let update: UpdateResult = answer(
-            0,
-            br#"{"upgraded": [], "installed": [{"package": "linux-image-6.12.41", "to": "6.12.41-1"}],
+        let update: UpdateResult = serde_json::from_slice(br#"{"upgraded": [], "installed": [{"package": "linux-image-6.12.41", "to": "6.12.41-1"}],
                  "reboot_pending": true, "reasons": ["kernel"]}"#,
         )
         .unwrap();
         assert_eq!(update.installed[0].from, None);
 
-        let reboot: RebootResult = answer(0, br#"{"rebooting": false, "reasons": []}"#).unwrap();
+        let reboot: RebootResult =
+            serde_json::from_slice(br#"{"rebooting": false, "reasons": []}"#).unwrap();
         assert!(!reboot.rebooting);
-    }
-
-    #[test]
-    fn a_busy_server_a_failure_and_a_missing_script_say_so() {
-        let busy = answer::<RebootResult>(BUSY, b"").unwrap_err();
-        assert_eq!(busy, t!("shared.maintenance.busy").to_string());
-        let failed =
-            answer::<UpdateResult>(1, br#"{"error": "apt-get update failed"}"#).unwrap_err();
-        assert!(failed.contains("apt-get update failed"), "{failed}");
-        let missing = answer::<RebootStatus>(127, b"").unwrap_err();
-        assert_eq!(
-            missing,
-            t!("shared.backup.no_script", script = SCRIPT).to_string()
-        );
-        assert!(answer::<RebootStatus>(0, b"not json").is_err());
     }
 
     #[test]

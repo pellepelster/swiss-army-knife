@@ -36,8 +36,6 @@ shared:
     not_written: "%{path} konnte nicht geschrieben werden: %{error}"
     not_read: "%{path} konnte nicht gelesen werden: %{error}"
     not_decrypted: "%{path} lässt sich mit dem Passwort des Deployments nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
-    no_script: "Der Server hat kein %{script}: deploye das Deployment zuerst."
-    failed: "%{script} auf dem Server endete mit Exit-Code %{code}."
   checks:
     not_finished: "Eine Prüfung wurde nicht beendet: %{error}"
     splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
@@ -170,6 +168,13 @@ shared:
     created: "erstellt"
     updated: "aktualisiert"
     destroyed: "zerstört"
+  sak_backend:
+    no_script: "Der Server hat kein %{script}: deploye das Deployment zuerst."
+    ended: "%{script} auf dem Server endete mit Exit-Code %{code}."
+    busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
+    failed: "Der Server ist fehlgeschlagen: %{error}"
+    unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
+    ssh_failed: "ssh zum Server ist fehlgeschlagen: %{error}"
   maintenance:
     timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     connecting: "Frage den Server von %{name} unter root@%{host}…"
@@ -185,9 +190,6 @@ shared:
     rebooting: "Das Deployment %{name} ist gestoppt, sein Server startet um %{at} neu."
     reboot_not_pending: "Kein Neustart von %{name} steht an, nichts wurde geändert."
     back: "Das Deployment %{name} antwortet wieder."
-    busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
-    failed: "Der Server ist fehlgeschlagen: %{error}"
-    unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
   update:
     checking: "Frage %{receiver} nach dem neuesten Release von sakctl…"
     no_release: "Dieses sakctl (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
