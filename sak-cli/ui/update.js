@@ -1,64 +1,78 @@
-// the footer of the window: the version of sakctl and its update. Only a click asks github, the
-// button names it first; a newer release shows a second button that installs it, a successful
-// install a third that restarts sakctl with the new version
+// the footer of the window: the version of sakctl, one button and one line that says what happens.
+// The button goes through the steps of an update: check, update to the newer version, restart.
+// Only a click asks github, the line names it first; while a step runs the button is disabled
 import { text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
 const status = document.getElementById('update-status');
-const checkButton = document.getElementById('update-check');
-const installButton = document.getElementById('update-install');
-const restartButton = document.getElementById('update-restart');
+const button = document.getElementById('update-button');
 let receiver = '';
+// the step the button does next: check, install or restart
+let step = 'check';
 let newest = null;
 
-function say(message, failed = false) {
-  status.textContent = message;
-  status.classList.toggle('status-failed', failed);
-}
-
 // rust gives the texts as they are, the footer fills in their values
-function fill(key, values) {
+function fill(key, values = {}) {
   return Object.entries(values).reduce((filled, [name, value]) => filled.replaceAll(`%{${name}}`, value), text(key));
 }
 
-async function run(action, working) {
-  checkButton.disabled = true;
-  installButton.disabled = true;
-  say(working);
+// the one line: the button of the next step and the text of what happens or happened
+function show(next, message, { busy = false, failed = false } = {}) {
+  step = next;
+  button.textContent = {
+    check: fill('ui.update.check'),
+    install: fill('ui.update.install', { version: newest }),
+    restart: fill('ui.update.restart'),
+  }[next];
+  button.classList.toggle('btn-primary', next === 'restart');
+  button.classList.toggle('btn-outline-secondary', next !== 'restart');
+  button.disabled = busy;
+  status.textContent = message;
+  status.title = message;
+  status.classList.toggle('status-failed', failed);
+}
+
+async function check() {
+  show('check', fill('shared.update.checking', { receiver }), { busy: true });
   try {
-    const answer = await invoke(action);
-    say(answer.message);
+    const answer = await invoke('check_update');
     newest = answer.newest;
-    // stays once sakctl is replaced, until the restart
-    if (answer.installed) {
-      restartButton.hidden = false;
-    }
+    show(newest ? 'install' : 'check', answer.message);
   } catch (error) {
-    say(String(error), true);
-  }
-  checkButton.disabled = false;
-  installButton.disabled = false;
-  installButton.hidden = !newest;
-  if (newest) {
-    installButton.textContent = fill('ui.update.install', { version: newest });
+    show('check', String(error), { failed: true });
   }
 }
 
-checkButton.addEventListener('click', () => run('check_update', fill('shared.update.checking', { receiver })));
-installButton.addEventListener('click', () => run('install_update', fill('shared.update.installing', { version: newest, receiver })));
+async function install() {
+  show('install', fill('shared.update.installing', { version: newest, receiver }), { busy: true });
+  try {
+    const answer = await invoke('install_update');
+    if (answer.installed) {
+      show('restart', fill('ui.update.restart_hint', { version: answer.newest }));
+    } else {
+      newest = null;
+      show('check', answer.message);
+    }
+  } catch (error) {
+    show('install', String(error), { failed: true });
+  }
+}
+
 // gone on success, the new sakctl starts; refused while a deployment is changed
-restartButton.addEventListener('click', async () => {
+async function restart() {
   try {
     await invoke('restart');
   } catch (error) {
-    say(String(error), true);
+    show('restart', String(error), { failed: true });
   }
-});
+}
+
+button.addEventListener('click', () => ({ check, install, restart })[step]());
 
 export async function showVersion() {
   const answer = await invoke('version');
   receiver = answer.receiver;
   document.getElementById('update-version').textContent = fill('ui.update.version', { version: answer.version });
-  checkButton.textContent = fill('ui.update.check', { receiver });
+  show('check', fill('ui.update.idle', { receiver }));
 }

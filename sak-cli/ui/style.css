@@ -20,22 +20,28 @@ body {
   min-height: 0;
 }
 
-/* the version of sakctl and its update below every view, small and quiet */
+/* the version of sakctl and its update below every view, small and quiet, always one line: a
+   text longer than the line ends with an ellipsis, its title has all of it */
 .app-footer {
   flex: none;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--sak-space-3);
+  white-space: nowrap;
   padding: var(--sak-space-2) var(--sak-space-5);
   border-top: 1px solid var(--sak-line);
   color: var(--sak-muted);
   font-size: var(--sak-text-sm);
 }
 
-.app-footer .btn-link {
-  padding: 0;
-  font-size: inherit;
+.app-footer .btn {
+  flex: none;
+}
+
+.update-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 [hidden] {

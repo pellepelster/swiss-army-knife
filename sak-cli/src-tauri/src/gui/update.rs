@@ -50,10 +50,14 @@ pub async fn check_update() -> Result<UpdateResponse, String> {
 #[tauri::command]
 pub async fn install_update() -> Result<UpdateResponse, String> {
     let status = update::install().await?;
+    let newest = match &status {
+        Status::Newer { newest, .. } => Some(newest.clone()),
+        _ => None,
+    };
     Ok(UpdateResponse {
         message: status.installed_message(),
-        newest: None,
-        installed: matches!(status, Status::Newer { .. }),
+        installed: newest.is_some(),
+        newest,
     })
 }
 

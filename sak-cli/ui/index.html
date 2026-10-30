@@ -329,13 +329,12 @@
         </div>
       </form>
     </dialog>
-    <!-- below every view: the version of sakctl and its update, github is asked on a click only -->
+    <!-- below every view, one line: the version of sakctl, the button of the next step of its
+         update and what happens (update.js); github is asked on a click only -->
     <footer class="app-footer">
       <span id="update-version"></span>
-      <button type="button" class="btn btn-link btn-sm" id="update-check"></button>
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="update-install" hidden></button>
-      <button type="button" class="btn btn-primary btn-sm" id="update-restart" data-text="ui.update.restart" hidden></button>
-      <span class="hint" id="update-status" aria-live="polite"></span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="update-button"></button>
+      <span class="hint update-status" id="update-status" aria-live="polite"></span>
     </footer>
   </body>
 </html>

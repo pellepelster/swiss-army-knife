@@ -188,9 +188,11 @@ ui:
   quit: "Quit"
   update:
     version: "sakctl %{version}"
-    check: "Check for updates on %{receiver}"
+    check: "Check for updates"
+    idle: "Asks %{receiver} for the newest release of sakctl."
     install: "Update to %{version}"
     restart: "Restart"
+    restart_hint: "Restart to use sakctl %{version}."
     restart_while_running: "A deployment is being changed, restart when it is done."
   providers:
     title: "Provider tokens"

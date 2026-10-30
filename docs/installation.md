@@ -69,10 +69,11 @@ Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## Update
 
-sakctl does not look for updates on its own. To update it, click **Check for updates on github.com** in the footer
-of the window, then **Update to** the new version. On the command line, `sakctl update` does the same, and
-`sakctl update --check` only shows if a new version is available. sakctl asks GitHub for the newest release, checks
-the SHA-256 checksum of the download and replaces itself. Start sakctl again to use the new version.
+sakctl does not look for updates on its own. To update it, use the button in the footer of the window: **Check for
+updates**, then **Update to** the new version, then **Restart**. The line next to the button says what happens. On
+the command line, `sakctl update` does the same, and `sakctl update --check` only shows if a new version is
+available; start sakctl again to use the new version. sakctl asks GitHub for the newest release, checks the SHA-256
+checksum of the download and replaces itself.
 
 A deploy with the new version also updates the server of the deployment to it.
 
