@@ -105,7 +105,8 @@ pub async fn state(
     deployment: &DiscoveredDeployment,
 ) -> DeploymentState {
     match compare(provider, deployment).await {
-        Ok(resources) => {
+        Ok(mut resources) => {
+            resources.extend(left_out(deployment));
             let status = if resources.iter().any(|resource| {
                 matches!(
                     resource.status,
@@ -126,7 +127,10 @@ pub async fn state(
         Err(error) => deployment_state(
             deployment,
             DeploymentStatus::Unknown,
-            found(deployment),
+            found(deployment)
+                .into_iter()
+                .chain(left_out(deployment))
+                .collect(),
             Some(error.to_string()),
         ),
     }
@@ -158,6 +162,25 @@ async fn compare(
             })
         })
         .collect())
+}
+
+/// the resources a deployment has a second of, as duplicates: a deploy uses the first, the user
+/// removes the others
+fn left_out(deployment: &DiscoveredDeployment) -> Vec<ResourceState> {
+    deployment
+        .left_out
+        .iter()
+        .map(|left_out| ResourceState {
+            kind: left_out.kind,
+            name: left_out.name.clone(),
+            status: Some(DiffStatus::Duplicate),
+            changes: vec![format!(
+                "{} is a second one of the deployment, a deploy leaves it alone",
+                left_out.name
+            )],
+            detail: Some("duplicate".to_string()),
+        })
+        .collect()
 }
 
 /// the resources of a deployment as they were found, not compared

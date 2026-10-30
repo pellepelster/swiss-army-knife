@@ -14,7 +14,7 @@ mod state;
 #[cfg(test)]
 mod fixtures;
 
-pub use discover::{DiscoveredDeployment, discover};
+pub use discover::{DiscoveredDeployment, LeftOut, discover};
 pub use domain::{
     DnsMode, DomainUse, RootDomain, RootDomainConflict, base_domain, frontend_host, root_domains,
 };

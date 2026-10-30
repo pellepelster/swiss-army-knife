@@ -2,6 +2,7 @@
 
 use crate::api::{Labels, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location};
+use crate::hetzner::deployment::ResourceKind;
 use crate::hetzner::deployment::{DnsMode, frontend_host};
 use crate::hetzner::firewall::HetznerFirewallRuntime;
 use crate::hetzner::primary_ip::HetznerPrimaryIpRuntime;
@@ -12,7 +13,6 @@ use crate::hetzner::{
     ACME_CA_LABEL, DNS_MODE_LABEL, NAME_LABEL, ROOT_DOMAIN_LABEL, USER_MODE_LABEL, VERSION_LABEL,
 };
 use std::collections::BTreeMap;
-use tracing::warn;
 
 /// the resources of a deployment in the cloud: the resources with its name label
 #[derive(Clone, Debug, Default)]
@@ -23,6 +23,18 @@ pub struct DiscoveredDeployment {
     pub server: Option<HetznerServerRuntime>,
     pub volumes: Vec<HetznerVolumeRuntime>,
     pub primary_ips: Vec<HetznerPrimaryIpRuntime>,
+    /// a second server, ssh key or firewall with its name label: the deployment has one of each,
+    /// the first found; the others are kept here, so the list shows them and the password is
+    /// checked against their hashes too
+    pub left_out: Vec<LeftOut>,
+}
+
+/// a resource with the name label of a deployment that has one of its kind already
+#[derive(Clone, Debug)]
+pub struct LeftOut {
+    pub kind: ResourceKind,
+    pub name: String,
+    pub labels: Labels,
 }
 
 impl DiscoveredDeployment {
@@ -115,6 +127,7 @@ impl DiscoveredDeployment {
         labels.extend(self.firewall.iter().map(|firewall| &firewall.labels));
         labels.extend(self.primary_ips.iter().map(|ip| &ip.labels));
         labels.extend(self.volumes.iter().map(|volume| &volume.labels));
+        labels.extend(self.left_out.iter().map(|left_out| &left_out.labels));
         labels
     }
 
@@ -125,7 +138,7 @@ impl DiscoveredDeployment {
 }
 
 /// the deployments of the project, sorted by name. A deployment has one server, ssh key and
-/// firewall; a second one with the same name label is left out with a warning
+/// firewall; a second one with the same name label is left out (`left_out`)
 pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     let query = ListQuery::new().label_exists(NAME_LABEL);
     let mut deployments: BTreeMap<String, DiscoveredDeployment> = BTreeMap::new();
@@ -135,10 +148,11 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             continue;
         };
         if deployment.server.is_some() {
-            warn!(
-                "deployment '{}' has more than one server, '{}' is left out",
-                deployment.name, server.name
-            );
+            deployment.left_out.push(LeftOut {
+                kind: ResourceKind::Server,
+                name: server.name.clone(),
+                labels: server.labels.clone(),
+            });
             continue;
         }
         deployment.server = Some(server.into());
@@ -148,10 +162,11 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             continue;
         };
         if deployment.ssh_key.is_some() {
-            warn!(
-                "deployment '{}' has more than one ssh key, '{}' is left out",
-                deployment.name, key.name
-            );
+            deployment.left_out.push(LeftOut {
+                kind: ResourceKind::SshKey,
+                name: key.name.clone(),
+                labels: key.labels.clone(),
+            });
             continue;
         }
         deployment.ssh_key = Some(key.into());
@@ -161,10 +176,11 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             continue;
         };
         if deployment.firewall.is_some() {
-            warn!(
-                "deployment '{}' has more than one firewall, '{}' is left out",
-                deployment.name, firewall.name
-            );
+            deployment.left_out.push(LeftOut {
+                kind: ResourceKind::Firewall,
+                name: firewall.name.clone(),
+                labels: firewall.labels.clone(),
+            });
             continue;
         }
         deployment.firewall = Some(HetznerFirewallRuntime::from_firewall(firewall)?);
@@ -202,6 +218,49 @@ mod tests {
     use crate::hetzner::deployment::fixtures::*;
     use crate::hetzner::deployment::*;
     use crate::hetzner::test_support::mock_api_all;
+
+    #[tokio::test]
+    async fn a_second_server_is_left_out_listed_and_its_labels_count() {
+        let mut second = named("alpha");
+        second["sak.pelle.io/password-hash"] = json!("another");
+        let (_server, api) = mock_api_all(&[
+            (
+                "servers",
+                vec![
+                    server(1, "sak-alpha", named("alpha")),
+                    server(2, "sak-alpha-2", second),
+                ],
+            ),
+            ("ssh_keys", vec![key(7, "sak-alpha", named("alpha"))]),
+            ("firewalls", vec![]),
+            ("volumes", vec![]),
+            ("primary_ips", vec![]),
+        ])
+        .await;
+
+        let deployments = discover(&api).await.unwrap();
+        let alpha = &deployments[0];
+        assert_eq!(alpha.server.as_ref().unwrap().name, "sak-alpha");
+        assert_eq!(alpha.left_out.len(), 1);
+        assert_eq!(alpha.left_out[0].kind, ResourceKind::Server);
+        assert_eq!(alpha.left_out[0].name, "sak-alpha-2");
+        // its hash is among the labels a password is checked against
+        assert!(alpha.labels().iter().any(|labels| {
+            labels.get("sak.pelle.io/password-hash") == Some(&"another".to_string())
+        }));
+
+        let provider =
+            HetznerProviderRuntime::from_api(api.clone(), Location::nbg1, ServerType::cx23);
+        let listed = state(&provider, alpha).await;
+        assert!(
+            listed
+                .resources
+                .iter()
+                .any(|resource| resource.name == "sak-alpha-2"
+                    && resource.status == Some(crate::api::DiffStatus::Duplicate))
+        );
+        assert_ne!(listed.status, DeploymentStatus::Ok);
+    }
     use crate::providers::hetzner::HetznerProviderRuntime;
     use serde_json::json;
 
