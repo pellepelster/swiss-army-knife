@@ -328,18 +328,6 @@ a narrow window: `run-cancel` fires `cancel_apply` without awaiting (`ui/run.js:
 `None` on its next poll; a maintenance started in between is then unregistered. **Fix:** compare the handle (or a
 generation id) before clearing. Related CU-2.
 
-### Structure
-
-#### UI-25: A small router in `views.js`, no dynamic `import()`
-
-The cycles `deployments.js → create.js → run.js ⇢ deployments.js/deployment.js`, `deployment.js → maintenance.js ⇢
-deployment.js`, `password.js ⇢ deployment.js/deployments.js` are unnecessary: every export is a hoisted `function`
-used only inside handlers, so static imports in a cycle work in ES modules. A router — `register('deployments',
-showDeployments)`, `navigate('deployments', data)` — hands each view a generation token (`const gen =
-enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-written `current !== shown` /
-`running === current` guards (`deployment.js:81, 93, 98`, `run.js:164, 171`, `maintenance.js:50, 56, 61, 65`,
-`password.js:61`).
-
 ---
 
 ## R1: open from the first review

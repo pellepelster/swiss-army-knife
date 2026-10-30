@@ -4,7 +4,7 @@
 // not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
 // deployment again
 import { openedDeployment } from './password.js';
-import { setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -31,8 +31,7 @@ function finished() {
 
 // `action` is status, update or reboot
 export async function showMaintenance(deployment, action) {
-  const current = { deployment };
-  running = current;
+  running = { deployment };
   const { password } = openedDeployment();
   document.getElementById('maintenance-title').textContent = text(`ui.maintenance.title_${action}`);
   document.getElementById('maintenance-name').textContent = deployment.name;
@@ -41,26 +40,27 @@ export async function showMaintenance(deployment, action) {
   backButton.disabled = true;
   setStatus(status, text(`ui.maintenance.running_${action}`));
   show('view-maintenance');
+  const visit = currentVisit();
   // the focus follows into the view, the entry of the menu that had it is hidden now
   document.getElementById('maintenance-title').focus();
   const channel = new Channel();
   channel.onmessage = (message) => {
-    if (running === current) {
+    if (isCurrent(visit)) {
       progress.append(line(message));
     }
   };
   try {
     const lines = await invoke('run_maintenance', { request: { action, name: deployment.name, password }, onLine: channel });
-    if (running === current) {
+    if (isCurrent(visit)) {
       answer.replaceChildren(...lines.map(({ text: value, warn }) => line(value, warn)));
       setStatus(status, text('ui.maintenance.finished'));
     }
   } catch (error) {
-    if (running === current) {
+    if (isCurrent(visit)) {
       setFailure(status, String(error));
     }
   } finally {
-    if (running === current) {
+    if (isCurrent(visit)) {
       finished();
     }
   }
@@ -69,6 +69,5 @@ export async function showMaintenance(deployment, action) {
 backButton.addEventListener('click', async () => {
   const { deployment } = running;
   running = null;
-  const { showDeployment } = await import('./deployment.js');
-  showDeployment(deployment);
+  navigate('deployment', deployment);
 });

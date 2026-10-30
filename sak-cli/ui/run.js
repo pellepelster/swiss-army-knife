@@ -5,7 +5,7 @@
 // as rust works on it; done only when every resource was done, cancel stops the run and leads to
 // the list of the deployments
 import { openDeployment } from './password.js';
-import { setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
@@ -144,19 +144,19 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('app
   const withData = intent === 'destroy' && deployment.deleteData ? '_with_data' : '';
   setStatus(runStatus, text({ create: 'ui.plan.creating', deploy: 'ui.plan.deploying', destroy: `ui.plan.destroying${withData}` }[intent]));
   show('view-run');
+  const visit = currentVisit();
   const channel = new Channel();
   channel.onmessage = onEvent;
-  const current = running;
   try {
     await start(channel);
-    if (running === current) {
+    if (isCurrent(visit)) {
       setStatus(runStatus, text(intent === 'destroy' ? `ui.plan.destroyed${withData}` : 'ui.plan.provisioned'));
       doneButton.disabled = false;
       doneButton.focus();
     }
   } catch (error) {
     // only cancel leads on after a failure; a failure a row shows already is not said again
-    if (running === current) {
+    if (isCurrent(visit)) {
       const shown = [...rows.values()].some((item) => item.dataset.status === 'failed');
       if (shown) {
         setStatus(runStatus, '');
@@ -190,8 +190,7 @@ export async function runDestroy(plan, deployment) {
 }
 
 async function showList() {
-  const { showDeployments } = await import('./deployments.js');
-  await showDeployments();
+  await navigate('deployments');
 }
 
 // the page of the deployment just applied, as the list finds it now; the list when it is not
@@ -202,8 +201,7 @@ async function showApplied(deployment) {
     const applied = deployments.find((found) => found.name === deployment.name.trim());
     if (applied) {
       openDeployment(applied, deployment.password);
-      const { showDeployment } = await import('./deployment.js');
-      showDeployment(applied);
+      navigate('deployment', applied);
       return;
     }
   } catch {

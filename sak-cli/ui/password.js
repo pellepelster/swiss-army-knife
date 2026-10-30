@@ -2,7 +2,7 @@
 // deployment while it is typed, a moment after the last key; next only with the right one, cancel
 // back to the list. The password stays with the opened deployment for its check and its destroy.
 // With SAK_PASSWORD set, the field starts with it and rust checks it at once
-import { setFailure, setStatus, show, text } from './views.js';
+import { navigate, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -99,13 +99,11 @@ form.addEventListener('submit', async (event) => {
   }
   openDeployment(deployment, input.value);
   input.value = '';
-  const { showDeployment } = await import('./deployment.js');
-  showDeployment(deployment);
+  navigate('deployment', deployment);
 });
 
 document.getElementById('password-cancel').addEventListener('click', async () => {
   clearTimeout(timer);
   input.value = '';
-  const { showDeployments } = await import('./deployments.js');
-  await showDeployments();
+  await navigate('deployments');
 });

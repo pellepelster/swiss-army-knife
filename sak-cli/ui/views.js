@@ -29,8 +29,39 @@ export function setFailure(element, message) {
   element.classList.add('status-failed');
 }
 
+// each show of a view is one visit; work that started on a visit (a check, a run, a maintenance)
+// updates its view only while that visit lasts, `isCurrent`
+let visit = 0;
+
 export function show(id) {
+  visit += 1;
   for (const view of document.querySelectorAll('.view')) {
     view.hidden = view.id !== id;
   }
+}
+
+// the visit of the view shown now
+export function currentVisit() {
+  return visit;
+}
+
+// whether the view of the visit `seen` is still the one shown
+export function isCurrent(seen) {
+  return seen === visit;
+}
+
+// the pages by their name and how each opens: a page opens another by its name (`navigate`), so no
+// page imports the one that imports it
+const pages = new Map();
+
+export function register(name, open) {
+  pages.set(name, open);
+}
+
+export function navigate(name, ...args) {
+  const open = pages.get(name);
+  if (!open) {
+    throw new Error(`no page ${name}`);
+  }
+  return open(...args);
 }

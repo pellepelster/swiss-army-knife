@@ -10,7 +10,7 @@ import { STATES, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
-import { setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, register, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -61,6 +61,7 @@ export function showDeployment(deployment) {
 // the check: the rows of the plan and the buttons it allows; a page left meanwhile stays as it is
 async function check() {
   const shown = current;
+  const visit = currentVisit();
   const { password } = openedDeployment();
   checked = null;
   checkButton.disabled = true;
@@ -74,7 +75,7 @@ async function check() {
   setStatus(message, text('ui.deployment.checking'));
   try {
     const plan = await invoke('check_deployment', { name: shown.name, password, location: shown.location });
-    if (current !== shown) {
+    if (!isCurrent(visit)) {
       return;
     }
     checked = plan;
@@ -86,12 +87,12 @@ async function check() {
     setPrimary(changes ? deployButton : checkButton);
     setStatus(message, changes ? text('ui.deployment.changes', { count: changes }) : text('ui.deployment.up_to_date'));
   } catch (error) {
-    if (current === shown) {
+    if (isCurrent(visit)) {
       list.replaceChildren(...shown.resources.map(resource));
       setFailure(message, String(error));
     }
   } finally {
-    if (current === shown) {
+    if (isCurrent(visit)) {
       checkButton.disabled = false;
     }
   }
@@ -178,6 +179,7 @@ document.getElementById('deployment-destroy').addEventListener('click', () =>
 );
 document.getElementById('deployment-back').addEventListener('click', async () => {
   current = null;
-  const { showDeployments } = await import('./deployments.js');
-  await showDeployments();
+  await navigate('deployments');
 });
+
+register('deployment', showDeployment);

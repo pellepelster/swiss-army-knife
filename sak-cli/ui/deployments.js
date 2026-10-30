@@ -4,7 +4,7 @@
 // the form of a new deployment, back opens the provider tokens
 import { showCreate } from './create.js';
 import { closeDeployment, showPassword } from './password.js';
-import { setFailure, setStatus, show, text } from './views.js';
+import { register, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -109,6 +109,7 @@ export async function showDeployments() {
 
 document.getElementById('deployments-create').addEventListener('click', showCreate);
 document.getElementById('deployments-back').addEventListener('click', async () => {
-  const { showProviders } = await import('./providers.js');
-  await showProviders();
+  await navigate('providers');
 });
+
+register('deployments', showDeployments);

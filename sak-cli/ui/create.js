@@ -7,7 +7,7 @@
 // deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { setFailure, setStatus, show, text } from './views.js';
+import { navigate, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -410,8 +410,7 @@ form.addEventListener('submit', async (event) => {
 // cancel, from the form or from the plan of a new deployment: forgets what was typed
 async function backToDeployments() {
   resetForm();
-  const { showDeployments } = await import('./deployments.js');
-  await showDeployments();
+  await navigate('deployments');
 }
 
 // forgets what was typed; the form is the form of a new deployment again
