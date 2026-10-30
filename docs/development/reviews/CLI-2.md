@@ -888,7 +888,7 @@ failed)` in `views.js`.
 `deployment.js:86-88` disables Deploy when every resource is `up_to_date`; `run.js:92` hides it. One rule, two
 behaviours.
 
-#### UI-20 (Low): `MaintenanceRequest` derives `Debug` with its `password`
+#### ~~UI-20 (Low): `MaintenanceRequest` derives `Debug` with its `password`~~ **fixed**
 
 `gui/maintenance.rs:26-31`. Nothing prints it today, but `HetznerToken` (`cli.rs:250`) and `DeploymentDefaults`
 (`core/deployments.rs:338`) deliberately have no `Debug` (S10 of the first review).

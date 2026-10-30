@@ -23,8 +23,8 @@ pub enum Action {
     Reboot,
 }
 
-/// what the view asks for, on the server of which deployment
-#[derive(Debug, Deserialize)]
+/// what the view asks for, on the server of which deployment; no `Debug`, it holds the password
+#[derive(Deserialize)]
 pub struct MaintenanceRequest {
     action: Action,
     name: String,
