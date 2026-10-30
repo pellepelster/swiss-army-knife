@@ -119,7 +119,11 @@ impl ProvisionRun {
 
     /// the environment of the backend (`backend.env`), one `KEY=value` on each line as podman reads
     /// it: the hash of the admin password, the addresses of the server and the settings of the mail
-    /// server. Secret, written for the run only
+    /// server. Secret, written for the run only. The quadlet passes it to `podman run --env-file`
+    /// (its `EnvironmentFile=` is in `[Container]`, systemd never parses it), and podman takes
+    /// what follows the first `=` as it is: no quotes, no escapes, nothing trimmed. So a value is
+    /// written verbatim and must not be quoted; only a line break, which `check_smtp` refuses,
+    /// would break it
     pub(crate) fn backend_env(&self) -> String {
         let mut lines = vec![
             format!("SAK_ADMIN_PASSWORD_HASH={}", self.admin_password_hash),

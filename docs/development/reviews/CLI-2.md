@@ -111,17 +111,6 @@ known, or make the recreate a confirmed step.
 
 ## CD: core deployments and provisioning
 
-### Bugs
-
-#### CD-5 (Medium, suspected): `backend.env` is read by systemd, not by podman
-
-`ansible/roles/backend/templates/sak-backend.container.j2:14` uses `EnvironmentFile=`, whose parser strips leading
-and trailing whitespace, interprets quotes and backslash escapes and treats lines starting with `;` or `#` as
-comments. `check_smtp` (`deployments.rs:471-486`) refuses only `\n`/`\r`; `backend_env` writes the password
-verbatim (`provision.rs:133`). A mail password that starts with a quote, contains a backslash or has leading spaces
-reaches the backend altered; the test at `provision.rs:618` checks the file, not what systemd reads. **To confirm:**
-`systemd.exec(5)` EnvironmentFile semantics or a quadlet test; then quote the values in `backend_env`.
-
 ### Structure
 
 #### CD-23: The wait after the provisioning discovers the deployment again
