@@ -934,6 +934,50 @@ fn verify_password(
 /// where `config show` asks and with which key: the api of the base domain on the labels of the
 /// deployment, and the api key of the password. sakctl checks the password first, so it signs
 /// nothing with the key of a wrong password
+/// where a deployment answers its users: its api, the key a request to it is signed with, the trust
+/// of its certificates and the address of its server, which a request asks directly because a
+/// resolver of this machine can still know the address of an earlier server of the name
+pub struct Endpoint {
+    pub url: String,
+    key: crate::core::keys::ApiKey,
+    pub trust: crate::core::config::Trust,
+    pub address: Option<std::net::IpAddr>,
+}
+
+/// the endpoint of `deployment`, the password checked against it first
+fn endpoint(deployment: &DiscoveredDeployment, password: &str) -> Result<Endpoint, String> {
+    let (url, key) = config_endpoint(deployment, &deployment.name, password)?;
+    Ok(Endpoint {
+        url,
+        key,
+        trust: deployment
+            .acme_ca()
+            .and_then(|ca| AcmeCa::parse(&ca))
+            .unwrap_or_default()
+            .trust(),
+        address: deployment
+            .server
+            .as_ref()
+            .and_then(|server| server.public_ipv4.as_deref())
+            .and_then(|address| address.parse().ok()),
+    })
+}
+
+/// the running configuration of `deployment`, from its backend
+async fn running_config_of(
+    deployment: &DiscoveredDeployment,
+    password: &str,
+) -> Result<crate::core::config::RunningConfig, String> {
+    let endpoint = endpoint(deployment, password)?;
+    crate::core::config::fetch(
+        &endpoint.url,
+        &endpoint.key,
+        endpoint.trust,
+        endpoint.address,
+    )
+    .await
+}
+
 fn config_endpoint(
     deployment: &DiscoveredDeployment,
     name: &str,
@@ -1104,6 +1148,32 @@ impl DeploymentManager {
         complete(deployment, &detected, smtp_password)
     }
 
+    /// the deployment `name` at the hetzner project of `tokens`, its name checked first: a wrong
+    /// name is a usage error (`EXIT_USAGE`)
+    async fn find(
+        &self,
+        tokens: &[(ProviderType, String)],
+        name: &str,
+    ) -> Result<DiscoveredDeployment, WizardError> {
+        let name = checked_name(name)?;
+        let Some((provider, token)) = tokens
+            .iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("shared.deployments.no_provider").to_string().into());
+        };
+        discover(&HetznerApi::new(token))
+            .await
+            .map_err(|error| failed(*provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| {
+                t!("shared.deployments.not_found", name = name)
+                    .to_string()
+                    .into()
+            })
+    }
+
     /// the settings a deploy can take from an existing deployment, for the window and the command
     /// line: the user mode on its labels and, for multi user, the admin and the mail server of its
     /// running configuration (read with a request signed with the api key). A deployment without
@@ -1114,37 +1184,19 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<Detected, String> {
-        let name = checked_name(name).map_err(|error| error.message)?;
-        let Some((provider, token)) = tokens
-            .iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-            .cloned()
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string());
-        };
-        let label = discover(&HetznerApi::new(&token))
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name)
-            .and_then(|deployment| deployment.user_mode())
+    ) -> Result<Detected, WizardError> {
+        let deployment = self.find(&tokens, name).await?;
+        let label = deployment
+            .user_mode()
             .and_then(|mode| UserMode::parse(&mode));
         // a single user deployment has no more settings
         let running = match label {
             Some(UserMode::Single) => None,
-            _ => self
-                .running_config(tokens, name, password)
-                .await
-                .ok()
-                .map(|(_, config)| config),
+            _ => running_config_of(&deployment, password).await.ok(),
         };
         Ok(detect(label, running.as_ref()))
     }
 
-    /// the api url and the running configuration of a deployment, read from its backend at
-    /// `api.<base domain>` with a request signed with the api key. sakctl checks the password
-    /// against the deployment first
     /// whether `password` is the one of the deployment `name`: checked against the password
     /// hashes on its resources, or its ssh key; the window asks it while the password is typed
     pub async fn check_password(
@@ -1152,21 +1204,9 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(), String> {
-        let name = checked_name(name).map_err(|error| error.message)?;
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string());
-        };
-        let deployment = discover(&HetznerApi::new(&token))
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name)
-            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
-        verify_password(&deployment, name, password)
+    ) -> Result<(), WizardError> {
+        let deployment = self.find(&tokens, name).await?;
+        Ok(verify_password(&deployment, &deployment.name, password)?)
     }
 
     /// the server of the deployment `name` and the keys of `password` to reach it, the password
@@ -1176,20 +1216,9 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<crate::core::ssh::SshTarget, String> {
-        let name = checked_name(name).map_err(|error| error.message)?;
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string());
-        };
-        let deployment = discover(&HetznerApi::new(&token))
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name)
-            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
+    ) -> Result<crate::core::ssh::SshTarget, WizardError> {
+        let deployment = self.find(&tokens, name).await?;
+        let name = deployment.name.as_str();
         verify_password(&deployment, name, password)?;
         let server = deployment
             .server
@@ -1209,75 +1238,36 @@ impl DeploymentManager {
         })
     }
 
-    /// where the deployment answers its users: its api, the trust of its certificates and the
-    /// address of its server, which a wait asks directly (`config::wait_for_api`)
+    /// where the deployment `name` answers its users (`Endpoint`), the password checked first
     pub async fn public_endpoint(
         &self,
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(String, crate::core::config::Trust, Option<std::net::IpAddr>), String> {
-        let name = checked_name(name).map_err(|error| error.message)?;
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string());
-        };
-        let deployment = discover(&HetznerApi::new(&token))
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name)
-            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
-        let (url, _) = config_endpoint(&deployment, name, password)?;
-        let trust = deployment
-            .acme_ca()
-            .and_then(|ca| AcmeCa::parse(&ca))
-            .unwrap_or_default()
-            .trust();
-        let address = deployment
-            .server
-            .as_ref()
-            .and_then(|server| server.public_ipv4.as_deref())
-            .and_then(|address| address.parse().ok());
-        Ok((url, trust, address))
+    ) -> Result<Endpoint, WizardError> {
+        let deployment = self.find(&tokens, name).await?;
+        Ok(endpoint(&deployment, password)?)
     }
 
+    /// the api url and the running configuration of a deployment, read from its backend at
+    /// `api.<base domain>` with a request signed with the api key. sakctl checks the password
+    /// against the deployment first
     pub async fn running_config(
         &self,
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(String, crate::core::config::RunningConfig), String> {
-        let name = checked_name(name).map_err(|error| error.message)?;
-        let Some((provider, token)) = tokens
-            .into_iter()
-            .find(|(provider, _)| *provider == ProviderType::Hetzner)
-        else {
-            return Err(t!("shared.deployments.no_provider").to_string());
-        };
-        let api_client = HetznerApi::new(&token);
-        let deployment = discover(&api_client)
-            .await
-            .map_err(|error| failed(provider, error))?
-            .into_iter()
-            .find(|deployment| deployment.name == name)
-            .ok_or_else(|| t!("shared.deployments.not_found", name = name).to_string())?;
-        let (url, key) = config_endpoint(&deployment, name, password)?;
-        let trust = deployment
-            .acme_ca()
-            .and_then(|ca| AcmeCa::parse(&ca))
-            .unwrap_or_default()
-            .trust();
-        // the server of the deployment answers, whatever a resolver of this machine still knows
-        let address = deployment
-            .server
-            .as_ref()
-            .and_then(|server| server.public_ipv4.as_deref())
-            .and_then(|address| address.parse().ok());
-        let config = crate::core::config::fetch(&url, &key, trust, address).await?;
-        Ok((url, config))
+    ) -> Result<(String, crate::core::config::RunningConfig), WizardError> {
+        let deployment = self.find(&tokens, name).await?;
+        let endpoint = endpoint(&deployment, password)?;
+        let config = crate::core::config::fetch(
+            &endpoint.url,
+            &endpoint.key,
+            endpoint.trust,
+            endpoint.address,
+        )
+        .await?;
+        Ok((endpoint.url, config))
     }
 
     /// the dns zones of the first hetzner project, each with the dns modes the deployment
@@ -2084,6 +2074,26 @@ mod tests {
             admin_email: None,
             force: true,
         }
+    }
+
+    #[tokio::test]
+    async fn a_wrong_name_is_a_usage_error_before_the_provider_is_asked() {
+        let manager = DeploymentManager;
+        let error = manager
+            .check_password(Vec::new(), "Not A Name", "p")
+            .await
+            .unwrap_err();
+        assert_eq!(error.exit_code, crate::core::error::EXIT_USAGE);
+        // a valid name without a provider token fails as such
+        let error = manager
+            .check_password(Vec::new(), "alpha", "p")
+            .await
+            .unwrap_err();
+        assert_eq!(error.exit_code, crate::core::error::EXIT_FAILED);
+        assert_eq!(
+            error.message,
+            t!("shared.deployments.no_provider").to_string()
+        );
     }
 
     #[tokio::test]

@@ -5,6 +5,7 @@
 
 use crate::core::backup::SCRIPT;
 use crate::core::deployments::DeploymentManager;
+use crate::core::error::WizardError;
 use crate::core::providers::ProviderType;
 use crate::core::ssh::{SshTarget, Stream, run_streaming};
 use rust_i18n::t;
@@ -175,7 +176,7 @@ pub async fn perform(
     password: &str,
     action: Action,
     on_line: impl FnMut(String) + Send + Clone + 'static,
-) -> Result<Answer, String> {
+) -> Result<Answer, WizardError> {
     let target = manager.ssh_target(tokens.clone(), name, password).await?;
     let runtime = container
         .get()
@@ -191,16 +192,18 @@ pub async fn perform(
     );
     let mut on_server = on_line;
     match action {
-        Action::Status => limited(STATUS_TIMEOUT, move || {
-            status(runtime, &target, &mut on_server)
-        })
-        .await
-        .map(Answer::Status),
-        Action::Update => limited(UPDATE_TIMEOUT, move || {
-            update(runtime, &target, &mut on_server)
-        })
-        .await
-        .map(Answer::Update),
+        Action::Status => Ok(Answer::Status(
+            limited(STATUS_TIMEOUT, move || {
+                status(runtime, &target, &mut on_server)
+            })
+            .await?,
+        )),
+        Action::Update => Ok(Answer::Update(
+            limited(UPDATE_TIMEOUT, move || {
+                update(runtime, &target, &mut on_server)
+            })
+            .await?,
+        )),
         Action::Reboot { if_pending, wait } => {
             let reboot = limited(REBOOT_TIMEOUT, move || {
                 reboot(runtime, &target, if_pending, &mut on_server)
@@ -349,20 +352,27 @@ async fn wait_after_reboot(
     name: &str,
     password: &str,
     on_line: &mut (dyn FnMut(String) + Send),
-) -> Result<(), String> {
-    let (api, trust, address) = manager.public_endpoint(tokens, name, password).await?;
+) -> Result<(), WizardError> {
+    let endpoint = manager.public_endpoint(tokens, name, password).await?;
     // the server goes down some seconds after the answer; before that it answers no request,
     // the ingress stopped first
     tokio::time::sleep(Duration::from_secs(10)).await;
-    on_line(t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string());
+    on_line(
+        t!(
+            "shared.deployments.waiting_for_api",
+            url = endpoint.url.as_str()
+        )
+        .to_string(),
+    );
     crate::core::config::wait_for_api(
-        &api,
-        address,
-        trust,
+        &endpoint.url,
+        endpoint.address,
+        endpoint.trust,
         crate::core::config::API_WAIT,
         Duration::from_secs(5),
     )
-    .await
+    .await?;
+    Ok(())
 }
 
 fn run<T: for<'de> Deserialize<'de>>(

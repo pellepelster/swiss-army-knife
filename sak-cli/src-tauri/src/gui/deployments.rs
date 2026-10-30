@@ -312,6 +312,7 @@ pub async fn check_deployment_password(
     manager
         .check_password(tokens.tokens(), &name, &password)
         .await
+        .map_err(|error| error.message)
 }
 
 #[tauri::command]

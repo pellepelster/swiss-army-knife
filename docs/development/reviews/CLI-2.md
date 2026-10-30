@@ -625,7 +625,7 @@ the container starts on the detached blocking thread and ansible runs to complet
 says "cancelled". **Fix:** `ProvisionManager::provision` checks a stopped flag after the spawn, or `stop_runs`
 remembers names to remove once they appear.
 
-#### CD-8 (Low): The usage exit code is lost
+#### ~~CD-8 (Low): The usage exit code is lost~~ **fixed**
 
 `checked_name(..).map_err(|error| error.message)` in `detected`, `check_password`, `ssh_target`,
 `public_endpoint`, `running_config` (`deployments.rs:1093, 1131, 1155, 1195, 1228`) turns `EXIT_USAGE` into
@@ -644,7 +644,7 @@ intent (`deployments.rs:1512`), plus the host key and the user data, which a des
 
 ### Smells
 
-#### CD-11 (Medium): Five copies of "find the token → discover → find by name → not_found → verify_password"
+#### ~~CD-11 (Medium): Five copies of "find the token → discover → find by name → not_found → verify_password"~~ **fixed**
 
 `deployments.rs:1094-1107, 1132-1144, 1156-1168, 1196-1208, 1229-1242`. `detected` discovers twice (`:1101`, and
 again via `running_config` at `:1112`: ten list calls); `public_endpoint` and `running_config` duplicate the trust
@@ -732,7 +732,8 @@ password proofs (`:919-1014`), plan vocabulary (`:168-218, 873-917`), event mapp
 
 `find_deployment(tokens, name) -> (ProviderType, Arc<HetznerApi>, DiscoveredDeployment)` and
 `Endpoint { url, trust, address }` built once; `detected`, `check_password`, `ssh_target`, `public_endpoint`,
-`running_config` and the wait in `apply` use them and return `WizardError`. Resolves CD-8, CD-11.
+`running_config` and the wait in `apply` use them and return `WizardError`. Resolves CD-8, CD-11. *Done, except
+the wait in `apply`, which still discovers the deployment after the provisioning.*
 
 #### CD-24: A typed intent on `Prepared`
 
