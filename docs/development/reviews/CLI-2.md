@@ -49,8 +49,7 @@ the review found them; the sections below hold the ones still open. The first re
 
 ### Fix first
 
-1. **UI-2** a destroy runs after Cancel.
-2. **UI-5** the window shows command-line instructions it cannot act on.
+1. **UI-5** the window shows command-line instructions it cannot act on.
 
 ### The structural threads that run through all slices
 
@@ -461,7 +460,7 @@ CD-12).
 
 ### Bugs
 
-#### UI-2 (Medium, confirmed): A destroy runs after the user cancelled the form
+#### ~~UI-2 (Medium, confirmed): A destroy runs after the user cancelled the form~~ **fixed**
 
 `ui/create.js:375-384`: for a destroy the submit does not `setBusy`, so Cancel stays enabled while `runDestroy`
 awaits `plan_deployment` (`ui/run.js:196-199`). **Scenario:** Destroy → confirm → (plan pending) → Cancel → the

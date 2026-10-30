@@ -180,9 +180,8 @@ export function runChecked(plan, name, password, force) {
   run(plan, deployment, () => showApplied(deployment), (channel) => invoke('apply_checked', { deploy: { check: plan.check, force }, onEvent: channel }));
 }
 
-// a destroy: its plan for the rows, then the run; done opens the list
-export async function runDestroy(deployment) {
-  const plan = await invoke('plan_deployment', { deployment });
+// a destroy with the plan the form made: its rows, then the run; done opens the list
+export async function runDestroy(plan, deployment) {
   await run(plan, deployment, showList);
 }
 

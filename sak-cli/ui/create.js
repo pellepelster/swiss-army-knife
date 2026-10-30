@@ -369,14 +369,25 @@ form.addEventListener('submit', async (event) => {
     return;
   }
   if (intent === 'destroy') {
-    if (await confirmDestroy(nameInput.value)) {
-      // a plan that fails stays on the form with its error
-      try {
-        await runDestroy(newDeployment());
-      } catch (error) {
-        setStatus(status, String(error), true);
-      }
+    if (!(await confirmDestroy(nameInput.value))) {
+      return;
     }
+    // planned with the form busy, cancel too, as for a create: a cancel cannot slip in between
+    // the plan and the run. A plan that fails stays on the form with its error
+    setBusy(true);
+    setStatus(status, text('ui.create.planning'));
+    let plan;
+    const deployment = newDeployment();
+    try {
+      plan = await invoke('plan_deployment', { deployment });
+    } catch (error) {
+      setStatus(status, String(error), true);
+      return;
+    } finally {
+      setBusy(false);
+    }
+    setStatus(status, '');
+    runDestroy(plan, deployment);
     return;
   }
   setBusy(true);
