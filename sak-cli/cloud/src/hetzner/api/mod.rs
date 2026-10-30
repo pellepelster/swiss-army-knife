@@ -121,7 +121,9 @@ impl HetznerApi {
             base: base.trim_end_matches('/').to_string(),
             token: token.to_string(),
             retry: Backoff::new(5, Duration::from_secs(1), Duration::from_secs(10)),
-            wait: Backoff::new(40, Duration::from_secs(1), Duration::from_secs(5)),
+            // about 9.5 minutes: a server with its volume and addresses can take minutes to go
+            // when hetzner is busy
+            wait: Backoff::new(120, Duration::from_secs(1), Duration::from_secs(5)),
         }
     }
 
