@@ -587,6 +587,17 @@ pub(crate) fn track_container(runtime: &str, name: &str) {
     track(PathBuf::new(), runtime, name);
 }
 
+/// stops the one container of `name` that `track_container` registered: its run is marked
+/// stopped, what is about to start it starts nothing, and it is removed
+pub(crate) fn stop_container(runtime: &str, name: &str) {
+    if let Ok(mut runs) = RUNS.lock() {
+        runs.iter_mut()
+            .filter(|run| run.container == name)
+            .for_each(|run| run.stopped = true);
+    }
+    remove_container(runtime, name);
+}
+
 pub(crate) fn untrack_container(name: &str) {
     if let Ok(mut runs) = RUNS.lock() {
         runs.retain(|run| run.container != name);
@@ -899,6 +910,22 @@ pub(crate) mod tests {
         untrack_container("sakctl-ssh-test");
         assert!(!stopped(&container));
         assert!(!stopped("sakctl-ssh-test"));
+    }
+
+    #[test]
+    fn a_container_stopped_on_its_own_leaves_the_other_runs_going() {
+        let dir = RunDir::create("true").unwrap();
+        track_container("true", "sakctl-ssh-one");
+        track_container("true", "sakctl-ssh-other");
+
+        stop_container("true", "sakctl-ssh-one");
+
+        assert!(stopped("sakctl-ssh-one"));
+        assert!(!stopped("sakctl-ssh-other"));
+        assert!(!stopped(&dir.container));
+        assert!(dir.path.exists());
+        untrack_container("sakctl-ssh-one");
+        untrack_container("sakctl-ssh-other");
     }
 
     #[cfg(unix)]

@@ -4,17 +4,21 @@
 //! of `ssh-add` (`exec`). The session is a second `exec` with the terminal of sakctl, which a
 //! standard input that carried the key could no longer be. The host key derived from the password
 //! is the only known host, so the server is verified, not trusted on first use. The container goes
-//! afterwards, also on a termination (`provision::stop_runs`). A command can also run with a
-//! stream instead of the terminal (`run_streaming`), the way a backup leaves the server and a
-//! restore reaches it
+//! afterwards, also on a termination (`provision::stop_runs`) and when the `Sessions` it started
+//! in are stopped. A command can also run with a stream instead of the terminal
+//! (`run_streaming`), the way a backup leaves the server and a restore reaches it
 
 use crate::core::container;
 use crate::core::encoding::random_hex;
 use crate::core::keys::DerivedKey;
-use crate::core::provision::{remove_container, stopped, track_container, untrack_container};
+use crate::core::provision::{
+    remove_container, stop_container, stopped, track_container, untrack_container,
+};
 use rust_i18n::t;
+use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 
 /// where the agent listens and the known hosts are, inside the container
 const AGENT_SOCKET: &str = "/tmp/sak-agent.sock";
@@ -133,19 +137,105 @@ fn exec_with_input(
     }
 }
 
+/// the sessions that one command starts on its thread, for another thread to stop them: what a
+/// maintenance stops at its timeout, and nothing else that runs at the same time
+#[derive(Clone, Default)]
+pub(crate) struct Sessions(Arc<Mutex<Started>>);
+
+/// the containers of the sessions going on, by runtime and name, and whether they are stopped
+#[derive(Default)]
+struct Started {
+    stopped: bool,
+    containers: Vec<(String, String)>,
+}
+
+thread_local! {
+    /// the sessions that a session started on this thread belongs to, while `Sessions::run` runs
+    static CURRENT: RefCell<Option<Sessions>> = const { RefCell::new(None) };
+}
+
+impl Sessions {
+    /// runs `command`; each session it starts on this thread belongs to these sessions
+    pub(crate) fn run<T>(&self, command: impl FnOnce() -> T) -> T {
+        /// sets the sessions of the thread back, also when `command` panics
+        struct Restore(Option<Sessions>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                let earlier = self.0.take();
+                CURRENT.with(|current| *current.borrow_mut() = earlier);
+            }
+        }
+        let _restore = Restore(CURRENT.with(|current| current.replace(Some(self.clone()))));
+        command()
+    }
+
+    /// stops the sessions going on and removes their containers; one that starts afterwards
+    /// starts none. It blocks while the containers go
+    pub(crate) fn stop(&self) {
+        let containers = self
+            .0
+            .lock()
+            .map(|mut started| {
+                started.stopped = true;
+                std::mem::take(&mut started.containers)
+            })
+            .unwrap_or_default();
+        for (runtime, name) in containers {
+            stop_container(&runtime, &name);
+        }
+    }
+
+    /// the container of a session that starts; it is stopped at once when these sessions are
+    fn add(&self, runtime: &str, name: &str) {
+        let stopped = self.0.lock().map_or(true, |mut started| {
+            if !started.stopped {
+                started
+                    .containers
+                    .push((runtime.to_string(), name.to_string()));
+            }
+            started.stopped
+        });
+        if stopped {
+            stop_container(runtime, name);
+        }
+    }
+
+    fn remove(&self, name: &str) {
+        if let Ok(mut started) = self.0.lock() {
+            started
+                .containers
+                .retain(|(_, container)| container != name);
+        }
+    }
+}
+
+/// registers the container of a session that starts on this thread: with the runs, and with the
+/// sessions of the thread when there are any
+fn track_session(runtime: &str, name: &str) -> Option<Sessions> {
+    track_container(runtime, name);
+    let sessions = CURRENT.with(|current| current.borrow().clone());
+    if let Some(sessions) = &sessions {
+        sessions.add(runtime, name);
+    }
+    sessions
+}
+
 /// the container of a session: started with an agent, removed when it is dropped
 struct SessionContainer {
     runtime: String,
     name: String,
+    /// the sessions it belongs to, which can stop it
+    sessions: Option<Sessions>,
 }
 
 impl SessionContainer {
     fn start(runtime: &str) -> Result<Self, String> {
         let name = format!("sakctl-ssh-{}-{}", std::process::id(), random_hex::<16>()?);
-        track_container(runtime, &name);
+        let sessions = track_session(runtime, &name);
         let container = SessionContainer {
             runtime: runtime.to_string(),
             name,
+            sessions,
         };
         // a session stopped before its container is there starts none
         if stopped(&container.name) {
@@ -201,6 +291,9 @@ impl Drop for SessionContainer {
     fn drop(&mut self) {
         remove_container(&self.runtime, &self.name);
         untrack_container(&self.name);
+        if let Some(sessions) = &self.sessions {
+            sessions.remove(&self.name);
+        }
     }
 }
 
@@ -323,9 +416,17 @@ pub fn run_streaming(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::core::keys::{derive_host_key, derive_key};
+
+    /// registers a session on this thread as `SessionContainer::start` does, without its
+    /// container; its name
+    pub(crate) fn start_session(runtime: &str) -> String {
+        let name = format!("sakctl-ssh-test-{}", random_hex::<8>().unwrap());
+        track_session(runtime, &name);
+        name
+    }
 
     fn target() -> SshTarget {
         SshTarget {
@@ -386,6 +487,34 @@ mod tests {
             &command[command.len() - 3..],
             ["root@203.0.113.1", "uptime", "-p"]
         );
+    }
+
+    #[test]
+    fn stopped_sessions_stop_the_sessions_of_their_command_and_no_other() {
+        let sessions = Sessions::default();
+        // a session of another command, and one outside any
+        let other = Sessions::default();
+        other.run(|| track_session("true", "sakctl-ssh-other"));
+        assert!(track_session("true", "sakctl-ssh-outside").is_none());
+        let mine = std::thread::scope(|scope| {
+            scope
+                .spawn(|| sessions.run(|| track_session("true", "sakctl-ssh-mine")))
+                .join()
+                .unwrap()
+        });
+        assert!(mine.is_some());
+        // the thread forgets the sessions once the command is done
+        assert!(track_session("true", "sakctl-ssh-after").is_none());
+
+        sessions.stop();
+
+        assert!(stopped("sakctl-ssh-mine"));
+        for name in ["sakctl-ssh-other", "sakctl-ssh-outside", "sakctl-ssh-after"] {
+            assert!(!stopped(name), "{name}");
+        }
+        // a session that starts after the stop is stopped at once
+        sessions.run(|| track_session("true", "sakctl-ssh-late"));
+        assert!(stopped("sakctl-ssh-late"));
     }
 
     /// the integration tests (`mise run cli:test:integration`), with docker and the image of the

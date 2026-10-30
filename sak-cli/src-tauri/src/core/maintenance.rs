@@ -7,7 +7,7 @@ use crate::core::deployments::DeploymentManager;
 use crate::core::error::SakctlError;
 use crate::core::providers::ProviderType;
 use crate::core::sak_backend;
-use crate::core::ssh::SshTarget;
+use crate::core::ssh::{Sessions, SshTarget};
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -121,15 +121,20 @@ fn reboot(
 }
 
 /// `command`, one of the commands above, until it ends or `limit` passes: then its ssh session is
-/// stopped, and with it the wait of sakctl; what the server started may still finish there
+/// stopped, and with it the wait of sakctl; what the server started may still finish there. Only
+/// its own session: a provisioning at the same time goes on
 async fn limited<T: Send + 'static>(
     limit: Duration,
     command: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
-    match tokio::time::timeout(limit, tokio::task::spawn_blocking(command)).await {
+    let sessions = Sessions::default();
+    let running = sessions.clone();
+    let command = tokio::task::spawn_blocking(move || running.run(command));
+    match tokio::time::timeout(limit, command).await {
         Ok(done) => done.map_err(|error| error.to_string())?,
         Err(_) => {
-            crate::core::provision::stop_runs();
+            // the container goes with a process of the runtime, not on a worker of tokio
+            let _ = tokio::task::spawn_blocking(move || sessions.stop()).await;
             Err(t!("shared.maintenance.timeout", minutes = limit.as_secs() / 60).to_string())
         }
     }
@@ -544,5 +549,27 @@ mod tests {
             late,
             Err(t!("shared.maintenance.timeout", minutes = 0).to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn a_timeout_stops_the_session_of_its_command_not_another_run() {
+        use crate::core::provision::{stopped, track_container};
+        // a provisioning at the same time
+        track_container("true", "sakctl-run-other");
+        let (started, session) = std::sync::mpsc::channel();
+
+        let late = limited(Duration::from_millis(50), move || {
+            started
+                .send(crate::core::ssh::tests::start_session("true"))
+                .unwrap();
+            std::thread::sleep(Duration::from_millis(500));
+            Ok(())
+        })
+        .await;
+
+        assert!(late.is_err());
+        let session = session.recv().unwrap();
+        assert!(stopped(&session));
+        assert!(!stopped("sakctl-run-other"));
     }
 }
