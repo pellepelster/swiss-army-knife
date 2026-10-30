@@ -9,8 +9,9 @@ weight: 2
 
 **Date:** 2026-10-30
 **Scope:** `sak-cli/src-tauri` (Rust: core, cli, gui), `sak-cli/ui` (JS, HTML, CSS), `sak-cli/cloud` (sak-cloud).
-**Focus:** code structure, simplifications, code smells, bugs. The first review ([CLI.md](CLI.md)) focused on
-security and correctness; its IDs (`S<n>`, `C<n>`, `Q<n>`) stay as they are.
+**Focus:** code structure, simplifications, code smells, bugs. The findings of the first review (2026-10-29,
+security and correctness) that are still open are merged in under `R1-`; each names its old ID. The rest of the
+first review is fixed, and its file is gone.
 **Commit:** the line numbers refer to `937b513`; `sak-cli` had no uncommitted changes.
 
 The review is read-only. It was done in five slices, one reviewer each; the findings of each slice have their own
@@ -23,6 +24,7 @@ prefix, so an ID is unique across the review:
 | `CU-`  | core utilities: `keys`, `ssh`, `backup`, `maintenance`, `config`, `update`, `container`, checks |
 | `CD-`  | core deployments: `deployments.rs`, `provision.rs`, `ansible_roles.rs`, `roles.rs`, `events.rs` |
 | `UI-`  | `cli.rs`, `gui/`, `ui/`, the locales                                                          |
+| `R1-`  | open findings of the first review, checked again against the code on 2026-10-30              |
 
 Each finding has a severity: **High** (wrong result or data at risk in a realistic scenario), **Medium** (a bug on a
 less common path, or a smell that hides bugs), **Low** (a smell or a simplification). Findings marked *(confirmed)*
@@ -33,7 +35,8 @@ reviewer's reading. A finding that is fixed is removed; one that an open finding
 ## Summary
 
 The review found 118 findings: 5 High, 28 Medium, 65 Low, and 20 proposals of structure. The table counts them as
-the review found them; the sections below hold the ones still open.
+the review found them; the sections below hold the ones still open. The first review adds 7 open findings
+(`R1-`: 2 Medium, 5 Low).
 
 | Slice                          | High | Medium | Low | Structure |
 |--------------------------------|-----:|-------:|----:|----------:|
@@ -56,7 +59,8 @@ the review found them; the sections below hold the ones still open.
   the deploy completion, the checks, the lookup of a deployment, the driver of `sak-backend`, the request plumbing
   of the api (one `ResourceApi<T>`; the dns zones keep theirs).*
 - **Plan and apply disagree.** The registry refuses duplicates and owner-less recreates only in the apply (CA-2,
-  CA-3), the playbook decision differs (CD-4), a pending label
+  CA-3), the apply diffs again instead of applying the plan shown (R1-3), the playbook decision differs (CD-4), a
+  pending label
   change reads as a recreate (CP-3). Making the plan the one gate and letting the registry tell what it applied
   resolves all of them (CD-25, CP-22).
 - **Errors that lose their cause.** *Done: the running configuration, the exit codes of ssh and of the lock, a
@@ -719,6 +723,72 @@ showDeployments)`, `navigate('deployments', data)` — hands each view a generat
 enter('deployment')` … `if (!isCurrent(gen)) return`) that replaces the hand-written `current !== shown` /
 `running === current` guards (`deployment.js:81, 93, 98`, `run.js:164, 171`, `maintenance.js:50, 56, 61, 65`,
 `password.js:61`) and fixes UI-2. `text(key, values)` and `status()` live there too (UI-18).
+
+---
+
+## R1: open from the first review
+
+The first review (2026-10-29) had 31 findings. Checked again against the code on 2026-10-30, 24 are fixed: the
+ownership checks of every provisioner (S1, S2), secrets never as arguments (S3), the strong key derivation with its
+password check (S4), the run directory and the signal handling (S5), the accepted risk of the host key (S7), the
+label of the token check (S8), `open_url` (S9), the structs with secrets (S10, moot since S3), the rule about the
+addresses of the user's servers (S11), the recreate set and the location of a deploy (C1), the settings a deploy
+reads back (C2), foreign records of any type (C3), "unverifiable" when nothing proves a password (C4), the retries
+and the time limit of ansible (C5), the text of a removed record (C7), the trimmed token (C8), the mail server (C9),
+every resource in the state (C11), and the smells M1, M2, M3, M6, M7. These are left:
+
+### Bugs and security
+
+#### R1-1 (Medium): The images of the tools are pinned to a tag only (was S6)
+
+`core/container.rs:20-28` runs `ghcr.io/pellepelster/sak-cli-tools:<version>` (and the canary of the same tag), and
+the server pulls the backend images by tag (`sak_image_tag`). A tag on ghcr.io can be replaced; the image of the
+tools gets the private client key of every server sakctl provisions. **Fix:** verify a signature (cosign) before a
+run, or pin each release to digests. GitHub issue #91 tracks it.
+
+#### R1-2 (Low): The page gets the passwords of the environment, and the decision is not written down (was S12)
+
+`deployment_defaults` (`core/deployments/input.rs:245` and around) sends `SAK_PASSWORD` and `SAK_SMTP_PASSWORD` to
+the page, which fills its fields with them. This is wanted (the window prefills the password from the environment),
+but neither ARCHITECTURE.md nor UI-UX.md says so; UI-UX.md describes only the command line ("A secret is never an
+argument"). **Fix:** record it as a decision with its risk (the secrets cross the ipc into the web view, which the
+CSP and `textContent` keep in), or send only "set in the environment" and let rust use the value.
+
+#### R1-3 (Medium): The command line applies a plan that removes or recreates without asking (was C6)
+
+`cli/deploy.rs` prints the plan and applies it at once; a `sakctl deploy` that would create the server anew or
+remove records goes ahead with no confirmation and there is no `--yes`. In the window the apply of a check diffs the
+project again (the registry diffs before it applies, `cloud/src/api/registry.rs:313`), so a project that changed
+between the check and the click is applied as it is then, not as the page showed it. **Fix:** on a terminal, ask
+before a plan that destroys or recreates, with `--yes` for scripts; let the apply stop when its diff differs from
+the plan it was given (CA-20 keeps the plan's diffs for the apply).
+
+#### R1-4 (Low): The warnings of `discover` go nowhere, and a second resource is not checked (was C10)
+
+`cloud/src/hetzner/deployment.rs:415-450` writes `warn!` for a second server, ssh key or firewall of a name; sakctl
+installs no `tracing` subscriber, so nobody sees them. The second resource is dropped, so its password hash is not
+part of `verify_password` either. **Fix:** return the duplicates in `DiscoveredDeployment` and show them in the list
+and the plan; with CP-10, handle duplicates the same way for every kind.
+
+#### R1-5 (Low): Two runs on the same deployment are not prevented (was C12)
+
+Nothing stops two sakctl (two machines, or the command line and the window) from deploying or destroying the same
+deployment at once; the two applies can destroy and create the server at the same time. `sak-backend` locks only
+the backup, restore and maintenance on the server. **Fix:** a lock label on the ssh key of the deployment for the
+time of an apply, refused when another value is there; or record it as an accepted risk.
+
+### Smells
+
+#### R1-6 (Low): The names say "create" for create, deploy and destroy (was M4)
+
+`CreateEvent` (`core/deployments/progress.rs:9`), `DeploymentManager::create` (`core/deployments/manager.rs:750`),
+`create_deployment` (`gui/deployments.rs:157`) and `NewDeployment` serve all three intents; `WizardError` is a
+leftover name. Rename them (e.g. `ApplyEvent`, `apply`, `DeploymentRequest`, `Error`). Overlaps CD-18.
+
+#### R1-7 (Low): The module doc of the command line lists its commands without `maintenance` (was M5)
+
+`cli/mod.rs:1-2` names `list`, `create`, `deploy`, `destroy`, `config`, `ssh`, `backup`, `restore`, `update`; the
+list misses `maintenance`, and a hand-kept list will miss the next one too. Name none, or point to `--help`.
 
 ---
 
