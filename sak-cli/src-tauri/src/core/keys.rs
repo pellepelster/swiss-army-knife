@@ -543,7 +543,7 @@ mod tests {
         );
     }
 
-    /// the integration tests (`mise run test:cli:integration`), they need ssh-keygen
+    /// the integration tests (`mise run cli:test:integration`), they need ssh-keygen
     mod integration {
         use super::*;
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # the tests of the role role_markers, in docker: a debian 13 like the servers, with the ansible of
-# debian and the collection of this repository. Run by `mise run test:backend:integration`
+# debian and the collection of this repository. Run by `mise run backend:test:integration`
 set -euo pipefail
 
 collection=$(cd "$(dirname "$0")/../../.." && pwd)

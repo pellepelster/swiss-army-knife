@@ -9,7 +9,7 @@ The apps in chromium, against the local environment:
 
 ```sh
 mise run local:run              # ingress, victorialogs, vector, mailpit, the backend and the frontend
-mise run test:e2e:local         # in another terminal, once `mise run local:run` lists the addresses
+mise run frontend:test:local         # in another terminal, once `mise run local:run` lists the addresses
 ```
 
 The login tests read the links from mailpit (http://localhost:8025) and sign in as
@@ -49,7 +49,7 @@ Two deployments in the Hetzner Cloud project of `HCLOUD_TOKEN`, created with sak
 against them:
 
 ```sh
-mise run test:cli:e2e   # builds sakctl, then runs the tests
+mise run cli:test:e2e   # builds sakctl, then runs the tests
 ```
 
 Before the tests, the task runs the tests of sak-cloud against the API of Hetzner, and, outside of CI, builds and

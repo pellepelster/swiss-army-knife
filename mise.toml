@@ -475,7 +475,7 @@ done
 ls -lh build/videos/*.mp4 build/videos/*.gif
 '''
 
-# the tests, test:<part>:<kind> (ARCHITECTURE.md, "Tests"): unit tests need nothing but the tools
+# the tests, <part>:test:<kind> (ARCHITECTURE.md, "Tests"): unit tests need nothing but the tools
 # of mise.toml, integration tests need what the machine that runs them has (docker, a browser,
 # ssh-keygen), e2e tests need resources outside of it (a Hetzner Cloud project). The unit tests
 # write junit reports, to build/test-results/ of each gradle module and target/nextest/ of each
@@ -483,19 +483,19 @@ ls -lh build/videos/*.mp4 build/videos/*.gif
 
 # the unit tests of every gradle module of the backend; the build of sak-backend builds the
 # frontend with npm
-[tasks."test:backend:unit"]
+[tasks."backend:test:unit"]
 description = "Run the unit tests of all gradle modules of the backend"
 dir = "{{config_root}}"
 run = "./gradlew test"
 
-[tasks."test:frontend:unit"]
+[tasks."frontend:test:unit"]
 description = "Run the unit tests of sak-frontend"
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
 # sakctl and sak-cloud (sak-cli/cloud/, the crate that declares the cloud resources of sakctl);
 # the integration tests of sakctl are in modules named integration
-[tasks."test:cli:unit"]
+[tasks."cli:test:unit"]
 description = "Run the unit tests of sakctl and sak-cloud"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
@@ -509,7 +509,7 @@ set -e
 # of the role as it renders it (backup, restore and the maintenance), next to a real victorialogs
 # (ansible/roles/backend/tests/sak-backend-test.sh), and the role role_markers
 # (ansible/roles/role_markers/tests/role-markers-test.sh)
-[tasks."test:backend:integration"]
+[tasks."backend:test:integration"]
 description = "Run the integration tests of the backend in docker: the vector configuration and sak-backend"
 dir = "{{config_root}}"
 run = """
@@ -520,14 +520,14 @@ ansible/roles/role_markers/tests/role-markers-test.sh
 
 # the apps in a browser against the controller and a mailpit e-mail sink (docker); playwright
 # downloads its chromium on the first run
-[tasks."test:frontend:integration"]
+[tasks."frontend:test:integration"]
 description = "Run the integration tests of sak-frontend: the apps in a browser against the controller"
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
 
 # the tests of sakctl in modules named integration: docker and podman (they pull the canary and
 # the image of the tools from ghcr.io), the ssh session in the image of the tools, ssh-keygen
-[tasks."test:cli:integration"]
+[tasks."cli:test:integration"]
 description = "Run the integration tests of sakctl: docker, podman and ssh-keygen"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
@@ -535,7 +535,7 @@ run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
 
 # the local tests of sak-e2e: the apps in chromium against the environment of `mise run local:run`;
 # playwright downloads its chromium on the first run
-[tasks."test:e2e:local"]
+[tasks."frontend:test:local"]
 description = "Run the local end to end tests of sak-e2e against the environment of mise run local:run"
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
@@ -547,7 +547,7 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # credentials come from pass unless set; without them the task refuses to run. The deployments run
 # the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
 # pushes them first (docker:all:push), in CI the jobs of the images pushed them
-[tasks."test:cli:e2e"]
+[tasks."cli:test:e2e"]
 description = "Run the e2e tests of sak-cloud and sakctl against a real Hetzner Cloud project"
 depends = ["cli:theme"]
 dir = "{{config_root}}"

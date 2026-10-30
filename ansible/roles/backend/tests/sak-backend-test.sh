@@ -2,7 +2,7 @@
 # the tests of sak-backend (templates/sak-backend.j2), in docker: a debian 13 like the servers
 # next to a real victorialogs of the image the role pins, sharing its network; systemctl,
 # systemd-run, needrestart and podman are stubs, apt is real, the backend is a static answer of /api/v1/info. Run by `mise run
-# test:backend:integration`
+# backend:test:integration`
 set -euo pipefail
 
 role=$(cd "$(dirname "$0")/.." && pwd)

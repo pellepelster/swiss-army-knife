@@ -358,7 +358,7 @@ mod tests {
         );
     }
 
-    /// the integration tests (`mise run test:cli:integration`), with docker and the image of the
+    /// the integration tests (`mise run cli:test:integration`), with docker and the image of the
     /// tools, skipped when the image is not there
     mod integration {
         use super::*;

@@ -36,7 +36,7 @@ env:
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
-  # the unit tests of the backend, the frontend and the cli (mise run test:<part>:unit), each in a
+  # the unit tests of the backend, the frontend and the cli (mise run <part>:test:unit), each in a
   # job of its own; their junit reports show as a check of the run, failed tests also when the
   # tests fail. The images are built only when all of them are green
   test-unit:
@@ -86,7 +86,7 @@ jobs:
             sak-cli/src-tauri -> target
             sak-cli/cloud -> target
           key: test-unit
-      - run: mise run test:${{ matrix.part }}:unit
+      - run: mise run ${{ matrix.part }}:test:unit
       - if: ${{ !cancelled() }}
         uses: mikepenz/action-junit-report@v6
         with:

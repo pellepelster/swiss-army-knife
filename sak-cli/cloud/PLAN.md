@@ -183,7 +183,7 @@ Integration (need `HCLOUD_TOKEN`, skip themselves without one, so `cargo test` r
 * `tests/support/hetzner.rs`: test id label on everything, cleanup of every resource with
   that label on drop, also after a failed assertion
 
-mise tasks `test:cli:unit` (the tests of the library) and `test:cli:e2e` (the tests of
+mise tasks `cli:test:unit` (the tests of the library) and `cli:test:e2e` (the tests of
 `tests/` with `HCLOUD_TOKEN` from `pass show hetzner/pelle.io/hcloud_api_token` when not
 set) in the root `mise.toml`.
 
