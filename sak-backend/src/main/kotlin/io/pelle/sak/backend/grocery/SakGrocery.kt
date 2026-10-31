@@ -30,6 +30,7 @@ import io.pelle.sak.backend.grocery.model.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.GroceryListResponse
 import io.pelle.sak.backend.grocery.model.GrocerySuggestionResponse
 import io.pelle.sak.model.grocery.GroceryItem
+import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryList
 import io.pelle.sak.model.grocery.GroceryProduct
 import io.ktor.server.application.ApplicationCall
@@ -40,6 +41,8 @@ import java.math.BigDecimal
 private const val GROCERY_TAG = "grocery"
 
 private const val LIST_EXISTS = "A list of the name exists."
+
+private const val LAST_LIST = "You can not delete your only list."
 
 
 private fun GroceryList.response(user: String) =
@@ -160,16 +163,20 @@ fun Route.grocery(groceryService: GroceryService) {
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            val deleted = withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }
-            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            when (withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }) {
+                GroceryListDelete.Deleted -> call.respond(HttpStatusCode.NoContent)
+                GroceryListDelete.NotFound -> call.respond(HttpStatusCode.NotFound)
+                GroceryListDelete.LastList -> call.respondErrors(LAST_LIST, status = HttpStatusCode.Conflict)
+            }
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a grocery list"
-            description = "Its items go with it; only its owner deletes a list."
+            description = "Its items go with it; only its owner deletes a list, but not their last own list."
             parameters { listId() }
             responses {
                 HttpStatusCode.NoContent { description = "The list is gone" }
                 HttpStatusCode.NotFound { description = "The user has no such list" }
+                errors(HttpStatusCode.Conflict, "The last list of the user's own")
             }
         }
 

@@ -71,7 +71,12 @@ import { GroceryList, GroceryService } from './grocery.service';
           } @else {
             <div class="btn-group" role="group" aria-label="List actions">
               @if (list()) {
-                <button type="button" class="btn btn-outline-danger" (click)="confirming.set(true)">
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  [disabled]="last()"
+                  (click)="confirming.set(true)"
+                >
                   Delete list
                 </button>
               }
@@ -89,6 +94,11 @@ import { GroceryList, GroceryService } from './grocery.service';
             </div>
           }
         </div>
+        @if (last()) {
+          <div class="form-text text-end" data-testid="last-list">
+            Your only list can not be deleted.
+          </div>
+        }
       </form>
     }
   `,
@@ -106,6 +116,8 @@ export class GroceryListForm implements OnInit {
   protected readonly shared = signal(false);
   protected readonly saving = signal(false);
   protected readonly confirming = signal(false);
+  // the only list of the user's own, which can not be deleted (LIST-1)
+  protected readonly last = signal(false);
   protected readonly error = signal<string | null>(null);
 
   protected readonly back = computed(() => (this.id() ? { list: this.id() } : {}));
@@ -124,6 +136,7 @@ export class GroceryListForm implements OnInit {
             return;
           }
           this.list.set(list);
+          this.last.set(lists.filter((each) => each.mine).length === 1);
           this.name.set(list.name);
           this.shared.set(list.shared);
         },

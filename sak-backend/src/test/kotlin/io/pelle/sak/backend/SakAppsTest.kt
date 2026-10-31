@@ -516,7 +516,12 @@ class SakAppsTest {
             get(port, "/api/v1/grocery/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Milk"
             get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
                 "Fruit & vegetables"
-            // a list like the others
+            // the only own list stays, with another one it goes
+            delete(port, "/api/v1/grocery/lists/$listId", session).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe """{"errors":[{"message":"You can not delete your only list."}]}"""
+            }
+            post(port, "/api/v1/grocery/lists", """{"name":"Party","shared":false}""", session).statusCode() shouldBe 201
             delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 204
         }
     }

@@ -17,7 +17,7 @@ users; what a user added before is suggested again.
 
 - `GROCERY-1` **Lists.** Grocery is a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)): every
   item is on one list. A user sees their own lists and the shared lists of the others, by name; only the owner of a
-  list renames, shares or deletes it. Deleting a list deletes its items.
+  list renames, shares or deletes it, but not their last own list (`LIST-1`). Deleting a list deletes its items.
 
 ## Data
 

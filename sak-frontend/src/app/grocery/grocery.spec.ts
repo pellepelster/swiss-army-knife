@@ -250,11 +250,24 @@ describe('Grocery', () => {
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 
+  it('the only own list can not be deleted, a shared list of another user does not count', async () => {
+    await open('/grocery/lists/1/edit');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    await harness.fixture.whenStable();
+    expect(button('Delete list').disabled).toBe(true);
+    expect(page().querySelector('[data-testid=last-list]')?.textContent).toContain(
+      'Your only list can not be deleted.',
+    );
+  });
+
   it('the list of the sign-in is renamed and deleted like the others', async () => {
     await open('/grocery/lists/1/edit');
-    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    http
+      .expectOne('/api/v1/grocery/lists?offset=0&limit=100')
+      .flush(pageOf([defaultList, { id: 3, name: 'Weekly', shared: false, mine: true }]));
     await harness.fixture.whenStable();
     expect(input('list-name').readOnly).toBe(false);
+    expect(page().querySelector('[data-testid=last-list]')).toBeNull();
 
     // delete, cancel and save are one group; the delete asks in its place
     const group = () => page().querySelector('[role=group][aria-label="List actions"]');

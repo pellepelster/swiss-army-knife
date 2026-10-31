@@ -7,6 +7,7 @@ import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.grocery.GroceryList
+import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryListUpdate
 import io.pelle.sak.model.grocery.GroceryProduct
 import io.pelle.sak.model.grocery.GroceryRepository
@@ -103,11 +104,11 @@ class GroceryService(
         }
     }
 
-    // with its items; false when the user has no such list of their own
+    // with its items, not the last list of the user's own (LIST-1)
     fun deleteList(
         user: String,
         id: Int,
-    ): Boolean = repository.deleteList(user, id)
+    ): GroceryListDelete = repository.deleteList(user, id)
 
     // the items to buy of a list the user sees, null for another one: by the order of their
     // category, the ones without a category last, then in the order they were added

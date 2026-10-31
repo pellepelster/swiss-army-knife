@@ -61,6 +61,17 @@ data class GroceryItemValues(
     val category: String?,
 )
 
+// what deleting a list came to
+sealed interface GroceryListDelete {
+    data object Deleted : GroceryListDelete
+
+    // the user has no such list of their own
+    data object NotFound : GroceryListDelete
+
+    // the only list of the user's own, it stays (LIST-1)
+    data object LastList : GroceryListDelete
+}
+
 // what changing a list came to
 sealed interface GroceryListUpdate {
     data class Updated(
@@ -166,28 +177,41 @@ class GroceryRepository(
             GroceryListUpdate.NameTaken
         }
 
-    // a list of the user's own, it and its items stay as deleted; false when the user has no such list
+    // a list of the user's own, not their last one (LIST-1); it and its items stay as deleted. The
+    // check of the other lists is part of the update, two lists deleted at once leave one
     fun deleteList(
         user: String,
         id: Int,
-    ): Boolean =
+    ): GroceryListDelete =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
+            val other = GROCERY_LISTS.`as`("other")
+            val anotherOwn =
+                DSL.exists(
+                    DSL
+                        .selectOne()
+                        .from(other)
+                        .where(other.OWNER.eq(user), other.DELETED_AT.isNull, other.ID.ne(id)),
+                )
             val deleted =
                 dsl
                     .update(GROCERY_LISTS)
                     .set(GROCERY_LISTS.DELETED_AT, now)
-                    .where(GROCERY_LISTS.ID.eq(id), ownList(user))
+                    .where(GROCERY_LISTS.ID.eq(id), ownList(user), anotherOwn)
                     .execute() > 0
-            if (deleted) {
-                dsl
-                    .update(GROCERY_ITEMS)
-                    .set(GROCERY_ITEMS.DELETED_AT, now)
-                    .where(GROCERY_ITEMS.LIST_ID.eq(id), GROCERY_ITEMS.DELETED_AT.isNull)
-                    .execute()
+            when {
+                deleted -> {
+                    dsl
+                        .update(GROCERY_ITEMS)
+                        .set(GROCERY_ITEMS.DELETED_AT, now)
+                        .where(GROCERY_ITEMS.LIST_ID.eq(id), GROCERY_ITEMS.DELETED_AT.isNull)
+                        .execute()
+                    GroceryListDelete.Deleted
+                }
+                dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(id), ownList(user)) -> GroceryListDelete.LastList
+                else -> GroceryListDelete.NotFound
             }
-            deleted
         }
 
     // the items of the list in the order they were added, null when the user does not see the list

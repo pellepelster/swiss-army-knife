@@ -83,7 +83,9 @@ An app whose items belong to lists of the user keeps to these rules; the notes a
 
 - `LIST-1` **A list from the sign-in.** When a user signs in, the app makes the private list "Default" for them if
   they have no list of their own (`SHARED-5`). It is a list like the others: its owner renames, shares and deletes it.
-  A new item always names its list; no request makes a list on the side.
+  A user keeps at least one list of their own, the last one can not be deleted; the shared lists of the others do
+  not count, their owners can take them away. A new item always names its list; no request makes a list on the
+  side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
   to it and delete items from it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of
   a shared list, also one another user created.

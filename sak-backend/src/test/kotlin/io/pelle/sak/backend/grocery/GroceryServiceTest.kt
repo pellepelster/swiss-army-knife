@@ -5,6 +5,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
+import io.pelle.sak.model.grocery.GroceryListDelete
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.math.BigDecimal
@@ -74,8 +75,8 @@ class GroceryServiceTest {
         service.items(OTHER, private.id) shouldBe null
 
         service.updateList(OTHER, shared.id, "Mine now", shared = true) shouldBe GroceryListResult.NotFound
-        service.deleteList(OTHER, shared.id) shouldBe false
-        service.deleteList(PELLE, shared.id) shouldBe true
+        service.deleteList(OTHER, shared.id) shouldBe GroceryListDelete.NotFound
+        service.deleteList(PELLE, shared.id) shouldBe GroceryListDelete.Deleted
         service.lists(OTHER) shouldBe emptyList()
     }
 
@@ -88,9 +89,12 @@ class GroceryServiceTest {
         service.lists(PELLE) shouldBe listOf(default)
 
         (service.updateList(PELLE, default.id, "Weekly", shared = true) as GroceryListResult.Saved).list.shared shouldBe true
-        service.deleteList(PELLE, default.id) shouldBe true
+        // the only own list stays
+        service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.LastList
+        val party = (service.createList(PELLE, "Party", shared = false) as GroceryListResult.Saved).list
+        service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.Deleted
         service.signedIn(PELLE)
-        service.lists(PELLE).map { it.name } shouldBe listOf(DEFAULT_GROCERY_LIST)
+        service.lists(PELLE) shouldBe listOf(party)
     }
 
     @Test
