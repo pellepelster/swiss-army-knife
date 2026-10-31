@@ -61,10 +61,12 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 
 - `ANDROID-1` **Material 3, the colors of the phone.** The grocery app follows the light or dark mode of the system and
   takes the colors of the wallpaper where Android has them.
-- `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the lists; the name of the deployment is the title,
-  the sign-out is in the menu at the top right.
-- `ANDROID-3` **The lists like the web ui.** Tabs at the top switch the lists, the items are grouped by category;
-  pulling down reloads. A message tells when there is nothing to buy.
+- `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the overview of the lists, one list and a new
+  list. The overview has the name of the deployment as its title; at the top right are the button that adds a list and
+  the menu with the sign-out. Every other screen of a signed in user has a back arrow at the top left with its own
+  title; the back of the system does the same.
+- `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
+  pulls it down.
 
 ## sakctl window
 
