@@ -416,32 +416,28 @@ private fun Empty(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
 }
 
-// the field at the top of a list, Done on the keyboard adds like the button and keeps the keyboard
-// open for the next item (GROCERY-2)
+// the field at the top of a list, without a button: Enter on the keyboard adds the item and keeps the
+// keyboard open for the next one (GROCERY-2)
 @Composable
 private fun NewItem(
     screen: Screen.Lists,
     model: GroceryModel,
 ) {
-    val canAdd = screen.itemName.isNotBlank() && !screen.adding
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = screen.itemName,
-            onValueChange = model::typed,
-            label = { Text("Item") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (canAdd) model.addItem() }),
-            modifier = Modifier.weight(1f).testTag("item-name"),
-        )
-        Button(onClick = model::addItem, enabled = canAdd, modifier = Modifier.testTag("add-item")) {
-            Text(if (screen.adding) "Adding…" else "Add")
-        }
-    }
+    OutlinedTextField(
+        value = screen.itemName,
+        onValueChange = model::typed,
+        label = { Text("Item") },
+        singleLine = true,
+        trailingIcon =
+            if (screen.adding) {
+                { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+            } else {
+                null
+            },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { model.addItem() }),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("item-name"),
+    )
 }
 
 // a tap on the row or its box checks the item, struck through while the check can be undone
