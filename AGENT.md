@@ -12,8 +12,8 @@ Read this file first. It contains rules for the complete repository.
 - Never create a Feature Decision Record (`docs/development/fdr/`) on your own; write one only when the user asks for
   it. Keeping an existing FDR current when its feature changes is still required.
 - Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
-  finding has an id that is unique in the repository, the prefix of its review and a number (e.g. `MR-3`, the
-  third finding of a review of the model); never use an id again, also not when its finding is fixed or removed.
+  finding has an id that is unique in the repository, the prefix of its review and a number; never use an id again,
+  also not when its finding is fixed or removed. A fixed finding stays in its review, struck through (`~~…~~`).
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
