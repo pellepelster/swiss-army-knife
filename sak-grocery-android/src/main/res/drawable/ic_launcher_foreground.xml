@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the icon of the grocery app of the web app (sak-frontend/public/icons/grocery.svg) without its
+     paper white, which is the background layer: a shopping basket in orange, outlined in ink, with
+     the swiss army knife of the favicon in its corner. Scaled to 0.72 around the center, so the
+     masks of the launchers keep the rim of the basket -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.72" android:scaleY="0.72">
+        <!-- the handles -->
+        <path
+            android:pathData="M36,44 L48,20 M72,44 L60,20"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- the basket and its rim -->
+        <path
+            android:pathData="M22,52 L86,52 L78,84 Q77,88 73,88 L35,88 Q31,88 30,84 Z"
+            android:fillColor="#ffcc80"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M20,42 H88 A4,4 0 0 1 92,46 V50 A4,4 0 0 1 88,54 H20 A4,4 0 0 1 16,50 V46 A4,4 0 0 1 20,42 Z"
+            android:fillColor="#ffcc80"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3" />
+        <path
+            android:pathData="M42,60 L44,80 M54,60 L54,80 M66,60 L64,80"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3"
+            android:strokeLineCap="round" />
+        <!-- the knife: translate(52 52) scale(0.53125) rotate(-40 32 32) -->
+        <group android:translateX="52" android:translateY="52" android:scaleX="0.53125" android:scaleY="0.53125">
+            <group android:pivotX="32" android:pivotY="32" android:rotation="-40">
+                <path
+                    android:pathData="M44,22 L66,22 Q63,33 50,37 L44,37 Z"
+                    android:fillColor="#d7dbe2"
+                    android:strokeColor="#5b6170"
+                    android:strokeWidth="2"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M13,20 H37 A13,13 0 0 1 37,46 H13 A13,13 0 0 1 13,20 Z"
+                    android:fillColor="#d52b1e"
+                    android:strokeColor="#8f1a12"
+                    android:strokeWidth="2" />
+                <path
+                    android:pathData="M22.5,25 H27.5 A1,1 0 0 1 28.5,26 V40 A1,1 0 0 1 27.5,41 H22.5 A1,1 0 0 1 21.5,40 V26 A1,1 0 0 1 22.5,25 Z"
+                    android:fillColor="#ffffff" />
+                <path
+                    android:pathData="M18,29.5 H32 A1,1 0 0 1 33,30.5 V35.5 A1,1 0 0 1 32,36.5 H18 A1,1 0 0 1 17,35.5 V30.5 A1,1 0 0 1 18,29.5 Z"
+                    android:fillColor="#ffffff" />
+            </group>
+        </group>
+    </group>
+</vector>
