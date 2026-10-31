@@ -11,6 +11,8 @@ Read this file first. It contains rules for the complete repository.
   A link between documents that does not resolve fails `mise run docs:build`.
 - Never create a Feature Decision Record (`docs/development/fdr/`) on your own; write one only when the user asks for
   it. Keeping an existing FDR current when its feature changes is still required.
+- Never add an architecture rule (`docs/development/architecture/`) on your own. Ask the user first and add the rule
+  only after the user explicitly agrees. This applies also to a rule that a change, a review or a fix needs.
 - Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
   finding has an id that is unique in the repository, the prefix of its review and a number; never use an id again,
   also not when its finding is fixed or removed. A fixed finding stays in its review, struck through (`~~…~~`).
@@ -52,7 +54,8 @@ repeating them:
    app's directory links its document.
 
 Every change keeps to its level and to the levels above; a change that has to break a rule changes its document in
-the same commit and says why. A rule two apps need moves up to apps/INDEX.md. Every rule has an id, e.g. `MODEL-1`
+the same commit and says why. A rule two apps need moves up to apps/INDEX.md. A new rule needs the explicit consent
+of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 (refer to SYSTEM.md); refer to a rule by its id.
 
 ## Persistence (`sak-model`)
