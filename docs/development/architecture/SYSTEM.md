@@ -1,15 +1,21 @@
 ---
-title: "Architecture"
-description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security and the tests."
+title: "System Architecture"
+linkTitle: "System"
+description: "How SAK is built as a whole: its parts, the server of a deployment, sakctl, the cloud resources, privacy, security and the tests."
 weight: 10
 ---
 
-# Architecture
+# System Architecture
 
-How Swiss Army Knife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
-code is in [AGENT.md](../../AGENT.md), how the apps look and behave in [UI-UX.md](UI-UX.md), the words in
-[GLOSSARY.md](GLOSSARY.md), the weaknesses kept on purpose in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), and each
-feature in [fdr/INDEX.md](fdr/INDEX.md).
+How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This
+is the first of three levels: what all apps share is in [the architecture of the apps](apps/INDEX.md), each app in its
+own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps look and behave in
+[UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
+[ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md), and each feature in [fdr/INDEX.md](../fdr/INDEX.md).
+
+A lower level adds to the levels above and never repeats them; a rule two apps need moves up to [the architecture of
+the apps](apps/INDEX.md). Every change keeps to its level and to the levels above; a change that has to break a rule
+changes its document in the same commit and says why.
 
 ## Overview
 
@@ -51,9 +57,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ### Apps
 
-The backend serves these apps to its users: static hosting (buckets with an S3 api, served at their own domains),
-redirects of domains, notes with labels and files (photos, recordings, text discovery), the access logs of the sites,
-and the health of the domains.
+The backend serves apps to its users, for example static hosting and notes. How they are built is in
+[the architecture of the apps](apps/INDEX.md).
 
 ## The server of a deployment
 
@@ -61,64 +66,14 @@ and the health of the domains.
   Ansible pulls their images on each run; a new image restarts its container.
 - **One script for the maintenance.** sakctl backs up, restores, updates and reboots the server through ssh with one
   script, whose commands take turns: a reboot stops the deployment in order first and never interrupts a backup.
-  Refer to [FDR-008](fdr/FDR-008-server-maintenance.md).
+  Refer to [FDR-008](../fdr/FDR-008-server-maintenance.md).
 - All data is on the data volume, mounted at `/storage/data`, below a directory named like the deployment
   (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
 - The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of the
   buckets and the redirects.
-- The hosts depend on the **dns mode** (refer to [FDR-001](fdr/FDR-001-dns-mode.md)): the frontend is at
+- The hosts depend on the **dns mode** (refer to [FDR-001](../fdr/FDR-001-dns-mode.md)): the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
   base domain is the root domain (`domain`) or `<name>.<root domain>` (`subdomain`).
-
-## Backend layers
-
-- **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes of
-  its app. A service uses only other services and its own repository. A repository is used only by its service;
-  routes use services, never repositories.
-- **The database is only in `sak-model`.** Only the repository of an entity touches the database.
-
-## Persistence
-
-- **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips such rows.
-  A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken until it is
-  purged (refer to [FDR-004](fdr/FDR-004-maintenance-cleanup.md), the only planned purge).
-- **Every row records its time.** When it was created, last updated and deleted, set by the repository from one
-  clock.
-- **Secrets stay with what they belong to.** The secret key of a bucket is stored with the bucket, but is never part
-  of the bucket that reaches the api. Secrets that belong to no entity, such as the signing key of the login, are
-  settings.
-- **Settings.** A setting is one value for a name and a scope; a scope is a set of settings that belong together,
-  for example `system`. Their one service
-  hands the values out as they are; whoever uses a setting that is a secret keeps it from showing. A secret never
-  shows in a log line. The values are plain; the whole
-  database is to be encrypted ([FDR-002](fdr/FDR-002-sqlite-encryption.md)).
-- **Settings an admin changes.** Each setting that an admin changes at run time declares its scope, its type and its
-  default, and the code reads and writes it with that type. One api and one page show and change the settings of all
-  scopes, one scope at a time: the api reads and sets the values of a scope, the page shows each scope as a tab. A
-  change of a scope is validated completely before any value is set. A read-only setting shows a value the backend
-  gives, for example a model from its configuration; it is never stored and can not be changed.
-  A setting can require another one that is on, also in another scope; while that one is off, it is off to the code
-  and the apps and can not be changed, and the settings page shows its stored value greyed out.
-
-## API
-
-- **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem
-  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
-  `ErrorMessage` (`sak-api`), its message one string; it becomes an `ApiErrorMessage` only at the api.
-- **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with `offset`
-  and `limit`; `limit` is 50 by default and at most 100.
-- **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That holds for
-  every time the api answers (when something was created, updated or computed, when a session ends, the times of
-  the logs and the metrics). Something that never ends has no time rather than one far away.
-- **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
-  response class.
-- **Authentication:** a session token, or a request sakctl signs with the api key of the deployment (its public
-  half in the configuration). A signed request holds for the host of the backend, its method and path, a time no more
-  than two minutes away and a nonce taken once; it carries no body and no secret, so a request that went to another
-  host or is replayed gets nothing. A
-  session comes from the password login of the admin (always there) or from the e-mail login (only in the multi
-  user mode, with a mail server); refer to [FDR-005](fdr/FDR-005-login.md). Without a session or a signature, only the login and
-  `GET /api/v1/info` answer.
 
 ## sakctl
 
@@ -142,14 +97,14 @@ and the health of the domains.
   files of the role and of the values the run gave it. The plan reads the markers through ssh and runs the playbook
   when the server changes, when there are no markers (never provisioned, or the last run failed: a run removes them
   first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
-  Refer to [FDR-009](fdr/FDR-009-provisioning-markers.md).
+  Refer to [FDR-009](../fdr/FDR-009-provisioning-markers.md).
 - **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the staging
   ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots sakctl
   then trusts). The integration tests use the staging ca, so they never run into the limits of the production one.
 - **Backups through ssh.** A backup is pulled through ssh into one file on the user's machine, compressed and
   encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
   through ssh. The files of the backups are data of the user, not state of sakctl. Refer to
-  [FDR-007](fdr/FDR-007-backup.md).
+  [FDR-007](../fdr/FDR-007-backup.md).
 - **One version.** sakctl, the image of its tools and the images of the server have the same version, the version
   of the release. A server runs the images of the version of the sakctl that deployed it. For the tests, another
   tag of the images can be set, the images of a release before it is released (`<version>-rc`).
@@ -189,12 +144,9 @@ and the health of the domains.
 - **Nothing from outside.** No page loads anything from outside the root domain: no CDN, font service, analytics or
   other third party. Everything is bundled or served by the backend. The content security policy allows only the
   page's own origin and `api.<base domain>`.
-- **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated (for
-  example text discovery: it needs the settings **AI features**, which is off by default, and **API key** of the
-  scope **AI**, and **AI features** of the scope **Notes**; a new API key is checked at OpenRouter only while **AI
-  features** of the scope **AI** is on), and the user
-  agrees before each transfer and knows where the data goes. No default activates such a
-  connection.
+- **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated, and the
+  user agrees before each transfer and knows where the data goes. No default activates such a connection. How the
+  apps activate a connection is in [the architecture of the apps](apps/INDEX.md#privacy-in-the-apps).
 - **Updates on request only.** sakctl asks GitHub for the newest release only when the user asks for an update, and
   names GitHub before it connects. GitHub then sees the IP address of the user. sakctl never asks on its own.
 - **Exemption: the container registry.** sakctl and the server pull the images of SAK from the GitHub container

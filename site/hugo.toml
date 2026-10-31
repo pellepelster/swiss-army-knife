@@ -20,12 +20,17 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/fdr/INDEX.md', '! development/screenshots/**', '! development/design/**']
+files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! development/screenshots/**', '! development/design/**']
 
 # the index of the feature decision records is the page of its section
 [[module.mounts]]
 source = '../docs/development/fdr/INDEX.md'
 target = 'content/development/fdr/_index.md'
+
+# the architecture of all apps is the page of the section of the apps
+[[module.mounts]]
+source = '../docs/development/architecture/apps/INDEX.md'
+target = 'content/development/architecture/apps/_index.md'
 
 [[module.mounts]]
 source = '../docs/development/screenshots'

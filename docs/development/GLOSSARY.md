@@ -15,7 +15,7 @@ user interface. Use the same term for the same thing every time.
 - **name**: The unique name of a SAK deployment. Each deployment has one name. Two
   deployments cannot have the same name. Each cloud resource of a deployment has
   the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in
-  [ARCHITECTURE.md](ARCHITECTURE.md)).
+  [SYSTEM.md](architecture/SYSTEM.md)).
 - **dns mode** (`dns_mode`): How SAK sets up DNS for a deployment. The mode `domain` manages `<root domain>` and
   `*.<root domain>`. The mode `subdomain` manages `<name>.<root domain>` and `*.<name>.<root domain>`. The
   default is `subdomain` (refer to [FDR-001](fdr/FDR-001-dns-mode.md)).

@@ -36,7 +36,7 @@ HTML, with the plain text as a fallback, so that the link is a clear button and 
 
 **Decision:** No remote images, fonts or styles, and no tracking. All styles are inline in the HTML.
 **Why:** A remote resource tells a third party that the mail was opened, and from which IP address (refer to
-"Privacy" in [ARCHITECTURE.md](../ARCHITECTURE.md)). Many mail clients also block remote resources.
+"Privacy" in [SYSTEM.md](../architecture/SYSTEM.md)). Many mail clients also block remote resources.
 **Tradeoff:** A logo must be embedded in the mail, or there is no logo.
 
 ## Related

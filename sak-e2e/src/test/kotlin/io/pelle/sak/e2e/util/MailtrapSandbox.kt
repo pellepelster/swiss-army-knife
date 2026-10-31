@@ -15,7 +15,7 @@ import java.time.Duration
 private const val MAILTRAP_API = "https://mailtrap.io/api"
 
 // the sandbox of mailtrap that receives the mails of the multi user deployment: the one whose smtp
-// user the deployment sends with. Only synthetic addresses go there (ARCHITECTURE.md, "Tests")
+// user the deployment sends with. Only synthetic addresses go there (architecture/SYSTEM.md, "Tests")
 class MailtrapSandbox(
     private val token: String,
     smtpUser: String,

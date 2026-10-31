@@ -1,5 +1,5 @@
 //! the update of sakctl to the newest release on github. Only on request, never on its own:
-//! github sees the address of the machine (ARCHITECTURE.md, "Privacy"), so the window and the
+//! github sees the address of the machine (architecture/SYSTEM.md, "Privacy"), so the window and the
 //! command line name it (`RECEIVER`) before they ask. The zip of the platform is checked against
 //! the sha-256 of the same release before its binary replaces the running one. A build that is no
 //! release (`latest`) asks nothing, it has no version to compare with

@@ -28,7 +28,7 @@ Read this file first. It contains rules for the complete repository.
 - Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
   the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections.
   A connection that sends data to a third party is off by default: it needs an explicit activation, and the consent of
-  the user before data goes out, with the name of the receiver (ARCHITECTURE.md, "Privacy").
+  the user before data goes out, with the name of the receiver (architecture/SYSTEM.md, "Privacy").
 - Keep comments terse and condensed, only add comments for non-obvious behavior
 
 ## UI/UX
@@ -38,10 +38,18 @@ How the apps (frontend, CLI, wizard, Android Apps) look and behave for their use
 
 ## Architecture
 
-How the system is built (its parts, the server of a deployment, the layers, the persistence model, the api contract,
-sakctl, the cloud resources and their labels, the privacy boundaries) is in
-[docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md). Every change keeps to it; a change that has to
-break it changes ARCHITECTURE.md in the same commit and says why.
+How SAK is built is in three levels below `docs/development/architecture/`, each adding to the ones above and never
+repeating them:
+
+1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the server of a deployment,
+   sakctl, the cloud resources and their labels, privacy, security, the tests).
+2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the layers, the persistence, the settings,
+   the api contract, the shared parts, the frontend, privacy in the apps).
+3. `apps/<APP>.md`: each app, e.g. [NOTES.md](docs/development/architecture/apps/NOTES.md); the `AGENTS.md` of an
+   app's directory links its document.
+
+Every change keeps to its level and to the levels above; a change that has to break a rule changes its document in
+the same commit and says why. A rule two apps need moves up to apps/INDEX.md.
 
 ## Persistence (`sak-model`)
 
@@ -50,7 +58,7 @@ break it changes ARCHITECTURE.md in the same commit and says why.
     - `created_at` is set when the row is inserted, never null;
     - `updated_at` is null until the row really changes, an insert never sets it;
     - `deleted_at` is null until the row is deleted, a delete sets nothing else.
-- Soft delete (ARCHITECTURE.md, "Persistence"): every read skips the rows with `deleted_at` set, a value unique among
+- Soft delete (architecture/apps/INDEX.md, "Persistence"): every read skips the rows with `deleted_at` set, a value unique among
   the live rows has a partial unique index (`WHERE deleted_at IS NULL`).
 - The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
@@ -68,12 +76,12 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 
 ## Services (`sak-backend`)
 
-- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are in ARCHITECTURE.md,
+- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are in architecture/apps/INDEX.md,
   "Backend layers".
 
 ## API (`/api`)
 
-- The contract (errors, pagination, request and response classes) is in ARCHITECTURE.md, "API". In the code:
+- The contract (errors, pagination, request and response classes) is in architecture/apps/INDEX.md, "API". In the code:
 - Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation; errors are answered with
   `call.respondErrors`; the largest `limit` is `MAX_LIMIT` (`sak-api`).
 - A service answers a page as `Page<T>` (`sak-api`, its items and the total); the route answers
@@ -133,7 +141,7 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 
 ## Cloud resources (`sak-cli/cloud`)
 
-- The labels, the identity and what must stay are in ARCHITECTURE.md, "Cloud resources". In the code:
+- The labels, the identity and what must stay are in architecture/SYSTEM.md, "Cloud resources". In the code:
 - Whatever creates resources sets the name label and the password hash label on creation, and declares them as the
   identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
 - A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
@@ -149,7 +157,7 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 
 ## Privacy in the code
 
-- The boundaries are in ARCHITECTURE.md, "Privacy". In the code: fonts and libraries are bundled (e.g.
+- The boundaries are in architecture/SYSTEM.md, "Privacy". In the code: fonts and libraries are bundled (e.g.
   `@fontsource`, `swagger-ui-dist`), the content security policy is `contentSecurityPolicy` and is never widened
   beyond `<root_domain>`, and calls to openrouter send `provider.data_collection: deny`.
 
@@ -162,5 +170,6 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
-- [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md) — how the system is built.
+- [docs/development/architecture/SYSTEM.md](docs/development/architecture/SYSTEM.md) — how SAK is built, the first
+  of the three levels of the architecture.
 - `docs/development/fdr/INDEX.md` — Swiss Army Knife feature behavior and rationale.

@@ -63,7 +63,7 @@ counts as another deployment.
 ### 5. The zone and its other records belong to the user
 
 **Decision:** SAK uses a zone that exists, and changes or removes only the records with the label of the deployment
-(refer to "Cloud resources" in [ARCHITECTURE.md](../ARCHITECTURE.md)).
+(refer to "Cloud resources" in [SYSTEM.md](../architecture/SYSTEM.md)).
 **Why:** A root domain often holds records that are not part of SAK (mail, verification, other services), and in
 subdomain mode, other deployments.
 **Tradeoff:** The user creates the zone first, and removes records at the managed names that SAK must not take over.

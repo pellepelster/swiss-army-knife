@@ -7,7 +7,7 @@ weight: 15
 # Accepted Risks
 
 Known weaknesses that are kept on purpose. A change that touches one keeps the trade-off or revisits it here. How SAK
-is built is in [ARCHITECTURE.md](ARCHITECTURE.md).
+is built is in [SYSTEM.md](architecture/SYSTEM.md).
 
 - **The database is not encrypted at rest.** All data in it, the secrets included, is plain in the SQLite file on
   the data volume, against the rule to encrypt all data at rest. Accepted until

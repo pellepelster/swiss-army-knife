@@ -500,7 +500,7 @@ done
 ls -lh build/videos/*.mp4 build/videos/*.gif
 '''
 
-# the tests, <part>:test:<kind> (ARCHITECTURE.md, "Tests"): unit tests need nothing but the tools
+# the tests, <part>:test:<kind> (docs/development/architecture/SYSTEM.md, "Tests"): unit tests need nothing but the tools
 # of mise.toml, integration tests need what the machine that runs them has (docker, a browser,
 # ssh-keygen), e2e tests need resources outside of it (a Hetzner Cloud project). The unit tests
 # write junit reports, to build/test-results/ of each gradle module and target/nextest/ of each
