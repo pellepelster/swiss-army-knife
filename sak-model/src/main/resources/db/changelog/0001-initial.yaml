@@ -336,8 +336,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX notes_files_file_key ON notes_files (note_id, file_id) WHERE deleted_at IS NULL
 
-        # the settings of the controller, each of a name and a scope: 'system' for the controller
-        # itself or the e-mail address of a user. Some are secrets (e.g. AUTH_SIGNING_KEY); the
+        # the settings of the controller, each of a name and a scope, the name of a scope of settings
+        # (e.g. 'system', SettingScope in sak-backend). Some are secrets (e.g. AUTH_SIGNING_KEY); the
         # values are plain, the whole database is to be encrypted
         # (docs/development/fdr/FDR-002-sqlite-encryption.md). A setting replaced or deleted stays as a row
         # with deleted_at set, one setting per name and scope is not deleted

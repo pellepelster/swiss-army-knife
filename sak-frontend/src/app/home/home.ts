@@ -23,7 +23,9 @@ import { InstallService } from '../install.service';
           <i class="fa-solid fa-download" aria-hidden="true"></i> Install
         </button>
       }
-      <span class="small text-body-secondary text-truncate" data-testid="username">{{ username() }}</span>
+      <span class="small text-body-secondary text-truncate" data-testid="username">{{
+        username()
+      }}</span>
       <button type="button" class="btn btn-outline-secondary" (click)="signOut()">Sign out</button>
     </header>
     <nav aria-label="Apps">
@@ -57,6 +59,18 @@ import { InstallService } from '../install.service';
             <span class="vstack">
               <span class="fw-semibold fs-5" data-testid="app-name">Health</span>
               <span class="small text-body-secondary">The status of all health checks</span>
+            </span>
+          </a>
+        </li>
+        <li class="col">
+          <a
+            class="card card-body h-100 flex-row align-items-center gap-3 link-body-emphasis text-decoration-none"
+            routerLink="/settings"
+          >
+            <i class="fa-solid fa-gear fs-1" aria-hidden="true"></i>
+            <span class="vstack">
+              <span class="fw-semibold fs-5" data-testid="app-name">Settings</span>
+              <span class="small text-body-secondary">What the whole deployment does</span>
             </span>
           </a>
         </li>

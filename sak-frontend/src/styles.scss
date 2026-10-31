@@ -249,6 +249,22 @@ a {
   cursor: pointer;
 }
 
+.photo-discover {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 // over the thumbnail, so the photo that goes is the one in sight
 .photo-confirm {
   position: absolute;

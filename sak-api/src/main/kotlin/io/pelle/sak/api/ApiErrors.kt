@@ -21,13 +21,18 @@ import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.response.respond
-import io.pelle.sak.api.model.ErrorResponse
+import io.pelle.sak.api.model.ApiErrorResponse
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 
 suspend fun ApplicationCall.respondErrors(
     vararg messages: String,
     status: HttpStatusCode = HttpStatusCode.BadRequest,
-) = respond(status, ErrorResponse(*messages))
+) = respond(status, ApiErrorResponse(*messages))
+
+suspend fun ApplicationCall.respondErrors(
+    errors: List<ErrorMessage>,
+    status: HttpStatusCode = HttpStatusCode.BadRequest,
+) = respondErrors(*errors.map { it.message }.toTypedArray(), status = status)
 
 // a body that can not be read, a malformed one or one of the wrong type, is answered like every
 // other bad request, a body larger than the route takes (RequestBodyLimit) with a 413 of the same
@@ -88,5 +93,5 @@ fun Responses.Builder.errors(
     description: String,
 ) = status {
     this.description = description
-    schema = jsonSchema<ErrorResponse>()
+    schema = jsonSchema<ApiErrorResponse>()
 }

@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotesPage } from './notes-page';
-import { NotesStore } from './notes-store';
+import { NotesStore, UNDO_DELETE_MS } from './notes-store';
+import { SettingsStore } from '../settings/settings-store';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, FILE_ID } from './notes-testing';
@@ -40,6 +41,7 @@ describe('NotesPage', () => {
     page = fixture.nativeElement;
     document.body.appendChild(page);
     await fixture.whenStable();
+    http.expectOne('/api/v1/settings/notes?effective=true').flush({ ai: true });
     http
       .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(
@@ -223,24 +225,27 @@ describe('NotesPage', () => {
     expect(note.textContent).toContain('A note has at most 10 labels.');
   });
 
-  it('removes a photo only once the removal is confirmed', async () => {
+  it('removes a photo at once, brings it back with undo and saves the note when the time is up', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const note = notes()[2];
     button('Remove photo 1', note).click();
     await fixture.whenStable();
+    expect(note.querySelector('.note-photos a')).toBeNull();
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Photo removed');
     http.expectNone({ method: 'PUT' });
-    expect(note.querySelector('[role=group]')?.textContent).toContain('Remove photo?');
 
-    button('Keep', note).click();
+    button('Undo').click();
     await fixture.whenStable();
-    expect(note.querySelector('[role=group]')).toBeNull();
     expect(note.querySelector('.note-photos img')).not.toBeNull();
+    expect(page.querySelector('[role="status"]')).toBeNull();
 
     button('Remove photo 1', note).click();
     await fixture.whenStable();
-    button('Remove', note).click();
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
       [],
     );
+    vi.useRealTimers();
     await fixture.whenStable();
     // the recording of the note stays
     expect(note.querySelector('.note-photos a')).toBeNull();
@@ -258,6 +263,13 @@ describe('NotesPage', () => {
     await fixture.whenStable();
 
     expect(texts()[2]).toBe('Buy milk\n\nTotal 12.50');
+  });
+
+  it('offers to discover the text only with the AI features turned on', async () => {
+    TestBed.inject(SettingsStore).effective.set({ notes: { ai: false } });
+    await fixture.whenStable();
+    expect(button('Discover the text in photo 1', notes()[2])).toBeUndefined();
+    expect(button('Discover the text in recording 1', notes()[2])).toBeUndefined();
   });
 
   it('shows the waveform of a recording, plays it and discovers its text with the robot', async () => {

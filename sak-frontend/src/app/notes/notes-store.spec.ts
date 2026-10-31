@@ -115,6 +115,7 @@ describe('NotesStore', () => {
     ]);
 
     store.removePhoto(1, FILE_ID);
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
       [],
     );
@@ -235,6 +236,8 @@ describe('NotesStore', () => {
     http.expectNone(`/api/v1/files/${FILE_ID}/discover/text`);
 
     store.removeRecording(1, FILE_ID);
+    expect(store.removed()).toEqual({ kind: 'recording', noteId: 1, fileId: FILE_ID });
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
     expect(http.expectOne({ method: 'PUT' }).request.body.recordings).toEqual([]);
   });
 
@@ -293,7 +296,7 @@ describe('NotesStore', () => {
   it('deletes a note in the backend once it can no longer be brought back', () => {
     store.remove(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);
-    expect(store.deleted()?.id).toBe(2);
+    expect(store.removed()?.noteId).toBe(2);
     expect(store.pagination()?.total).toBe(1);
 
     vi.advanceTimersByTime(UNDO_DELETE_MS - 1);
@@ -301,7 +304,7 @@ describe('NotesStore', () => {
     vi.advanceTimersByTime(1);
     http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
 
-    expect(store.deleted()).toBeNull();
+    expect(store.removed()).toBeNull();
     expect(store.notes().map((note) => note.id)).toEqual([1]);
   });
 
@@ -310,7 +313,7 @@ describe('NotesStore', () => {
     store.undoRemove();
 
     expect(store.notes().map((note) => note.id)).toEqual([2, 1]);
-    expect(store.deleted()).toBeNull();
+    expect(store.removed()).toBeNull();
     expect(store.pagination()?.total).toBe(2);
     vi.advanceTimersByTime(UNDO_DELETE_MS);
     http.expectNone({ method: 'DELETE' });
@@ -331,7 +334,7 @@ describe('NotesStore', () => {
     store.remove(1);
 
     http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
-    expect(store.deleted()?.id).toBe(1);
+    expect(store.removed()?.noteId).toBe(1);
     store.undoRemove();
     expect(store.notes().map((note) => note.id)).toEqual([1]);
   });
@@ -350,6 +353,59 @@ describe('NotesStore', () => {
     expect(store.notes()[1].color).toBe('blue');
     expect(store.pagination()?.total).toBe(2);
     expect(store.error()).toBe('The note could not be deleted.');
+  });
+
+  // the notes loaded anew, the note 1 with the photos
+  const withPhotos = (...photos: number[]) => {
+    store.load();
+    http
+      .expectOne('/api/v1/notes?offset=0&limit=50')
+      .flush(
+        pageOf([
+          noteResponse(2, 'plumber', 'pink', []),
+          noteResponse(1, 'milk', 'yellow', [], photos),
+        ]),
+      );
+    http.match('/api/v1/labels?offset=0&limit=100').forEach((request) => request.flush(pageOf([])));
+  };
+
+  it('saves a note without a removed photo once it can no longer be brought back', () => {
+    withPhotos(FILE_ID, 8);
+
+    store.removePhoto(1, FILE_ID);
+    expect(store.notes()[1].photos).toEqual([8]);
+    expect(store.removed()).toEqual({ kind: 'photo', noteId: 1, fileId: FILE_ID });
+    vi.advanceTimersByTime(UNDO_DELETE_MS - 1);
+    http.expectNone({ method: 'PUT' });
+    vi.advanceTimersByTime(1);
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual([
+      8,
+    ]);
+    expect(store.removed()).toBeNull();
+  });
+
+  it('brings a removed photo back to its place, the note is not saved', () => {
+    withPhotos(FILE_ID, 8);
+
+    store.removePhoto(1, FILE_ID);
+    store.undoRemove();
+    expect(store.notes()[1].photos).toEqual([FILE_ID, 8]);
+    vi.advanceTimersByTime(UNDO_DELETE_MS);
+    http.expectNone({ method: 'PUT' });
+  });
+
+  it('saves a note again when a photo comes back after the note was saved without it', () => {
+    withPhotos(FILE_ID);
+
+    store.removePhoto(1, FILE_ID);
+    store.setColor(1, 'blue');
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(
+      [],
+    );
+    store.undoRemove();
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual([
+      FILE_ID,
+    ]);
   });
 
   it('drops a note changed here once another page is loaded', () => {

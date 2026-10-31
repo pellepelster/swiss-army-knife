@@ -180,7 +180,7 @@ class SakBackendTest {
                 tls = true,
                 starttls = false,
             )
-        config.openrouter shouldBe null
+        config.openrouter shouldBe SakConfig.OpenRouterConfig()
         config.addresses shouldBe SakConfig.AddressesConfig(listOf("203.0.113.1"), listOf("2001:db8::1"))
     }
 

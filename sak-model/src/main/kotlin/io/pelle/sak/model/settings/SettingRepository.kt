@@ -4,6 +4,7 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.SettingsRecord
 import io.pelle.sak.model.jooq.tables.references.SETTINGS
 import org.jooq.exception.IntegrityConstraintViolationException
+import org.jooq.impl.DSL
 import java.time.Clock
 import java.time.Instant
 
@@ -11,7 +12,7 @@ import java.time.Instant
 data class SettingRow(
     val id: Int,
     val name: String,
-    // 'system' or the e-mail address of a user
+    // the name of the scope of settings, e.g. 'system'
     val scope: String,
     val value: String,
     val createdAt: Instant,
@@ -53,6 +54,29 @@ class SettingRepository(
                 ?.toRow()
         } catch (_: IntegrityConstraintViolationException) {
             null
+        }
+
+    // the values of the names, in one transaction: a value replaced stays as a deleted row, an
+    // equal one is kept as it is
+    fun replace(
+        scope: String,
+        values: Map<String, String>,
+    ): Unit =
+        database.dsl.transaction { configuration ->
+            val dsl = DSL.using(configuration)
+            val now = clock.instant()
+            values.forEach { (name, value) ->
+                val live = SETTINGS.NAME.eq(name).and(SETTINGS.SCOPE.eq(scope)).and(SETTINGS.DELETED_AT.isNull)
+                if (dsl.fetchExists(SETTINGS, live.and(SETTINGS.VALUE.eq(value)))) return@forEach
+                dsl.update(SETTINGS).set(SETTINGS.DELETED_AT, now).where(live).execute()
+                dsl
+                    .insertInto(SETTINGS)
+                    .set(SETTINGS.NAME, name)
+                    .set(SETTINGS.SCOPE, scope)
+                    .set(SETTINGS.VALUE, value)
+                    .set(SETTINGS.CREATED_AT, now)
+                    .execute()
+            }
         }
 
     // the setting stays as deleted; false when there was none

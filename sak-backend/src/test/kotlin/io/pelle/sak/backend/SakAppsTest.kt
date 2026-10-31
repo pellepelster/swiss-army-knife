@@ -57,7 +57,7 @@ import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
 import io.pelle.sak.backend.settings.SettingName
-import io.pelle.sak.backend.settings.SettingScope
+import io.pelle.sak.backend.settings.SystemSettings
 import java.security.KeyPairGenerator
 import java.security.PrivateKey
 import java.security.SecureRandom
@@ -604,6 +604,11 @@ class SakAppsTest {
                     exchange.sendResponseHeaders(200, body.size.toLong())
                     exchange.responseBody.use { it.write(body) }
                 }
+                // takes the key "token" only
+                createContext("/api/v1/key") { exchange ->
+                    exchange.sendResponseHeaders(if (exchange.requestHeaders.getFirst("Authorization") == "Bearer token") 200 else 401, -1)
+                    exchange.close()
+                }
                 createContext("/api/v1/audio/transcriptions") { exchange ->
                     completions.add(exchange.requestBody.readAllBytes().decodeToString())
                     val body = """{"text":"Buy milk on the way home."}""".toByteArray()
@@ -614,7 +619,7 @@ class SakAppsTest {
             }
         val config =
             config().copy(
-                openrouter = SakConfig.OpenRouterConfig(apiToken = "token", url = "http://localhost:${openrouter.address.port}/api/v1"),
+                openrouter = SakConfig.OpenRouterConfig(url = "http://localhost:${openrouter.address.port}/api/v1"),
             )
         try {
             withServer(config) { port ->
@@ -628,6 +633,23 @@ class SakAppsTest {
                 ) = post(port, "/api/v1/files/$file/discover/text", "", sessionToken)
 
                 discover(receipt, null).statusCode() shouldBe 401
+                // nothing goes to openrouter until the AI features are turned on
+                discover(receipt).let {
+                    it.statusCode() shouldBe 409
+                    it.body() shouldBe """{"errors":[{"message":"The AI features are turned off in the settings."}]}"""
+                }
+                completions shouldBe emptyList()
+                put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"wrong"}""", session).let {
+                    it.statusCode() shouldBe 400
+                    it.body() shouldBe """{"errors":[{"message":"OpenRouter does not take the API key."}]}"""
+                }
+                // the key shows its first four characters only
+                put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).body() shouldBe
+                    """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+                // the notes need their own switch as well
+                discover(receipt).statusCode() shouldBe 409
+                get(port, "/api/v1/settings/notes", session).body() shouldBe """{"ai":false}"""
+                put(port, "/api/v1/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
                 discover(receipt).let {
                     it.statusCode() shouldBe 200
                     it.json().string("text") shouldBe "Total 12.50"
@@ -659,15 +681,17 @@ class SakAppsTest {
             openrouter.stop(0)
         }
 
-        // without openrouter there is no discovery
+        // without an api key there is no discovery
         withServer(config()) { port ->
             val session = signIn(port)
+            // the database is the one of the server before, its api key is taken away
+            put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":""}""", session).statusCode() shouldBe 200
             val png = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
             val file =
                 request(port, "POST", "/api/v1/files", session, png, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
             post(port, "/api/v1/files/$file/discover/text", "", session).let {
                 it.statusCode() shouldBe 503
-                it.body() shouldBe """{"errors":[{"message":"Text discovery is not configured."}]}"""
+                it.body() shouldBe """{"errors":[{"message":"No OpenRouter API key is set in the settings."}]}"""
             }
         }
     }
@@ -893,6 +917,8 @@ class SakAppsTest {
                         "/api/v1/info",
                         "/api/v1/auth/who-am-i",
                         "/api/v1/config",
+                        "/api/v1/settings",
+                        "/api/v1/settings/{scope}",
                         "/api/v1/static-hosting",
                         "/api/v1/static-hosting/{bucket}",
                         "/api/v1/static-hosting/{bucket}/domains",
@@ -956,7 +982,7 @@ class SakAppsTest {
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
         Files.createDirectories(config.dataDir)
-        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SettingScope.System, "not a key") }
+        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key") }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -991,6 +1017,72 @@ class SakAppsTest {
             // the addresses of the e-mail login as configured, the first the admin
             config.json().getValue("admins").jsonArray.map { it.jsonPrimitive.content } shouldBe
                 listOf("Admin@example.org", "second@example.org")
+        }
+    }
+
+    @Test
+    fun `admins read and change the settings, a value that is not valid changes nothing`() {
+        withServer { port ->
+            get(port, "/api/v1/settings").statusCode() shouldBe 401
+            val session = signIn(port)
+
+            // the scopes, what the settings page is built from
+            val scopes = get(port, "/api/v1/settings", session).json()
+            scopes.getValue("pagination").jsonObject.string("total") shouldBe "2"
+            val ai = scopes.getValue("items").jsonArray.first().jsonObject
+            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes")
+            ai.string("name") shouldBe "ai"
+            ai.string("enabledBy") shouldBe "enabled"
+            val (enabled, apiKey) = ai.getValue("settings").jsonArray.map { it.jsonObject }
+            enabled.string("name") shouldBe "enabled"
+            enabled.string("type") shouldBe "boolean"
+            enabled.getValue("default").jsonPrimitive.content shouldBe "false"
+            enabled.getValue("mask") shouldBe JsonNull
+            apiKey.string("name") shouldBe "api_key"
+            apiKey.string("type") shouldBe "text"
+            apiKey.getValue("mask").jsonPrimitive.content shouldBe "4"
+            apiKey.getValue("readOnly").jsonPrimitive.content shouldBe "false"
+            ai.getValue("settings").jsonArray.map { it.jsonObject }.filter { it.getValue("readOnly").jsonPrimitive.content == "true" }
+                .map { it.string("name") } shouldBe listOf("vision_model", "speech_model")
+
+            // the values, one scope at a time
+            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":false,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+            // the notes need the AI of the deployment turned on
+            put(port, "/api/v1/settings/notes", """{"ai":true}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"\"AI features\" needs \"AI features\" of \"AI\" turned on."}]}"""
+            }
+            put(port, "/api/v1/settings/ai", """{"enabled":true}""", session).let {
+                it.statusCode() shouldBe 200
+                it.body() shouldBe """{"enabled":true,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+            }
+            put(port, "/api/v1/settings/ai", """{"enabled":"false","other":1}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe
+                    """{"errors":[{"message":"\"AI features\" must be true or false."},""" +
+                    """{"message":"There is no setting \"other\" in \"ai\"."}]}"""
+            }
+            put(port, "/api/v1/settings/ai", "[]", session).statusCode() shouldBe 400
+            // the models come from the configuration
+            put(port, "/api/v1/settings/ai", """{"vision_model":"another/model"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"\"Vision model\" can not be changed."}]}"""
+            }
+            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+
+            put(port, "/api/v1/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
+            // turned off for the deployment, the notes keep their value but use the AI no more
+            put(port, "/api/v1/settings/ai", """{"enabled":false}""", session).statusCode() shouldBe 200
+            get(port, "/api/v1/settings/notes", session).body() shouldBe """{"ai":true}"""
+            get(port, "/api/v1/settings/notes?effective=true", session).body() shouldBe """{"ai":false}"""
+            val notes = get(port, "/api/v1/settings", session).json().getValue("items").jsonArray[1].jsonObject
+            notes.getValue("settings").jsonArray.single().jsonObject.getValue("requires").jsonObject.let {
+                it.string("scope") shouldBe "ai"
+                it.string("setting") shouldBe "enabled"
+            }
+
+            get(port, "/api/v1/settings/unknown", session).statusCode() shouldBe 404
+            put(port, "/api/v1/settings/unknown", """{"enabled":true}""", session).statusCode() shouldBe 404
         }
     }
 

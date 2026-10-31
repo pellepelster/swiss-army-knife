@@ -12,15 +12,14 @@ class SettingServiceTest {
 
     private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
 
-    private val admin = SettingScope.User("Admin@Example.org ")
+    private val other = SettingScopeName("other")
 
     @Test
     fun `keeps one setting by name and scope`() {
-        service.put(SettingName.AUTH_SIGNING_KEY, admin, "the value") shouldBe true
-        service.put(SettingName.AUTH_SIGNING_KEY, SettingScope.User("admin@example.org"), "another") shouldBe false
+        service.put(SettingName.AUTH_SIGNING_KEY, other, "the value") shouldBe true
+        service.put(SettingName.AUTH_SIGNING_KEY, other, "another") shouldBe false
 
-        service.get(SettingName.AUTH_SIGNING_KEY, admin) shouldBe "the value"
-        service.get(SettingName.AUTH_SIGNING_KEY, SettingScope.User("other@example.org")) shouldBe null
+        service.get(SettingName.AUTH_SIGNING_KEY, other) shouldBe "the value"
         service.get(SettingName.AUTH_SIGNING_KEY) shouldBe null
     }
 

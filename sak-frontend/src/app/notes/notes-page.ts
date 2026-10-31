@@ -10,8 +10,9 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PaginationControl } from '../shared/pagination';
+import { SettingsStore } from '../settings/settings-store';
 import { NoteCard } from './note-card';
-import { Note, NotesStore, UNDO_DELETE_MS } from './notes-store';
+import { Note, NotesStore, Removal, UNDO_DELETE_MS } from './notes-store';
 import { RecordingOverlay } from './recording-overlay';
 
 // the notes as a wall of post-its, a page at a time, filtered by one label at a time
@@ -174,10 +175,10 @@ import { RecordingOverlay } from './recording-overlay';
       </button>
     </div>
 
-    @for (note of deleted(); track note.id) {
+    @for (removal of removed(); track removal) {
       <div class="undo-toast toast show position-fixed bottom-0 start-0 m-3" role="status">
         <div class="d-flex align-items-center gap-2 p-2 ps-3">
-          <span class="flex-grow-1">Note deleted</span>
+          <span class="flex-grow-1">{{ removedText[removal.kind] }}</span>
           <button type="button" class="btn btn-sm btn-primary" (click)="store.undoRemove()">
             Undo
           </button>
@@ -193,6 +194,7 @@ import { RecordingOverlay } from './recording-overlay';
 })
 export class NotesPage {
   protected readonly store = inject(NotesStore);
+  private readonly settings = inject(SettingsStore);
   private readonly injector = inject(Injector);
 
   protected readonly filter = signal<string | null>(null);
@@ -204,12 +206,18 @@ export class NotesPage {
 
   protected readonly undoMs = UNDO_DELETE_MS;
 
-  // the note deleted last as long as it can be brought back; a list, so the bar showing the time
-  // left starts anew for the next note deleted
-  protected readonly deleted = computed(() => {
-    const note = this.store.deleted();
-    return note ? [note] : [];
+  // what was removed last as long as it can be brought back; a list, so the bar showing the time
+  // left starts anew for the next removal
+  protected readonly removed = computed(() => {
+    const removal = this.store.removed();
+    return removal ? [removal] : [];
   });
+
+  protected readonly removedText: Record<Removal['kind'], string> = {
+    note: 'Note deleted',
+    photo: 'Photo removed',
+    recording: 'Recording removed',
+  };
 
   protected readonly shown = computed(() => {
     const label = this.filter();
@@ -218,6 +226,8 @@ export class NotesPage {
   });
 
   constructor() {
+    // whether the photos and recordings offer to discover their text
+    this.settings.loadEffective('notes');
     effect(() => {
       const offset = this.offset();
       const label = this.filter();

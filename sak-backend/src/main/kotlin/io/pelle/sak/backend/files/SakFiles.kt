@@ -107,7 +107,9 @@ fun Route.files(
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
             DiscoverTextResult.NotConfigured ->
-                call.respondErrors("Text discovery is not configured.", status = HttpStatusCode.ServiceUnavailable)
+                call.respondErrors("No OpenRouter API key is set in the settings.", status = HttpStatusCode.ServiceUnavailable)
+            DiscoverTextResult.Disabled ->
+                call.respondErrors("The AI features are turned off in the settings.", status = HttpStatusCode.Conflict)
             is DiscoverTextResult.Failed -> {
                 logger.warn(result.cause) { "could not discover the text in file $id" }
                 call.respondErrors("The text could not be discovered, please try again later.", status = HttpStatusCode.BadGateway)
@@ -118,7 +120,8 @@ fun Route.files(
         summary = "Discover the text in an image or a recording"
         description =
             "Reads the text in an image with a vision model, writes down a recording with a speech to text model, both at " +
-            "OpenRouter; providers that collect the data are not asked. The text is kept with the file, a file is only read once."
+            "OpenRouter; providers that collect the data are not asked. The text is kept with the file, a file is only read once. " +
+            "Needs the AI features turned on in the settings."
         parameters { fileId() }
         responses {
             HttpStatusCode.OK {
@@ -127,9 +130,10 @@ fun Route.files(
             }
             errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
             HttpStatusCode.NotFound { description = "The signed in user has no such file" }
+            errors(HttpStatusCode.Conflict, "The AI features are turned off in the settings")
             errors(HttpStatusCode.TooManyRequests, "The user discovered too many texts lately")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
-            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter token is configured")
+            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter API key is set in the settings")
         }
     }
 }

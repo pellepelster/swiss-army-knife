@@ -34,6 +34,3 @@ sak:
   # points there, they show as unhealthy
   addresses:
     ipv4: $SAK_IPV4
-  # mise run local:backend:run takes the token from pass (openrouter/pelle/api-key)
-  openrouter:
-    api_token: $SAK_OPENROUTER_API_TOKEN

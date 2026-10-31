@@ -9,6 +9,8 @@ Read this file first. It contains rules for the complete repository.
 - Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short
   `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
   A link between documents that does not resolve fails `mise run docs:build`.
+- Never create a Feature Decision Record (`docs/development/fdr/`) on your own; write one only when the user asks for
+  it. Keeping an existing FDR current when its feature changes is still required.
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
@@ -37,7 +39,7 @@ How the apps (frontend, CLI, wizard, Android Apps) look and behave for their use
 ## Architecture
 
 How the system is built (its parts, the server of a deployment, the layers, the persistence model, the api contract,
-sakctl, the cloud resources and their labels, the privacy boundaries, the accepted risks) is in
+sakctl, the cloud resources and their labels, the privacy boundaries) is in
 [docs/development/ARCHITECTURE.md](docs/development/ARCHITECTURE.md). Every change keeps to it; a change that has to
 break it changes ARCHITECTURE.md in the same commit and says why.
 
@@ -56,6 +58,10 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 - `SettingService` hands the values out as they are; the consumer of a setting that is a secret keeps it out of logs,
   e.g. by wrapping it in `Secret`, whose `toString()` never shows the value. Configuration and value classes holding a
   secret override `toString()` the same way.
+- A setting an admin changes is a `SettingDefinition<T>` of a `SettingScope`, read and written through the
+  `SettingsService` of its scope (`get(OpenRouterManager.ENABLED)` is a `Boolean?`, null while its scope is
+  turned off); a new scope is a `StoredSettingsService`
+  (or a class extending it, e.g. `OpenRouterManager`) added to the `SettingsRegistry` in `SakBackend.kt`. The api and the settings page follow without changes.
 - `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
   only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
   `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.
@@ -76,7 +82,8 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 - A point in time in a response is a `String` written with `Instant.apiTime()` (`sak-api`), never `toString()`;
   something that never ends has `null`, not a far away time.
 - Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
-  in them (e.g. `PageResponse`, `SiteMetricsResponse`).
+  in them (e.g. `PageResponse`, `SiteMetricsResponse`); the one exception is `ApiErrorMessage`, an error of an
+  `ApiErrorResponse`.
 - Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in
   `io.pelle.sak.backend.<app>.model`, one class per file named like the class. The other modules
   answering on `/api` keep theirs the same way in `io.pelle.sak.<module>.model` (`sak-api`,
@@ -148,7 +155,8 @@ break it changes ARCHITECTURE.md in the same commit and says why.
 
 ## Accepted risks
 
-- The known weaknesses kept on purpose are in ARCHITECTURE.md, "Accepted risks". A change that touches one keeps the
+- The known weaknesses kept on purpose are in
+  [docs/development/ACCEPTED-RISKS.md](docs/development/ACCEPTED-RISKS.md). A change that touches one keeps the
   trade-off or revisits it there.
 
 ## Additional Agent Rules & Context

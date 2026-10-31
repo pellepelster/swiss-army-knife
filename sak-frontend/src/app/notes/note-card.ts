@@ -1,5 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
+import { SettingsStore } from '../settings/settings-store';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 import { StoredFiles, ThumbnailPipe } from './stored-files';
@@ -57,44 +58,31 @@ interface Media {
                 </span>
               </button>
             }
-            <button
-              type="button"
-              class="photo-discover"
-              [attr.aria-label]="'Discover the text in ' + item.label.toLowerCase()"
-              title="Discover the text"
-              [disabled]="store.discovering().has(item.id)"
-              (click)="store.discoverText(note().id, item.id)"
-            >
-              @if (store.discovering().has(item.id)) {
-                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-              } @else {
-                <i class="fa-solid fa-robot" aria-hidden="true"></i>
-              }
-            </button>
-            @if (confirming() === item.id) {
-              <div
-                class="photo-confirm"
-                role="group"
-                [attr.aria-label]="'Remove ' + item.label.toLowerCase() + '?'"
-              >
-                <span>Remove {{ item.kind }}?</span>
-                <button type="button" class="photo-confirm-remove" (click)="remove(item)">
-                  Remove
-                </button>
-                <button type="button" class="photo-confirm-keep" (click)="confirming.set(null)">
-                  Keep
-                </button>
-              </div>
-            } @else {
+            <!-- the text is only discovered with the AI turned on in the settings of the notes -->
+            @if (settings.notesAi()) {
               <button
                 type="button"
-                class="photo-remove"
-                [attr.aria-label]="'Remove ' + item.label.toLowerCase()"
-                (click)="confirming.set(item.id)"
+                class="photo-discover"
+                [attr.aria-label]="'Discover the text in ' + item.label.toLowerCase()"
+                title="Discover the text"
+                [disabled]="store.discovering().has(item.id)"
+                (click)="store.discoverText(note().id, item.id)"
               >
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                @if (store.discovering().has(item.id)) {
+                  <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                } @else {
+                  <i class="fa-solid fa-robot" aria-hidden="true"></i>
+                }
               </button>
             }
+            <button
+              type="button"
+              class="photo-remove"
+              [attr.aria-label]="'Remove ' + item.label.toLowerCase()"
+              (click)="remove(item)"
+            >
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
           </li>
         }
       </ul>
@@ -218,6 +206,7 @@ interface Media {
 })
 export class NoteCard {
   protected readonly store = inject(NotesStore);
+  protected readonly settings = inject(SettingsStore);
 
   readonly note = input.required<Note>();
   // the id of the datalist that suggests the known labels
@@ -242,9 +231,6 @@ export class NoteCard {
     })),
   ]);
 
-  // the photo or recording whose removal is asked for, removed only once it is confirmed
-  protected readonly confirming = signal<number | null>(null);
-
   // the recording that plays, one at a time
   protected readonly playing = signal<number | null>(null);
   private audio: HTMLAudioElement | null = null;
@@ -255,8 +241,8 @@ export class NoteCard {
     inject(DestroyRef).onDestroy(() => this.stopAudio());
   }
 
+  // gone at once, the page offers to bring it back for a while
   protected remove(item: Media): void {
-    this.confirming.set(null);
     if (item.kind === 'photo') this.store.removePhoto(this.note().id, item.id);
     else this.store.removeRecording(this.note().id, item.id);
   }

@@ -36,8 +36,9 @@ data class SakConfig(
     // sak-frontend and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
-    // the text discovery in the photos and recordings of notes is only offered when configured
-    val openrouter: OpenRouterConfig? = null,
+    // where the text discovery in the photos and recordings of notes goes; its api key and whether
+    // it is turned on are settings (OpenRouterManager in sak-backend)
+    val openrouter: OpenRouterConfig = OpenRouterConfig(),
     // the public addresses of the server the backend runs on, none e.g. locally
     val addresses: AddressesConfig = AddressesConfig(),
     val dns: DnsConfig = DnsConfig(),
@@ -154,18 +155,13 @@ data class SakConfig(
 
     @Serializable
     data class OpenRouterConfig(
-        @SerialName("api_token")
-        val apiToken: String,
         // a vision model that reads the text in photos, its id at openrouter
         val model: String = DEFAULT_OPENROUTER_MODEL,
         // a speech to text model that writes down recordings, its id at openrouter
         @SerialName("speech_model")
         val speechModel: String = DEFAULT_OPENROUTER_SPEECH_MODEL,
         val url: String = DEFAULT_OPENROUTER_URL,
-    ) {
-        // the token never shows, e.g. in a log line
-        override fun toString() = "OpenRouterConfig(model=$model, speechModel=$speechModel, url=$url)"
-    }
+    )
 
     @Serializable
     data class SmtpConfig(

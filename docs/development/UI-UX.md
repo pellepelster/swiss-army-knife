@@ -46,7 +46,8 @@ line. How the system is built is in [ARCHITECTURE.md](ARCHITECTURE.md), how the 
 - **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows, stays in
   its place, disabled; the layout of a page does not change under the user's hand.
 - **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the window
-  fills its password fields with them, which the user can change; an accepted risk of ARCHITECTURE.md.
+  fills its password fields with them, which the user can change; an accepted risk (refer to
+  [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md)).
 - **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move through
   the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost button.
   Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the header.

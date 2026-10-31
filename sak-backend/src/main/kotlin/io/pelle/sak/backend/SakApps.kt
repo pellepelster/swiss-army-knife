@@ -44,6 +44,7 @@ import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.redirects.redirects
+import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.logs.SiteLogs
@@ -198,6 +199,10 @@ fun Application.apps(
                         route("/config") {
                             requireRole(Role.ADMIN)
                             config(config)
+                        }
+                        route("/settings") {
+                            requireRole(Role.ADMIN)
+                            settingsRoutes(settingsRegistry)
                         }
                         route("/health") {
                             requireRole(Role.ADMIN)

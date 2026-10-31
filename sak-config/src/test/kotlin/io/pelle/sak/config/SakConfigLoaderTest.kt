@@ -64,8 +64,6 @@ class SakConfigLoaderTest {
                     username: login
                     password: the-smtp-password
                     from: login@example.org
-                openrouter:
-                  api_token: the-openrouter-token
                 """.trimIndent(),
             )
 
@@ -77,11 +75,10 @@ class SakConfigLoaderTest {
                 "$config",
                 config.auth.toString(),
                 config.auth?.smtp.toString(),
-                config.openrouter.toString(),
                 listOf(config).toString(),
             )
         printed.forEach { text ->
-            listOf("the-smtp-password", "the-openrouter-token", "the-admin-hash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").forEach {
+            listOf("the-smtp-password", "the-admin-hash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").forEach {
                 text shouldNotContain it
             }
         }

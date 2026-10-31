@@ -33,4 +33,17 @@ class SettingRepositoryTest {
         repository.byNameAndScope("A_SETTING", "admin@example.org")!!.value shouldBe "other"
         repository.insert("A_SETTING", "system", "again")!!.value shouldBe "again"
     }
+
+    @Test
+    fun `replaces values in one go, the old row stays as deleted and an equal value is kept`() {
+        repository.insert("A_SETTING", "system", "old")!!
+
+        repository.replace("system", mapOf("A_SETTING" to "new", "B_SETTING" to "first"))
+        repository.byNameAndScope("A_SETTING", "system")!!.value shouldBe "new"
+        repository.byNameAndScope("B_SETTING", "system")!!.value shouldBe "first"
+
+        val kept = repository.byNameAndScope("B_SETTING", "system")!!
+        repository.replace("system", mapOf("B_SETTING" to "first"))
+        repository.byNameAndScope("B_SETTING", "system")!!.id shouldBe kept.id
+    }
 }

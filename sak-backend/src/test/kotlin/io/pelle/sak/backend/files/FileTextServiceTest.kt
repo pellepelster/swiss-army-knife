@@ -57,7 +57,10 @@ class FileTextServiceTest {
             }
         }
 
-    private val service by lazy { FileTextService(files, recognizer, transcriber) }
+    // the AI features in the settings
+    private var aiEnabled = true
+
+    private val service by lazy { FileTextService(files, { recognizer }, { transcriber }) { aiEnabled } }
 
     private fun photo(content: String) =
         (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
@@ -72,7 +75,18 @@ class FileTextServiceTest {
         files.byId(PELLE, receipt)!!.discovered shouldBe "Total 12.50"
         service.discover(PELLE, 4711) shouldBe DiscoverTextResult.NotFound
         // the text once discovered is there without a recognizer too
-        FileTextService(files, null).discover(PELLE, receipt) shouldBe DiscoverTextResult.Discovered("Total 12.50")
+        FileTextService(files, { null }, { null }) { true }.discover(PELLE, receipt) shouldBe DiscoverTextResult.Discovered("Total 12.50")
+    }
+
+    @Test
+    fun `sends nothing while the AI features are turned off, a text once discovered is still there`() {
+        val receipt = photo("Total 12.50")
+        service.discover(PELLE, receipt)
+
+        aiEnabled = false
+        service.discover(PELLE, photo("another")) shouldBe DiscoverTextResult.Disabled
+        service.discover(PELLE, receipt) shouldBe DiscoverTextResult.Discovered("Total 12.50")
+        recognizer.images.size shouldBe 1
     }
 
     @Test
@@ -92,7 +106,7 @@ class FileTextServiceTest {
         recognizer.images.size shouldBe 2
         files.byId(PELLE, failing)!!.discovered shouldBe null
 
-        FileTextService(files, null).discover(PELLE, failing) shouldBe DiscoverTextResult.NotConfigured
+        FileTextService(files, { null }, { null }) { true }.discover(PELLE, failing) shouldBe DiscoverTextResult.NotConfigured
     }
 
     @Test
@@ -104,9 +118,9 @@ class FileTextServiceTest {
         transcriber.recordings shouldBe listOf("audio/wav")
         recognizer.images shouldBe emptyList()
 
-        FileTextService(files, recognizer, null).discover(PELLE, photo("another")).shouldBeInstanceOf<DiscoverTextResult.Discovered>()
+        FileTextService(files, { recognizer }, { null }) { true }.discover(PELLE, photo("another")).shouldBeInstanceOf<DiscoverTextResult.Discovered>()
         val unheard = (files.store(Media.wav(2).inputStream(), PELLE) as StoreFileResult.Stored).file.id
-        FileTextService(files, recognizer, null).discover(PELLE, unheard) shouldBe DiscoverTextResult.NotConfigured
+        FileTextService(files, { recognizer }, { null }) { true }.discover(PELLE, unheard) shouldBe DiscoverTextResult.NotConfigured
     }
 
     @Test

@@ -22,7 +22,7 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import io.pelle.sak.api.model.ErrorResponse
+import io.pelle.sak.api.model.ApiErrorResponse
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.model.PaginationResponse
 import io.kotest.matchers.string.shouldNotContain
@@ -80,7 +80,7 @@ class ApiTest {
         test {
             val invalid = client.get("/api/numbers?offset=-1&limit=501")
             invalid.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ErrorResponse>(invalid.bodyAsText()).errors.size shouldBe 2
+            Json.decodeFromString<ApiErrorResponse>(invalid.bodyAsText()).errors.size shouldBe 2
             client.get("/api/numbers?limit=x").status shouldBe HttpStatusCode.BadRequest
 
             val blank =
@@ -89,7 +89,7 @@ class ApiTest {
                     setBody("""{"name":" "}""")
                 }
             blank.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ErrorResponse>(blank.bodyAsText()) shouldBe ErrorResponse("name must not be blank.")
+            Json.decodeFromString<ApiErrorResponse>(blank.bodyAsText()) shouldBe ApiErrorResponse("name must not be blank.")
 
             val malformed =
                 client.post("/api/names") {
@@ -97,7 +97,7 @@ class ApiTest {
                     setBody("""{"nam""")
                 }
             malformed.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ErrorResponse>(malformed.bodyAsText()) shouldBe ErrorResponse(MALFORMED_REQUEST)
+            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe ApiErrorResponse(MALFORMED_REQUEST)
         }
 
     @Test
@@ -117,7 +117,7 @@ class ApiTest {
                     setBody("""{"name":""")
                 }
             malformed.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ErrorResponse>(malformed.bodyAsText()) shouldBe ErrorResponse(MALFORMED_REQUEST)
+            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe ApiErrorResponse(MALFORMED_REQUEST)
         }
 
     @Test
@@ -126,7 +126,7 @@ class ApiTest {
             for (path in listOf("/api/large", "/plain/large")) {
                 val large = client.post(path)
                 large.status shouldBe HttpStatusCode.PayloadTooLarge
-                Json.decodeFromString<ErrorResponse>(large.bodyAsText()) shouldBe ErrorResponse(TOO_LARGE_REQUEST)
+                Json.decodeFromString<ApiErrorResponse>(large.bodyAsText()) shouldBe ApiErrorResponse(TOO_LARGE_REQUEST)
             }
         }
 }

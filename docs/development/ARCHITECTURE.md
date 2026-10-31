@@ -1,6 +1,6 @@
 ---
 title: "Architecture"
-description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security, the tests and the accepted risks."
+description: "How SAK is built: its parts, the server of a deployment, the layers, the api, sakctl, the cloud resources, privacy, security and the tests."
 weight: 10
 ---
 
@@ -8,7 +8,8 @@ weight: 10
 
 How Swiss Army Knife (SAK) is built: its parts, how they connect, and the decisions that shape them. How to write the
 code is in [AGENT.md](../../AGENT.md), how the apps look and behave in [UI-UX.md](UI-UX.md), the words in
-[GLOSSARY.md](GLOSSARY.md), and each feature in [fdr/INDEX.md](fdr/INDEX.md).
+[GLOSSARY.md](GLOSSARY.md), the weaknesses kept on purpose in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), and each
+feature in [fdr/INDEX.md](fdr/INDEX.md).
 
 ## Overview
 
@@ -86,14 +87,24 @@ and the health of the domains.
 - **Secrets stay with what they belong to.** The secret key of a bucket is stored with the bucket, but is never part
   of the bucket that reaches the api. Secrets that belong to no entity, such as the signing key of the login, are
   settings.
-- **Settings.** A setting is one value for a name and a scope; the scope is the system or a user. Their one service
+- **Settings.** A setting is one value for a name and a scope; a scope is a set of settings that belong together,
+  for example `system`. Their one service
   hands the values out as they are; whoever uses a setting that is a secret keeps it from showing. A secret never
   shows in a log line. The values are plain; the whole
   database is to be encrypted ([FDR-002](fdr/FDR-002-sqlite-encryption.md)).
+- **Settings an admin changes.** Each setting that an admin changes at run time declares its scope, its type and its
+  default, and the code reads and writes it with that type. One api and one page show and change the settings of all
+  scopes, one scope at a time: the api reads and sets the values of a scope, the page shows each scope as a tab. A
+  change of a scope is validated completely before any value is set. A read-only setting shows a value the backend
+  gives, for example a model from its configuration; it is never stored and can not be changed.
+  A setting can require another one that is on, also in another scope; while that one is off, it is off to the code
+  and the apps and can not be changed, and the settings page shows its stored value greyed out.
 
 ## API
 
-- **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem.
+- **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem
+  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
+  `ErrorMessage` (`sak-api`), its message one string; it becomes an `ApiErrorMessage` only at the api.
 - **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with `offset`
   and `limit`; `limit` is 50 by default and at most 100.
 - **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That holds for
@@ -179,8 +190,11 @@ and the health of the domains.
   other third party. Everything is bundled or served by the backend. The content security policy allows only the
   page's own origin and `api.<base domain>`.
 - **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated (for
-  example the provider of text discovery in the configuration of the backend), and the user agrees before each
-  transfer and knows where the data goes. No default activates such a connection.
+  example text discovery: it needs the settings **AI features**, which is off by default, and **API key** of the
+  scope **AI**, and **AI features** of the scope **Notes**; a new API key is checked at OpenRouter only while **AI
+  features** of the scope **AI** is on), and the user
+  agrees before each transfer and knows where the data goes. No default activates such a
+  connection.
 - **Updates on request only.** sakctl asks GitHub for the newest release only when the user asks for an update, and
   names GitHub before it connects. GitHub then sees the IP address of the user. sakctl never asks on its own.
 - **Exemption: the container registry.** sakctl and the server pull the images of SAK from the GitHub container
@@ -244,90 +258,3 @@ Each test is of one kind, by what it needs to run:
 
 Each part (backend, frontend, cli) has one task for each kind it has. The build pipeline runs the unit tests and
 reports their results; nothing is built into an image before they pass.
-
-## Accepted risks
-
-Known weaknesses that are kept on purpose. A change that touches one keeps the trade-off or revisits it here.
-
-- **The database is not encrypted at rest.** All data in it, the secrets included, is plain in the SQLite file on
-  the data volume, against the rule to encrypt all data at rest. Accepted until
-  [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
-  alone was removed in favor of it.
-
-- **The files of a provisioning run hold the password of the mail server.** The environment of the backend, the
-  password of the mail server in it, and the token of the events endpoint are plain files on the user's machine
-  while the run lasts, against the rule to encrypt all data at rest. Accepted: only the user reads them, they live
-  for the minutes of the run in a directory with a random name, and a killed sakctl leaves them only until its next
-  run; whoever reads the user's files can read the user's terminal too.
-
-- **The password can be guessed offline.** Whoever reads the cloud project, a read-only token included, sees the
-  password hash label and the public keys of a deployment, and can check guesses of the password against them
-  without asking anybody; whoever reads the server can do the same with the admin password hash. Accepted: every
-  guess costs the strong argon2id of the master key (or of the admin password hash), and a new password that is easy
-  to guess is refused (a strength estimate, not only its length), which leaves too many guesses to try. The salt is
-  the name of the deployment, not unique across users of the same name: a salt the user would have to keep would
-  break "no local state", and the cost of every guess keeps a table for a common name out of reach.
-
-- **The hashes in labels are shortened.** A label value holds at most 63 characters, so the hashes a server keeps in
-  its labels (of its user data and of its ssh keys) are cut to 240 of their 256 bits to fit one label each. Two
-  different values with the same shortened hash would hide a change, and a server would not be created anew when
-  it should. Accepted: the chance stays far beyond reach (about one in 2^120 for a collision anyone could search
-  for), and one label per hash is simpler than splitting it across several. The password hash label is 240 bits
-  as well.
-
-- **The ssh host key is in the user data of the server.** cloud-init installs the host key derived from the password,
-  so the first connection is verified; the cloud provider keeps the user data, and the metadata service of the server
-  hands it out for as long as the server lives. A process that reads it could act as the server towards sakctl.
-  Accepted: the server reaches the metadata service only as root, every other process, the containers included (they
-  run as the user of SAK, on the network of the server), is refused by the firewall of the server; and root on the
-  server, or someone with the cloud project, has everything the host key would give anyway.
-
-- **The running configuration answers the password of the mail server.** An admin, and sakctl with a signed
-  request, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
-  again. A comfort feature: whoever holds the password of the deployment or an admin session can read the password of
-  the mail server, and send mail with it from elsewhere. Accepted: the same people can already read it on the server,
-  and the account at the mail server is meant for the login mails of this deployment alone.
-
-- **A signed request can be relayed while it is fresh.** Whoever controls the DNS zone of the deployment (it is in
-  the cloud project) and gets a certificate for `api.<base domain>` can take a request of sakctl and hand it on to the
-  backend within its two minutes, once. Accepted: that is one request, the one sakctl meant to make, and nothing that
-  lasts; the signature holds for the backend's own host, so forged labels that send sakctl elsewhere get nothing
-  usable at all.
-
-- **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
-  login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by
-  address and client IP). Someone who knows an allowed address and has 12 client IPs can use up the links of an
-  hour, and no allowed address gets a link until the hour is over. Accepted: the global limit keeps the server from
-  being used to send mail, a login outage of an hour is the price, and the apps have few allowed addresses whose
-  sessions last 30 days.
-
-- **The window gets the passwords of the environment.** When `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` is set, sakctl
-  sends them to the page of the window, which fills its password fields with them, so a user who keeps them in the
-  environment does not type them again. The secrets cross the ipc into the web view. Accepted: the web view shows
-  only the pages of sakctl, its content security policy loads nothing from elsewhere, the page writes every value
-  with `textContent`, and the same process holds the secrets anyway; whoever can read the web view can read sakctl.
-
-- **Two runs on one deployment at the same time.** Nothing stops two sakctl, on two machines or the command line
-  next to the window, from deploying or destroying the same deployment at once; the two applies can destroy and
-  create the server at the same time. On the server, `sak-backend` lets only one backup, restore, update or reboot
-  run at a time; the cloud resources have no such lock. Accepted: a deployment has one user, who starts its runs by
-  hand; each run plans first and stops at what it does not expect, and the next deploy repairs what two runs left
-  half done. A lock label on the resources would stay behind after a run that was killed.
-
-- **The client key goes to the container engine.** sakctl hands the private client key of a deployment to an
-  ssh-agent in a container (`docker exec -i … ssh-add -`) and to the container of a provisioning. It is never
-  written to disk, but it passes the engine: with `DOCKER_HOST=tcp://…` and no TLS it would cross the network in
-  clear, and the agent that holds it would run on that other host. Accepted for now: sakctl runs against the
-  engine of the user's own machine, a local socket; whoever points `DOCKER_HOST` at another host trusts that
-  host with the same containers anyway. To revisit: refuse a plain tcp engine for ssh and provisioning.
-
-- **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
-  proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
-  Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.
-
-- **A label deleted while a note is saved.** A note that is saved with a new label creates the label first. When
-  the user deletes that label at the same time, for example on another device, the note is saved without it and
-  without an error. When the note is deleted at the same time, the new labels stay without a note. Accepted: it
-  takes two devices of the same user acting within milliseconds, nothing is lost but the label on the note, and
-  the user sees the result at once and can add the label again; a lock across both for every save costs more
-  than it gives.

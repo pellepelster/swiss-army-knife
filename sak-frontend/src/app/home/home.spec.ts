@@ -51,7 +51,10 @@ describe('Home', () => {
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);
-    expect(tiles('Maintenance')).toEqual([['Health', '/health']]);
+    expect(tiles('Maintenance')).toEqual([
+      ['Health', '/health'],
+      ['Settings', '/settings'],
+    ]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();
     const links = [...page.querySelectorAll<HTMLAnchorElement>('nav a')];

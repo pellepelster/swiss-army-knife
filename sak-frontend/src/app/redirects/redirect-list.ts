@@ -68,16 +68,6 @@ import { Redirect, RedirectsService } from './redirects.service';
                   <span class="font-monospace text-break">{{ redirect.target.domain }}</span>
                 }
               </span>
-              <span
-                class="small text-body-secondary font-monospace text-break"
-                data-testid="location"
-              >
-                @if (redirect.location) {
-                  https://{{ redirect.location }}
-                } @else {
-                  nowhere, the bucket is not served at a domain
-                }
-              </span>
             </div>
           </li>
         } @empty {

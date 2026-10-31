@@ -8,6 +8,14 @@ import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
+// what was removed and can be brought back: a note, or a photo or recording of a note
+export interface Removal {
+  readonly kind: 'note' | 'photo' | 'recording';
+  readonly noteId: number;
+  // the photo or recording, null for a note
+  readonly fileId: number | null;
+}
+
 export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as const;
 
 type NoteColor = (typeof NOTE_COLORS)[number];
@@ -44,8 +52,8 @@ export const MAX_LABELS = 10;
 // how long typing pauses before the text is saved
 export const SAVE_TEXT_AFTER_MS = 600;
 
-// how long a deleted note can be brought back before the backend deletes it
-export const UNDO_DELETE_MS = 7000;
+// how long a deleted note, photo or recording can be brought back before the backend removes it
+export const UNDO_DELETE_MS = 5000;
 
 // labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
 // backend stores them the same way
@@ -78,12 +86,13 @@ export class NotesStore {
 
   private loadingNotes?: Subscription;
 
-  // the note deleted last while it can be brought back, whether its text was saved and the timer
-  // deleting it in the backend
-  private pendingDelete: {
-    note: Note;
-    unsavedText: boolean;
+  // what was removed last while it can be brought back: the timer removing it in the backend, how
+  // it is removed there (with keepalive when the page goes away) and how it is brought back
+  private pendingRemoval: {
+    removal: Removal;
     timer: ReturnType<typeof setTimeout>;
+    commit: (leaving: boolean) => void;
+    undo: () => void;
   } | null = null;
 
   // the page and label loaded last, e.g. `0|work`
@@ -106,8 +115,8 @@ export class NotesStore {
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
 
-  // the note deleted last while it can be brought back with undoRemove, null otherwise
-  readonly deleted = signal<Note | null>(null);
+  // what was removed last while it can be brought back with undoRemove, null otherwise
+  readonly removed = signal<Removal | null>(null);
 
   // what went wrong last, null when everything is saved; every action clears it when it starts
   readonly error = signal<string | null>(null);
@@ -135,7 +144,7 @@ export class NotesStore {
     this.document.addEventListener('visibilitychange', hidden);
     inject(DestroyRef).onDestroy(() => {
       this.pendingText.forEach((timer) => clearTimeout(timer));
-      clearTimeout(this.pendingDelete?.timer);
+      clearTimeout(this.pendingRemoval?.timer);
       this.loadingNotes?.unsubscribe();
       window?.removeEventListener('pagehide', leaving);
       this.document.removeEventListener('visibilitychange', hidden);
@@ -317,12 +326,7 @@ export class NotesStore {
 
   // the file stays in the storage, other notes may play it too
   removeRecording(id: number, fileId: number): void {
-    const changed = this.change(id, (note) =>
-      note.recordings.includes(fileId)
-        ? { ...note, recordings: note.recordings.filter((recording) => recording !== fileId) }
-        : note,
-    );
-    if (changed) this.save(id);
+    this.removeFile(id, fileId, 'recording');
   }
 
   // the text the backend discovers in the photo or the recording is added to the text of the note
@@ -356,22 +360,16 @@ export class NotesStore {
 
   // the file stays in the storage, other notes may show it too
   removePhoto(id: number, fileId: number): void {
-    const changed = this.change(id, (note) =>
-      note.photos.includes(fileId)
-        ? { ...note, photos: note.photos.filter((photo) => photo !== fileId) }
-        : note,
-    );
-    if (changed) this.save(id);
+    this.removeFile(id, fileId, 'photo');
   }
 
-  // gone at once, back when the backend could not delete it
   // the note goes at once, the backend deletes it after UNDO_DELETE_MS unless undoRemove brings it
-  // back; deleting another note meanwhile deletes this one in the backend at once
+  // back, and brings it back when it can not delete it
   remove(id: number): void {
     this.error.set(null);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
-    this.deleteNow();
+    this.commitRemoval();
     const unsavedText = this.pendingText.has(id);
     clearTimeout(this.pendingText.get(id));
     this.pendingText.delete(id);
@@ -380,38 +378,95 @@ export class NotesStore {
     this.countNotes(-1);
     // a request from now on, notes loaded meanwhile keep it away
     this.startRequest(id);
-    const timer = setTimeout(() => this.deleteNow(), UNDO_DELETE_MS);
-    this.pendingDelete = { note, unsavedText, timer };
-    this.deleted.set(note);
-  }
-
-  // brings the note deleted last back, as long as the backend has not deleted it
-  undoRemove(): void {
-    const pending = this.pendingDelete;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pendingDelete = null;
-    this.deleted.set(null);
-    this.finishRequest(pending.note.id);
-    this.restore(pending.note);
-    if (pending.unsavedText) this.save(pending.note.id);
-  }
-
-  private deleteNow(): void {
-    const pending = this.pendingDelete;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pendingDelete = null;
-    this.deleted.set(null);
-    const { note } = pending;
-    this.http.delete(`/api/v1/notes/${note.id}`).subscribe({
-      error: () => {
-        this.finishRequest(note.id);
-        this.restore(note);
-        this.error.set('The note could not be deleted.');
+    this.startRemoval(
+      { kind: 'note', noteId: id, fileId: null },
+      (leaving) => {
+        if (leaving) {
+          this.keepalive(`/api/v1/notes/${id}`, 'DELETE');
+          return;
+        }
+        this.http.delete(`/api/v1/notes/${id}`).subscribe({
+          error: () => {
+            this.finishRequest(id);
+            this.restore(note);
+            this.error.set('The note could not be deleted.');
+          },
+          complete: () => this.finishRequest(id),
+        });
       },
-      complete: () => this.finishRequest(note.id),
-    });
+      () => {
+        this.finishRequest(id);
+        this.restore(note);
+        if (unsavedText) this.save(id);
+      },
+    );
+  }
+
+  // brings back what was removed last, as long as the backend has not removed it
+  undoRemove(): void {
+    const pending = this.pendingRemoval;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingRemoval = null;
+    this.removed.set(null);
+    pending.undo();
+  }
+
+  // the photo or recording goes from the note at once, the note is saved without it after
+  // UNDO_DELETE_MS unless undoRemove brings it back to its place
+  private removeFile(id: number, fileId: number, kind: 'photo' | 'recording'): void {
+    const key = kind === 'photo' ? 'photos' : 'recordings';
+    const position = this.all()
+      .find((note) => note.id === id)
+      ?.[key].indexOf(fileId);
+    if (position === undefined || position < 0) return;
+    this.error.set(null);
+    this.commitRemoval();
+    this.change(id, (note) => ({ ...note, [key]: note[key].filter((file) => file !== fileId) }));
+    // a request from now on, notes loaded meanwhile keep the file away
+    this.startRequest(id);
+    this.startRemoval(
+      { kind, noteId: id, fileId },
+      (leaving) => {
+        this.finishRequest(id);
+        if (leaving) this.saveKeepalive(id);
+        else this.save(id);
+      },
+      () => {
+        this.finishRequest(id);
+        this.change(id, (note) => ({
+          ...note,
+          [key]: [...note[key].slice(0, position), fileId, ...note[key].slice(position)],
+        }));
+        // the note may have been saved without the file meanwhile, e.g. its text
+        if (this.savedWhileRemoving.delete(id)) this.save(id);
+      },
+    );
+  }
+
+  // the notes saved while one of their files was removed, so an undo saves them again
+  private readonly savedWhileRemoving = new Set<number>();
+
+  // what was removed before is removed in the backend at once
+  private startRemoval(
+    removal: Removal,
+    commit: (leaving: boolean) => void,
+    undo: () => void,
+  ): void {
+    this.commitRemoval();
+    const timer = setTimeout(() => this.commitRemoval(), UNDO_DELETE_MS);
+    this.pendingRemoval = { removal, timer, commit, undo };
+    this.removed.set(removal);
+  }
+
+  private commitRemoval(leaving = false): void {
+    const pending = this.pendingRemoval;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingRemoval = null;
+    this.removed.set(null);
+    this.savedWhileRemoving.clear();
+    pending.commit(leaving);
   }
 
   private restore(note: Note): void {
@@ -427,6 +482,9 @@ export class NotesStore {
     this.pendingText.delete(id);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
+    const pending = this.pendingRemoval?.removal;
+    if (pending && pending.kind !== 'note' && pending.noteId === id)
+      this.savedWhileRemoving.add(id);
     this.startRequest(id);
     this.http
       .put<NoteResponse>(`/api/v1/notes/${id}`, {
@@ -455,43 +513,43 @@ export class NotesStore {
   // requests the browser finishes after the page is gone (keepalive), their answers are not waited
   // for
   private saveLeaving(): void {
-    const token = this.auth.token();
-    const pending = this.pendingDelete;
-    if (pending) {
-      clearTimeout(pending.timer);
-      this.pendingDelete = null;
-      this.deleted.set(null);
-      void fetch(apiUrl(`/api/v1/notes/${pending.note.id}`), {
-        method: 'DELETE',
-        keepalive: true,
-        headers: {
-          ...SERVICE_WORKER_BYPASS,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      }).catch(() => undefined);
-    }
+    this.commitRemoval(true);
     for (const id of [...this.pendingText.keys()]) {
       clearTimeout(this.pendingText.get(id));
       this.pendingText.delete(id);
-      const note = this.all().find((n) => n.id === id);
-      if (!note) continue;
-      void fetch(apiUrl(`/api/v1/notes/${id}`), {
-        method: 'PUT',
-        keepalive: true,
-        headers: {
-          ...SERVICE_WORKER_BYPASS,
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          text: note.text,
-          color: note.color,
-          labels: note.labels,
-          photos: note.photos,
-          recordings: note.recordings,
-        }),
-      }).catch(() => undefined);
+      this.saveKeepalive(id);
     }
+  }
+
+  // saves the note as it is now with a request the browser finishes after the page is gone
+  private saveKeepalive(id: number): void {
+    const note = this.all().find((n) => n.id === id);
+    if (!note) return;
+    this.keepalive(
+      `/api/v1/notes/${id}`,
+      'PUT',
+      JSON.stringify({
+        text: note.text,
+        color: note.color,
+        labels: note.labels,
+        photos: note.photos,
+        recordings: note.recordings,
+      }),
+    );
+  }
+
+  private keepalive(path: string, method: 'PUT' | 'DELETE', body?: string): void {
+    const token = this.auth.token();
+    void fetch(apiUrl(path), {
+      method,
+      keepalive: true,
+      headers: {
+        ...SERVICE_WORKER_BYPASS,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+    }).catch(() => undefined);
   }
 
   // the total of the pagination after notes were created or deleted here

@@ -3,7 +3,7 @@ package io.pelle.sak.backend.config.model
 import kotlinx.serialization.Serializable
 
 // the mail server of the login links, its password included: sakctl takes it over on a redeploy
-// (docs/development/ARCHITECTURE.md, accepted risks)
+// (docs/development/ACCEPTED-RISKS.md)
 @Serializable
 data class SmtpConfigResponse(
     val host: String,
