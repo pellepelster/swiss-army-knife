@@ -9,14 +9,8 @@ import kotlinx.serialization.Serializable
 data class InfoResponse(
     // the name of the deployment
     val name: String,
-)
-
-@Serializable
-data class LoginMethodsResponse(
-    // the e-mail login, a mail server is configured
-    val email: Boolean,
-    // the password login of the admin
-    val password: Boolean,
+    // multi: the users sign in by e-mail and the admin by password; single: only the admin, by password
+    val userMode: String,
 )
 
 @Serializable

@@ -20,10 +20,9 @@ interface ExchangeResponse {
 }
 
 // how a user can sign in: with a link by e-mail, with the admin password, or both
-export interface LoginMethods {
-  email: boolean;
-  password: boolean;
-}
+// who signs in to the deployment: multi, users by e-mail and the admin by password; single, only the
+// admin by password
+export type UserMode = 'single' | 'multi';
 
 // who the backend takes the session for: admin for the password login, else the e-mail address
 export interface WhoAmI {
@@ -85,8 +84,9 @@ export class AuthService {
 
   // what the login page offers: the e-mail login only with a mail server, the password login only
   // with an admin password
-  loginMethods(): Observable<LoginMethods> {
-    return this.http.get<LoginMethods>('/api/v1/auth/login/methods');
+  // the user mode of the deployment, which the sign-in follows (UX-7)
+  userMode(): Observable<UserMode> {
+    return this.http.get<{ userMode: UserMode }>('/api/v1/info').pipe(map((info) => info.userMode));
   }
 
   // trades the login token from the e-mailed link for a session, emits where to go next

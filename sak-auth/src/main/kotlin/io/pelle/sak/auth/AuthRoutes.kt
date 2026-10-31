@@ -33,7 +33,6 @@ import java.time.Instant
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
 import io.pelle.sak.auth.model.LoginClient
-import io.pelle.sak.auth.model.LoginMethodsResponse
 import io.pelle.sak.auth.model.LoginRequest
 import io.pelle.sak.auth.model.PasswordLoginRequest
 import io.pelle.sak.auth.model.WhoAmIResponse
@@ -269,31 +268,6 @@ fun Route.passwordLogin(
                 }
                 HttpStatusCode.Unauthorized { description = "The password is not the admin password" }
                 HttpStatusCode.TooManyRequests { description = "Too many attempts from this client or altogether" }
-            }
-        }
-    }
-}
-
-// how a user can sign in, without a session: what the login page offers
-@OptIn(ExperimentalKtorApi::class)
-fun Route.loginMethods(
-    email: Boolean,
-    password: Boolean,
-) {
-    route("/methods") {
-        installApi()
-
-        get {
-            call.respond(LoginMethodsResponse(email, password))
-        }.describe {
-            tag(AUTH_TAG)
-            summary = "How a user can sign in"
-            description = "Whether the e-mail login (a mail server is configured) and the password login of the admin are offered."
-            responses {
-                HttpStatusCode.OK {
-                    description = "The login methods"
-                    schema = jsonSchema<LoginMethodsResponse>()
-                }
             }
         }
     }

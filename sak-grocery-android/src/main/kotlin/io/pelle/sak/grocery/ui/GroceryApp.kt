@@ -172,7 +172,8 @@ private fun SignInScreen(
                             "and tap \"Open in the app\".",
                         modifier = Modifier.testTag("link-sent"),
                     )
-                screen.email -> {
+                screen.multiUser == null -> Unit
+                !screen.withPassword -> {
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -185,22 +186,29 @@ private fun SignInScreen(
                     Button(onClick = { model.requestLink(email) }, enabled = email.isNotBlank() && !screen.busy) {
                         Text("Send login link")
                     }
+                    TextButton(onClick = { model.usePassword(true) }, modifier = Modifier.testTag("use-password")) {
+                        Text("Sign in with password")
+                    }
                 }
-            }
-            if (screen.password) {
-                if (screen.email) HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Admin password") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { model.signInWithPassword(password) }),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy) {
-                    Text("Sign in with password")
+                else -> {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Admin password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { model.signInWithPassword(password) }),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy) {
+                        Text("Sign in with password")
+                    }
+                    if (screen.multiUser) {
+                        TextButton(onClick = { model.usePassword(false) }, modifier = Modifier.testTag("use-email")) {
+                            Text("Sign in with an e-mail link")
+                        }
+                    }
                 }
             }
             if (screen.busy) CircularProgressIndicator()

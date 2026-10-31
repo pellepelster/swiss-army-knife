@@ -59,10 +59,14 @@ sealed interface Screen {
         val error: String? = null,
     ) : Screen
 
+    // the sign-in follows the user mode (UX-7): in the multi user mode the e-mail login with a link to
+    // the password login, in the single user mode only the password login
     data class SignIn(
         val deployment: String,
-        val email: Boolean,
-        val password: Boolean,
+        // the multi user mode, null until the deployment answered
+        val multiUser: Boolean?,
+        // the password login is shown: chosen, or the only one in the single user mode
+        val withPassword: Boolean = multiUser == false,
         val busy: Boolean = false,
         val error: String? = null,
         // the address a link went to, the app waits for it
@@ -168,6 +172,12 @@ class GroceryModel(
                 state.value = signIn.copy(busy = false, error = failure(e, "The login link could not be requested."))
             }
         }
+    }
+
+    // between the e-mail login and the password login, in the multi user mode
+    fun usePassword(withPassword: Boolean) {
+        val signIn = state.value as? Screen.SignIn ?: return
+        if (signIn.multiUser == true) state.value = signIn.copy(withPassword = withPassword, error = null)
     }
 
     fun signInWithPassword(password: String) {
@@ -416,13 +426,12 @@ class GroceryModel(
     ) {
         val url = stored.apiUrl ?: return
         val deployment = stored.deployment ?: url
-        state.value = Screen.SignIn(deployment, email = false, password = false, busy = true, error = error)
+        state.value = Screen.SignIn(deployment, multiUser = null, busy = true, error = error)
         state.value =
             try {
-                val methods = apiOf(url, null).loginMethods()
-                Screen.SignIn(deployment, methods.email, methods.password, error = error)
+                Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode == "multi", error = error)
             } catch (e: Exception) {
-                Screen.SignIn(deployment, email = false, password = false, error = failure(e, "The deployment could not be reached."))
+                Screen.SignIn(deployment, multiUser = null, error = failure(e, "The deployment could not be reached."))
             }
     }
 

@@ -25,8 +25,7 @@ class GroceryModelTest {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain"}"""
-            answers["GET /auth/login/methods"] = HttpStatusCode.OK to """{"email":true,"password":true}"""
+            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["POST /auth/login/link"] = HttpStatusCode.Accepted to ""
             answers["POST /auth/login/exchange"] = HttpStatusCode.OK to session("link-session", "pelle@pelle.io")
             answers["POST /auth/login/password"] = HttpStatusCode.OK to session("password-session", "admin")
@@ -81,7 +80,7 @@ class GroceryModelTest {
 
             model.connect("example.org")
             advanceUntilIdle()
-            assertEquals(Screen.SignIn("family", email = true, password = true), model.screen.value)
+            assertEquals(Screen.SignIn("family", multiUser = true), model.screen.value)
             assertEquals(Stored(apiUrl = URL, deployment = "family"), store.load())
         }
 
@@ -388,5 +387,28 @@ class GroceryModelTest {
             assertNull(lists.newList)
             assertEquals(3, lists.open)
             assertEquals(3, store.load().openList)
+        }
+
+    @Test
+    fun `the sign-in follows the user mode, the multi user mode offers the password login after the e-mail login`() =
+        runTest {
+            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val multi = model(store).also { it.start() }
+            advanceUntilIdle()
+            val signIn = multi.screen.value as Screen.SignIn
+            assertEquals(true, signIn.multiUser)
+            assertEquals(false, signIn.withPassword)
+            multi.usePassword(true)
+            assertEquals(true, (multi.screen.value as Screen.SignIn).withPassword)
+            multi.usePassword(false)
+            assertEquals(false, (multi.screen.value as Screen.SignIn).withPassword)
+
+            backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"single"}"""
+            val single = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(Screen.SignIn("family", multiUser = false, withPassword = true), single.screen.value)
+            // no e-mail login to go to
+            single.usePassword(false)
+            assertEquals(true, (single.screen.value as Screen.SignIn).withPassword)
         }
 }

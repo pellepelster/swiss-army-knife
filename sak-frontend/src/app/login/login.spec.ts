@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AuthService, LoginMethods, SESSION_STORAGE_KEY } from '../auth/auth.service';
+import { AuthService, SESSION_STORAGE_KEY, UserMode } from '../auth/auth.service';
 import { Login } from './login';
 
 @Component({ template: 'notes' })
@@ -30,15 +30,13 @@ describe('Login', () => {
 
   afterEach(() => http.verify());
 
-  // the login page at `url`, the backend answering `methods`
-  const open = async (url: string, methods: LoginMethods) => {
+  // the login page at `url` of a deployment in the user mode
+  const open = async (url: string, userMode: UserMode) => {
     const harness = await RouterTestingHarness.create(url);
-    http.expectOne('/api/v1/auth/login/methods').flush(methods);
+    http.expectOne('/api/v1/info').flush({ name: 'alpha', dnsMode: 'domain', userMode });
     await harness.fixture.whenStable();
     return harness;
   };
-
-  const both: LoginMethods = { email: true, password: true };
 
   const fill = async (harness: RouterTestingHarness, selector: string, value: string) => {
     const page = harness.routeNativeElement!;
@@ -62,7 +60,7 @@ describe('Login', () => {
   };
 
   it('requests a link for the address and the page the login started from', async () => {
-    const harness = await open('/login?redirect=%2Fnotes', both);
+    const harness = await open('/login?redirect=%2Fnotes', 'multi');
 
     const page = await fill(harness, '#email', 'admin@example.org');
     const request = http.expectOne('/api/v1/auth/login/link');
@@ -79,7 +77,7 @@ describe('Login', () => {
   });
 
   it('reports too many attempts', async () => {
-    const harness = await open('/login', both);
+    const harness = await open('/login', 'multi');
 
     const page = await fill(harness, '#email', 'admin@example.org');
     http
@@ -90,8 +88,8 @@ describe('Login', () => {
     expect(page.querySelector('[role=alert]')?.textContent).toContain('Too many login attempts');
   });
 
-  it('shows the e-mail login with a link to the password login when both are there', async () => {
-    const harness = await open('/login', both);
+  it('shows the e-mail login with a link to the password login in the multi user mode', async () => {
+    const harness = await open('/login', 'multi');
     const page = harness.routeNativeElement!;
 
     expect(page.querySelector('#email')).not.toBeNull();
@@ -106,19 +104,14 @@ describe('Login', () => {
     expect(page.querySelector('#email')).not.toBeNull();
   });
 
-  it('shows only the password login without a mail server', async () => {
-    const harness = await open('/login', { email: false, password: true });
+  it('shows only the password login in the single user mode', async () => {
+    const harness = await open('/login', 'single');
     const page = harness.routeNativeElement!;
 
     expect(page.querySelector('#password')).not.toBeNull();
     expect(page.querySelector('#email')).toBeNull();
     expect(page.querySelector('[data-testid=use-email]')).toBeNull();
-  });
-
-  it('shows no password link without an admin password', async () => {
-    const harness = await open('/login', { email: true, password: false });
-
-    expect(harness.routeNativeElement!.querySelector('[data-testid=use-password]')).toBeNull();
+    expect(page.querySelector('[data-testid=use-password]')).toBeNull();
   });
 
   // the app parameter names the app to open after signing in, an unknown one the start page; the
@@ -129,14 +122,14 @@ describe('Login', () => {
     ['/login?app=grocery&redirect=%2Fnotes', '/notes'],
   ]) {
     it(`signs in from ${url} for ${redirect}`, async () => {
-      const harness = await open(url, { email: false, password: true });
+      const harness = await open(url, 'single');
       await fill(harness, '#password', 'a password of sixteen');
       expect(http.expectOne('/api/v1/auth/login/password').request.body.redirect).toBe(redirect);
     });
   }
 
   it('signs the admin in with the password and goes where the login started', async () => {
-    const harness = await open('/login?redirect=%2Fnotes', { email: false, password: true });
+    const harness = await open('/login?redirect=%2Fnotes', 'single');
 
     await fill(harness, '#password', 'a password of sixteen');
     const request = http.expectOne('/api/v1/auth/login/password');
@@ -156,7 +149,7 @@ describe('Login', () => {
   });
 
   it('says so when the password is wrong, and empties the field', async () => {
-    const harness = await open('/login', { email: false, password: true });
+    const harness = await open('/login', 'single');
 
     const page = await fill(harness, '#password', 'wrong');
     http
@@ -168,10 +161,10 @@ describe('Login', () => {
     expect(page.querySelector<HTMLInputElement>('#password')!.value).toBe('');
   });
 
-  it('says so when the login methods can not be loaded', async () => {
+  it('says so when the user mode can not be loaded', async () => {
     const harness = await RouterTestingHarness.create('/login');
     http
-      .expectOne('/api/v1/auth/login/methods')
+      .expectOne('/api/v1/info')
       .flush(null, { status: 500, statusText: 'Internal Server Error' });
     await harness.fixture.whenStable();
 

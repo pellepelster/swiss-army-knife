@@ -26,7 +26,6 @@ import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.API_SIGNATURE_AUTH
 import io.pelle.sak.auth.ApiSignature
 import io.pelle.sak.auth.AdminPassword
-import io.pelle.sak.auth.loginMethods
 import io.pelle.sak.auth.passwordLogin
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
@@ -159,7 +158,7 @@ fun Application.apps(
                     // the only routes without a session, the info and the login; the rest of
                     // the api needs one
                     route("/info") {
-                        info(config.name, config.dnsMode)
+                        info(config.name, config.dnsMode, mailServer = mailSender != null)
                     }
                     route("/auth") {
                         route("/login") {
@@ -169,7 +168,6 @@ fun Application.apps(
                             if (adminPassword != null) {
                                 passwordLogin(tokens, admin, adminPassword, rolesOf, onLogin = onLogin)
                             }
-                            loginMethods(email = mailSender != null, password = adminPassword != null)
                         }
                         authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                             whoAmI()

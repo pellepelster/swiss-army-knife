@@ -9,4 +9,6 @@ data class InfoResponse(
     val name: String,
     // its dns mode, domain or subdomain
     val dnsMode: String,
+    // its user mode: multi with a mail server for the login links, single without one
+    val userMode: String,
 )

@@ -38,6 +38,9 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
   same check runs once more when the action is taken, and on the command line, where an invalid value ends the
   command with an error.
+- `UX-7` **The sign-in follows the user mode.** In the multi user mode, the sign-in shows the login by e-mail; a link
+  below it leads to the login with the password of the admin. In the single user mode, it shows only the login with
+  the password. The user mode comes from the deployment (`GET /api/v1/info`).
 
 ## Web ui
 

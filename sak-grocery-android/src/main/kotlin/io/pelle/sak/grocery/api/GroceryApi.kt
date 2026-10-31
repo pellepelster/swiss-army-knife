@@ -43,7 +43,6 @@ class GroceryApi(
 
     suspend fun info(): InfoResponse = client.get("$url/info").answer("This is no SAK deployment.")
 
-    suspend fun loginMethods(): LoginMethodsResponse = client.get("$url/auth/login/methods").answer("The login methods could not be read.")
 
     // the link goes out by mail if the address may sign in, the answer is the same for every address
     suspend fun requestLink(email: String) {

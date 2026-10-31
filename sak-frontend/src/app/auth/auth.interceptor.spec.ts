@@ -52,7 +52,9 @@ describe('authInterceptor', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     client.get('/api/v1/auth/who-am-i').subscribe({ error: () => undefined });
-    http.expectOne('/api/v1/auth/who-am-i').flush(null, { status: 401, statusText: 'Unauthorized' });
+    http
+      .expectOne('/api/v1/auth/who-am-i')
+      .flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { redirect: '/' } });

@@ -934,7 +934,6 @@ class SakAppsTest {
                     "post" to "/api/v1/auth/login/link",
                     "post" to "/api/v1/auth/login/exchange",
                     "post" to "/api/v1/auth/login/password",
-                    "get" to "/api/v1/auth/login/methods",
                 )
         }
     }
@@ -976,7 +975,6 @@ class SakAppsTest {
                         "/api/v1/auth/login/link",
                         "/api/v1/auth/login/exchange",
                         "/api/v1/auth/login/password",
-                        "/api/v1/auth/login/methods",
                         "/api/v1/info",
                         "/api/v1/auth/who-am-i",
                         "/api/v1/config",
@@ -1063,12 +1061,19 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the info answers the name of the deployment without a session`() {
+    fun `the info answers the name, the dns mode and the user mode of the deployment without a session`() {
         withServer { port ->
             val info = get(port, "/api/v1/info")
             info.statusCode() shouldBe 200
             info.headers().firstValue("Content-Type").get() shouldContain "application/json"
-            info.json() shouldBe JsonObject(mapOf("name" to JsonPrimitive("alpha"), "dnsMode" to JsonPrimitive("domain")))
+            info.json() shouldBe
+                JsonObject(
+                    mapOf("name" to JsonPrimitive("alpha"), "dnsMode" to JsonPrimitive("domain"), "userMode" to JsonPrimitive("multi")),
+                )
+        }
+        // without a mail server only the admin signs in
+        withServer(config(smtp = false, admins = false)) { port ->
+            get(port, "/api/v1/info").json().getValue("userMode") shouldBe JsonPrimitive("single")
         }
     }
 
@@ -1366,22 +1371,14 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the login page learns which ways to sign in there are`() {
-        withServer { port ->
-            get(port, "/api/v1/auth/login/methods").json() shouldBe
-                JsonObject(mapOf("email" to JsonPrimitive(true), "password" to JsonPrimitive(true)))
-        }
+    fun `the logins follow the configuration, the e-mail login needs a mail server, the password login a password`() {
         // without a mail server only the admin signs in, with the password
         withServer(config(smtp = false)) { port ->
-            get(port, "/api/v1/auth/login/methods").json() shouldBe
-                JsonObject(mapOf("email" to JsonPrimitive(false), "password" to JsonPrimitive(true)))
             post(port, "/api/v1/auth/login/link", """{"email":"admin@example.org"}""").statusCode() shouldBe 404
             passwordLogin(port).statusCode() shouldBe 200
         }
         // without an admin password only the e-mail login
         withServer(config(adminPassword = false)) { port ->
-            get(port, "/api/v1/auth/login/methods").json() shouldBe
-                JsonObject(mapOf("email" to JsonPrimitive(true), "password" to JsonPrimitive(false)))
             passwordLogin(port).statusCode() shouldBe 404
         }
     }

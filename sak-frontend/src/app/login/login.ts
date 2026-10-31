@@ -4,13 +4,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { appPath } from '../apps';
-import { AuthService, LoginMethods } from '../auth/auth.service';
+import { AuthService, UserMode } from '../auth/auth.service';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 
-// the login of the apps: with a link by e-mail (the link leads to the frontend's signin page) when a
-// mail server is configured, else with the admin password; with both, the e-mail login is shown and
-// a link leads to the password login
+// the login of the apps, by the user mode of the deployment (UX-7): in the multi user mode with a
+// link by e-mail (the link leads to the frontend's signin page) and a link to the admin password
+// login, in the single user mode only with the admin password
 @Component({
   selector: 'app-login',
   imports: [ReactiveFormsModule],
@@ -20,7 +20,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
       <main class="col-12 col-sm-8 col-md-6 col-lg-4">
         <div class="card card-body">
           <h1 class="h4 mb-3">Sign in</h1>
-          @if (methods() === null) {
+          @if (userMode() === null) {
             @if (state() === 'failed') {
               <p class="alert alert-danger mb-0" role="alert">
                 The sign in could not be loaded, please try again.
@@ -52,7 +52,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                 {{ state() === 'sending' ? 'Signing in…' : 'Sign in' }}
               </button>
             </form>
-            @if (methods()!.email) {
+            @if (userMode() === 'multi') {
               <p class="mt-3 mb-0 text-center">
                 <a
                   href=""
@@ -82,19 +82,17 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                 {{ state() === 'sending' ? 'Sending…' : 'Send login link' }}
               </button>
             </form>
-            @if (methods()!.password) {
-              <p class="mt-3 mb-0 text-center">
-                <a
-                  href=""
-                  (click)="$event.preventDefault(); usePassword(true)"
-                  data-testid="use-password"
-                >
-                  Sign in with password
-                </a>
-              </p>
-            }
+            <p class="mt-3 mb-0 text-center">
+              <a
+                href=""
+                (click)="$event.preventDefault(); usePassword(true)"
+                data-testid="use-password"
+              >
+                Sign in with password
+              </a>
+            </p>
           }
-          @if (methods() !== null && state() === 'wrong-password') {
+          @if (userMode() !== null && state() === 'wrong-password') {
             <p class="alert alert-danger mt-3 mb-0" role="alert">The password is not right.</p>
           }
           @if (state() === 'rate-limited') {
@@ -102,7 +100,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
               Too many login attempts, please try again later.
             </p>
           }
-          @if (methods() !== null && state() === 'failed') {
+          @if (userMode() !== null && state() === 'failed') {
             <p class="alert alert-danger mt-3 mb-0" role="alert">
               The sign in did not work, please try again.
             </p>
@@ -134,20 +132,20 @@ export class Login {
   });
   protected readonly passwordForm = new FormGroup({ password: this.password });
 
-  // what the backend offers, null until it answered
-  protected readonly methods = signal<LoginMethods | null>(null);
-  // the password login is shown: chosen, or the only one there is
+  // the user mode of the deployment, null until the backend answered
+  protected readonly userMode = signal<UserMode | null>(null);
+  // the password login is shown: chosen, or the only one in the single user mode
   protected readonly withPassword = signal(false);
   protected readonly state = signal<State>('idle');
 
   constructor() {
     this.auth
-      .loginMethods()
+      .userMode()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (methods) => {
-          this.methods.set(methods);
-          this.withPassword.set(!methods.email && methods.password);
+        next: (userMode) => {
+          this.userMode.set(userMode);
+          this.withPassword.set(userMode === 'single');
         },
         error: () => this.state.set('failed'),
       });
