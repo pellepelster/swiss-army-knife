@@ -712,3 +712,100 @@ cat <<ADDRESSES
 ADDRESSES
 wait
 '''
+
+# sak-grocery-android, the android app of the grocery lists: a gradle build of its own with its own
+# wrapper. The sdk is in $ANDROID_HOME, ~/Android/Sdk when unset; grocery:android:sdk installs the
+# command-line tools of google there, accepts their licenses and installs what the build and the
+# emulator need
+[tasks."grocery:android:sdk"]
+description = "Install the Android SDK of sak-grocery-android"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+sdk="${ANDROID_HOME:-$HOME/Android/Sdk}"
+sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+if [ ! -x "$sdkmanager" ]; then
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
+  echo "e025545c62a8e64c7559119566a569fb1dec5f60  $tmp/tools.zip" | sha1sum -c --quiet
+  unzip -q "$tmp/tools.zip" -d "$tmp"
+  mkdir -p "$sdk/cmdline-tools"
+  mv "$tmp/cmdline-tools" "$sdk/cmdline-tools/latest"
+fi
+yes | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null || true
+"$sdkmanager" --sdk_root="$sdk" platform-tools "platforms;android-37.2" emulator "system-images;android-36;google_apis;x86_64"
+echo "the android sdk is in $sdk"
+'''
+
+[tasks."grocery:android:build"]
+description = "Build sak-grocery-android"
+dir = "{{config_root}}/sak-grocery-android"
+run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew assembleDebug'
+
+[tasks."grocery:android:test"]
+description = "Run the tests of sak-grocery-android"
+dir = "{{config_root}}/sak-grocery-android"
+run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnitTest'
+
+# the debug build in the emulator: the avd sak-grocery is made once, the emulator started when none
+# runs and left running; the debug build takes a server url like http://10.0.2.2:8080/api/v1, the
+# backend of local:run on the host
+[tasks."grocery:android:run"]
+description = "Run sak-grocery-android in the emulator"
+depends = ["grocery:android:sdk"]
+dir = "{{config_root}}/sak-grocery-android"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+adb="$ANDROID_HOME/platform-tools/adb"
+emulator="$ANDROID_HOME/emulator/emulator"
+avd="sak-grocery"
+if ! "$emulator" -list-avds | grep -qx "$avd"; then
+  echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" \
+    -k "system-images;android-36;google_apis;x86_64" -d pixel_7
+fi
+if ! "$adb" devices | grep -q '^emulator-'; then
+  nohup "$emulator" -avd "$avd" -no-boot-anim >/dev/null 2>&1 &
+  "$adb" wait-for-device
+  until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+fi
+./gradlew installDebug
+"$adb" shell am start -n io.pelle.sak.grocery/.MainActivity
+'''
+
+# the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
+# than one phone attached, ANDROID_SERIAL names the one (adb devices lists them)
+[tasks."grocery:android:install"]
+description = "Install sak-grocery-android on the attached phone"
+depends = ["grocery:android:sdk"]
+dir = "{{config_root}}/sak-grocery-android"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+adb="$ANDROID_HOME/platform-tools/adb"
+# one serial a line; the task is a template of mise, which takes the length syntax of bash for a comment
+phones=$("$adb" devices | awk 'NR > 1 && $2 == "device" && $1 !~ /^emulator-/ { print $1 }')
+count=$(printf '%s' "$phones" | grep -c . || true)
+unauthorized=$("$adb" devices | awk 'NR > 1 && $2 == "unauthorized" { print $1 }')
+if [ -n "${ANDROID_SERIAL:-}" ]; then
+  serial="$ANDROID_SERIAL"
+elif [ "$count" -eq 1 ]; then
+  serial="$phones"
+elif [ "$count" -eq 0 ]; then
+  if [ -n "$unauthorized" ]; then
+    echo "the phone $unauthorized does not allow usb debugging yet, confirm the prompt on it" >&2
+  else
+    echo "no phone attached: plug it in with usb debugging on (Settings > System > Developer options)" >&2
+  fi
+  exit 1
+else
+  echo "more than one phone attached ($(echo $phones)), name one with ANDROID_SERIAL=<serial>" >&2
+  exit 1
+fi
+./gradlew assembleDebug
+"$adb" -s "$serial" install -r build/outputs/apk/debug/sak-grocery-android-debug.apk
+"$adb" -s "$serial" shell am start -n io.pelle.sak.grocery/.MainActivity
+'''

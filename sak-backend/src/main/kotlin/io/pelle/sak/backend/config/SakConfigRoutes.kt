@@ -1,6 +1,8 @@
 package io.pelle.sak.backend.config
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.header
+import io.ktor.http.HttpHeaders
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -17,18 +19,20 @@ private const val CONFIG_TAG = "config"
 fun SakConfig.SmtpConfig.response() =
     SmtpConfigResponse(host, port, username, !password.isNullOrEmpty(), password?.takeIf { it.isNotEmpty() }, from, tls, starttls)
 
-// the running configuration, meant to be mounted behind the authentication and the admin role; the
-// one secret it answers is the password of the mail server, so a redeploy need not ask for it again
+// the running configuration, meant to be mounted behind the signature of sakctl only and the admin
+// role; the one secret it answers is the password of the mail server, so a redeploy need not ask
+// for it again
 @OptIn(ExperimentalKtorApi::class)
 fun Route.config(config: SakConfig) {
     installApi()
 
     get {
+        call.response.header(HttpHeaders.CacheControl, "no-store")
         call.respond(ConfigResponse(config.auth?.smtp?.response(), config.auth?.admins.orEmpty()))
     }.describe {
         tag(CONFIG_TAG)
         summary = "The running configuration"
-        description = "The mail server the login links are sent with, its password included, and the addresses of the e-mail login. Admins only."
+        description = "The mail server the login links are sent with, its password included, and the addresses of the e-mail login. Only for a request signed by sakctl, no session."
         responses {
             HttpStatusCode.OK {
                 description = "The running configuration"

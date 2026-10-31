@@ -42,9 +42,9 @@ is built is in [SYSTEM.md](architecture/SYSTEM.md).
   run as the user of SAK, on the network of the server), is refused by the firewall of the server; and root on the
   server, or someone with the cloud project, has everything the host key would give anyway.
 
-- **The running configuration answers the password of the mail server.** An admin, and sakctl with a signed
-  request, can read it from the backend, so a redeploy takes over the whole mail server and nobody types its password
-  again. A comfort feature: whoever holds the password of the deployment or an admin session can read the password of
+- **The running configuration answers the password of the mail server.** sakctl reads it from the backend with a
+  signed request, so a redeploy takes over the whole mail server and nobody types its password again; a session, also
+  one of an admin, gets 401. A comfort feature: whoever holds the password of the deployment can read the password of
   the mail server, and send mail with it from elsewhere. Accepted: the same people can already read it on the server,
   and the account at the mail server is meant for the login mails of this deployment alone.
 

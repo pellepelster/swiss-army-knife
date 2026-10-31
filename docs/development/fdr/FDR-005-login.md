@@ -32,6 +32,9 @@ created or deployed:
   and is the same user with the same data whether signed in with the password or by e-mail.
 - **Who is signed in.** The page shows the user the backend takes the session for (`GET /api/v1/auth/who-am-i`):
   `admin` for a password login, else the e-mail address.
+- **The Android app.** The grocery app asks for a link with `client: android`. The link opens the signin page of the
+  web app as every link does; for such a link the page does not sign in itself but offers "Open in the app", an
+  Android intent that names the package of the app and hands it the token.
 - **Where the login leads.** After signing in, by password or by e-mail, the page the login started from opens,
   else the app a link names (`/login?app=grocery`, only the apps of the start page), else the start page.
 - **The apps prepare the user.** Each sign-in, by password or by e-mail, lets the apps prepare the data of the user
@@ -93,6 +96,17 @@ empty.
 password session `admin`. The data of the multi user admin hangs on the address either way.
 **Why:** The page shows how the user signed in, and the admin keeps one set of data.
 **Tradeoff:** None known.
+
+### 7. The web page hands the link on to the Android app
+
+**Decision:** The link of a login of the Android app opens the signin page of the web app, which hands the token on
+with an Android intent naming the package of the app (`intent://signin?token=…#Intent;scheme=io.pelle.sak.grocery;
+package=io.pelle.sak.grocery;end`). The app takes the token only for a login it asked for, on the same deployment,
+within 15 minutes.
+**Why:** Every deployment has a domain of its own, so the app can not list them for verified App Links, and an
+unverified link opens in the browser since Android 12. The intent names the package, so no other app gets the token;
+the check of the app keeps a link of someone else from signing the user in to their account.
+**Tradeoff:** One more tap, on the page of the web app, before the app opens.
 
 ## Gates
 

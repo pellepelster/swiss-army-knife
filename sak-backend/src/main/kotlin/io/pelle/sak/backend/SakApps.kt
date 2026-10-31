@@ -205,10 +205,6 @@ fun Application.apps(
                             requireRole(Role.ADMIN)
                             grocery(groceryService)
                         }
-                        route("/config") {
-                            requireRole(Role.ADMIN)
-                            config(config)
-                        }
                         route("/settings") {
                             requireRole(Role.ADMIN)
                             settingsRoutes(settingsRegistry)
@@ -222,6 +218,14 @@ fun Application.apps(
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
                             files(fileService, fileTextService)
                             servedFiles(fileService)
+                        }
+                    }
+                    // what only sakctl reads, with a signed request: the running configuration holds the
+                    // password of the mail server, no browser session gets it
+                    authenticate(API_SIGNATURE_AUTH) {
+                        route("/config") {
+                            requireRole(Role.ADMIN)
+                            config(config)
                         }
                     }
                 }

@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { AuthService } from '../auth/auth.service';
-import { Signin } from './signin';
+import { Signin, groceryAppLink } from './signin';
 
 @Component({ template: 'notes' })
 class Notes {}
@@ -48,6 +48,20 @@ describe('Signin', () => {
 
     expect(TestBed.inject(Router).url).toBe('/notes');
     expect(TestBed.inject(AuthService).token()).toBe('session-token');
+  });
+
+  it('hands the token of a login of the android app on to the app, without using it', async () => {
+    const harness = await RouterTestingHarness.create('/signin?token=a+token/1&client=android');
+
+    expect(TestBed.inject(Location).path()).toBe('/signin');
+    http.expectNone('/api/v1/auth/login/exchange');
+    const link = harness.routeNativeElement!.querySelector<HTMLAnchorElement>('a.btn')!;
+    expect(link.textContent).toContain('Open in the app');
+    expect(link.getAttribute('href')).toBe(groceryAppLink('a token/1'));
+    expect(link.getAttribute('href')).toBe(
+      'intent://signin?token=a%20token%2F1#Intent;scheme=io.pelle.sak.grocery;package=io.pelle.sak.grocery;end',
+    );
+    expect(TestBed.inject(AuthService).token()).toBeNull();
   });
 
   it('drops the login token from the address bar and reports a rejected link', async () => {

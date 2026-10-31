@@ -46,6 +46,23 @@ users; what a user added before is suggested again.
 - `GROCERY-8` **Forget a suggestion.** A user can delete a product from their catalogue; no list changes, and it is
   learned again the next time an item of the name is added.
 
+## Android app
+
+`sak-grocery-android` (package `io.pelle.sak.grocery`) shows the grocery lists on a phone. It is a client of the
+api like the web ui, a gradle build of its own (`mise run grocery:android:run` starts it in an emulator).
+
+- `GROCERY-10` **Read only.** The app shows the lists and their items to buy, by category as `GROCERY-4` orders them;
+  it does not add, change or check items yet.
+- `GROCERY-11` **One deployment.** The user enters the base domain, the app uses the api at
+  `https://api.<base domain>/v1` (`SERVER-5`) and checks it with `GET /info`. Only the debug build takes a whole url,
+  e.g. `http://10.0.2.2:8080/api/v1` for the backend of `local:run`, and only it sends http.
+- `GROCERY-12` **Sign-in by password or by link.** The app offers what `GET /auth/login/methods` tells. A link it asks
+  for (`client: android`) is handed on to the app by the signin page of the web app (refer to
+  [FDR-005](../../fdr/FDR-005-login.md)); the app takes the token only for a login it asked for on the same deployment
+  within 15 minutes, so nobody signs the user in with a link of their own.
+- `GROCERY-13` **The session stays on the phone.** The session token is encrypted with a key of the Android keystore,
+  the app has no backup; a 401 or the end of the session leads to the sign-in, the deployment stays.
+
 ## External systems
 
-None.
+None. The Android app contacts only the deployment.

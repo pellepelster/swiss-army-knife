@@ -1071,12 +1071,14 @@ class SakAppsTest {
     }
 
     @Test
-    fun `admins read the running configuration`() {
+    fun `sakctl reads the running configuration, no session does`() {
         withServer { port ->
             get(port, "/api/v1/config").statusCode() shouldBe 401
-            val session = signIn(port)
-            val config = get(port, "/api/v1/config", session)
+            // not even the one of an admin, the password of the mail server is in it
+            get(port, "/api/v1/config", signIn(port)).statusCode() shouldBe 401
+            val config = signed(port, "/api/v1/config")
             config.statusCode() shouldBe 200
+            config.headers().firstValue("Cache-Control").get() shouldBe "no-store"
             val smtp = config.json().getValue("smtp").jsonObject
             smtp.string("host") shouldBe "localhost"
             smtp.getValue("port").jsonPrimitive.content shouldBe greenMail.smtp.port.toString()
@@ -1231,7 +1233,7 @@ class SakAppsTest {
             // an unsigned jwt with the subject of the admin
             val unsigned = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbkBleGFtcGxlLm9yZyIsInJvbGVzIjpbImFkbWluIl19."
             for (authorization in listOf("Basic sak_token", "Bearer ", "Bearer sak_token x", "Bearer $unsigned", "sak_token")) {
-                val answer = getWithHeader(port, "/api/v1/config", "Authorization: $authorization")
+                val answer = getWithHeader(port, "/api/v1/notes", "Authorization: $authorization")
                 val status = answer.substringAfter(' ').substringBefore(' ')
                 // a header that is no valid authorization at all is a malformed request, the others
                 // are refused with one bearer challenge

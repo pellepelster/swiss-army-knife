@@ -18,7 +18,11 @@ lists are paged with the same parameters, the times use `apiTime()`, and no doma
 
 ## Must fix
 
-### `AR-1` Every admin session can read the password of the mail server
+### ~~`AR-1` Every admin session can read the password of the mail server~~
+
+**Fixed:** `/config` is below `authenticate(API_SIGNATURE_AUTH)` only and answers with `Cache-Control: no-store`; a
+session, also one of an admin, gets 401. `requireRole` answers 401 to a request without a principal, so no provider
+that refuses nothing on its own leaves a route open.
 
 `GET /api/v1/config` answers the password of the SMTP server in clear text. Only sakctl uses the route (a signed
 request, `sak-cli/src-tauri/src/core/config.rs`), but the route is below `authenticate(SESSION_AUTH,

@@ -32,6 +32,7 @@ import java.time.Duration
 import java.time.Instant
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
+import io.pelle.sak.auth.model.LoginClient
 import io.pelle.sak.auth.model.LoginMethodsResponse
 import io.pelle.sak.auth.model.LoginRequest
 import io.pelle.sak.auth.model.PasswordLoginRequest
@@ -143,8 +144,10 @@ fun Route.login(
             if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
                 return@launch
             }
-            // the redirect travels in the token, the signin page takes it from the exchange
-            val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}"
+            // the redirect travels in the token, the signin page takes it from the exchange; a link
+            // of the android app tells the signin page to hand the token on to the app
+            val client = if (request.client == LoginClient.ANDROID) "&client=android" else ""
+            val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}$client"
             try {
                 mailSender.send(email, "Sign in to ${app.name}", loginMail(app.url, link, tokens.loginTokenTtl))
                 logger.info { "sent login link to '$email'" }

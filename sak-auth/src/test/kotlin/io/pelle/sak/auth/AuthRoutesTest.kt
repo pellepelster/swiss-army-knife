@@ -131,6 +131,26 @@ class AuthRoutesTest {
         }
 
     @Test
+    fun `a link of the android app tells the signin page to hand the token on`() =
+        authTest {
+            client
+                .post("/api/v1/auth/login/link") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"email":"admin@example.org","client":"android"}""")
+                }.status shouldBe HttpStatusCode.Accepted
+            val link = receiveLink()
+            link.parameters.names() shouldBe setOf("token", "client")
+            link.parameters["client"] shouldBe "android"
+            client.exchange(link.parameters["token"]!!).status shouldBe HttpStatusCode.OK
+
+            client
+                .post("/api/v1/auth/login/link") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"email":"admin@example.org","client":"ios"}""")
+                }.status shouldBe HttpStatusCode.BadRequest
+        }
+
+    @Test
     fun `a login listener that fails does not fail the sign-in`() =
         authTest(onLogin = { error("no list") }) {
             client.login("admin@example.org").status shouldBe HttpStatusCode.Accepted

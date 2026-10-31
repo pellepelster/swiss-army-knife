@@ -45,6 +45,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 |---|---|
 | `sak-backend` | The server process: the api of the apps, the S3 api, the configuration of caddy, the health checks. It also serves `sak-frontend`. |
 | `sak-frontend` | The web ui of the apps (Angular, installable on a phone). |
+| `sak-grocery-android` | The Android app of the grocery lists (Kotlin, Jetpack Compose), a gradle build of its own. |
 | `sak-model` | The database: schema (Liquibase changelog), entities and their repositories (jOOQ on SQLite). |
 | `sak-api` | What every part of the api shares: the error answer, pagination, health. |
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakctl, the roles. |

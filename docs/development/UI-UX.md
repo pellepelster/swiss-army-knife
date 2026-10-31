@@ -45,6 +45,15 @@ line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the
   Arrows at the sides of the page do the same on larger screens; on a phone they stay for the keyboard and screen
   readers only. A swipe never starts on a field or at the edge of the screen, where the system goes back.
 
+## Android app
+
+- **Material 3, the colors of the phone.** The grocery app follows the light or dark mode of the system and takes
+  the colors of the wallpaper where Android has them.
+- **One screen at a time.** The deployment, the sign-in, the lists; the name of the deployment is the title, the
+  sign-out is in the menu at the top right.
+- **The lists like the web ui.** Tabs at the top switch the lists, the items are grouped by category; pulling down
+  reloads. A message tells when there is nothing to buy.
+
 ## sakctl window
 
 - **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows, stays in
