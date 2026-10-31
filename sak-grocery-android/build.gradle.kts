@@ -5,6 +5,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// the version of SAK (mise.toml takes the v off): 1.4.2 is the versionCode 10402, so every release
+// counts up and android takes it as an update; latest, every build but a release, is 1
+val sakVersion = System.getenv("VERSION")?.removePrefix("v") ?: "latest"
+val sakVersionCode =
+    Regex("""(\d+)\.(\d+)\.(\d+)""").matchEntire(sakVersion)?.destructured?.let { (major, minor, patch) ->
+        major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
+    } ?: 1
+
 android {
     namespace = "io.pelle.sak.grocery"
     // what the libraries of compose need to compile against; the app runs from minSdk on
@@ -17,13 +25,28 @@ android {
         applicationId = "io.pelle.sak.grocery"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = System.getenv("VERSION") ?: "latest"
+        versionCode = sakVersionCode
+        versionName = sakVersion
+    }
+
+    // the key of the release, from the keystore mise run grocery:android:release:build decodes out of
+    // the secrets (github:secrets:update); without it the release apk stays unsigned
+    signingConfigs {
+        System.getenv("ANDROID_KEYSTORE_FILE")?.let { keystore ->
+            create("release") {
+                storeFile = file(keystore)
+                storeType = "PKCS12"
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

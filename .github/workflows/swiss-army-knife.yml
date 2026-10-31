@@ -208,6 +208,38 @@ jobs:
           archive: false
           if-no-files-found: error
 
+  # the android app of the grocery lists: its tests and its release apk on every build, so a broken
+  # release build shows before a tag; signed only for a tag, with the key of the secrets
+  # (mise run github:secrets:update), unsigned otherwise. The apk and its checksum are artifacts
+  grocery-android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: java
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          build-root-directory: sak-grocery-android
+      - run: mise run grocery:android:sdk:build
+      - run: mise run grocery:android:test
+      - run: mise run grocery:android:release:build
+        env:
+          ANDROID_KEYSTORE: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          ANDROID_KEY_ALIAS: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_ALIAS || '' }}
+          ANDROID_KEY_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_PASSWORD || '' }}
+      - uses: actions/upload-artifact@v7
+        with:
+          path: sak-grocery-android/build/sak-grocery-*.apk
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          path: sak-grocery-android/build/sak-grocery-*.apk.sha256
+          archive: false
+          if-no-files-found: error
+
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
   # a pull request too. The address of the pages is its base url, the installation gets the
   # checksums of the zips of sakctl (mise run docs:data)
@@ -236,12 +268,13 @@ jobs:
         with:
           path: build/site
 
-  # from a tag v<version> only, when all images and all zips of sakctl are built: the images pushed
-  # as <VERSION>-rc as <VERSION> (mise run release:docker), the zips and their checksums as the
-  # github release of the tag (mise run cli:release), where the installation downloads them
+  # from a tag v<version> only, when all images, all zips of sakctl and the apk are built: the images
+  # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips and their checksums as
+  # the github release of the tag (mise run cli:release), where the installation downloads them, and
+  # the signed apk of the grocery lists with its checksum (mise run grocery:android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl]
+    needs: [sak-backend-images, sak-cli-images, sakctl, grocery-android]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -266,6 +299,15 @@ jobs:
           skip-decompress: true
       - run: ls -l sak-cli/build
       - run: mise run cli:release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: sak-grocery-*
+          path: sak-grocery-android/build
+          merge-multiple: true
+          skip-decompress: true
+      - run: mise run grocery:android:release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
