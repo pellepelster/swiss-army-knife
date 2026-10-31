@@ -17,12 +17,17 @@ function streaming(chunks: string[], status = 200): Response {
 
 describe('GroceryChanges', () => {
   beforeEach(() => {
+    // listens only while the tab is visible, whatever a spec before left
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
     localStorage.clear();
     signedIn();
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState');
+    vi.unstubAllGlobals();
+  });
 
   it('hears the ids of the lists that changed, with the session in the header, not in the url', async () => {
     const fetch = vi.fn().mockResolvedValue(

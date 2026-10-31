@@ -67,6 +67,8 @@ describe('ServiceWorkerUpdates', () => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(updates.checkForUpdate).toHaveBeenCalledTimes(1);
+    // the document of jsdom again, the specs that follow may share it
+    Reflect.deleteProperty(document, 'visibilityState');
   });
 
   it('does nothing without a service worker', () => {

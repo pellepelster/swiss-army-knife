@@ -466,7 +466,8 @@ describe('NotesStore', () => {
       document.dispatchEvent(new Event('visibilitychange'));
       expect(fetch).toHaveBeenCalledTimes(1);
     } finally {
-      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      // the document of jsdom again, the specs that follow may share it
+      Reflect.deleteProperty(document, 'visibilityState');
       vi.unstubAllGlobals();
     }
   });
