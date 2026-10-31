@@ -15,10 +15,8 @@ and add it to the note.
 
 ## General
 
-- `NOTES-1` **Lists.** The notes are a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)): every
-  note belongs to one list of its owner. The lists and their shared flag are prepared but not exposed to the user: all
-  notes of a user are on their list from the sign-in (`LIST-1`). A user who has not signed in since they have no
-  list, e.g. sakctl acting as the admin, can not create a note.
+- `NOTES-1` **Lists.** The notes are a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)). The lists
+  are prepared but not exposed to the user. All notes of a user are on their list from the sign-in (`LIST-1`).
 
 ## Data
 

@@ -49,7 +49,7 @@ class GroceryRepositoryTest {
         repository.ensureList(OTHER, DEFAULT_GROCERY_LIST)
 
         val default = repository.lists(PELLE).single()
-        default shouldBe GroceryList(default.id, PELLE, DEFAULT_GROCERY_LIST, false, now, null)
+        default shouldBe GroceryList(default.id, PELLE, DEFAULT_GROCERY_LIST, false, now, null, items = 0)
         repository.lists(OTHER) shouldBe listOf(weekly)
         val milk = repository.insertItem(PELLE, default.id, values("Milk", "2", "l", "DAIRY"))!!
         repository.items(PELLE, default.id)!!.map { it.name } shouldBe listOf("Milk")
@@ -104,7 +104,7 @@ class GroceryRepositoryTest {
         repository.deleteList(OTHER, secret.id) shouldBe GroceryListDelete.NotFound
         repository.items(PELLE, secret.id)!!.map { it.name } shouldBe listOf("Wine")
 
-        repository.list(OTHER, party.id) shouldBe party
+        repository.list(OTHER, party.id) shouldBe party.copy(items = 1)
         repository.items(OTHER, party.id)!!.map { it.name } shouldBe listOf("Chips")
         repository.updateItem(OTHER, chips.id, values("Crisps"))!!.name shouldBe "Crisps"
         repository.insertItem(OTHER, party.id, values("Beer"))!!.owner shouldBe OTHER
@@ -128,6 +128,20 @@ class GroceryRepositoryTest {
         repository.updateItem(PELLE, milk.id, values("Milk")) shouldBe null
         repository.items(PELLE, milk.listId)!!.map { it.id } shouldBe listOf(bread.id)
         database.dsl.fetchOne(GROCERY_ITEMS, GROCERY_ITEMS.ID.eq(milk.id))!!.deletedAt shouldBe now
+    }
+
+    @Test
+    fun `a list counts its items to buy, a bought item no longer`() {
+        val own = list(PELLE)
+        val party = repository.insertList(PELLE, "Party", shared = false)!!
+        party.items shouldBe 0
+        val milk = repository.insertItem(PELLE, own, values("Milk"))!!
+        repository.insertItem(PELLE, own, values("Bread"))!!
+        repository.deleteItem(PELLE, milk.id) shouldBe true
+
+        repository.lists(PELLE).associate { it.name to it.items } shouldBe mapOf(DEFAULT_GROCERY_LIST to 1, "Party" to 0)
+        repository.list(PELLE, own)!!.items shouldBe 1
+        (repository.updateList(PELLE, own, "Home", shared = true) as GroceryListUpdate.Updated).list.items shouldBe 1
     }
 
     @Test

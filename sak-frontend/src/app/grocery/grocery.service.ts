@@ -15,6 +15,8 @@ export interface GroceryList {
   shared: boolean;
   // of the signed in user, who renames, shares and deletes it
   mine: boolean;
+  // how many items are to buy on it
+  items: number;
 }
 
 export interface GroceryItem {

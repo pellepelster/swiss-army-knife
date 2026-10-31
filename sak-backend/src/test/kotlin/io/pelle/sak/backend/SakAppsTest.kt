@@ -488,6 +488,7 @@ class SakAppsTest {
                     it.string("name") shouldBe "Default"
                     it.string("mine") shouldBe "true"
                     it.containsKey("default") shouldBe false
+                    it.string("items") shouldBe "0"
                     it.string("id")
                 }
 
@@ -513,6 +514,7 @@ class SakAppsTest {
             delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 404
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
                 listOf("Apples")
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("items") shouldBe "1"
             get(port, "/api/v1/grocery/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Milk"
             get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
                 "Fruit & vegetables"
@@ -601,7 +603,7 @@ class SakAppsTest {
                 it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
-            // the apps scale photos down and drop their metadata, the storage takes nothing else
+            // the apps scale photos down, the storage takes nothing larger
             upload(Media.jpeg(2049, 1)).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"message":"An image must have at most 2048 pixels on its longer side."}]}"""

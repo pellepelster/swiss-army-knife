@@ -13,6 +13,8 @@ Read this file first. It contains rules for the complete repository.
   it. Keeping an existing FDR current when its feature changes is still required.
 - Never add an architecture rule (`docs/development/architecture/`) on your own. Ask the user first and add the rule
   only after the user explicitly agrees. This applies also to a rule that a change, a review or a fix needs.
+- Never change [UI-UX.md](docs/development/UI-UX.md) on your own. Ask the user first and change it only after the
+  user explicitly agrees.
 - Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
   finding has an id that is unique in the repository, the prefix of its review and a number; never use an id again,
   also not when its finding is fixed or removed. A fixed finding stays in its review, struck through (`~~…~~`).
@@ -46,10 +48,11 @@ How the apps (frontend, CLI, wizard, Android Apps) look and behave for their use
 How SAK is built is in three levels below `docs/development/architecture/`, each adding to the ones above and never
 repeating them:
 
-1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the model, the external
-   systems, the server of a deployment, sakctl, the cloud resources and their labels, privacy, security, the tests).
-2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the layers, the settings, the
-   api contract, the shared parts, the list-based apps, the frontend, privacy in the apps).
+1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the backend layers, the api
+   contract, the model, the external systems, the server of a deployment, sakctl, the cloud resources and their
+   labels, privacy, security, the tests).
+2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the shared parts, the list-based
+   apps, the frontend, privacy in the apps).
 3. `apps/<APP>.md`: each app, e.g. [NOTES.md](docs/development/architecture/apps/NOTES.md); the `AGENTS.md` of an
    app's directory links its document.
 
@@ -86,12 +89,12 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 
 ## Services (`sak-backend`)
 
-- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are in architecture/apps/INDEX.md,
-  "Backend layers".
+- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are `LAYER-1`
+  (architecture/SYSTEM.md, "Backend layers").
 
 ## API (`/api`)
 
-- The contract (errors, pagination, request and response classes) is in architecture/apps/INDEX.md, "API". In the code:
+- The contract (errors, pagination, request and response classes) is in architecture/SYSTEM.md, "API". In the code:
 - Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation; errors are answered with
   `call.respondErrors`; the largest `limit` is `MAX_LIMIT` (`sak-api`).
 - A service answers a page as `Page<T>` (`sak-api`, its items and the total); the route answers

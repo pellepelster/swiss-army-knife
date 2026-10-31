@@ -11,8 +11,8 @@ const categories = [
   { name: 'FRUIT_VEGETABLES', label: 'Fruit & vegetables' },
   { name: 'DAIRY', label: 'Dairy & eggs' },
 ];
-const defaultList = { id: 1, name: 'Default', shared: false, mine: true };
-const party = { id: 2, name: 'Party', shared: true, mine: false };
+const defaultList = { id: 1, name: 'Default', shared: false, mine: true, items: 3 };
+const party = { id: 2, name: 'Party', shared: true, mine: false, items: 1 };
 const item = (id: number, name: string, category: string | null) => ({
   id,
   listId: 1,
@@ -52,22 +52,60 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
   };
 
-  const load = async (lists: object[], items?: object[]) => {
-    await open('/grocery');
+  // the page of the list 1
+  const load = async (lists: object[], items: object[]) => {
+    await open('/grocery/lists/1');
     http.expectOne('/api/v1/grocery/categories?offset=0&limit=100').flush(pageOf(categories));
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf(lists));
     await harness.fixture.whenStable();
-    if (items)
-      http.expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100').flush(pageOf(items));
+    http.expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100').flush(pageOf(items));
     await harness.fixture.whenStable();
   };
 
-  it('without a list there is no form to add an item, only the way to add a list', async () => {
-    await load([]);
-    expect(page().textContent).toContain('You have no list yet, add one first.');
-    expect(page().textContent).not.toContain('Nothing to buy yet');
-    expect(page().querySelector('#item-name')).toBeNull();
+  const overview = async (lists: object[]) => {
+    await open('/grocery');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf(lists));
+    await harness.fixture.whenStable();
+  };
+
+  it('starts with all lists and how many items are to buy, a list opens and leads back', async () => {
+    await overview([defaultList, party, { ...party, id: 3, name: 'Hardware', items: 0 }]);
+    const rows = [...page().querySelectorAll('[data-testid^=list-]')].map((row) =>
+      row.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+    expect(rows).toEqual([
+      'Default 3 items to buy',
+      'Party 1 item to buy shared',
+      'Hardware No items to buy shared',
+    ]);
     expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
+    expect(page().querySelector('#item-name')).toBeNull();
+
+    page().querySelector<HTMLAnchorElement>('[data-testid=list-2]')!.click();
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/grocery/lists/2');
+    http.expectOne('/api/v1/grocery/categories?offset=0&limit=100').flush(pageOf(categories));
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/grocery/lists/2/items?offset=0&limit=100').flush(pageOf([]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
+    expect(button('All lists').getAttribute('href')).toBe('/grocery');
+  });
+
+  it('without a list there is only the way to add one', async () => {
+    await overview([]);
+    expect(page().textContent).toContain('You have no list yet, add one first.');
+    expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
+  });
+
+  it('a list that is gone leads to all lists', async () => {
+    await open('/grocery/lists/7');
+    http.expectOne('/api/v1/grocery/categories?offset=0&limit=100').flush(pageOf(categories));
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/grocery');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
   });
 
   it('adds an item to the list shown', async () => {
@@ -163,7 +201,7 @@ describe('Grocery', () => {
 
     button('Next list').click();
     await harness.fixture.whenStable();
-    expect(url()).toBe('/grocery?list=2');
+    expect(url()).toBe('/grocery/lists/2');
     http.expectOne('/api/v1/grocery/lists/2/items?offset=0&limit=100').flush(pageOf([]));
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
@@ -200,16 +238,16 @@ describe('Grocery', () => {
     await swipe(heading, [300, 200], [280, 400]);
     await swipe(heading, [5, 200], [300, 200]);
     await swipe(input('item-name'), [300, 200], [100, 200]);
-    expect(url()).toBe('/grocery');
+    expect(url()).toBe('/grocery/lists/1');
 
     await swipe(heading, [300, 200], [150, 210]);
-    expect(url()).toBe('/grocery?list=2');
+    expect(url()).toBe('/grocery/lists/2');
     http.expectOne('/api/v1/grocery/lists/2/items?offset=0&limit=100').flush(pageOf([]));
     await harness.fixture.whenStable();
     expect(dots()).toEqual([false, true]);
 
     await swipe(page().querySelector('[data-testid=list-name]')!, [150, 200], [300, 190]);
-    expect(url()).toBe('/grocery?list=1');
+    expect(url()).toBe('/grocery/lists/1');
     http.expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100').flush(pageOf([]));
   });
 
@@ -246,7 +284,7 @@ describe('Grocery', () => {
     expect(request.request.body).toEqual({ name: 'Party', shared: true });
     request.flush({ ...party, mine: true });
     await harness.fixture.whenStable();
-    expect(url()).toBe('/grocery?list=2');
+    expect(url()).toBe('/grocery/lists/2');
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 

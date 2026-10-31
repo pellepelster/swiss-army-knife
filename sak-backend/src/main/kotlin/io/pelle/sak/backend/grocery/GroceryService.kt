@@ -137,7 +137,7 @@ class GroceryService(
         return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
     }
 
-    // bought (GROCERY-2), by any user who sees its list (LIST-2); false when the user sees no such item
+    // bought (GROCERY-3), by any user who sees its list (LIST-2); false when the user sees no such item
     fun deleteItem(
         user: String,
         id: Int,

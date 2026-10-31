@@ -21,7 +21,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- the login link the signin page of the web app hands on: an intent that names this
-                 package, io.pelle.sak.grocery://signin?token=… (FDR-005) -->
+                 package, io.pelle.sak.grocery://signin?token=… -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

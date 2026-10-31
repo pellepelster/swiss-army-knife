@@ -14,9 +14,8 @@ import { GroceryList, GroceryService } from './grocery.service';
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/grocery"
-        [queryParams]="back()"
-        aria-label="Back to the grocery list"
+        [routerLink]="back()"
+        aria-label="Back"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ id() ? 'Edit list' : 'Create list' }}</h1>
@@ -80,9 +79,7 @@ import { GroceryList, GroceryService } from './grocery.service';
                   Delete list
                 </button>
               }
-              <a class="btn btn-outline-secondary" routerLink="/grocery" [queryParams]="back()"
-                >Cancel</a
-              >
+              <a class="btn btn-outline-secondary" [routerLink]="back()">Cancel</a>
               <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
                 @if (saving()) {
                   <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -120,7 +117,11 @@ export class GroceryListForm implements OnInit {
   protected readonly last = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly back = computed(() => (this.id() ? { list: this.id() } : {}));
+  // the list edited, or all lists for a new one
+  protected readonly back = computed(() => {
+    const id = this.id();
+    return id ? ['/grocery/lists', id] : ['/grocery'];
+  });
 
   ngOnInit(): void {
     const id = this.id();
@@ -154,7 +155,7 @@ export class GroceryListForm implements OnInit {
         ? this.service.createList(this.name().trim(), this.shared())
         : this.service.updateList(id, this.name().trim(), this.shared());
     saved.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (list) => void this.router.navigate(['/grocery'], { queryParams: { list: list.id } }),
+      next: (list) => void this.router.navigate(['/grocery/lists', list.id]),
       error: (error: unknown) => {
         this.saving.set(false);
         this.error.set(apiErrorMessage(error, 'The list could not be saved.'));

@@ -10,6 +10,8 @@ data class GroceryListResponse(
     val shared: Boolean,
     // of the signed in user, who renames, shares and deletes it
     val mine: Boolean,
+    // how many items are to buy on it
+    val items: Int,
     val createdAt: String,
     // missing until it is changed
     val updatedAt: String?,

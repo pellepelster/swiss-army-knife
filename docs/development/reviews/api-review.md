@@ -11,7 +11,7 @@ weight: 2
 
 Scope: all routes below `/api/v1`: the login (`sak-auth`), the buckets and their access logs (`sak-logs`), the
 redirects, the labels, the notes, the grocery lists, the files, the settings, the configuration, the health and the
-info. The contract is in [apps/INDEX.md](../architecture/apps/INDEX.md#api).
+info. The contract is in [SYSTEM.md](../architecture/SYSTEM.md#api).
 
 What is good: every route has its OpenAPI description, the errors of a request are one readable sentence each, the
 lists are paged with the same parameters, the times use `apiTime()`, and no domain class crosses the API (`API-4`).

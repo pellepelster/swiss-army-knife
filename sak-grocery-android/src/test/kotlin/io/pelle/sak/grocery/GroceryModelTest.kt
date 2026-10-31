@@ -7,7 +7,9 @@ import io.pelle.sak.grocery.session.Stored
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -47,7 +49,7 @@ class GroceryModelTest {
         id: Int,
         name: String,
         shared: Boolean = false,
-    ) = """{"id":$id,"name":"$name","shared":$shared,"mine":true,"createdAt":"2026-10-31T07:00:00.000Z"}"""
+    ) = """{"id":$id,"name":"$name","shared":$shared,"mine":true,"items":0,"createdAt":"2026-10-31T07:00:00.000Z"}"""
 
     private fun item(
         id: Int,
@@ -84,7 +86,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the password signs in and the lists show the items to buy of the first list by category`() =
+    fun `the password signs in to the home with all lists, a list opens with its items by category, back leads home`() =
         runTest {
             val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
             val model = model(store).also { it.start() }
@@ -94,17 +96,27 @@ class GroceryModelTest {
             advanceUntilIdle()
 
             assertTrue(backend.requests.contains("""POST /auth/login/password {"password":"a password of sixteen"}"""))
+            val home = model.screen.value as Screen.Lists
+            assertEquals("admin", home.user)
+            assertNull(home.open)
+            assertEquals(listOf("Default", "Party"), home.lists.map { it.name })
+            assertTrue(backend.requests.none { it.contains("/items") })
+            assertEquals("password-session", store.load().token)
+
+            model.open(1)
+            advanceUntilIdle()
             val lists = model.screen.value as Screen.Lists
-            assertEquals("admin", lists.user)
-            assertEquals(listOf("Default", "Party"), lists.lists.map { it.name })
+            assertEquals(1, lists.open)
             assertEquals(listOf("Fruit & vegetables", "Dairy & eggs", GroceryModel.NO_CATEGORY), lists.groups.map { it.label })
             assertEquals(listOf("Apples", "Milk", "Candles"), lists.groups.flatMap { group -> group.items.map { it.name } })
-            assertEquals("password-session", store.load().token)
             assertEquals("password-session", backend.tokens["/grocery/lists/1/items"])
+            assertEquals(1, store.load().openList)
 
-            model.select(1)
+            model.back()
             advanceUntilIdle()
+            assertNull((model.screen.value as Screen.Lists).open)
             assertEquals(emptyList<ItemGroup>(), (model.screen.value as Screen.Lists).groups)
+            assertNull(store.load().openList)
         }
 
     @Test
@@ -198,5 +210,183 @@ class GroceryModelTest {
             model.signInWithPassword("again")
             advanceUntilIdle()
             assertEquals("Slow down.", (model.screen.value as Screen.SignIn).error)
+        }
+
+    private fun signedInStore(openList: Int? = 1) =
+        MemorySessionStore(
+            Stored(apiUrl = URL, deployment = "family", token = "t", email = "admin", expiresAt = now.plusSeconds(60), openList = openList),
+        )
+
+    // signed in, the list open last open again
+    private fun TestScope.signedIn(openList: Int? = 1): GroceryModel = model(signedInStore(openList)).also { it.start() }
+
+    @Test
+    fun `the app opens the list open when it was left, the home when that list is gone, the sign-out forgets it`() =
+        runTest {
+            val store = signedInStore(openList = 2)
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(2, (model.screen.value as Screen.Lists).open)
+            assertTrue(backend.requests.contains("GET /grocery/lists/2/items"))
+
+            val gone = signedInStore(openList = 7)
+            val again = model(gone).also { it.start() }
+            advanceUntilIdle()
+            assertNull((again.screen.value as Screen.Lists).open)
+            assertNull(gone.load().openList)
+
+            model.signOut()
+            advanceUntilIdle()
+            assertNull(store.load().openList)
+        }
+
+    @Test
+    fun `an item typed at the top goes to the list shown, the field is empty again and the items are loaded anew`() =
+        runTest {
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(20, 2, "Cake", null)
+            val model = signedIn(openList = 2)
+            advanceUntilIdle()
+
+            model.addItem()
+            model.typed("   ")
+            model.addItem()
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("POST /grocery/items") })
+
+            backend.answers["GET /grocery/lists/2/items"] = HttpStatusCode.OK to page(item(20, 2, "Cake", null))
+            model.typed(" Cake ")
+            model.addItem()
+            assertTrue((model.screen.value as Screen.Lists).adding)
+            advanceUntilIdle()
+
+            assertTrue(backend.requests.contains("""POST /grocery/items {"listId":2,"name":"Cake"}"""))
+            assertEquals("t", backend.tokens["/grocery/items"])
+            val lists = model.screen.value as Screen.Lists
+            assertEquals("", lists.itemName)
+            assertEquals(false, lists.adding)
+            assertEquals(listOf("Cake"), lists.groups.flatMap { group -> group.items.map { it.name } })
+        }
+
+    @Test
+    fun `an item the backend refuses keeps its name and shows why, an ended session leads to the sign-in`() =
+        runTest {
+            backend.answers["POST /grocery/items"] = HttpStatusCode.BadRequest to """{"errors":[{"message":"The name is too long."}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.typed("Bread")
+            model.addItem()
+            advanceUntilIdle()
+            val lists = model.screen.value as Screen.Lists
+            assertEquals("The name is too long.", lists.error)
+            assertEquals("Bread", lists.itemName)
+            assertEquals(false, lists.adding)
+
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Unauthorized to ""
+            model.addItem()
+            advanceUntilIdle()
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error)
+        }
+
+    private fun GroceryModel.item(name: String) =
+        (screen.value as Screen.Lists).groups.flatMap { it.items }.first { it.name == name }
+
+    private fun GroceryModel.names() = (screen.value as Screen.Lists).groups.flatMap { group -> group.items.map { it.name } }
+
+    @Test
+    fun `a checked item is struck through and goes when its undo ran out, the backend deletes it`() =
+        runTest {
+            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            advanceTimeBy(UNDO_MS - 1)
+            runCurrent()
+            val struck = model.screen.value as Screen.Lists
+            assertEquals(setOf(10), struck.struck)
+            assertEquals("Apples bought", struck.undo?.text)
+            assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
+            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+
+            advanceUntilIdle()
+            val lists = model.screen.value as Screen.Lists
+            assertEquals(emptySet<Int>(), lists.struck)
+            assertNull(lists.undo)
+            assertEquals(listOf("Dairy & eggs", GroceryModel.NO_CATEGORY), lists.groups.map { it.label })
+            assertEquals(listOf("DELETE /grocery/items/10"), backend.requests.filter { it.startsWith("DELETE") })
+            assertEquals("t", backend.tokens["/grocery/items/10"])
+        }
+
+    @Test
+    fun `an undo or a second tap keeps the item, a check before goes to the backend at once`() =
+        runTest {
+            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
+            backend.answers["DELETE /grocery/items/11"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            model.undo()
+            model.check(model.item("Milk"))
+            model.check(model.item("Milk"))
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+            assertEquals(emptySet<Int>(), (model.screen.value as Screen.Lists).struck)
+
+            model.check(model.item("Apples"))
+            model.check(model.item("Milk"))
+            runCurrent()
+            assertEquals(listOf("DELETE /grocery/items/10"), backend.requests.filter { it.startsWith("DELETE") })
+            assertEquals(setOf(11), (model.screen.value as Screen.Lists).struck)
+
+            model.signOut()
+            advanceUntilIdle()
+            assertEquals(2, backend.requests.count { it.startsWith("DELETE") })
+            assertEquals("t", backend.tokens["/grocery/items/11"])
+        }
+
+    @Test
+    fun `a check the backend refuses shows why and the list as the backend has it`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            advanceUntilIdle()
+            assertEquals("The item could not be checked.", (model.screen.value as Screen.Lists).error)
+            assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
+        }
+
+    @Test
+    fun `the plus of the home creates a list that opens, a refused name stays with the reason, back leads home`() =
+        runTest {
+            backend.answers["POST /grocery/lists"] = HttpStatusCode.Conflict to """{"errors":[{"message":"A list of the name exists."}]}"""
+            val store = signedInStore(openList = null)
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+
+            model.newList()
+            model.editNewList(" Party ", shared = true)
+            model.createList()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /grocery/lists {"name":"Party","shared":true}"""))
+            assertEquals(NewList(" Party ", shared = true, error = "A list of the name exists."), (model.screen.value as Screen.Lists).newList)
+
+            model.back()
+            assertNull((model.screen.value as Screen.Lists).newList)
+
+            backend.answers["POST /grocery/lists"] = HttpStatusCode.Created to list(3, "Hardware")
+            backend.answers["GET /grocery/lists/3/items"] = HttpStatusCode.OK to page()
+            backend.answers["GET /grocery/lists"] =
+                HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party", shared = true), list(3, "Hardware"))
+            model.newList()
+            model.editNewList("Hardware", shared = false)
+            model.createList()
+            advanceUntilIdle()
+            val lists = model.screen.value as Screen.Lists
+            assertNull(lists.newList)
+            assertEquals(3, lists.open)
+            assertEquals(3, store.load().openList)
         }
 }

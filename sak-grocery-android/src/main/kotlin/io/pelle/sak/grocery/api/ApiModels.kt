@@ -22,7 +22,7 @@ data class LoginMethodsResponse(
 @Serializable
 data class LoginRequest(
     val email: String,
-    // android: the signin page of the web app hands the link on to this app (FDR-005); no default,
+    // android: the signin page of the web app hands the link on to this app; no default,
     // a default value is not sent
     val client: String,
 )
@@ -65,6 +65,15 @@ data class GroceryListResponse(
     val shared: Boolean,
     // of the signed in user
     val mine: Boolean,
+    // how many items are to buy on it
+    val items: Int,
+)
+
+@Serializable
+data class GroceryListRequest(
+    val name: String,
+    // of all users; no default, a default value is not sent
+    val shared: Boolean,
 )
 
 @Serializable
@@ -76,6 +85,13 @@ data class GroceryItemResponse(
     val unit: String? = null,
     // the name of a category, none when missing
     val category: String? = null,
+)
+
+// a new item, always on a list; amount, unit and category are left out, the backend has none for them
+@Serializable
+data class GroceryNewItemRequest(
+    val listId: Int,
+    val name: String,
 )
 
 @Serializable

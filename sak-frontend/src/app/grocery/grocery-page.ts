@@ -43,9 +43,9 @@ interface ItemGroup {
   items: GroceryItem[];
 }
 
-// a grocery list with its items to buy by category, a bought item is struck through while it can be
-// undone and goes afterwards; a new item goes to the list shown, a user without a list creates one
-// first (they get one when they sign in). The suggestions are the items added before
+// one grocery list, opened from all lists (LIST-3), with its items to buy by category; a bought item
+// is struck through while it can be undone and goes afterwards (GROCERY-3). A new item goes to the
+// list shown, the suggestions are the items added before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
   imports: [NgTemplateOutlet, RouterLink, UndoToast],
@@ -99,21 +99,21 @@ interface ItemGroup {
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        aria-label="All apps"
+        routerLink="/grocery"
+        aria-label="All lists"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Grocery</h1>
-      <div class="btn-group" role="group" aria-label="Lists">
-        @if (shown()?.mine) {
-          <a class="btn btn-outline-secondary" [routerLink]="['lists', shown()!.id, 'edit']"
-            >Edit list</a
-          >
+      <h1 class="h3 mb-0 flex-grow-1 text-break" data-testid="list-name">
+        {{ shown()?.name }}
+        @if (shown()?.shared) {
+          <span class="badge border text-body-secondary fw-normal fs-6 align-middle">shared</span>
         }
-        <a class="btn btn-primary" routerLink="lists/create">
-          <i class="sak-icon-plus" aria-hidden="true"></i> Add list
-        </a>
-      </div>
+      </h1>
+      @if (shown()?.mine) {
+        <a class="btn btn-outline-secondary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+          >Edit list</a
+        >
+      }
     </header>
 
     @if (error(); as error) {
@@ -121,14 +121,6 @@ interface ItemGroup {
     }
 
     @if (shown(); as list) {
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <h2 class="h4 mb-0 flex-grow-1 text-break" data-testid="list-name">
-          {{ list.name }}
-          @if (list.shared) {
-            <span class="badge border text-body-secondary fw-normal fs-6 align-middle">shared</span>
-          }
-        </h2>
-      </div>
       @if (lists().length > 1) {
         <div class="list-dots d-flex gap-1 mb-3" aria-hidden="true" data-testid="list-dots">
           @for (each of lists(); track each.id) {
@@ -202,8 +194,6 @@ interface ItemGroup {
       @if (loaded() && !toBuy().length) {
         <p class="text-center text-body-secondary fs-4 py-5">Nothing to buy yet, add something.</p>
       }
-    } @else if (loaded()) {
-      <p class="text-center text-body-secondary fs-4 py-5">You have no list yet, add one first.</p>
     }
 
     <ng-template #row let-item>
@@ -243,8 +233,8 @@ export class GroceryPage {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
 
-  // the query parameter, the id of the list shown; the first list without one
-  readonly list = input<string | undefined>();
+  // the route parameter, the id of the list shown
+  readonly id = input.required<string>();
 
   protected readonly lists = signal<GroceryList[]>([]);
   protected readonly categories = signal<GroceryCategory[]>([]);
@@ -278,7 +268,7 @@ export class GroceryPage {
   } | null = null;
 
   protected readonly shown = computed(
-    () => this.lists().find((list) => String(list.id) === this.list()) ?? this.lists()[0] ?? null,
+    () => this.lists().find((list) => String(list.id) === this.id()) ?? null,
   );
 
   // the items to buy by category, in the order of the categories, the ones without one last
@@ -322,7 +312,7 @@ export class GroceryPage {
   // the list before or after the one shown
   protected step(by: number): void {
     const list = this.lists()[this.position() + by];
-    if (list) void this.router.navigate([], { queryParams: { list: list.id } });
+    if (list) void this.router.navigate(['/grocery/lists', list.id]);
   }
 
   // where and when a swipe started, null for a touch that is no swipe of the lists
@@ -417,7 +407,7 @@ export class GroceryPage {
   }
 
   // the item is bought and struck through, after GROCERY_UNDO_MS the backend learns it and it goes
-  // from the list, unless it is undone
+  // from the list, unless it is undone (GROCERY-3)
   protected check(item: GroceryItem): void {
     // checked again while the bar runs: not bought after all
     if (this.struck().has(item.id)) {
@@ -481,8 +471,9 @@ export class GroceryPage {
       .subscribe({
         next: (lists) => {
           this.lists.set(lists);
-          // without a list there are no items to load
-          if (!lists.length) this.loaded.set(true);
+          if (!lists.some((list) => String(list.id) === this.id())) {
+            void this.router.navigate(['/grocery'], { replaceUrl: true });
+          }
         },
         error: (error: unknown) =>
           this.error.set(

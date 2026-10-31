@@ -507,7 +507,7 @@ databaseChangeLog:
         # the owner of the list. name_key is the name normalized (groceryNameKey, sak-model), what the
         # items to buy are left out of the suggestions by. An amount is positive, a unit needs one; the
         # category is a name of GroceryCategory (sak-backend), the only list of them, checked by
-        # GroceryService. A bought item is deleted, a list no longer shows it (GROCERY-2)
+        # GroceryService. A bought item is deleted, a list no longer shows it (GROCERY-3)
         - sql:
             sql: |
               CREATE TABLE grocery_items (

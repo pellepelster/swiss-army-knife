@@ -9,7 +9,6 @@ import io.pelle.sak.model.files.StoredFile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
-import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -140,32 +139,6 @@ class FileServiceTest {
         large.store(Media.image(10, 2049, "png").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
         large.store(Media.image(2049, 10, "jpg").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
         large.store(Media.webp(2049, 10).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
-    }
-
-    @Test
-    fun `takes no image with exif or xmp metadata, the apps drop it as it can tell where a photo was taken`() {
-        val exif = "Exif\u0000\u0000".toByteArray()
-        // an app1 segment right after the start of the image
-        val jpeg = Media.JPEG.copyOf(2) + byteArrayOf(0xFF.toByte(), 0xE1.toByte(), 0, (exif.size + 2).toByte()) + exif + Media.JPEG.copyOfRange(2, Media.JPEG.size)
-        service.store(jpeg.inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
-        // the same with a fill byte before its marker, ff ff e1
-        val padded = Media.JPEG.copyOf(2) + byteArrayOf(0xFF.toByte()) + jpeg.copyOfRange(2, jpeg.size)
-        service.store(padded.inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
-
-        // an exif chunk and an xmp text chunk right after the header chunk
-        fun png(
-            type: String,
-            data: ByteArray,
-        ) = Media.PNG.copyOf(33) + ByteBuffer.allocate(4).putInt(data.size).array() + type.toByteArray() + data + ByteArray(4) +
-            Media.PNG.copyOfRange(33, Media.PNG.size)
-        service.store(png("eXIf", exif).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageWithMetadata
-        service.store(png("iTXt", "XML:com.adobe.xmp\u0000".toByteArray()).inputStream(), "pelle@pelle.io") shouldBe
-            StoreFileResult.ImageWithMetadata
-        service.store(png("tEXt", "Comment\u0000hello".toByteArray()).inputStream(), "pelle@pelle.io")
-            .shouldBeInstanceOf<StoreFileResult.Stored>()
-
-        service.store((Media.webp(4, 3) + "EXIF".toByteArray() + ByteArray(4)).inputStream(), "pelle@pelle.io") shouldBe
-            StoreFileResult.ImageWithMetadata
     }
 
     @Test

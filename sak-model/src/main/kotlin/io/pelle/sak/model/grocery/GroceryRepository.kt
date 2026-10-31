@@ -15,6 +15,16 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 
+// how many items are to buy on the list of the row (GROCERY_LISTS)
+private val ITEMS_TO_BUY =
+    DSL
+        .field(
+            DSL
+                .selectCount()
+                .from(GROCERY_ITEMS)
+                .where(GROCERY_ITEMS.LIST_ID.eq(GROCERY_LISTS.ID), GROCERY_ITEMS.DELETED_AT.isNull),
+        ).`as`("items_to_buy")
+
 // the list a user gets when they sign in without a list of their own (LIST-1), a list like the others
 const val DEFAULT_GROCERY_LIST = "Default"
 
@@ -26,9 +36,11 @@ data class GroceryList(
     val shared: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant?,
+    // how many items are to buy on it
+    val items: Int,
 )
 
-// what is to buy, how much of it and in which category; a bought item is deleted (GROCERY-2)
+// what is to buy, how much of it and in which category; a bought item is deleted (GROCERY-3)
 data class GroceryItem(
     val id: Int,
     val listId: Int,
@@ -97,11 +109,11 @@ class GroceryRepository(
     // the lists of the user and the shared ones of the others, by name
     fun lists(user: String): List<GroceryList> =
         database.dsl
-            .selectFrom(GROCERY_LISTS)
+            .select(GROCERY_LISTS.asterisk(), ITEMS_TO_BUY)
+            .from(GROCERY_LISTS)
             .where(visibleList(user))
             .orderBy(GROCERY_LISTS.NAME, GROCERY_LISTS.ID)
-            .fetch()
-            .map { it.toList() }
+            .fetch { it.into(GROCERY_LISTS).toList(it.get(ITEMS_TO_BUY) ?: 0) }
 
     // a private list of the name for the owner when they have no list of their own (LIST-1); a
     // list made at the same time, e.g. by another sign-in, is the one (the name is unique among the
@@ -130,10 +142,10 @@ class GroceryRepository(
         id: Int,
     ): GroceryList? =
         database.dsl
-            .selectFrom(GROCERY_LISTS)
+            .select(GROCERY_LISTS.asterisk(), ITEMS_TO_BUY)
+            .from(GROCERY_LISTS)
             .where(GROCERY_LISTS.ID.eq(id), visibleList(user))
-            .fetchOne()
-            ?.toList()
+            .fetchOne { it.into(GROCERY_LISTS).toList(it.get(ITEMS_TO_BUY) ?: 0) }
 
     // null when the owner has a list of the name
     fun insertList(
@@ -150,7 +162,7 @@ class GroceryRepository(
                 .set(GROCERY_LISTS.CREATED_AT, clock.instant())
                 .returning()
                 .fetchOne()
-                ?.toList()
+                ?.toList(items = 0)
         } catch (_: IntegrityConstraintViolationException) {
             null
         }
@@ -171,7 +183,7 @@ class GroceryRepository(
                 .where(GROCERY_LISTS.ID.eq(id), ownList(user))
                 .returning()
                 .fetchOne()
-                ?.let { GroceryListUpdate.Updated(it.toList()) }
+                ?.let { GroceryListUpdate.Updated(it.toList(itemsToBuy(it.id!!))) }
                 ?: GroceryListUpdate.NotFound
         } catch (_: IntegrityConstraintViolationException) {
             GroceryListUpdate.NameTaken
@@ -288,7 +300,7 @@ class GroceryRepository(
             .fetchOne()
             ?.toItem()
 
-    // bought (GROCERY-2); false when the user does not see its list. It stays as deleted
+    // bought (GROCERY-3); false when the user does not see its list. It stays as deleted
     fun deleteItem(
         user: String,
         id: Int,
@@ -395,7 +407,10 @@ class GroceryRepository(
         if (inserted == 0) update()
     }
 
-    private fun GroceryListsRecord.toList() = GroceryList(id!!, owner!!, name!!, shared!!, createdAt!!, updatedAt)
+    private fun itemsToBuy(listId: Int): Int =
+        database.dsl.fetchCount(GROCERY_ITEMS, GROCERY_ITEMS.LIST_ID.eq(listId), GROCERY_ITEMS.DELETED_AT.isNull)
+
+    private fun GroceryListsRecord.toList(items: Int) = GroceryList(id!!, owner!!, name!!, shared!!, createdAt!!, updatedAt, items)
 
     private fun GroceryItemsRecord.toItem() =
         GroceryItem(id!!, listId!!, owner!!, name!!, amount, unit, category, createdAt!!, updatedAt)

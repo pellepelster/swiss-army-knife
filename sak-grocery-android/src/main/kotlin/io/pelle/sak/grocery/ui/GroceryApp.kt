@@ -1,9 +1,30 @@
 package io.pelle.sak.grocery.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextDecoration
+import io.pelle.sak.grocery.UNDO_MS
+import io.pelle.sak.grocery.Undo
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +32,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -19,13 +42,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,15 +59,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.grocery.GroceryModel
+import io.pelle.sak.grocery.NewList
+import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.Screen
 import io.pelle.sak.grocery.api.GroceryItemResponse
+import io.pelle.sak.grocery.api.GroceryListResponse
 import java.math.BigDecimal
 
 // the screens of the app, one at a time, as the model has it
@@ -69,10 +97,16 @@ private fun Busy() {
 @Composable
 private fun Page(
     title: String,
+    navigationIcon: @Composable () -> Unit = {},
     actions: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    Scaffold(topBar = { TopAppBar(title = { Text(title) }, actions = { actions() }) }, content = content)
+    Scaffold(
+        topBar = { TopAppBar(title = { Text(title) }, navigationIcon = navigationIcon, actions = { actions() }) },
+        bottomBar = bottomBar,
+        content = content,
+    )
 }
 
 @Composable
@@ -174,54 +208,181 @@ private fun SignInScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// the home with all lists, or the list open
 @Composable
 private fun ListsScreen(
     screen: Screen.Lists,
     model: GroceryModel,
 ) {
+    val open = screen.open
+    val newList = screen.newList
+    when {
+        newList != null -> NewListScreen(newList, model)
+        open == null -> HomeScreen(screen, model)
+        else -> ListScreen(screen, open, model)
+    }
+}
+
+// who is signed in and the sign-out, at the top right of every screen of the lists
+@Composable
+private fun Menu(
+    screen: Screen.Lists,
+    model: GroceryModel,
+) {
     var menu by rememberSaveable { mutableStateOf(false) }
+    IconButton(onClick = { menu = true }) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
+    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+        DropdownMenuItem(text = { Text("Signed in as ${screen.user}") }, onClick = {}, enabled = false)
+        DropdownMenuItem(text = { Text("Sign out") }, onClick = {
+            menu = false
+            model.signOut()
+        })
+    }
+}
+
+// all lists of the user, the own and the shared ones of the others, each with how many items are to
+// buy; a tap opens one, the plus at the top creates one
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeScreen(
+    screen: Screen.Lists,
+    model: GroceryModel,
+) {
     Page(
         screen.deployment,
         actions = {
-            IconButton(onClick = { menu = true }) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Signed in as ${screen.user}") }, onClick = {}, enabled = false)
-                DropdownMenuItem(text = { Text("Sign out") }, onClick = {
-                    menu = false
-                    model.signOut()
-                })
+            IconButton(onClick = model::newList, modifier = Modifier.testTag("new-list")) {
+                Icon(painterResource(R.drawable.ic_add), contentDescription = "Add list")
+            }
+            Menu(screen, model)
+        },
+    ) { padding ->
+        PullToRefreshBox(
+            isRefreshing = screen.loading,
+            onRefresh = model::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
+            LazyColumn(Modifier.fillMaxSize().testTag("lists")) {
+                screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
+                if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
+                    item { Empty("You have no list yet, add one with the plus at the top.") }
+                }
+                itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
+                    ListRow(list) { model.open(list.id) }
+                    if (index < screen.lists.lastIndex) HorizontalDivider(Modifier.padding(start = 72.dp))
+                }
+            }
+        }
+    }
+}
+
+// a list on the home: its initial, its name, how many items are to buy and whether it is shared
+@Composable
+private fun ListRow(
+    list: GroceryListResponse,
+    open: () -> Unit,
+) {
+    ListItem(
+        leadingContent = {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    list.name.trim().take(1).uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        },
+        headlineContent = { Text(list.name) },
+        supportingContent = {
+            Column {
+                Text(toBuy(list.items))
+                if (list.shared) Text("Shared with all users", color = MaterialTheme.colorScheme.primary)
+            }
+        },
+        modifier = Modifier.clickable(onClick = open).testTag("list-${list.id}"),
+    )
+}
+
+// No items to buy, 1 item to buy, 3 items to buy
+internal fun toBuy(items: Int) =
+    when (items) {
+        0 -> "No items to buy"
+        1 -> "1 item to buy"
+        else -> "$items items to buy"
+    }
+
+// the name of a new list and whether all users see it; back leads to the home
+@Composable
+private fun NewListScreen(
+    newList: NewList,
+    model: GroceryModel,
+) {
+    BackHandler(onBack = model::back)
+    val canCreate = newList.name.isNotBlank() && !newList.busy
+    Page(
+        "New list",
+        navigationIcon = {
+            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "All lists")
             }
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            if (screen.lists.size > 1) {
-                PrimaryScrollableTabRow(selectedTabIndex = screen.selected) {
-                    screen.lists.forEachIndexed { index, list ->
-                        Tab(
-                            selected = index == screen.selected,
-                            onClick = { model.select(index) },
-                            text = { Text(if (list.shared) "${list.name} · shared" else list.name) },
-                        )
-                    }
-                }
-            } else {
-                screen.lists.firstOrNull()?.let {
-                    Text(it.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
-                }
+        Form(padding) {
+            OutlinedTextField(
+                value = newList.name,
+                onValueChange = { model.editNewList(it, newList.shared) },
+                label = { Text("Name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (canCreate) model.createList() }),
+                modifier = Modifier.fillMaxWidth().testTag("list-name"),
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .toggleable(value = newList.shared, role = Role.Switch, onValueChange = { model.editNewList(newList.name, it) }),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Shared with all users", modifier = Modifier.weight(1f))
+                Switch(checked = newList.shared, onCheckedChange = null)
             }
+            Error(newList.error)
+            Button(onClick = model::createList, enabled = canCreate, modifier = Modifier.testTag("create-list")) {
+                Text(if (newList.busy) "Creating…" else "Create list")
+            }
+        }
+    }
+}
+
+// the items to buy of one list, the field to add one at the top; back leads to the home
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ListScreen(
+    screen: Screen.Lists,
+    open: Int,
+    model: GroceryModel,
+) {
+    BackHandler(onBack = model::back)
+    val list = screen.lists.firstOrNull { it.id == open }
+    Page(
+        list?.let { if (it.shared) "${it.name} · shared" else it.name }.orEmpty(),
+        navigationIcon = {
+            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "All lists")
+            }
+        },
+        actions = { Menu(screen, model) },
+        bottomBar = { screen.undo?.let { UndoBar(it, model::undo) } },
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            NewItem(screen, model)
             PullToRefreshBox(isRefreshing = screen.loading, onRefresh = model::refresh, modifier = Modifier.fillMaxSize()) {
                 LazyColumn(Modifier.fillMaxSize().testTag("items")) {
                     screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
-                    if (!screen.loading && screen.error == null && screen.groups.isEmpty()) {
-                        item {
-                            Text(
-                                if (screen.lists.isEmpty()) "You have no list yet, add one in the web app." else "Nothing to buy.",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(16.dp),
-                            )
-                        }
-                    }
+                    if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty("Nothing to buy.") }
                     screen.groups.forEach { group ->
                         item(key = "group-${group.label}") {
                             Text(
@@ -231,7 +392,7 @@ private fun ListsScreen(
                                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
                             )
                         }
-                        items(group.items, key = { it.id }) { item -> ItemRow(item) }
+                        items(group.items, key = { it.id }) { item -> ItemRow(item, item.id in screen.struck, model::check) }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
                 }
@@ -241,12 +402,75 @@ private fun ListsScreen(
 }
 
 @Composable
-private fun ItemRow(item: GroceryItemResponse) {
+private fun Empty(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+}
+
+// the field at the top of a list, Done on the keyboard adds like the button and keeps the keyboard
+// open for the next item (GROCERY-2)
+@Composable
+private fun NewItem(
+    screen: Screen.Lists,
+    model: GroceryModel,
+) {
+    val canAdd = screen.itemName.isNotBlank() && !screen.adding
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedTextField(
+            value = screen.itemName,
+            onValueChange = model::typed,
+            label = { Text("Item") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (canAdd) model.addItem() }),
+            modifier = Modifier.weight(1f).testTag("item-name"),
+        )
+        Button(onClick = model::addItem, enabled = canAdd, modifier = Modifier.testTag("add-item")) {
+            Text(if (screen.adding) "Adding…" else "Add")
+        }
+    }
+}
+
+// a tap on the row or its box checks the item, struck through while the check can be undone
+@Composable
+private fun ItemRow(
+    item: GroceryItemResponse,
+    struck: Boolean,
+    check: (GroceryItemResponse) -> Unit,
+) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val style = if (struck) TextStyle(textDecoration = TextDecoration.LineThrough, color = muted) else TextStyle.Default
     ListItem(
-        headlineContent = { Text(item.name) },
-        trailingContent = quantity(item)?.let { { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
-        modifier = Modifier.testTag("item-${item.id}"),
+        leadingContent = { Checkbox(checked = struck, onCheckedChange = null) },
+        headlineContent = { Text(item.name, style = style) },
+        trailingContent = quantity(item)?.let { { Text(it, style = style, color = muted) } },
+        modifier =
+            Modifier
+                .toggleable(value = struck, role = Role.Checkbox, onValueChange = { check(item) })
+                .testTag("item-${item.id}"),
     )
+}
+
+// what was checked last and the undo, while the bar of the time left shrinks; anew for every check
+@Composable
+private fun UndoBar(
+    undo: Undo,
+    onUndo: () -> Unit,
+) {
+    val left = remember(undo.serial) { Animatable(1f) }
+    LaunchedEffect(undo.serial) { left.animateTo(0f, tween(UNDO_MS.toInt(), easing = LinearEasing)) }
+    Surface(tonalElevation = 3.dp, shadowElevation = 3.dp, modifier = Modifier.testTag("undo")) {
+        Column(Modifier.navigationBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(undo.text, modifier = Modifier.weight(1f))
+                TextButton(onClick = onUndo) { Text("Undo") }
+            }
+            LinearProgressIndicator(progress = { left.value }, modifier = Modifier.fillMaxWidth(), drawStopIndicator = {})
+        }
+    }
 }
 
 // 1.5 l, 2; no trailing zeros

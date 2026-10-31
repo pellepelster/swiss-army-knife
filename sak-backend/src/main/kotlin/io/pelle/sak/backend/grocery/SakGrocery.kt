@@ -46,7 +46,7 @@ private const val LAST_LIST = "You can not delete your only list."
 
 
 private fun GroceryList.response(user: String) =
-    GroceryListResponse(id, name, shared, owner == user, createdAt.apiTime(), updatedAt?.apiTime())
+    GroceryListResponse(id, name, shared, owner == user, items, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
     GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime())

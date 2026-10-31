@@ -10,7 +10,7 @@ import io.pelle.sak.grocery.ui.GroceryApp
 import io.pelle.sak.grocery.ui.GroceryTheme
 
 // the one activity; it takes the login links the signin page of the web app hands on
-// (io.pelle.sak.grocery://signin?token=…, FDR-005)
+// (io.pelle.sak.grocery://signin?token=…)
 class MainActivity : ComponentActivity() {
     private val viewModel: GroceryViewModel by viewModels()
 

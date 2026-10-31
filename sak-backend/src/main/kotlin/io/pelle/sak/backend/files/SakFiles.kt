@@ -70,8 +70,6 @@ fun Route.files(
             StoreFileResult.UnsupportedType -> call.respondErrors("Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored.")
             StoreFileResult.ImageTooLarge ->
                 call.respondErrors("An image must have at most ${FileService.MAX_IMAGE_SIZE} pixels on its longer side.")
-            StoreFileResult.ImageWithMetadata ->
-                call.respondErrors("An image must not carry EXIF or XMP metadata, which can tell where it was taken.")
             StoreFileResult.RecordingTooLong ->
                 call.respondErrors("A recording must be at most ${FileService.MAX_RECORDING_SECONDS / 60} minutes long.")
         }
@@ -89,7 +87,7 @@ fun Route.files(
             errors(
                 HttpStatusCode.BadRequest,
                 "A type the storage does not take, content that is no such file, an image larger than " +
-                    "${FileService.MAX_IMAGE_SIZE} pixels or with EXIF or XMP metadata, or a recording longer than " +
+                    "${FileService.MAX_IMAGE_SIZE} pixels, or a recording longer than " +
                     "${FileService.MAX_RECORDING_SECONDS / 60} minutes",
             )
             errors(HttpStatusCode.PayloadTooLarge, "A file larger than the storage takes")

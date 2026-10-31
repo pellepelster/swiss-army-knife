@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,6 +26,7 @@ private val EMAIL = stringPreferencesKey("email")
 private val EXPIRES_AT = longPreferencesKey("expires_at")
 private val PENDING_API_URL = stringPreferencesKey("pending_api_url")
 private val PENDING_STARTED_AT = longPreferencesKey("pending_started_at")
+private val OPEN_LIST = intPreferencesKey("open_list")
 
 // the preferences of the app, the session token encrypted with a key of the android keystore that
 // never leaves it
@@ -44,6 +46,7 @@ class DataStoreSessionStore(
                 preferences[PENDING_API_URL]?.let { url ->
                     preferences[PENDING_STARTED_AT]?.let { PendingLogin(url, Instant.ofEpochMilli(it)) }
                 },
+            openList = preferences[OPEN_LIST],
         )
     }
 
@@ -59,6 +62,7 @@ class DataStoreSessionStore(
                 preferences[PENDING_API_URL] = it.apiUrl
                 preferences[PENDING_STARTED_AT] = it.startedAt.toEpochMilli()
             }
+            stored.openList?.let { preferences[OPEN_LIST] = it }
         }
     }
 }

@@ -9,7 +9,7 @@ data class PendingLogin(
     val startedAt: Instant,
 )
 
-// what the app keeps: the deployment, the session and a pending login
+// what the app keeps: the deployment, the session, a pending login and the list open last
 data class Stored(
     val apiUrl: String? = null,
     // the name of the deployment, shown on the sign-in
@@ -19,6 +19,8 @@ data class Stored(
     val email: String? = null,
     val expiresAt: Instant? = null,
     val pending: PendingLogin? = null,
+    // the id of the list open when the app was left, opened again on the next start; none on the home
+    val openList: Int? = null,
 )
 
 // where the app keeps what it stores; the token never in plain text (KeystoreCipher)

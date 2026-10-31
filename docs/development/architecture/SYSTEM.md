@@ -1,7 +1,7 @@
 ---
 title: "System Architecture"
 linkTitle: "System"
-description: "How SAK is built as a whole: its parts, the model, the external systems, the server of a deployment, sakctl, the cloud resources, privacy, security and the tests."
+description: "How SAK is built as a whole: its parts, the backend layers, the api, the model, the external systems, the server of a deployment, sakctl, the cloud resources, privacy, security and the tests."
 weight: 10
 ---
 
@@ -65,6 +65,25 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 The backend serves apps to its users, for example static hosting and notes. How they are built is in
 [the architecture of the apps](apps/INDEX.md).
 
+## Backend layers
+
+- `LAYER-1` **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes
+  that use it. A service uses only other services and its own repository. A repository is used only by its service;
+  routes use services, never repositories. Only the repository touches the database (`MODEL-2`).
+
+## API
+
+- `API-1` **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem
+  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
+  `ErrorMessage` (`sak-api`), its message one string; it becomes an `ApiErrorMessage` only at the api.
+- `API-2` **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with
+  `offset` and `limit`; `limit` is 50 by default and at most 100.
+- `API-3` **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That
+  holds for every time the api answers (when something was created, updated or computed, when a session ends, the
+  times of the logs and the metrics). Something that never ends has no time rather than one far away.
+- `API-4` **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
+  response class.
+
 ## Model
 
 - `MODEL-1` **One database.** The backend keeps its data in one SQLite database on the data volume, next to the files
@@ -99,7 +118,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   vector. Ansible pulls their images on each run; a new image restarts its container.
 - `SERVER-2` **One script for the maintenance.** sakctl backs up, restores, updates and reboots the server through ssh
   with one script, whose commands take turns: a reboot stops the deployment in order first and never interrupts a
-  backup. Refer to [FDR-008](../fdr/FDR-008-server-maintenance.md).
+  backup.
 - `SERVER-3` All data is on the data volume, mounted at `/storage/data`, below a directory named like the deployment
   (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
 - `SERVER-4` The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of

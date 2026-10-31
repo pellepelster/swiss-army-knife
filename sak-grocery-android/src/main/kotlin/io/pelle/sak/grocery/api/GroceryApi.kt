@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -70,8 +71,40 @@ class GroceryApi(
     // in the order the backend gives them: by name
     suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", "The lists could not be loaded.")
 
+    // the new list of the signed in user
+    suspend fun createList(
+        name: String,
+        shared: Boolean,
+    ): GroceryListResponse =
+        client
+            .post("$url/grocery/lists") {
+                token?.let { bearerAuth(it) }
+                contentType(ContentType.Application.Json)
+                setBody(GroceryListRequest(name, shared))
+            }.answer("The list could not be created.")
+
     // the items to buy, by the order of their category, the ones without one last
     suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", "The items could not be loaded.")
+
+    // the new item, on the list it names (GROCERY-2)
+    suspend fun addItem(
+        listId: Int,
+        name: String,
+    ): GroceryItemResponse =
+        client
+            .post("$url/grocery/items") {
+                token?.let { bearerAuth(it) }
+                contentType(ContentType.Application.Json)
+                setBody(GroceryNewItemRequest(listId, name))
+            }.answer("The item could not be added.")
+
+    // the item is bought: the backend deletes it (DELETE answers 204, no body)
+    suspend fun checkItem(id: Int) {
+        client
+            .delete("$url/grocery/items/$id") {
+                token?.let { bearerAuth(it) }
+            }.answer<Unit>("The item could not be checked.")
+    }
 
     // in the order a list shows them
     suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", "The categories could not be loaded.")
