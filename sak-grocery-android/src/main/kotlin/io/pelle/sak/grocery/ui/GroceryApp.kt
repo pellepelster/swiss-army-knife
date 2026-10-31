@@ -1,6 +1,7 @@
 package io.pelle.sak.grocery.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -409,10 +410,18 @@ private fun ListSettingsScreen(
             Error(settings.error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (settings.id != null) {
+                    // the button that leads to a delete (UX-3): filled like the other buttons, not
+                    // the color of the screen, the line and the text in the color of danger
+                    val enabled = !settings.last && !settings.busy
                     OutlinedButton(
                         onClick = { confirming = true },
-                        enabled = !settings.last && !settings.busy,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        enabled = enabled,
+                        colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (enabled) 1f else 0.38f)),
                         modifier = Modifier.testTag("delete-list"),
                     ) { Text("Delete list") }
                 }

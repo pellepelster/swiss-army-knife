@@ -8,7 +8,8 @@ of the rack-led icon, IBM Plex Sans and Mono.
 
 - `tokens.css` - the custom properties: `--sak-bg`, `--sak-surface`, `--sak-raised`, `--sak-line`,
   `--sak-ink`, `--sak-muted`; `--sak-accent` and `--sak-accent-ink`; the states `--sak-ok`,
-  `--sak-info`, `--sak-warn`, `--sak-danger`, `--sak-neutral`; fonts and text sizes
+  `--sak-info`, `--sak-warn`, `--sak-danger`, `--sak-neutral`; `--sak-danger-text`, danger as
+  text on the raised fill (darker in light mode, to be readable); fonts and text sizes
   (`--sak-font-sans`, `--sak-font-mono`, `--sak-text*`); `--sak-radius*`; `--sak-space-1..5`.
 - `fonts.css` and `fonts/` - IBM Plex Sans 400/600 and Mono 400/500, the latin subset, under the
   SIL open font license (`fonts/LICENSE`), self-hosted; a consumer loads nothing from outside.

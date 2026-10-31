@@ -33,7 +33,7 @@ import { BucketsService } from './buckets.service';
             <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
           </a>
           <button
-            class="btn btn-outline-secondary"
+            class="btn btn-outline-danger"
             type="button"
             [attr.aria-label]="'Delete the bucket ' + name()"
             (click)="confirming.set(true)"

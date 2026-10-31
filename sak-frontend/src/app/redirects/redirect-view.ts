@@ -32,7 +32,7 @@ import { RedirectsService } from './redirects.service';
             <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
           </a>
           <button
-            class="btn btn-outline-secondary"
+            class="btn btn-outline-danger"
             type="button"
             [attr.aria-label]="'Delete the redirect of ' + source()"
             (click)="confirming.set(true)"

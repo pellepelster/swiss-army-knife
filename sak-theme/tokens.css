@@ -26,6 +26,8 @@
   --sak-info: #e09050;
   --sak-warn: #f0d030;
   --sak-danger: #e0604f;
+  /* danger as text on the raised fill, darker where --sak-danger is too light to read (4.5:1) */
+  --sak-danger-text: #b8432f;
   --sak-neutral: #7c857f;
 
   --sak-font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
@@ -59,5 +61,6 @@
     --sak-line: #222826;
     --sak-ink: #e3e8e4;
     --sak-muted: #8a938d;
+    --sak-danger-text: #e0604f;
   }
 }

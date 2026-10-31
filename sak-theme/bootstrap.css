@@ -1,7 +1,8 @@
 /* bootstrap in the colors, fonts and radii of the tokens: bootstrap 5.3 reads its --bs-*
    custom properties at runtime, so this maps them and nothing of bootstrap is built. Load
    after bootstrap.min.css and tokens.css. Buttons: btn-primary is the accent, the one action
-   of a page; btn-outline-secondary every other, on the raised fill with the line */
+   of a page; btn-outline-secondary every other, on the raised fill with the line;
+   btn-outline-danger one that leads to a delete, on the same fill in the color of danger */
 :root,
 [data-bs-theme] {
   --bs-body-bg: var(--sak-bg);
@@ -90,6 +91,23 @@ code {
   --bs-btn-active-border-color: color-mix(in srgb, var(--sak-danger) 80%, var(--sak-ink));
   --bs-btn-disabled-color: var(--sak-accent-ink);
   --bs-btn-disabled-bg: var(--sak-danger);
+  --bs-btn-disabled-border-color: var(--sak-danger);
+}
+
+/* the button that leads to taking something away (UX-3): the raised fill of the other buttons,
+   the line and the text in the color of danger; filled with it on hover */
+.btn-outline-danger {
+  --bs-btn-color: var(--sak-danger-text);
+  --bs-btn-bg: var(--sak-raised);
+  --bs-btn-border-color: var(--sak-danger);
+  --bs-btn-hover-color: var(--sak-accent-ink);
+  --bs-btn-hover-bg: var(--sak-danger);
+  --bs-btn-hover-border-color: var(--sak-danger);
+  --bs-btn-active-color: var(--sak-accent-ink);
+  --bs-btn-active-bg: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
+  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
+  --bs-btn-disabled-color: var(--sak-danger-text);
+  --bs-btn-disabled-bg: var(--sak-raised);
   --bs-btn-disabled-border-color: var(--sak-danger);
 }
 
