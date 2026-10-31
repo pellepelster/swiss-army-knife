@@ -255,6 +255,26 @@ describe('Grocery', () => {
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
     await harness.fixture.whenStable();
     expect(input('list-name').readOnly).toBe(false);
-    expect(button('Delete list')).toBeDefined();
+
+    // delete, cancel and save are one group; the delete asks in its place
+    const group = () => page().querySelector('[role=group][aria-label="List actions"]');
+    expect(
+      [...group()!.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Delete list', 'Cancel', 'Save']);
+    button('Delete list').click();
+    await harness.fixture.whenStable();
+    expect(group()).toBeNull();
+    expect(page().textContent).toContain('Delete the list and its items?');
+    button('Keep').click();
+    await harness.fixture.whenStable();
+    expect(group()).not.toBeNull();
+
+    button('Delete list').click();
+    await harness.fixture.whenStable();
+    button('Delete').click();
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/lists/1' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/grocery');
+    http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 });

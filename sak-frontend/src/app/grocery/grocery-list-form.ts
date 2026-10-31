@@ -54,36 +54,42 @@ import { GroceryList, GroceryService } from './grocery.service';
           <div class="form-text">Every user sees a shared list and adds and removes its items.</div>
         </div>
 
-        <div class="d-flex flex-wrap justify-content-end gap-2">
-          <a class="btn btn-outline-secondary" routerLink="/grocery" [queryParams]="back()"
-            >Cancel</a
-          >
-          <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
-            @if (saving()) {
-              <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-            } @else if (!id()) {
-              <i class="sak-icon-plus" aria-hidden="true"></i>
-            }
-            {{ id() ? 'Save' : 'Create list' }}
-          </button>
-        </div>
-      </form>
-
-      @if (list()) {
-        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mt-3">
+        <!-- one group of the actions; a delete asks inline in its place, Keep is the safe default -->
+        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
           @if (confirming()) {
             <span class="small">Delete the list and its items?</span>
-            <button type="button" class="btn btn-danger" (click)="remove()">Delete</button>
-            <button type="button" class="btn btn-outline-secondary" (click)="confirming.set(false)">
-              Keep
-            </button>
+            <div class="btn-group" role="group" aria-label="Delete the list">
+              <button type="button" class="btn btn-danger" (click)="remove()">Delete</button>
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="confirming.set(false)"
+              >
+                Keep
+              </button>
+            </div>
           } @else {
-            <button type="button" class="btn btn-outline-danger" (click)="confirming.set(true)">
-              Delete list
-            </button>
+            <div class="btn-group" role="group" aria-label="List actions">
+              @if (list()) {
+                <button type="button" class="btn btn-outline-danger" (click)="confirming.set(true)">
+                  Delete list
+                </button>
+              }
+              <a class="btn btn-outline-secondary" routerLink="/grocery" [queryParams]="back()"
+                >Cancel</a
+              >
+              <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
+                @if (saving()) {
+                  <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                } @else if (!id()) {
+                  <i class="sak-icon-plus" aria-hidden="true"></i>
+                }
+                {{ id() ? 'Save' : 'Create list' }}
+              </button>
+            </div>
           }
         </div>
-      }
+      </form>
     }
   `,
 })
