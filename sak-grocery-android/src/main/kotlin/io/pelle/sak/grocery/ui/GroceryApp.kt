@@ -481,7 +481,17 @@ private fun ListScreen(
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "All lists")
             }
         },
-        actions = { Menu(screen, model) },
+        actions = {
+            // the settings of the list, of a list of another user disabled in their place (UX-8)
+            IconButton(
+                onClick = { model.openSettings(open) },
+                enabled = list?.mine == true,
+                modifier = Modifier.testTag("list-settings"),
+            ) {
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings")
+            }
+            Menu(screen, model)
+        },
         bottomBar = { screen.undo?.let { UndoBar(it, model::undo) } },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {

@@ -497,4 +497,31 @@ class GroceryModelTest {
             advanceUntilIdle()
             assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
         }
+
+    @Test
+    fun `the settings opened from a list return to it, a deleted list leads to the home`() =
+        runTest {
+            backend.answers["PUT /grocery/lists/1"] = HttpStatusCode.OK to list(1, "Weekly")
+            backend.answers["DELETE /grocery/lists/1"] = HttpStatusCode.NoContent to ""
+            val model = signedIn(openList = 1)
+            advanceUntilIdle()
+
+            model.openSettings(1)
+            model.back()
+            assertEquals(1, (model.screen.value as Screen.Lists).open)
+            assertNull((model.screen.value as Screen.Lists).settings)
+
+            model.openSettings(1)
+            model.editSettings("Weekly", shared = false, icon = null)
+            model.saveSettings()
+            advanceUntilIdle()
+            assertEquals(1, (model.screen.value as Screen.Lists).open)
+            assertNull((model.screen.value as Screen.Lists).settings)
+
+            model.openSettings(1)
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page(list(2, "Party", shared = true))
+            model.deleteList()
+            advanceUntilIdle()
+            assertNull((model.screen.value as Screen.Lists).open)
+        }
 }

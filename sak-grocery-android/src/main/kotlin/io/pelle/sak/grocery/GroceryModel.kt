@@ -361,7 +361,8 @@ class GroceryModel(
         if (lists.open == null) state.value = lists.copy(settings = ListSettings())
     }
 
-    // the settings of a list of the user's own, from its menu on the home
+    // the settings of a list of the user's own, from its menu on the home or from the list itself;
+    // back and save return there, a deleted list leads to the home
     fun openSettings(id: Int) {
         val lists = state.value as? Screen.Lists ?: return
         val list = lists.lists.firstOrNull { it.id == id && it.mine } ?: return
