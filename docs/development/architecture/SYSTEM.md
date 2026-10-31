@@ -60,6 +60,14 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 The backend serves apps to its users, for example static hosting and notes. How they are built is in
 [the architecture of the apps](apps/INDEX.md).
 
+## External systems
+
+- **One manager for each external system.** A class that manages resources outside the process, at a cloud provider,
+  in a container runtime or behind a remote api, is the one place they are looked up, created, changed and removed,
+  and the one place its clients are made; the rest of the code asks it. sakctl has one for the deployments, the
+  provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
+  (`OpenRouterManager`).
+
 ## The server of a deployment
 
 - Four containers run as podman quadlets, all as the user `sak`: the backend, caddy, victorialogs and vector.
@@ -85,8 +93,6 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies them in the
   order of their dependencies. A plan stops before anything changes when a resource belongs to someone else or would
   have to be created anew though it must stay. Only the server and its ssh key may be created anew.
-- **One manager for each kind of external resource** (the deployments, the provisioning, the container runtime): the
-  one place they are looked up, created, changed and removed.
 - **Provisioning** runs `ansible-playbook` in a container image of the tools against the server, with the inventory,
   the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail server) in
   a private directory for the run. It sets up the base system, the data volume and the backend, its

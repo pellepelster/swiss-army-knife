@@ -28,8 +28,6 @@ The login, the settings, the labels and the file storage are no apps; all apps s
   its app. A service uses only other services and its own repository. A repository is used only by its service;
   routes use services, never repositories.
 - **The database is only in `sak-model`.** Only the repository of an entity touches the database.
-- **One manager for each external system.** A class that manages resources outside the process, for example
-  `OpenRouterManager` (the AI provider), is the one place its clients are made; the rest of the code asks it.
 
 ## Persistence
 
