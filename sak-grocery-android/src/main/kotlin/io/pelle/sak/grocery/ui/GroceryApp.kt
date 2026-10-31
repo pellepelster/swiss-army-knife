@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -277,7 +276,7 @@ private fun HomeScreen(
                 }
                 itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
                     ListRow(list) { model.open(list.id) }
-                    if (index < screen.lists.lastIndex) HorizontalDivider(Modifier.padding(start = 72.dp))
+                    if (index < screen.lists.lastIndex) HorizontalDivider()
                 }
             }
         }
@@ -400,7 +399,10 @@ private fun ListScreen(
                                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
                             )
                         }
-                        items(group.items, key = { it.id }) { item -> ItemRow(item, item.id in screen.struck, model::check) }
+                        itemsIndexed(group.items, key = { _, item -> item.id }) { index, item ->
+                            ItemRow(item, item.id in screen.struck, model::check)
+                            if (index < group.items.lastIndex) HorizontalDivider()
+                        }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
                 }
