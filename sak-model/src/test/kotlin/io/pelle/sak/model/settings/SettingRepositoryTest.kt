@@ -1,5 +1,6 @@
 package io.pelle.sak.model.settings
 
+import io.pelle.sak.model.SYSTEM_OWNER
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.SakDatabase
@@ -9,6 +10,9 @@ import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+
+// who inserts the rows of the tests
+private const val OWNER = "admin@example.org"
 
 class SettingRepositoryTest {
     @TempDir
@@ -20,30 +24,41 @@ class SettingRepositoryTest {
 
     @Test
     fun `keeps one setting per name and scope that is not deleted, a deleted one stays`() {
-        val first = repository.insert("A_SETTING", "system", "the value")!!
+        val first = repository.insert("A_SETTING", "system", "the value", owner = OWNER)!!
         first.createdAt shouldBe now
         first.updatedAt shouldBe null
 
-        repository.insert("A_SETTING", "system", "other") shouldBe null
-        repository.insert("A_SETTING", "admin@example.org", "other") shouldNotBe null
+        repository.insert("A_SETTING", "system", "other", owner = OWNER) shouldBe null
+        repository.insert("A_SETTING", "admin@example.org", "other", owner = OWNER) shouldNotBe null
 
         repository.delete("A_SETTING", "system") shouldBe true
         repository.delete("A_SETTING", "system") shouldBe false
         repository.byNameAndScope("A_SETTING", "system") shouldBe null
         repository.byNameAndScope("A_SETTING", "admin@example.org")!!.value shouldBe "other"
-        repository.insert("A_SETTING", "system", "again")!!.value shouldBe "again"
+        repository.insert("A_SETTING", "system", "again", owner = OWNER)!!.value shouldBe "again"
     }
 
     @Test
     fun `replaces values in one go, the old row stays as deleted and an equal value is kept`() {
-        repository.insert("A_SETTING", "system", "old")!!
+        repository.insert("A_SETTING", "system", "old", owner = OWNER)!!
 
-        repository.replace("system", mapOf("A_SETTING" to "new", "B_SETTING" to "first"))
+        repository.replace("system", mapOf("A_SETTING" to "new", "B_SETTING" to "first"), owner = OWNER)
         repository.byNameAndScope("A_SETTING", "system")!!.value shouldBe "new"
         repository.byNameAndScope("B_SETTING", "system")!!.value shouldBe "first"
 
         val kept = repository.byNameAndScope("B_SETTING", "system")!!
-        repository.replace("system", mapOf("B_SETTING" to "first"))
+        repository.replace("system", mapOf("B_SETTING" to "first"), owner = OWNER)
         repository.byNameAndScope("B_SETTING", "system")!!.id shouldBe kept.id
+    }
+
+    @Test
+    fun `a setting records who set it, a value replaced is the one of who replaced it`() {
+        repository.insert("A_SETTING", "system", "first", owner = SYSTEM_OWNER)!!.owner shouldBe SYSTEM_OWNER
+
+        repository.replace("system", mapOf("A_SETTING" to "second"), owner = OWNER)
+        repository.byNameAndScope("A_SETTING", "system")!!.owner shouldBe OWNER
+        // an equal value stays the one it was
+        repository.replace("system", mapOf("A_SETTING" to "second"), owner = "other@example.org")
+        repository.byNameAndScope("A_SETTING", "system")!!.owner shouldBe OWNER
     }
 }

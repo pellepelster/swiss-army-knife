@@ -112,6 +112,8 @@ class S3BucketService(
     fun create(
         name: String,
         domains: List<String> = emptyList(),
+        // who creates it (MODEL-5)
+        owner: String,
     ): CreateBucketResult {
         if (!isValidName(name) || name in reservedNames) {
             return CreateBucketResult.InvalidName
@@ -130,7 +132,7 @@ class S3BucketService(
             }
         // another bucket may have taken the name or a domain since the checks above
         val bucket =
-            when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized)) {
+            when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized, owner)) {
                 is InsertBucketResult.Inserted -> inserted.bucket
                 InsertBucketResult.NameTaken -> return CreateBucketResult.NameTaken
                 InsertBucketResult.DomainTaken -> return CreateBucketResult.DomainTaken
@@ -143,6 +145,8 @@ class S3BucketService(
     fun updateDomains(
         name: String,
         domains: List<String>,
+        // who adds the new domains
+        owner: String,
     ): UpdateDomainsResult {
         val bucket = repository.byName(name) ?: return UpdateDomainsResult.NotFound
         val normalized =
@@ -151,7 +155,7 @@ class S3BucketService(
                 DomainCheck.Taken -> return UpdateDomainsResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
-        if (!repository.replaceDomains(name, normalized)) {
+        if (!repository.replaceDomains(name, normalized, owner)) {
             return UpdateDomainsResult.DomainTaken
         }
         changed()

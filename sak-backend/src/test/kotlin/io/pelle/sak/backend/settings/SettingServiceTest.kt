@@ -16,8 +16,8 @@ class SettingServiceTest {
 
     @Test
     fun `keeps one setting by name and scope`() {
-        service.put(SettingName.AUTH_SIGNING_KEY, other, "the value") shouldBe true
-        service.put(SettingName.AUTH_SIGNING_KEY, other, "another") shouldBe false
+        service.put(SettingName.AUTH_SIGNING_KEY, other, "the value", owner = "admin@example.org") shouldBe true
+        service.put(SettingName.AUTH_SIGNING_KEY, other, "another", owner = "admin@example.org") shouldBe false
 
         service.get(SettingName.AUTH_SIGNING_KEY, other) shouldBe "the value"
         service.get(SettingName.AUTH_SIGNING_KEY) shouldBe null

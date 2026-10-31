@@ -86,9 +86,11 @@ class S3BucketRepository(
         accessKeyId: String,
         secretAccessKey: String,
         domains: List<String> = emptyList(),
+        // who creates it, also of its domains (MODEL-5)
+        owner: String,
     ): InsertBucketResult =
         try {
-            val bucket = S3Bucket(name, accessKeyId, clock.instant(), null, domains)
+            val bucket = S3Bucket(name, accessKeyId, clock.instant(), null, domains, owner)
             database.dsl.transaction { configuration ->
                 val dsl = DSL.using(configuration)
                 dsl
@@ -97,8 +99,9 @@ class S3BucketRepository(
                     .set(S3_BUCKETS.ACCESS_KEY_ID, bucket.accessKeyId)
                     .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
                     .set(S3_BUCKETS.CREATED_AT, bucket.createdAt)
+                    .set(S3_BUCKETS.OWNER, owner)
                     .execute()
-                bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt) }
+                bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt, owner) }
             }
             InsertBucketResult.Inserted(bucket)
         } catch (_: IntegrityConstraintViolationException) {
@@ -115,6 +118,8 @@ class S3BucketRepository(
     fun replaceDomains(
         name: String,
         domains: List<String>,
+        // who adds the domains that are new
+        owner: String,
     ): Boolean =
         try {
             database.dsl.transaction { configuration ->
@@ -136,7 +141,7 @@ class S3BucketRepository(
                 val moved = domains.withIndex().filter { (position, domain) -> rows[domain]?.let { it.position != position } == true }
                 moved.forEach { (position, domain) -> move(dsl, rows.getValue(domain).id!!, -1 - position, now) }
                 moved.forEach { (position, domain) -> move(dsl, rows.getValue(domain).id!!, position, now) }
-                domains.forEachIndexed { position, domain -> if (domain !in rows) insertDomain(dsl, name, domain, position, now) }
+                domains.forEachIndexed { position, domain -> if (domain !in rows) insertDomain(dsl, name, domain, position, now, owner) }
                 dsl
                     .update(S3_BUCKETS)
                     .set(S3_BUCKETS.UPDATED_AT, now)
@@ -175,6 +180,7 @@ class S3BucketRepository(
         domain: String,
         position: Int,
         now: Instant,
+        owner: String,
     ) {
         dsl
             .insertInto(S3_BUCKETS_DOMAINS)
@@ -182,6 +188,7 @@ class S3BucketRepository(
             .set(S3_BUCKETS_DOMAINS.BUCKET_NAME, name)
             .set(S3_BUCKETS_DOMAINS.POSITION, position)
             .set(S3_BUCKETS_DOMAINS.CREATED_AT, now)
+            .set(S3_BUCKETS_DOMAINS.OWNER, owner)
             .execute()
     }
 
@@ -220,6 +227,7 @@ class S3BucketRepository(
             createdAt = createdAt!!,
             updatedAt = updatedAt,
             domains = domains,
+            owner = owner!!,
         )
 }
 
@@ -232,4 +240,6 @@ data class S3Bucket(
     // null until the bucket is changed
     val updatedAt: Instant? = null,
     val domains: List<String> = emptyList(),
+    // who created it (MODEL-5)
+    val owner: String,
 )

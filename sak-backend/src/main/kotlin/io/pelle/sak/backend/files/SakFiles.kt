@@ -20,7 +20,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
-import io.pelle.sak.auth.sessionEmail
+import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.API_PATH_PREFIX
 import io.pelle.sak.backend.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
@@ -62,7 +62,7 @@ fun Route.files(
     installApi()
 
     post {
-        val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.sessionEmail) } }
+        val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.owner) } }
         when (result) {
             is StoreFileResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             StoreFileResult.TooLarge ->
@@ -97,12 +97,12 @@ fun Route.files(
     }
 
     post("/{id}/discover/text") {
-        if (!discoverTextLimiter.tryAcquire(call.sessionEmail)) {
+        if (!discoverTextLimiter.tryAcquire(call.owner)) {
             call.respondErrors("Too many texts were discovered, please try again later.", status = HttpStatusCode.TooManyRequests)
             return@post
         }
         val id = call.idParameter() ?: return@post
-        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.sessionEmail, id) }) {
+        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.owner, id) }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
@@ -147,7 +147,7 @@ private const val IMMUTABLE = "private, max-age=31536000, immutable"
 fun Route.servedFiles(fileService: FileService) {
     get("/{id}") {
         val id = call.idParameter() ?: return@get
-        val file = withContext(Dispatchers.IO) { fileService.byId(call.sessionEmail, id) }
+        val file = withContext(Dispatchers.IO) { fileService.byId(call.owner, id) }
         if (file == null) {
             call.respond(HttpStatusCode.NotFound)
             return@get
@@ -168,7 +168,7 @@ fun Route.servedFiles(fileService: FileService) {
         val id = call.idParameter() ?: return@get
         val thumbnail =
             withContext(Dispatchers.IO) {
-                fileService.byId(call.sessionEmail, id)?.let { fileService.thumbnail(it) }
+                fileService.byId(call.owner, id)?.let { fileService.thumbnail(it) }
             }
         if (thumbnail == null) {
             call.respond(HttpStatusCode.NotFound)

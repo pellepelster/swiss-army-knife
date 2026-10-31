@@ -55,7 +55,7 @@ class FileServiceTest {
         service.byId("other@example.org", second.id) shouldBe second
 
         second.id shouldNotBe first.id
-        second.uploadedBy shouldBe "other@example.org"
+        second.owner shouldBe "other@example.org"
         service.path(second) shouldBe service.path(first)
         Files.list(dir).use { it.toList() }.map { it.fileName.toString() } shouldBe listOf(first.sha256.take(2))
     }

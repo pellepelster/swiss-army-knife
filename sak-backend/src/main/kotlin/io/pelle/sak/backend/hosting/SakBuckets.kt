@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
@@ -94,7 +95,7 @@ fun Route.buckets(
 
     post {
         val request = call.receive<CreateBucketRequest>()
-        when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name, request.domains) }) {
+        when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name, request.domains, call.owner) }) {
             is CreateBucketResult.Created -> {
                 statistics.warm(listOf(result.bucket.name))
                 call.respond(HttpStatusCode.Created, result.bucket.response())
@@ -160,7 +161,7 @@ fun Route.buckets(
     put("/{bucket}/domains") {
         val request = call.receive<UpdateDomainsRequest>()
         val name = call.parameters["bucket"].orEmpty()
-        when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains) }) {
+        when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains, call.owner) }) {
             is UpdateDomainsResult.Updated -> call.respond(result.bucket.response())
             UpdateDomainsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             UpdateDomainsResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)

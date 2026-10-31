@@ -4,8 +4,10 @@
 # indexes over the rows that are not deleted only are partial ones in plain sql for sqlite only,
 # jooq generates its classes from the schema in h2, which knows no partial indexes.
 # Every table has created_at, set when the row is inserted, updated_at, null until the row is
-# changed, and deleted_at, null until the row is deleted; no row is ever deleted for real
-# (SchemaTest).
+# changed, and deleted_at, null until the row is deleted; no row is ever deleted for real. Every
+# table has owner, who created the row: the e-mail address of a user, admin for the admin of the
+# password login and for sakctl, or system for what the backend creates on its own (SchemaTest,
+# MODEL-5 of docs/development/architecture/SYSTEM.md).
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
@@ -32,6 +34,11 @@ databaseChangeLog:
               - column:
                   name: secret_access_key
                   type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
                   constraints:
                     nullable: false
               - column:
@@ -77,6 +84,11 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
                   type: timestamp
                   constraints:
@@ -105,6 +117,7 @@ databaseChangeLog:
                 target_type VARCHAR(16) NOT NULL,
                 target_domain VARCHAR(253),
                 target_bucket VARCHAR(63),
+                owner VARCHAR(254) NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP,
                 deleted_at TIMESTAMP,
@@ -185,7 +198,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: uploaded_by
+                  name: owner
                   type: varchar(254)
                   constraints:
                     nullable: false
@@ -204,8 +217,51 @@ databaseChangeLog:
                   name: discovered
                   type: varchar(100000)
 
-        # the notes of the notes app, each belongs to the address of the user that created it; a
-        # deleted note stays as a row with deleted_at set
+        # the lists of the notes of a user (LIST-1): every note is in one, the first note of a user
+        # creates the list "Default". A shared list is one of all users (LIST-2). The name is unique
+        # among the lists of an owner that are not deleted only; a deleted list stays as a row with
+        # deleted_at set
+        - createTable:
+            tableName: note_lists
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: shared
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX note_lists_owner_name_key ON note_lists (owner, name) WHERE deleted_at IS NULL
+
+        # the notes of the notes app, each belongs to the address of the user that created it and is
+        # in one of their lists; a deleted note stays as a row with deleted_at set
         - createTable:
             tableName: notes
             columns:
@@ -220,6 +276,13 @@ databaseChangeLog:
                   type: varchar(254)
                   constraints:
                     nullable: false
+              - column:
+                  name: list_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: notes_list_id_fkey
+                    references: note_lists(id)
               - column:
                   name: text
                   type: varchar(10000)
@@ -275,6 +338,11 @@ databaseChangeLog:
                     foreignKeyName: notes_labels_label_id_fkey
                     references: labels(id)
               - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
                   type: timestamp
                   constraints:
@@ -322,6 +390,11 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
                   type: timestamp
                   constraints:
@@ -363,6 +436,11 @@ databaseChangeLog:
               - column:
                   name: scope
                   type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
                   constraints:
                     nullable: false
               - column:

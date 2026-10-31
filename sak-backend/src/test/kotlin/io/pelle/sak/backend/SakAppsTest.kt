@@ -1,5 +1,8 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.auth.ADMIN_USERNAME
+import io.pelle.sak.model.settings.SettingRepository
+import io.pelle.sak.model.SYSTEM_OWNER
 import io.kotest.matchers.collections.shouldBeIn
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SigningKey
@@ -281,7 +284,7 @@ class SakAppsTest {
     @Test
     fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
         val config = config()
-        val bucket1 = (buckets(config).create("bucket1") as CreateBucketResult.Created).bucket
+        val bucket1 = (buckets(config).create("bucket1", owner = "admin@example.org") as CreateBucketResult.Created).bucket
 
         withServer(config) { port ->
             val session = signIn(port)
@@ -370,8 +373,8 @@ class SakAppsTest {
     fun `redirects domains to external domains and to the domain of a bucket`() {
         val config = config()
         buckets(config).let { buckets ->
-            buckets.create("bucket1")
-            buckets.create("site", listOf("site.example.org"))
+            buckets.create("bucket1", owner = "admin@example.org")
+            buckets.create("site", listOf("site.example.org"), owner = "admin@example.org")
         }
 
         withServer(config) { port ->
@@ -982,7 +985,7 @@ class SakAppsTest {
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
         Files.createDirectories(config.dataDir)
-        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key") }
+        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key", owner = "admin@example.org") }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -1090,7 +1093,7 @@ class SakAppsTest {
     fun `every point in time the api answers is ISO 8601 in UTC with milliseconds`() {
         val iso8601 = Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z""")
         val config = config()
-        buckets(config).create("site")
+        buckets(config).create("site", owner = "admin@example.org")
         withServer(config) { port ->
             val session = signIn(port)
 
@@ -1142,12 +1145,13 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sakctl is a user of its own`() {
+    fun `sakctl signs in as itself and acts as the admin`() {
         withServer { port ->
             val session = signIn(port)
             post(port, "/api/v1/notes", """{"text":"of the admin","color":"yellow","labels":[]}""", session).statusCode() shouldBe 201
 
-            signed(port, "/api/v1/notes").body() shouldNotContain "of the admin"
+            // its data is the admin's
+            signed(port, "/api/v1/notes").body() shouldContain "of the admin"
             signed(port, "/api/v1/auth/who-am-i").json().let {
                 it.string("username") shouldBe "sakctl"
                 it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("admin")
@@ -1220,6 +1224,22 @@ class SakAppsTest {
         port: Int,
         password: String = ADMIN_PASSWORD,
     ) = post(port, "/api/v1/auth/login/password", """{"password":"$password","redirect":"/notes"}""")
+
+    @Test
+    fun `every row records who created it, the admin of the password login is admin, the backend system`() {
+        withServer { port ->
+            post(port, "/api/v1/static-hosting", """{"name":"by-mail"}""", signIn(port)).statusCode() shouldBe 201
+        }
+        val single = config(admins = false, smtp = false)
+        withServer(single) { port ->
+            val session = passwordLogin(port).json().string("sessionToken")
+            post(port, "/api/v1/static-hosting", """{"name":"by-password"}""", session).statusCode() shouldBe 201
+        }
+        buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"
+        buckets(single).byName("by-password")!!.owner shouldBe ADMIN_USERNAME
+        SettingRepository(SakDatabase.open(databaseFile(single))).byNameAndScope(SettingName.AUTH_SIGNING_KEY.value, SystemSettings.SCOPE.value)!!.owner shouldBe
+            SYSTEM_OWNER
+    }
 
     @Test
     fun `the admin signs in with the password, who-am-i names the session admin`() {

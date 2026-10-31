@@ -31,6 +31,8 @@ class RedirectRepository(
     fun insert(
         sourceDomain: String,
         target: RedirectTarget,
+        // who creates it (MODEL-5)
+        owner: String,
     ): Redirect? =
         try {
             val now = clock.instant()
@@ -41,6 +43,7 @@ class RedirectRepository(
                 .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
                 .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
                 .set(REDIRECTS.CREATED_AT, now)
+                .set(REDIRECTS.OWNER, owner)
                 .returning()
                 .fetchOne()
                 ?.toRedirect()
@@ -89,6 +92,7 @@ class RedirectRepository(
                 },
             createdAt = createdAt!!,
             updatedAt = updatedAt,
+            owner = owner!!,
         )
 
     companion object {

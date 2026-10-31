@@ -423,6 +423,23 @@ mkdir -p "$SAK_LOCAL_DATA_DIR"
 ./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
 """
 
+# the data of the local backend goes: the database, the files and the buckets; the directories stay
+# empty, a running local:env:run keeps its mount of the buckets. The state of caddy and the logs stay
+[tasks."local:clean"]
+description = "Remove the data of the local backend"
+env = { SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data" }
+run = """
+if curl -s -o /dev/null --max-time 2 http://localhost:8080/; then
+  echo "a backend runs on http://localhost:8080, stop it first" >&2
+  exit 1
+fi
+if [ -d "$SAK_LOCAL_DATA_DIR" ]; then
+  find "$SAK_LOCAL_DATA_DIR" -mindepth 1 -not -type d -delete
+  find "$SAK_LOCAL_DATA_DIR" -mindepth 1 -type d -empty -not -path "$SAK_LOCAL_DATA_DIR/s3" -delete
+fi
+echo "removed the data of the local backend in $SAK_LOCAL_DATA_DIR"
+"""
+
 [tasks."local:frontend:run"]
 description = "Run sak-frontend"
 depends = ["frontend:install"]

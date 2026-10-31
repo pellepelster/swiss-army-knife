@@ -19,4 +19,6 @@ data class Redirect(
     val target: RedirectTarget,
     val createdAt: Instant,
     val updatedAt: Instant?,
+    // who created it (MODEL-5)
+    val owner: String,
 )

@@ -11,6 +11,7 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.errors
+import io.pelle.sak.auth.owner
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -101,7 +102,7 @@ fun Route.settings(registry: SettingsRegistry) {
 
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
-        when (val result = withContext(Dispatchers.IO) { registry.update(call.parameters["scope"].orEmpty(), request.settings) }) {
+        when (val result = withContext(Dispatchers.IO) { registry.update(call.parameters["scope"].orEmpty(), request.settings, call.owner) }) {
             is UpdateSettingsResult.Updated -> call.respond(SettingsResponse(result.values))
             is UpdateSettingsResult.Invalid -> call.respondErrors(result.errors)
             UpdateSettingsResult.NotFound -> call.respond(HttpStatusCode.NotFound)

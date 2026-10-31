@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTarget
 import io.pelle.sak.api.installApi
@@ -75,7 +76,7 @@ fun Route.redirects(redirectService: RedirectService) {
 
     post {
         val request = call.receive<CreateRedirectRequest>()
-        when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target()) }) {
+        when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target(), call.owner) }) {
             is CreateRedirectResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
             CreateRedirectResult.InvalidDomain ->
                 call.respondErrors(

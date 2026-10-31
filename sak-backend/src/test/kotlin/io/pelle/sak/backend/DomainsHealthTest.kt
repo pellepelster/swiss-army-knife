@@ -47,7 +47,7 @@ class DomainsHealthTest {
 
     @Test
     fun `the buckets are healthy when all their domains and subdomains point to the server`() {
-        buckets.create("site", listOf("site.example.com"))
+        buckets.create("site", listOf("site.example.com"), owner = "admin@example.org")
 
         HostingHealth(buckets, check("site.example.com", "site.example.org"), addresses).check().state shouldBe HealthState.HEALTHY
         HostingHealth(buckets, check("site.example.com"), addresses).check().let {
@@ -62,7 +62,7 @@ class DomainsHealthTest {
 
     @Test
     fun `the redirects are healthy when every redirected domain points to the server`() {
-        redirects.create("old.example.com", RedirectTarget.Domain("example.net"))
+        redirects.create("old.example.com", RedirectTarget.Domain("example.net"), owner = "admin@example.org")
 
         RedirectsHealth(redirects, check("old.example.com"), addresses).check().state shouldBe HealthState.HEALTHY
         RedirectsHealth(redirects, check(), addresses).check().let {

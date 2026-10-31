@@ -12,8 +12,8 @@ weight: 4
 
 ## Overview
 
-The backend deletes nothing for real: a delete only sets `deleted_at` (refer to "Persistence" in
-[the architecture of the apps](../architecture/apps/INDEX.md)). Some data is never deleted at all: an uploaded file that no note refers to stays for
+The backend deletes nothing for real: a delete only sets `deleted_at` (refer to "Model" in
+[SYSTEM.md](../architecture/SYSTEM.md)). Some data is never deleted at all: an uploaded file that no note refers to stays for
 ever, and a user can upload files of 10 MB in a loop (issue #2, finding M-02). This feature adds a maintenance task
 that finds data nothing uses any more, marks it as deleted, and after a retention period removes soft-deleted data
 for real.

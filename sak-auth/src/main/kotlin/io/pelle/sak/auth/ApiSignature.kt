@@ -124,10 +124,13 @@ private class ApiSignatureProvider(
     config: Config,
 ) : AuthenticationProvider(config) {
     private val signature = config.signature
+    private val owner = config.owner
 
     class Config(
         name: String,
         val signature: ApiSignature?,
+        // the user sakctl acts as, its data is theirs
+        val owner: String,
     ) : AuthenticationProvider.Config(name)
 
     override suspend fun onAuthenticate(context: AuthenticationContext) {
@@ -145,7 +148,7 @@ private class ApiSignatureProvider(
                 signature.refusal(call.request.local.method.value, call.request.local.uri, authorization, call.hasBody())
             }
         if (refusal == null) {
-            context.principal(name, SessionPrincipal(API_IDENTITY, null, setOf(Role.ADMIN)))
+            context.principal(name, SessionPrincipal(API_IDENTITY, null, setOf(Role.ADMIN), owner = owner))
         } else {
             // the client masked, never the header
             logger.info { "refused a signed request to ${call.request.local.method.value} ${call.request.local.uri.substringBefore('?')} from ${maskedAddress(call.clientAddress())}: $refusal" }
@@ -168,6 +171,10 @@ internal fun maskedAddress(address: String): String =
 
 // routes below authenticate(API_SIGNATURE_AUTH) take the signed requests of sakctl as an admin that
 // never expires; without a public key every signed request is refused
-fun AuthenticationConfig.apiSignature(signature: ApiSignature?) {
-    register(ApiSignatureProvider(ApiSignatureProvider.Config(API_SIGNATURE_AUTH, signature)))
+// owner is the user sakctl acts as, the admin of the password login
+fun AuthenticationConfig.apiSignature(
+    signature: ApiSignature?,
+    owner: String,
+) {
+    register(ApiSignatureProvider(ApiSignatureProvider.Config(API_SIGNATURE_AUTH, signature, owner)))
 }

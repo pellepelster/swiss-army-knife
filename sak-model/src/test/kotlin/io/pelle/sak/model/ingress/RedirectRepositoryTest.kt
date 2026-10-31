@@ -15,6 +15,9 @@ import java.time.Instant
 import java.time.Clock
 import java.time.ZoneOffset
 
+// who inserts the rows of the tests
+private const val OWNER = "admin@example.org"
+
 class RedirectRepositoryTest {
     @TempDir
     lateinit var tempDir: Path
@@ -23,7 +26,7 @@ class RedirectRepositoryTest {
 
     @Test
     fun `the schema holds exactly the target of the type and only known buckets`() {
-        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET").shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
         fun insert(
             type: String,
             domain: String?,
@@ -35,6 +38,7 @@ class RedirectRepositoryTest {
             .set(REDIRECTS.TARGET_DOMAIN, domain)
             .set(REDIRECTS.TARGET_BUCKET, bucket)
             .set(REDIRECTS.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
+            .set(REDIRECTS.OWNER, "admin@example.org")
             .set(REDIRECTS.UPDATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
             .execute()
 
@@ -50,7 +54,7 @@ class RedirectRepositoryTest {
     fun `deletes redirects softly, the domain can be redirected again`() {
         val now = Instant.parse("2026-10-27T08:00:00Z")
         val repository = RedirectRepository(database, Clock.fixed(now, ZoneOffset.UTC))
-        repository.insert("example.com", RedirectTarget.Domain("example.org"))!!.updatedAt shouldBe null
+        repository.insert("example.com", RedirectTarget.Domain("example.org"), owner = OWNER)!!.updatedAt shouldBe null
         repository.update("example.com", RedirectTarget.Domain("example.net"))!!.updatedAt shouldBe now
 
         repository.delete("example.com") shouldBe true
@@ -59,8 +63,14 @@ class RedirectRepositoryTest {
         repository.all() shouldBe emptyList()
         repository.update("example.com", RedirectTarget.Domain("example.org")) shouldBe null
 
-        repository.insert("example.com", RedirectTarget.Domain("example.de"))!!.target shouldBe RedirectTarget.Domain("example.de")
-        repository.insert("example.com", RedirectTarget.Domain("example.at")) shouldBe null
+        repository.insert("example.com", RedirectTarget.Domain("example.de"), owner = OWNER)!!.target shouldBe RedirectTarget.Domain("example.de")
+        repository.insert("example.com", RedirectTarget.Domain("example.at"), owner = OWNER) shouldBe null
         database.dsl.fetchCount(REDIRECTS) shouldBe 2
+    }
+
+    @Test
+    fun `a redirect records who created it`() {
+        val repository = RedirectRepository(database)
+        repository.insert("example.com", RedirectTarget.Domain("example.org"), owner = OWNER)!!.owner shouldBe OWNER
     }
 }

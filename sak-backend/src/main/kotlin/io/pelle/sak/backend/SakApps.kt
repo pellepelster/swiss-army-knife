@@ -129,7 +129,8 @@ fun Application.apps(
 
     install(Authentication) {
         session(tokens, rolesOf)
-        apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) })
+        // sakctl acts as the admin, what it creates is theirs
+        apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) }, owner = admin)
     }
 
     // the session travels in the authorization header, never in a cookie, so no credentials

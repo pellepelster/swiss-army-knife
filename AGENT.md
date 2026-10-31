@@ -41,15 +41,16 @@ How the apps (frontend, CLI, wizard, Android Apps) look and behave for their use
 How SAK is built is in three levels below `docs/development/architecture/`, each adding to the ones above and never
 repeating them:
 
-1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the server of a deployment,
-   sakctl, the cloud resources and their labels, privacy, security, the tests).
-2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the layers, the persistence, the settings,
-   the api contract, the shared parts, the frontend, privacy in the apps).
+1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the model, the external
+   systems, the server of a deployment, sakctl, the cloud resources and their labels, privacy, security, the tests).
+2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the layers, the settings, the
+   api contract, the shared parts, the list-based apps, the frontend, privacy in the apps).
 3. `apps/<APP>.md`: each app, e.g. [NOTES.md](docs/development/architecture/apps/NOTES.md); the `AGENTS.md` of an
    app's directory links its document.
 
 Every change keeps to its level and to the levels above; a change that has to break a rule changes its document in
-the same commit and says why. A rule two apps need moves up to apps/INDEX.md.
+the same commit and says why. A rule two apps need moves up to apps/INDEX.md. Every rule has an id, e.g. `MODEL-1`
+(refer to SYSTEM.md); refer to a rule by its id.
 
 ## Persistence (`sak-model`)
 
@@ -58,7 +59,9 @@ the same commit and says why. A rule two apps need moves up to apps/INDEX.md.
     - `created_at` is set when the row is inserted, never null;
     - `updated_at` is null until the row really changes, an insert never sets it;
     - `deleted_at` is null until the row is deleted, a delete sets nothing else.
-- Soft delete (architecture/apps/INDEX.md, "Persistence"): every read skips the rows with `deleted_at` set, a value unique among
+- Every table, link tables included, has a not null `owner` (`MODEL-5`, `SchemaTest` checks it): an insert takes it
+  from its caller, a route from `call.owner` (`sak-auth`), the backend on its own `SYSTEM_OWNER`; no update sets it.
+- Soft delete (architecture/SYSTEM.md, "Model"): every read skips the rows with `deleted_at` set, a value unique among
   the live rows has a partial unique index (`WHERE deleted_at IS NULL`).
 - The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the

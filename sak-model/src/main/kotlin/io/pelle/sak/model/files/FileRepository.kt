@@ -18,7 +18,7 @@ class FileRepository(
     ): StoredFile? =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.ID.eq(id), FILES.UPLOADED_BY.eq(owner), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.eq(id), FILES.OWNER.eq(owner), FILES.DELETED_AT.isNull)
             .fetchOne()
             ?.toFile()
 
@@ -28,7 +28,7 @@ class FileRepository(
     ): Map<Int, StoredFile> =
         database.dsl
             .selectFrom(FILES)
-            .where(FILES.ID.`in`(ids), FILES.UPLOADED_BY.eq(owner), FILES.DELETED_AT.isNull)
+            .where(FILES.ID.`in`(ids), FILES.OWNER.eq(owner), FILES.DELETED_AT.isNull)
             .fetch()
             .map { it.toFile() }
             .associateBy { it.id }
@@ -51,7 +51,7 @@ class FileRepository(
         sha256: String,
         contentType: String,
         size: Long,
-        uploadedBy: String,
+        owner: String,
     ): StoredFile {
         val now = clock.instant()
         return database.dsl
@@ -59,7 +59,7 @@ class FileRepository(
             .set(FILES.SHA256, sha256)
             .set(FILES.CONTENT_TYPE, contentType)
             .set(FILES.SIZE, size)
-            .set(FILES.UPLOADED_BY, uploadedBy)
+            .set(FILES.OWNER, owner)
             .set(FILES.CREATED_AT, now)
             .returning()
             .fetchOne()!!
@@ -72,7 +72,7 @@ class FileRepository(
             sha256 = sha256!!,
             contentType = contentType!!,
             size = size!!,
-            uploadedBy = uploadedBy!!,
+            owner = owner!!,
             createdAt = createdAt!!,
             updatedAt = updatedAt,
             discovered = discovered,

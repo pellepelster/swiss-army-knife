@@ -95,6 +95,8 @@ class RedirectService(
     fun create(
         sourceDomain: String,
         target: RedirectTarget,
+        // who creates it (MODEL-5)
+        owner: String,
     ): CreateRedirectResult {
         val source = sourceDomain.lowercase()
         if (!isValidDomain(source) || domains.isReserved(source) || buckets.bucketOfDomain(source) != null) {
@@ -108,7 +110,7 @@ class RedirectService(
                 CheckedTarget.BucketNotServed -> return CreateRedirectResult.BucketNotServed
             }
 
-        val redirect = repository.insert(source, normalized) ?: return CreateRedirectResult.Exists
+        val redirect = repository.insert(source, normalized, owner) ?: return CreateRedirectResult.Exists
         changed()
         return CreateRedirectResult.Created(redirect)
     }

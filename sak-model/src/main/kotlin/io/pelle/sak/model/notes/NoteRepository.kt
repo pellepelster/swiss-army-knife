@@ -4,6 +4,7 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
 import io.pelle.sak.model.jooq.tables.references.LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES
+import io.pelle.sak.model.jooq.tables.references.NOTE_LISTS
 import io.pelle.sak.model.jooq.tables.references.NOTES_LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES_FILES
 import org.jooq.Condition
@@ -14,9 +15,15 @@ import java.time.Instant
 
 // a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
 // recordings) in their order
+// the list every note of a user goes to (LIST-1), made with their first note, not shared (LIST-2);
+// the lists are not shown to the users yet
+const val DEFAULT_LIST = "Default"
+
 data class NoteRow(
     val id: Int,
     val owner: String,
+    // the list it is in
+    val listId: Int,
     val text: String,
     val color: String,
     val labelIds: Set<Int>,
@@ -84,13 +91,14 @@ class NoteRepository(
                 dsl
                     .insertInto(NOTES)
                     .set(NOTES.OWNER, owner)
+                    .set(NOTES.LIST_ID, defaultList(dsl, owner, now))
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.CREATED_AT, now)
                     .returning()
                     .fetchOne()!!
-            labelIds.forEach { insertLabel(dsl, note.id!!, it, now) }
-            fileIds.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now) }
+            labelIds.forEach { insertLabel(dsl, note.id!!, it, now, owner) }
+            fileIds.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now, owner) }
             note.toRow(labelIds, fileIds)
         }
 
@@ -116,8 +124,8 @@ class NoteRepository(
                     .returning()
                     .fetchOne()
                     ?: return@transactionResult null
-            updateLabels(dsl, id, labelIds, now)
-            updateFiles(dsl, id, fileIds, now)
+            updateLabels(dsl, id, labelIds, now, owner)
+            updateFiles(dsl, id, fileIds, now, owner)
             note.toRow(labelIds, fileIds)
         }
 
@@ -168,6 +176,26 @@ class NoteRepository(
             },
         )
 
+    // the default list of the owner, made when there is none; one made at the same time by another
+    // note of the owner is the one (the name is unique among the lists of the owner)
+    private fun defaultList(
+        dsl: DSLContext,
+        owner: String,
+        now: Instant,
+    ): Int {
+        val default = NOTE_LISTS.OWNER.eq(owner).and(NOTE_LISTS.NAME.eq(DEFAULT_LIST)).and(NOTE_LISTS.DELETED_AT.isNull)
+        dsl.select(NOTE_LISTS.ID).from(NOTE_LISTS).where(default).fetchOne(NOTE_LISTS.ID)?.let { return it }
+        dsl
+            .insertInto(NOTE_LISTS)
+            .set(NOTE_LISTS.OWNER, owner)
+            .set(NOTE_LISTS.NAME, DEFAULT_LIST)
+            .set(NOTE_LISTS.SHARED, false)
+            .set(NOTE_LISTS.CREATED_AT, now)
+            .onConflictDoNothing()
+            .execute()
+        return dsl.select(NOTE_LISTS.ID).from(NOTE_LISTS).where(default).fetchOne(NOTE_LISTS.ID)!!
+    }
+
     // the links of the labels that stay keep their row, the ones of the labels removed are deleted,
     // the labels added get a link of their own
     private fun updateLabels(
@@ -175,6 +203,8 @@ class NoteRepository(
         noteId: Int,
         labelIds: Set<Int>,
         now: Instant,
+        // the owner of the note, who links the label or the file
+        owner: String,
     ) {
         val links =
             dsl
@@ -183,7 +213,7 @@ class NoteRepository(
                 .fetch()
                 .associateBy { it.labelId!! }
         deleteLabels(dsl, NOTES_LABELS.ID.`in`(links.filterKeys { it !in labelIds }.values.map { it.id }), now)
-        (labelIds - links.keys).forEach { insertLabel(dsl, noteId, it, now) }
+        (labelIds - links.keys).forEach { insertLabel(dsl, noteId, it, now, owner) }
     }
 
     private fun insertLabel(
@@ -191,12 +221,15 @@ class NoteRepository(
         noteId: Int,
         labelId: Int,
         now: Instant,
+        // the owner of the note, who links the label or the file
+        owner: String,
     ) {
         dsl
             .insertInto(NOTES_LABELS)
             .set(NOTES_LABELS.NOTE_ID, noteId)
             .set(NOTES_LABELS.LABEL_ID, labelId)
             .set(NOTES_LABELS.CREATED_AT, now)
+            .set(NOTES_LABELS.OWNER, owner)
             .execute()
     }
 
@@ -220,6 +253,8 @@ class NoteRepository(
         noteId: Int,
         fileIds: List<Int>,
         now: Instant,
+        // the owner of the note, who links the label or the file
+        owner: String,
     ) {
         val links =
             dsl
@@ -231,7 +266,7 @@ class NoteRepository(
         fileIds.forEachIndexed { position, fileId ->
             val link = links[fileId]
             if (link == null) {
-                insertFile(dsl, noteId, fileId, position, now)
+                insertFile(dsl, noteId, fileId, position, now, owner)
             } else if (link.position != position) {
                 dsl
                     .update(NOTES_FILES)
@@ -249,6 +284,8 @@ class NoteRepository(
         fileId: Int,
         position: Int,
         now: Instant,
+        // the owner of the note, who links the label or the file
+        owner: String,
     ) {
         dsl
             .insertInto(NOTES_FILES)
@@ -256,6 +293,7 @@ class NoteRepository(
             .set(NOTES_FILES.FILE_ID, fileId)
             .set(NOTES_FILES.POSITION, position)
             .set(NOTES_FILES.CREATED_AT, now)
+            .set(NOTES_FILES.OWNER, owner)
             .execute()
     }
 
@@ -301,6 +339,7 @@ class NoteRepository(
         NoteRow(
             id = id!!,
             owner = owner!!,
+            listId = listId!!,
             text = text!!,
             color = color!!,
             labelIds = labelIds,

@@ -84,7 +84,7 @@ class StoredSettingsServiceTest {
         // sent back as answered it changes nothing
         (withFixed.validate(mapOf("fixed" to JsonPrimitive("second"), "flag" to JsonPrimitive(true))) as Validation.Valid).values shouldBe
             listOf(SettingValue(FLAG, true))
-        shouldThrow<IllegalArgumentException> { withFixed.set(listOf(SettingValue(fixed, "third"))) }
+        shouldThrow<IllegalArgumentException> { withFixed.set(listOf(SettingValue(fixed, "third")), owner = "admin@example.org") }
         storage.get(fixed.name, withFixed.scope.name) shouldBe null
     }
 
@@ -149,7 +149,7 @@ class StoredSettingsServiceTest {
 
     @Test
     fun `a stored value the setting does not read is its default`() {
-        storage.set(SCOPE.name, mapOf(FLAG.name to "maybe"))
+        storage.set(SCOPE.name, mapOf(FLAG.name to "maybe"), owner = "admin@example.org")
         service.get(FLAG) shouldBe false
     }
 
@@ -167,7 +167,7 @@ class StoredSettingsServiceTest {
             )
 
         val valid = service.validate(mapOf("flag" to JsonPrimitive(true))).shouldBeInstanceOf<Validation.Valid>()
-        service.set(valid.values)
+        service.set(valid.values, owner = "admin@example.org")
         service.get(FLAG) shouldBe true
         service.get(GREETING) shouldBe "hello"
     }
@@ -177,6 +177,6 @@ class StoredSettingsServiceTest {
         val other = BooleanSetting(SettingName("flag"), "A flag", "Turns something on.", default = false)
         shouldThrow<IllegalArgumentException> { service.get(other) }
         shouldThrow<IllegalArgumentException> { service.set(other, true) }
-        shouldThrow<IllegalArgumentException> { service.set(listOf(SettingValue(GREETING, "a greeting far too long"))) }
+        shouldThrow<IllegalArgumentException> { service.set(listOf(SettingValue(GREETING, "a greeting far too long")), owner = "admin@example.org") }
     }
 }

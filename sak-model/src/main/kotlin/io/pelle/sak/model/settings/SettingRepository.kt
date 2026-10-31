@@ -17,6 +17,8 @@ data class SettingRow(
     val value: String,
     val createdAt: Instant,
     val updatedAt: Instant?,
+    // who set it (MODEL-5)
+    val owner: String,
 )
 
 // the database access of the settings, only SettingService (sak-backend) uses it; it reads the
@@ -41,6 +43,8 @@ class SettingRepository(
         name: String,
         scope: String,
         value: String,
+        // who creates it (MODEL-5), e.g. SYSTEM_OWNER for a setting the backend generates
+        owner: String,
     ): SettingRow? =
         try {
             database.dsl
@@ -49,6 +53,7 @@ class SettingRepository(
                 .set(SETTINGS.SCOPE, scope)
                 .set(SETTINGS.VALUE, value)
                 .set(SETTINGS.CREATED_AT, clock.instant())
+                .set(SETTINGS.OWNER, owner)
                 .returning()
                 .fetchOne()
                 ?.toRow()
@@ -61,6 +66,8 @@ class SettingRepository(
     fun replace(
         scope: String,
         values: Map<String, String>,
+        // who sets them, the owner of the rows of the new values
+        owner: String,
     ): Unit =
         database.dsl.transaction { configuration ->
             val dsl = DSL.using(configuration)
@@ -75,6 +82,7 @@ class SettingRepository(
                     .set(SETTINGS.SCOPE, scope)
                     .set(SETTINGS.VALUE, value)
                     .set(SETTINGS.CREATED_AT, now)
+                    .set(SETTINGS.OWNER, owner)
                     .execute()
             }
         }
@@ -98,5 +106,6 @@ class SettingRepository(
             value = value!!,
             createdAt = createdAt!!,
             updatedAt = updatedAt,
+            owner = owner!!,
         )
 }

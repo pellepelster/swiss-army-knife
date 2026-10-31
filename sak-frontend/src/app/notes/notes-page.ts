@@ -119,7 +119,8 @@ import { RecordingOverlay } from './recording-overlay';
           <app-note-card [note]="note" labelsList="known-labels" (labelSelected)="select($event)" />
         </div>
       } @empty {
-        <p class="col-12 text-center text-body-secondary py-5">
+        <!-- the whole width of the row, which gives each column half or a third of it -->
+        <p class="col w-100 text-center text-body-secondary fs-4 py-5">
           @if (store.loading()) {
             Loading…
           } @else if (filter(); as label) {

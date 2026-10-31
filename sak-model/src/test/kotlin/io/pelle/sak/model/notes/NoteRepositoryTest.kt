@@ -1,5 +1,7 @@
 package io.pelle.sak.model.notes
 
+import io.kotest.matchers.shouldNotBe
+import io.pelle.sak.model.jooq.tables.references.NOTE_LISTS
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.SakDatabase
@@ -161,6 +163,7 @@ class NoteRepositoryTest {
                 .set(NOTES_FILES.FILE_ID, beach)
                 .set(NOTES_FILES.POSITION, 0)
                 .set(NOTES_FILES.CREATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
+                .set(NOTES_FILES.OWNER, "admin@example.org")
                 .set(NOTES_FILES.UPDATED_AT, Instant.parse("2026-10-27T08:00:00Z"))
                 .set(NOTES_FILES.DELETED_AT, deletedAt)
                 .execute()
@@ -169,5 +172,48 @@ class NoteRepositoryTest {
         shouldThrow<DataAccessException> { insert(null) }
         insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
         insert(Instant.parse("2026-10-27T09:00:00Z")) shouldBe 1
+    }
+
+    @Test
+    fun `the links of a note are of the owner of the note`() {
+        val summer = label("summer")
+        val beach = file("beach")
+        val note = repository.insert("pelle@pelle.io", "holidays", "blue", setOf(summer), listOf(beach))
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", setOf(summer, label("sea")), listOf(beach, file("dunes")))
+
+        database.dsl.select(NOTES_LABELS.OWNER).from(NOTES_LABELS).fetch(NOTES_LABELS.OWNER).toSet() shouldBe setOf("pelle@pelle.io")
+        database.dsl.select(NOTES_FILES.OWNER).from(NOTES_FILES).fetch(NOTES_FILES.OWNER).toSet() shouldBe setOf("pelle@pelle.io")
+    }
+
+    @Test
+    fun `every note of a user goes to their default list, made with their first note and not shared`() {
+        val first = repository.insert("pelle@pelle.io", "milk", "yellow", emptySet(), emptyList())
+        val second = repository.insert("pelle@pelle.io", "bread", "blue", emptySet(), emptyList())
+        val other = repository.insert("other@example.org", "eggs", "pink", emptySet(), emptyList())
+
+        second.listId shouldBe first.listId
+        other.listId shouldNotBe first.listId
+        database.dsl
+            .select(NOTE_LISTS.ID, NOTE_LISTS.OWNER, NOTE_LISTS.NAME, NOTE_LISTS.SHARED)
+            .from(NOTE_LISTS)
+            .orderBy(NOTE_LISTS.ID)
+            .fetch { listOf(it.value1(), it.value2(), it.value3(), it.value4()) } shouldBe
+            listOf(listOf(first.listId, "pelle@pelle.io", DEFAULT_LIST, false), listOf(other.listId, "other@example.org", DEFAULT_LIST, false))
+    }
+
+    @Test
+    fun `the schema keeps the name of a list unique among the lists of an owner that are not deleted only`() {
+        repository.insert("pelle@pelle.io", "milk", "yellow", emptySet(), emptyList())
+        fun insertDefault() =
+            database.dsl
+                .insertInto(NOTE_LISTS)
+                .set(NOTE_LISTS.OWNER, "pelle@pelle.io")
+                .set(NOTE_LISTS.NAME, DEFAULT_LIST)
+                .set(NOTE_LISTS.SHARED, false)
+                .set(NOTE_LISTS.CREATED_AT, now)
+                .execute()
+        shouldThrow<DataAccessException> { insertDefault() }
+        database.dsl.update(NOTE_LISTS).set(NOTE_LISTS.DELETED_AT, now).execute()
+        insertDefault() shouldBe 1
     }
 }

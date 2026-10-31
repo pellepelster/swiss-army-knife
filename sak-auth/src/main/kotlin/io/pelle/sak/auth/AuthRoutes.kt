@@ -59,10 +59,16 @@ data class SessionPrincipal(
     val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
     val withPassword: Boolean = false,
+    // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakctl
+    val owner: String = email,
 )
 
 // the address of the signed in user, for routes behind authenticate(SESSION_AUTH)
 val ApplicationCall.sessionEmail: String get() = principal<SessionPrincipal>()!!.email
+
+// who the data of the call belongs to and who creates it (MODEL-5): the signed in user, the admin of
+// the password login for a request of sakctl
+val ApplicationCall.owner: String get() = principal<SessionPrincipal>()!!.owner
 
 // an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
 // goes into the mail's subject, e.g. "Sign in to example.org"

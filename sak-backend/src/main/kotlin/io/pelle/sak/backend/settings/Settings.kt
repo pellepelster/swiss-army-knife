@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.settings
 
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.model.SYSTEM_OWNER
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.settings.SettingRepository
 import kotlinx.serialization.json.JsonElement
@@ -238,22 +239,26 @@ class SettingService(
         name: SettingName,
         scope: SettingScopeName,
         value: String,
-    ): Boolean = repository.insert(name.value, scope.value, value) != null
+        // who sets it (MODEL-5)
+        owner: String,
+    ): Boolean = repository.insert(name.value, scope.value, value, owner) != null
 
     // the values of the names in one go, a value replaced stays as a deleted row
     fun set(
         scope: SettingScopeName,
         values: Map<SettingName, String>,
-    ) = repository.replace(scope.value, values.mapKeys { it.key.value })
+        // who sets them (MODEL-5)
+        owner: String,
+    ) = repository.replace(scope.value, values.mapKeys { it.key.value }, owner)
 
-    // the setting, created once when there is none
+    // the setting, created once when there is none, by the backend on its own
     fun getOrCreate(
         name: SettingName,
         scope: SettingScopeName = SystemSettings.SCOPE,
         create: () -> String,
     ): String {
         get(name, scope)?.let { return it }
-        put(name, scope, create())
+        put(name, scope, create(), SYSTEM_OWNER)
         // another one may have been put meanwhile, the stored one counts
         return get(name, scope) ?: error("the setting $name of $scope was put but is not there")
     }
@@ -287,10 +292,12 @@ interface SettingsService {
     // requires is off (SettingDefinition.requires)
     fun <T : Any> get(setting: SettingDefinition<T>): T?
 
-    // null when stored, else why the value is not valid
+    // null when stored, else why the value is not valid; the owner is who sets it (MODEL-5), the
+    // backend on its own when the code sets it for nobody
     fun <T : Any> set(
         setting: SettingDefinition<T>,
         value: T,
+        owner: String = SYSTEM_OWNER,
     ): ErrorMessage?
 
     // every setting of the scope with its stored value, also while it is off
@@ -302,8 +309,11 @@ interface SettingsService {
     // the json values of a request, by the names of the settings; an unknown name is a problem
     fun validate(values: Map<String, JsonElement>): Validation
 
-    // the values validate found valid, in one go
-    fun set(values: List<SettingValue<*>>)
+    // the values validate found valid, in one go, set by the owner
+    fun set(
+        values: List<SettingValue<*>>,
+        owner: String,
+    )
 }
 
 // the values of the read-only settings of a scope, each asked for on every read
@@ -348,13 +358,14 @@ open class StoredSettingsService(
     override fun <T : Any> set(
         setting: SettingDefinition<T>,
         value: T,
+        owner: String,
     ): ErrorMessage? {
         requireInScope(setting)
         fixedError(setting)?.let { return it }
         setting.check(value)?.let { return it }
         val values = listOf(SettingValue(setting, value))
         check(values).firstOrNull()?.let { return it }
-        set(values)
+        set(values, owner)
         return null
     }
 
@@ -385,13 +396,16 @@ open class StoredSettingsService(
         return if (problems.isEmpty()) Validation.Valid(changed) else Validation.Invalid(problems)
     }
 
-    override fun set(values: List<SettingValue<*>>) {
+    override fun set(
+        values: List<SettingValue<*>>,
+        owner: String,
+    ) {
         values.forEach {
             requireInScope(it.setting)
             require(fixedError(it.setting) == null) { "the setting ${it.setting.name} can not be changed now" }
             require(it.check() == null) { "the value of ${it.setting.name} is not valid" }
         }
-        settings.set(scope.name, values.associate { it.setting.name to it.encode() })
+        settings.set(scope.name, values.associate { it.setting.name to it.encode() }, owner)
     }
 
     // the api shows the values also while the scope is turned off
@@ -472,16 +486,18 @@ class SettingsRegistry(
         effective: Boolean = false,
     ): Map<String, JsonPrimitive>? = service(scope)?.run { if (effective) effective().json() else all().json() }
 
-    // the values of some settings of the scope; every value is validated before any is set
+    // the values of some settings of the scope, set by the owner; every value is validated before
+    // any is set
     fun update(
         scope: String,
         values: Map<String, JsonElement>,
+        owner: String,
     ): UpdateSettingsResult {
         val service = service(scope) ?: return UpdateSettingsResult.NotFound
         return when (val validation = service.validate(values)) {
             is Validation.Invalid -> UpdateSettingsResult.Invalid(validation.errors)
             is Validation.Valid -> {
-                service.set(validation.values)
+                service.set(validation.values, owner)
                 UpdateSettingsResult.Updated(service.all().json())
             }
         }

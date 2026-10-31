@@ -7,7 +7,7 @@ import java.time.Instant
 
 // the rules every table follows: created_at is set when a row is inserted, updated_at is null
 // until the row is changed, deleted_at is null until the row is deleted, no row is deleted for
-// real (AGENT.md)
+// real (AGENT.md); owner records who created the row (MODEL-5)
 class SchemaTest {
     @Test
     fun `every table has created, updated and deleted times`() {
@@ -21,6 +21,15 @@ class SchemaTest {
             (table.name to column("CREATED_AT").dataType.nullable()) shouldBe (table.name to false)
             (table.name to column("UPDATED_AT").dataType.nullable()) shouldBe (table.name to true)
             (table.name to column("DELETED_AT").dataType.nullable()) shouldBe (table.name to true)
+        }
+    }
+
+    @Test
+    fun `every table records the owner of its rows`() {
+        DefaultSchema.DEFAULT_SCHEMA.tables.forEach { table ->
+            val owner = table.field("OWNER") ?: error("${table.name} has no owner")
+            (table.name to owner.type) shouldBe (table.name to String::class.java)
+            (table.name to owner.dataType.nullable()) shouldBe (table.name to false)
         }
     }
 }

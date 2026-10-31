@@ -58,7 +58,7 @@ class SakBackendTest {
         val database = SakDatabase.open(databaseFile(sakConfig()))
         val buckets = S3BucketService(database)
         listOf("bucket1", "bucket2").associateWith {
-            (buckets.create(it) as CreateBucketResult.Created).bucket.let { bucket ->
+            (buckets.create(it, owner = "admin@example.org") as CreateBucketResult.Created).bucket.let { bucket ->
                 AwsBasicCredentials.create(bucket.accessKeyId, buckets.keyPair(bucket.name)!!.second.value)
             }
         }

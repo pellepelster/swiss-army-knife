@@ -149,7 +149,7 @@ class FileService(
     // reads the content to its end, at most maxSize bytes are taken
     fun store(
         content: InputStream,
-        uploadedBy: String,
+        owner: String,
     ): StoreFileResult {
         val temp = Files.createTempFile(dir, "upload-", ".tmp")
         try {
@@ -183,7 +183,7 @@ class FileService(
                 Files.createDirectories(target.parent)
                 Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
             }
-            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, uploadedBy))
+            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, owner))
         } finally {
             Files.deleteIfExists(temp)
         }
