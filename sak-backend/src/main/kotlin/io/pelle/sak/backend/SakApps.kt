@@ -43,6 +43,7 @@ import io.pelle.sak.backend.info.info
 import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
+import io.pelle.sak.backend.grocery.grocery
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
@@ -196,6 +197,10 @@ fun Application.apps(
                         route("/notes") {
                             requireRole(Role.ADMIN)
                             notes(noteService)
+                        }
+                        route("/grocery") {
+                            requireRole(Role.ADMIN)
+                            grocery(groceryService)
                         }
                         route("/config") {
                             requireRole(Role.ADMIN)

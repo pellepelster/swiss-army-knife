@@ -20,7 +20,7 @@ function templates(dir: string): string[] {
 const ELEMENTS = /<(button|a)\b[^>]*>[\s\S]*?<\/\1>/g;
 const CREATES = /\b(Create|Add|New)\b/;
 // what an add action that is no main create action shows instead of the plus
-const ADDS_A_THING = /fa-camera|fa-microphone/;
+const ADDS_A_THING = /fa-camera|fa-microphone|fa-cart-shopping/;
 const PLUS = 'sak-icon-plus';
 
 function shown(element: string): string {

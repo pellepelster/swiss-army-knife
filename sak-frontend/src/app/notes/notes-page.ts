@@ -12,13 +12,14 @@ import { RouterLink } from '@angular/router';
 import { PaginationControl } from '../shared/pagination';
 import { SettingsStore } from '../settings/settings-store';
 import { NoteCard } from './note-card';
-import { Note, NotesStore, Removal, UNDO_DELETE_MS } from './notes-store';
+import { UndoToast } from '../shared/undo-toast';
+import { Note, NotesStore, Removal } from './notes-store';
 import { RecordingOverlay } from './recording-overlay';
 
 // the notes as a wall of post-its, a page at a time, filtered by one label at a time
 @Component({
   selector: 'app-notes-page',
-  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink],
+  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink, UndoToast],
   styleUrl: './notes-page.scss',
   host: { class: 'd-block container-xl pb-md-5' },
   template: `
@@ -40,39 +41,42 @@ import { RecordingOverlay } from './recording-overlay';
         aria-hidden="true"
         (change)="addPhoto($any($event.target))"
       />
-      <button
-        type="button"
-        class="btn btn-outline-secondary d-none d-md-inline-block"
-        aria-label="New note with a photo"
-        title="New note with a photo"
-        [disabled]="addingPhoto()"
-        (click)="camera.click()"
-      >
-        @if (addingPhoto()) {
-          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-        } @else {
-          <i class="fa-solid fa-camera" aria-hidden="true"></i>
-        }
-      </button>
-      <button
-        type="button"
-        class="btn btn-outline-secondary d-none d-md-inline-block"
-        aria-label="New note with a recording"
-        title="New note with a recording"
-        [disabled]="store.recordingFor() !== null"
-        (click)="record()"
-      >
-        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary d-none d-md-inline-block"
-        aria-label="New note"
-        title="New note"
-        (click)="add()"
-      >
-        <i class="sak-icon-plus" aria-hidden="true"></i>
-      </button>
+      <!-- the actions of the page, on a phone the floating buttons -->
+      <div class="btn-group d-none d-md-inline-flex" role="group" aria-label="New notes">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          aria-label="New note with a photo"
+          title="New note with a photo"
+          [disabled]="addingPhoto()"
+          (click)="camera.click()"
+        >
+          @if (addingPhoto()) {
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
+          }
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          aria-label="New note with a recording"
+          title="New note with a recording"
+          [disabled]="store.recordingFor() !== null"
+          (click)="record()"
+        >
+          <i class="fa-solid fa-microphone" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          aria-label="New note"
+          title="New note"
+          (click)="add()"
+        >
+          <i class="sak-icon-plus" aria-hidden="true"></i>
+        </button>
+      </div>
     </header>
 
     <nav class="d-flex gap-2 pb-3 overflow-x-auto" aria-label="Filter by label">
@@ -177,17 +181,11 @@ import { RecordingOverlay } from './recording-overlay';
     </div>
 
     @for (removal of removed(); track removal) {
-      <div class="undo-toast toast show position-fixed bottom-0 start-0 m-3" role="status">
-        <div class="d-flex align-items-center gap-2 p-2 ps-3">
-          <span class="flex-grow-1">{{ removedText[removal.kind] }}</span>
-          <button type="button" class="btn btn-sm btn-primary" (click)="store.undoRemove()">
-            Undo
-          </button>
-        </div>
-        <div class="progress rounded-0" aria-hidden="true">
-          <div class="undo-toast-time progress-bar" [style.animation-duration.ms]="undoMs"></div>
-        </div>
-      </div>
+      <app-undo-toast
+        [text]="removedText[removal.kind]"
+        [aboveButtons]="true"
+        (undo)="store.undoRemove()"
+      />
     }
 
     <app-recording-overlay />
@@ -204,8 +202,6 @@ export class NotesPage {
   protected readonly offset = signal(0);
 
   protected readonly addingPhoto = signal(false);
-
-  protected readonly undoMs = UNDO_DELETE_MS;
 
   // what was removed last as long as it can be brought back; a list, so the bar showing the time
   // left starts anew for the next removal

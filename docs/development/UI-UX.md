@@ -16,7 +16,7 @@ line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the
   of the system and have no switch of their own.
 - **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the one
   that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what they
-  add, as its icon (a photo, a recording); their label and tooltip say what they do. A small inline link to add
+  add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A small inline link to add
   something (`+ label`) may start with a plus in its text.
 - **Destructive is red.** A button that destroys, deletes or removes something has the danger color. The button that
   does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
@@ -40,6 +40,10 @@ line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the
 - **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or
   cancelled. A delete asks inline, in the view itself.
 - **Copy to the clipboard** looks and behaves the same everywhere.
+- **Swipe between lists on a phone.** Where a page shows one of several lists, for example the grocery lists, a
+  swipe to the left shows the next list and one to the right the previous; dots under the name show where it is.
+  Arrows at the sides of the page do the same on larger screens; on a phone they stay for the keyboard and screen
+  readers only. A swipe never starts on a field or at the edge of the screen, where the system goes back.
 
 ## sakctl window
 

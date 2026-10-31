@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- a shopping basket in the orange of the notes, outlined in ink on paper white, with the swiss
+       army knife of the favicon in its corner -->
+  <rect width="108" height="108" rx="24" fill="#f4f1ea"/>
+  <g fill="none" stroke="#2b2a27" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 44 L48 20"/>
+    <path d="M72 44 L60 20"/>
+  </g>
+  <path d="M22 52 L86 52 L78 84 Q77 88 73 88 L35 88 Q31 88 30 84 Z" fill="#ffcc80" stroke="#2b2a27" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="16" y="42" width="76" height="12" rx="4" fill="#ffcc80" stroke="#2b2a27" stroke-width="3"/>
+  <g stroke="#2b2a27" stroke-width="3" stroke-linecap="round">
+    <path d="M42 60 L44 80"/>
+    <path d="M54 60 L54 80"/>
+    <path d="M66 60 L64 80"/>
+  </g>
+  <g transform="translate(52 52) scale(0.53125) rotate(-40 32 32)">
+    <path d="M44 22 L66 22 Q63 33 50 37 L44 37 Z" fill="#d7dbe2" stroke="#5b6170" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="0" y="20" width="50" height="26" rx="13" fill="#d52b1e" stroke="#8f1a12" stroke-width="2"/>
+    <rect x="21.5" y="25" width="7" height="16" rx="1" fill="#fff"/>
+    <rect x="17" y="29.5" width="16" height="7" rx="1" fill="#fff"/>
+  </g>
+</svg>

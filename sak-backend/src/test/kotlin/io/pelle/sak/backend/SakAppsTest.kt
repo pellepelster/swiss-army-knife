@@ -469,6 +469,43 @@ class SakAppsTest {
     }
 
     @Test
+    fun `keeps grocery lists, their items by category and suggestions of what was added before`() {
+        withServer { port ->
+            val session = signIn(port)
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.size shouldBe 0
+
+            // the first item makes the default list
+            val milk = post(port, "/api/v1/grocery/items", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session)
+            milk.statusCode() shouldBe 201
+            val listId = milk.json().string("listId")
+            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Apples","category":"FRUIT_VEGETABLES"}""", session).statusCode() shouldBe 201
+            post(port, "/api/v1/grocery/items", """{"name":"Milk","unit":"l"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"A unit needs an amount."}]}"""
+            }
+
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.let {
+                it.string("name") shouldBe "Default"
+                it.string("default") shouldBe "true"
+                it.string("mine") shouldBe "true"
+            }
+            get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
+                listOf("Apples", "Milk")
+            delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 409
+
+            val milkId = milk.json().string("id")
+            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY","checked":true}""", session).json().let {
+                it.string("checked") shouldBe "true"
+                it.string("amount") shouldBe "1.5"
+            }
+            delete(port, "/api/v1/grocery/lists/$listId/checked", session).statusCode() shouldBe 204
+            get(port, "/api/v1/grocery/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Milk"
+            get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
+                "Fruit & vegetables"
+        }
+    }
+
+    @Test
     fun `keeps notes with their labels`() {
         withServer { port ->
             val session = signIn(port)
@@ -935,6 +972,15 @@ class SakAppsTest {
                         "/api/v1/labels/{id}",
                         "/api/v1/notes",
                         "/api/v1/notes/{id}",
+                        "/api/v1/grocery/categories",
+                        "/api/v1/grocery/lists",
+                        "/api/v1/grocery/lists/{id}",
+                        "/api/v1/grocery/lists/{id}/items",
+                        "/api/v1/grocery/lists/{id}/checked",
+                        "/api/v1/grocery/items",
+                        "/api/v1/grocery/items/{id}",
+                        "/api/v1/grocery/suggestions",
+                        "/api/v1/grocery/suggestions/{id}",
                         "/api/v1/files",
                         "/api/v1/files/{id}",
                         "/api/v1/files/{id}/thumbnail",

@@ -5,6 +5,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
+import { UNDO_DELETE_MS } from '../shared/undo-toast';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 
@@ -53,7 +54,7 @@ export const MAX_LABELS = 10;
 export const SAVE_TEXT_AFTER_MS = 600;
 
 // how long a deleted note, photo or recording can be brought back before the backend removes it
-export const UNDO_DELETE_MS = 5000;
+export { UNDO_DELETE_MS };
 
 // labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
 // backend stores them the same way

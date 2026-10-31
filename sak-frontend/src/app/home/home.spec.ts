@@ -48,6 +48,7 @@ describe('Home', () => {
       );
     expect(tiles('Apps')).toEqual([
       ['Notes', '/notes'],
+      ['Grocery', '/grocery'],
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);

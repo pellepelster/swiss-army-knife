@@ -15,6 +15,12 @@ export const APPS: readonly AppEntry[] = [
     icon: 'icons/notes.svg',
   },
   {
+    path: '/grocery',
+    name: 'Grocery',
+    description: 'Shopping lists to share',
+    icon: 'icons/grocery.svg',
+  },
+  {
     path: '/static-hosting',
     name: 'Static hosting',
     description: 'Websites from S3 buckets',

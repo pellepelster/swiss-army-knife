@@ -25,6 +25,7 @@ import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
+import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.s3.api.s3
@@ -76,6 +77,7 @@ class SakServices(
     val redirectService: RedirectService,
     val labelService: LabelService,
     val noteService: NoteService,
+    val groceryService: GroceryService,
     val fileService: FileService,
     val fileTextService: FileTextService,
     // whether the domains of the buckets and the redirects point to the server
@@ -109,6 +111,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val fileService = FileService(database, filesDir(config))
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)
+    val groceryService = GroceryService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
@@ -129,6 +132,7 @@ fun Application.sak(config: SakConfig): SakServices {
             redirectService,
             labelService,
             noteService,
+            groceryService,
             fileService,
             fileTextService,
             HostingHealth(bucketService, domainCheck, config.addresses),

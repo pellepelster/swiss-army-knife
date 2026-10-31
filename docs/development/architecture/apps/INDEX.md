@@ -17,6 +17,7 @@ document in its own one.
 | Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `hosting/`   | `s3_buckets`, `s3_buckets_domains`                   | none     |
 | Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                          | none     |
 | Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files` | `notes`  |
+| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_items`, `grocery_products` | none     |
 | Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`            | `health/`    | none                                                 | none     |
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
@@ -74,7 +75,7 @@ The login, the settings, the labels and the file storage are no apps; all apps s
 
 ## List-based apps
 
-An app whose items belong to lists of the user keeps to these rules; the notes are such an app.
+An app whose items belong to lists of the user keeps to these rules; the notes and the grocery lists are such apps.
 
 - `LIST-1` **A default list.** A new item of a user without lists goes to the list "Default", which the creation of
   the item creates in the same transaction when it does not exist. It is unique among the live lists of the user and
@@ -90,8 +91,9 @@ An app whose items belong to lists of the user keeps to these rules; the notes a
   [AGENT.md](../../../../AGENT.md).
 - `FRONTEND-2` **The tabs of a detail view are child routes**, for example the tabs of a bucket or the scopes of the
   settings.
-- `FRONTEND-3` **Delete and undo.** A note, a photo or a recording of a note goes at once; a toast offers to bring it
-  back for 5 seconds, the backend deletes it afterwards.
+- `FRONTEND-3` **Delete and undo.** A note, a photo or a recording of a note, and a grocery item checked, take effect
+  at once; a toast centered at the bottom offers to undo it for 5 seconds, 1.5 for the grocery items, the backend
+  learns it afterwards.
 
 ## Privacy in the apps
 

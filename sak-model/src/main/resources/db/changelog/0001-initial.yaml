@@ -457,3 +457,101 @@ databaseChangeLog:
         - sql:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL
+
+        # the grocery lists of a user (LIST-1, LIST-2): every item is on one, the first item of a
+        # user creates the list "Default", which can not be deleted; a shared list is one of all
+        # users. The name is unique among the lists of an owner that are not deleted only
+        - createTable:
+            tableName: grocery_lists
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: shared
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX grocery_lists_owner_name_key ON grocery_lists (owner, name) WHERE deleted_at IS NULL
+
+        # the items of the grocery lists; owner is who added it, on a shared list another user than
+        # the owner of the list. An amount is positive, a unit needs one; a checked item records when
+        # and by whom, it stays on the list until it is deleted (GROCERY-2)
+        - sql:
+            sql: |
+              CREATE TABLE grocery_items (
+                id INTEGER NOT NULL PRIMARY KEY,
+                list_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(128) NOT NULL,
+                amount DECIMAL(10, 3),
+                unit VARCHAR(16),
+                category VARCHAR(32),
+                checked_at TIMESTAMP,
+                checked_by VARCHAR(254),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT grocery_items_list_id_fkey FOREIGN KEY (list_id) REFERENCES grocery_lists (id),
+                CONSTRAINT grocery_items_amount_check CHECK (amount IS NULL OR amount > 0),
+                CONSTRAINT grocery_items_unit_check CHECK (unit IS NULL OR amount IS NOT NULL),
+                CONSTRAINT grocery_items_category_check CHECK (category IS NULL OR category IN ('FRUIT_VEGETABLES', 'BAKERY', 'DAIRY', 'MEAT_FISH', 'PANTRY', 'FROZEN', 'DRINKS', 'HOUSEHOLD', 'OTHER')),
+                CONSTRAINT grocery_items_checked_check CHECK ((checked_at IS NULL AND checked_by IS NULL) OR (checked_at IS NOT NULL AND checked_by IS NOT NULL))
+              )
+        - createIndex:
+            tableName: grocery_items
+            indexName: grocery_items_list_id_idx
+            columns:
+              - column:
+                  name: list_id
+
+        # the products a user added, what the suggestions come from (GROCERY-7): the name as last
+        # written, the category and the quantity used last, how often and when last. One product of
+        # a name, in any case, among the ones of an owner that are not deleted
+        - sql:
+            sql: |
+              CREATE TABLE grocery_products (
+                id INTEGER NOT NULL PRIMARY KEY,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(128) NOT NULL,
+                amount DECIMAL(10, 3),
+                unit VARCHAR(16),
+                category VARCHAR(32),
+                times_used INTEGER NOT NULL,
+                last_used_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT grocery_products_amount_check CHECK (amount IS NULL OR amount > 0),
+                CONSTRAINT grocery_products_unit_check CHECK (unit IS NULL OR amount IS NOT NULL),
+                CONSTRAINT grocery_products_category_check CHECK (category IS NULL OR category IN ('FRUIT_VEGETABLES', 'BAKERY', 'DAIRY', 'MEAT_FISH', 'PANTRY', 'FROZEN', 'DRINKS', 'HOUSEHOLD', 'OTHER'))
+              )
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX grocery_products_owner_name_key ON grocery_products (owner, lower(name)) WHERE deleted_at IS NULL
