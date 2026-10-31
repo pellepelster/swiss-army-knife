@@ -135,16 +135,21 @@ fun Route.buckets(
     }
 
     delete("/{bucket}") {
-        when (withContext(Dispatchers.IO) { bucketService.delete(call.parameters["bucket"].orEmpty()) }) {
+        when (val result = withContext(Dispatchers.IO) { bucketService.delete(call.parameters["bucket"].orEmpty()) }) {
             DeleteBucketResult.Deleted -> call.respond(HttpStatusCode.NoContent)
             DeleteBucketResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            is DeleteBucketResult.Redirected ->
+                call.respondErrors(
+                    "Redirects lead to the bucket: ${result.sources.joinToString(", ")}. Delete them or change their target first.",
+                    status = HttpStatusCode.Conflict,
+                )
         }
     }.describe {
         tag(S3_TAG)
         summary = "Delete a bucket"
         description =
             "The bucket is no longer served and its key pair is refused. Its name stays taken and its objects stay " +
-            "in the storage until it is purged."
+            "in the storage until it is purged. A bucket that redirects lead to is not deleted."
         parameters {
             path("bucket") {
                 description = "The name of the bucket"
@@ -155,6 +160,7 @@ fun Route.buckets(
         responses {
             HttpStatusCode.NoContent { description = "The bucket is deleted" }
             HttpStatusCode.NotFound { description = "Unknown bucket" }
+            errors(HttpStatusCode.Conflict, "Redirects lead to the bucket, named in the message")
         }
     }
 

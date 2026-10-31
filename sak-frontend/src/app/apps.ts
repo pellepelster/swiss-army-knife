@@ -7,6 +7,11 @@ interface AppEntry {
   readonly icon: string;
 }
 
+// the page of the app of the name, e.g. /grocery for grocery; null for a name of no app
+export function appPath(name: string | null): string | null {
+  return name ? (APPS.find((app) => app.path === `/${name}`)?.path ?? null) : null;
+}
+
 export const APPS: readonly AppEntry[] = [
   {
     path: '/notes',

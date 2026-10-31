@@ -55,7 +55,9 @@ describe('Login', () => {
   };
 
   const click = async (harness: RouterTestingHarness, testId: string) => {
-    harness.routeNativeElement!.querySelector<HTMLAnchorElement>(`[data-testid=${testId}]`)!.click();
+    harness
+      .routeNativeElement!.querySelector<HTMLAnchorElement>(`[data-testid=${testId}]`)!
+      .click();
     await harness.fixture.whenStable();
   };
 
@@ -118,6 +120,20 @@ describe('Login', () => {
 
     expect(harness.routeNativeElement!.querySelector('[data-testid=use-password]')).toBeNull();
   });
+
+  // the app parameter names the app to open after signing in, an unknown one the start page; the
+  // page the login started from comes first
+  for (const [url, redirect] of [
+    ['/login?app=grocery', '/grocery'],
+    ['/login?app=nowhere', '/'],
+    ['/login?app=grocery&redirect=%2Fnotes', '/notes'],
+  ]) {
+    it(`signs in from ${url} for ${redirect}`, async () => {
+      const harness = await open(url, { email: false, password: true });
+      await fill(harness, '#password', 'a password of sixteen');
+      expect(http.expectOne('/api/v1/auth/login/password').request.body.redirect).toBe(redirect);
+    });
+  }
 
   it('signs the admin in with the password and goes where the login started', async () => {
     const harness = await open('/login?redirect=%2Fnotes', { email: false, password: true });

@@ -5,6 +5,8 @@ import io.pelle.sak.api.Page
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
+import io.pelle.sak.auth.LoginListener
+import io.pelle.sak.model.notes.DEFAULT_LIST
 import io.pelle.sak.model.notes.NoteRepository
 import io.pelle.sak.model.notes.NoteRow
 import java.time.Clock
@@ -59,6 +61,9 @@ sealed interface SaveNoteResult {
 
     data object NotFound : SaveNoteResult
 
+    // the owner has no list, they get one when they sign in (LIST-1)
+    data object NoList : SaveNoteResult
+
     data class Invalid(
         val problems: Set<NoteProblem>,
     ) : SaveNoteResult
@@ -78,7 +83,7 @@ class NoteService(
     private val repository: NoteRepository,
     private val labels: LabelService,
     private val files: FileService,
-) {
+) : LoginListener {
     constructor(
         database: SakDatabase,
         labels: LabelService,
@@ -91,6 +96,9 @@ class NoteService(
         // a label deleted without its links being dropped, the label service deletes it first
         repository.detachDeletedLabels()
     }
+
+    // the list of the notes of a user who has none (LIST-1)
+    override fun signedIn(owner: String) = repository.ensureList(owner, DEFAULT_LIST)
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
     fun page(
@@ -118,14 +126,17 @@ class NoteService(
         labelNames: Collection<String> = emptyList(),
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
-    ): SaveNoteResult =
-        when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
+    ): SaveNoteResult {
+        // before the check, which creates the labels not known yet
+        val listId = repository.ownList(owner) ?: return SaveNoteResult.NoList
+        return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
             is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
             is Checked.Valid -> {
-                val row = repository.insert(owner, text, checked.color.id, checked.labels.ids(), checked.files)
+                val row = repository.insert(owner, listId, text, checked.color.id, checked.labels.ids(), checked.files)
                 SaveNoteResult.Saved(row.toNote(checked.labels, checked.photos, checked.recordings))
             }
         }
+    }
 
     // replaces the text, the color, the labels, the photos and the recordings
     fun update(

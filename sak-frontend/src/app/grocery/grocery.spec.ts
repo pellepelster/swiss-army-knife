@@ -11,18 +11,16 @@ const categories = [
   { name: 'FRUIT_VEGETABLES', label: 'Fruit & vegetables' },
   { name: 'DAIRY', label: 'Dairy & eggs' },
 ];
-const defaultList = { id: 1, name: 'Default', shared: false, mine: true, default: true };
-const party = { id: 2, name: 'Party', shared: true, mine: false, default: false };
-const item = (id: number, name: string, category: string | null, checked = false) => ({
+const defaultList = { id: 1, name: 'Default', shared: false, mine: true };
+const party = { id: 2, name: 'Party', shared: true, mine: false };
+const item = (id: number, name: string, category: string | null) => ({
   id,
   listId: 1,
   name,
   amount: null,
   unit: null,
   category,
-  checked,
   // as the backend answers it
-  checkedAt: checked ? '2026-10-31T08:00:00.000Z' : null,
   createdAt: '2026-10-31T07:00:00.000Z',
   updatedAt: null,
 });
@@ -64,10 +62,17 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
   };
 
-  it('starts without a list, the first item makes the default list', async () => {
+  it('without a list there is no form to add an item, only the way to add a list', async () => {
     await load([]);
+    expect(page().textContent).toContain('You have no list yet, add one first.');
+    expect(page().textContent).not.toContain('Nothing to buy yet');
+    expect(page().querySelector('#item-name')).toBeNull();
+    expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
+  });
+
+  it('adds an item to the list shown', async () => {
+    await load([defaultList], []);
     expect(page().textContent).toContain('Nothing to buy yet, add something.');
-    expect(page().querySelector('#grocery-list')).toBeNull();
 
     await type('item-name', 'Milk');
     http.expectOne((request) => request.url === '/api/v1/grocery/suggestions').flush(pageOf([]));
@@ -76,15 +81,13 @@ describe('Grocery', () => {
     button('Add item').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/grocery/items' });
     expect(request.request.body).toEqual({
-      listId: null,
+      listId: 1,
       name: 'Milk',
       amount: null,
       unit: null,
       category: null,
     });
     request.flush(item(10, 'Milk', null));
-    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
-    await harness.fixture.whenStable();
     http
       .expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100')
       .flush(pageOf([item(10, 'Milk', null)]));
@@ -94,22 +97,16 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=item-10]')?.textContent).toContain('Milk');
   });
 
-  it('shows the items to buy by category, not the bought ones', async () => {
+  it('shows the items to buy by category', async () => {
     await load(
       [defaultList, party],
-      [
-        item(1, 'Apples', 'FRUIT_VEGETABLES'),
-        item(2, 'Milk', 'DAIRY'),
-        item(3, 'Candles', null),
-        item(4, 'Bread', null, true),
-      ],
+      [item(1, 'Apples', 'FRUIT_VEGETABLES'), item(2, 'Milk', 'DAIRY'), item(3, 'Candles', null)],
     );
 
     const groups = [...page().querySelectorAll('ul.list-group')].map((list) =>
       list.getAttribute('aria-label'),
     );
     expect(groups).toEqual(['Fruit & vegetables', 'Dairy & eggs', 'No category']);
-    expect(page().querySelector('[data-testid=item-4]')).toBeNull();
     expect(button('Edit list').getAttribute('href')).toBe('/grocery/lists/1/edit');
   });
 
@@ -135,21 +132,13 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(struck()).toBe(false);
     expect(page().querySelector('[role=status]')).toBeNull();
-    http.expectNone({ method: 'PUT' });
+    http.expectNone({ method: 'DELETE' });
 
-    // bought for good once the time is up, with the values of the item only
+    // bought for good once the time is up: the item is deleted
     input('item-2').click();
     await harness.fixture.whenStable();
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
-    const check = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2' });
-    expect(check.request.body).toEqual({
-      name: 'Milk',
-      amount: null,
-      unit: null,
-      category: 'DAIRY',
-      checked: true,
-    });
-    check.flush(item(2, 'Milk', 'DAIRY', true));
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2' }).flush(null);
     await harness.fixture.whenStable();
     // gone once the time is up
     expect(page().querySelector('[data-testid=item-2]')).toBeNull();
@@ -160,9 +149,7 @@ describe('Grocery', () => {
     expect(page().querySelector('[role=status]')?.textContent).toContain('Candles bought');
     expect(page().querySelector('[aria-label="Remove Candles"]')).toBeNull();
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
-    http
-      .expectOne({ method: 'PUT', url: '/api/v1/grocery/items/3' })
-      .flush(item(3, 'Candles', null, true));
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/3' }).flush(null);
     await harness.fixture.whenStable();
     expect(page().textContent).toContain('Nothing to buy yet, add something.');
     expect(page().querySelector('[role=status]')).toBeNull();
@@ -263,11 +250,11 @@ describe('Grocery', () => {
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 
-  it('the default list keeps its name and has no delete', async () => {
+  it('the list of the sign-in is renamed and deleted like the others', async () => {
     await open('/grocery/lists/1/edit');
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
     await harness.fixture.whenStable();
-    expect(input('list-name').readOnly).toBe(true);
-    expect(button('Delete list')).toBeUndefined();
+    expect(input('list-name').readOnly).toBe(false);
+    expect(button('Delete list')).toBeDefined();
   });
 });

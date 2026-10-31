@@ -27,6 +27,16 @@ class RedirectRepository(
             .fetchOne()
             ?.toRedirect()
 
+    // the source domains of the redirects that lead to the bucket, by name
+    fun sourcesTo(bucket: String): List<String> =
+        database.dsl
+            .select(REDIRECTS.SOURCE_DOMAIN)
+            .from(REDIRECTS)
+            .where(REDIRECTS.TARGET_BUCKET.eq(bucket), REDIRECTS.DELETED_AT.isNull)
+            .orderBy(REDIRECTS.SOURCE_DOMAIN)
+            .fetch(REDIRECTS.SOURCE_DOMAIN)
+            .filterNotNull()
+
     // null when the source has a redirect already, one that is not deleted
     fun insert(
         sourceDomain: String,

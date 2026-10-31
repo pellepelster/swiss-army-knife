@@ -65,6 +65,8 @@ private fun NoteProblem.message() =
         NoteProblem.TOO_MANY_RECORDINGS -> "A note can have at most ${NoteService.MAX_RECORDINGS} recordings."
     }
 
+private const val NO_LIST = "You have no list of notes yet, sign in again to get one."
+
 private suspend fun RoutingCall.respondSaved(
     result: SaveNoteResult,
     created: Boolean = false,
@@ -72,6 +74,7 @@ private suspend fun RoutingCall.respondSaved(
     when (result) {
         is SaveNoteResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
         SaveNoteResult.NotFound -> respond(HttpStatusCode.NotFound)
+        SaveNoteResult.NoList -> respondErrors(NO_LIST, status = HttpStatusCode.Conflict)
         is SaveNoteResult.Invalid -> respondErrors(*result.problems.sorted().map { it.message() }.toTypedArray())
     }
 
@@ -124,6 +127,7 @@ fun Route.notes(noteService: NoteService) {
                 schema = jsonSchema<NoteResponse>()
             }
             errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
+            errors(HttpStatusCode.Conflict, "The user has no list of notes, they get one when they sign in")
         }
     }
 

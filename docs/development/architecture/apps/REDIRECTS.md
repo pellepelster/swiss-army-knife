@@ -34,6 +34,7 @@ None.
 ## Decisions
 
 - `REDIRECTS-3` **A bucket as the target** follows the bucket: a redirect leads to where the bucket is served now.
+  The bucket can not be deleted while the redirect leads to it (`HOSTING-11`).
 - `REDIRECTS-4` **A redirected domain** is no domain of the apps and of no bucket (refer to [the architecture of the
   apps](INDEX.md#shared-parts)).
 - `REDIRECTS-5` **Caddy is configured right away** after every change, not only at the next period.

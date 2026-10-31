@@ -33,7 +33,8 @@ class FileRepository(
             .map { it.toFile() }
             .associateBy { it.id }
 
-    // the file with the text, null when there is none
+    // the file with the text, null when there is none; the backend finds the text on its own, so
+    // there is no user to check (MODEL-6)
     fun updateDiscovered(
         id: Int,
         text: String,

@@ -24,11 +24,11 @@ import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.grocery.model.GroceryCategoryResponse
 import io.pelle.sak.backend.grocery.model.GroceryItemRequest
+import io.pelle.sak.backend.grocery.model.GroceryNewItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.GroceryListResponse
 import io.pelle.sak.backend.grocery.model.GrocerySuggestionResponse
-import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryList
 import io.pelle.sak.model.grocery.GroceryProduct
@@ -41,17 +41,18 @@ private const val GROCERY_TAG = "grocery"
 
 private const val LIST_EXISTS = "A list of the name exists."
 
-private const val DEFAULT_LIST_KEPT = "The default list keeps its name and can not be deleted."
 
 private fun GroceryList.response(user: String) =
-    GroceryListResponse(id, name, shared, owner == user, owner == user && name == DEFAULT_GROCERY_LIST, createdAt.apiTime(), updatedAt?.apiTime())
+    GroceryListResponse(id, name, shared, owner == user, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
-    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, checkedAt != null, checkedAt?.apiTime(), createdAt.apiTime(), updatedAt?.apiTime())
+    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryProduct.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, category)
 
 private fun GroceryItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, category)
+
+private fun GroceryNewItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, category)
 
 private suspend fun ApplicationCall.respondList(result: GroceryListResult) =
     when (result) {
@@ -59,7 +60,6 @@ private suspend fun ApplicationCall.respondList(result: GroceryListResult) =
         is GroceryListResult.Invalid -> respondErrors(result.errors)
         GroceryListResult.NotFound -> respond(HttpStatusCode.NotFound)
         GroceryListResult.Exists -> respondErrors(LIST_EXISTS, status = HttpStatusCode.Conflict)
-        GroceryListResult.Default -> respondErrors(DEFAULT_LIST_KEPT, status = HttpStatusCode.Conflict)
     }
 
 private suspend fun ApplicationCall.respondItem(
@@ -102,7 +102,7 @@ fun Route.grocery(groceryService: GroceryService) {
         }.describe {
             tag(GROCERY_TAG)
             summary = "The grocery lists"
-            description = "The lists of the signed in user, the default one first, and the shared lists of the others."
+            description = "The lists of the signed in user and the shared lists of the others, by name."
             parameters { pagination() }
             responses {
                 HttpStatusCode.OK {
@@ -141,7 +141,7 @@ fun Route.grocery(groceryService: GroceryService) {
         }.describe {
             tag(GROCERY_TAG)
             summary = "Rename or share a grocery list"
-            description = "Only its owner changes a list; the default list keeps its name."
+            description = "Only its owner changes a list."
             parameters { listId() }
             requestBody {
                 required = true
@@ -154,23 +154,22 @@ fun Route.grocery(groceryService: GroceryService) {
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or a malformed request")
                 HttpStatusCode.NotFound { description = "The user has no such list" }
-                errors(HttpStatusCode.Conflict, "Another list has the name, or the default list was to be renamed")
+                errors(HttpStatusCode.Conflict, "Another list of the user has the name")
             }
         }
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            val result = withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }
-            if (result is GroceryListResult.Saved) call.respond(HttpStatusCode.NoContent) else call.respondList(result)
+            val deleted = withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }
+            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a grocery list"
-            description = "Its items go with it; only its owner deletes a list, the default list is never deleted."
+            description = "Its items go with it; only its owner deletes a list."
             parameters { listId() }
             responses {
                 HttpStatusCode.NoContent { description = "The list is gone" }
                 HttpStatusCode.NotFound { description = "The user has no such list" }
-                errors(HttpStatusCode.Conflict, "The default list")
             }
         }
 
@@ -183,7 +182,7 @@ fun Route.grocery(groceryService: GroceryService) {
             }
         }.describe {
             tag(GROCERY_TAG)
-            summary = "The items of a grocery list"
+            summary = "The items to buy of a grocery list"
             description = "The ones to buy first, by their category, the ones without one last; the bought ones after them."
             parameters {
                 listId()
@@ -191,26 +190,10 @@ fun Route.grocery(groceryService: GroceryService) {
             }
             responses {
                 HttpStatusCode.OK {
-                    description = "A page of the items"
+                    description = "A page of the items to buy"
                     schema = jsonSchema<PageResponse<GroceryItemResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid page")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
-            }
-        }
-
-        delete("/{id}/checked") {
-            val id = call.idParameter() ?: return@delete
-            when (withContext(Dispatchers.IO) { groceryService.clearChecked(call.owner, id) }) {
-                null -> call.respond(HttpStatusCode.NotFound)
-                else -> call.respond(HttpStatusCode.NoContent)
-            }
-        }.describe {
-            tag(GROCERY_TAG)
-            summary = "Delete the bought items of a grocery list"
-            parameters { listId() }
-            responses {
-                HttpStatusCode.NoContent { description = "The bought items are gone" }
                 HttpStatusCode.NotFound { description = "The user sees no such list" }
             }
         }
@@ -218,22 +201,22 @@ fun Route.grocery(groceryService: GroceryService) {
 
     route("/items") {
         post {
-            val request = call.receive<GroceryItemRequest>()
+            val request = call.receive<GroceryNewItemRequest>()
             call.respondItem(withContext(Dispatchers.IO) { groceryService.addItem(call.owner, request.listId, request.input()) }, created = true)
         }.describe {
             tag(GROCERY_TAG)
             summary = "Add an item to a grocery list"
-            description = "Without a list the item goes to the default list of the user, which is made when there is none."
+            description = "An item names its list, one the user sees."
             requestBody {
                 required = true
-                schema = jsonSchema<GroceryItemRequest>()
+                schema = jsonSchema<GroceryNewItemRequest>()
             }
             responses {
                 HttpStatusCode.Created {
                     description = "The new item"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request")
+                errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request, e.g. without a list")
                 HttpStatusCode.NotFound { description = "The user sees no such list" }
             }
         }
@@ -241,10 +224,10 @@ fun Route.grocery(groceryService: GroceryService) {
         put("/{id}") {
             val id = call.idParameter() ?: return@put
             val request = call.receive<GroceryItemRequest>()
-            call.respondItem(withContext(Dispatchers.IO) { groceryService.updateItem(call.owner, id, request.input(), request.checked) })
+            call.respondItem(withContext(Dispatchers.IO) { groceryService.updateItem(call.owner, id, request.input()) })
         }.describe {
             tag(GROCERY_TAG)
-            summary = "Change or check an item"
+            summary = "Change an item"
             parameters { itemId() }
             requestBody {
                 required = true
@@ -266,7 +249,8 @@ fun Route.grocery(groceryService: GroceryService) {
             call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
         }.describe {
             tag(GROCERY_TAG)
-            summary = "Delete an item"
+            summary = "Check an item"
+            description = "The item is bought: it is deleted and the list no longer shows it."
             parameters { itemId() }
             responses {
                 HttpStatusCode.NoContent { description = "The item is gone" }

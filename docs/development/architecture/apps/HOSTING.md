@@ -46,6 +46,9 @@ None. The health of the domains asks name servers directly (refer to
   [FDR-004](../../fdr/FDR-004-maintenance-cleanup.md)); it is served nowhere and its key pair is refused.
 - `HOSTING-10` **A domain of a bucket** is no domain of the apps and not redirected (refer to [the architecture of the
   apps](INDEX.md#shared-parts)).
+- `HOSTING-11` **A bucket that redirects lead to is not deleted.** The delete names the redirects; the user deletes
+  them or changes their target first. A deleted bucket keeps its name (`HOSTING-9`), so a redirect to it could never
+  lead anywhere again. `DomainRegistry` tells the buckets of the redirects.
 
 ## Related
 

@@ -10,9 +10,6 @@ data class GroceryItemResponse(
     val amount: Double?,
     val unit: String?,
     val category: String?,
-    val checked: Boolean,
-    // when it was bought, missing while it is to buy
-    val checkedAt: String?,
     val createdAt: String,
     // missing until it is changed
     val updatedAt: String?,

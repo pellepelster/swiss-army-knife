@@ -11,6 +11,9 @@ Read this file first. It contains rules for the complete repository.
   A link between documents that does not resolve fails `mise run docs:build`.
 - Never create a Feature Decision Record (`docs/development/fdr/`) on your own; write one only when the user asks for
   it. Keeping an existing FDR current when its feature changes is still required.
+- Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
+  finding has an id that is unique in the repository, the prefix of its review and a number (e.g. `MR-3`, the
+  third finding of a review of the model); never use an id again, also not when its finding is fixed or removed.
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
@@ -58,11 +61,12 @@ the same commit and says why. A rule two apps need moves up to apps/INDEX.md. Ev
   checks it):
     - `created_at` is set when the row is inserted, never null;
     - `updated_at` is null until the row really changes, an insert never sets it;
-    - `deleted_at` is null until the row is deleted, a delete sets nothing else.
+    - `deleted_at` is null until the row is deleted.
 - Every table, link tables included, has a not null `owner` (`MODEL-5`, `SchemaTest` checks it): an insert takes it
   from its caller, a route from `call.owner` (`sak-auth`), the backend on its own `SYSTEM_OWNER`; no update sets it.
 - Soft delete (architecture/SYSTEM.md, "Model"): every read skips the rows with `deleted_at` set, a value unique among
   the live rows has a partial unique index (`WHERE deleted_at IS NULL`).
+- Access (`MODEL-6`): a repository method on the data of a user takes the user and checks the access in its sql.
 - The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
   no repository method takes a time or an entity built outside, inserts and updates take the
   fields and answer the row as it is stored.
@@ -176,3 +180,4 @@ the same commit and says why. A rule two apps need moves up to apps/INDEX.md. Ev
 - [docs/development/architecture/SYSTEM.md](docs/development/architecture/SYSTEM.md) — how SAK is built, the first
   of the three levels of the architecture.
 - `docs/development/fdr/INDEX.md` — Swiss Army Knife feature behavior and rationale.
+- `docs/development/reviews/` — the reviews, each finding with its unique id.

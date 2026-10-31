@@ -31,17 +31,6 @@ function without(ids: ReadonlySet<number>, id: number): ReadonlySet<number> {
   return new Set([...ids].filter((each) => each !== id));
 }
 
-// the values of an item as the backend takes them, no other fields
-function values(item: GroceryItem, checked: boolean) {
-  return {
-    name: item.name,
-    amount: item.amount,
-    unit: item.unit,
-    category: item.category,
-    checked,
-  };
-}
-
 // a swipe of the lists: how far to the side at least, how long at most, and the edges of the
 // screen it does not start at
 const SWIPE_DISTANCE = 60;
@@ -55,9 +44,8 @@ interface ItemGroup {
 }
 
 // a grocery list with its items to buy by category, a bought item is struck through while it can be
-// undone and goes afterwards; a new item goes to the list
-// shown, to the default list while the user has none, which the first item makes. The suggestions
-// are the items added before
+// undone and goes afterwards; a new item goes to the list shown, a user without a list creates one
+// first (they get one when they sign in). The suggestions are the items added before
 @Component({
   selector: 'app-grocery-page',
   imports: [NgTemplateOutlet, RouterLink, UndoToast],
@@ -172,46 +160,50 @@ interface ItemGroup {
       </button>
     }
 
-    <form class="card card-body mb-4" (submit)="$event.preventDefault(); add()">
-      <label class="form-label" for="item-name">Item</label>
-      <div class="input-group">
-        <input
-          #name
-          id="item-name"
-          class="form-control"
-          list="grocery-suggestions"
-          autocomplete="off"
-          maxlength="128"
-          [value]="itemName()"
-          (input)="typed(name.value)"
-        />
-        <button class="btn btn-primary" type="submit" [disabled]="!itemName().trim() || adding()">
-          @if (adding()) {
-            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-          } @else {
-            <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+    @if (shown()) {
+      <form class="card card-body mb-4" (submit)="$event.preventDefault(); add()">
+        <label class="form-label" for="item-name">Item</label>
+        <div class="input-group">
+          <input
+            #name
+            id="item-name"
+            class="form-control"
+            list="grocery-suggestions"
+            autocomplete="off"
+            maxlength="128"
+            [value]="itemName()"
+            (input)="typed(name.value)"
+          />
+          <button class="btn btn-primary" type="submit" [disabled]="!itemName().trim() || adding()">
+            @if (adding()) {
+              <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+            } @else {
+              <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+            }
+            Add item
+          </button>
+        </div>
+        <datalist id="grocery-suggestions">
+          @for (suggestion of suggestions(); track suggestion.id) {
+            <option [value]="suggestion.name"></option>
           }
-          Add item
-        </button>
-      </div>
-      <datalist id="grocery-suggestions">
-        @for (suggestion of suggestions(); track suggestion.id) {
-          <option [value]="suggestion.name"></option>
-        }
-      </datalist>
-    </form>
+        </datalist>
+      </form>
 
-    @for (group of toBuy(); track group.label) {
-      <h2 class="h6 text-body-secondary mt-3">{{ group.label }}</h2>
-      <ul class="list-group mb-3" [attr.aria-label]="group.label">
-        @for (item of group.items; track item.id) {
-          <ng-container *ngTemplateOutlet="row; context: { $implicit: item }"></ng-container>
-        }
-      </ul>
-    }
+      @for (group of toBuy(); track group.label) {
+        <h2 class="h6 text-body-secondary mt-3">{{ group.label }}</h2>
+        <ul class="list-group mb-3" [attr.aria-label]="group.label">
+          @for (item of group.items; track item.id) {
+            <ng-container *ngTemplateOutlet="row; context: { $implicit: item }"></ng-container>
+          }
+        </ul>
+      }
 
-    @if (loaded() && !toBuy().length) {
-      <p class="text-center text-body-secondary fs-4 py-5">Nothing to buy yet, add something.</p>
+      @if (loaded() && !toBuy().length) {
+        <p class="text-center text-body-secondary fs-4 py-5">Nothing to buy yet, add something.</p>
+      }
+    } @else if (loaded()) {
+      <p class="text-center text-body-secondary fs-4 py-5">You have no list yet, add one first.</p>
     }
 
     <ng-template #row let-item>
@@ -292,7 +284,7 @@ export class GroceryPage {
   // the items to buy by category, in the order of the categories, the ones without one last
   protected readonly toBuy = computed<ItemGroup[]>(() => {
     const groups = new Map<string, ItemGroup>();
-    for (const item of this.items().filter((each) => !each.checked)) {
+    for (const item of this.items()) {
       const label =
         this.categories().find((each) => each.name === item.category)?.label ?? 'No category';
       if (!groups.has(label)) groups.set(label, { label, items: [] });
@@ -397,10 +389,10 @@ export class GroceryPage {
     const unit = this.itemUnit().trim() || null;
     this.adding.set(true);
     this.error.set(null);
-    const firstItem = this.shown() === null;
+    const list = this.shown();
+    if (!list) return;
     this.service
-      .addItem({
-        listId: this.shown()?.id ?? null,
+      .addItem(list.id, {
         name,
         amount,
         unit,
@@ -415,9 +407,7 @@ export class GroceryPage {
           this.itemUnit.set('');
           this.itemCategory.set(null);
           this.suggestions.set([]);
-          // the first item made the default list
-          if (firstItem) this.loadLists();
-          else this.loadItems(this.shown());
+          this.loadItems(this.shown());
         },
         error: (error: unknown) => {
           this.adding.set(false);
@@ -439,10 +429,7 @@ export class GroceryPage {
       () => {
         this.struck.update((ids) => without(ids, item.id));
         this.items.update((items) => items.filter((each) => each.id !== item.id));
-        this.send(
-          this.service.updateItem(item.id, values(item, true)),
-          'The item could not be checked.',
-        );
+        this.send(this.service.deleteItem(item.id), 'The item could not be checked.');
       },
       () => this.struck.update((ids) => without(ids, item.id)),
     );

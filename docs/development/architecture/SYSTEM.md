@@ -78,6 +78,11 @@ The backend serves apps to its users, for example static hosting and notes. How 
   user, `admin` for the admin of the password login without an address, or `system` when the backend created it on its
   own, for example a setting it generates. A request of sakctl acts as the admin of the password login, so what it
   creates is theirs. The owner is set once, when the row is inserted, and never changes.
+- `MODEL-6` **Access is checked in the repository.** A repository method on the data of a user takes the user, and
+  the check of who sees or changes the row is in its sql, so a caller can not forget it and no other change comes
+  between the check and the read or the change. The service checks the values, never the access. The exceptions are
+  the data of the whole deployment, which only the role `admin` reaches (the buckets, the redirects, the settings),
+  and the work the backend does on its own (e.g. the text found in a file).
 
 ## External systems
 

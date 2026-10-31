@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.hosting.HostingHealth
 import io.pelle.sak.backend.redirects.RedirectsHealth
 import io.pelle.sak.dns.DnsjavaNameServer
@@ -83,7 +84,10 @@ class SakServices(
     // whether the domains of the buckets and the redirects point to the server
     val hostingHealth: HostingHealth,
     val redirectsHealth: RedirectsHealth,
-)
+) {
+    // the apps that prepare the data of a user who signs in, e.g. their first list (SHARED-5)
+    val loginListeners: List<LoginListener> get() = listOf(noteService, groceryService)
+}
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the
 // notes, the records of the files and the settings

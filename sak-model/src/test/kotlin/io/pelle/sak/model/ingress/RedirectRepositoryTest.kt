@@ -69,6 +69,20 @@ class RedirectRepositoryTest {
     }
 
     @Test
+    fun `tells the live redirects that lead to a bucket`() {
+        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        val repository = RedirectRepository(database)
+        repository.insert("www.example.com", RedirectTarget.Bucket("site"), owner = OWNER)
+        repository.insert("example.com", RedirectTarget.Bucket("site"), owner = OWNER)
+        repository.insert("example.org", RedirectTarget.Domain("site"), owner = OWNER)
+        repository.insert("old.example.com", RedirectTarget.Bucket("site"), owner = OWNER)
+        repository.delete("old.example.com")
+
+        repository.sourcesTo("site") shouldBe listOf("example.com", "www.example.com")
+        repository.sourcesTo("other") shouldBe emptyList()
+    }
+
+    @Test
     fun `a redirect records who created it`() {
         val repository = RedirectRepository(database)
         repository.insert("example.com", RedirectTarget.Domain("example.org"), owner = OWNER)!!.owner shouldBe OWNER

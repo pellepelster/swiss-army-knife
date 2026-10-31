@@ -4,8 +4,8 @@ import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../shared/api';
 import { GroceryList, GroceryService } from './grocery.service';
 
-// creates a grocery list, or renames, shares and deletes one of the user, on a page of its own;
-// the default list keeps its name and is never deleted. Afterwards the list shows
+// creates a grocery list, or renames, shares and deletes one of the user, on a page of its own.
+// Afterwards the list shows
 @Component({
   selector: 'app-grocery-list-form',
   imports: [RouterLink],
@@ -36,13 +36,9 @@ import { GroceryList, GroceryService } from './grocery.service';
             class="form-control"
             maxlength="64"
             autocomplete="off"
-            [readOnly]="list()?.default"
             [value]="name()"
             (input)="name.set(nameField.value)"
           />
-          @if (list()?.default) {
-            <span class="form-text">The default list keeps its name.</span>
-          }
         </div>
         <div class="form-check form-switch">
           <input
@@ -73,7 +69,7 @@ import { GroceryList, GroceryService } from './grocery.service';
         </div>
       </form>
 
-      @if (list() && !list()!.default) {
+      @if (list()) {
         <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mt-3">
           @if (confirming()) {
             <span class="small">Delete the list and its items?</span>

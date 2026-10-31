@@ -15,8 +15,6 @@ export interface GroceryList {
   shared: boolean;
   // of the signed in user, who renames, shares and deletes it
   mine: boolean;
-  // the default list, which keeps its name and is never deleted
-  default: boolean;
 }
 
 export interface GroceryItem {
@@ -26,17 +24,14 @@ export interface GroceryItem {
   amount: number | null;
   unit: string | null;
   category: string | null;
-  checked: boolean;
 }
 
-// what is given of an item, a new one goes to the default list without a list
+// what is given of an item
 export interface GroceryItemValues {
-  listId?: number | null;
   name: string;
   amount: number | null;
   unit: string | null;
   category: string | null;
-  checked?: boolean;
 }
 
 // an item added before, with the quantity and the category used last
@@ -78,20 +73,17 @@ export class GroceryService {
     return fetchAll<GroceryItem>(this.http, `/api/v1/grocery/lists/${listId}/items`);
   }
 
-  addItem(values: GroceryItemValues): Observable<GroceryItem> {
-    return this.http.post<GroceryItem>('/api/v1/grocery/items', values);
+  addItem(listId: number, values: GroceryItemValues): Observable<GroceryItem> {
+    return this.http.post<GroceryItem>('/api/v1/grocery/items', { listId, ...values });
   }
 
   updateItem(id: number, values: GroceryItemValues): Observable<GroceryItem> {
     return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}`, values);
   }
 
+  // checks the item: it is bought and deleted
   deleteItem(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/grocery/items/${id}`);
-  }
-
-  clearChecked(listId: number): Observable<void> {
-    return this.http.delete<void>(`/api/v1/grocery/lists/${listId}/checked`);
   }
 
   // the items added before whose name contains the text, the ones to buy on the list left out

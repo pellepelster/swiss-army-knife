@@ -47,9 +47,13 @@ class AuthRoutesTest {
 
     private val rolesOf = { email: String -> if (email == "admin@example.org") setOf(Role.ADMIN) else emptySet() }
 
+    // the owners the login listener was told of
+    private val signedIn = mutableListOf<String>()
+
     private fun authTest(
         loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
         linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
+        onLogin: LoginListener = LoginListener { signedIn += it },
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
@@ -66,6 +70,7 @@ class AuthRoutesTest {
                         rolesOf,
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
+                        onLogin = onLogin,
                     )
                 }
             }
@@ -106,8 +111,10 @@ class AuthRoutesTest {
             link.parameters.names() shouldBe setOf("token")
             val token = link.parameters["token"]!!
 
+            signedIn shouldBe emptyList()
             val exchange = client.exchange(token)
             exchange.status shouldBe HttpStatusCode.OK
+            signedIn shouldBe listOf("admin@example.org")
             exchange.headers["Cache-Control"] shouldBe "no-store"
             val session = exchange.bodyAsText().json()
             session.string("email") shouldBe "admin@example.org"
@@ -120,6 +127,16 @@ class AuthRoutesTest {
             me.bodyAsText().json()["roles"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
 
             client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
+            signedIn shouldBe listOf("admin@example.org")
+        }
+
+    @Test
+    fun `a login listener that fails does not fail the sign-in`() =
+        authTest(onLogin = { error("no list") }) {
+            client.login("admin@example.org").status shouldBe HttpStatusCode.Accepted
+            val token = receiveLink().parameters["token"]!!
+
+            client.exchange(token).status shouldBe HttpStatusCode.OK
         }
 
     @Test

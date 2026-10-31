@@ -3,6 +3,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { appPath } from '../apps';
 import { AuthService, LoginMethods } from '../auth/auth.service';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
@@ -53,7 +54,11 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
             </form>
             @if (methods()!.email) {
               <p class="mt-3 mb-0 text-center">
-                <a href="" (click)="$event.preventDefault(); usePassword(false)" data-testid="use-email">
+                <a
+                  href=""
+                  (click)="$event.preventDefault(); usePassword(false)"
+                  data-testid="use-email"
+                >
                   Sign in with an e-mail link
                 </a>
               </p>
@@ -79,7 +84,11 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
             </form>
             @if (methods()!.password) {
               <p class="mt-3 mb-0 text-center">
-                <a href="" (click)="$event.preventDefault(); usePassword(true)" data-testid="use-password">
+                <a
+                  href=""
+                  (click)="$event.preventDefault(); usePassword(true)"
+                  data-testid="use-password"
+                >
                   Sign in with password
                 </a>
               </p>
@@ -107,7 +116,11 @@ export class Login {
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly redirect = inject(ActivatedRoute).snapshot.queryParamMap.get('redirect');
+  private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
+
+  // where to go after signing in: the page the login started from, else the app of the app
+  // parameter, a short form for links and bookmarks (/login?app=grocery); else the start page
+  private readonly redirect = this.params.get('redirect') ?? appPath(this.params.get('app'));
 
   protected readonly email = new FormControl('', {
     nonNullable: true,

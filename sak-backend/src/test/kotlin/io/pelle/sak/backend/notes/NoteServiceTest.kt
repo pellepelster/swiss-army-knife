@@ -37,7 +37,8 @@ class NoteServiceTest {
 
     private val files by lazy { FileService(database, tempDir.resolve("files"), clock) }
 
-    private val service by lazy { NoteService(database, labels, files, clock) }
+    // both users signed in once, so they have their list (LIST-1)
+    private val service by lazy { NoteService(database, labels, files, clock).also { listOf(PELLE, OTHER).forEach(it::signedIn) } }
 
     private fun photo(content: String) =
         (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
@@ -53,6 +54,15 @@ class NoteServiceTest {
 
     private fun later(minutes: Long = 1) {
         clock.now = clock.now.plusSeconds(minutes * 60)
+    }
+
+    @Test
+    fun `a user gets their list when they sign in, before that a note can not be created`() {
+        service.create(NEWCOMER, "milk", "yellow", listOf("todo")) shouldBe SaveNoteResult.NoList
+        labels.byName(NEWCOMER, "todo") shouldBe null
+        service.signedIn(NEWCOMER)
+        service.signedIn(NEWCOMER)
+        create("milk", owner = NEWCOMER).owner shouldBe NEWCOMER
     }
 
     @Test
@@ -233,5 +243,8 @@ class NoteServiceTest {
         private const val PELLE = "pelle@pelle.io"
 
         private const val OTHER = "other@example.org"
+
+        // a user who has not signed in yet
+        private const val NEWCOMER = "newcomer@example.org"
     }
 }

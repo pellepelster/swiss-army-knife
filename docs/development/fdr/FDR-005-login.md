@@ -8,7 +8,7 @@ weight: 5
 # FDR-005: Login
 
 **Status:** Active
-**Last reviewed:** 2026-10-29
+**Last reviewed:** 2026-10-31
 
 ## Overview
 
@@ -32,6 +32,11 @@ created or deployed:
   and is the same user with the same data whether signed in with the password or by e-mail.
 - **Who is signed in.** The page shows the user the backend takes the session for (`GET /api/v1/auth/who-am-i`):
   `admin` for a password login, else the e-mail address.
+- **Where the login leads.** After signing in, by password or by e-mail, the page the login started from opens,
+  else the app a link names (`/login?app=grocery`, only the apps of the start page), else the start page.
+- **The apps prepare the user.** Each sign-in, by password or by e-mail, lets the apps prepare the data of the user
+  before the page opens, e.g. a first grocery list for a user who has none. A failure there does not stop the
+  sign-in.
 - **Limits.** A client tries only a few passwords an hour, and the server only a few more altogether. A wrong
   password tells nothing but that it is wrong.
 - **sakctl** asks for the user mode, in the window and on the command line (`--user-mode single|multi`). Multi

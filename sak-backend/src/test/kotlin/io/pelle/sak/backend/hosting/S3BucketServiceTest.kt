@@ -164,4 +164,21 @@ class S3BucketServiceTest {
         service.create("site", owner = "admin@example.org") shouldBe CreateBucketResult.NameTaken
         service.create("other", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
     }
+
+    @Test
+    fun `a bucket that redirects lead to is not deleted`() {
+        service.create("site", listOf("example.com"), owner = "admin@example.org")
+        val redirects = RedirectRepository(database)
+        redirects.insert("www.example.com", RedirectTarget.Bucket("site"), owner = "admin@example.org")
+        redirects.insert("example.net", RedirectTarget.Bucket("site"), owner = "admin@example.org")
+        changes.clear()
+
+        service.delete("site") shouldBe DeleteBucketResult.Redirected(listOf("example.net", "www.example.com"))
+        service.byName("site") shouldNotBe null
+        changes shouldBe emptyList()
+
+        redirects.delete("www.example.com")
+        redirects.update("example.net", RedirectTarget.Domain("example.org"))
+        service.delete("site") shouldBe DeleteBucketResult.Deleted
+    }
 }

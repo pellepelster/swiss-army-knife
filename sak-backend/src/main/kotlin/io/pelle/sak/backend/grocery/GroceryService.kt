@@ -1,18 +1,20 @@
 package io.pelle.sak.backend.grocery
 
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.grocery.GroceryList
+import io.pelle.sak.model.grocery.GroceryListUpdate
 import io.pelle.sak.model.grocery.GroceryProduct
 import io.pelle.sak.model.grocery.GroceryRepository
 import java.math.BigDecimal
 import java.time.Clock
 
-// the fixed categories of the items, in the order a list shows them (GROCERY-6); the schema takes
-// these names only
+// the fixed categories of the items, in the order a list shows them (GROCERY-6); the only list of
+// them, the schema does not check the category, itemValues does
 enum class GroceryCategory(
     val label: String,
 ) {
@@ -27,7 +29,7 @@ enum class GroceryCategory(
     OTHER("Other"),
 }
 
-// what the user gives of an item, before it is checked
+// what the user gives of an item
 data class GroceryItemInput(
     val name: String,
     val amount: BigDecimal?,
@@ -47,9 +49,6 @@ sealed interface GroceryListResult {
     data object NotFound : GroceryListResult
 
     data object Exists : GroceryListResult
-
-    // the default list keeps its name and is never deleted (LIST-1)
-    data object Default : GroceryListResult
 }
 
 sealed interface GroceryItemResult {
@@ -64,16 +63,18 @@ sealed interface GroceryItemResult {
     data object NotFound : GroceryItemResult
 }
 
-// the grocery lists, their items and the suggestions, the only way to them. A user sees and changes
-// their own lists and the items on them, and the shared lists of the others with their items
-// (LIST-2); only the owner of a list renames, shares or deletes it
+// the grocery lists, their items and the suggestions, the only way to them; it checks the values,
+// GroceryRepository checks who sees and changes what (MODEL-6)
 class GroceryService(
     private val repository: GroceryRepository,
-) {
+) : LoginListener {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
     ) : this(GroceryRepository(database, clock))
+
+    // the first list of a user who has none (LIST-1)
+    override fun signedIn(owner: String) = repository.ensureList(owner, DEFAULT_GROCERY_LIST)
 
     fun lists(user: String): List<GroceryList> = repository.lists(user)
 
@@ -93,69 +94,53 @@ class GroceryService(
         name: String,
         shared: Boolean,
     ): GroceryListResult {
-        val list = repository.list(id)?.takeIf { it.owner == user } ?: return GroceryListResult.NotFound
         val normalized = name.trim()
         listNameError(normalized)?.let { return GroceryListResult.Invalid(listOf(it)) }
-        if (list.name == DEFAULT_GROCERY_LIST && normalized != DEFAULT_GROCERY_LIST) return GroceryListResult.Default
-        return repository.updateList(id, normalized, shared)?.let { GroceryListResult.Saved(it) } ?: GroceryListResult.Exists
+        return when (val update = repository.updateList(user, id, normalized, shared)) {
+            is GroceryListUpdate.Updated -> GroceryListResult.Saved(update.list)
+            GroceryListUpdate.NotFound -> GroceryListResult.NotFound
+            GroceryListUpdate.NameTaken -> GroceryListResult.Exists
+        }
     }
 
+    // with its items; false when the user has no such list of their own
     fun deleteList(
         user: String,
         id: Int,
-    ): GroceryListResult {
-        val list = repository.list(id)?.takeIf { it.owner == user } ?: return GroceryListResult.NotFound
-        if (list.name == DEFAULT_GROCERY_LIST) return GroceryListResult.Default
-        repository.deleteList(id)
-        return GroceryListResult.Saved(list)
-    }
+    ): Boolean = repository.deleteList(user, id)
 
-    // the items of a list the user sees, null for another one: the ones to buy first, each by the
-    // order of its category, the ones without a category last, then in the order they were added
+    // the items to buy of a list the user sees, null for another one: by the order of their
+    // category, the ones without a category last, then in the order they were added
     fun items(
         user: String,
         listId: Int,
-    ): List<GroceryItem>? {
-        visibleList(user, listId) ?: return null
-        return repository.items(listId).sortedWith(
-            compareBy<GroceryItem>({ it.checkedAt != null }, { categoryOrder(it.category) }, { it.id }),
-        )
-    }
+    ): List<GroceryItem>? = repository.items(user, listId)?.sortedWith(compareBy({ categoryOrder(it.category) }, { it.id }))
 
-    // on the list, or on the default list of the user when none is given (LIST-1); the product of
-    // its name learns it (GROCERY-7)
+    // on a list the user sees, an item names its list (LIST-1); the product of its name learns it
+    // (GROCERY-7)
     fun addItem(
         user: String,
-        listId: Int?,
+        listId: Int,
         input: GroceryItemInput,
     ): GroceryItemResult {
-        if (listId != null) visibleList(user, listId) ?: return GroceryItemResult.NotFound
         val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        return GroceryItemResult.Saved(repository.insertItem(user, listId, values))
+        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
     }
 
     fun updateItem(
         user: String,
         id: Int,
         input: GroceryItemInput,
-        checked: Boolean,
     ): GroceryItemResult {
-        visibleItem(user, id) ?: return GroceryItemResult.NotFound
         val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        return repository.updateItem(id, values, checked, user)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
+        return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
     }
 
-    // false when the user sees no such item
+    // bought (GROCERY-2), by any user who sees its list (LIST-2); false when the user sees no such item
     fun deleteItem(
         user: String,
         id: Int,
-    ): Boolean = visibleItem(user, id) != null && repository.deleteItem(id)
-
-    // the checked items of the list go, null when the user sees no such list
-    fun clearChecked(
-        user: String,
-        listId: Int,
-    ): Int? = visibleList(user, listId)?.let { repository.deleteChecked(listId) }
+    ): Boolean = repository.deleteItem(user, id)
 
     // the products of the user whose name contains the text, the ones bought most and last first;
     // the ones to buy on the list are left out
@@ -163,23 +148,12 @@ class GroceryService(
         user: String,
         text: String,
         listId: Int?,
-    ): List<GroceryProduct> = repository.products(user, text.trim(), listId?.takeIf { visibleList(user, it) != null }, MAX_SUGGESTIONS)
+    ): List<GroceryProduct> = repository.products(user, text.trim(), listId, MAX_SUGGESTIONS)
 
     fun forget(
         user: String,
         id: Int,
     ): Boolean = repository.deleteProduct(user, id)
-
-    // the own lists of the user and the shared ones (LIST-2)
-    private fun visibleList(
-        user: String,
-        id: Int,
-    ) = repository.list(id)?.takeIf { it.owner == user || it.shared }
-
-    private fun visibleItem(
-        user: String,
-        id: Int,
-    ) = repository.item(id)?.takeIf { visibleList(user, it.listId) != null }
 
     private fun listNameError(name: String) =
         if (name.isEmpty() || name.length > MAX_LIST_NAME_LENGTH || name.any { it.isISOControl() }) {

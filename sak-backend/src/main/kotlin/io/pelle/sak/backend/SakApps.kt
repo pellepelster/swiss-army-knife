@@ -20,6 +20,7 @@ import io.ktor.server.routing.RoutingResolveContext
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
+import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.settings.SettingName
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.API_SIGNATURE_AUTH
@@ -127,6 +128,8 @@ fun Application.apps(
     val admin = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
     val admins = auth.admins.map { it.trim().lowercase() }.toSet() + admin
     val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
+    // every app that prepares the data of a user who signs in (SHARED-5)
+    val onLogin = LoginListener { owner -> loginListeners.forEach { it.signedIn(owner) } }
 
     install(Authentication) {
         session(tokens, rolesOf)
@@ -161,10 +164,10 @@ fun Application.apps(
                     route("/auth") {
                         route("/login") {
                             if (mailSender != null) {
-                                login(tokens, mailSender, loginApp(config), rolesOf)
+                                login(tokens, mailSender, loginApp(config), rolesOf, onLogin = onLogin)
                             }
                             if (adminPassword != null) {
-                                passwordLogin(tokens, admin, adminPassword, rolesOf)
+                                passwordLogin(tokens, admin, adminPassword, rolesOf, onLogin = onLogin)
                             }
                             loginMethods(email = mailSender != null, password = adminPassword != null)
                         }

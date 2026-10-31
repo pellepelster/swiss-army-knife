@@ -217,8 +217,8 @@ databaseChangeLog:
                   name: discovered
                   type: varchar(100000)
 
-        # the lists of the notes of a user (LIST-1): every note is in one, the first note of a user
-        # creates the list "Default". A shared list is one of all users (LIST-2). The name is unique
+        # the lists of the notes of a user: every note is in one, a user without a list gets "Default"
+        # when they sign in (LIST-1). A shared list is one of all users (LIST-2). The name is unique
         # among the lists of an owner that are not deleted only; a deleted list stays as a row with
         # deleted_at set
         - createTable:
@@ -356,6 +356,10 @@ databaseChangeLog:
         - sql:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX notes_labels_label_key ON notes_labels (note_id, label_id) WHERE deleted_at IS NULL
+        # the live links of a label, what detaching a deleted label reads (NoteRepository.detachLabel)
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX notes_labels_label_id_idx ON notes_labels (label_id) WHERE deleted_at IS NULL
 
         # the files of a note in their order, its photos and its recordings, told apart by the
         # type of the file. A file removed from a note, or the files of a deleted note, stay as
@@ -458,9 +462,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL
 
-        # the grocery lists of a user (LIST-1, LIST-2): every item is on one, the first item of a
-        # user creates the list "Default", which can not be deleted; a shared list is one of all
-        # users. The name is unique among the lists of an owner that are not deleted only
+        # the grocery lists of a user: every item is on one, a user without a list gets "Default" when
+        # they sign in (LIST-1), a list like the others; a shared list is one of all users (LIST-2). The name is unique among the lists of an owner that are not deleted only
         - createTable:
             tableName: grocery_lists
             columns:
@@ -501,8 +504,10 @@ databaseChangeLog:
             sql: CREATE UNIQUE INDEX grocery_lists_owner_name_key ON grocery_lists (owner, name) WHERE deleted_at IS NULL
 
         # the items of the grocery lists; owner is who added it, on a shared list another user than
-        # the owner of the list. An amount is positive, a unit needs one; a checked item records when
-        # and by whom, it stays on the list until it is deleted (GROCERY-2)
+        # the owner of the list. name_key is the name normalized (groceryNameKey, sak-model), what the
+        # items to buy are left out of the suggestions by. An amount is positive, a unit needs one; the
+        # category is a name of GroceryCategory (sak-backend), the only list of them, checked by
+        # GroceryService. A bought item is deleted, a list no longer shows it (GROCERY-2)
         - sql:
             sql: |
               CREATE TABLE grocery_items (
@@ -510,19 +515,16 @@ databaseChangeLog:
                 list_id INTEGER NOT NULL,
                 owner VARCHAR(254) NOT NULL,
                 name VARCHAR(128) NOT NULL,
+                name_key VARCHAR(128) NOT NULL,
                 amount DECIMAL(10, 3),
                 unit VARCHAR(16),
                 category VARCHAR(32),
-                checked_at TIMESTAMP,
-                checked_by VARCHAR(254),
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP,
                 deleted_at TIMESTAMP,
                 CONSTRAINT grocery_items_list_id_fkey FOREIGN KEY (list_id) REFERENCES grocery_lists (id),
                 CONSTRAINT grocery_items_amount_check CHECK (amount IS NULL OR amount > 0),
-                CONSTRAINT grocery_items_unit_check CHECK (unit IS NULL OR amount IS NOT NULL),
-                CONSTRAINT grocery_items_category_check CHECK (category IS NULL OR category IN ('FRUIT_VEGETABLES', 'BAKERY', 'DAIRY', 'MEAT_FISH', 'PANTRY', 'FROZEN', 'DRINKS', 'HOUSEHOLD', 'OTHER')),
-                CONSTRAINT grocery_items_checked_check CHECK ((checked_at IS NULL AND checked_by IS NULL) OR (checked_at IS NOT NULL AND checked_by IS NOT NULL))
+                CONSTRAINT grocery_items_unit_check CHECK (unit IS NULL OR amount IS NOT NULL)
               )
         - createIndex:
             tableName: grocery_items
@@ -532,14 +534,16 @@ databaseChangeLog:
                   name: list_id
 
         # the products a user added, what the suggestions come from (GROCERY-7): the name as last
-        # written, the category and the quantity used last, how often and when last. One product of
-        # a name, in any case, among the ones of an owner that are not deleted
+        # written, the category and the quantity used last, how often and when last. name_key is the
+        # name normalized (groceryNameKey, sak-model), sqlite folds the case of A-Z only; one product
+        # of a key among the ones of an owner that are not deleted
         - sql:
             sql: |
               CREATE TABLE grocery_products (
                 id INTEGER NOT NULL PRIMARY KEY,
                 owner VARCHAR(254) NOT NULL,
                 name VARCHAR(128) NOT NULL,
+                name_key VARCHAR(128) NOT NULL,
                 amount DECIMAL(10, 3),
                 unit VARCHAR(16),
                 category VARCHAR(32),
@@ -549,9 +553,8 @@ databaseChangeLog:
                 updated_at TIMESTAMP,
                 deleted_at TIMESTAMP,
                 CONSTRAINT grocery_products_amount_check CHECK (amount IS NULL OR amount > 0),
-                CONSTRAINT grocery_products_unit_check CHECK (unit IS NULL OR amount IS NOT NULL),
-                CONSTRAINT grocery_products_category_check CHECK (category IS NULL OR category IN ('FRUIT_VEGETABLES', 'BAKERY', 'DAIRY', 'MEAT_FISH', 'PANTRY', 'FROZEN', 'DRINKS', 'HOUSEHOLD', 'OTHER'))
+                CONSTRAINT grocery_products_unit_check CHECK (unit IS NULL OR amount IS NOT NULL)
               )
         - sql:
             dbms: sqlite
-            sql: CREATE UNIQUE INDEX grocery_products_owner_name_key ON grocery_products (owner, lower(name)) WHERE deleted_at IS NULL
+            sql: CREATE UNIQUE INDEX grocery_products_owner_name_key ON grocery_products (owner, name_key) WHERE deleted_at IS NULL

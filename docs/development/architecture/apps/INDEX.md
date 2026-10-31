@@ -72,14 +72,18 @@ The login, the settings, the labels and the file storage are no apps; all apps s
   domain>`), a bucket or a redirect. `DomainRegistry` keeps buckets and redirects from taking a domain of the other.
   The backend configures caddy with all of them and again after every change; the health of the domains is checked by
   asking name servers directly.
+- `SHARED-5` **Prepared at the sign-in.** An app that prepares the data of a user, e.g. their first list, does it as a
+  `LoginListener` (`sak-auth`), listed in `SakServices.loginListeners`. Each sign-in that issues a session calls it
+  before the session is answered, so the pages find the data; a signed request of sakctl is no sign-in. It must be
+  idempotent. When it fails, the sign-in still succeeds, and the log tells neither the user nor the message.
 
 ## List-based apps
 
 An app whose items belong to lists of the user keeps to these rules; the notes and the grocery lists are such apps.
 
-- `LIST-1` **A default list.** A new item of a user without lists goes to the list "Default", which the creation of
-  the item creates in the same transaction when it does not exist. It is unique among the live lists of the user and
-  can not be deleted.
+- `LIST-1` **A list from the sign-in.** When a user signs in, the app makes the private list "Default" for them if
+  they have no list of their own (`SHARED-5`). It is a list like the others: its owner renames, shares and deletes it.
+  A new item always names its list; no request makes a list on the side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
   to it and delete items from it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of
   a shared list, also one another user created.

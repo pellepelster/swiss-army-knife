@@ -432,6 +432,15 @@ class SakAppsTest {
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 204
             delete(port, "/api/v1/redirects/example.com", session).statusCode() shouldBe 404
             (get(port, "/api/v1/redirects", session).body()).json().getValue("pagination").jsonObject.string("total") shouldBe "2"
+
+            // a bucket that a redirect leads to stays
+            delete(port, "/api/v1/static-hosting/bucket1", session).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe
+                    """{"errors":[{"message":"Redirects lead to the bucket: example.at. Delete them or change their target first."}]}"""
+            }
+            delete(port, "/api/v1/redirects/example.at", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/static-hosting/bucket1", session).statusCode() shouldBe 204
         }
     }
 
@@ -471,37 +480,44 @@ class SakAppsTest {
     @Test
     fun `keeps grocery lists, their items by category and suggestions of what was added before`() {
         withServer { port ->
+            // the sign-in makes the first list, once
             val session = signIn(port)
-            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.size shouldBe 0
+            signIn(port, mails = 2)
+            val listId =
+                get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.let {
+                    it.string("name") shouldBe "Default"
+                    it.string("mine") shouldBe "true"
+                    it.containsKey("default") shouldBe false
+                    it.string("id")
+                }
 
-            // the first item makes the default list
-            val milk = post(port, "/api/v1/grocery/items", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session)
+            post(port, "/api/v1/grocery/items", """{"name":"Milk"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"The request is malformed."}]}"""
+            }
+            val milk = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session)
             milk.statusCode() shouldBe 201
-            val listId = milk.json().string("listId")
             post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Apples","category":"FRUIT_VEGETABLES"}""", session).statusCode() shouldBe 201
-            post(port, "/api/v1/grocery/items", """{"name":"Milk","unit":"l"}""", session).let {
+            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","unit":"l"}""", session).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"message":"A unit needs an amount."}]}"""
             }
-
-            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.let {
-                it.string("name") shouldBe "Default"
-                it.string("default") shouldBe "true"
-                it.string("mine") shouldBe "true"
-            }
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
                 listOf("Apples", "Milk")
-            delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 409
 
             val milkId = milk.json().string("id")
-            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY","checked":true}""", session).json().let {
-                it.string("checked") shouldBe "true"
+            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session).json().let {
                 it.string("amount") shouldBe "1.5"
             }
-            delete(port, "/api/v1/grocery/lists/$listId/checked", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 404
+            get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
+                listOf("Apples")
             get(port, "/api/v1/grocery/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Milk"
             get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
                 "Fruit & vegetables"
+            // a list like the others
+            delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 204
         }
     }
 
@@ -976,7 +992,6 @@ class SakAppsTest {
                         "/api/v1/grocery/lists",
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",
-                        "/api/v1/grocery/lists/{id}/checked",
                         "/api/v1/grocery/items",
                         "/api/v1/grocery/items/{id}",
                         "/api/v1/grocery/suggestions",
@@ -1280,6 +1295,9 @@ class SakAppsTest {
         withServer(single) { port ->
             val session = passwordLogin(port).json().string("sessionToken")
             post(port, "/api/v1/static-hosting", """{"name":"by-password"}""", session).statusCode() shouldBe 201
+            // the password login makes the first lists too
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Default"
+            post(port, "/api/v1/notes", """{"text":"by password"}""", session).statusCode() shouldBe 201
         }
         buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"
         buckets(single).byName("by-password")!!.owner shouldBe ADMIN_USERNAME

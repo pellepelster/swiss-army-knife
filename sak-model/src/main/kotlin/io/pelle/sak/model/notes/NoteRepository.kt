@@ -13,12 +13,12 @@ import org.jooq.impl.DSL
 import java.time.Clock
 import java.time.Instant
 
-// a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
-// recordings) in their order
-// the list every note of a user goes to (LIST-1), made with their first note, not shared (LIST-2);
-// the lists are not shown to the users yet
+// the list a user gets when they sign in without a list of their own (LIST-1); the lists are not
+// shown to the users yet, every note of a user goes to their list
 const val DEFAULT_LIST = "Default"
 
+// a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
+// recordings) in their order
 data class NoteRow(
     val id: Int,
     val owner: String,
@@ -77,8 +77,41 @@ class NoteRepository(
             .fetchOne()
             ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty(), fileIds(database.dsl, listOf(id))[id].orEmpty()) }
 
+    // the oldest list of the owner, null when they have none
+    fun ownList(owner: String): Int? =
+        database.dsl
+            .select(NOTE_LISTS.ID)
+            .from(NOTE_LISTS)
+            .where(NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)
+            .orderBy(NOTE_LISTS.ID)
+            .limit(1)
+            .fetchOne(NOTE_LISTS.ID)
+
+    // a private list of the name for the owner when they have no list of their own (LIST-1); a
+    // list made at the same time, e.g. by another sign-in, is the one (the name is unique among the
+    // lists of the owner)
+    fun ensureList(
+        owner: String,
+        name: String,
+    ) {
+        database.dsl.transaction { configuration ->
+            val dsl = DSL.using(configuration)
+            if (dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)) return@transaction
+            dsl
+                .insertInto(NOTE_LISTS)
+                .set(NOTE_LISTS.OWNER, owner)
+                .set(NOTE_LISTS.NAME, name)
+                .set(NOTE_LISTS.SHARED, false)
+                .set(NOTE_LISTS.CREATED_AT, clock.instant())
+                .onConflictDoNothing()
+                .execute()
+        }
+    }
+
     fun insert(
         owner: String,
+        // a list of the owner
+        listId: Int,
         text: String,
         color: String,
         labelIds: Set<Int>,
@@ -91,7 +124,7 @@ class NoteRepository(
                 dsl
                     .insertInto(NOTES)
                     .set(NOTES.OWNER, owner)
-                    .set(NOTES.LIST_ID, defaultList(dsl, owner, now))
+                    .set(NOTES.LIST_ID, listId)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
                     .set(NOTES.CREATED_AT, now)
@@ -175,26 +208,6 @@ class NoteRepository(
                 )
             },
         )
-
-    // the default list of the owner, made when there is none; one made at the same time by another
-    // note of the owner is the one (the name is unique among the lists of the owner)
-    private fun defaultList(
-        dsl: DSLContext,
-        owner: String,
-        now: Instant,
-    ): Int {
-        val default = NOTE_LISTS.OWNER.eq(owner).and(NOTE_LISTS.NAME.eq(DEFAULT_LIST)).and(NOTE_LISTS.DELETED_AT.isNull)
-        dsl.select(NOTE_LISTS.ID).from(NOTE_LISTS).where(default).fetchOne(NOTE_LISTS.ID)?.let { return it }
-        dsl
-            .insertInto(NOTE_LISTS)
-            .set(NOTE_LISTS.OWNER, owner)
-            .set(NOTE_LISTS.NAME, DEFAULT_LIST)
-            .set(NOTE_LISTS.SHARED, false)
-            .set(NOTE_LISTS.CREATED_AT, now)
-            .onConflictDoNothing()
-            .execute()
-        return dsl.select(NOTE_LISTS.ID).from(NOTE_LISTS).where(default).fetchOne(NOTE_LISTS.ID)!!
-    }
 
     // the links of the labels that stay keep their row, the ones of the labels removed are deleted,
     // the labels added get a link of their own
