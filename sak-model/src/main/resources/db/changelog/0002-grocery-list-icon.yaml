@@ -1,0 +1,10 @@
+# a grocery list may have an icon: one emoji the apps show for it, none shows the first letter of
+# its name. Plain sql: addColumn rebuilds the table in sqlite, which breaks the foreign key of
+# grocery_items; sqlite and h2 (jooq) both take this one
+databaseChangeLog:
+  - changeSet:
+      id: 0002-grocery-list-icon
+      author: sak
+      changes:
+        - sql:
+            sql: ALTER TABLE grocery_lists ADD COLUMN icon VARCHAR(32)

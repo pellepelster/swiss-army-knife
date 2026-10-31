@@ -12,6 +12,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
@@ -86,13 +87,36 @@ class GroceryApi(
     suspend fun createList(
         name: String,
         shared: Boolean,
+        icon: String?,
     ): GroceryListResponse =
         client
             .post("$url/grocery/lists") {
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
-                setBody(GroceryListRequest(name, shared))
+                setBody(GroceryListRequest(name, shared, icon))
             }.answer("The list could not be created.")
+
+    // the settings of a list of the user's own
+    suspend fun updateList(
+        id: Int,
+        name: String,
+        shared: Boolean,
+        icon: String?,
+    ): GroceryListResponse =
+        client
+            .put("$url/grocery/lists/$id") {
+                token?.let { bearerAuth(it) }
+                contentType(ContentType.Application.Json)
+                setBody(GroceryListRequest(name, shared, icon))
+            }.answer("The list could not be saved.")
+
+    // a list of the user's own with its items, not their last one (LIST-1)
+    suspend fun deleteList(id: Int) {
+        client
+            .delete("$url/grocery/lists/$id") {
+                token?.let { bearerAuth(it) }
+            }.answer<Unit>("The list could not be deleted.")
+    }
 
     // the items to buy, by the order of their category, the ones without one last
     suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", "The items could not be loaded.")

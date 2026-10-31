@@ -17,6 +17,6 @@ export const groceryRoute: Route = {
     { path: '', component: GroceryListsPage, title: 'Grocery' },
     { path: 'lists/create', component: GroceryListForm, title: 'Create list · Grocery' },
     { path: 'lists/:id', component: GroceryPage, title: 'List · Grocery' },
-    { path: 'lists/:id/edit', component: GroceryListForm, title: 'Edit list · Grocery' },
+    { path: 'lists/:id/edit', component: GroceryListForm, title: 'Settings · Grocery' },
   ],
 };

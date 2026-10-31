@@ -14,6 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { debounceTime, filter, Observable, Subscription } from 'rxjs';
 import { apiErrorMessage } from '../shared/api';
 import { UndoToast } from '../shared/undo-toast';
+import { ListIcon } from './list-icon';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import {
   GroceryCategory,
@@ -43,7 +44,7 @@ interface ItemGroup {
 // list shown, the suggestions are the items added before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
-  imports: [NgTemplateOutlet, RouterLink, UndoToast],
+  imports: [ListIcon, NgTemplateOutlet, RouterLink, UndoToast],
   host: {
     class: 'd-block container pb-5',
   },
@@ -55,6 +56,9 @@ interface ItemGroup {
         aria-label="All lists"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
+      @if (shown(); as list) {
+        <app-list-icon [name]="list.name" [icon]="list.icon" />
+      }
       <h1 class="h3 mb-0 flex-grow-1 text-break" data-testid="list-name">
         {{ shown()?.name }}
         @if (shown()?.shared) {
@@ -64,7 +68,7 @@ interface ItemGroup {
       <!-- always in its place (UX-8): only the owner changes a list -->
       @if (shown()?.mine) {
         <a class="btn btn-outline-secondary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
-          >Edit list</a
+          >Settings</a
         >
       } @else {
         <button
@@ -73,7 +77,7 @@ interface ItemGroup {
           disabled
           title="Only the owner of a list changes it"
         >
-          Edit list
+          Settings
         </button>
       }
     </header>

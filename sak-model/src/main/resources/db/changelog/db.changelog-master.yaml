@@ -4,3 +4,6 @@ databaseChangeLog:
   - include:
       file: 0001-initial.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0002-grocery-list-icon.yaml
+      relativeToChangelogFile: true

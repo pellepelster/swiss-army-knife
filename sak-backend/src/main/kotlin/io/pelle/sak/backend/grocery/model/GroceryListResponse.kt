@@ -12,6 +12,8 @@ data class GroceryListResponse(
     val mine: Boolean,
     // how many items are to buy on it
     val items: Int,
+    // one emoji, missing for none: the apps show the first letter of the name
+    val icon: String?,
     val createdAt: String,
     // missing until it is changed
     val updatedAt: String?,

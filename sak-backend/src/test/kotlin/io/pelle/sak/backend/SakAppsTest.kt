@@ -547,7 +547,10 @@ class SakAppsTest {
                 it.statusCode() shouldBe 409
                 it.body() shouldBe """{"errors":[{"message":"You can not delete your only list."}]}"""
             }
-            post(port, "/api/v1/grocery/lists", """{"name":"Party","shared":false}""", session).statusCode() shouldBe 201
+            post(port, "/api/v1/grocery/lists", """{"name":"Party","shared":false,"icon":"🎉"}""", session).let {
+                it.statusCode() shouldBe 201
+                it.json().string("icon") shouldBe "🎉"
+            }
             delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 204
         }
     }

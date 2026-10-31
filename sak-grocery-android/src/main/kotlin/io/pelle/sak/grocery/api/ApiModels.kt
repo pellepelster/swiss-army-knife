@@ -61,6 +61,8 @@ data class GroceryListResponse(
     val mine: Boolean,
     // how many items are to buy on it
     val items: Int,
+    // one emoji, none shows the first letter of the name
+    val icon: String? = null,
 )
 
 @Serializable
@@ -68,6 +70,8 @@ data class GroceryListRequest(
     val name: String,
     // of all users; no default, a default value is not sent
     val shared: Boolean,
+    // one emoji, null for none
+    val icon: String?,
 )
 
 @Serializable

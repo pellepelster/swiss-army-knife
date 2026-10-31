@@ -366,25 +366,25 @@ class GroceryModelTest {
             advanceUntilIdle()
 
             model.newList()
-            model.editNewList(" Party ", shared = true)
-            model.createList()
+            model.editSettings(" Party ", shared = true, icon = "🎉")
+            model.saveSettings()
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""POST /grocery/lists {"name":"Party","shared":true}"""))
-            assertEquals(NewList(" Party ", shared = true, error = "A list of the name exists."), (model.screen.value as Screen.Lists).newList)
+            assertTrue(backend.requests.contains("""POST /grocery/lists {"name":"Party","shared":true,"icon":"🎉"}"""))
+            assertEquals(ListSettings(name = " Party ", shared = true, icon = "🎉", error = "A list of the name exists."), (model.screen.value as Screen.Lists).settings)
 
             model.back()
-            assertNull((model.screen.value as Screen.Lists).newList)
+            assertNull((model.screen.value as Screen.Lists).settings)
 
             backend.answers["POST /grocery/lists"] = HttpStatusCode.Created to list(3, "Hardware")
             backend.answers["GET /grocery/lists/3/items"] = HttpStatusCode.OK to page()
             backend.answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party", shared = true), list(3, "Hardware"))
             model.newList()
-            model.editNewList("Hardware", shared = false)
-            model.createList()
+            model.editSettings("Hardware", shared = false, icon = null)
+            model.saveSettings()
             advanceUntilIdle()
             val lists = model.screen.value as Screen.Lists
-            assertNull(lists.newList)
+            assertNull(lists.settings)
             assertEquals(3, lists.open)
             assertEquals(3, store.load().openList)
         }
@@ -457,5 +457,44 @@ class GroceryModelTest {
             runCurrent()
             assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error)
             model.stopListening()
+        }
+
+    @Test
+    fun `the menu of an own list opens its settings, they change its icon and delete it, the last own list stays`() =
+        runTest {
+            backend.answers["GET /grocery/lists"] =
+                HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party", shared = true), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0}""")
+            backend.answers["PUT /grocery/lists/2"] = HttpStatusCode.OK to list(2, "Party", shared = true)
+            backend.answers["DELETE /grocery/lists/2"] = HttpStatusCode.NoContent to ""
+            val model = signedIn(openList = null)
+            advanceUntilIdle()
+
+            // not the user's own: no settings
+            model.openSettings(3)
+            assertNull((model.screen.value as Screen.Lists).settings)
+
+            model.openSettings(2)
+            assertEquals(ListSettings(2, "Party", shared = true), (model.screen.value as Screen.Lists).settings)
+            model.editSettings("Party", shared = true, icon = "🎉")
+            model.saveSettings()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/2 {"name":"Party","shared":true,"icon":"🎉"}"""))
+            assertNull((model.screen.value as Screen.Lists).settings)
+
+            model.openSettings(2)
+            model.deleteList()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/lists/2"))
+            assertNull((model.screen.value as Screen.Lists).settings)
+
+            // the only own list
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page(list(1, "Default"))
+            model.refresh()
+            advanceUntilIdle()
+            model.openSettings(1)
+            assertEquals(true, (model.screen.value as Screen.Lists).settings?.last)
+            model.deleteList()
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
         }
 }

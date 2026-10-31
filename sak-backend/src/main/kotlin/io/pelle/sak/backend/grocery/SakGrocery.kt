@@ -59,7 +59,7 @@ private const val LAST_LIST = "You can not delete your only list."
 
 
 private fun GroceryList.response(user: String) =
-    GroceryListResponse(id, name, shared, owner == user, items, createdAt.apiTime(), updatedAt?.apiTime())
+    GroceryListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
     GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime())
@@ -131,7 +131,7 @@ fun Route.grocery(groceryService: GroceryService) {
 
         post {
             val request = call.receive<GroceryListRequest>()
-            val result = withContext(Dispatchers.IO) { groceryService.createList(call.owner, request.name, request.shared) }
+            val result = withContext(Dispatchers.IO) { groceryService.createList(call.owner, request.name, request.shared, request.icon) }
             if (result is GroceryListResult.Saved) call.respond(HttpStatusCode.Created, result.list.response(call.owner)) else call.respondList(result)
         }.describe {
             tag(GROCERY_TAG)
@@ -153,7 +153,7 @@ fun Route.grocery(groceryService: GroceryService) {
         put("/{id}") {
             val id = call.idParameter() ?: return@put
             val request = call.receive<GroceryListRequest>()
-            call.respondList(withContext(Dispatchers.IO) { groceryService.updateList(call.owner, id, request.name, request.shared) })
+            call.respondList(withContext(Dispatchers.IO) { groceryService.updateList(call.owner, id, request.name, request.shared, request.icon) })
         }.describe {
             tag(GROCERY_TAG)
             summary = "Rename or share a grocery list"

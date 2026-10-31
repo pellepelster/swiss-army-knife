@@ -42,10 +42,15 @@ data class Undo(
     val serial: Int,
 )
 
-// the list the user is creating: its name and whether all users see it
-data class NewList(
+// the settings of a list the user creates (no id) or changes, one of their own: its name, whether
+// all users see it and its icon, one emoji
+data class ListSettings(
+    val id: Int? = null,
     val name: String = "",
     val shared: Boolean = false,
+    val icon: String? = null,
+    // the only list of the user's own, which can not be deleted (LIST-1)
+    val last: Boolean = false,
     val busy: Boolean = false,
     val error: String? = null,
 )
@@ -91,8 +96,8 @@ sealed interface Screen {
         // the items checked while they can be undone, struck through until they go
         val struck: Set<Int> = emptySet(),
         val undo: Undo? = null,
-        // the screen of a new list, over the home
-        val newList: NewList? = null,
+        // the screen of the settings of a list, a new one or one of the user's own, over the home
+        val settings: ListSettings? = null,
     ) : Screen
 }
 
@@ -341,59 +346,101 @@ class GroceryModel(
         show(id)
     }
 
-    // from a list or the new list back to the home, the next start shows the home
+    // from a list or the settings back to the home, the next start shows the home
     fun back() {
         val lists = state.value as? Screen.Lists ?: return
         when {
-            lists.newList != null -> state.value = lists.copy(newList = null)
+            lists.settings != null -> state.value = lists.copy(settings = null)
             lists.open != null -> show(null)
         }
     }
 
-    // the screen of a new list, from the home
+    // the settings of a new list, from the home
     fun newList() {
         val lists = state.value as? Screen.Lists ?: return
-        if (lists.open == null) state.value = lists.copy(newList = NewList())
+        if (lists.open == null) state.value = lists.copy(settings = ListSettings())
     }
 
-    fun editNewList(
+    // the settings of a list of the user's own, from its menu on the home
+    fun openSettings(id: Int) {
+        val lists = state.value as? Screen.Lists ?: return
+        val list = lists.lists.firstOrNull { it.id == id && it.mine } ?: return
+        val last = lists.lists.count { it.mine } == 1
+        state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, last))
+    }
+
+    fun editSettings(
         name: String,
         shared: Boolean,
+        icon: String?,
     ) {
         val lists = state.value as? Screen.Lists ?: return
-        val newList = lists.newList ?: return
-        state.value = lists.copy(newList = newList.copy(name = name, shared = shared))
+        val settings = lists.settings ?: return
+        state.value = lists.copy(settings = settings.copy(name = name, shared = shared, icon = icon))
     }
 
-    // the new list is created and opens; a failure, e.g. a list of the name exists, stays on the
-    // screen of the new list with the reason
-    fun createList() {
+    // a new list is created and opens, a changed one shows on the home; a failure, e.g. a list of the
+    // name exists, stays on the settings with the reason
+    fun saveSettings() {
         val lists = state.value as? Screen.Lists ?: return
-        val newList = lists.newList ?: return
-        val name = newList.name.trim()
-        if (name.isEmpty() || newList.busy) return
-        state.value = lists.copy(newList = newList.copy(busy = true, error = null))
-        scope.launch {
-            val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
-            try {
-                val created = apiOf(url, stored.token).createList(name, newList.shared)
-                (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists + created, newList = null) }
+        val settings = lists.settings ?: return
+        val name = settings.name.trim()
+        if (name.isEmpty() || settings.busy) return
+        state.value = lists.copy(settings = settings.copy(busy = true, error = null))
+        settingsRequest(settings, if (settings.id == null) "The list could not be created." else "The list could not be saved.") { api ->
+            if (settings.id == null) {
+                val created = api.createList(name, settings.shared, settings.icon)
+                (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists + created, settings = null) }
                 show(created.id)
-            } catch (e: ApiException) {
-                if (e.status == 401) sessionEnded(stored, e) else newListFailed(e.message)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                newListFailed(failure(e, "The list could not be created."))
+            } else {
+                api.updateList(settings.id, name, settings.shared, settings.icon)
+                (state.value as? Screen.Lists)?.let { state.value = it.copy(settings = null) }
+                load()
             }
         }
     }
 
-    private fun newListFailed(error: String?) {
+    // the list of the settings goes with its items, after the user confirmed it (UX-4.1)
+    fun deleteList() {
         val lists = state.value as? Screen.Lists ?: return
-        val newList = lists.newList ?: return
-        state.value = lists.copy(newList = newList.copy(busy = false, error = error))
+        val settings = lists.settings ?: return
+        val id = settings.id ?: return
+        if (settings.busy || settings.last) return
+        state.value = lists.copy(settings = settings.copy(busy = true, error = null))
+        settingsRequest(settings, "The list could not be deleted.") { api ->
+            api.deleteList(id)
+            (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists.filter { list -> list.id != id }, settings = null) }
+            load()
+        }
+    }
+
+    private fun settingsRequest(
+        settings: ListSettings,
+        failure: String,
+        request: suspend (GroceryApi) -> Unit,
+    ) {
+        scope.launch {
+            val stored = store.load()
+            val url = stored.apiUrl ?: return@launch
+            try {
+                request(apiOf(url, stored.token))
+            } catch (e: ApiException) {
+                if (e.status == 401) sessionEnded(stored, e) else settingsFailed(settings, e.message)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                settingsFailed(settings, failure(e, failure))
+            }
+        }
+    }
+
+    private fun settingsFailed(
+        settings: ListSettings,
+        error: String?,
+    ) {
+        val lists = state.value as? Screen.Lists ?: return
+        val current = lists.settings ?: settings
+        state.value = lists.copy(settings = current.copy(busy = false, error = error))
     }
 
     // what was checked goes to the backend, the field is empty, the list or the home loads

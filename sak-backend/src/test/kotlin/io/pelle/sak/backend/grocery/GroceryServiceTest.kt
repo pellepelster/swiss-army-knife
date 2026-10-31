@@ -152,4 +152,17 @@ class GroceryServiceTest {
             // the own list of pelle is private, the shared one heard also when it goes
             heard.await() shouldBe listOf(party, party, party, party)
         }
+
+    @Test
+    fun `a list takes one emoji as its icon, an empty one is none`() {
+        val created = service.createList(PELLE, "Party", shared = false, icon = " 🎉 ") as GroceryListResult.Saved
+        created.list.icon shouldBe "🎉"
+        (service.updateList(PELLE, created.list.id, "Party", shared = false, icon = "") as GroceryListResult.Saved).list.icon shouldBe null
+
+        // a flag, a keycap, a family joined of four, a skin tone
+        listOf("🇩🇪", "1️⃣", "👨‍👩‍👧‍👦", "👍🏽", "🛒").forEach { GroceryService.isOneEmoji(it) shouldBe true }
+        listOf("a", "1", "🎉🎉", "🎉 a", "\u0007").forEach { GroceryService.isOneEmoji(it) shouldBe false }
+        service.createList(PELLE, "Wrong", shared = false, icon = "ab") shouldBe
+            GroceryListResult.Invalid(listOf(ErrorMessage("An icon must be one emoji.")))
+    }
 }

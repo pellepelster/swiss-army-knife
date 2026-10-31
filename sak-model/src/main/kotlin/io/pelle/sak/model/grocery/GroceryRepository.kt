@@ -38,6 +38,8 @@ data class GroceryList(
     val updatedAt: Instant?,
     // how many items are to buy on it
     val items: Int,
+    // one emoji, none shows the first letter of the name
+    val icon: String? = null,
 )
 
 // what is to buy, how much of it and in which category; a bought item is deleted (GROCERY-3)
@@ -164,6 +166,7 @@ class GroceryRepository(
         owner: String,
         name: String,
         shared: Boolean,
+        icon: String? = null,
     ): GroceryList? =
         try {
             database.dsl
@@ -171,6 +174,7 @@ class GroceryRepository(
                 .set(GROCERY_LISTS.OWNER, owner)
                 .set(GROCERY_LISTS.NAME, name)
                 .set(GROCERY_LISTS.SHARED, shared)
+                .set(GROCERY_LISTS.ICON, icon)
                 .set(GROCERY_LISTS.CREATED_AT, clock.instant())
                 .returning()
                 .fetchOne()
@@ -185,12 +189,14 @@ class GroceryRepository(
         id: Int,
         name: String,
         shared: Boolean,
+        icon: String? = null,
     ): GroceryListUpdate =
         try {
             database.dsl
                 .update(GROCERY_LISTS)
                 .set(GROCERY_LISTS.NAME, name)
                 .set(GROCERY_LISTS.SHARED, shared)
+                .set(GROCERY_LISTS.ICON, icon)
                 .set(GROCERY_LISTS.UPDATED_AT, clock.instant())
                 .where(GROCERY_LISTS.ID.eq(id), ownList(user))
                 .returning()
@@ -422,7 +428,7 @@ class GroceryRepository(
     private fun itemsToBuy(listId: Int): Int =
         database.dsl.fetchCount(GROCERY_ITEMS, GROCERY_ITEMS.LIST_ID.eq(listId), GROCERY_ITEMS.DELETED_AT.isNull)
 
-    private fun GroceryListsRecord.toList(items: Int) = GroceryList(id!!, owner!!, name!!, shared!!, createdAt!!, updatedAt, items)
+    private fun GroceryListsRecord.toList(items: Int) = GroceryList(id!!, owner!!, name!!, shared!!, createdAt!!, updatedAt, items, icon)
 
     private fun GroceryItemsRecord.toItem() =
         GroceryItem(id!!, listId!!, owner!!, name!!, amount, unit, category, createdAt!!, updatedAt)

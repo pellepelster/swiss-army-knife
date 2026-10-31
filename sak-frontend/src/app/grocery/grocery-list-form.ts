@@ -1,14 +1,27 @@
-import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  CUSTOM_ELEMENTS_SCHEMA,
+  DestroyRef,
+  inject,
+  input,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../shared/api';
 import { GroceryList, GroceryService } from './grocery.service';
+import { ListIcon } from './list-icon';
 
-// creates a grocery list, or renames, shares and deletes one of the user, on a page of its own.
-// Afterwards the list shows
+// creates a grocery list, or changes the settings of one of the user (its name, whether it is
+// shared, its icon) and deletes it, on a page of its own. Afterwards the list shows. The icon is one
+// emoji, chosen in the picker of emoji-picker-element, loaded when it is opened; its data comes
+// from the frontend itself (/emoji/data.json), not from a cdn
 @Component({
   selector: 'app-grocery-list-form',
-  imports: [RouterLink],
+  imports: [ListIcon, RouterLink],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -18,7 +31,7 @@ import { GroceryList, GroceryService } from './grocery.service';
         aria-label="Back"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ id() ? 'Edit list' : 'Create list' }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ id() ? 'Settings' : 'Create list' }}</h1>
     </header>
 
     @if (error(); as error) {
@@ -38,6 +51,37 @@ import { GroceryList, GroceryService } from './grocery.service';
             [value]="name()"
             (input)="name.set(nameField.value)"
           />
+        </div>
+        <div>
+          <span class="form-label d-block" id="list-icon-label">Icon</span>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <app-list-icon [name]="name()" [icon]="icon()" [size]="48" data-testid="list-icon" />
+            <div class="btn-group" role="group" aria-labelledby="list-icon-label">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                [attr.aria-expanded]="picking()"
+                (click)="togglePicker()"
+              >
+                Choose icon
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                [disabled]="!icon()"
+                (click)="icon.set(null)"
+              >
+                No icon
+              </button>
+            </div>
+          </div>
+          @if (picking()) {
+            <emoji-picker
+              class="mt-2"
+              data-source="/emoji/data.json"
+              (emoji-click)="choose($any($event).detail.unicode)"
+            ></emoji-picker>
+          }
         </div>
         <div class="form-check form-switch">
           <input
@@ -107,20 +151,25 @@ export class GroceryListForm implements OnInit {
 
   // the route parameter, missing for a new list
   readonly id = input<string | undefined>();
+  // the query parameter: lists when the settings were opened from all lists, they lead back there
+  readonly from = input<string | undefined>();
 
   protected readonly list = signal<GroceryList | null>(null);
   protected readonly name = signal('');
   protected readonly shared = signal(false);
+  // one emoji, null for none
+  protected readonly icon = signal<string | null>(null);
+  protected readonly picking = signal(false);
   protected readonly saving = signal(false);
   protected readonly confirming = signal(false);
   // the only list of the user's own, which can not be deleted (LIST-1)
   protected readonly last = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  // the list edited, or all lists for a new one
+  // where the settings were opened: the list edited, or all lists for a new one and from there
   protected readonly back = computed(() => {
     const id = this.id();
-    return id ? ['/grocery/lists', id] : ['/grocery'];
+    return id && this.from() !== 'lists' ? ['/grocery/lists', id] : ['/grocery'];
   });
 
   ngOnInit(): void {
@@ -140,6 +189,7 @@ export class GroceryListForm implements OnInit {
           this.last.set(lists.filter((each) => each.mine).length === 1);
           this.name.set(list.name);
           this.shared.set(list.shared);
+          this.icon.set(list.icon);
         },
         error: (error: unknown) =>
           this.error.set(apiErrorMessage(error, 'The list could not be loaded.')),
@@ -152,15 +202,29 @@ export class GroceryListForm implements OnInit {
     this.error.set(null);
     const saved =
       id === undefined
-        ? this.service.createList(this.name().trim(), this.shared())
-        : this.service.updateList(id, this.name().trim(), this.shared());
+        ? this.service.createList(this.name().trim(), this.shared(), this.icon())
+        : this.service.updateList(id, this.name().trim(), this.shared(), this.icon());
     saved.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (list) => void this.router.navigate(['/grocery/lists', list.id]),
+      // a new list opens, a changed one shows where its settings were opened
+      next: (list) =>
+        void this.router.navigate(id === undefined ? ['/grocery/lists', list.id] : this.back()),
       error: (error: unknown) => {
         this.saving.set(false);
         this.error.set(apiErrorMessage(error, 'The list could not be saved.'));
       },
     });
+  }
+
+  // the picker is a custom element, defined once it is first opened
+  protected async togglePicker(): Promise<void> {
+    if (!this.picking()) await import('emoji-picker-element');
+    this.picking.update((picking) => !picking);
+  }
+
+  protected choose(emoji: string | undefined): void {
+    if (!emoji) return;
+    this.icon.set(emoji);
+    this.picking.set(false);
   }
 
   protected remove(): void {

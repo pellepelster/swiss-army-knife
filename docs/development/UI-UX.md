@@ -124,5 +124,3 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   the plan found or a resource a destroy will remove.
 - `CLI-11` **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is
   done to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".
-- `CLI-12` **The same checks as the window** run before each command; a failed check ends the command.
-- `CLI-13` **Quiet by default.** The output of the provisioning shows only when the user asks for it.

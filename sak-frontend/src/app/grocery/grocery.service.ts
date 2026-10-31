@@ -17,6 +17,8 @@ export interface GroceryList {
   mine: boolean;
   // how many items are to buy on it
   items: number;
+  // one emoji, null shows the first letter of the name
+  icon: string | null;
 }
 
 export interface GroceryItem {
@@ -58,12 +60,17 @@ export class GroceryService {
     return fetchAll<GroceryList>(this.http, '/api/v1/grocery/lists');
   }
 
-  createList(name: string, shared: boolean): Observable<GroceryList> {
-    return this.http.post<GroceryList>('/api/v1/grocery/lists', { name, shared });
+  createList(name: string, shared: boolean, icon: string | null): Observable<GroceryList> {
+    return this.http.post<GroceryList>('/api/v1/grocery/lists', { name, shared, icon });
   }
 
-  updateList(id: number, name: string, shared: boolean): Observable<GroceryList> {
-    return this.http.put<GroceryList>(`/api/v1/grocery/lists/${id}`, { name, shared });
+  updateList(
+    id: number,
+    name: string,
+    shared: boolean,
+    icon: string | null,
+  ): Observable<GroceryList> {
+    return this.http.put<GroceryList>(`/api/v1/grocery/lists/${id}`, { name, shared, icon });
   }
 
   deleteList(id: number): Observable<void> {

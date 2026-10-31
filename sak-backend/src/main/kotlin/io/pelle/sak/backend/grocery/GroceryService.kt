@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
+import java.text.BreakIterator
 import java.time.Clock
 
 // the fixed categories of the items, in the order a list shows them (GROCERY-6); the only list of
@@ -87,14 +88,17 @@ class GroceryService(
 
     fun lists(user: String): List<GroceryList> = repository.lists(user)
 
+    // the icon is one emoji, empty or none for no icon
     fun createList(
         user: String,
         name: String,
         shared: Boolean,
+        icon: String? = null,
     ): GroceryListResult {
         val normalized = name.trim()
-        listNameError(normalized)?.let { return GroceryListResult.Invalid(listOf(it)) }
-        return repository.insertList(user, normalized, shared)?.let { GroceryListResult.Saved(changed(it)) } ?: GroceryListResult.Exists
+        val emoji = icon?.trim()?.ifEmpty { null }
+        listErrors(normalized, emoji)?.let { return GroceryListResult.Invalid(it) }
+        return repository.insertList(user, normalized, shared, emoji)?.let { GroceryListResult.Saved(changed(it)) } ?: GroceryListResult.Exists
     }
 
     fun updateList(
@@ -102,10 +106,12 @@ class GroceryService(
         id: Int,
         name: String,
         shared: Boolean,
+        icon: String? = null,
     ): GroceryListResult {
         val normalized = name.trim()
-        listNameError(normalized)?.let { return GroceryListResult.Invalid(listOf(it)) }
-        return when (val update = repository.updateList(user, id, normalized, shared)) {
+        val emoji = icon?.trim()?.ifEmpty { null }
+        listErrors(normalized, emoji)?.let { return GroceryListResult.Invalid(it) }
+        return when (val update = repository.updateList(user, id, normalized, shared, emoji)) {
             is GroceryListUpdate.Updated -> GroceryListResult.Saved(changed(update.list))
             GroceryListUpdate.NotFound -> GroceryListResult.NotFound
             GroceryListUpdate.NameTaken -> GroceryListResult.Exists
@@ -171,6 +177,15 @@ class GroceryService(
 
     private fun changed(item: GroceryItem) = item.also { changes.changed(it.listId) }
 
+    private fun listErrors(
+        name: String,
+        icon: String?,
+    ): List<ErrorMessage>? =
+        listOfNotNull(
+            listNameError(name),
+            icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage("An icon must be one emoji.") },
+        ).ifEmpty { null }
+
     private fun listNameError(name: String) =
         if (name.isEmpty() || name.length > MAX_LIST_NAME_LENGTH || name.any { it.isISOControl() }) {
             ErrorMessage("A list name must have 1 to $MAX_LIST_NAME_LENGTH characters and no control characters.")
@@ -230,6 +245,24 @@ class GroceryService(
 
     companion object {
         const val MAX_LIST_NAME_LENGTH = 64
+
+        // the longest emoji in utf-16, e.g. a flag of a region or a family joined of several
+        const val MAX_ICON_LENGTH = 32
+
+        // one emoji: a single grapheme (the character iterator of the jdk counts the extended
+        // grapheme clusters) that starts with a pictograph, a pair of regional indicators (a flag)
+        // or a keycap
+        fun isOneEmoji(text: String): Boolean {
+            if (text.isEmpty() || text.length > MAX_ICON_LENGTH) return false
+            val graphemes = BreakIterator.getCharacterInstance().apply { setText(text) }
+            if (graphemes.next() != text.length) return false
+            val first = text.codePointAt(0)
+            return Character.isExtendedPictographic(first) || first in REGIONAL_INDICATORS || text.contains(KEYCAP)
+        }
+
+        private val REGIONAL_INDICATORS = 0x1F1E6..0x1F1FF
+
+        private const val KEYCAP = '\u20E3'
 
         const val MAX_ITEM_NAME_LENGTH = 128
 

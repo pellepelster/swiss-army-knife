@@ -30,6 +30,11 @@
                 "input": "public"
               },
               {
+                "glob": "data.json",
+                "input": "node_modules/emoji-picker-element-data/en/emojibase",
+                "output": "emoji"
+              },
+              {
                 "glob": "{swagger-ui-bundle.js,swagger-ui.css}",
                 "input": "node_modules/swagger-ui-dist",
                 "output": "swagger"
@@ -107,7 +112,10 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "reporters": ["default", ["junit", { "outputFile": "build/test-results/unit/junit.xml" }]]
+            "reporters": [
+              "default",
+              ["junit", { "outputFile": "build/test-results/unit/junit.xml" }]
+            ]
           }
         }
       }

@@ -36,6 +36,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -69,7 +76,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.grocery.GroceryModel
-import io.pelle.sak.grocery.NewList
+import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.Screen
 import io.pelle.sak.grocery.api.GroceryItemResponse
@@ -231,9 +238,9 @@ private fun ListsScreen(
     model: GroceryModel,
 ) {
     val open = screen.open
-    val newList = screen.newList
+    val settings = screen.settings
     when {
-        newList != null -> NewListScreen(newList, model)
+        settings != null -> ListSettingsScreen(settings, model)
         open == null -> HomeScreen(screen, model)
         else -> ListScreen(screen, open, model)
     }
@@ -284,7 +291,7 @@ private fun HomeScreen(
                     item { Empty("You have no list yet, add one with the plus at the top.") }
                 }
                 itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
-                    ListRow(list) { model.open(list.id) }
+                    ListRow(list, open = { model.open(list.id) }, settings = { model.openSettings(list.id) })
                     if (index < screen.lists.lastIndex) HorizontalDivider()
                 }
             }
@@ -292,25 +299,16 @@ private fun HomeScreen(
     }
 }
 
-// a list on the home: its initial, its name, how many items are to buy and whether it is shared
+// a list on the home: its icon, its name, how many items are to buy and whether it is shared; its
+// menu leads to the settings, only of a list of the user's own (UX-8)
 @Composable
 private fun ListRow(
     list: GroceryListResponse,
     open: () -> Unit,
+    settings: () -> Unit,
 ) {
     ListItem(
-        leadingContent = {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    list.name.trim().take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-        },
+        leadingContent = { ListIcon(list.name, list.icon) },
         headlineContent = { Text(list.name) },
         supportingContent = {
             Column {
@@ -318,8 +316,38 @@ private fun ListRow(
                 if (list.shared) Text("Shared with all users", color = MaterialTheme.colorScheme.primary)
             }
         },
+        trailingContent = {
+            IconButton(onClick = settings, enabled = list.mine, modifier = Modifier.testTag("settings-${list.id}")) {
+                Text("⋮", style = MaterialTheme.typography.titleLarge)
+            }
+        },
         modifier = Modifier.clickable(onClick = open).testTag("list-${list.id}"),
     )
+}
+
+// the mark of a list: its emoji, or the first letter of its name in a circle
+@Composable
+private fun ListIcon(
+    name: String,
+    icon: String?,
+    size: Int = 40,
+) {
+    if (icon != null) {
+        Box(Modifier.size(size.dp), contentAlignment = Alignment.Center) {
+            Text(icon, fontSize = (size * 0.7).sp)
+        }
+    } else {
+        Box(
+            Modifier.size(size.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                name.trim().take(1).uppercase(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
 }
 
 // No items to buy, 1 item to buy, 3 items to buy
@@ -330,16 +358,22 @@ internal fun toBuy(items: Int) =
         else -> "$items items to buy"
     }
 
-// the name of a new list and whether all users see it; back leads to the home
+// the settings of a new list or of one of the user's own: its name, whether all users see it and its
+// icon, one emoji of the picker of the system; a list of the user's own is deleted after a
+// confirmation (UX-4.1), not the last one (LIST-1). Back leads to the home
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NewListScreen(
-    newList: NewList,
+private fun ListSettingsScreen(
+    settings: ListSettings,
     model: GroceryModel,
 ) {
     BackHandler(onBack = model::back)
-    val canCreate = newList.name.isNotBlank() && !newList.busy
+    var picking by rememberSaveable { mutableStateOf(false) }
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    val canSave = settings.name.isNotBlank() && !settings.busy
+    val edit = { name: String, shared: Boolean, icon: String? -> model.editSettings(name, shared, icon) }
     Page(
-        "New list",
+        if (settings.id == null) "New list" else "Settings",
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "All lists")
@@ -348,28 +382,85 @@ private fun NewListScreen(
     ) { padding ->
         Form(padding) {
             OutlinedTextField(
-                value = newList.name,
-                onValueChange = { model.editNewList(it, newList.shared) },
+                value = settings.name,
+                onValueChange = { edit(it, settings.shared, settings.icon) },
                 label = { Text("Name") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (canCreate) model.createList() }),
+                keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),
                 modifier = Modifier.fillMaxWidth().testTag("list-name"),
             )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ListIcon(settings.name, settings.icon, size = 48)
+                TextButton(onClick = { picking = true }, modifier = Modifier.testTag("choose-icon")) { Text("Choose icon") }
+                TextButton(onClick = { edit(settings.name, settings.shared, null) }, enabled = settings.icon != null) {
+                    Text("No icon")
+                }
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .toggleable(value = newList.shared, role = Role.Switch, onValueChange = { model.editNewList(newList.name, it) }),
+                    .toggleable(value = settings.shared, role = Role.Switch, onValueChange = { edit(settings.name, it, settings.icon) }),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Shared with all users", modifier = Modifier.weight(1f))
-                Switch(checked = newList.shared, onCheckedChange = null)
+                Switch(checked = settings.shared, onCheckedChange = null)
             }
-            Error(newList.error)
-            Button(onClick = model::createList, enabled = canCreate, modifier = Modifier.testTag("create-list")) {
-                Text(if (newList.busy) "Creating…" else "Create list")
+            Error(settings.error)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (settings.id != null) {
+                    OutlinedButton(
+                        onClick = { confirming = true },
+                        enabled = !settings.last && !settings.busy,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.testTag("delete-list"),
+                    ) { Text("Delete list") }
+                }
+                Button(onClick = model::saveSettings, enabled = canSave, modifier = Modifier.testTag("save-list")) {
+                    Text(
+                        when {
+                            settings.busy -> "Saving…"
+                            settings.id == null -> "Create list"
+                            else -> "Save"
+                        },
+                    )
+                }
             }
+            if (settings.last) Text("Your only list can not be deleted.", style = MaterialTheme.typography.bodySmall)
         }
+    }
+    if (picking) {
+        ModalBottomSheet(onDismissRequest = { picking = false }) {
+            AndroidView(
+                factory = { context ->
+                    EmojiPickerView(context).apply {
+                        setOnEmojiPickedListener { emoji ->
+                            edit(settings.name, settings.shared, emoji.emoji)
+                            picking = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(400.dp),
+            )
+        }
+    }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Delete the list?") },
+            text = { Text("${settings.name} and its items go.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirming = false
+                        model.deleteList()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text("Delete") }
+            },
+            // the safe default
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Keep") } },
+        )
     }
 }
 
@@ -384,7 +475,7 @@ private fun ListScreen(
     BackHandler(onBack = model::back)
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
-        list?.let { if (it.shared) "${it.name} · shared" else it.name }.orEmpty(),
+        list?.let { listOfNotNull(it.icon, it.name).joinToString(" ") + if (it.shared) " · shared" else "" }.orEmpty(),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "All lists")

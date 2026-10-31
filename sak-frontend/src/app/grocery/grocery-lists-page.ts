@@ -5,13 +5,14 @@ import { RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../shared/api';
 import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
 import { GroceryList, GroceryService } from './grocery.service';
+import { ListIcon } from './list-icon';
 
 // the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
 // others, each with how many items are to buy; a list opens on its own page. A change of a list
 // loads them again (LIST-4)
 @Component({
   selector: 'app-grocery-lists-page',
-  imports: [RouterLink],
+  imports: [ListIcon, RouterLink],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -34,19 +35,43 @@ import { GroceryList, GroceryService } from './grocery.service';
     @if (lists().length) {
       <nav class="list-group" aria-label="Grocery lists">
         @for (list of lists(); track list.id) {
-          <a
-            class="list-group-item list-group-item-action py-3"
-            [routerLink]="['lists', list.id]"
-            [attr.data-testid]="'list-' + list.id"
-          >
-            <span class="d-block fs-5 text-break">{{ list.name }}</span>
-            <span class="d-block text-body-secondary">
-              {{ toBuy(list.items) }}
-              @if (list.shared) {
-                <span class="badge border text-body-secondary fw-normal ms-1">shared</span>
-              }
-            </span>
-          </a>
+          <!-- the row opens the list; its menu the settings, only of a list of the user's own (UX-8) -->
+          <div class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
+            <app-list-icon [name]="list.name" [icon]="list.icon" />
+            <a
+              class="flex-grow-1 link-body-emphasis text-decoration-none stretched-link"
+              [routerLink]="['lists', list.id]"
+              [attr.data-testid]="'list-' + list.id"
+            >
+              <span class="d-block fs-5 text-break">{{ list.name }}</span>
+              <span class="d-block text-body-secondary">
+                {{ toBuy(list.items) }}
+                @if (list.shared) {
+                  <span class="badge border text-body-secondary fw-normal ms-1">shared</span>
+                }
+              </span>
+            </a>
+            @if (list.mine) {
+              <a
+                class="btn btn-link link-body-emphasis position-relative z-1"
+                [routerLink]="['lists', list.id, 'edit']"
+                [queryParams]="{ from: 'lists' }"
+                [attr.aria-label]="'Settings of ' + list.name"
+                title="Settings"
+                ><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i
+              ></a>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-link link-body-emphasis position-relative z-1"
+                disabled
+                [attr.aria-label]="'Settings of ' + list.name"
+                title="Only the owner of a list changes it"
+              >
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
         }
       </nav>
     } @else if (loaded()) {

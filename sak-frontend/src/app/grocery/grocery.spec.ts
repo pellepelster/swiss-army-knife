@@ -13,8 +13,8 @@ const categories = [
   { name: 'FRUIT_VEGETABLES', label: 'Fruit & vegetables' },
   { name: 'DAIRY', label: 'Dairy & eggs' },
 ];
-const defaultList = { id: 1, name: 'Default', shared: false, mine: true, items: 3 };
-const party = { id: 2, name: 'Party', shared: true, mine: false, items: 1 };
+const defaultList = { id: 1, name: 'Default', shared: false, mine: true, items: 3, icon: null };
+const party = { id: 2, name: 'Party', shared: true, mine: false, items: 1, icon: '🎉' };
 const item = (id: number, name: string, category: string | null) => ({
   id,
   listId: 1,
@@ -86,6 +86,15 @@ describe('Grocery', () => {
     ]);
     expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
     expect(page().querySelector('#item-name')).toBeNull();
+    // the emoji of a list, else the first letter of its name
+    expect(
+      [...page().querySelectorAll('app-list-icon')].map((icon) => icon.textContent!.trim()),
+    ).toEqual(['D', '🎉', '🎉']);
+    // the menu of a row leads to the settings, of a list of another user it is disabled (UX-8)
+    expect(button('Settings of Default').getAttribute('href')).toBe(
+      '/grocery/lists/1/edit?from=lists',
+    );
+    expect(button('Settings of Party').disabled).toBe(true);
 
     page().querySelector<HTMLAnchorElement>('[data-testid=list-2]')!.click();
     await harness.fixture.whenStable();
@@ -98,9 +107,9 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
     expect(button('All lists').getAttribute('href')).toBe('/grocery');
     // not the owner's: the edit stays in its place, disabled (UX-8)
-    expect(button('Edit list').tagName).toBe('BUTTON');
-    expect(button('Edit list').disabled).toBe(true);
-    expect(button('Edit list').title).toBe('Only the owner of a list changes it');
+    expect(button('Settings').tagName).toBe('BUTTON');
+    expect(button('Settings').disabled).toBe(true);
+    expect(button('Settings').title).toBe('Only the owner of a list changes it');
     // one list at a time, no way to the next one but the overview
     expect(button('Next list')).toBeUndefined();
   });
@@ -157,7 +166,7 @@ describe('Grocery', () => {
       list.getAttribute('aria-label'),
     );
     expect(groups).toEqual(['Fruit & vegetables', 'Dairy & eggs', 'No category']);
-    expect(button('Edit list').getAttribute('href')).toBe('/grocery/lists/1/edit');
+    expect(button('Settings').getAttribute('href')).toBe('/grocery/lists/1/edit');
   });
 
   it('strikes a checked item through until the time is up, undoes it, the backend learns it afterwards', async () => {
@@ -236,7 +245,7 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     button('Create list').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/grocery/lists' });
-    expect(request.request.body).toEqual({ name: 'Party', shared: true });
+    expect(request.request.body).toEqual({ name: 'Party', shared: true, icon: null });
     request.flush({ ...party, mine: true });
     await harness.fixture.whenStable();
     expect(url()).toBe('/grocery/lists/2');
@@ -324,5 +333,47 @@ describe('Grocery', () => {
     expect(url()).toBe('/grocery');
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([party]));
     vi.useRealTimers();
+  });
+
+  it('the settings change the icon of a list, no icon shows the first letter', async () => {
+    await open('/grocery/lists/2/edit');
+    http
+      .expectOne('/api/v1/grocery/lists?offset=0&limit=100')
+      .flush(pageOf([defaultList, { ...party, mine: true }]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('h1')?.textContent).toBe('Settings');
+    const icon = () => page().querySelector('[data-testid=list-icon]')!.textContent!.trim();
+    expect(icon()).toBe('🎉');
+
+    button('No icon').click();
+    await harness.fixture.whenStable();
+    expect(icon()).toBe('P');
+    expect(button('No icon').disabled).toBe(true);
+    button('Save').click();
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/2' }).request.body).toEqual({
+      name: 'Party',
+      shared: true,
+      icon: null,
+    });
+  });
+
+  it('the settings lead back where they were opened, all lists or the list', async () => {
+    for (const [settings, back] of [
+      ['/grocery/lists/1/edit?from=lists', '/grocery'],
+      ['/grocery/lists/1/edit', '/grocery/lists/1'],
+    ]) {
+      await open(settings);
+      http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+      await harness.fixture.whenStable();
+      expect(button('Back').getAttribute('href')).toBe(back);
+      expect(button('Cancel').getAttribute('href')).toBe(back);
+      button('Save').click();
+      http.expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/1' }).flush(defaultList);
+      await harness.fixture.whenStable();
+      expect(url()).toBe(back);
+      http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
+      await harness.fixture.whenStable();
+      http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
+    }
   });
 });
