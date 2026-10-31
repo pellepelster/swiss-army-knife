@@ -11,6 +11,7 @@
           "/favicon-32.png",
           "/index.html",
           "/notes.webmanifest",
+          "/grocery.webmanifest",
           "/*.css",
           "/*.js"
         ]

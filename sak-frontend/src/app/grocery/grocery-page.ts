@@ -109,10 +109,20 @@ interface ItemGroup {
           <span class="badge border text-body-secondary fw-normal fs-6 align-middle">shared</span>
         }
       </h1>
+      <!-- always in its place (UX-8): only the owner changes a list -->
       @if (shown()?.mine) {
         <a class="btn btn-outline-secondary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
           >Edit list</a
         >
+      } @else {
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          disabled
+          title="Only the owner of a list changes it"
+        >
+          Edit list
+        </button>
       }
     </header>
 

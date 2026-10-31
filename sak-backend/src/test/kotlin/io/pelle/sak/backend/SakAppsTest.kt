@@ -950,7 +950,9 @@ class SakAppsTest {
                 }
             }
             // installable as an app, with the service worker that keeps it on the phone
-            getWithHost(port, "sak.example.org", "/notes.webmanifest") shouldContain "Content-Type: application/manifest+json"
+            listOf("/notes.webmanifest", "/grocery.webmanifest").forEach { manifest ->
+                getWithHost(port, "sak.example.org", manifest) shouldContain "Content-Type: application/manifest+json"
+            }
             getWithHost(port, "sak.example.org", "/ngsw-worker.js") shouldStartWith "HTTP/1.1 200"
             // an inlined critical css loads the rest of the styles with an inline onload, which the
             // content security policy blocks

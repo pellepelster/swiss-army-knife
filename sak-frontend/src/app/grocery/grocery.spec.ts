@@ -207,8 +207,10 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('shared');
     expect(button('Next list').disabled).toBe(true);
-    // not the owner's, no edit
-    expect(button('Edit list')).toBeUndefined();
+    // not the owner's: the edit stays in its place, disabled (UX-8)
+    expect(button('Edit list').tagName).toBe('BUTTON');
+    expect(button('Edit list').disabled).toBe(true);
+    expect(button('Edit list').title).toBe('Only the owner of a list changes it');
   });
 
   it('a swipe to the side goes to the next or the previous list, other touches do not', async () => {

@@ -22,7 +22,11 @@ export class FaviconService {
     const router = inject(Router);
     const subscription = router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
-      .subscribe(() => this.show(favicon(router.routerState.snapshot.root) ?? DEFAULT_FAVICON));
+      .subscribe(() =>
+        this.show(
+          innermost<Favicon>(router.routerState.snapshot.root, 'favicon') ?? DEFAULT_FAVICON,
+        ),
+      );
     inject(DestroyRef).onDestroy(() => subscription.unsubscribe());
   }
 
@@ -45,7 +49,8 @@ export class FaviconService {
   }
 }
 
-function favicon(route: ActivatedRouteSnapshot): Favicon | undefined {
-  const inner = route.firstChild ? favicon(route.firstChild) : undefined;
-  return inner ?? (route.data['favicon'] as Favicon | undefined);
+// the value of the key in the data of the innermost route that has one
+export function innermost<T>(route: ActivatedRouteSnapshot, key: string): T | undefined {
+  const inner = route.firstChild ? innermost<T>(route.firstChild, key) : undefined;
+  return inner ?? (route.data[key] as T | undefined);
 }

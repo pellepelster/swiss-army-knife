@@ -41,6 +41,8 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-7` **The sign-in follows the user mode.** In the multi user mode, the sign-in shows the login by e-mail; a link
   below it leads to the login with the password of the admin. In the single user mode, it shows only the login with
   the password. The user mode comes from the deployment (`GET /api/v1/info`).
+- `UX-8` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page or screen
+  shows, stays in its place, disabled; the layout does not change under the user's hand.
 
 ## Web ui
 
@@ -70,8 +72,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 
 ## sakctl window
 
-- `WINDOW-1` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows,
-  stays in its place, disabled; the layout of a page does not change under the user's hand.
 - `WINDOW-2` **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the
   window fills its password fields with them, which the user can change; an accepted risk (refer to
   [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md)).
