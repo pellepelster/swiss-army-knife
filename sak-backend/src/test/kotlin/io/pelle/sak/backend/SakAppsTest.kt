@@ -478,6 +478,30 @@ class SakAppsTest {
     }
 
     @Test
+    fun `streams the changes of the grocery lists as server-sent events, a change carries only the id of its list`() {
+        withServer { port ->
+            val session = signIn(port)
+            val listId = get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            get(port, "/api/v1/grocery/changes").statusCode() shouldBe 401
+
+            // the answer comes at once, its lines as they are sent
+            val stream = request(port, "GET", "/api/v1/grocery/changes", session, answer = HttpResponse.BodyHandlers.ofLines())
+            stream.statusCode() shouldBe 200
+            stream.headers().firstValue("Content-Type").get() shouldContain "text/event-stream"
+            val lines = stream.body().iterator()
+            lines.next() shouldBe ": listening"
+
+            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk"}""", session).statusCode() shouldBe 201
+            val event =
+                java.util.concurrent.CompletableFuture
+                    .supplyAsync { generateSequence { lines.next() }.dropWhile { !it.startsWith("event:") }.take(2).toList() }
+                    .get(5, java.util.concurrent.TimeUnit.SECONDS)
+            event shouldBe listOf("event: changed", """data: {"listId":$listId}""")
+            stream.body().close()
+        }
+    }
+
+    @Test
     fun `keeps grocery lists, their items by category and suggestions of what was added before`() {
         withServer { port ->
             // the sign-in makes the first list, once
@@ -996,6 +1020,7 @@ class SakAppsTest {
                         "/api/v1/notes",
                         "/api/v1/notes/{id}",
                         "/api/v1/grocery/categories",
+                        "/api/v1/grocery/changes",
                         "/api/v1/grocery/lists",
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",

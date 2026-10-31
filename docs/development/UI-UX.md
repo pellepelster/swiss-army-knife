@@ -43,6 +43,12 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   the password. The user mode comes from the deployment (`GET /api/v1/info`).
 - `UX-8` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page or screen
   shows, stays in its place, disabled; the layout does not change under the user's hand.
+- `UX-9` **The steps of a wizard, bottom right.** On a page that leads through several steps, the buttons that move
+  through them (back, next, cancel, plan, create) are one grouped toolbar at the bottom right; back is always its
+  leftmost button.
+- `UX-10` **The actions of a page, top right.** The buttons that act on what the page shows (add a provider, create a
+  deployment, edit a list) are one grouped toolbar at the top right of its header. One action of a page is the primary
+  one.
 
 ## Web ui
 
@@ -54,10 +60,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `WEB-3` **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or
   cancelled. A delete asks inline, in the view itself.
 - `WEB-4` **Copy to the clipboard** looks and behaves the same everywhere.
-- `WEB-5` **Swipe between lists on a phone.** Where a page shows one of several lists, for example the grocery lists, a
-  swipe to the left shows the next list and one to the right the previous; dots under the name show where it is.
-  Arrows at the sides of the page do the same on larger screens; on a phone they stay for the keyboard and screen
-  readers only. A swipe never starts on a field or at the edge of the screen, where the system goes back.
 
 ## Android app
 
@@ -72,30 +74,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 
 ## sakctl window
 
-- `WINDOW-2` **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the
-  window fills its password fields with them, which the user can change; an accepted risk (refer to
-  [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md)).
-- `WINDOW-3` **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move
-  through the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost
-  button. Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the
-  header. One action of a page is the primary one, the one green button.
-- `WINDOW-4` **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an
-  update. The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs
-  it.
-- `WINDOW-5` **Start-up checks.** The splash screen runs the checks and has a Quit button, disabled while the checks
-  run. A failed check shows its reason in its own row, never in a dialog. Quit is then enabled, the only action left.
-- `WINDOW-6` **A deployment and its page.** The list shows each deployment with its resources, what each is (the size of
-  a volume, the address of a server) and the link to its frontend; the link opens the browser of the system. The list
-  shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened with
-  the password, checks the deployment at once: each resource and the provisioning with its state and changes, as the
-  plan of a deploy has them, and the state of the deployment. At the top right: destroy, maintenance (a menu of status,
-  update and reboot) and check, which checks again. At the bottom right, one group: back, force deploy (after a check;
-  the playbook runs again) and deploy changes (only when the check found changes). Check is the green button, deploy
-  changes instead when there are changes.
-- `WINDOW-7` **Maintenance.** Each entry of the maintenance menu opens its own view, a reboot only after a confirmation
-  dialog: the lines of the server while it works, then the answer, warnings in yellow, a failure in red. There is no
-  cancel, a command on the server is not stopped halfway; each has a timeout. Back is enabled once it ended and leads to
-  the page of the deployment, which checks again.
 - `WINDOW-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
   created anew or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes
   something, and it shows each resource as it goes, with the output of the provisioning below.

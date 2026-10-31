@@ -6,6 +6,12 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.grocery.GroceryListDelete
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.math.BigDecimal
@@ -127,4 +133,23 @@ class GroceryServiceTest {
         service.forget(PELLE, suggestion.id) shouldBe true
         service.suggestions(PELLE, "", null) shouldBe emptyList()
     }
+
+    @Test
+    fun `a change of a list reaches the users who see it, a private list of another user not (LIST-4)`() =
+        runBlocking {
+            val own = list(PELLE)
+            val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+            // listening before anything changes
+            val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(4).toList() } }
+
+            add(PELLE, own, input("Wine"))
+            val chips = add(PELLE, party, input("Chips"))
+            service.updateItem(OTHER, chips.id, input("Crisps"))
+            service.deleteItem(OTHER, chips.id) shouldBe true
+            service.deleteItem(OTHER, chips.id) shouldBe false
+            service.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
+
+            // the own list of pelle is private, the shared one heard also when it goes
+            heard.await() shouldBe listOf(party, party, party, party)
+        }
 }

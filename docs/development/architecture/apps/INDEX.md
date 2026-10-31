@@ -50,6 +50,10 @@ An app whose items belong to lists of the user keeps to these rules; the notes a
   action that leads to the overview. An Android app remembers the list that was open when it was left and opens it
   again; when the user went back to the overview, or the list is gone, it opens on the overview. A sign-out forgets
   the list.
+- `LIST-4` **Changes reach every client.** A change of a list or of its items, its deletion included, reaches every
+  open client of each user who sees the list, in the web ui and on Android alike: the backend sends a server-sent
+  event with the id of the list and nothing of its data, and the client loads the list again. A client listens only
+  while it is in the foreground; when it comes back, it loads again what it shows, so it sees what changed meanwhile.
 
 ## Web Frontend
 

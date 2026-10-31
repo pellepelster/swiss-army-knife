@@ -1,4 +1,4 @@
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   computed,
@@ -11,9 +11,10 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Observable, Subscription } from 'rxjs';
+import { debounceTime, filter, Observable, Subscription } from 'rxjs';
 import { apiErrorMessage } from '../shared/api';
 import { UndoToast } from '../shared/undo-toast';
+import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import {
   GroceryCategory,
   GroceryItem,
@@ -31,12 +32,6 @@ function without(ids: ReadonlySet<number>, id: number): ReadonlySet<number> {
   return new Set([...ids].filter((each) => each !== id));
 }
 
-// a swipe of the lists: how far to the side at least, how long at most, and the edges of the
-// screen it does not start at
-const SWIPE_DISTANCE = 60;
-const SWIPE_TIME_MS = 500;
-const SWIPE_EDGE = 20;
-
 // one group of the items to buy, of a category or of none
 interface ItemGroup {
   label: string;
@@ -51,50 +46,7 @@ interface ItemGroup {
   imports: [NgTemplateOutlet, RouterLink, UndoToast],
   host: {
     class: 'd-block container pb-5',
-    '(touchstart)': 'touchStart($event)',
-    '(touchend)': 'touchEnd($event)',
   },
-  styles: `
-    // a swipe to the side goes to another list, scrolling and zooming stay with the browser
-    :host {
-      touch-action: pan-y pinch-zoom;
-    }
-
-    // big enough to hit with a thumb, at the edges of the page
-    .list-arrow {
-      z-index: 1020;
-      font-size: 3rem;
-      padding: 1rem 0.5rem;
-    }
-
-    // on a phone the lists are swiped; the arrows stay for the keyboard and the screen readers
-    @media (max-width: 767.98px) {
-      .list-arrow:not(:focus) {
-        position: absolute !important;
-        width: 1px;
-        height: 1px;
-        margin: -1px;
-        padding: 0;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      }
-    }
-
-    // where the list shown is among the lists
-    .list-dots span {
-      display: inline-block;
-      width: 0.5rem;
-      height: 0.5rem;
-      border-radius: 50%;
-      background: var(--line);
-    }
-
-    .list-dots span.active {
-      background: var(--ink);
-    }
-  `,
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
@@ -128,38 +80,6 @@ interface ItemGroup {
 
     @if (error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
-    }
-
-    @if (shown(); as list) {
-      @if (lists().length > 1) {
-        <div class="list-dots d-flex gap-1 mb-3" aria-hidden="true" data-testid="list-dots">
-          @for (each of lists(); track each.id) {
-            <span [class.active]="each.id === list.id"></span>
-          }
-        </div>
-      }
-    }
-
-    <!-- the lists one after the other, big arrows at the sides of the page -->
-    @if (lists().length > 1) {
-      <button
-        type="button"
-        class="list-arrow btn btn-link link-body-emphasis position-fixed top-50 start-0 translate-middle-y"
-        aria-label="Previous list"
-        [disabled]="position() === 0"
-        (click)="step(-1)"
-      >
-        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        class="list-arrow btn btn-link link-body-emphasis position-fixed top-50 end-0 translate-middle-y"
-        aria-label="Next list"
-        [disabled]="position() === lists().length - 1"
-        (click)="step(1)"
-      >
-        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
-      </button>
     }
 
     @if (shown()) {
@@ -241,7 +161,6 @@ export class GroceryPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
   private readonly router = inject(Router);
-  private readonly document = inject(DOCUMENT);
 
   // the route parameter, the id of the list shown
   readonly id = input.required<string>();
@@ -294,6 +213,7 @@ export class GroceryPage {
   });
 
   private loadingItems?: Subscription;
+  private loadingLists?: Subscription;
   private loadingSuggestions?: Subscription;
 
   constructor() {
@@ -312,53 +232,19 @@ export class GroceryPage {
       });
     });
     this.destroyRef.onDestroy(() => this.commitPending());
-  }
-
-  // the place of the list shown among the lists
-  protected readonly position = computed(() =>
-    this.lists().findIndex((list) => list.id === this.shown()?.id),
-  );
-
-  // the list before or after the one shown
-  protected step(by: number): void {
-    const list = this.lists()[this.position() + by];
-    if (list) void this.router.navigate(['/grocery/lists', list.id]);
-  }
-
-  // where and when a swipe started, null for a touch that is no swipe of the lists
-  private swipe: { x: number; y: number; at: number } | null = null;
-
-  // a swipe starts on the page itself, not on what takes input, and not at the edges of the screen,
-  // where the system goes back
-  protected touchStart(event: TouchEvent): void {
-    const touch = event.touches[0];
-    const target = event.target as Element | null;
-    const width = this.document.defaultView?.innerWidth ?? 0;
-    this.swipe =
-      event.touches.length === 1 &&
-      !target?.closest('input, select, textarea, button, a, label') &&
-      touch.clientX >= SWIPE_EDGE &&
-      touch.clientX <= width - SWIPE_EDGE
-        ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
-        : null;
-  }
-
-  // a quick swipe far enough to the side and more to the side than up or down; to the left the next
-  // list, to the right the previous one
-  protected touchEnd(event: TouchEvent): void {
-    const start = this.swipe;
-    this.swipe = null;
-    const touch = event.changedTouches[0];
-    if (!start || !touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (
-      Math.abs(dx) >= SWIPE_DISTANCE &&
-      Math.abs(dx) > 2 * Math.abs(dy) &&
-      Date.now() - start.at <= SWIPE_TIME_MS
-    ) {
-      this.step(dx < 0 ? 1 : -1);
-    }
+    // a change of the list shown, or of everything after the stream was away, loads it again; a list
+    // that is gone leads to all lists (LIST-4)
+    inject(GroceryChanges)
+      .changes()
+      .pipe(
+        filter((id) => id === EVERYTHING || String(id) === this.id()),
+        debounceTime(CHANGES_DEBOUNCE_MS),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.loadLists();
+        this.loadItems(this.shown());
+      });
   }
 
   // the suggestions of what is typed; one chosen brings its quantity and category along, typing
@@ -475,7 +361,8 @@ export class GroceryPage {
   }
 
   private loadLists(): void {
-    this.service
+    this.loadingLists?.unsubscribe();
+    this.loadingLists = this.service
       .lists()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

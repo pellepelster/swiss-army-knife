@@ -3,21 +3,32 @@ package io.pelle.sak.grocery.api
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.readLine
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.Json
+import java.io.IOException
 
 val ApiJson = Json { ignoreUnknownKeys = true }
 
@@ -39,6 +50,7 @@ class GroceryApi(
         HttpClient(engine) {
             expectSuccess = false
             install(ContentNegotiation) { json(ApiJson) }
+            install(HttpTimeout)
         }
 
     suspend fun info(): InfoResponse = client.get("$url/info").answer("This is no SAK deployment.")
@@ -105,6 +117,33 @@ class GroceryApi(
             }.answer<Unit>("The item could not be checked.")
     }
 
+    // the ids of the lists the user sees as they change, server-sent events (LIST-4); opened calls
+    // once the stream is open. It ends with an exception when the connection ends, an ApiException
+    // with 401 when the session ended
+    fun changes(opened: suspend () -> Unit): Flow<Int> =
+        flow {
+            client
+                .prepareGet("$url/grocery/changes") {
+                    token?.let { bearerAuth(it) }
+                    // the backend keeps the stream open with a comment every 25 seconds
+                    timeout { socketTimeoutMillis = CHANGES_TIMEOUT_MS }
+                }.execute { response ->
+                    if (!response.status.isSuccess()) response.answer<Unit>("The changes could not be read.")
+                    opened()
+                    val channel = response.bodyAsChannel()
+                    var event: String? = null
+                    while (true) {
+                        val line = channel.readLine() ?: throw IOException("The changes ended.")
+                        when {
+                            line.startsWith("event:") -> event = line.removePrefix("event:").trim()
+                            line.startsWith("data:") && event == "changed" ->
+                                emit(ApiJson.parseToJsonElement(line.removePrefix("data:")).jsonObject.getValue("listId").jsonPrimitive.int)
+                            line.isEmpty() -> event = null
+                        }
+                    }
+                }
+        }
+
     // in the order a list shows them
     suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", "The categories could not be loaded.")
 
@@ -150,5 +189,8 @@ class GroceryApi(
         const val PAGE_LIMIT = 100
 
         const val SESSION_ENDED = "Your session ended, please sign in again."
+
+        // longer than the 25 seconds between the comments of the changes
+        const val CHANGES_TIMEOUT_MS = 60_000L
     }
 }

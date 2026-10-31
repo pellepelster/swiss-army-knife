@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { pageHelpers, pageOf } from '../testing/page';
+import { Subject } from 'rxjs';
+import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import { GROCERY_UNDO_MS } from './grocery-page';
 import { groceryRoute } from './grocery.routes';
 
@@ -28,10 +30,14 @@ const item = (id: number, name: string, category: string | null) => ({
 describe('Grocery', () => {
   let http: HttpTestingController;
   let harness: RouterTestingHarness;
+  // the changes the backend sends, as the tests send them
+  let changes: Subject<number | null>;
 
   beforeEach(async () => {
+    changes = new Subject();
     TestBed.configureTestingModule({
       providers: [
+        { provide: GroceryChanges, useValue: { changes: () => changes } },
         provideHttpClient(),
         provideHttpClientTesting(),
         // the guard of the app is left out, the tests are signed in
@@ -91,6 +97,12 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
     expect(button('All lists').getAttribute('href')).toBe('/grocery');
+    // not the owner's: the edit stays in its place, disabled (UX-8)
+    expect(button('Edit list').tagName).toBe('BUTTON');
+    expect(button('Edit list').disabled).toBe(true);
+    expect(button('Edit list').title).toBe('Only the owner of a list changes it');
+    // one list at a time, no way to the next one but the overview
+    expect(button('Next list')).toBeUndefined();
   });
 
   it('without a list there is only the way to add one', async () => {
@@ -194,65 +206,6 @@ describe('Grocery', () => {
     vi.useRealTimers();
   });
 
-  it('goes from list to list with the arrows at the sides', async () => {
-    await load([defaultList, party], []);
-    expect(page().querySelector('[data-testid=list-name]')?.textContent?.trim()).toBe('Default');
-    expect(button('Previous list').disabled).toBe(true);
-
-    button('Next list').click();
-    await harness.fixture.whenStable();
-    expect(url()).toBe('/grocery/lists/2');
-    http.expectOne('/api/v1/grocery/lists/2/items?offset=0&limit=100').flush(pageOf([]));
-    await harness.fixture.whenStable();
-    expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
-    expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('shared');
-    expect(button('Next list').disabled).toBe(true);
-    // not the owner's: the edit stays in its place, disabled (UX-8)
-    expect(button('Edit list').tagName).toBe('BUTTON');
-    expect(button('Edit list').disabled).toBe(true);
-    expect(button('Edit list').title).toBe('Only the owner of a list changes it');
-  });
-
-  it('a swipe to the side goes to the next or the previous list, other touches do not', async () => {
-    await load([defaultList, party], []);
-    const dots = () =>
-      [...page().querySelectorAll('[data-testid=list-dots] span')].map((dot) =>
-        dot.classList.contains('active'),
-      );
-    expect(dots()).toEqual([true, false]);
-    // a touch as the browser reports it, on the element
-    const touch = (target: Element, type: string, x: number, y: number) => {
-      const event = new Event(type, { bubbles: true });
-      Object.defineProperty(event, 'touches', {
-        value: type === 'touchend' ? [] : [{ clientX: x, clientY: y }],
-      });
-      Object.defineProperty(event, 'changedTouches', { value: [{ clientX: x, clientY: y }] });
-      target.dispatchEvent(event);
-    };
-    const swipe = async (target: Element, from: [number, number], to: [number, number]) => {
-      touch(target, 'touchstart', ...from);
-      touch(target, 'touchend', ...to);
-      await harness.fixture.whenStable();
-    };
-    const heading = page().querySelector('[data-testid=list-name]')!;
-
-    // up and down, from the edge, on a field: no other list
-    await swipe(heading, [300, 200], [280, 400]);
-    await swipe(heading, [5, 200], [300, 200]);
-    await swipe(input('item-name'), [300, 200], [100, 200]);
-    expect(url()).toBe('/grocery/lists/1');
-
-    await swipe(heading, [300, 200], [150, 210]);
-    expect(url()).toBe('/grocery/lists/2');
-    http.expectOne('/api/v1/grocery/lists/2/items?offset=0&limit=100').flush(pageOf([]));
-    await harness.fixture.whenStable();
-    expect(dots()).toEqual([false, true]);
-
-    await swipe(page().querySelector('[data-testid=list-name]')!, [150, 200], [300, 190]);
-    expect(url()).toBe('/grocery/lists/1');
-    http.expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100').flush(pageOf([]));
-  });
-
   it('a suggestion chosen brings its quantity and category along', async () => {
     await load([defaultList], []);
     await type('item-name', 'mi');
@@ -329,5 +282,47 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(url()).toBe('/grocery');
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
+  });
+
+  it('a change of a list loads all lists again (LIST-4)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await overview([defaultList]);
+    changes.next(2);
+    changes.next(1);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    // the changes that come together are loaded once
+    http
+      .expectOne('/api/v1/grocery/lists?offset=0&limit=100')
+      .flush(pageOf([{ ...defaultList, items: 4 }]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=list-1]')?.textContent).toContain('4 items to buy');
+    vi.useRealTimers();
+  });
+
+  it('a change of the list shown loads it again, of another list not (LIST-4)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await load([defaultList, party], []);
+    changes.next(2);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    http.expectNone('/api/v1/grocery/lists/1/items?offset=0&limit=100');
+
+    changes.next(1);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    http
+      .expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100')
+      .flush(pageOf([item(10, 'Milk', null)]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-10]')?.textContent).toContain('Milk');
+
+    // the stream was away: everything again; the list is gone, all lists show
+    changes.next(EVERYTHING);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([party]));
+    http.expectOne('/api/v1/grocery/lists/1/items?offset=0&limit=100').flush(pageOf([]));
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/grocery');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([party]));
+    vi.useRealTimers();
   });
 });

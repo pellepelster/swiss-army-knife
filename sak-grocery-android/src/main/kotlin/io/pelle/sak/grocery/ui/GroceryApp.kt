@@ -50,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -102,7 +103,15 @@ private fun Page(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text(title) }, navigationIcon = navigationIcon, actions = { actions() }) },
+        // the bar a shade apart from the lists below it
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = navigationIcon,
+                actions = { actions() },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            )
+        },
         bottomBar = bottomBar,
         content = content,
     )

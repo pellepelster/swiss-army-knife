@@ -11,6 +11,10 @@ import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryListUpdate
 import io.pelle.sak.model.grocery.GroceryProduct
 import io.pelle.sak.model.grocery.GroceryRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.time.Clock
 
@@ -68,11 +72,15 @@ sealed interface GroceryItemResult {
 // GroceryRepository checks who sees and changes what (MODEL-6)
 class GroceryService(
     private val repository: GroceryRepository,
+    private val changes: GroceryChanges = GroceryChanges(),
 ) : LoginListener {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
     ) : this(GroceryRepository(database, clock))
+
+    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
+    fun changes(user: String): Flow<Int> = changes.lists.filter { withContext(Dispatchers.IO) { repository.seesList(user, it) } }
 
     // the first list of a user who has none (LIST-1)
     override fun signedIn(owner: String) = repository.ensureList(owner, DEFAULT_GROCERY_LIST)
@@ -86,7 +94,7 @@ class GroceryService(
     ): GroceryListResult {
         val normalized = name.trim()
         listNameError(normalized)?.let { return GroceryListResult.Invalid(listOf(it)) }
-        return repository.insertList(user, normalized, shared)?.let { GroceryListResult.Saved(it) } ?: GroceryListResult.Exists
+        return repository.insertList(user, normalized, shared)?.let { GroceryListResult.Saved(changed(it)) } ?: GroceryListResult.Exists
     }
 
     fun updateList(
@@ -98,7 +106,7 @@ class GroceryService(
         val normalized = name.trim()
         listNameError(normalized)?.let { return GroceryListResult.Invalid(listOf(it)) }
         return when (val update = repository.updateList(user, id, normalized, shared)) {
-            is GroceryListUpdate.Updated -> GroceryListResult.Saved(update.list)
+            is GroceryListUpdate.Updated -> GroceryListResult.Saved(changed(update.list))
             GroceryListUpdate.NotFound -> GroceryListResult.NotFound
             GroceryListUpdate.NameTaken -> GroceryListResult.Exists
         }
@@ -108,7 +116,7 @@ class GroceryService(
     fun deleteList(
         user: String,
         id: Int,
-    ): GroceryListDelete = repository.deleteList(user, id)
+    ): GroceryListDelete = repository.deleteList(user, id).also { if (it == GroceryListDelete.Deleted) changes.changed(id) }
 
     // the items to buy of a list the user sees, null for another one: by the order of their
     // category, the ones without a category last, then in the order they were added
@@ -125,7 +133,7 @@ class GroceryService(
         input: GroceryItemInput,
     ): GroceryItemResult {
         val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
+        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.NotFound
     }
 
     fun updateItem(
@@ -134,14 +142,17 @@ class GroceryService(
         input: GroceryItemInput,
     ): GroceryItemResult {
         val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(it) } ?: GroceryItemResult.NotFound
+        return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.NotFound
     }
 
     // bought (GROCERY-3), by any user who sees its list (LIST-2); false when the user sees no such item
     fun deleteItem(
         user: String,
         id: Int,
-    ): Boolean = repository.deleteItem(user, id)
+    ): Boolean {
+        val listId = repository.item(user, id)?.listId ?: return false
+        return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
+    }
 
     // the products of the user whose name contains the text, the ones bought most and last first;
     // the ones to buy on the list are left out
@@ -155,6 +166,10 @@ class GroceryService(
         user: String,
         id: Int,
     ): Boolean = repository.deleteProduct(user, id)
+
+    private fun changed(list: GroceryList) = list.also { changes.changed(it.id) }
+
+    private fun changed(item: GroceryItem) = item.also { changes.changed(it.listId) }
 
     private fun listNameError(name: String) =
         if (name.isEmpty() || name.length > MAX_LIST_NAME_LENGTH || name.any { it.isISOControl() }) {

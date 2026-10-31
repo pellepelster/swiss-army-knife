@@ -26,6 +26,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // the changes of the lists only while the app is seen (LIST-4)
+    override fun onStart() {
+        super.onStart()
+        viewModel.model.startListening()
+    }
+
+    override fun onStop() {
+        viewModel.model.stopListening()
+        super.onStop()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         signIn(intent)

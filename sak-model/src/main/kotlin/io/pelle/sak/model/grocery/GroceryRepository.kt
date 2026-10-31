@@ -147,6 +147,18 @@ class GroceryRepository(
             .where(GROCERY_LISTS.ID.eq(id), visibleList(user))
             .fetchOne { it.into(GROCERY_LISTS).toList(it.get(ITEMS_TO_BUY) ?: 0) }
 
+    // whether the user sees the list or saw it until it was deleted: whom a change of it reaches
+    // (LIST-4)
+    fun seesList(
+        user: String,
+        id: Int,
+    ): Boolean =
+        database.dsl.fetchExists(
+            GROCERY_LISTS,
+            GROCERY_LISTS.ID.eq(id),
+            GROCERY_LISTS.OWNER.eq(user).or(GROCERY_LISTS.SHARED.isTrue),
+        )
+
     // null when the owner has a list of the name
     fun insertList(
         owner: String,

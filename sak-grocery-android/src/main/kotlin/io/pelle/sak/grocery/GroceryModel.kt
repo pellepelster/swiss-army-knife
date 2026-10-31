@@ -11,6 +11,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -110,12 +112,59 @@ class GroceryModel(
 
     private var loading: Job? = null
 
+    // the stream of the changes while the app is in the foreground (LIST-4); whether it was open
+    // before, a new one may have missed changes
+    private var listening: Job? = null
+    private var listenedBefore = false
+
     // the check that can still be undone: its item and the timer that sends it to the backend
     private var pending: Pair<GroceryItemResponse, Job>? = null
     private var serial = 0
 
     // start(), which a link of a cold start waits for, so its screen does not come after the lists
     private var starting: Job? = null
+
+    // the app comes to the foreground: it hears the changes of the lists once the user is signed in,
+    // a change of the list open, or of any list on the home, loads it again (LIST-4). A stream that
+    // ends is opened again, after a longer wait each time, up to MAX_RETRY_DELAY_MS
+    fun startListening() {
+        if (listening?.isActive == true) return
+        listening =
+            scope.launch {
+                var wait = RETRY_DELAY_MS
+                while (isActive) {
+                    state.first { it is Screen.Lists }
+                    val stored = store.load()
+                    val url = stored.apiUrl ?: return@launch
+                    try {
+                        apiOf(url, stored.token)
+                            .changes(opened = {
+                                wait = RETRY_DELAY_MS
+                                // the changes meanwhile, while the app was away or the stream lost
+                                if (listenedBefore) load()
+                                listenedBefore = true
+                            }).collect { listId ->
+                                val lists = state.value as? Screen.Lists
+                                if (lists != null && (lists.open == null || lists.open == listId)) load()
+                            }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: ApiException) {
+                        if (e.status == 401) sessionEnded(stored, e)
+                    } catch (_: Exception) {
+                        // the connection ended, it is opened again
+                    }
+                    delay(wait)
+                    wait = (wait * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+                }
+            }
+    }
+
+    // the app goes to the background, the stream is closed
+    fun stopListening() {
+        listening?.cancel()
+        listening = null
+    }
 
     // where the app was left: the lists while the session lasts, else the sign-in, else the deployment
     fun start() {
@@ -507,6 +556,10 @@ class GroceryModel(
 
     companion object {
         const val NO_CATEGORY = "No category"
+
+        // the waits before the stream of the changes is opened again
+        const val RETRY_DELAY_MS = 1_000L
+        const val MAX_RETRY_DELAY_MS = 30_000L
 
         const val NOT_ASKED = "This login link was not requested in this app, or it is older than 15 minutes. Request a new one."
     }

@@ -1,10 +1,14 @@
 package io.pelle.sak.backend.grocery
 
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.request.receive
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
@@ -13,6 +17,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.utils.io.ExperimentalKtorApi
+import io.ktor.utils.io.writeStringUtf8
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
@@ -35,8 +40,16 @@ import io.pelle.sak.model.grocery.GroceryList
 import io.pelle.sak.model.grocery.GroceryProduct
 import io.ktor.server.application.ApplicationCall
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
+import kotlin.time.Duration.Companion.seconds
+
+// how often a comment keeps the stream of the changes open
+private val KEEP_ALIVE = 25.seconds
 
 private const val GROCERY_TAG = "grocery"
 
@@ -263,6 +276,40 @@ fun Route.grocery(groceryService: GroceryService) {
                 HttpStatusCode.NoContent { description = "The item is gone" }
                 HttpStatusCode.NotFound { description = "The user sees no such item" }
             }
+        }
+    }
+
+    // server-sent events, one for each change of a list the user sees (LIST-4); a comment keeps the
+    // connection open while nothing changes, proxies and phones close a quiet one
+    get("/changes") {
+        val changes = groceryService.changes(call.owner)
+        call.response.header(HttpHeaders.CacheControl, "no-cache")
+        call.respondBytesWriter(ContentType.Text.EventStream) {
+            // the headers go out at once, the client knows it listens
+            writeStringUtf8(": listening\n\n")
+            flush()
+            val keepAlive =
+                flow {
+                    while (true) {
+                        delay(KEEP_ALIVE)
+                        emit(": keep-alive\n\n")
+                    }
+                }
+            merge(changes.map { "event: changed\ndata: {\"listId\":$it}\n\n" }, keepAlive).collect {
+                writeStringUtf8(it)
+                flush()
+            }
+        }
+    }.describe {
+        tag(GROCERY_TAG)
+        summary = "The changes of the lists"
+        description =
+            "A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the " +
+            "list ({\"listId\": 2}) whenever a list the user sees, or its items, change, also when it is deleted. The " +
+            "event carries no data of the list, the client loads it again. A comment every " +
+            "${KEEP_ALIVE.inWholeSeconds} seconds keeps the connection open."
+        responses {
+            HttpStatusCode.OK { description = "The stream of the changes" }
         }
     }
 

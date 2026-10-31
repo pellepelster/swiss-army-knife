@@ -1,11 +1,14 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime, Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../shared/api';
+import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
 import { GroceryList, GroceryService } from './grocery.service';
 
 // the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
-// others, each with how many items are to buy; a list opens on its own page
+// others, each with how many items are to buy; a list opens on its own page. A change of a list
+// loads them again (LIST-4)
 @Component({
   selector: 'app-grocery-lists-page',
   imports: [RouterLink],
@@ -54,13 +57,23 @@ import { GroceryList, GroceryService } from './grocery.service';
 export class GroceryListsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
+  private loading?: Subscription;
 
   protected readonly lists = signal<GroceryList[]>([]);
   protected readonly loaded = signal(false);
   protected readonly error = signal<string | null>(null);
 
   constructor() {
-    this.service
+    this.load();
+    inject(GroceryChanges)
+      .changes()
+      .pipe(debounceTime(CHANGES_DEBOUNCE_MS), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.load());
+  }
+
+  private load(): void {
+    this.loading?.unsubscribe();
+    this.loading = this.service
       .lists()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

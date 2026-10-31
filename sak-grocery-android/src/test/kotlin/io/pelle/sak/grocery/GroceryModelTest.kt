@@ -411,4 +411,51 @@ class GroceryModelTest {
             single.usePassword(false)
             assertEquals(true, (single.screen.value as Screen.SignIn).withPassword)
         }
+
+    private fun changed(listId: Int) = "event: changed\ndata: {\"listId\":$listId}\n\n"
+
+    @Test
+    fun `a change of the open list loads it again, of another list not, a new stream loads what was missed`() =
+        runTest {
+            backend.answers["GET /grocery/changes"] = HttpStatusCode.OK to ": listening\n\n${changed(2)}${changed(1)}"
+            val model = signedIn(openList = 1)
+            advanceUntilIdle()
+            val loads = { backend.requests.count { it == "GET /grocery/lists/1/items" } }
+            assertEquals(1, loads())
+
+            model.startListening()
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            runCurrent()
+            // list 2 is not open, list 1 is
+            assertEquals(2, loads())
+            assertEquals("t", backend.tokens["/grocery/changes"])
+
+            // the stream ended; the next one loads once for what it may have missed, once for its change
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS)
+            runCurrent()
+            assertTrue(loads() > 2)
+            assertEquals(2, backend.requests.count { it == "GET /grocery/changes" })
+
+            model.stopListening()
+            advanceUntilIdle()
+            assertEquals(2, backend.requests.count { it == "GET /grocery/changes" })
+        }
+
+    @Test
+    fun `the home loads again on a change of any list, an ended session leads to the sign-in`() =
+        runTest {
+            backend.answers["GET /grocery/changes"] = HttpStatusCode.OK to changed(7)
+            val model = signedIn(openList = null)
+            advanceUntilIdle()
+            model.startListening()
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            runCurrent()
+            assertEquals(2, backend.requests.count { it == "GET /grocery/lists" })
+
+            backend.answers["GET /grocery/changes"] = HttpStatusCode.Unauthorized to ""
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS)
+            runCurrent()
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error)
+            model.stopListening()
+        }
 }
