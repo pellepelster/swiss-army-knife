@@ -33,7 +33,7 @@ fun apiDoc(application: Application): OpenApiDoc =
             OpenApiInfo(
                 title = "sak api",
                 version = API_VERSION.removePrefix("/"),
-                description = "The api of the apps of sak: the e-mail login, the notes, the static hosting, the redirects and the logs of the sites the ingress serves.",
+                description = "The full api of the backend of sak: every route below $API_PATH_PREFIX$API_VERSION.",
             ),
     ) +
         application.routingRoot.descendants().filter { it.toString().startsWith("$API_PATH_PREFIX$API_VERSION/") } +

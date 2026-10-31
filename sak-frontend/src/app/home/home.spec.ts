@@ -55,6 +55,7 @@ describe('Home', () => {
     expect(tiles('Maintenance')).toEqual([
       ['Health', '/health'],
       ['Settings', '/settings'],
+      ['API', '/swagger/'],
     ]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();

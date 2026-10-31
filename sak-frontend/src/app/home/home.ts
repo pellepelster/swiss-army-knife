@@ -74,6 +74,19 @@ import { InstallService } from '../install.service';
             </span>
           </a>
         </li>
+        <li class="col">
+          <!-- swagger ui is a page of its own next to the app, no route of it -->
+          <a
+            class="card card-body h-100 flex-row align-items-center gap-3 link-body-emphasis text-decoration-none"
+            href="/swagger/"
+          >
+            <i class="fa-solid fa-code fs-1" aria-hidden="true"></i>
+            <span class="vstack">
+              <span class="fw-semibold fs-5" data-testid="app-name">API</span>
+              <span class="small text-body-secondary">The full api of the backend, to try out</span>
+            </span>
+          </a>
+        </li>
       </ul>
     </nav>
   `,

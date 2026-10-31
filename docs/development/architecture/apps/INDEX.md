@@ -58,9 +58,6 @@ An app whose items belong to lists of the user keeps to these rules; the notes a
   [AGENT.md](../../../../AGENT.md).
 - `FRONTEND-2` **The tabs of a detail view are child routes**, for example the tabs of a bucket or the scopes of the
   settings.
-- `FRONTEND-3` **Delete and undo.** A note, a photo or a recording of a note, and a grocery item checked, take effect
-  at once; a toast centered at the bottom offers to undo it for 5 seconds, 1.5 for the grocery items, the backend
-  learns it afterwards.
 
 ## Privacy in the apps
 

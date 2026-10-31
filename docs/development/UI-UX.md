@@ -10,21 +10,30 @@ How the apps look and behave for the people who use them: the web ui, and sakctl
 line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
 [AGENT.md](../../AGENT.md).
 
+Every rule has an id: the prefix of its chapter and a number, e.g. `UX-1`; a part of a rule adds a number, e.g.
+`UX-4.1`. An id never changes and is never used again, also when its rule goes; a new rule gets the next number of
+its chapter. Code, documents and reviews refer to a rule by its id.
+
 ## All apps
 
-- **One look.** All apps use the same theme, its colors, fonts and status lights. They follow the light or dark mode
-  of the system and have no switch of their own.
-- **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the one
-  that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what they
-  add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A small inline link to add
-  something (`+ label`) may start with a plus in its text.
-- **Destructive is red.** A button that destroys, deletes or removes something has the danger color. The button that
-  does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
-- **Confirm before data goes.** An action that deletes something that holds data or configuration the user made
-  asks for confirmation first and says what goes. Things the app makes again by itself, for example a plan or a
-  filter, need no confirmation. Cancel is the safe default.
-- **Dates and times** are shown in the locale of the user, never in a fixed format.
-- **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
+- `UX-1` **One look.** All apps use the same theme, its colors, fonts and status lights. They follow the light or dark
+  mode of the system and have no switch of their own.
+- `UX-2` **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the
+  one that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what
+  they add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A
+  small inline link to add something (`+ label`) may start with a plus in its text.
+- `UX-3` **Destructive is red.** A button that destroys, deletes or removes something has the danger color. The button
+  that does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
+- `UX-4` **Two ways to delete data.** An action that deletes or removes something that holds data or configuration the
+  user made does one of two things:
+  - `UX-4.1` **Confirm first.** It asks for confirmation and says what goes. Cancel is the safe default.
+  - `UX-4.2` **Undo afterwards.** It takes effect in the ui at once; a toast centered at the bottom offers to undo it
+    for 2 seconds, unless the rule of the app gives another time (e.g. `GROCERY-3`). The backend learns it only when
+    the time is up.
+
+  Things the app makes again by itself, for example a plan or a filter, need neither.
+- `UX-5` **Dates and times** are shown in the locale of the user, never in a fixed format.
+- `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
   error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
   (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
   same check runs once more when the action is taken, and on the command line, where an invalid value ends the
@@ -32,103 +41,105 @@ line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the
 
 ## Web ui
 
-- **List, then detail.** Each kind of thing has a list that leads to a detail view. A list shows one page at a time
-  and remembers its page in the address. Creating starts from the list; the actions on a thing are at the top right
+- `WEB-1` **List, then detail.** Each kind of thing has a list that leads to a detail view. A list shows one page at a
+  time and remembers its page in the address. Creating starts from the list; the actions on a thing are at the top right
   of its detail view.
-- **Detail view.** An overview on top (name, created, updated, the main facts), tabs below; the first tab is
+- `WEB-2` **Detail view.** An overview on top (name, created, updated, the main facts), tabs below; the first tab is
   "Configuration".
-- **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or
+- `WEB-3` **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or
   cancelled. A delete asks inline, in the view itself.
-- **Copy to the clipboard** looks and behaves the same everywhere.
-- **Swipe between lists on a phone.** Where a page shows one of several lists, for example the grocery lists, a
+- `WEB-4` **Copy to the clipboard** looks and behaves the same everywhere.
+- `WEB-5` **Swipe between lists on a phone.** Where a page shows one of several lists, for example the grocery lists, a
   swipe to the left shows the next list and one to the right the previous; dots under the name show where it is.
   Arrows at the sides of the page do the same on larger screens; on a phone they stay for the keyboard and screen
   readers only. A swipe never starts on a field or at the edge of the screen, where the system goes back.
 
 ## Android app
 
-- **Material 3, the colors of the phone.** The grocery app follows the light or dark mode of the system and takes
-  the colors of the wallpaper where Android has them.
-- **One screen at a time.** The deployment, the sign-in, the lists; the name of the deployment is the title, the
-  sign-out is in the menu at the top right.
-- **The lists like the web ui.** Tabs at the top switch the lists, the items are grouped by category; pulling down
-  reloads. A message tells when there is nothing to buy.
+- `ANDROID-1` **Material 3, the colors of the phone.** The grocery app follows the light or dark mode of the system and
+  takes the colors of the wallpaper where Android has them.
+- `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the lists; the name of the deployment is the title,
+  the sign-out is in the menu at the top right.
+- `ANDROID-3` **The lists like the web ui.** Tabs at the top switch the lists, the items are grouped by category;
+  pulling down reloads. A message tells when there is nothing to buy.
 
 ## sakctl window
 
-- **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows, stays in
-  its place, disabled; the layout of a page does not change under the user's hand.
-- **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the window
-  fills its password fields with them, which the user can change; an accepted risk (refer to
+- `WINDOW-1` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page shows,
+  stays in its place, disabled; the layout of a page does not change under the user's hand.
+- `WINDOW-2` **The passwords of the environment fill the fields.** With `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` set, the
+  window fills its password fields with them, which the user can change; an accepted risk (refer to
   [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md)).
-- **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move through
-  the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost button.
-  Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the header.
-  One action of a page is the primary one, the one green button.
-- **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an update.
-  The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs it.
-- **Start-up checks.** The splash screen runs the checks and has a Quit button, disabled while the checks run. A
-  failed check shows its reason in its own row, never in a dialog. Quit is then enabled, the only action left.
-- **A deployment and its page.** The list shows each deployment with its resources, what each is (the size of a
-  volume, the address of a server) and the link to its frontend; the link opens the browser of the system. The list
-  shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened
-  with the password, checks the deployment at once: each resource and the provisioning with its state and changes,
-  as the plan of a deploy has them, and the state of the deployment. At the top right: destroy, maintenance (a
-  menu of status, update and reboot) and check, which checks again. At the bottom right, one group: back, force deploy (after a check; the playbook runs again) and
-  deploy changes (only when the check found changes). Check is the green button, deploy changes
-  instead when there are changes.
-- **Maintenance.** Each entry of the maintenance menu opens its own view, a reboot only after a confirmation dialog: the lines of the server while it works,
-  then the answer, warnings in yellow, a failure in red. There is no cancel, a command on the server is not stopped
-  halfway; each has a timeout. Back is enabled once it ended and leads to the page of the deployment, which checks
-  again.
-- **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed, created anew
-  or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes something, and it shows each resource as it goes, with the output of the
-  provisioning below.
-- **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses always
-  stay; a change that would need them created anew stops the plan before anything changes. A deploy happens where
+- `WINDOW-3` **One page at a time.** Each page has a header and, if needed, actions at the bottom. The buttons that move
+  through the steps (back, next, cancel, plan, create) are one group at the bottom right, back always its leftmost
+  button. Buttons that act on the data of the page (add a provider, create a deployment) are at the top right of the
+  header. One action of a page is the primary one, the one green button.
+- `WINDOW-4` **The footer.** Below every page, the footer shows the version of sakctl and the button that checks for an
+  update. The button names GitHub, which it asks. Only a click asks; a newer version shows a second button that installs
+  it.
+- `WINDOW-5` **Start-up checks.** The splash screen runs the checks and has a Quit button, disabled while the checks
+  run. A failed check shows its reason in its own row, never in a dialog. Quit is then enabled, the only action left.
+- `WINDOW-6` **A deployment and its page.** The list shows each deployment with its resources, what each is (the size of
+  a volume, the address of a server) and the link to its frontend; the link opens the browser of the system. The list
+  shows no state: without the password it sees only the labels of the resources. The page of a deployment, opened with
+  the password, checks the deployment at once: each resource and the provisioning with its state and changes, as the
+  plan of a deploy has them, and the state of the deployment. At the top right: destroy, maintenance (a menu of status,
+  update and reboot) and check, which checks again. At the bottom right, one group: back, force deploy (after a check;
+  the playbook runs again) and deploy changes (only when the check found changes). Check is the green button, deploy
+  changes instead when there are changes.
+- `WINDOW-7` **Maintenance.** Each entry of the maintenance menu opens its own view, a reboot only after a confirmation
+  dialog: the lines of the server while it works, then the answer, warnings in yellow, a failure in red. There is no
+  cancel, a command on the server is not stopped halfway; each has a timeout. Back is enabled once it ended and leads to
+  the page of the deployment, which checks again.
+- `WINDOW-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
+  created anew or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes
+  something, and it shows each resource as it goes, with the output of the provisioning below.
+- `WINDOW-9` **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses
+  always stay; a change that would need them created anew stops the plan before anything changes. A deploy happens where
   the deployment is, never at a default location.
-- **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user ticks a box
-  to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
-- **A redeploy takes over what runs.** With the password at hand, a redeploy fills the empty fields of the users the
-  same way in the window and on the command line: the user mode from the labels of the deployment, the admin and the
-  whole mail server from its running configuration. What is given wins.
+- `WINDOW-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
+  ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
+- `WINDOW-11` **A redeploy takes over what runs.** With the password at hand, a redeploy fills the empty fields of the
+  users the same way in the window and on the command line: the user mode from the labels of the deployment, the admin
+  and the whole mail server from its running configuration. What is given wins.
 
 ## sakctl command line
 
-- **A secret is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command asks
-  for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
+- `CLI-1` **A secret is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command
+  asks for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
   password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`), the API token of
   the Hetzner Cloud project from `HCLOUD_TOKEN` or is typed (`--hcloud-token`). An argument would show in the list of
   processes.
-- **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
+- `CLI-2` **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
   Encrypt, which has none of the limits of the production one; the deployment keeps it, sakctl trusts its roots. The
   integration tests use it.
-- **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show the
-  running configuration) with the same rules and texts. Without a command, the window opens.
-- **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `-- <command>`
-  runs a command there. It runs in the image of the tools like the provisioning: the key derived from the password
-  goes to an ssh-agent in the container and is never written, the server is checked against its derived host key.
-- **Backup and restore, on the command line only.** `sakctl backup <name>` writes all data of a deployment to
+- `CLI-3` **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show
+  the running configuration) with the same rules and texts. Without a command, the window opens.
+- `CLI-4` **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `--
+  <command>` runs a command there. It runs in the image of the tools like the provisioning: the key derived from the
+  password goes to an ssh-agent in the container and is never written, the server is checked against its derived host
+  key.
+- `CLI-5` **Backup and restore, on the command line only.** `sakctl backup <name>` writes all data of a deployment to
   `~/.sak/backups/<name>/<name>-<UTC time>.age.sak` and shows the path and the size. `sakctl restore <name> <file>`
   replaces the data with that of a backup, after the user types the name of the deployment (`--yes` without asking).
   Both show each step of the server while it runs. Refer to [FDR-007](fdr/FDR-007-backup.md).
-- **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help` lists
-  them all.
-- **No surprise by default.** A deploy keeps the settings of the deployment (for example its DNS mode and root
+- `CLI-6` **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help`
+  lists them all.
+- `CLI-7` **No surprise by default.** A deploy keeps the settings of the deployment (for example its DNS mode and root
   domain) unless they are given; a default never changes a running deployment.
-- **Exit codes tell what happened.** Success, a general failure, wrong arguments, and each refusal that a script may
-  want to handle (a root domain that is taken, mixed DNS modes, a resource that belongs to someone else, data that
-  would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them.
-  `sakctl ssh` ends with the exit code of the command on the server, as ssh does; when sakctl or ssh itself fails,
-  it ends with 255.
-- **A plan that destroys asks first.** `create`, `deploy` and `destroy` print the plan; when it destroys a resource
-  or creates one anew, the command asks for the name of the deployment on the terminal before it applies. `--yes`
-  applies without asking, for scripts; without a terminal and without `--yes` it stops with a usage error and
+- `CLI-8` **Exit codes tell what happened.** Success, a general failure, wrong arguments, and each refusal that a script
+  may want to handle (a root domain that is taken, mixed DNS modes, a resource that belongs to someone else, data that
+  would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them. `sakctl
+  ssh` ends with the exit code of the command on the server, as ssh does; when sakctl or ssh itself fails, it ends with
+  255.
+- `CLI-9` **A plan that destroys asks first.** `create`, `deploy` and `destroy` print the plan; when it destroys a
+  resource or creates one anew, the command asks for the name of the deployment on the terminal before it applies.
+  `--yes` applies without asking, for scripts; without a terminal and without `--yes` it stops with a usage error and
   changes nothing.
-- **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color on a
-  terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
+- `CLI-10` **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color
+  on a terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
   the plan found or a resource a destroy will remove.
-- **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is done
-  to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".
-- **The same checks as the window** run before each command; a failed check ends the command.
-- **Quiet by default.** The output of the provisioning shows only when the user asks for it.
+- `CLI-11` **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is
+  done to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".
+- `CLI-12` **The same checks as the window** run before each command; a failed check ends the command.
+- `CLI-13` **Quiet by default.** The output of the provisioning shows only when the user asks for it.
