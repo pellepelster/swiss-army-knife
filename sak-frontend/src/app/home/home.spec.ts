@@ -134,9 +134,13 @@ describe('Home', () => {
     updates.check.mockResolvedValue('failed');
     entry('Check for updates').click();
     await vi.waitFor(() => expect(status()).toBe('Could not check for updates, try again later.'));
-    TestBed.inject(HttpTestingController)
-      .match(() => true)
-      .forEach((request) => request.flush(null));
+    // what the page asked for, answered as the backend does
+    const http = TestBed.inject(HttpTestingController);
+    http
+      .expectOne('/api/v1/auth/who-am-i')
+      .flush({ username: 'pelle@pelle.io', expiresAt: '2099-01-01T00:00:00Z', roles: ['admin'] });
+    http.expectOne('/api/v1/info').flush({ name: 'alpha', dnsMode: 'domain', userMode: 'multi' });
+    http.verify();
   });
 
   it('leads unknown paths to the apps', async () => {
