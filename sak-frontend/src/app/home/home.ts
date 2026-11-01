@@ -5,6 +5,16 @@ import { APPS } from '../apps';
 import { AuthService, UserMode, WhoAmI } from '../auth/auth.service';
 import { TextKey, TranslatePipe } from '../i18n/i18n';
 import { InstallService } from '../install.service';
+import { ServiceWorkerUpdates, UpdateCheck } from '../service-worker-updates';
+import { ActionMenu } from '../shared/action-menu';
+
+// what the user reads after a check for updates
+const UPDATE_CHECKS: Record<UpdateCheck, TextKey> = {
+  current: 'home.up_to_date',
+  updating: 'home.updating',
+  unavailable: 'home.no_updates',
+  failed: 'home.update_failed',
+};
 
 // a card of the maintenance of the backend: a page of the app (path), or a page of its own (href,
 // swagger ui); only for an admin, the users only in the multi user mode
@@ -51,7 +61,7 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
 // else their address
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, TranslatePipe],
+  imports: [ActionMenu, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -69,10 +79,34 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
       <span class="small text-body-secondary text-truncate" data-testid="username">{{
         whoAmI()?.name ?? whoAmI()?.username
       }}</span>
-      <button type="button" class="btn btn-outline-secondary" (click)="signOut()">
-        {{ 'login.sign_out' | t }}
-      </button>
+      <app-action-menu>
+        <button
+          type="button"
+          class="dropdown-item"
+          role="menuitem"
+          [disabled]="checking()"
+          (click)="checkForUpdates()"
+        >
+          <i class="fa-solid fa-rotate me-2" aria-hidden="true"></i>{{ 'home.check_updates' | t }}
+        </button>
+        <button type="button" class="dropdown-item" role="menuitem" (click)="signOut()">
+          <i class="fa-solid fa-right-from-bracket me-2" aria-hidden="true"></i
+          >{{ 'login.sign_out' | t }}
+        </button>
+      </app-action-menu>
     </header>
+
+    <!-- what the check for updates found -->
+    <p
+      class="small text-body-secondary mb-0"
+      [class.mb-3]="update()"
+      role="status"
+      data-testid="update-status"
+    >
+      @if (update(); as update) {
+        {{ update | t }}
+      }
+    </p>
     <nav [attr.aria-label]="'home.title' | t">
       <ul class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 list-unstyled">
         @for (app of apps; track app.path) {
@@ -158,12 +192,16 @@ export class Home {
   protected readonly auth = inject(AuthService);
   protected readonly installer = inject(InstallService);
   private readonly router = inject(Router);
+  private readonly updates = inject(ServiceWorkerUpdates);
 
   protected readonly apps = APPS;
   protected readonly maintenance = MAINTENANCE;
 
   // the signed in user as the backend takes the session, not as the browser stored it
   protected readonly whoAmI = signal<WhoAmI | null>(null);
+  // what the check for updates the user asked for found, while and after it ran
+  protected readonly update = signal<TextKey | null>(null);
+  protected readonly checking = signal(false);
   protected readonly userMode = signal<UserMode | null>(null);
   // until the backend answered, everything shows as it does for an admin
   protected readonly admin = computed(() => this.whoAmI()?.roles.includes('admin') ?? true);
@@ -184,6 +222,14 @@ export class Home {
     if (!this.admin()) return 'home.only_admin';
     if (entry.multiUserOnly && this.userMode() === 'single') return 'home.needs_multi_user';
     return null;
+  }
+
+  protected async checkForUpdates(): Promise<void> {
+    this.checking.set(true);
+    this.update.set('home.checking');
+    const found = await this.updates.check();
+    this.checking.set(false);
+    this.update.set(UPDATE_CHECKS[found]);
   }
 
   protected signOut(): void {

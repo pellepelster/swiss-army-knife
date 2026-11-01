@@ -20,7 +20,7 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await expect(page).toHaveURL('/static-hosting');
 
   // e2e-hosting holds the object playwright.config.ts put where its data goes, before it exists
-  await page.getByRole('link', { name: 'Create static hosting' }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/create');
   await page.getByLabel('Name').fill('e2e-hosting');
   await page.getByRole('button', { name: 'Add domain' }).click();
@@ -59,7 +59,7 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
 
   // a taken name is reported
   await page.getByRole('link', { name: 'All buckets' }).click();
-  await page.getByRole('link', { name: 'Create static hosting' }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Name').fill('e2e-hosting');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByTestId('create-errors')).toHaveText('A bucket of the name exists.');

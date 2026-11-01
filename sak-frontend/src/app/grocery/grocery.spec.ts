@@ -50,7 +50,7 @@ describe('Grocery', () => {
 
   afterEach(() => http.verify());
 
-  const { page, button, open, url } = pageHelpers(() => harness);
+  const { page, button, open, url, rowMenu, deleteFromRow } = pageHelpers(() => harness);
   const input = (id: string) => page().querySelector<HTMLInputElement>(`#${id}`)!;
   const type = async (id: string, value: string) => {
     input(id).value = value;
@@ -90,7 +90,7 @@ describe('Grocery', () => {
     expect(
       [...page().querySelectorAll('app-list-icon')].map((icon) => icon.textContent!.trim()),
     ).toEqual(['D', '🎉', '🎉']);
-    // the menu of a row leads to the settings, of a list of another user it is disabled (UX-8)
+    // the menu of a row leads to the settings, of a list of another user they are disabled (UX-8)
     expect(button('Settings of Default').getAttribute('href')).toBe(
       '/grocery/lists/1/edit?from=lists',
     );
@@ -291,6 +291,37 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(url()).toBe('/grocery');
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
+  });
+
+  it('deletes a list from the menu of its row; of another user or the last own one it is disabled', async () => {
+    const weekly = { ...defaultList, id: 3, name: 'Weekly' };
+    await overview([defaultList, party, weekly]);
+    const menu = await rowMenu('Party');
+    expect(button('Delete', menu).disabled).toBe(true);
+    expect(button('Delete', menu).title).toBe('Only the owner of a list changes it');
+    expect(button('Delete', await rowMenu('Weekly')).disabled).toBe(false);
+
+    await deleteFromRow('Weekly');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/lists/3' }).flush(null);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=list-3]')).toBeNull();
+
+    // the only own list stays (LIST-1)
+    const last = await rowMenu('Default');
+    expect(button('Delete', last).disabled).toBe(true);
+    expect(button('Delete', last).title).toBe('Your only list can not be deleted.');
+  });
+
+  it('the delete in the menu of a row asks first, keep is the way back', async () => {
+    await overview([defaultList, { ...defaultList, id: 3, name: 'Weekly' }]);
+    button('Delete', await rowMenu('Weekly')).click();
+    await harness.fixture.whenStable();
+    expect(page().textContent).toContain('Delete Weekly and its items?');
+    button('Keep').click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'DELETE' });
+    expect(button('Actions of Weekly').classList.contains('d-none')).toBe(false);
   });
 
   it('a change of a list loads all lists again (LIST-4)', async () => {

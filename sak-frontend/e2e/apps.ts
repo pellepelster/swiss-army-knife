@@ -24,10 +24,11 @@ export async function signIn(
   expect(await page.evaluate(() => localStorage.getItem('sak.session'))).toContain(address);
 }
 
-// on the index page
+// from the menu of the index page
 export async function signOut(page: Page): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
 }
 
 export interface AccessLogEntry {

@@ -7,14 +7,20 @@ import { signedIn } from '../testing/page';
 import { routes } from '../app.routes';
 import { authInterceptor } from '../auth/auth.interceptor';
 import { SESSION_STORAGE_KEY } from '../auth/auth.service';
+import { ServiceWorkerUpdates, UpdateCheck } from '../service-worker-updates';
 
 const signIn = () => signedIn('pelle@pelle.io');
 
 describe('Home', () => {
+  // what the check for updates finds
+  const updates = { check: vi.fn<() => Promise<UpdateCheck>>() };
+
   beforeEach(() => {
     localStorage.clear();
+    updates.check.mockReset();
     TestBed.configureTestingModule({
       providers: [
+        { provide: ServiceWorkerUpdates, useValue: updates },
         provideRouter(routes),
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
@@ -97,6 +103,40 @@ describe('Home', () => {
 
     expect(TestBed.inject(Router).url).toBe('/login');
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it('checks for updates from the menu of its header and says what it found', async () => {
+    signIn();
+    const harness = await RouterTestingHarness.create('/');
+    const page = harness.routeNativeElement!;
+    const entry = (name: string) =>
+      [...page.querySelectorAll<HTMLButtonElement>('[role=menu] [role=menuitem]')].find(
+        (b) => b.textContent?.trim() === name,
+      )!;
+    const status = () => page.querySelector('[data-testid=update-status]')!.textContent!.trim();
+    // the menu has the check for updates and the sign-out, no delete
+    expect(
+      [...page.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent!.trim()),
+    ).toEqual(['Check for updates', 'Sign out']);
+    expect(page.querySelector('button[aria-label=Menu]')).not.toBeNull();
+
+    let found!: (check: UpdateCheck) => void;
+    updates.check.mockReturnValue(new Promise((resolve) => (found = resolve)));
+    entry('Check for updates').click();
+    await harness.fixture.whenStable();
+    expect(status()).toBe('Checking for updates…');
+    expect(entry('Check for updates').disabled).toBe(true);
+
+    found('current');
+    await vi.waitFor(() => expect(status()).toBe('The app is up-to-date.'));
+    expect(entry('Check for updates').disabled).toBe(false);
+
+    updates.check.mockResolvedValue('failed');
+    entry('Check for updates').click();
+    await vi.waitFor(() => expect(status()).toBe('Could not check for updates, try again later.'));
+    TestBed.inject(HttpTestingController)
+      .match(() => true)
+      .forEach((request) => request.flush(null));
   });
 
   it('leads unknown paths to the apps', async () => {

@@ -40,8 +40,18 @@ export const CATALOG = {
       all_apps: 'All apps',
       loading: 'Loading…',
       cancel: 'Cancel',
+      add: 'Add',
+      create: 'Create',
       edit: 'Edit',
+      form_actions: 'Actions of the form',
+      action_menu: {
+        menu: 'Menu',
+        actions: 'Actions',
+        actions_of: 'Actions of %{name}',
+        delete: 'Delete %{name}',
+      },
       view: {
+        actions: 'Actions',
         overview: 'Overview',
         details: 'Details',
         configuration: 'Configuration',
@@ -102,6 +112,12 @@ export const CATALOG = {
       api: 'API',
       api_description: 'The full api of the backend, to try out',
       users_description: 'Who may sign in besides the admins',
+      check_updates: 'Check for updates',
+      checking: 'Checking for updates…',
+      up_to_date: 'The app is up-to-date.',
+      updating: 'Loading the new version…',
+      update_failed: 'Could not check for updates, try again later.',
+      no_updates: 'Updates need the service worker, it does not run here.',
     },
     signin: {
       page_title: 'Signing in',
@@ -133,6 +149,7 @@ export const CATALOG = {
         empty: 'You have no list yet, add one first.',
         to_buy_one: '1 item to buy',
         to_buy_other: '%{count} items to buy',
+        delete_question: 'Delete %{name} and its items?',
       },
       form: {
         create: 'Create list',
@@ -189,7 +206,6 @@ export const CATALOG = {
     hosting: {
       all_buckets: 'All buckets',
       back_to_bucket: 'Back to the bucket',
-      create: 'Create',
       copy_failed: 'The browser did not allow to copy, please select the text instead.',
       forbidden: 'Your role does not allow to see the buckets.',
       not_found: 'There is no such bucket.',
@@ -208,6 +224,7 @@ export const CATALOG = {
         empty: 'No buckets yet. A bucket keeps the files of a website, served at its domains.',
         pages: 'Pages of the buckets',
         load_failed: 'The buckets could not be loaded.',
+        delete_question: 'Delete the bucket %{name}? Its files stay, its name stays taken.',
       },
       view: {
         delete_bucket: 'Delete the bucket %{name}',
@@ -398,6 +415,7 @@ export const CATALOG = {
         empty: 'No redirects yet.',
         pages: 'Pages of the redirects',
         load_failed: 'The redirects could not be loaded.',
+        delete_question: 'Delete the redirect of %{domain}?',
       },
       create_page: {
         domain_hint: 'Every request for it is redirected. It needs a DNS record pointing at the server.',
@@ -475,8 +493,18 @@ export const CATALOG = {
       all_apps: 'Alle Apps',
       loading: 'Wird geladen…',
       cancel: 'Abbrechen',
+      add: 'Hinzufügen',
+      create: 'Erstellen',
       edit: 'Bearbeiten',
+      form_actions: 'Aktionen des Formulars',
+      action_menu: {
+        menu: 'Menü',
+        actions: 'Aktionen',
+        actions_of: 'Aktionen von %{name}',
+        delete: '%{name} löschen',
+      },
       view: {
+        actions: 'Aktionen',
         overview: 'Übersicht',
         details: 'Details',
         configuration: 'Konfiguration',
@@ -537,6 +565,12 @@ export const CATALOG = {
       api: 'API',
       api_description: 'Die ganze API des Backends, zum Ausprobieren',
       users_description: 'Wer sich außer den Admins anmelden darf',
+      check_updates: 'Nach Updates suchen',
+      checking: 'Suche nach Updates…',
+      up_to_date: 'Die App ist aktuell.',
+      updating: 'Die neue Version wird geladen…',
+      update_failed: 'Die Suche nach Updates ist fehlgeschlagen, versuche es später noch einmal.',
+      no_updates: 'Updates brauchen den Service Worker, er läuft hier nicht.',
     },
     signin: {
       page_title: 'Anmeldung läuft',
@@ -568,6 +602,7 @@ export const CATALOG = {
         empty: 'Du hast noch keine Liste, füge zuerst eine hinzu.',
         to_buy_one: '1 Artikel zu kaufen',
         to_buy_other: '%{count} Artikel zu kaufen',
+        delete_question: '%{name} und ihre Artikel löschen?',
       },
       form: {
         create: 'Liste erstellen',
@@ -624,7 +659,6 @@ export const CATALOG = {
     hosting: {
       all_buckets: 'Alle Buckets',
       back_to_bucket: 'Zurück zum Bucket',
-      create: 'Erstellen',
       copy_failed: 'Der Browser hat das Kopieren nicht erlaubt, bitte markiere den Text stattdessen.',
       forbidden: 'Deine Rolle erlaubt nicht, die Buckets zu sehen.',
       not_found: 'Diesen Bucket gibt es nicht.',
@@ -643,6 +677,7 @@ export const CATALOG = {
         empty: 'Noch keine Buckets. Ein Bucket enthält die Dateien einer Website, ausgeliefert unter ihren Domains.',
         pages: 'Seiten der Buckets',
         load_failed: 'Die Buckets konnten nicht geladen werden.',
+        delete_question: 'Den Bucket %{name} löschen? Seine Dateien bleiben, sein Name bleibt vergeben.',
       },
       view: {
         delete_bucket: 'Den Bucket %{name} löschen',
@@ -833,6 +868,7 @@ export const CATALOG = {
         empty: 'Noch keine Weiterleitungen.',
         pages: 'Seiten der Weiterleitungen',
         load_failed: 'Die Weiterleitungen konnten nicht geladen werden.',
+        delete_question: 'Die Weiterleitung von %{domain} löschen?',
       },
       create_page: {
         domain_hint: 'Jede Anfrage an sie wird weitergeleitet. Sie braucht einen DNS-Eintrag, der auf den Server zeigt.',

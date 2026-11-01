@@ -18,11 +18,26 @@
   --note-ink: #2b2a27;
 }
 
-// a list in a card, e.g. the domains of a health check, on the card's surface
-.list-group {
+// a list in a card, e.g. the domains of a health check, on the card's surface; a list on the
+// wall keeps the surface of the theme, as the cards of the other lists
+.card .list-group,
+.list-group-flush {
   --bs-list-group-bg: transparent;
   --bs-list-group-color: inherit;
   --bs-list-group-border-color: var(--line);
+}
+
+// the menu of a row (shared/row-menu.ts) on the surface, as the cards it opens over
+.dropdown-menu {
+  --bs-dropdown-bg: var(--sak-surface);
+  --bs-dropdown-color: var(--ink);
+  --bs-dropdown-border-color: var(--line);
+  --bs-dropdown-link-color: var(--ink);
+  --bs-dropdown-link-hover-color: var(--ink);
+  --bs-dropdown-link-hover-bg: var(--sak-raised);
+  --bs-dropdown-link-active-color: var(--ink);
+  --bs-dropdown-link-active-bg: var(--sak-raised);
+  --bs-dropdown-link-disabled-color: var(--muted);
 }
 
 .table {

@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { PaginationControl } from '../shared/pagination';
+import { ActionMenu } from '../shared/action-menu';
 import { User, UsersService } from './users.service';
 
 // who may sign in, a page at a time, as a table of the address, the name, the role and the
@@ -21,7 +22,7 @@ import { User, UsersService } from './users.service';
 // and deleted after a confirmation in its place (UX-4.1); an admin of the configuration is not
 @Component({
   selector: 'app-user-list',
-  imports: [PaginationControl, RouterLink, TranslatePipe],
+  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -32,8 +33,8 @@ import { User, UsersService } from './users.service';
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.title' | t }}</h1>
-      <a class="btn btn-primary" routerLink="/users/create">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'users.add_user' | t }}
+      <a class="btn btn-primary" routerLink="/users/create" [title]="'users.add_user' | t">
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.add' | t }}
       </a>
     </header>
 
@@ -73,40 +74,13 @@ import { User, UsersService } from './users.service';
                   }}</span>
                 </td>
                 <td class="text-end">
-                  @if (confirming() === user.id && user.id !== null) {
-                    <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
-                      <span class="small">{{
-                        'users.confirm_delete' | t: { name: user.name ?? user.email }
-                      }}</span>
-                      <div
-                        class="btn-group"
-                        role="group"
-                        [attr.aria-label]="'users.delete_the_user' | t"
-                      >
-                        <button type="button" class="btn btn-danger" (click)="delete(user.id)">
-                          {{ 'shared.delete' | t }}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-outline-secondary"
-                          (click)="confirming.set(null)"
-                        >
-                          {{ 'shared.keep' | t }}
-                        </button>
-                      </div>
-                    </div>
-                  } @else {
-                    <button
-                      type="button"
-                      class="btn btn-outline-danger"
-                      [disabled]="user.configured"
-                      [attr.aria-label]="'users.delete_user' | t: { email: user.email }"
-                      [title]="(user.configured ? 'users.configured' : 'shared.delete') | t"
-                      (click)="confirming.set(user.id)"
-                    >
-                      {{ 'shared.delete' | t }}
-                    </button>
-                  }
+                  <!-- an admin comes from the configuration, it is not deleted here (UX-8) -->
+                  <app-action-menu
+                    [name]="user.email"
+                    [question]="'users.confirm_delete' | t: { name: user.name ?? user.email }"
+                    [deleteDisabled]="user.configured || user.id === null ? configured : null"
+                    (deleted)="user.id !== null && delete(user.id)"
+                  />
                 </td>
               </tr>
             }
@@ -138,8 +112,8 @@ export class UserList {
   protected readonly loaded = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly pagination = signal<Pagination | null>(null);
-  // the id of the user whose deletion asks for the confirmation
-  protected readonly confirming = signal<number | null>(null);
+  // why an admin is not deleted
+  protected readonly configured = this.i18n.t('users.configured');
 
   // the loading of the page shown, replaced by the next one
   private loading?: Subscription;
@@ -156,7 +130,6 @@ export class UserList {
   }
 
   protected delete(id: number): void {
-    this.confirming.set(null);
     this.service
       .delete(id)
       .pipe(takeUntilDestroyed(this.destroyRef))

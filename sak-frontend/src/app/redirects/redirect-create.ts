@@ -51,18 +51,19 @@ import { RedirectsService } from './redirects.service';
         <p class="alert alert-danger mb-0" role="alert" data-testid="create-error">{{ error }}</p>
       }
 
-      <div class="d-flex flex-wrap justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/redirects">{{
-          'shared.cancel' | t
-        }}</a>
-        <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
-          @if (creating()) {
-            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-          } @else {
-            <i class="sak-icon-plus" aria-hidden="true"></i>
-          }
-          {{ 'redirects.create' | t }}
-        </button>
+      <!-- cancel and create are one group (UX-9) -->
+      <div class="d-flex justify-content-end">
+        <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
+          <a class="btn btn-outline-secondary" routerLink="/redirects">{{ 'shared.cancel' | t }}</a>
+          <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
+            @if (creating()) {
+              <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+            } @else {
+              <i class="sak-icon-plus" aria-hidden="true"></i>
+            }
+            {{ 'shared.create' | t }}
+          </button>
+        </div>
       </div>
     </form>
   `,

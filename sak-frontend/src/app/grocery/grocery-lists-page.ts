@@ -7,13 +7,15 @@ import { apiErrorMessage } from '../shared/api';
 import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
 import { GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
+import { ActionMenu } from '../shared/action-menu';
 
 // the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
-// others, each with how many items are to buy; a list opens on its own page. A change of a list
+// others, each with how many items are to buy; a list opens on its own page, its menu leads to its
+// settings and deletes it. A change of a list
 // loads them again (LIST-4)
 @Component({
   selector: 'app-grocery-lists-page',
-  imports: [ListIcon, RouterLink, TranslatePipe],
+  imports: [ListIcon, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -34,10 +36,11 @@ import { ListIcon } from './list-icon';
     }
 
     @if (lists().length) {
-      <nav class="list-group" [attr.aria-label]="'grocery.lists.label' | t">
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'grocery.lists.label' | t">
         @for (list of lists(); track list.id) {
-          <!-- the row opens the list; its gear the settings, only of a list of the user's own (UX-8) -->
-          <div class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
+          <!-- the row opens the list; its menu the settings and the delete, only of a list of the
+               user's own (UX-8), the last own one is kept (LIST-1) -->
+          <li class="card card-body flex-row align-items-center gap-3">
             <app-list-icon [name]="list.name" [icon]="list.icon" />
             <a
               class="flex-grow-1 link-body-emphasis text-decoration-none stretched-link"
@@ -54,29 +57,39 @@ import { ListIcon } from './list-icon';
                 }
               </span>
             </a>
-            @if (list.mine) {
-              <a
-                class="btn btn-link link-body-emphasis position-relative z-1"
-                [routerLink]="['lists', list.id, 'edit']"
-                [queryParams]="{ from: 'lists' }"
-                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
-                [title]="'shared.settings' | t"
-                ><i class="fa-solid fa-gear" aria-hidden="true"></i
-              ></a>
-            } @else {
-              <button
-                type="button"
-                class="btn btn-link link-body-emphasis position-relative z-1"
-                disabled
-                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
-                [title]="'grocery.only_owner' | t"
-              >
-                <i class="fa-solid fa-gear" aria-hidden="true"></i>
-              </button>
-            }
-          </div>
+            <app-action-menu
+              [name]="list.name"
+              [question]="'grocery.lists.delete_question' | t: { name: list.name }"
+              [deleteDisabled]="undeletable(list)"
+              (deleted)="delete(list)"
+            >
+              @if (list.mine) {
+                <a
+                  class="dropdown-item"
+                  role="menuitem"
+                  [routerLink]="['lists', list.id, 'edit']"
+                  [queryParams]="{ from: 'lists' }"
+                  [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                  ><i class="fa-solid fa-gear me-2" aria-hidden="true"></i
+                  >{{ 'shared.settings' | t }}</a
+                >
+              } @else {
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  role="menuitem"
+                  disabled
+                  [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                  [title]="'grocery.only_owner' | t"
+                >
+                  <i class="fa-solid fa-gear me-2" aria-hidden="true"></i
+                  >{{ 'shared.settings' | t }}
+                </button>
+              }
+            </app-action-menu>
+          </li>
         }
-      </nav>
+      </ul>
     } @else if (loaded()) {
       <p class="text-center text-body-secondary fs-4 py-5">{{ 'grocery.lists.empty' | t }}</p>
     }
@@ -107,6 +120,7 @@ export class GroceryListsPage {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (lists) => {
+          this.error.set(null);
           this.lists.set(lists);
           this.loaded.set(true);
         },
@@ -116,6 +130,25 @@ export class GroceryListsPage {
               403: this.i18n.t('grocery.lists_forbidden'),
             }),
           ),
+      });
+  }
+
+  // why a list can not be deleted: of another user, or the last list of the user's own (LIST-1)
+  protected undeletable(list: GroceryList): string | null {
+    if (!list.mine) return this.i18n.t('grocery.only_owner');
+    if (this.lists().filter((each) => each.mine).length === 1)
+      return this.i18n.t('grocery.form.last_list');
+    return null;
+  }
+
+  protected delete(list: GroceryList): void {
+    this.service
+      .deleteList(list.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.load(),
+        error: (error: unknown) =>
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_deleted'))),
       });
   }
 

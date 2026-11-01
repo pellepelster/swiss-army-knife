@@ -19,7 +19,8 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-1` **One look.** All apps use the same theme, its colors, fonts and status lights. They follow the light or dark
   mode of the system and have no switch of their own.
 - `UX-2` **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the
-  one that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what
+  one that creates what the page is about (a note, a bucket, a redirect, a domain), labelled "Create" or "Add" with the
+  plus; its tooltip names what it creates, the page it leads to has the full name as its title. Other add actions show only what
   they add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A
   small inline link to add something (`+ label`) may start with a plus in its text.
 - `UX-3` **Destructive is red.** A button that destroys or deletes something has the danger color. The button
@@ -31,7 +32,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
     for 2 seconds, unless the rule of the app gives another time (e.g. `GROCERY-3`). The backend learns it only when
     the time is up.
 
-  Things the app makes again by itself, for example a plan or a filter, need neither.
 - `UX-5` **Dates and times** are shown in the locale of the user, never in a fixed format.
 - `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
   error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
@@ -43,18 +43,27 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   the password. The user mode comes from the deployment (`GET /api/v1/info`).
 - `UX-8` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page or screen
   shows, stays in its place, disabled; the layout does not change under the user's hand.
-- `UX-9` **The steps of a wizard, bottom right.** On a page that leads through several steps, the buttons that move
-  through them (back, next, cancel, plan, create) are one grouped toolbar at the bottom right; back is always its
-  leftmost button.
+- `UX-9` **The steps of a wizard and the buttons of a form, bottom right.** The buttons that move through the steps of
+  a wizard (back, next, cancel, plan, create), and those that end a form (cancel, save, create, add), are one grouped
+  toolbar at the bottom right; back is always its leftmost button, the main action its rightmost.
 - `UX-10` **The actions of a page, top right.** The buttons that act on what the page shows (add a provider, create a
   deployment, edit a list) are one grouped toolbar at the top right of its header. One action of a page is the primary
-  one.
+  one, and the rightmost. A delete is the leftmost; while it asks for confirmation, Delete and Keep take the place of
+  the toolbar.
+- `UX-11` **Lists look alike.** Every list shows its rows as cards on the surface color of the theme, one under the
+  other. A row opens what it shows.
+- `UX-12` **A menu on each row.** Each row of a list has a menu behind a ⋮ button at its right end. Its last entry is
+  Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
+  is disabled, its tooltip says why (`UX-8`).
+- `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Check for
+  updates" and "Sign out". The check loads a new version at once when there is one; otherwise a line under the header
+  says what it found.
 
 ## Web ui
 
 - `WEB-1` **List, then detail.** Each kind of thing has a list that leads to a detail view. A list shows one page at a
   time and remembers its page in the address. Creating starts from the list; the actions on a thing are at the top right
-  of its detail view.
+  of its detail view, its delete also in the menu of its row (`UX-12`).
 - `WEB-2` **Detail view.** An overview on top (name, created, updated, the main facts), tabs below; the first tab is
   "Configuration".
 - `WEB-3` **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or

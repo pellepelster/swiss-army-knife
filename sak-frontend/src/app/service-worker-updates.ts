@@ -19,6 +19,10 @@ export const PAGE_LOADER = new InjectionToken<PageLoader>('PageLoader', {
   },
 });
 
+// what a check for a new version found: none, one that loads now, none without a service worker
+// (e.g. in development), or the check failed (e.g. without the network)
+export type UpdateCheck = 'current' | 'updating' | 'unavailable' | 'failed';
+
 // keeps the app and its service worker in step: a worker that can no longer serve the version the
 // page runs reloads the page; a new version, once the worker has it, takes over at the next
 // navigation, so nothing being typed is lost; the app looks for a new version whenever it comes
@@ -65,6 +69,18 @@ export class ServiceWorkerUpdates {
     };
     this.document.addEventListener('visibilitychange', visible);
     this.destroyRef.onDestroy(() => this.document.removeEventListener('visibilitychange', visible));
+  }
+
+  // looks for a new version when the user asks; a new one loads at once, the page shown in it
+  async check(): Promise<UpdateCheck> {
+    if (!this.updates.isEnabled) return 'unavailable';
+    try {
+      if (!(await this.updates.checkForUpdate()) && !this.versionReady) return 'current';
+    } catch {
+      return 'failed';
+    }
+    await this.loadNewVersion(this.router.url);
+    return 'updating';
   }
 
   // the page of the navigation in the new version

@@ -15,13 +15,15 @@ import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { formatBytes, formatCount } from '../shared/format';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
+import { ActionMenu } from '../shared/action-menu';
 import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
 
 // the buckets with their domains, objects and size, a page at a time; the numbers are counted in
-// the background, the list asks again while a bucket of the page is still being counted
+// the background, the list asks again while a bucket of the page is still being counted; the menu
+// of a row deletes its bucket
 @Component({
   selector: 'app-bucket-list',
-  imports: [PaginationControl, RouterLink, TranslatePipe],
+  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -35,10 +37,9 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
       <a
         class="btn btn-primary"
         routerLink="/static-hosting/create"
-        [attr.aria-label]="'hosting.create_page.title' | t"
         [title]="'hosting.create_page.title' | t"
       >
-        <i class="sak-icon-plus" aria-hidden="true"></i>
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.create' | t }}
       </a>
     </header>
 
@@ -49,9 +50,9 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
     @if (loaded()) {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'hosting.list.buckets' | t">
         @for (bucket of buckets(); track bucket.name) {
-          <li>
+          <li class="card card-body flex-row align-items-center gap-3">
             <a
-              class="card card-body flex-row justify-content-between gap-3 link-body-emphasis text-decoration-none"
+              class="flex-grow-1 d-flex justify-content-between gap-3 link-body-emphasis text-decoration-none stretched-link"
               [routerLink]="['/static-hosting', bucket.name]"
               [attr.data-testid]="'bucket-' + bucket.name"
             >
@@ -73,6 +74,11 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
                 }
               </span>
             </a>
+            <app-action-menu
+              [name]="bucket.name"
+              [question]="'hosting.list.delete_question' | t: { name: bucket.name }"
+              (deleted)="delete(bucket.name)"
+            />
           </li>
         } @empty {
           <li class="card card-body text-center py-4">
@@ -126,6 +132,22 @@ export class BucketList {
     });
   }
 
+  // its objects stay, the name stays taken
+  protected delete(name: string): void {
+    this.service
+      .delete(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.load(this.offset()),
+        error: (error: unknown) =>
+          this.error.set(
+            apiErrorMessage(error, this.i18n.t('hosting.view.delete_failed', { name }), {
+              403: this.i18n.t('hosting.view.delete_forbidden'),
+            }),
+          ),
+      });
+  }
+
   private load(offset: number): void {
     this.loading?.unsubscribe();
     this.loading = this.service
@@ -138,6 +160,7 @@ export class BucketList {
             this.goTo(lastPageOffset(page.pagination));
             return;
           }
+          this.error.set(null);
           this.buckets.set(page.items);
           this.pagination.set(page.pagination);
           this.loaded.set(true);

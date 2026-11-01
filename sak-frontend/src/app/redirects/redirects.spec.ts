@@ -44,7 +44,7 @@ describe('Redirects', () => {
 
   afterEach(() => http.verify());
 
-  const { page, button, type, open, url } = pageHelpers(() => harness);
+  const { page, button, type, open, url, deleteFromRow } = pageHelpers(() => harness);
 
   it('lists the redirects with their targets and where they lead', async () => {
     await open('/redirects');
@@ -57,9 +57,20 @@ describe('Redirects', () => {
     expect(external.querySelector('[data-testid=location]')).toBeNull();
     const bucket = page().querySelector('[data-testid="redirect-example.de"]')!;
     expect(bucket.querySelector('.target a')?.getAttribute('href')).toBe('/static-hosting/site');
-    expect(button('Create redirect').getAttribute('href')).toBe('/redirects/create');
+    expect(button('Create').getAttribute('href')).toBe('/redirects/create');
     expect(button('example.com').getAttribute('href')).toBe('/redirects/example.com');
-    expect(button('Delete the redirect of example.com')).toBeUndefined();
+  });
+
+  it('deletes a redirect from the menu of its row after a confirmation', async () => {
+    await open('/redirects');
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toExternal, toBucket]));
+    await harness.fixture.whenStable();
+    await deleteFromRow('example.com');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' }).flush(null);
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toBucket]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid="redirect-example.com"]')).toBeNull();
+    expect(url()).toBe('/redirects');
   });
 
   it('lists the redirects a page at a time', async () => {
@@ -121,6 +132,11 @@ describe('Redirects', () => {
     await open('/redirects/example.com');
     http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
     await harness.fixture.whenStable();
+    // delete and edit are one group, the delete leftmost
+    const group = page().querySelector('header [role=group][aria-label=Actions]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Delete', 'Edit']);
 
     button('Delete the redirect of example.com').click();
     await harness.fixture.whenStable();
@@ -182,14 +198,19 @@ describe('Redirects', () => {
 
   it('redirects a domain to an external domain on its own page', async () => {
     await open('/redirects/create');
+    // cancel and create are one group
+    const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Cancel', 'Create']);
     http.expectOne('/api/v1/static-hosting?offset=0&limit=100').flush(pageOf([]));
     expect(page().querySelector('[role=dialog]')).toBeNull();
 
     await type('#source-domain', 'example.com');
-    expect(button('Create redirect').disabled).toBe(true);
+    expect(button('Create').disabled).toBe(true);
     await type('#target-domain-name', 'example.org');
-    expect(button('Create redirect').disabled).toBe(false);
-    button('Create redirect').click();
+    expect(button('Create').disabled).toBe(false);
+    button('Create').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/redirects' });
     expect(request.request.body).toEqual({
@@ -221,7 +242,7 @@ describe('Redirects', () => {
 
     await type('#source-domain', 'example.de');
     await type('#target-bucket-name', 'site');
-    button('Create redirect').click();
+    button('Create').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/redirects' });
     expect(request.request.body).toEqual({

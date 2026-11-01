@@ -62,7 +62,9 @@ describe('Hosting', () => {
     vi.restoreAllMocks();
   });
 
-  const { page, text, button, type, open, url } = pageHelpers(() => harness);
+  const { page, text, button, type, open, url, rowMenu, deleteFromRow } = pageHelpers(
+    () => harness,
+  );
 
   it('lists the buckets a page at a time, the page is kept in the address', async () => {
     const pageAt = (offset: number, total: number, ...items: ReturnType<typeof bucket>[]) => ({
@@ -124,7 +126,7 @@ describe('Hosting', () => {
     expect(page().querySelector('[data-testid="bucket-backups"]')?.textContent).toContain(
       'not served at a domain',
     );
-    expect(button('Create static hosting').getAttribute('href')).toBe('/static-hosting/create');
+    expect(button('Create').getAttribute('href')).toBe('/static-hosting/create');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
     http
@@ -139,9 +141,37 @@ describe('Hosting', () => {
     expect(page().textContent).toContain('No buckets yet.');
   });
 
+  it('deletes a bucket from the menu of its row after a confirmation', async () => {
+    await open('/static-hosting');
+    http
+      .expectOne('/api/v1/static-hosting?offset=0&limit=50')
+      .flush(pageOf([bucket('site', []), bucket('blog', [])]));
+    await harness.fixture.whenStable();
+    button('Delete', await rowMenu('site')).click();
+    await harness.fixture.whenStable();
+    expect(page().textContent).toContain(
+      'Delete the bucket site? Its files stay, its name stays taken.',
+    );
+    button('Keep').click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'DELETE' });
+
+    await deleteFromRow('site');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/static-hosting/site' }).flush(null);
+    http.expectOne('/api/v1/static-hosting?offset=0&limit=50').flush(pageOf([bucket('blog', [])]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=bucket-site]')).toBeNull();
+    expect(url()).toBe('/static-hosting');
+  });
+
   it('creates a bucket with its domains on its own page and opens it', async () => {
     await open('/static-hosting/create');
     expect(page().querySelector('[role=dialog]')).toBeNull();
+    // cancel and create are one group
+    const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Cancel', 'Create']);
 
     for (const name of ['No_Bucket', 'under_score', 'dot.ted']) {
       await type('#bucket-name', name);
@@ -265,6 +295,11 @@ describe('Hosting', () => {
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=updated]')).toBeNull();
+    // delete and edit are one group, the delete leftmost
+    const group = page().querySelector('header [role=group][aria-label=Actions]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Delete', 'Edit']);
 
     button('Delete the bucket site').click();
     await harness.fixture.whenStable();

@@ -29,7 +29,7 @@ describe('Users', () => {
 
   afterEach(() => http.verify());
 
-  const { page, button, open, url } = pageHelpers(() => harness);
+  const { page, button, open, url, rowMenu } = pageHelpers(() => harness);
   const input = (id: string) => page().querySelector<HTMLInputElement>(`#${id}`)!;
 
   const list = async (users: object[]) => {
@@ -56,13 +56,16 @@ describe('Users', () => {
       ['anna@example.org', 'Anna', 'user'],
       ['bob@example.org', '–', 'user'],
     ]);
-    expect(button('Delete admin@example.org').disabled).toBe(true);
-    expect(button('Add user').getAttribute('href')).toBe('/users/create');
+    // an admin is in the configuration, its delete says so (UX-8)
+    const menu = await rowMenu('admin@example.org');
+    expect(button('Delete', menu).disabled).toBe(true);
+    expect(button('Delete', menu).title).toBe('Set by the configuration of the deployment');
+    expect(button('Add').getAttribute('href')).toBe('/users/create');
   });
 
-  it('deletes a user after a confirmation, keep is the way back', async () => {
+  it('deletes a user from the menu of its row after a confirmation, keep is the way back', async () => {
     await list([admin, anna]);
-    button('Delete anna@example.org').click();
+    button('Delete', await rowMenu('anna@example.org')).click();
     await harness.fixture.whenStable();
     expect(page().textContent).toContain(
       'Delete Anna? They can no longer sign in; their data stays.',
@@ -71,9 +74,9 @@ describe('Users', () => {
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });
 
-    button('Delete anna@example.org').click();
+    button('Delete', await rowMenu('anna@example.org')).click();
     await harness.fixture.whenStable();
-    button('Delete', page().querySelector('[aria-label="Delete the user"]')!).click();
+    button('Delete', page().querySelector('[aria-label="Delete anna@example.org"]')!).click();
     http.expectOne({ method: 'DELETE', url: '/api/v1/users/3' }).flush(null);
     http.expectOne('/api/v1/users?offset=0&limit=50').flush(pageOf([admin]));
     await harness.fixture.whenStable();
@@ -87,18 +90,23 @@ describe('Users', () => {
       input(id).dispatchEvent(new Event('input'));
       await harness.fixture.whenStable();
     };
+    // cancel and add are one group
+    const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Cancel', 'Add']);
     await type('user-email', 'anna');
     // no error while typing
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     input('user-email').dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
     expect(input('user-email').classList.contains('is-invalid')).toBe(true);
-    expect(button('Add user').disabled).toBe(true);
+    expect(button('Add').disabled).toBe(true);
 
     await type('user-email', ' anna@example.org ');
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     await type('user-name', ' Anna ');
-    button('Add user').click();
+    button('Add').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/users' });
     expect(request.request.body).toEqual({ email: 'anna@example.org', name: 'Anna' });
     request.flush(anna, { status: 201, statusText: 'Created' });
@@ -112,7 +120,7 @@ describe('Users', () => {
     input('user-email').value = 'admin@example.org';
     input('user-email').dispatchEvent(new Event('input'));
     await harness.fixture.whenStable();
-    button('Add user').click();
+    button('Add').click();
     http.expectOne({ method: 'POST', url: '/api/v1/users' }).flush(
       {
         errors: [{ message: 'The address is an admin of the deployment, it is no user to add.' }],

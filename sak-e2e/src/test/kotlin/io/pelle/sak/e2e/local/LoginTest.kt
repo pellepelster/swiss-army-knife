@@ -86,7 +86,9 @@ class LoginTest {
         page.reload()
         assertThat(apps).isVisible()
 
-        page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Sign out")).click()
+        // the sign-out is in the menu of the header
+        page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Menu").setExact(true)).click()
+        page.getByRole(AriaRole.MENUITEM, Page.GetByRoleOptions().setName("Sign out")).click()
         assertThat(page).hasURL(login)
         page.navigate("/")
         assertThat(page).hasURL(login)

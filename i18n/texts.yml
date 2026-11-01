@@ -205,6 +205,16 @@ web:
       en: "The full api of the backend, to try out"
       de: "Die ganze API des Backends, zum Ausprobieren"
     users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
+    check_updates: { en: "Check for updates", de: "Nach Updates suchen" }
+    checking: { en: "Checking for updates…", de: "Suche nach Updates…" }
+    up_to_date: { en: "The app is up-to-date.", de: "Die App ist aktuell." }
+    updating: { en: "Loading the new version…", de: "Die neue Version wird geladen…" }
+    update_failed:
+      en: "Could not check for updates, try again later."
+      de: "Die Suche nach Updates ist fehlgeschlagen, versuche es später noch einmal."
+    no_updates:
+      en: "Updates need the service worker, it does not run here."
+      de: "Updates brauchen den Service Worker, er läuft hier nicht."
   signin:
     page_title: { en: "Signing in", de: "Anmeldung läuft" }
     grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }
@@ -227,8 +237,17 @@ web:
     all_apps: { en: "All apps", de: "Alle Apps" }
     loading: { en: "Loading…", de: "Wird geladen…" }
     cancel: { en: "Cancel", de: "Abbrechen" }
+    add: { en: "Add", de: "Hinzufügen" }
+    create: { en: "Create", de: "Erstellen" }
     edit: { en: "Edit", de: "Bearbeiten" }
+    form_actions: { en: "Actions of the form", de: "Aktionen des Formulars" }
+    action_menu:
+      menu: { en: "Menu", de: "Menü" }
+      actions: { en: "Actions", de: "Aktionen" }
+      actions_of: { en: "Actions of %{name}", de: "Aktionen von %{name}" }
+      delete: { en: "Delete %{name}", de: "%{name} löschen" }
     view:
+      actions: { en: "Actions", de: "Aktionen" }
       overview: { en: "Overview", de: "Übersicht" }
       details: { en: "Details", de: "Details" }
       configuration: { en: "Configuration", de: "Konfiguration" }
@@ -1193,6 +1212,7 @@ grocery:
       empty: { en: "You have no list yet, add one first.", de: "Du hast noch keine Liste, füge zuerst eine hinzu." }
       to_buy_one: { en: "1 item to buy", de: "1 Artikel zu kaufen" }
       to_buy_other: { en: "%{count} items to buy", de: "%{count} Artikel zu kaufen" }
+      delete_question: { en: "Delete %{name} and its items?", de: "%{name} und ihre Artikel löschen?" }
     form:
       icon: { en: "Icon", de: "Icon" }
       shared: { en: "Shared", de: "Geteilt" }
@@ -1270,7 +1290,6 @@ hosting:
   web:
     all_buckets: { en: "All buckets", de: "Alle Buckets" }
     back_to_bucket: { en: "Back to the bucket", de: "Zurück zum Bucket" }
-    create: { en: "Create", de: "Erstellen" }
     copy_failed:
       en: "The browser did not allow to copy, please select the text instead."
       de: "Der Browser hat das Kopieren nicht erlaubt, bitte markiere den Text stattdessen."
@@ -1294,6 +1313,9 @@ hosting:
         de: "Noch keine Buckets. Ein Bucket enthält die Dateien einer Website, ausgeliefert unter ihren Domains."
       pages: { en: "Pages of the buckets", de: "Seiten der Buckets" }
       load_failed: { en: "The buckets could not be loaded.", de: "Die Buckets konnten nicht geladen werden." }
+      delete_question:
+        en: "Delete the bucket %{name}? Its files stay, its name stays taken."
+        de: "Den Bucket %{name} löschen? Seine Dateien bleiben, sein Name bleibt vergeben."
     view:
       delete_bucket: { en: "Delete the bucket %{name}", de: "Den Bucket %{name} löschen" }
       objects: { en: "Objects", de: "Objekte" }
@@ -1554,6 +1576,7 @@ redirects:
       empty: { en: "No redirects yet.", de: "Noch keine Weiterleitungen." }
       pages: { en: "Pages of the redirects", de: "Seiten der Weiterleitungen" }
       load_failed: { en: "The redirects could not be loaded.", de: "Die Weiterleitungen konnten nicht geladen werden." }
+      delete_question: { en: "Delete the redirect of %{domain}?", de: "Die Weiterleitung von %{domain} löschen?" }
     create_page:
       domain_hint:
         en: "Every request for it is redirected. It needs a DNS record pointing at the server."

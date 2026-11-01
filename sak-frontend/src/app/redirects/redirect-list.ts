@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs';
 import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { I18n, TextKey, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
+import { ActionMenu } from '../shared/action-menu';
 import { Redirect, RedirectsService, RedirectTarget } from './redirects.service';
 
 const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
@@ -22,10 +23,11 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
 };
 
 // the domains caddy redirects, to an external domain or to the domain a bucket is served at;
-// a page at a time, each leads to its page, a redirect is created on a page of its own
+// a page at a time, each leads to its page and its menu deletes it, a redirect is created on a
+// page of its own
 @Component({
   selector: 'app-redirect-list',
-  imports: [PaginationControl, RouterLink, TranslatePipe],
+  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
@@ -36,8 +38,8 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.redirects' | t }}</h1>
-      <a class="btn btn-primary" routerLink="/redirects/create">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'redirects.create' | t }}
+      <a class="btn btn-primary" routerLink="/redirects/create" [title]="'redirects.create' | t">
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.create' | t }}
       </a>
     </header>
 
@@ -52,8 +54,11 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
     @if (loaded()) {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'app.redirects' | t">
         @for (redirect of redirects(); track redirect.sourceDomain) {
-          <li class="card card-body" [attr.data-testid]="'redirect-' + redirect.sourceDomain">
-            <div class="vstack gap-1">
+          <li
+            class="card card-body flex-row align-items-center gap-3"
+            [attr.data-testid]="'redirect-' + redirect.sourceDomain"
+          >
+            <div class="vstack gap-1 flex-grow-1">
               <a
                 class="fw-semibold font-monospace text-break"
                 [routerLink]="['/redirects', redirect.sourceDomain]"
@@ -75,6 +80,11 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
                 }
               </span>
             </div>
+            <app-action-menu
+              [name]="redirect.sourceDomain"
+              [question]="'redirects.list.delete_question' | t: { domain: redirect.sourceDomain }"
+              (deleted)="delete(redirect.sourceDomain)"
+            />
           </li>
         } @empty {
           <li class="card card-body text-center py-4">{{ 'redirects.list.empty' | t }}</li>
@@ -123,6 +133,19 @@ export class RedirectList {
     void this.router.navigate(['/redirects'], {
       queryParams: { offset: offset > 0 ? offset : null },
     });
+  }
+
+  protected delete(domain: string): void {
+    this.service
+      .delete(domain)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.load(this.offset()),
+        error: (error: unknown) =>
+          this.error.set(
+            apiErrorMessage(error, this.i18n.t('redirects.view.delete_failed', { domain })),
+          ),
+      });
   }
 
   private load(offset: number): void {

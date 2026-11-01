@@ -18,6 +18,12 @@ private fun Page.heading(name: String) = getByRole(AriaRole.HEADING, Page.GetByR
 
 private fun Page.button(name: String) = getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName(name))
 
+// the sign-out is in the menu of the header of the apps
+private fun Page.signOut() {
+    getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Menu").setExact(true)).click()
+    getByRole(AriaRole.MENUITEM, Page.GetByRoleOptions().setName("Sign out")).click()
+}
+
 // the sign in of each shared deployment in the browser: the password of the single user one, the
 // e-mailed link of the multi user one, whose mail a mailtrap sandbox receives
 @Tag("integration")
@@ -45,7 +51,7 @@ class LoginTest {
 
             environment.single.signIn(page)
             step("signing out", environment.single)
-            page.button("Sign out").click()
+            page.signOut()
             page.navigate("/")
             assertThat(page.heading("Sign in")).isVisible()
         }
@@ -73,7 +79,7 @@ class LoginTest {
                 page.url() shouldNotContain "token="
                 page.reload()
                 assertThat(page.heading("Apps")).isVisible()
-                page.button("Sign out").click()
+                page.signOut()
                 link
             }
         environment.context(multi).use { context ->

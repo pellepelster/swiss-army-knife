@@ -24,25 +24,34 @@ import { BucketsService } from './buckets.service';
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ name() }}</h1>
       @if (store.bucket()) {
+        <!-- one group, the delete leftmost; it asks in its place, Keep is the safe default -->
         @if (confirming()) {
-          <button class="btn btn-danger" type="button" (click)="delete()">
-            {{ 'shared.delete' | t }}
-          </button>
-          <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-            {{ 'shared.keep' | t }}
-          </button>
-        } @else {
-          <a class="btn btn-primary" [routerLink]="['/static-hosting', name(), 'edit']">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'shared.edit' | t }}
-          </a>
-          <button
-            class="btn btn-outline-danger"
-            type="button"
+          <div
+            class="btn-group"
+            role="group"
             [attr.aria-label]="'hosting.view.delete_bucket' | t: { name: name() }"
-            (click)="confirming.set(true)"
           >
-            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'shared.delete' | t }}
-          </button>
+            <button class="btn btn-danger" type="button" (click)="delete()">
+              {{ 'shared.delete' | t }}
+            </button>
+            <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
+              {{ 'shared.keep' | t }}
+            </button>
+          </div>
+        } @else {
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.view.actions' | t">
+            <button
+              class="btn btn-outline-danger"
+              type="button"
+              [attr.aria-label]="'hosting.view.delete_bucket' | t: { name: name() }"
+              (click)="confirming.set(true)"
+            >
+              <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'shared.delete' | t }}
+            </button>
+            <a class="btn btn-primary" [routerLink]="['/static-hosting', name(), 'edit']">
+              <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'shared.edit' | t }}
+            </a>
+          </div>
         }
       }
     </header>
