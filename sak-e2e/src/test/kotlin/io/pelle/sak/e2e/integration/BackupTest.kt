@@ -39,7 +39,7 @@ class BackupTest {
         val deployment = environment.deployment(mode)
         val backedUp = UUID.randomUUID().toString()
         val later = UUID.randomUUID().toString()
-        val backups = File(System.getProperty("user.home"), ".sak/backups/${deployment.name}")
+        val backups = File(System.getProperty("user.home"), ".sak/${deployment.name}/backups")
         backups.deleteRecursively()
 
         environment.context(deployment).use { context ->

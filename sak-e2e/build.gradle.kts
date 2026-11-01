@@ -64,7 +64,7 @@ e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against
 e2e("e2eIntegration", "integration", "Runs the integration tests: two deployments created with sakctl in the Hetzner Cloud project of HCLOUD_TOKEN, the apps in a browser against them") {
     // the binary of `cargo build` in sak-cli/src-tauri, SAK_E2E_SAKCTL points elsewhere
     systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)
-    // the classes in the order of their @Order: the logins, the apps, the restores, the command line
+    // the classes in the order of their @Order: the logins, the apps, the restores, the command line, the change of the user mode
     systemProperty("junit.jupiter.testclass.order.default", "org.junit.jupiter.api.ClassOrderer\$OrderAnnotation")
     // two servers created at once, the tests, then both destroyed
     timeout = Duration.ofMinutes(90)

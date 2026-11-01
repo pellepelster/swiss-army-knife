@@ -49,11 +49,11 @@ class TestEnvironment : AutoCloseable {
     val project = HetznerProject(token)
     val mailtrap = MailtrapSandbox(requiredEnv("MAILTRAP_API_TOKEN"), requiredEnv("SAK_E2E_SMTP_USERNAME"))
     val smtpHost = requiredEnv("SAK_E2E_SMTP_HOST")
-    private val smtpPort = requiredEnv("SAK_E2E_SMTP_PORT")
+    val smtpPort = requiredEnv("SAK_E2E_SMTP_PORT")
     // the tag of the images the deployments run, when the run sets one: e.g. <version>-rc, the
     // images of a release before it is released; else the version of sakctl
     private val imageTag = listOfNotNull(System.getenv("SAK_DOCKER_IMAGE_TAG")?.takeIf { it.isNotBlank() }?.let { "SAK_DOCKER_IMAGE_TAG" to it }).toMap()
-    private val smtpEnvironment =
+    val smtpEnvironment =
         imageTag + mapOf("SAK_SMTP_USERNAME" to requiredEnv("SAK_E2E_SMTP_USERNAME"), "SAK_SMTP_PASSWORD" to requiredEnv("SAK_E2E_SMTP_PASSWORD"))
 
     private val base = testName()
@@ -167,7 +167,8 @@ class TestEnvironment : AutoCloseable {
             step("destroying the deployment and its data", deployment)
             val exit = deployment.sakctl.run("destroy", deployment.name, "--delete-data", "--yes")
             if (exit != 0) failures += "sakctl destroy ${deployment.name} ended with $exit"
-            File(System.getProperty("user.home"), ".sak/backups/${deployment.name}").deleteRecursively()
+            // its backups and the local copy of its settings
+            File(System.getProperty("user.home"), ".sak/${deployment.name}").deleteRecursively()
         }
         step("checking that nothing of the run is left")
         val left = project.resources { it.startsWith(base) }

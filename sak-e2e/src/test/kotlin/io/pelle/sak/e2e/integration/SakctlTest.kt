@@ -98,15 +98,22 @@ class SakctlTest {
     }
 
     @Test
-    fun `config show answers the running configuration without a secret`() {
+    fun `config show answers the settings of the deployment without a secret`() {
         for (deployment in environment.deployments) {
             deployment.requireCreated()
-            step("reading the running configuration with a signed request", deployment)
+            step("reading the settings of the deployment with a signed request", deployment)
             val lines = configShow(deployment)
             lines.none { it.contains(deployment.password) || it.contains("sak_") } shouldBe true
             when (deployment.userMode) {
-                UserMode.SINGLE -> lines.any { it.contains("No mail server") } shouldBe true
-                UserMode.MULTI -> lines.any { it.contains("smtp.host ${environment.smtpHost}") } shouldBe true
+                // single user: no admin address and no mail server
+                UserMode.SINGLE -> {
+                    lines.any { it.contains("user_mode single") } shouldBe true
+                    lines.none { it.contains("smtp.") || it.contains("admin_email") } shouldBe true
+                }
+                UserMode.MULTI -> {
+                    lines.any { it.contains("user_mode multi") } shouldBe true
+                    lines.any { it.contains("smtp.host ${environment.smtpHost}") } shouldBe true
+                }
             }
         }
     }

@@ -78,6 +78,9 @@ The tests run in this order:
 4. `SakctlTest`: the rules of the command line, without a server of their own. A second domain deployment and the
    mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither deleted nor taken over;
    `config show` shows no secret; a deploy keeps the settings.
+5. `UserModeTest`: the single user deployment, the password login checked, is deployed again as multi user with an
+   admin address and the SMTP of the sandbox: the admin signs in with the password and with an e-mailed link. It runs
+   last, because the deployment stays multi user.
 
 Each step and each wait is a line on the output while the tests run, with the time and the deployment it is about.
 
@@ -100,4 +103,4 @@ What the run needs, from pass unless set:
 - `SAK_DOCKER_IMAGE_TAG` selects the tag of the images, `SAK_DOCKER_PLATFORMS` the platforms they are pushed for.
 - The servers are created in `hel1`, `SAK_E2E_LOCATION` selects another location (a server type can be sold out in
   one for a while).
-- A run sends one mail; the free plan of Mailtrap has 50 a month.
+- A run sends two mails; the free plan of Mailtrap has 50 a month.
