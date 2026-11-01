@@ -14,7 +14,7 @@ weight: 6
 
 While sakctl provisions a server, Ansible runs in a container and sakctl sees only the text it prints. This
 feature lets the playbook report each step to sakctl as a structured event: which play and task run, and how each
-ended on the server. The window and the command line show the progress from these events instead of the raw output
+ended on the server. The sakctl ui and the sakctl cli show the progress from these events instead of the raw output
 of Ansible.
 
 ## Behavior
@@ -22,7 +22,7 @@ of Ansible.
 - While provisioning, sakctl shows the play and the task that runs, and for each finished task whether it changed
   something, was skipped or failed. At the end it shows the counts of the run.
 - A failed task shows its name and the message Ansible gives, as the reason the provisioning failed.
-- The raw output of Ansible is still there: on the command line with `--show-log`, in the window behind a toggle.
+- The raw output of Ansible is still there: in the sakctl cli with `--show-log`, in the sakctl ui behind a toggle.
 - The events go only to the sakctl that started the run. Nothing else on the machine or on the network can read or
   send them.
 - When the events cannot be delivered, the provisioning goes on and ends as it would without them; sakctl then shows

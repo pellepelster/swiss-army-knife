@@ -30,7 +30,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 ```text
         user's machine                                    the server of a deployment (podman)
  ┌──────────────────────────┐                ┌───────────────────────────────────────────────────┐
- │ sakctl (window and CLI)  │──hetzner api──▶│ caddy (sak-ingress)  :443                         │
+ │ sakctl (ui and cli)      │──hetzner api──▶│ caddy (sak-ingress)  :443                         │
  │  ├ sak-cloud (resources) │                │   ├ sak.<base domain>  ─▶ backend: sak-frontend   │
  │  └ ansible in a container│──ssh──────────▶│   ├ api.<base domain>  ─▶ backend: api, S3 api    │
  └──────────────────────────┘                │   └ bucket domains     ─▶ the files of a bucket   │
@@ -56,7 +56,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-dns` | The check that the domains point to the server, asking name servers directly. |
 | `sak-openrouter` | The client that reads the text in images (text discovery). |
 | `sak-theme` | The look: design tokens and Bootstrap mapped onto them, used by all uis. |
-| `sak-cli` | sakctl: a window (Tauri) and a command line in one binary, and `sak-cloud`, the library that declares the cloud resources. |
+| `sak-cli` | sakctl: the sakctl ui (Tauri) and the sakctl cli in one binary, and `sak-cloud`, the library that declares the cloud resources. |
 | `ansible` | The collection `pelle_io.sak` that provisions the server. |
 | `sak-e2e` | The end-to-end tests: the apps in a browser, and sakctl against a real cloud project. |
 
@@ -131,7 +131,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 ## sakctl
 
 - `SAKCTL-1` **One core, two faces.** The core (the checks on start, the deployments and their plans, the
-  provisioning, the keys, the providers) knows neither the window nor the command line; both are thin layers on it.
+  provisioning, the keys, the providers) knows neither the sakctl ui nor the sakctl cli; both are thin layers on it.
 - `SAKCTL-2` **No local state.** Everything sakctl needs is derived from the name and password of a deployment, or
   read back from the labels of its resources. Two machines with the same password manage the same deployment.
 - `SAKCTL-3` **Derived keys.** The keys of a deployment are derived from its password (refer to
@@ -162,7 +162,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   version of the release. A server runs the images of the version of the sakctl that deployed it. For the tests,
   another tag of the images can be set, the images of a release before it is released (`<version>-rc`).
 - `SAKCTL-10` **Updates on request.** sakctl compares its version with the newest release on GitHub and replaces
-  itself with it only when the user asks, on the command line or in the footer of the window. It checks the download
+  itself with it only when the user asks, in the sakctl cli or in the footer of the sakctl ui. It checks the download
   against the checksum of the release before it replaces itself.
 - `SAKCTL-11` **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
   (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
@@ -243,7 +243,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   the container through its standard input; ansible connects through the agent. What the run needs as files (the
   inventory, the ssh configuration, the public keys, the environment of the backend) sits in a directory of the run
   with a random name that only the user can read, below the user's runtime directory where there is one. It goes when
-  the run ends, is interrupted (Ctrl+C, a termination) or the window closes; one that a killed sakctl left behind goes
+  the run ends, is interrupted (Ctrl+C, a termination) or the sakctl ui closes; one that a killed sakctl left behind goes
   with the next run.
 - `SECURITY-3` **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its
   database: the signing key of the login (a setting) and the secret key of each bucket. They are not derived from the

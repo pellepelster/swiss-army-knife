@@ -40,7 +40,7 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, CLI, wizard, Android Apps) look and behave for their users is in
+How the apps (frontend, sakctl ui, sakctl cli, Android Apps) look and behave for their users is in
 [docs/development/UI-UX.md](docs/development/UI-UX.md), follow it for every change of a ui.
 
 ## Architecture
@@ -166,7 +166,7 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 
 - Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
   run `mise run i18n:generate` after a change of it.
-- `ctl.cli` texts only the command line shows, `ctl.ui` texts only the window shows, `ctl.common` texts both show
+- `ctl.cli` texts only the sakctl cli shows, `ctl.ui` texts only the sakctl ui shows, `ctl.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
   `common.*`. A text moves to `ctl.common` once both use it. `sak-cli/src-tauri/locales/` is generated from it.
 

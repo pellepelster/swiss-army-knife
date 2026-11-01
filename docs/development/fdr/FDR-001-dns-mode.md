@@ -20,10 +20,10 @@ deployment, or puts more than one deployment under one root domain.
 - **Domain:** the deployment manages `<root domain>` and `*.<root domain>`.
 - **Subdomain** (the default): the deployment manages `<name>.<root domain>` and `*.<name>.<root domain>`.
 - Each managed name has an A and an AAAA record to the server of the deployment.
-- The user selects the root domain from the DNS zones of the cloud project, and the mode, in the wizard window and on
-  the command line. The window shows how the names of the apps are made.
-- A root domain has one domain deployment or only subdomain deployments. The wizard window does not continue, and
-  the command line stops with an exit code for each case: the root domain has a domain deployment already, or the
+- The user selects the root domain from the DNS zones of the cloud project, and the mode, in the sakctl ui and in
+  the sakctl cli. The sakctl ui shows how the names of the apps are made.
+- A root domain has one domain deployment or only subdomain deployments. The sakctl ui does not continue, and
+  the sakctl cli stops with an exit code for each case: the root domain has a domain deployment already, or the
   modes are mixed. The records of the deployment itself do not count.
 - SAK never changes a record without the label of the deployment. Such a record at a managed name stops the deploy
   before anything is created.
@@ -84,7 +84,7 @@ old names in use, and an old domain wildcard covers the names of other deploymen
 ### 8. The mode is kept on the resources
 
 **Decision:** Each resource of the deployment carries its mode and root domain, next to the name.
-**Why:** The wizard keeps no local state. A deploy from another computer, or from the command line, knows the mode.
+**Why:** The wizard keeps no local state. A deploy from another computer, or from the sakctl cli, knows the mode.
 **Tradeoff:** A change of the mode changes each resource.
 
 ## Related

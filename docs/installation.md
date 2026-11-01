@@ -7,7 +7,7 @@ weight: 5
 # Installation
 
 sakctl is the program on your computer that creates your Swiss Army Knife, keeps it up to date, makes backups and
-destroys it again. It has a window, and on Linux and macOS also a command line. There is no installer: sakctl is one
+destroys it again. It has a ui, the sakctl ui, and on Linux and macOS also a cli, the sakctl cli. There is no installer: sakctl is one
 program.
 
 ## What you need
@@ -27,19 +27,19 @@ sakctl is built for each release, and published on the
 download the program of your system, check its SHA-256 checksum and extract it. When the checksum does not match,
 the commands stop: do not use the file.
 
-The program is not signed. Started without a command, sakctl opens its window; `sakctl --help` shows the commands of
-its command line.
+The program is not signed. Started without a command, sakctl opens the sakctl ui; `sakctl --help` shows the commands of
+the sakctl cli.
 
 ## Linux
 
-The window needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
+The sakctl ui needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
 libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedora). Then, in a terminal:
 
 {{< install platform="linux" >}}
 
 Start `sakctl`. When the shell does not find it, add `~/.local/bin` to your `PATH`.
 
-When its window opens, sakctl adds **Swiss Army Knife** with its icon to the applications of your desktop
+When the sakctl ui opens, it adds **Swiss Army Knife** with its icon to the applications of your desktop
 (`~/.local/share/applications/sakctl.desktop`), so the taskbar shows its icon and you can start it from the menu.
 
 ## macOS
@@ -64,14 +64,14 @@ In PowerShell:
 Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. Windows SmartScreen can warn that the program is not known.
 Click **More info**, then **Run anyway**.
 
-On Windows, use the window: the command line of `sakctl.exe` does not show its output. The window needs the Microsoft
+On Windows, use the sakctl ui: the sakctl cli of `sakctl.exe` does not show its output. The sakctl ui needs the Microsoft
 Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## Update
 
-sakctl does not look for updates on its own. To update it, use the button in the footer of the window: **Check for
-updates**, then **Update to** the new version, then **Restart**. The line next to the button says what happens. On
-the command line, `sakctl update` does the same, and `sakctl update --check` only shows if a new version is
+sakctl does not look for updates on its own. To update it, use the button in the footer of the sakctl ui: **Check for
+updates**, then **Update to** the new version, then **Restart**. The line next to the button says what happens. In
+the sakctl cli, `sakctl update` does the same, and `sakctl update --check` only shows if a new version is
 available; start sakctl again to use the new version. sakctl asks GitHub for the newest release, checks the SHA-256
 checksum of the download and replaces itself.
 

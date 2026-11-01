@@ -16,7 +16,7 @@ weight: 2
 Make screenshots and short videos of both UIs from a script, so they can be made again after every change:
 
 - **the web apps** (`sak-frontend`): the login, the apps, notes, static hosting, redirects;
-- **the window of sakctl** (`sak-cli/ui`): the checks, the providers, the deployments, a create from the form to the
+- **the sakctl ui** (`sak-cli/ui`): the checks, the providers, the deployments, a create from the form to the
   running deployment, a deploy and a destroy.
 
 Nobody clicks by hand. The images do not change from run to run, unless the UI changes.
@@ -25,7 +25,7 @@ Nobody clicks by hand. The images do not change from run to run, unless the UI c
 
 `mise run docs:screenshots` (`ScreenshotTest` in `sak-e2e`, Playwright for Java) takes 30 screenshots of the web apps
 against the environment of `mise run local:run`: each page on a desktop and on a phone, light, the apps also dark. The
-web apps have no video yet, and the window of sakctl has neither screenshots nor a video.
+web apps have no video yet, and the sakctl ui has neither screenshots nor a video.
 
 ## 1. Videos of the web apps
 
@@ -45,9 +45,9 @@ Playwright records a video of each browser context (`setRecordVideoDir`, `setRec
 - **Output:** Playwright writes `.webm`. The mise task converts it with ffmpeg to `build/videos/web.mp4` (H.264,
   for the browser and GitHub) and to a small `web.gif` (about 10 fps, 800 px wide) for the README.
 
-## 2. Screenshots and video of the window of sakctl
+## 2. Screenshots and video of the sakctl ui
 
-The window is plain HTML and JavaScript (`sak-cli/ui`), and talks to Rust only through `window.__TAURI__.core`: 16
+The sakctl ui is plain HTML and JavaScript (`sak-cli/ui`), and talks to Rust only through `window.__TAURI__.core`: 16
 commands with `invoke` (`run_checks`, `list_deployments`, `plan_deployment`, `apply_deployment`, …) and `Channel` for
 the events of the checks and of a create. Playwright shows it in Chromium, with a fake bridge in place of tauri.
 
@@ -58,21 +58,21 @@ the events of the checks and of a create. Playwright shows it in Chromium, with 
 - **The fake bridge.** `context.addInitScript` puts a `window.__TAURI__` in place before the scripts of the page
   run. `invoke(command, args)` answers from a fixture of the command. A `Channel` plays the events of its fixture one
   after the other, with the delays recorded in it, so the checks and a create run like the real ones.
-- **The size of the window:** 736×686 (`tauri.conf.json`), light and dark (`colorScheme`, sak-theme follows it).
+- **The size of the sakctl ui:** 736×686 (`tauri.conf.json`), light and dark (`colorScheme`, sak-theme follows it).
 
 ### The fixtures
 
 The answers must be what Rust really sends, not hand-written JSON that goes out of date. A Rust test in
 `src-tauri` (`ui_fixtures`, run by the mise task, not by `cargo test`) writes them to `build/ui-fixtures/`:
 
-- `ui_texts` and `locale` from `locales/en.yml`, the same call the window makes;
+- `ui_texts` and `locale` from `locales/en.yml`, the same call the sakctl ui makes;
 - the deployments, the plan and the providers as the real types (`DeploymentResponse`, `PlanResponse`, …),
   serialized with serde from values built in the test: a deployment `demo` that is up to date, one with changes, one
   missing a resource;
 - the events of the checks and of a create (`CheckEvent`, `DeploymentEvent`), with the tasks of the playbook as the real
   run reports them, each with a delay.
 
-A change of a type or a text changes the fixtures with the next run; a field the window reads and the fixture lacks
+A change of a type or a text changes the fixtures with the next run; a field the sakctl ui reads and the fixture lacks
 fails the run.
 
 ### What is shown
@@ -93,17 +93,17 @@ Screenshots go to `docs/development/screenshots/window-<step>[-dark].png`. The v
 
 ### Not done: the real app
 
-The real window under `tauri-driver` (WebDriver over WebKitGTK) with Xvfb and `ffmpeg -f x11grab` would show the real
+The real sakctl ui under `tauri-driver` (WebDriver over WebKitGTK) with Xvfb and `ffmpeg -f x11grab` would show the real
 app against a real Hetzner project. It is slower, flaky, costs money for each run and has no video built in. The fake
 bridge shows the same page with the same texts; the integration tests already test the real sakctl.
 
 ## 3. Tasks and files
 
-- `mise run docs:screenshots`: the web and the window screenshots (needs `local:run` for the web).
-- `mise run docs:video`: the tours of the web and of the window, then ffmpeg to `.mp4` and `.gif`.
+- `mise run docs:screenshots`: the web and the sakctl ui screenshots (needs `local:run` for the web).
+- `mise run docs:video`: the tours of the web and of the sakctl ui, then ffmpeg to `.mp4` and `.gif`.
 - Both stay out of `gradle test`, `gradle build` and `frontend:test:local`, by their tags.
 - `docs/development/screenshots/`: committed. `build/videos/`: never committed.
-- The README and `docs/development/UI-UX.md` show a screenshot of each app and the gif of the window.
+- The README and `docs/development/UI-UX.md` show a screenshot of each app and the gif of the sakctl ui.
 
 ## Steps
 
@@ -118,6 +118,6 @@ bridge shows the same page with the same texts; the integration tests already te
 
 - The videos are not committed, they are made again with `mise run docs:video`.
 - One video of each UI, on a desktop.
-- The window shows the create of `example1` on `krawallbu.de` in domain mode.
-- The window has no console: the start of the provisioning and the wait for the deployment show in the status line,
+- The sakctl ui shows the create of `example1` on `krawallbu.de` in domain mode.
+- The sakctl ui has no console: the start of the provisioning and the wait for the deployment show in the status line,
   the tasks of the playbook on the row of the provisioning.

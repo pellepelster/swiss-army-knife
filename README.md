@@ -7,8 +7,8 @@ small groups: a few people who know and trust each other.
 
 - **Privacy first** Nothing sends data to a third party unless you activate it explicitly and agree to it first. The
   apps load nothing from outside, and your data stays on your own server.
-- **Install, update and maintain with one tool** `sakctl` creates a deployment, updates it and deletes it, in a
-  window or on the command line.
+- **Install, update and maintain with one tool** `sakctl` creates a deployment, updates it and deletes it, in the
+  sakctl ui or the sakctl cli.
 - **Backup** `sakctl backup` copies all data of a deployment to one encrypted file on your computer.
 - **Restore** `sakctl restore` restores the data back into a running deployment.
 - **Server maintenance** `sakctl maintenance` shows whether a reboot is pending, upgrades all packages of the server

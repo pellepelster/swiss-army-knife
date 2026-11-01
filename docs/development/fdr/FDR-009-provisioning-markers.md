@@ -18,7 +18,7 @@ applied last, and the plan compares it with what this sakctl would apply.
 
 ## Behavior
 
-- **One row of the plan.** The provisioning shows in the plan, in the window and on the command line, after the
+- **One row of the plan.** The provisioning shows in the plan, in the sakctl ui and the sakctl cli, after the
   server and the data volume: up-to-date, missing or with changes, like every resource.
 - **A role runs again when it changes.** The playbook runs when the server is created or changes, when the server has
   no markers, or when a role has another fingerprint than the marker on the server. The changes name the roles.

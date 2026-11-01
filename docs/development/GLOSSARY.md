@@ -41,7 +41,7 @@ user interface. Use the same term for the same thing every time.
 - **resource status**: What a plan or the state of a deployment says of one of its resources, compared with what the
   deployment declares. It is one of three: **up-to-date** (the resource exists as declared), **missing**
   (it does not exist, also when a resource it depends on does not) or **has changes** (it
-  exists but differs). Messages use these words and no others for it, in the window and on the command line, the
+  exists but differs). Messages use these words and no others for it, in the sakctl ui and the sakctl cli, the
   status first and then what is done to the resource: `volume 'sak-alpha-data' missing, will be created`. A resource
   found under another name is no status but an error that stops the plan.
 - **deployment status**: The state of a whole deployment: **up-to-date** when every resource is,

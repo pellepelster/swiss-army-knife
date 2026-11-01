@@ -25,14 +25,14 @@ do not run with the local tests. The videos are not committed.
 
 ```sh
 mise run local:run              # in one terminal
-mise run docs:screenshots       # in another one: the apps and the window of sakctl
-mise run docs:video             # the tours of the apps and of the window, as .webm, .mp4 and .gif
+mise run docs:screenshots       # in another one: the apps and the sakctl ui
+mise run docs:video             # the tours of the apps and of the sakctl ui, as .webm, .mp4 and .gif
 ```
 
-The window of sakctl (`sak-cli/ui`) runs without tauri and without a cloud project: Playwright
+The sakctl ui (`sak-cli/ui`) runs without tauri and without a cloud project: Playwright
 serves its files, and a fake `window.__TAURI__` answers its commands with what rust sends for a
 create of `example1` on `krawallbu.de` in domain mode. A rust test writes these answers from the
-real types and texts (`core/deployments/window_fixtures.rs`, `mise run docs:window`). The window
+real types and texts (`core/deployments/window_fixtures.rs`, `mise run docs:window`). The sakctl ui
 is shown at its own size, 736×686, in light and dark; its video shows the checks, a provider
 token, the create of `example1` with the provisioning and the page of the new deployment.
 
@@ -75,7 +75,7 @@ The tests run in this order:
 2. `NotesTest`: the same tests on both deployments; a note is created, kept and deleted.
 3. `BackupTest`: on both, a note, `sakctl backup`, the note deleted and another one created, `sakctl restore`: the
    note of the backup is back, the later one is gone.
-4. `SakctlTest`: the rules of the command line, without a server of their own. A second domain deployment and the
+4. `SakctlTest`: the rules of the sakctl cli, without a server of their own. A second domain deployment and the
    mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither deleted nor taken over;
    `config show` shows no secret; a deploy keeps the settings.
 5. `UserModeTest`: the single user deployment, the password login checked, is deployed again as multi user with an

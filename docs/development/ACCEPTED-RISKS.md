@@ -63,14 +63,14 @@ is built is in [SYSTEM.md](architecture/SYSTEM.md).
   being used to send mail, a login outage of an hour is the price, and the apps have few allowed addresses whose
   sessions last 30 days.
 
-- **The window gets the passwords of the environment.** When `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` is set, sakctl
-  sends them to the page of the window, which fills its password fields with them, so a user who keeps them in the
+- **The sakctl ui gets the passwords of the environment.** When `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` is set, sakctl
+  sends them to the page of the sakctl ui, which fills its password fields with them, so a user who keeps them in the
   environment does not type them again. The secrets cross the ipc into the web view. Accepted: the web view shows
   only the pages of sakctl, its content security policy loads nothing from elsewhere, the page writes every value
   with `textContent`, and the same process holds the secrets anyway; whoever can read the web view can read sakctl.
 
-- **Two runs on one deployment at the same time.** Nothing stops two sakctl, on two machines or the command line
-  next to the window, from deploying or destroying the same deployment at once; the two applies can destroy and
+- **Two runs on one deployment at the same time.** Nothing stops two sakctl, on two machines or the sakctl cli
+  next to the sakctl ui, from deploying or destroying the same deployment at once; the two applies can destroy and
   create the server at the same time. On the server, `sak-backend` lets only one backup, restore, update or reboot
   run at a time; the cloud resources have no such lock. Accepted: a deployment has one user, who starts its runs by
   hand; each run plans first and stops at what it does not expect, and the next deploy repairs what two runs left

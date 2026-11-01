@@ -1,13 +1,13 @@
 ---
 title: "UI and UX"
-description: "How the apps, the window of sakctl and its command line look and behave."
+description: "How the apps, the sakctl ui and the sakctl cli look and behave."
 weight: 20
 ---
 
 # UI and UX
 
-How the apps look and behave for the people who use them: the web ui, and sakctl in its window and on the command
-line. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
+How the apps look and behave for the people who use them: the web ui, the sakctl ui and the sakctl cli. How the system
+is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
 [AGENT.md](../../AGENT.md).
 
 Every rule has an id: the prefix of its chapter and a number, e.g. `UX-1`; a part of a rule adds a number, e.g.
@@ -36,7 +36,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
   error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
   (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
-  same check runs once more when the action is taken, and on the command line, where an invalid value ends the
+  same check runs once more when the action is taken, and in the sakctl cli, where an invalid value ends the
   command with an error.
 - `UX-7` **The sign-in follows the user mode.** In the multi user mode, the sign-in shows the login by e-mail; a link
   below it leads to the login with the password of the admin. In the single user mode, it shows only the login with
@@ -81,50 +81,41 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
   pulls it down.
 
-## sakctl window
+## sakctl
 
-- `WINDOW-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
+- `CTL-1` **A plan that destroys asks first.** Create, deploy and destroy show the plan; when it destroys a resource or
+  creates one anew, sakctl asks for a confirmation before it applies: the sakctl ui in a dialog, the sakctl cli by
+  having the name of the deployment typed. `--yes` skips it in the sakctl cli; without a terminal and without `--yes`
+  the command stops with a usage error and changes nothing.
+- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain) unless
+  they are given; a default never changes a running deployment.
+- `CTL-3` **Feature parity.** The sakctl ui and the sakctl cli can do the same: what one does, the other
+  does too.
+
+## sakctl ui
+
+- `UI-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
   created anew or deleted. The plan of a deploy is the check on the page of the deployment. Only the apply changes
   something, and it shows each resource as it goes, with the output of the provisioning below.
-- `WINDOW-9` **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses
+- `UI-9` **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses
   always stay; a change that would need them created anew stops the plan before anything changes. A deploy happens where
   the deployment is, never at a default location.
-- `WINDOW-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
+- `UI-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
   ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
+- `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
+  green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
+  destroy deletes.
 
-## sakctl command line
+## sakctl cli
 
-- `CLI-1` **A secret is never an argument.** The password of the deployment comes from `SAK_PASSWORD`, or the command
-  asks for it on the terminal without echo (`--password` asks even with `SAK_PASSWORD` set); a create asks twice. The
-  password at the mail server likewise comes from `SAK_SMTP_PASSWORD` or is typed (`--smtp-password`), the API token of
-  the Hetzner Cloud project from `HCLOUD_TOKEN` or is typed (`--hcloud-token`). An argument would show in the list of
-  processes.
-- `CLI-2` **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
-  Encrypt, which has none of the limits of the production one; the deployment keeps it, sakctl trusts its roots. The
-  integration tests use it.
-- `CLI-4` **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `--
-  <command>` runs a command there. It runs in the image of the tools like the provisioning: the key derived from the
-  password goes to an ssh-agent in the container and is never written, the server is checked against its derived host
-  key.
-- `CLI-5` **Backup and restore, on the command line only.** `sakctl backup <name>` writes all data of a deployment to
-  `~/.sak/<name>/backups/<name>-<UTC time>.age.sak` and shows the path and the size. `sakctl restore <name> <file>`
-  replaces the data with that of a backup, after the user types the name of the deployment (`--yes` without asking).
-  Both show each step of the server while it runs. Refer to [FDR-007](fdr/FDR-007-backup.md).
-- `CLI-6` **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help`
-  lists them all.
-- `CLI-7` **No surprise by default.** A deploy keeps the settings of the deployment (for example its DNS mode and root
-  domain) unless they are given; a default never changes a running deployment.
-- `CLI-8` **Exit codes tell what happened.** Success, a general failure, wrong arguments, and each refusal that a script
-  may want to handle (a root domain that is taken, mixed DNS modes, a resource that belongs to someone else, data that
-  would be lost, a newer version of sakctl for `update --check`) have a code of their own. `--help` lists them. `sakctl
-  ssh` ends with the exit code of the command on the server, as ssh does; when sakctl or ssh itself fails, it ends with
-  255.
-- `CLI-9` **A plan that destroys asks first.** `create`, `deploy` and `destroy` print the plan; when it destroys a
-  resource or creates one anew, the command asks for the name of the deployment on the terminal before it applies.
-  `--yes` applies without asking, for scripts; without a terminal and without `--yes` it stops with a usage error and
-  changes nothing.
-- `CLI-10` **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color
-  on a terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
-  the plan found or a resource a destroy will delete.
-- `CLI-11` **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is
-  done to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".
+- `CLI-1` **A secret is never an argument**, it would show in the list of processes. Every secret comes from its
+  environment variable or is typed on the terminal without echo; its flag (e.g. `--password`) asks even when the
+  variable is set. The password of a new deployment is typed twice.
+- `CLI-2` **Test deployments.** `--acme-ca staging` takes the certificates from the staging ca of Let's Encrypt, without
+  the limits of production; the deployment keeps it and sakctl trusts its roots. The integration tests use it.
+- `CLI-4` **ssh, in the sakctl cli only.** `sakctl ssh <name> [-- <command>]` opens a root session or runs a command,
+  from the image of the tools: the key derived from the password lives only in an ssh-agent of the container, the
+  server is checked against its derived host key.
+- `CLI-6` **Scriptable.** Every input is an argument or an environment variable, `--help` lists them all.
+- `CLI-8` **Exit codes tell what happened.** Success, failure, wrong arguments and each refusal a script may handle
+  have a code of their own, listed by `--help`.

@@ -88,4 +88,4 @@ fail or damage the data.
 
 ## Open Questions
 
-- The window has no backup or restore yet.
+- The sakctl ui has no backup or restore yet.
