@@ -78,7 +78,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an `ErrorMessage` (`sak-api`), a
   key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api.
 - `API-2` **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with
-  `offset` and `limit`; `limit` is 50 by default and at most 100.
+  `offset` and `limit`; `limit` is 50 by default and at most 100. The exception is the health (`GET /api/v1/health`):
+  the statuses of its few checks are one array, without pages.
 - `API-3` **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That
   holds for every time the api answers (when something was created, updated or computed, when a session ends, the
   times of the logs and the metrics). Something that never ends has no time rather than one far away.

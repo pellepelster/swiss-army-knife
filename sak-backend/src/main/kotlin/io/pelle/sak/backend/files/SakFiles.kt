@@ -97,12 +97,10 @@ fun Route.files(
     }
 
     post("/{id}/discover/text") {
-        if (!discoverTextLimiter.tryAcquire(call.owner)) {
-            call.respondErrors(FilesTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
-            return@post
-        }
         val id = call.idParameter() ?: return@post
-        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.owner, id) }) {
+        val owner = call.owner
+        // only a request that goes to OpenRouter takes from the limit
+        when (val result = withContext(Dispatchers.IO) { fileTextService.discover(owner, id) { discoverTextLimiter.tryAcquire(owner) } }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             DiscoverTextResult.Unsupported -> call.respondErrors(FilesTexts.NOT_DISCOVERABLE)
@@ -110,6 +108,8 @@ fun Route.files(
                 call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
             DiscoverTextResult.Disabled ->
                 call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
+            DiscoverTextResult.Limited ->
+                call.respondErrors(FilesTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
             is DiscoverTextResult.Failed -> {
                 logger.warn(result.cause) { "could not discover the text in file $id" }
                 call.respondErrors(FilesTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)
@@ -131,7 +131,7 @@ fun Route.files(
             errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
             HttpStatusCode.NotFound { description = "The signed in user has no such file" }
             errors(HttpStatusCode.Conflict, "The AI features are turned off in the settings")
-            errors(HttpStatusCode.TooManyRequests, "The user discovered too many texts lately")
+            errors(HttpStatusCode.TooManyRequests, "The user had too many texts discovered at OpenRouter lately; a known text does not count")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
             errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter API key is set in the settings")
         }

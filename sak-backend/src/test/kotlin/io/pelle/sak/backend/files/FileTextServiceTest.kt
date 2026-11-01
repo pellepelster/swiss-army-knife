@@ -66,6 +66,29 @@ class FileTextServiceTest {
         (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
 
     @Test
+    fun `the limit is asked only when the file goes to the AI provider`() {
+        val receipt = photo("Total 12.50")
+        var asked = 0
+        val counting = { asked++; true }
+
+        // unknown, not an image or a recording, AI turned off: nothing goes out, nothing is counted
+        service.discover(PELLE, 4711, counting) shouldBe DiscoverTextResult.NotFound
+        aiEnabled = false
+        service.discover(PELLE, receipt, counting) shouldBe DiscoverTextResult.Disabled
+        aiEnabled = true
+        asked shouldBe 0
+
+        service.discover(PELLE, receipt, counting) shouldBe DiscoverTextResult.Discovered("Total 12.50")
+        // the known text is answered without asking again
+        service.discover(PELLE, receipt, counting) shouldBe DiscoverTextResult.Discovered("Total 12.50")
+        asked shouldBe 1
+
+        // over the limit: the file does not go out
+        service.discover(PELLE, photo("Total 3.20")) { false } shouldBe DiscoverTextResult.Limited
+        recognizer.images.size shouldBe 1
+    }
+
+    @Test
     fun `discovers the text in an image once and keeps it with the file`() {
         val receipt = photo("Total 12.50")
 

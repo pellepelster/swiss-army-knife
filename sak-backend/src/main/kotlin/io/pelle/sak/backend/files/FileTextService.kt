@@ -23,6 +23,9 @@ sealed interface DiscoverTextResult {
     // the AI features are turned off in the settings (NotesSettingsService.AI and what it requires)
     data object Disabled : DiscoverTextResult
 
+    // the file would go to the AI provider, but the owner asked for too many texts lately
+    data object Limited : DiscoverTextResult
+
     // the model failed, or the content of the file could not be read
     data class Failed(
         val cause: Exception,
@@ -41,10 +44,13 @@ class FileTextService(
     private val aiEnabled: () -> Boolean,
 ) {
     // the text in a file of the owner, the address that uploaded it; the text once discovered is
-    // answered even when nothing is configured any more or the AI features are turned off
+    // answered even when nothing is configured any more or the AI features are turned off.
+    // mayAsk is asked only right before the file goes to the AI provider, so a limit of what that
+    // costs counts nothing else (e.g. a known text, an unknown file, AI turned off)
     fun discover(
         owner: String,
         id: Int,
+        mayAsk: () -> Boolean = { true },
     ): DiscoverTextResult {
         val file = files.byId(owner, id) ?: return DiscoverTextResult.NotFound
         val image =
@@ -61,6 +67,7 @@ class FileTextService(
             } else {
                 transcriber()?.let { { bytes -> it.transcribe(bytes, file.contentType) } }
             } ?: return DiscoverTextResult.NotConfigured
+        if (!mayAsk()) return DiscoverTextResult.Limited
         val text =
             try {
                 read(Files.readAllBytes(files.path(file))).trim()

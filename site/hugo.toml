@@ -32,9 +32,11 @@ target = 'content/development/fdr/_index.md'
 source = '../docs/development/architecture/apps/INDEX.md'
 target = 'content/development/architecture/apps/_index.md'
 
+# the screenshots as assets, so a page of docs/ shows one as screenshots/<name>.png, the same path
+# that works on github
 [[module.mounts]]
 source = '../docs/screenshots'
-target = 'static/screenshots'
+target = 'assets/screenshots'
 
 # the tokens and the fonts of sak-theme, linked by layouts/partials/custom-header.html
 [[module.mounts]]

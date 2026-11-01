@@ -31,7 +31,11 @@ API_SIGNATURE_AUTH)`, so every browser session with the role `admin` gets the pa
 
 Fix: put `/config` below `authenticate(API_SIGNATURE_AUTH)` only, and answer with `Cache-Control: no-store`.
 
-### `AR-2` The limit of the text discovery counts requests that cost nothing
+### ~~`AR-2` The limit of the text discovery counts requests that cost nothing~~
+
+**Fixed:** `FileTextService.discover` takes the limit as a callback and asks it only right before the file goes to
+OpenRouter (`DiscoverTextResult.Limited`, 429); a known text, an unknown file, a file that is no image or recording,
+the AI features turned off or no API key take nothing from it.
 
 `POST /api/v1/files/{id}/discover/text` takes from the limit (30 an hour for each user) before anything else. A
 request for an unknown file, for a file that is no image or recording, while the AI features are off, without an API
@@ -58,7 +62,9 @@ A client can not show why its request failed; `apiErrorMessage` in the frontend 
 Fix: one helper for each status with its message (e.g. `respondNotFound("There is no such note.")`), and the
 429 and 503 with a message. Or, if a bare 404 and 401 are enough, write that exception into `API-1`.
 
-### `AR-4` The health is a list without pages
+### ~~`AR-4` The health is a list without pages~~
+
+**Fixed:** `API-2` exempts the health: the statuses of the few health checks are answered at once, as an array.
 
 `GET /api/v1/health` answers a bare JSON array (`List<HealthStatusResponse>`). `API-2` says that lists are paged
 (`{"items", "pagination"}`); the categories, the lists of grocery and the scopes of the settings, which are also
