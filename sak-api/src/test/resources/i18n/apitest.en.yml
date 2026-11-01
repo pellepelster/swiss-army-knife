@@ -1,0 +1,3 @@
+# the texts of the tests of the api
+blank: "%{field} must not be blank."
+only_english: "Only in english."

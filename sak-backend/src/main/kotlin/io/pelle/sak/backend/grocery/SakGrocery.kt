@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.api.language
+import io.pelle.sak.api.render
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -53,10 +55,6 @@ private val KEEP_ALIVE = 25.seconds
 
 private const val GROCERY_TAG = "grocery"
 
-private const val LIST_EXISTS = "A list of the name exists."
-
-private const val LAST_LIST = "You can not delete your only list."
-
 
 private fun GroceryList.response(user: String) =
     GroceryListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
@@ -75,7 +73,7 @@ private suspend fun ApplicationCall.respondList(result: GroceryListResult) =
         is GroceryListResult.Saved -> respond(result.list.response(owner))
         is GroceryListResult.Invalid -> respondErrors(result.errors)
         GroceryListResult.NotFound -> respond(HttpStatusCode.NotFound)
-        GroceryListResult.Exists -> respondErrors(LIST_EXISTS, status = HttpStatusCode.Conflict)
+        GroceryListResult.Exists -> respondErrors(GroceryTexts.LIST_EXISTS, status = HttpStatusCode.Conflict)
     }
 
 private suspend fun ApplicationCall.respondItem(
@@ -95,7 +93,7 @@ fun Route.grocery(groceryService: GroceryService) {
 
     get("/categories") {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(GroceryCategory.entries.map { GroceryCategoryResponse(it.name, it.label) })))
+        call.respond(page.of(page.of(GroceryCategory.entries.map { GroceryCategoryResponse(it.name, it.label.render(call.language())) })))
     }.describe {
         tag(GROCERY_TAG)
         summary = "The categories of the items"
@@ -179,7 +177,7 @@ fun Route.grocery(groceryService: GroceryService) {
             when (withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }) {
                 GroceryListDelete.Deleted -> call.respond(HttpStatusCode.NoContent)
                 GroceryListDelete.NotFound -> call.respond(HttpStatusCode.NotFound)
-                GroceryListDelete.LastList -> call.respondErrors(LAST_LIST, status = HttpStatusCode.Conflict)
+                GroceryListDelete.LastList -> call.respondErrors(GroceryTexts.LAST_LIST, status = HttpStatusCode.Conflict)
             }
         }.describe {
             tag(GROCERY_TAG)

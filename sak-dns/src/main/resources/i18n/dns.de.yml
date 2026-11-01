@@ -1,0 +1,13 @@
+# the texts of the checks of the domains (DnsTexts), german
+not_checked: "Die Domains der %{what} konnten nicht geprüft werden."
+no_addresses: "Die Adressen des Servers sind nicht konfiguriert."
+no_domains: "Die %{what} haben keine Domains."
+wrong_domains: "%{count} von %{total} Domains der %{what} zeigen nicht auf den Server."
+unanswered_domains: "Kein Nameserver hat für %{count} von %{total} Domains der %{what} geantwortet."
+right_domains: "Die %{total} Domains der %{what} zeigen auf den Server."
+answers: "%{answers}"
+no_answer: "Kein Nameserver hat geantwortet."
+no_answer_from: "Keine Antwort von %{servers}."
+answer: "%{server} hat %{a}, %{aaaa}"
+records: "%{type} %{addresses}"
+no_records: "kein %{type}"

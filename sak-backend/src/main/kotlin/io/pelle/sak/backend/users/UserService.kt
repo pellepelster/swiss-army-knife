@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.users
 
+import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.users.User
@@ -59,8 +60,8 @@ class UserService(
         val named = name?.trim()?.ifEmpty { null }
         val errors =
             listOfNotNull(
-                ErrorMessage(INVALID_EMAIL).takeUnless { isEmail(address) },
-                ErrorMessage(INVALID_NAME).takeIf { named != null && (named.length > MAX_NAME_LENGTH || named.any { it.isISOControl() }) },
+                ErrorMessage(UsersTexts.INVALID_EMAIL).takeUnless { isEmail(address) },
+                ErrorMessage(UsersTexts.INVALID_NAME, "max" to MAX_NAME_LENGTH).takeIf { named != null && (named.length > MAX_NAME_LENGTH || named.any { it.isISOControl() }) },
             )
         if (errors.isNotEmpty()) return AddUserResult.Invalid(errors)
         if (address in admins) return AddUserResult.Admin
@@ -81,10 +82,6 @@ class UserService(
 
         const val MAX_NAME_LENGTH = 64
 
-        const val INVALID_EMAIL = "An e-mail address like name@example.org is needed."
-
-        const val INVALID_NAME = "A name must have at most $MAX_NAME_LENGTH characters and no control characters."
-
         // as the configuration compares them: trimmed, without case
         fun normalize(email: String) = email.trim().lowercase()
 
@@ -93,4 +90,12 @@ class UserService(
 
         private val EMAIL = Regex("""[^\s@]+@[^\s@]+\.[^\s@]+""")
     }
+}
+
+// the texts of the users (i18n/users.<language>.yml)
+object UsersTexts : Catalog("users") {
+    val INVALID_EMAIL = text("invalid_email")
+    val INVALID_NAME = text("invalid_name")
+    val EXISTS = text("exists")
+    val IS_ADMIN = text("is_admin")
 }

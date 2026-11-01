@@ -1,0 +1,8 @@
+# the texts of the redirects (RedirectsTexts), german
+invalid_domains: "Beide Domains müssen gültig und verschieden sein, und die weitergeleitete darf weder eine der Apps oder der API noch eine eines Buckets sein."
+exists: "Die Domain wird schon weitergeleitet."
+unknown_bucket: "Diesen Bucket gibt es nicht."
+bucket_not_served: "Der Bucket wird unter keiner Domain ausgeliefert."
+invalid_target: "Die Zieldomain muss gültig sein und sich von der weitergeleiteten unterscheiden."
+health.name: "Domains der Weiterleitungen"
+health.what: "Weiterleitungen"

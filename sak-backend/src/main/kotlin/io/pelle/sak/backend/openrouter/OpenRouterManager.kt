@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.openrouter
 
+import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.settings.BooleanSetting
 import io.pelle.sak.backend.settings.ReadOnlyValues
@@ -60,8 +61,8 @@ class OpenRouterManager(
         if (!enabled || !changed || apiKey.isEmpty()) return emptyList()
         return when (keyCheck.check(apiKey)) {
             ApiKeyStatus.VALID -> emptyList()
-            ApiKeyStatus.INVALID -> listOf(ErrorMessage("OpenRouter does not take the API key."))
-            ApiKeyStatus.UNKNOWN -> listOf(ErrorMessage("The API key could not be checked at OpenRouter, please try again later."))
+            ApiKeyStatus.INVALID -> listOf(ErrorMessage(OpenRouterTexts.KEY_REFUSED))
+            ApiKeyStatus.UNKNOWN -> listOf(ErrorMessage(OpenRouterTexts.KEY_UNCHECKED))
         }
     }
 
@@ -81,17 +82,16 @@ class OpenRouterManager(
         val ENABLED =
             BooleanSetting(
                 SettingName("enabled"),
-                "AI features",
-                "Lets the apps send data to AI providers, for example a photo or a recording to discover its text. " +
-                    "Providers that collect the data are not asked.",
+                OpenRouterTexts.ENABLED_LABEL,
+                OpenRouterTexts.ENABLED_DESCRIPTION,
                 default = false,
             )
 
         val API_KEY =
             TextSetting(
                 SettingName("api_key"),
-                "API key",
-                "The key of the OpenRouter account to use for AI features.",
+                OpenRouterTexts.API_KEY_LABEL,
+                OpenRouterTexts.API_KEY_DESCRIPTION,
                 default = "",
                 mask = 4,
             )
@@ -99,8 +99,8 @@ class OpenRouterManager(
         val VISION_MODEL =
             TextSetting(
                 SettingName("vision_model"),
-                "Vision model",
-                "The model that transcribes text in photos.",
+                OpenRouterTexts.VISION_MODEL_LABEL,
+                OpenRouterTexts.VISION_MODEL_DESCRIPTION,
                 default = "",
                 readOnly = true,
             )
@@ -108,8 +108,8 @@ class OpenRouterManager(
         val SPEECH_MODEL =
             TextSetting(
                 SettingName("speech_model"),
-                "Speech model",
-                "The model that transcribes recordings.",
+                OpenRouterTexts.SPEECH_MODEL_LABEL,
+                OpenRouterTexts.SPEECH_MODEL_DESCRIPTION,
                 default = "",
                 readOnly = true,
             )
@@ -117,10 +117,26 @@ class OpenRouterManager(
         val SCOPE =
             SettingScope(
                 SettingScopeName("ai"),
-                "AI",
-                "Configure all AI features",
+                OpenRouterTexts.SCOPE_LABEL,
+                OpenRouterTexts.SCOPE_DESCRIPTION,
                 listOf(ENABLED, API_KEY, VISION_MODEL, SPEECH_MODEL),
                 enabledBy = ENABLED,
             )
     }
+}
+
+// the texts of the AI at OpenRouter (i18n/openrouter.<language>.yml)
+object OpenRouterTexts : Catalog("openrouter") {
+    val ENABLED_LABEL = text("settings.enabled.label")
+    val ENABLED_DESCRIPTION = text("settings.enabled.description")
+    val API_KEY_LABEL = text("settings.api_key.label")
+    val API_KEY_DESCRIPTION = text("settings.api_key.description")
+    val VISION_MODEL_LABEL = text("settings.vision_model.label")
+    val VISION_MODEL_DESCRIPTION = text("settings.vision_model.description")
+    val SPEECH_MODEL_LABEL = text("settings.speech_model.label")
+    val SPEECH_MODEL_DESCRIPTION = text("settings.speech_model.description")
+    val SCOPE_LABEL = text("settings.label")
+    val SCOPE_DESCRIPTION = text("settings.description")
+    val KEY_REFUSED = text("key_refused")
+    val KEY_UNCHECKED = text("key_unchecked")
 }

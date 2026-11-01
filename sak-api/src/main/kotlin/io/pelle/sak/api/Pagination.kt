@@ -41,14 +41,14 @@ data class PageRequest(
 suspend fun ApplicationCall.pageRequest(): PageRequest? {
     val offset = request.queryParameters["offset"]
     val limit = request.queryParameters["limit"]
-    val messages =
+    val errors =
         listOfNotNull(
-            offset?.takeIf { it.toLongOrNull()?.let { value -> value < 0 } ?: true }?.let { "offset must be a number of at least 0." },
+            offset?.takeIf { it.toLongOrNull()?.let { value -> value < 0 } ?: true }?.let { Text(ApiTexts.INVALID_OFFSET) },
             limit?.takeIf { it.toIntOrNull()?.let { value -> value !in 1..MAX_LIMIT } ?: true }
-                ?.let { "limit must be a number from 1 to $MAX_LIMIT." },
+                ?.let { Text(ApiTexts.INVALID_LIMIT, "max" to MAX_LIMIT) },
         )
-    if (messages.isNotEmpty()) {
-        respondErrors(*messages.toTypedArray())
+    if (errors.isNotEmpty()) {
+        respondErrors(errors)
         return null
     }
     return PageRequest(offset?.toLong() ?: 0, limit?.toInt() ?: DEFAULT_LIMIT)

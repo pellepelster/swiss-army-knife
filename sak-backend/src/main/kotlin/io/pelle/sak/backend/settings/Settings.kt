@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.settings
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SYSTEM_OWNER
 import io.pelle.sak.model.SakDatabase
@@ -52,8 +54,9 @@ enum class SettingType {
 sealed class SettingDefinition<T : Any>(
     // its key in the api and the name it is stored under in its scope
     val name: SettingName,
-    val label: String,
-    val description: String,
+    // what the user reads, in their language
+    val label: TextKey,
+    val description: TextKey,
     val default: T,
     // a value the code gives, e.g. from the configuration, never stored and never changed through
     // the api (ReadOnlyValues)
@@ -98,15 +101,15 @@ sealed class SettingDefinition<T : Any>(
 
 open class BooleanSetting(
     name: SettingName,
-    label: String,
-    description: String,
+    label: TextKey,
+    description: TextKey,
     default: Boolean,
     readOnly: Boolean = false,
     requires: Requirement? = null,
 ) : SettingDefinition<Boolean>(name, label, description, default, readOnly, requires) {
     override val type = SettingType.BOOLEAN
 
-    override val typeError get() = ErrorMessage("\"$label\" must be true or false.")
+    override val typeError get() = ErrorMessage(SettingsTexts.NOT_BOOLEAN, "label" to label)
 
     override fun encode(value: Boolean) = value.toString()
 
@@ -119,8 +122,8 @@ open class BooleanSetting(
 
 open class TextSetting(
     name: SettingName,
-    label: String,
-    description: String,
+    label: TextKey,
+    description: TextKey,
     default: String,
     // the most characters a value has, the settings table takes 16384
     val maxLength: Int = 255,
@@ -136,7 +139,7 @@ open class TextSetting(
 
     override val type = SettingType.TEXT
 
-    override val typeError get() = ErrorMessage("\"$label\" must be a text.")
+    override val typeError get() = ErrorMessage(SettingsTexts.NOT_TEXT, "label" to label)
 
     override fun encode(value: String) = value
 
@@ -150,7 +153,7 @@ open class TextSetting(
 
     override fun parse(json: JsonElement) = (json as? JsonPrimitive)?.takeIf { it.isString }?.content
 
-    override fun check(value: String) = if (value.length > maxLength) ErrorMessage("\"$label\" must be at most $maxLength characters.") else null
+    override fun check(value: String) = if (value.length > maxLength) ErrorMessage(SettingsTexts.TOO_LONG, "label" to label, "max" to maxLength) else null
 }
 
 // what stands for the masked characters of a value
@@ -195,8 +198,9 @@ data class Requirement(
 // scope in the api and the scope its settings are stored in
 data class SettingScope(
     val name: SettingScopeName,
-    val label: String,
-    val description: String,
+    // what the user reads, in their language
+    val label: TextKey,
+    val description: TextKey,
     val settings: List<SettingDefinition<*>>,
     // the setting of the scope that turns it on, one of its settings; while it is off, the other
     // settings of the scope are null to the code and greyed out on the settings page
@@ -383,7 +387,7 @@ open class StoredSettingsService(
         values.forEach { (name, json) ->
             val setting = scope.setting(name)
             if (setting == null) {
-                errors += ErrorMessage("There is no setting \"$name\" in \"${scope.name}\".")
+                errors += ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to name, "scope" to scope.name)
                 return@forEach
             }
             // sent back as the api answered it, e.g. masked, read-only or off, a value changes nothing
@@ -439,10 +443,10 @@ open class StoredSettingsService(
 
     // why the setting can not be changed now, null when it can
     private fun fixedError(setting: SettingDefinition<*>): ErrorMessage? {
-        if (setting.readOnly) return ErrorMessage("\"${setting.label}\" can not be changed.")
+        if (setting.readOnly) return ErrorMessage(SettingsTexts.READ_ONLY, "label" to setting.label)
         val requirement = setting.requires ?: return null
         if (met(requirement)) return null
-        return ErrorMessage("\"${setting.label}\" needs \"${requirement.setting.label}\" of \"${requirement.scope.label}\" turned on.")
+        return ErrorMessage(SettingsTexts.REQUIRES, "label" to setting.label, "required" to requirement.setting.label, "scope" to requirement.scope.label)
     }
 
     // a setting of another scope is a mistake in the code, never one of a request
@@ -506,4 +510,14 @@ class SettingsRegistry(
     private fun service(scope: String) = services.firstOrNull { it.scope.name.value == scope }
 
     private fun List<SettingValue<*>>.json() = associate { it.setting.name.value to it.toApiJson() }
+}
+
+// the texts of the settings (i18n/settings.<language>.yml)
+object SettingsTexts : Catalog("settings") {
+    val NOT_BOOLEAN = text("not_boolean")
+    val NOT_TEXT = text("not_text")
+    val TOO_LONG = text("too_long")
+    val UNKNOWN_SETTING = text("unknown_setting")
+    val READ_ONLY = text("read_only")
+    val REQUIRES = text("requires")
 }

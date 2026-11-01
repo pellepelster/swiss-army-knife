@@ -9,11 +9,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
-private val FLAG = BooleanSetting(SettingName("flag"), "A flag", "Turns something on.", default = false)
+private val FLAG = BooleanSetting(SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
 
-private val SECRET = TextSetting(SettingName("secret"), "A secret", "Hides itself.", default = "", mask = 2)
+private val SECRET = TextSetting(SettingName("secret"), t("A secret"), t("Hides itself."), default = "", mask = 2)
 
-private val SCOPE = SettingScope(SettingScopeName("test"), "Test", "Settings to test with.", listOf(FLAG, SECRET))
+private val SCOPE = SettingScope(SettingScopeName("test"), t("Test"), t("Settings to test with."), listOf(FLAG, SECRET))
 
 class SettingsRegistryTest {
     @TempDir
@@ -40,7 +40,7 @@ class SettingsRegistryTest {
     @Test
     fun `sets nothing when any value is not valid, nothing for an unknown scope`() {
         registry.update("test", mapOf("flag" to JsonPrimitive(true), "other" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe
-            UpdateSettingsResult.Invalid(listOf(ErrorMessage("There is no setting \"other\" in \"test\".")))
+            UpdateSettingsResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScopeName("test"))))
         test.get(FLAG) shouldBe false
         registry.update("other", mapOf("flag" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe UpdateSettingsResult.NotFound
     }
@@ -48,8 +48,8 @@ class SettingsRegistryTest {
     @Test
     fun `a scope a setting requires is served`() {
         val dependent =
-            BooleanSetting(SettingName("dependent"), "Dependent", "Needs the flag.", default = false, requires = Requirement(SCOPE, FLAG))
-        val other = StoredSettingsService(SettingScope(SettingScopeName("other"), "Other", "Needs test.", listOf(dependent)), SettingService(SakDatabase.open(tempDir.resolve("sak.db"))))
+            BooleanSetting(SettingName("dependent"), t("Dependent"), t("Needs the flag."), default = false, requires = Requirement(SCOPE, FLAG))
+        val other = StoredSettingsService(SettingScope(SettingScopeName("other"), t("Other"), t("Needs test."), listOf(dependent)), SettingService(SakDatabase.open(tempDir.resolve("sak.db"))))
         shouldThrow<IllegalArgumentException> { SettingsRegistry(listOf(other)) }
         SettingsRegistry(listOf(test, other)).values("other", effective = true) shouldBe mapOf("dependent" to JsonPrimitive(false))
     }

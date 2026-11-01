@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.Text
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.dns.DomainDnsCheck
 import io.pelle.sak.dns.DomainsHealth
@@ -10,4 +11,4 @@ class HostingHealth(
     buckets: S3BucketService,
     check: DomainDnsCheck,
     addresses: SakConfig.AddressesConfig,
-) : DomainsHealth("Bucket domains", "buckets", { buckets.all().flatMap(buckets::servedDomains) }, check, addresses.ipv4, addresses.ipv6)
+) : DomainsHealth(Text(HostingTexts.HEALTH_NAME), Text(HostingTexts.HEALTH_WHAT), { buckets.all().flatMap(buckets::servedDomains) }, check, addresses.ipv4, addresses.ipv6)

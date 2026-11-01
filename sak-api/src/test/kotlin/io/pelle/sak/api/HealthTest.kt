@@ -6,14 +6,16 @@ import org.junit.jupiter.api.Test
 class HealthTest {
     @Test
     fun `tells what was checked and its state, with a message when there is one`() {
-        val healthy = Health { HealthStatus("Database", HealthState.HEALTHY) }
-        val unhealthy = Health { HealthStatus("Caddy", HealthState.UNHEALTHY, "caddy did not answer") }
+        val name = Text(ApiTexts.UNEXPECTED_ERROR)
+        val message = Text(ApiTexts.MALFORMED_REQUEST)
+        val healthy = Health { HealthStatus(name, HealthState.HEALTHY) }
+        val unhealthy = Health { HealthStatus(name, HealthState.UNHEALTHY, message) }
 
-        healthy.check() shouldBe HealthStatus("Database", HealthState.HEALTHY, null)
+        healthy.check() shouldBe HealthStatus(name, HealthState.HEALTHY, null)
         unhealthy.check().let {
-            it.name shouldBe "Caddy"
+            it.name shouldBe name
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "caddy did not answer"
+            it.message shouldBe message
         }
     }
 }

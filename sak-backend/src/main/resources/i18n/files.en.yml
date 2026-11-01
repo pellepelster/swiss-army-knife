@@ -1,0 +1,10 @@
+# the texts of the files (FilesTexts), english: the source of every language and its fallback
+too_large: "A file must have at most %{max} MB."
+unsupported_type: "Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."
+image_too_large: "An image must have at most %{max} pixels on its longer side."
+recording_too_long: "A recording must be at most %{max} minutes long."
+too_many_discoveries: "Too many texts were discovered, please try again later."
+not_discoverable: "Text is only discovered in images and recordings."
+no_api_key: "No OpenRouter API key is set in the settings."
+ai_off: "The AI features are turned off in the settings."
+discovery_failed: "The text could not be discovered, please try again later."

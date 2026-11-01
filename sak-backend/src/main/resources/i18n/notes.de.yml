@@ -1,0 +1,13 @@
+# the texts of the notes (NotesTexts), german
+text_too_long: "Der Text darf höchstens %{max} Zeichen haben."
+invalid_color: "Die Farbe muss eine von %{colors} sein."
+too_many_labels: "Eine Notiz kann höchstens %{max} Labels haben."
+unknown_photo: "Jedes Foto muss ein Bild aus dem Dateispeicher sein."
+too_many_photos: "Eine Notiz kann höchstens %{max} Fotos haben."
+unknown_recording: "Jede Aufnahme muss eine Aufnahme aus dem Dateispeicher sein."
+too_many_recordings: "Eine Notiz kann höchstens %{max} Aufnahmen haben."
+no_list: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekommen."
+settings.ai.label: "KI-Funktionen"
+settings.ai.description: "Lässt die Notizen den Text in Fotos und Aufnahmen mit der KI des Deployments erkennen."
+settings.label: "Notizen"
+settings.description: "Die Einstellungen der Notizen."

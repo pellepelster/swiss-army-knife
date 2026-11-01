@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
-private val FLAG = BooleanSetting(SettingName("flag"), "A flag", "Turns something on.", default = false)
+private val FLAG = BooleanSetting(SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
 
-private val GREETING = TextSetting(SettingName("greeting"), "A greeting", "Says hello.", default = "hello", maxLength = 10)
+private val GREETING = TextSetting(SettingName("greeting"), t("A greeting"), t("Says hello."), default = "hello", maxLength = 10)
 
-private val SCOPE = SettingScope(SettingScopeName("test"), "Test", "Settings to test with.", listOf(FLAG, GREETING))
+private val SCOPE = SettingScope(SettingScopeName("test"), t("Test"), t("Settings to test with."), listOf(FLAG, GREETING))
 
 class StoredSettingsServiceTest {
     @TempDir
@@ -42,10 +42,10 @@ class StoredSettingsServiceTest {
 
     @Test
     fun `the settings of a scope turned off are null, the switch and the api values are not`() {
-        val switch = BooleanSetting(SettingName("enabled"), "On", "Turns the scope on.", default = false)
+        val switch = BooleanSetting(SettingName("enabled"), t("On"), t("Turns the scope on."), default = false)
         val switched =
             StoredSettingsService(
-                SettingScope(SettingScopeName("switched"), "Switched", "Turned on and off.", listOf(switch, GREETING), enabledBy = switch),
+                SettingScope(SettingScopeName("switched"), t("Switched"), t("Turned on and off."), listOf(switch, GREETING), enabledBy = switch),
                 storage,
             )
 
@@ -60,17 +60,17 @@ class StoredSettingsServiceTest {
     @Test
     fun `a scope is turned on by one of its own settings`() {
         shouldThrow<IllegalArgumentException> {
-            SettingScope(SettingScopeName("switched"), "Switched", "Turned on and off.", listOf(GREETING), enabledBy = FLAG)
+            SettingScope(SettingScopeName("switched"), t("Switched"), t("Turned on and off."), listOf(GREETING), enabledBy = FLAG)
         }
     }
 
     @Test
     fun `a read-only setting answers the value given, it is neither stored nor changed`() {
-        val fixed = TextSetting(SettingName("fixed"), "Fixed", "Given by the code.", default = "", readOnly = true)
+        val fixed = TextSetting(SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true)
         var value = "first"
         val withFixed =
             StoredSettingsService(
-                SettingScope(SettingScopeName("fixed"), "Fixed", "With a fixed value.", listOf(FLAG, fixed)),
+                SettingScope(SettingScopeName("fixed"), t("Fixed"), t("With a fixed value."), listOf(FLAG, fixed)),
                 storage,
                 ReadOnlyValues().with(fixed) { value },
             )
@@ -78,9 +78,9 @@ class StoredSettingsServiceTest {
         withFixed.get(fixed) shouldBe "first"
         value = "second"
         withFixed.all() shouldBe listOf(SettingValue(FLAG, false), SettingValue(fixed, "second"))
-        withFixed.set(fixed, "third") shouldBe ErrorMessage("\"Fixed\" can not be changed.")
+        withFixed.set(fixed, "third") shouldBe ErrorMessage(SettingsTexts.READ_ONLY, "label" to t("Fixed"))
         (withFixed.validate(mapOf("fixed" to JsonPrimitive("third"))) as Validation.Invalid).errors shouldBe
-            listOf(ErrorMessage("\"Fixed\" can not be changed."))
+            listOf(ErrorMessage(SettingsTexts.READ_ONLY, "label" to t("Fixed")))
         // sent back as answered it changes nothing
         (withFixed.validate(mapOf("fixed" to JsonPrimitive("second"), "flag" to JsonPrimitive(true))) as Validation.Valid).values shouldBe
             listOf(SettingValue(FLAG, true))
@@ -90,21 +90,21 @@ class StoredSettingsServiceTest {
 
     @Test
     fun `a read-only setting without a value is a mistake`() {
-        val fixed = TextSetting(SettingName("fixed"), "Fixed", "Given by the code.", default = "", readOnly = true)
+        val fixed = TextSetting(SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true)
         shouldThrow<IllegalArgumentException> {
-            StoredSettingsService(SettingScope(SettingScopeName("fixed"), "Fixed", "With a fixed value.", listOf(fixed)), storage)
+            StoredSettingsService(SettingScope(SettingScopeName("fixed"), t("Fixed"), t("With a fixed value."), listOf(fixed)), storage)
         }
         shouldThrow<IllegalArgumentException> { ReadOnlyValues().with(FLAG) { true } }
     }
 
     @Test
     fun `a setting that requires another one is off and can not be changed while that one is off`() {
-        val switch = BooleanSetting(SettingName("enabled"), "On", "Turns the base on.", default = false)
-        val base = StoredSettingsService(SettingScope(SettingScopeName("base"), "Base", "Required.", listOf(switch)), storage)
-        val needs = BooleanSetting(SettingName("needs"), "Needs", "Needs the base.", default = false, requires = Requirement(base.scope, switch))
+        val switch = BooleanSetting(SettingName("enabled"), t("On"), t("Turns the base on."), default = false)
+        val base = StoredSettingsService(SettingScope(SettingScopeName("base"), t("Base"), t("Required."), listOf(switch)), storage)
+        val needs = BooleanSetting(SettingName("needs"), t("Needs"), t("Needs the base."), default = false, requires = Requirement(base.scope, switch))
         val dependent =
-            StoredSettingsService(SettingScope(SettingScopeName("dependent"), "Dependent", "Requires.", listOf(needs, GREETING)), storage)
-        val error = ErrorMessage("\"Needs\" needs \"On\" of \"Base\" turned on.")
+            StoredSettingsService(SettingScope(SettingScopeName("dependent"), t("Dependent"), t("Requires."), listOf(needs, GREETING)), storage)
+        val error = ErrorMessage(SettingsTexts.REQUIRES, "label" to t("Needs"), "required" to t("On"), "scope" to t("Base"))
 
         dependent.get(needs) shouldBe null
         dependent.get(GREETING) shouldBe "hello"
@@ -123,8 +123,8 @@ class StoredSettingsServiceTest {
         dependent.effective() shouldBe listOf(SettingValue(needs, false), SettingValue(GREETING, "hello"))
 
         // a requirement needs its own requirement met
-        val chained = BooleanSetting(SettingName("chained"), "Chained", "Needs needs.", default = true, requires = Requirement(dependent.scope, needs))
-        val last = StoredSettingsService(SettingScope(SettingScopeName("last"), "Last", "At the end.", listOf(chained)), storage)
+        val chained = BooleanSetting(SettingName("chained"), t("Chained"), t("Needs needs."), default = true, requires = Requirement(dependent.scope, needs))
+        val last = StoredSettingsService(SettingScope(SettingScopeName("last"), t("Last"), t("At the end."), listOf(chained)), storage)
         last.get(chained) shouldBe null
         base.set(switch, true)
         last.get(chained) shouldBe true
@@ -132,14 +132,14 @@ class StoredSettingsServiceTest {
 
     @Test
     fun `the typed setter checks the value like the api does`() {
-        service.set(GREETING, "a greeting far too long") shouldBe ErrorMessage("\"A greeting\" must be at most 10 characters.")
+        service.set(GREETING, "a greeting far too long") shouldBe ErrorMessage(SettingsTexts.TOO_LONG, "label" to t("A greeting"), "max" to 10)
         service.get(GREETING) shouldBe "hello"
     }
 
     @Test
     fun `a masked value sent back as the api answered it keeps the stored one`() {
-        val secret = TextSetting(SettingName("secret"), "Secret", "Hides itself.", default = "", mask = 2)
-        val masked = StoredSettingsService(SettingScope(SettingScopeName("masked"), "Masked", "Hides.", listOf(secret)), storage)
+        val secret = TextSetting(SettingName("secret"), t("Secret"), t("Hides itself."), default = "", mask = 2)
+        val masked = StoredSettingsService(SettingScope(SettingScopeName("masked"), t("Masked"), t("Hides."), listOf(secret)), storage)
         masked.set(secret, "the secret") shouldBe null
 
         val valid = masked.validate(mapOf("secret" to JsonPrimitive("th••••••••"))).shouldBeInstanceOf<Validation.Valid>()
@@ -161,9 +161,9 @@ class StoredSettingsServiceTest {
             ) as Validation.Invalid
         ).errors shouldBe
             listOf(
-                ErrorMessage("\"A flag\" must be true or false."),
-                ErrorMessage("\"A greeting\" must be at most 10 characters."),
-                ErrorMessage("There is no setting \"other\" in \"test\"."),
+                ErrorMessage(SettingsTexts.NOT_BOOLEAN, "label" to t("A flag")),
+                ErrorMessage(SettingsTexts.TOO_LONG, "label" to t("A greeting"), "max" to 10),
+                ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScopeName("test")),
             )
 
         val valid = service.validate(mapOf("flag" to JsonPrimitive(true))).shouldBeInstanceOf<Validation.Valid>()
@@ -174,7 +174,7 @@ class StoredSettingsServiceTest {
 
     @Test
     fun `a setting of another scope is a mistake`() {
-        val other = BooleanSetting(SettingName("flag"), "A flag", "Turns something on.", default = false)
+        val other = BooleanSetting(SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
         shouldThrow<IllegalArgumentException> { service.get(other) }
         shouldThrow<IllegalArgumentException> { service.set(other, true) }
         shouldThrow<IllegalArgumentException> { service.set(listOf(SettingValue(GREETING, "a greeting far too long")), owner = "admin@example.org") }

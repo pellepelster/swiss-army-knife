@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.files.fileUrl
 import io.pelle.sak.api.installApi
@@ -55,17 +57,15 @@ private fun Note.response() =
 
 private fun NoteProblem.message() =
     when (this) {
-        NoteProblem.TEXT_TOO_LONG -> "The text must have at most ${NoteService.MAX_TEXT_LENGTH} characters."
-        NoteProblem.INVALID_COLOR -> "The color must be one of ${NoteColor.entries.joinToString(", ") { it.id }}."
+        NoteProblem.TEXT_TOO_LONG -> Text(NotesTexts.TEXT_TOO_LONG, "max" to NoteService.MAX_TEXT_LENGTH)
+        NoteProblem.INVALID_COLOR -> Text(NotesTexts.INVALID_COLOR, "colors" to NoteColor.entries.joinToString(", ") { it.id })
         NoteProblem.INVALID_LABEL -> INVALID_LABEL_NAME
-        NoteProblem.TOO_MANY_LABELS -> "A note can have at most ${NoteService.MAX_LABELS} labels."
-        NoteProblem.UNKNOWN_PHOTO -> "Every photo must be an image of the file storage."
-        NoteProblem.TOO_MANY_PHOTOS -> "A note can have at most ${NoteService.MAX_PHOTOS} photos."
-        NoteProblem.UNKNOWN_RECORDING -> "Every recording must be a recording of the file storage."
-        NoteProblem.TOO_MANY_RECORDINGS -> "A note can have at most ${NoteService.MAX_RECORDINGS} recordings."
+        NoteProblem.TOO_MANY_LABELS -> Text(NotesTexts.TOO_MANY_LABELS, "max" to NoteService.MAX_LABELS)
+        NoteProblem.UNKNOWN_PHOTO -> Text(NotesTexts.UNKNOWN_PHOTO)
+        NoteProblem.TOO_MANY_PHOTOS -> Text(NotesTexts.TOO_MANY_PHOTOS, "max" to NoteService.MAX_PHOTOS)
+        NoteProblem.UNKNOWN_RECORDING -> Text(NotesTexts.UNKNOWN_RECORDING)
+        NoteProblem.TOO_MANY_RECORDINGS -> Text(NotesTexts.TOO_MANY_RECORDINGS, "max" to NoteService.MAX_RECORDINGS)
     }
-
-private const val NO_LIST = "You have no list of notes yet, sign in again to get one."
 
 private suspend fun RoutingCall.respondSaved(
     result: SaveNoteResult,
@@ -74,8 +74,8 @@ private suspend fun RoutingCall.respondSaved(
     when (result) {
         is SaveNoteResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
         SaveNoteResult.NotFound -> respond(HttpStatusCode.NotFound)
-        SaveNoteResult.NoList -> respondErrors(NO_LIST, status = HttpStatusCode.Conflict)
-        is SaveNoteResult.Invalid -> respondErrors(*result.problems.sorted().map { it.message() }.toTypedArray())
+        SaveNoteResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.Conflict)
+        is SaveNoteResult.Invalid -> respondErrors(result.problems.sorted().map { it.message() })
     }
 
 // the address of the signed in user, the owner of the notes
@@ -194,3 +194,19 @@ private fun Parameters.Builder.noteId() =
         required = true
         schema = jsonSchema<Int>()
     }
+
+// the texts of the notes (i18n/notes.<language>.yml)
+object NotesTexts : Catalog("notes") {
+    val TEXT_TOO_LONG = text("text_too_long")
+    val INVALID_COLOR = text("invalid_color")
+    val TOO_MANY_LABELS = text("too_many_labels")
+    val UNKNOWN_PHOTO = text("unknown_photo")
+    val TOO_MANY_PHOTOS = text("too_many_photos")
+    val UNKNOWN_RECORDING = text("unknown_recording")
+    val TOO_MANY_RECORDINGS = text("too_many_recordings")
+    val NO_LIST = text("no_list")
+    val AI_LABEL = text("settings.ai.label")
+    val AI_DESCRIPTION = text("settings.ai.description")
+    val SCOPE_LABEL = text("settings.label")
+    val SCOPE_DESCRIPTION = text("settings.description")
+}

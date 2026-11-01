@@ -8,6 +8,8 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Operation
@@ -75,7 +77,7 @@ fun Route.accessLogs(
         val site = call.logsSite(site) ?: return@get
         val range = MetricsRange.from(call.request.queryParameters["range"])
         if (range == null) {
-            call.respondErrors("range must be one of ${MetricsRange.entries.joinToString(", ") { it.key }}.")
+            call.respondErrors(Text(LogsTexts.INVALID_RANGE, "ranges" to MetricsRange.entries.joinToString(", ") { it.key }))
             return@get
         }
 
@@ -110,14 +112,14 @@ fun Route.accessLogs(
         val site = call.logsSite(site) ?: return@get
         val text = call.request.queryParameters["q"]?.trim().orEmpty()
         // victorialogs rejects control characters in a quoted string
-        val messages =
+        val errors =
             listOfNotNull(
-                "q must not be empty.".takeIf { text.isEmpty() },
-                "q must have at most $MAX_SEARCH_LENGTH characters.".takeIf { text.length > MAX_SEARCH_LENGTH },
-                "q must not contain control characters.".takeIf { text.any { it.isISOControl() } },
+                Text(LogsTexts.EMPTY_SEARCH).takeIf { text.isEmpty() },
+                Text(LogsTexts.LONG_SEARCH, "max" to MAX_SEARCH_LENGTH).takeIf { text.length > MAX_SEARCH_LENGTH },
+                Text(LogsTexts.CONTROL_SEARCH).takeIf { text.any { it.isISOControl() } },
             )
-        if (messages.isNotEmpty()) {
-            call.respondErrors(*messages.toTypedArray())
+        if (errors.isNotEmpty()) {
+            call.respondErrors(errors)
             return@get
         }
         val page = call.pageRequest() ?: return@get
@@ -183,3 +185,11 @@ fun SiteMetrics.response() =
         totalBytes = totalBytes,
         userAgents = userAgents.map { UserAgentSeriesResponse(it.group.key, it.values) },
     )
+
+// the texts of the logs of the sites (i18n/logs.<language>.yml)
+object LogsTexts : Catalog("logs") {
+    val INVALID_RANGE = text("invalid_range")
+    val EMPTY_SEARCH = text("empty_search")
+    val LONG_SEARCH = text("long_search")
+    val CONTROL_SEARCH = text("control_search")
+}

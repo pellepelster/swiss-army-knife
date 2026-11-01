@@ -73,9 +73,10 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 ## API
 
-- `API-1` **Errors** answer `{"errors": [{"message": "..."}]}`, one readable sentence for each problem
-  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
-  `ErrorMessage` (`sak-api`), its message one string; it becomes an `ApiErrorMessage` only at the api.
+- `API-1` **Errors** answer `{"errors": [{"code": "...", "message": "..."}]}`, for each problem its code, the same in
+  every language, and one readable sentence in the language of `Accept-Language` (`ApiErrorResponse` with its
+  `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an `ErrorMessage` (`sak-api`), a
+  key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api.
 - `API-2` **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with
   `offset` and `limit`; `limit` is 50 by default and at most 100.
 - `API-3` **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That

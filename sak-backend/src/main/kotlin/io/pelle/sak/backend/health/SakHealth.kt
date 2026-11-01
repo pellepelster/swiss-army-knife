@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.health
 
+import io.pelle.sak.api.language
+import io.pelle.sak.api.Language
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
@@ -20,7 +22,14 @@ import kotlinx.coroutines.withContext
 
 private const val HEALTH_TAG = "health"
 
-fun HealthStatus.response() = HealthStatusResponse(name, state.name, message, details.map { HealthDetailResponse(it.name, it.state.name, it.message) })
+// in the language of the user; the name of a detail is data, e.g. a domain
+fun HealthStatus.response(language: Language) =
+    HealthStatusResponse(
+        name.render(language),
+        state.name,
+        message?.render(language),
+        details.map { HealthDetailResponse(it.name, it.state.name, it.message?.render(language)) },
+    )
 
 // the health of everything the backend checks, meant to be mounted behind the authentication;
 // every check runs on each request, all at once, a check may take a few seconds (e.g. dns)
@@ -30,7 +39,7 @@ fun Route.health(checks: List<Health>) {
 
     get {
         val statuses = withContext(Dispatchers.IO) { coroutineScope { checks.map { async { it.check() } }.awaitAll() } }
-        call.respond(statuses.map { it.response() })
+        call.respond(statuses.map { it.response(call.language()) })
     }.describe {
         tag(HEALTH_TAG)
         summary = "The health of the backend"

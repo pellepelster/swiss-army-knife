@@ -11,17 +11,18 @@ enum class HealthState {
 // what a check found; the name tells the user what was checked, e.g. Bucket domains, the message
 // why, e.g. what failed; the details are the parts it checked one by one, e.g. each domain
 data class HealthStatus(
-    val name: String,
+    val name: Text,
     val state: HealthState,
-    val message: String? = null,
+    val message: Text? = null,
     val details: List<HealthDetail> = emptyList(),
 )
 
-// one part of what a check checked, e.g. a domain, with its own state and why
+// one part of what a check checked, e.g. a domain, with its own state and why; the name is data,
+// e.g. the domain, the message a text
 data class HealthDetail(
     val name: String,
     val state: HealthState,
-    val message: String? = null,
+    val message: Text? = null,
 )
 
 // something that tells whether it works, e.g. a service or a server the backend depends on; check

@@ -1,10 +1,5 @@
 package io.pelle.sak.api
 
-// what is wrong, as one readable sentence; the internal form of every error that may reach a
-// client, mapped to ApiErrorMessage at the api (respondErrors)
-@JvmInline
-value class ErrorMessage(
-    val message: String,
-) {
-    override fun toString() = message
-}
+// what is wrong, as one readable sentence of a catalog; the internal form of every error that may
+// reach a client, answered in the language of the user with its code (respondErrors)
+typealias ErrorMessage = Text

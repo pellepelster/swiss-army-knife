@@ -64,17 +64,17 @@ class OpenRouterManagerTest {
     @Test
     fun `a key openrouter does not take is not set`() {
         manager.set(OpenRouterManager.ENABLED, true) shouldBe null
-        manager.set(OpenRouterManager.API_KEY, "bad key") shouldBe ErrorMessage("OpenRouter does not take the API key.")
+        manager.set(OpenRouterManager.API_KEY, "bad key") shouldBe ErrorMessage(OpenRouterTexts.KEY_REFUSED)
         unknown = true
         manager.set(OpenRouterManager.API_KEY, "good key") shouldBe
-            ErrorMessage("The API key could not be checked at OpenRouter, please try again later.")
+            ErrorMessage(OpenRouterTexts.KEY_UNCHECKED)
         manager.get(OpenRouterManager.API_KEY) shouldBe ""
 
         // turning it on checks the key stored
         unknown = false
         manager.set(OpenRouterManager.ENABLED, false)
         manager.set(OpenRouterManager.API_KEY, "bad key") shouldBe null
-        manager.set(OpenRouterManager.ENABLED, true) shouldBe ErrorMessage("OpenRouter does not take the API key.")
+        manager.set(OpenRouterManager.ENABLED, true) shouldBe ErrorMessage(OpenRouterTexts.KEY_REFUSED)
         manager.enabled() shouldBe false
     }
 

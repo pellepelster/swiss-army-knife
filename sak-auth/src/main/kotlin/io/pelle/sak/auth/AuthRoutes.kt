@@ -4,6 +4,10 @@ import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
+import io.pelle.sak.api.language
+import io.pelle.sak.api.render
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -127,7 +131,7 @@ fun Route.login(
         val request = call.receive<LoginRequest>()
         val email = normalizeEmail(request.email)
         if (email == null) {
-            call.respondErrors("No valid e-mail address.")
+            call.respondErrors(AuthTexts.INVALID_EMAIL)
             return@post
         }
         val client = call.clientAddress()
@@ -139,6 +143,8 @@ fun Route.login(
         // everything that depends on the address happens after the answer, so neither the answer
         // nor its timing tells whether the address may log in
         val redirect = safeRedirect(request.redirect)
+        // the mail in the language of the one who asked for it
+        val language = call.language()
         call.application.launch(Dispatchers.IO) {
             if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
                 return@launch
@@ -148,7 +154,11 @@ fun Route.login(
             val client = if (request.client == LoginClient.ANDROID) "&client=android" else ""
             val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}$client"
             try {
-                mailSender.send(email, "Sign in to ${app.name}", loginMail(app.url, link, tokens.loginTokenTtl))
+                mailSender.send(
+                    email,
+                    Text(AuthTexts.MAIL_SUBJECT, "app" to app.name).render(language),
+                    Text(AuthTexts.MAIL_BODY, "app" to app.url, "link" to link, "minutes" to tokens.loginTokenTtl.toMinutes()).render(language),
+                )
                 logger.info { "sent login link to '$email'" }
             } catch (e: Exception) {
                 logger.warn(e) { "could not send login link to '$email'" }
@@ -352,18 +362,9 @@ internal fun ApplicationCall.clientAddress(): String =
     request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
         ?: request.local.remoteAddress
 
-private fun loginMail(
-    appUrl: String,
-    link: String,
-    ttl: Duration,
-) = """
-    |Hello,
-    |
-    |use the following link to sign in to $appUrl:
-    |
-    |$link
-    |
-    |The link is valid for ${ttl.toMinutes()} minutes and can only be used once. If you did not
-    |request it, you can ignore this e-mail.
-    |
-    """.trimMargin()
+// the texts of the sign-in (i18n/auth.<language>.yml)
+object AuthTexts : Catalog("auth") {
+    val INVALID_EMAIL = text("invalid_email")
+    val MAIL_SUBJECT = text("mail_subject")
+    val MAIL_BODY = text("mail_body")
+}

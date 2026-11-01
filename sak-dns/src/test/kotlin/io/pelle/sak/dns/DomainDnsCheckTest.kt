@@ -5,6 +5,9 @@ import io.pelle.sak.dns.model.DnsState
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.pelle.sak.api.HealthDetail
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
+import io.pelle.sak.api.testing.catalogProblems
 import io.pelle.sak.api.HealthState
 import org.junit.jupiter.api.Test
 import java.net.InetAddress
@@ -66,31 +69,31 @@ class DomainDnsCheckTest {
         val right = FakeNameServer("1.1.1.1", mapOf("a.example.org" to IPV4 + IPV6, "b.example.org" to IPV4 + IPV6))
         val down = FakeNameServer("9.9.9.9", down = true)
 
-        DomainsHealth("Bucket domains", "buckets", { listOf("b.example.org", "a.example.org") }, check(right), IPV4, IPV6).check().let {
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { listOf("b.example.org", "a.example.org") }, check(right), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
-            it.message shouldBe "the 2 domains of the buckets point to the server"
-            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.HEALTHY), HealthDetail("b.example.org", HealthState.HEALTHY))
+            it.message.toString() shouldBe "The 2 domains of the buckets point to the server."
+            it.details.rendered() shouldBe listOf(Triple("a.example.org", HealthState.HEALTHY, null), Triple("b.example.org", HealthState.HEALTHY, null))
         }
-        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right, down), IPV4, IPV6).check().let {
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { listOf("a.example.org") }, check(right, down), IPV4, IPV6).check().let {
             it.state shouldBe HealthState.HEALTHY
-            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.HEALTHY, "no answer from 9.9.9.9"))
+            it.details.rendered() shouldBe listOf(Triple("a.example.org", HealthState.HEALTHY, "No answer from 9.9.9.9."))
         }
-        DomainsHealth("Bucket domains", "buckets", { emptyList() }, check(right), IPV4, IPV6).check().state shouldBe HealthState.HEALTHY
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { emptyList() }, check(right), IPV4, IPV6).check().state shouldBe HealthState.HEALTHY
     }
 
     @Test
     fun `is unhealthy when a name server answers with no or other addresses, and tells which`() {
         val stale = FakeNameServer("8.8.8.8", mapOf("a.example.org" to listOf("203.0.113.9"), "c.example.org" to IPV4))
 
-        DomainsHealth("Redirect domains", "redirects", { listOf("a.example.org", "b.example.org", "c.example.org") }, check(stale), IPV4, emptyList()).check().let {
-            it.name shouldBe "Redirect domains"
+        DomainsHealth(Text(DnsTestTexts.REDIRECT_DOMAINS), Text(DnsTestTexts.REDIRECTS), { listOf("a.example.org", "b.example.org", "c.example.org") }, check(stale), IPV4, emptyList()).check().let {
+            it.name.toString() shouldBe "Redirect domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "2 of 3 domains of the redirects do not point to the server"
-            it.details shouldBe
+            it.message.toString() shouldBe "2 of 3 domains of the redirects do not point to the server."
+            it.details.rendered() shouldBe
                 listOf(
-                    HealthDetail("a.example.org", HealthState.UNHEALTHY, "8.8.8.8 has A 203.0.113.9, no AAAA"),
-                    HealthDetail("b.example.org", HealthState.UNHEALTHY, "8.8.8.8 has no A, no AAAA"),
-                    HealthDetail("c.example.org", HealthState.HEALTHY),
+                    Triple("a.example.org", HealthState.UNHEALTHY, "8.8.8.8 has A 203.0.113.9, no AAAA"),
+                    Triple("b.example.org", HealthState.UNHEALTHY, "8.8.8.8 has no A, no AAAA"),
+                    Triple("c.example.org", HealthState.HEALTHY, null),
                 )
         }
     }
@@ -100,15 +103,32 @@ class DomainDnsCheckTest {
         val right = FakeNameServer("1.1.1.1", mapOf("a.example.org" to IPV4))
         val down = FakeNameServer("9.9.9.9", down = true)
 
-        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(right), emptyList(), emptyList()).check().state shouldBe HealthState.UNKNOWN
-        DomainsHealth("Bucket domains", "buckets", { listOf("a.example.org") }, check(down), IPV4, emptyList()).check().let {
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { listOf("a.example.org") }, check(right), emptyList(), emptyList()).check().state shouldBe HealthState.UNKNOWN
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { listOf("a.example.org") }, check(down), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN
-            it.message shouldBe "no name server answered for 1 of 1 domains of the buckets"
-            it.details shouldBe listOf(HealthDetail("a.example.org", HealthState.UNKNOWN, "no name server answered"))
+            it.message.toString() shouldBe "No name server answered for 1 of 1 domains of the buckets."
+            it.details.rendered() shouldBe listOf(Triple("a.example.org", HealthState.UNKNOWN, "No name server answered."))
         }
-        DomainsHealth("Bucket domains", "buckets", { error("the database is gone") }, check(right), IPV4, emptyList()).check().let {
+        DomainsHealth(Text(DnsTestTexts.BUCKET_DOMAINS), Text(DnsTestTexts.BUCKETS), { error("the database is gone") }, check(right), IPV4, emptyList()).check().let {
             it.state shouldBe HealthState.UNKNOWN
-            it.message!! shouldContain "could not be checked"
+            it.message.toString() shouldContain "could not be checked"
         }
     }
+}
+
+class DnsTextsTest {
+    @Test
+    fun `the catalog of the checks of the domains has every text in every language`() {
+        catalogProblems(DnsTexts) shouldBe emptyList()
+    }
+}
+
+// the details with their english messages
+private fun List<HealthDetail>.rendered() = map { Triple(it.name, it.state, it.message?.toString()) }
+
+private object DnsTestTexts : Catalog("dnstest") {
+    val BUCKET_DOMAINS = text("bucket_domains")
+    val BUCKETS = text("buckets")
+    val REDIRECT_DOMAINS = text("redirect_domains")
+    val REDIRECTS = text("redirects")
 }

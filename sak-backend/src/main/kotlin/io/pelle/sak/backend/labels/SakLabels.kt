@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.labels
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.api.installApi
@@ -33,8 +35,8 @@ import kotlinx.coroutines.withContext
 
 private const val LABELS_TAG = "labels"
 
-const val INVALID_LABEL_NAME = "A label name must have 1 to ${LabelService.MAX_NAME_LENGTH} characters and no control characters."
-private const val LABEL_EXISTS = "A label of the name exists."
+// why a name is no label name, also of the labels of a note
+val INVALID_LABEL_NAME get() = Text(LabelsTexts.INVALID_NAME, "max" to LabelService.MAX_NAME_LENGTH)
 
 fun Label.response() = LabelResponse(id, name, createdAt.apiTime(), updatedAt?.apiTime())
 
@@ -66,7 +68,7 @@ fun Route.labels(labelService: LabelService) {
         when (val result = withContext(Dispatchers.IO) { labelService.create(call.owner, request.name) }) {
             is CreateLabelResult.Created -> call.respond(HttpStatusCode.Created, result.label.response())
             CreateLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
-            CreateLabelResult.Exists -> call.respondErrors(LABEL_EXISTS, status = HttpStatusCode.Conflict)
+            CreateLabelResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(LABELS_TAG)
@@ -110,7 +112,7 @@ fun Route.labels(labelService: LabelService) {
             is RenameLabelResult.Renamed -> call.respond(result.label.response())
             RenameLabelResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             RenameLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
-            RenameLabelResult.Exists -> call.respondErrors(LABEL_EXISTS, status = HttpStatusCode.Conflict)
+            RenameLabelResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(LABELS_TAG)
@@ -156,3 +158,9 @@ private fun Parameters.Builder.labelId() =
         required = true
         schema = jsonSchema<Int>()
     }
+
+// the texts of the labels (i18n/labels.<language>.yml)
+object LabelsTexts : Catalog("labels") {
+    val INVALID_NAME = text("invalid_name")
+    val EXISTS = text("exists")
+}

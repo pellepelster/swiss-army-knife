@@ -1,5 +1,8 @@
 package io.pelle.sak.auth
 
+import io.kotest.matchers.string.shouldContain
+import io.ktor.http.HttpHeaders
+import io.pelle.sak.api.testing.catalogProblems
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.client.HttpClient
@@ -99,6 +102,22 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `the login mail is in the language of the request`() =
+        authTest {
+            client.login("admin@example.org") { header(HttpHeaders.AcceptLanguage, "de-DE,de;q=0.9") }.status shouldBe HttpStatusCode.Accepted
+
+            val mail = withTimeout(5_000) { mails.receive() }
+            mail.subject shouldBe "Anmelden bei sak.example.org"
+            mail.text shouldContain "mit dem folgenden Link meldest du dich bei"
+            mail.text.lines().single { it.startsWith(FRONTEND_URL) } shouldStartWith "$FRONTEND_URL/signin?token="
+        }
+
+    @Test
+    fun `the catalog of the sign-in has every text in every language`() {
+        catalogProblems(AuthTexts) shouldBe emptyList()
+    }
+
+    @Test
     fun `an allowed address gets a link whose token is exchanged once for a session token`() =
         authTest {
             client.login(" Admin@Example.org ", "/buckets?tab=1").status shouldBe HttpStatusCode.Accepted
@@ -172,7 +191,7 @@ class AuthRoutesTest {
         authTest {
             client.login("not-an-address").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"No valid e-mail address."}]}"""
             }
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
             client.post("/api/v1/auth/login/link") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
@@ -191,7 +210,7 @@ class AuthRoutesTest {
 
             client.login("not-an-address").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"message":"No valid e-mail address."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"No valid e-mail address."}]}"""
             }
             withTimeoutOrNull(500) { mails.receive() } shouldBe null
         }

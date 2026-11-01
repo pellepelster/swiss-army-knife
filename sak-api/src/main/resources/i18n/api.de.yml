@@ -1,0 +1,6 @@
+# the texts of the api itself (ApiTexts), german
+malformed_request: "Die Anfrage ist fehlerhaft."
+too_large_request: "Der Inhalt der Anfrage ist zu groß."
+unexpected_error: "Etwas ist schiefgegangen, die Anfrage konnte nicht beantwortet werden."
+invalid_offset: "offset muss eine Zahl von mindestens 0 sein."
+invalid_limit: "limit muss eine Zahl von 1 bis %{max} sein."

@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.backend.settings.SettingsTexts
+import io.pelle.sak.backend.openrouter.OpenRouterTexts
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.openrouter.OpenRouterManager
@@ -27,7 +29,7 @@ class NotesSettingsServiceTest {
 
         // the switch of the notes needs the one of the deployment
         notes.set(NotesSettingsService.AI, true) shouldBe
-            ErrorMessage("\"AI features\" needs \"AI features\" of \"AI\" turned on.")
+            ErrorMessage(SettingsTexts.REQUIRES, "label" to NotesTexts.AI_LABEL, "required" to OpenRouterTexts.ENABLED_LABEL, "scope" to OpenRouterTexts.SCOPE_LABEL)
         openRouter.set(OpenRouterManager.ENABLED, true)
         notes.set(NotesSettingsService.AI, true) shouldBe null
         notes.aiEnabled() shouldBe true

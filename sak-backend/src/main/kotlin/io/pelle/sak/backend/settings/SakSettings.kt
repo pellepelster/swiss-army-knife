@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.settings
 
+import io.pelle.sak.api.render
+import io.pelle.sak.api.language
+import io.pelle.sak.api.Language
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
@@ -28,11 +31,11 @@ import kotlinx.coroutines.withContext
 
 private const val SETTINGS_TAG = "settings"
 
-private fun <T : Any> SettingDefinition<T>.response() =
+private fun <T : Any> SettingDefinition<T>.response(language: Language) =
     SettingResponse(
         name.value,
-        label,
-        description,
+        label.render(language),
+        description.render(language),
         type.response(),
         toJson(default),
         (this as? TextSetting)?.maxLength,
@@ -47,7 +50,9 @@ private fun SettingType.response() =
         SettingType.TEXT -> SettingTypeResponse.TEXT
     }
 
-fun SettingScope.response() = SettingScopeResponse(name.value, label, description, settings.map { it.response() }, enabledBy?.name?.value)
+// in the language of the user
+fun SettingScope.response(language: Language) =
+    SettingScopeResponse(name.value, label.render(language), description.render(language), settings.map { it.response(language) }, enabledBy?.name?.value)
 
 // the scopes of settings and the settings of each, meant to be mounted behind the authentication
 // and the admin role; the values are read and set one scope at a time
@@ -57,7 +62,7 @@ fun Route.settings(registry: SettingsRegistry) {
 
     get {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(registry.services.map { it.scope.response() })))
+        call.respond(page.of(page.of(registry.services.map { it.scope.response(call.language()) })))
     }.describe {
         tag(SETTINGS_TAG)
         summary = "The scopes of settings"

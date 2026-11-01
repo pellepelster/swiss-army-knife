@@ -1,0 +1,6 @@
+# the texts of the api itself (ApiTexts), english: the source of every language and its fallback
+malformed_request: "The request is malformed."
+too_large_request: "The request body is too large."
+unexpected_error: "Something went wrong, the request could not be answered."
+invalid_offset: "offset must be a number of at least 0."
+invalid_limit: "limit must be a number from 1 to %{max}."

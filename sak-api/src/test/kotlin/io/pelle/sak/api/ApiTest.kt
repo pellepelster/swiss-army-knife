@@ -22,7 +22,11 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import io.pelle.sak.api.model.ApiErrorMessage
 import io.pelle.sak.api.model.ApiErrorResponse
+import io.pelle.sak.api.testing.catalogProblems
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.model.PaginationResponse
 import io.kotest.matchers.string.shouldNotContain
@@ -53,7 +57,7 @@ class ApiTest {
                         post("/large") { throw PayloadTooLargeException(16) }
                         post("/names") {
                             val request = call.receive<Request>()
-                            if (request.name.isBlank()) call.respondErrors("name must not be blank.") else call.respond(request)
+                            if (request.name.isBlank()) call.respondErrors(Text(TestTexts.BLANK, "field" to "name")) else call.respond(request)
                         }
                     }
                 }
@@ -89,7 +93,16 @@ class ApiTest {
                     setBody("""{"name":" "}""")
                 }
             blank.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ApiErrorResponse>(blank.bodyAsText()) shouldBe ApiErrorResponse("name must not be blank.")
+            Json.decodeFromString<ApiErrorResponse>(blank.bodyAsText()) shouldBe error("apitest.blank", "name must not be blank.")
+
+            // in the language of the user, the code stays
+            val german =
+                client.post("/api/names") {
+                    contentType(ContentType.Application.Json)
+                    header(HttpHeaders.AcceptLanguage, "de-DE,de;q=0.9,en;q=0.8")
+                    setBody("""{"name":" "}""")
+                }
+            Json.decodeFromString<ApiErrorResponse>(german.bodyAsText()) shouldBe error("apitest.blank", "name darf nicht leer sein.")
 
             val malformed =
                 client.post("/api/names") {
@@ -97,7 +110,7 @@ class ApiTest {
                     setBody("""{"nam""")
                 }
             malformed.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe ApiErrorResponse(MALFORMED_REQUEST)
+            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe error("api.malformed_request", "The request is malformed.")
         }
 
     @Test
@@ -106,7 +119,8 @@ class ApiTest {
             for (path in listOf("/api/boom", "/plain/boom")) {
                 val failed = client.get(path)
                 failed.status shouldBe HttpStatusCode.InternalServerError
-                failed.bodyAsText() shouldBe """{"errors":[{"message":"$UNEXPECTED_ERROR"}]}"""
+                Json.decodeFromString<ApiErrorResponse>(failed.bodyAsText()) shouldBe
+                    error("api.unexpected_error", "Something went wrong, the request could not be answered.")
                 failed.bodyAsText() shouldNotContain "secret"
             }
 
@@ -117,7 +131,7 @@ class ApiTest {
                     setBody("""{"name":""")
                 }
             malformed.status shouldBe HttpStatusCode.BadRequest
-            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe ApiErrorResponse(MALFORMED_REQUEST)
+            Json.decodeFromString<ApiErrorResponse>(malformed.bodyAsText()) shouldBe error("api.malformed_request", "The request is malformed.")
         }
 
     @Test
@@ -126,7 +140,40 @@ class ApiTest {
             for (path in listOf("/api/large", "/plain/large")) {
                 val large = client.post(path)
                 large.status shouldBe HttpStatusCode.PayloadTooLarge
-                Json.decodeFromString<ApiErrorResponse>(large.bodyAsText()) shouldBe ApiErrorResponse(TOO_LARGE_REQUEST)
+                Json.decodeFromString<ApiErrorResponse>(large.bodyAsText()) shouldBe error("api.too_large_request", "The request body is too large.")
             }
         }
+
+    @Test
+    fun `the language is the first one of Accept-Language there is a catalog for, else english`() {
+        Language.of("de-DE,de;q=0.9,en;q=0.8") shouldBe Language.DE
+        Language.of("fr-FR,fr;q=0.9,de;q=0.5") shouldBe Language.DE
+        Language.of("de;q=0,en") shouldBe Language.EN
+        Language.of("fr") shouldBe Language.EN
+        Language.of("*") shouldBe Language.EN
+        Language.of("not a header ;;") shouldBe Language.EN
+        Language.of(null) shouldBe Language.EN
+    }
+
+    @Test
+    fun `a text without a german one is english, a text of a placeholder is in the same language`() {
+        Text(TestTexts.ONLY_ENGLISH).render(Language.DE) shouldBe "Only in english."
+        Text(TestTexts.BLANK, "field" to Text(ApiTexts.INVALID_OFFSET)).render(Language.DE) shouldBe
+            "offset muss eine Zahl von mindestens 0 sein. darf nicht leer sein."
+    }
+
+    @Test
+    fun `the catalog of the api has every text in every language`() {
+        catalogProblems(ApiTexts) shouldBe emptyList()
+    }
 }
+
+private object TestTexts : Catalog("apitest") {
+    val BLANK = text("blank")
+    val ONLY_ENGLISH = text("only_english")
+}
+
+private fun error(
+    code: String,
+    message: String,
+) = ApiErrorResponse(listOf(ApiErrorMessage(code, message)))

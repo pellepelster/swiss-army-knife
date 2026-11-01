@@ -21,18 +21,32 @@ import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.response.respond
+import io.pelle.sak.api.model.ApiErrorMessage
 import io.pelle.sak.api.model.ApiErrorResponse
+import kotlinx.serialization.json.Json
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 
-suspend fun ApplicationCall.respondErrors(
-    vararg messages: String,
-    status: HttpStatusCode = HttpStatusCode.BadRequest,
-) = respond(status, ApiErrorResponse(*messages))
-
+// the errors in the language of the user, each with its code
 suspend fun ApplicationCall.respondErrors(
     errors: List<ErrorMessage>,
     status: HttpStatusCode = HttpStatusCode.BadRequest,
-) = respondErrors(*errors.map { it.message }.toTypedArray(), status = status)
+) = respond(status, errorResponse(errors, language()))
+
+suspend fun ApplicationCall.respondErrors(
+    vararg errors: ErrorMessage,
+    status: HttpStatusCode = HttpStatusCode.BadRequest,
+) = respondErrors(errors.toList(), status)
+
+// one error without placeholders
+suspend fun ApplicationCall.respondErrors(
+    error: TextKey,
+    status: HttpStatusCode = HttpStatusCode.BadRequest,
+) = respondErrors(listOf(Text(error)), status)
+
+fun errorResponse(
+    errors: List<ErrorMessage>,
+    language: Language,
+) = ApiErrorResponse(errors.map { ApiErrorMessage(it.key.code, it.render(language)) })
 
 // a body that can not be read, a malformed one or one of the wrong type, is answered like every
 // other bad request, a body larger than the route takes (RequestBodyLimit) with a 413 of the same
@@ -41,23 +55,17 @@ val ApiErrors =
     createRouteScopedPlugin("ApiErrors") {
         on(CallFailed) { call, cause ->
             when (cause) {
-                is BadRequestException -> call.respondErrors(MALFORMED_REQUEST)
-                is PayloadTooLargeException -> call.respondErrors(TOO_LARGE_REQUEST, status = HttpStatusCode.PayloadTooLarge)
+                is BadRequestException -> call.respondErrors(ApiTexts.MALFORMED_REQUEST)
+                is PayloadTooLargeException -> call.respondErrors(ApiTexts.TOO_LARGE_REQUEST, status = HttpStatusCode.PayloadTooLarge)
             }
         }
     }
-
-const val MALFORMED_REQUEST = "The request is malformed."
-
-const val TOO_LARGE_REQUEST = "The request body is too large."
 
 // what every route function of the api installs first: json bodies and the errors of ApiErrors
 fun Route.installApi() {
     install(ContentNegotiation) { json() }
     install(ApiErrors)
 }
-
-const val UNEXPECTED_ERROR = "Something went wrong, the request could not be answered."
 
 // every failure no route answered, installed once for the whole application: a malformed request
 // is a 400, a too large body a 413, everything else is logged and answered with a 500 that tells nothing of it; no
@@ -72,20 +80,23 @@ fun Application.installUnexpectedErrors() {
                 // answered already, e.g. by ApiErrors
                 call.isHandled -> {}
                 cause is BadRequestException ->
-                    call.respondText(errorBody(MALFORMED_REQUEST), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                    call.respondText(errorBody(call, ApiTexts.MALFORMED_REQUEST), ContentType.Application.Json, HttpStatusCode.BadRequest)
                 cause is PayloadTooLargeException ->
-                    call.respondText(errorBody(TOO_LARGE_REQUEST), ContentType.Application.Json, HttpStatusCode.PayloadTooLarge)
+                    call.respondText(errorBody(call, ApiTexts.TOO_LARGE_REQUEST), ContentType.Application.Json, HttpStatusCode.PayloadTooLarge)
                 else -> {
                     call.application.log.error("${call.request.httpMethod.value} ${call.request.uri} failed", cause)
-                    call.respondText(errorBody(UNEXPECTED_ERROR), ContentType.Application.Json, HttpStatusCode.InternalServerError)
+                    call.respondText(errorBody(call, ApiTexts.UNEXPECTED_ERROR), ContentType.Application.Json, HttpStatusCode.InternalServerError)
                 }
             }
         }
     }
 }
 
-// the error body of a message without quotes or backslashes, the constants above
-private fun errorBody(message: String) = """{"errors":[{"message":"$message"}]}"""
+// the error body of one text in the language of the user, written without content negotiation
+private fun errorBody(
+    call: ApplicationCall,
+    error: TextKey,
+) = Json.encodeToString(errorResponse(listOf(Text(error)), call.language()))
 
 // an answer with the error body in the openapi document
 fun Responses.Builder.errors(

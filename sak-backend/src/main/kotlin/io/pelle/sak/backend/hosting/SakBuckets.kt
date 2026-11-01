@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
@@ -39,16 +41,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 private val logger = KotlinLogging.logger {}
-
-// why a bucket could not be created or its domains not changed
-private const val INVALID_NAME =
-    "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, " +
-        "and must not be reserved for the apps or the api."
-private const val NAME_TAKEN = "A bucket of the name exists."
-private const val SUBDOMAIN_TAKEN =
-    "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
-private const val INVALID_DOMAIN = "Every domain must be valid and neither one of the apps or the api nor a redirected one."
-private const val DOMAIN_TAKEN = "Another bucket is served at one of the domains."
 
 private const val S3_TAG = "s3"
 
@@ -100,11 +92,11 @@ fun Route.buckets(
                 statistics.warm(listOf(result.bucket.name))
                 call.respond(HttpStatusCode.Created, result.bucket.response())
             }
-            CreateBucketResult.InvalidName -> call.respondErrors(INVALID_NAME)
-            CreateBucketResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)
-            CreateBucketResult.NameTaken -> call.respondErrors(NAME_TAKEN, status = HttpStatusCode.Conflict)
-            CreateBucketResult.SubdomainTaken -> call.respondErrors(SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
-            CreateBucketResult.DomainTaken -> call.respondErrors(DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            CreateBucketResult.InvalidName -> call.respondErrors(HostingTexts.INVALID_NAME)
+            CreateBucketResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
+            CreateBucketResult.NameTaken -> call.respondErrors(HostingTexts.NAME_TAKEN, status = HttpStatusCode.Conflict)
+            CreateBucketResult.SubdomainTaken -> call.respondErrors(HostingTexts.SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            CreateBucketResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
@@ -140,7 +132,7 @@ fun Route.buckets(
             DeleteBucketResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             is DeleteBucketResult.Redirected ->
                 call.respondErrors(
-                    "Redirects lead to the bucket: ${result.sources.joinToString(", ")}. Delete them or change their target first.",
+                    Text(HostingTexts.REDIRECTED, "sources" to result.sources.joinToString(", ")),
                     status = HttpStatusCode.Conflict,
                 )
         }
@@ -170,8 +162,8 @@ fun Route.buckets(
         when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains, call.owner) }) {
             is UpdateDomainsResult.Updated -> call.respond(result.bucket.response())
             UpdateDomainsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            UpdateDomainsResult.InvalidDomain -> call.respondErrors(INVALID_DOMAIN)
-            UpdateDomainsResult.DomainTaken -> call.respondErrors(DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            UpdateDomainsResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
+            UpdateDomainsResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
@@ -262,3 +254,15 @@ private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatis
         logger.warn(e) { "could not count the objects of bucket '$bucket'" }
         BucketStatisticsResponse(computing = false, failed = true)
     }
+
+// the texts of the static hosting (i18n/hosting.<language>.yml)
+object HostingTexts : Catalog("hosting") {
+    val INVALID_NAME = text("invalid_name")
+    val NAME_TAKEN = text("name_taken")
+    val SUBDOMAIN_TAKEN = text("subdomain_taken")
+    val INVALID_DOMAIN = text("invalid_domain")
+    val DOMAIN_TAKEN = text("domain_taken")
+    val REDIRECTED = text("redirected")
+    val HEALTH_NAME = text("health.name")
+    val HEALTH_WHAT = text("health.what")
+}

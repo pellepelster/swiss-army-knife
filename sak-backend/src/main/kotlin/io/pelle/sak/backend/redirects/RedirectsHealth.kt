@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.api.Text
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.dns.DomainDnsCheck
 import io.pelle.sak.dns.DomainsHealth
@@ -10,4 +11,4 @@ class RedirectsHealth(
     redirects: RedirectService,
     check: DomainDnsCheck,
     addresses: SakConfig.AddressesConfig,
-) : DomainsHealth("Redirect domains", "redirects", { redirects.all().map { it.sourceDomain } }, check, addresses.ipv4, addresses.ipv6)
+) : DomainsHealth(Text(RedirectsTexts.HEALTH_NAME), Text(RedirectsTexts.HEALTH_WHAT), { redirects.all().map { it.sourceDomain } }, check, addresses.ipv4, addresses.ipv6)

@@ -6,6 +6,4 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ApiErrorResponse(
     val errors: List<ApiErrorMessage>,
-) {
-    constructor(vararg messages: String) : this(messages.map { ApiErrorMessage(it) })
-}
+)

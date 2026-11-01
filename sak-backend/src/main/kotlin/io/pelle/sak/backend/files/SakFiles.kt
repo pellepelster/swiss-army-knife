@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.api.installApi
@@ -66,12 +68,12 @@ fun Route.files(
         when (result) {
             is StoreFileResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             StoreFileResult.TooLarge ->
-                call.respondErrors("A file must have at most ${fileService.maxSize / (1024 * 1024)} MB.", status = HttpStatusCode.PayloadTooLarge)
-            StoreFileResult.UnsupportedType -> call.respondErrors("Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored.")
+                call.respondErrors(Text(FilesTexts.TOO_LARGE, "max" to fileService.maxSize / (1024 * 1024)), status = HttpStatusCode.PayloadTooLarge)
+            StoreFileResult.UnsupportedType -> call.respondErrors(FilesTexts.UNSUPPORTED_TYPE)
             StoreFileResult.ImageTooLarge ->
-                call.respondErrors("An image must have at most ${FileService.MAX_IMAGE_SIZE} pixels on its longer side.")
+                call.respondErrors(Text(FilesTexts.IMAGE_TOO_LARGE, "max" to FileService.MAX_IMAGE_SIZE))
             StoreFileResult.RecordingTooLong ->
-                call.respondErrors("A recording must be at most ${FileService.MAX_RECORDING_SECONDS / 60} minutes long.")
+                call.respondErrors(Text(FilesTexts.RECORDING_TOO_LONG, "max" to FileService.MAX_RECORDING_SECONDS / 60))
         }
     }.describe {
         tag(FILES_TAG)
@@ -96,21 +98,21 @@ fun Route.files(
 
     post("/{id}/discover/text") {
         if (!discoverTextLimiter.tryAcquire(call.owner)) {
-            call.respondErrors("Too many texts were discovered, please try again later.", status = HttpStatusCode.TooManyRequests)
+            call.respondErrors(FilesTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
             return@post
         }
         val id = call.idParameter() ?: return@post
         when (val result = withContext(Dispatchers.IO) { fileTextService.discover(call.owner, id) }) {
             is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
             DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            DiscoverTextResult.Unsupported -> call.respondErrors("Text is only discovered in images and recordings.")
+            DiscoverTextResult.Unsupported -> call.respondErrors(FilesTexts.NOT_DISCOVERABLE)
             DiscoverTextResult.NotConfigured ->
-                call.respondErrors("No OpenRouter API key is set in the settings.", status = HttpStatusCode.ServiceUnavailable)
+                call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
             DiscoverTextResult.Disabled ->
-                call.respondErrors("The AI features are turned off in the settings.", status = HttpStatusCode.Conflict)
+                call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
             is DiscoverTextResult.Failed -> {
                 logger.warn(result.cause) { "could not discover the text in file $id" }
-                call.respondErrors("The text could not be discovered, please try again later.", status = HttpStatusCode.BadGateway)
+                call.respondErrors(FilesTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)
             }
         }
     }.describe {
@@ -196,3 +198,16 @@ private fun Parameters.Builder.fileId() =
         required = true
         schema = jsonSchema<Int>()
     }
+
+// the texts of the files (i18n/files.<language>.yml)
+object FilesTexts : Catalog("files") {
+    val TOO_LARGE = text("too_large")
+    val UNSUPPORTED_TYPE = text("unsupported_type")
+    val IMAGE_TOO_LARGE = text("image_too_large")
+    val RECORDING_TOO_LONG = text("recording_too_long")
+    val TOO_MANY_DISCOVERIES = text("too_many_discoveries")
+    val NOT_DISCOVERABLE = text("not_discoverable")
+    val NO_API_KEY = text("no_api_key")
+    val AI_OFF = text("ai_off")
+    val DISCOVERY_FAILED = text("discovery_failed")
+}

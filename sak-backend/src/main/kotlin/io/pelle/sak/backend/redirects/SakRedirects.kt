@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.api.Catalog
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTarget
@@ -79,14 +80,12 @@ fun Route.redirects(redirectService: RedirectService) {
         when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target(), call.owner) }) {
             is CreateRedirectResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
             CreateRedirectResult.InvalidDomain ->
-                call.respondErrors(
-                    "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket.",
-                )
-            CreateRedirectResult.Exists -> call.respondErrors("The domain is redirected already.", status = HttpStatusCode.Conflict)
+                call.respondErrors(RedirectsTexts.INVALID_DOMAINS)
+            CreateRedirectResult.Exists -> call.respondErrors(RedirectsTexts.EXISTS, status = HttpStatusCode.Conflict)
             CreateRedirectResult.UnknownBucket ->
-                call.respondErrors("There is no such bucket.", status = HttpStatusCode.UnprocessableEntity)
+                call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
             CreateRedirectResult.BucketNotServed ->
-                call.respondErrors("The bucket is not served at a domain.", status = HttpStatusCode.UnprocessableEntity)
+                call.respondErrors(RedirectsTexts.BUCKET_NOT_SERVED, status = HttpStatusCode.UnprocessableEntity)
         }
     }.describe {
         tag(INGRESS_TAG)
@@ -143,11 +142,11 @@ fun Route.redirects(redirectService: RedirectService) {
             is UpdateRedirectResult.Updated -> call.respond(result.redirect.response())
             UpdateRedirectResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             UpdateRedirectResult.InvalidDomain ->
-                call.respondErrors("The domain redirected to must be valid and differ from the redirected one.")
+                call.respondErrors(RedirectsTexts.INVALID_TARGET)
             UpdateRedirectResult.UnknownBucket ->
-                call.respondErrors("There is no such bucket.", status = HttpStatusCode.UnprocessableEntity)
+                call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
             UpdateRedirectResult.BucketNotServed ->
-                call.respondErrors("The bucket is not served at a domain.", status = HttpStatusCode.UnprocessableEntity)
+                call.respondErrors(RedirectsTexts.BUCKET_NOT_SERVED, status = HttpStatusCode.UnprocessableEntity)
         }
     }.describe {
         tag(INGRESS_TAG)
@@ -195,4 +194,15 @@ fun Route.redirects(redirectService: RedirectService) {
             HttpStatusCode.NotFound { description = "The domain is not redirected" }
         }
     }
+}
+
+// the texts of the redirects (i18n/redirects.<language>.yml)
+object RedirectsTexts : Catalog("redirects") {
+    val INVALID_DOMAINS = text("invalid_domains")
+    val EXISTS = text("exists")
+    val UNKNOWN_BUCKET = text("unknown_bucket")
+    val BUCKET_NOT_SERVED = text("bucket_not_served")
+    val INVALID_TARGET = text("invalid_target")
+    val HEALTH_NAME = text("health.name")
+    val HEALTH_WHAT = text("health.what")
 }

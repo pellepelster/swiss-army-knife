@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.SakDatabase
@@ -22,17 +24,17 @@ import java.time.Clock
 // the fixed categories of the items, in the order a list shows them (GROCERY-6); the only list of
 // them, the schema does not check the category, itemValues does
 enum class GroceryCategory(
-    val label: String,
+    val label: TextKey,
 ) {
-    FRUIT_VEGETABLES("Fruit & vegetables"),
-    BAKERY("Bakery"),
-    DAIRY("Dairy & eggs"),
-    MEAT_FISH("Meat & fish"),
-    PANTRY("Pantry"),
-    FROZEN("Frozen"),
-    DRINKS("Drinks"),
-    HOUSEHOLD("Household"),
-    OTHER("Other"),
+    FRUIT_VEGETABLES(GroceryTexts.FRUIT_VEGETABLES),
+    BAKERY(GroceryTexts.BAKERY),
+    DAIRY(GroceryTexts.DAIRY),
+    MEAT_FISH(GroceryTexts.MEAT_FISH),
+    PANTRY(GroceryTexts.PANTRY),
+    FROZEN(GroceryTexts.FROZEN),
+    DRINKS(GroceryTexts.DRINKS),
+    HOUSEHOLD(GroceryTexts.HOUSEHOLD),
+    OTHER(GroceryTexts.OTHER),
 }
 
 // what the user gives of an item
@@ -183,12 +185,12 @@ class GroceryService(
     ): List<ErrorMessage>? =
         listOfNotNull(
             listNameError(name),
-            icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage("An icon must be one emoji.") },
+            icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage(GroceryTexts.INVALID_ICON) },
         ).ifEmpty { null }
 
     private fun listNameError(name: String) =
         if (name.isEmpty() || name.length > MAX_LIST_NAME_LENGTH || name.any { it.isISOControl() }) {
-            ErrorMessage("A list name must have 1 to $MAX_LIST_NAME_LENGTH characters and no control characters.")
+            ErrorMessage(GroceryTexts.INVALID_LIST_NAME, "max" to MAX_LIST_NAME_LENGTH)
         } else {
             null
         }
@@ -200,23 +202,23 @@ class GroceryService(
         val errors =
             listOfNotNull(
                 if (name.isEmpty() || name.length > MAX_ITEM_NAME_LENGTH || name.any { it.isISOControl() }) {
-                    ErrorMessage("An item name must have 1 to $MAX_ITEM_NAME_LENGTH characters and no control characters.")
+                    ErrorMessage(GroceryTexts.INVALID_ITEM_NAME, "max" to MAX_ITEM_NAME_LENGTH)
                 } else {
                     null
                 },
                 if (amount != null && (amount.signum() <= 0 || amount.scale() > 3 || amount > MAX_AMOUNT)) {
-                    ErrorMessage("An amount must be a positive number up to $MAX_AMOUNT with at most 3 decimal places.")
+                    ErrorMessage(GroceryTexts.INVALID_AMOUNT, "max" to MAX_AMOUNT)
                 } else {
                     null
                 },
                 if (unit != null && (unit.length > MAX_UNIT_LENGTH || unit.any { it.isISOControl() })) {
-                    ErrorMessage("A unit must have at most $MAX_UNIT_LENGTH characters and no control characters.")
+                    ErrorMessage(GroceryTexts.INVALID_UNIT, "max" to MAX_UNIT_LENGTH)
                 } else {
                     null
                 },
-                if (unit != null && amount == null) ErrorMessage("A unit needs an amount.") else null,
+                if (unit != null && amount == null) ErrorMessage(GroceryTexts.UNIT_WITHOUT_AMOUNT) else null,
                 if (input.category != null && GroceryCategory.entries.none { it.name == input.category }) {
-                    ErrorMessage("There is no category \"${input.category}\".")
+                    ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY, "category" to input.category)
                 } else {
                     null
                 },
@@ -273,4 +275,26 @@ class GroceryService(
         // the most suggestions answered at once
         const val MAX_SUGGESTIONS = 10
     }
+}
+
+// the texts of the grocery lists (i18n/grocery.<language>.yml)
+object GroceryTexts : Catalog("grocery") {
+    val FRUIT_VEGETABLES = text("category.fruit_vegetables")
+    val BAKERY = text("category.bakery")
+    val DAIRY = text("category.dairy")
+    val MEAT_FISH = text("category.meat_fish")
+    val PANTRY = text("category.pantry")
+    val FROZEN = text("category.frozen")
+    val DRINKS = text("category.drinks")
+    val HOUSEHOLD = text("category.household")
+    val OTHER = text("category.other")
+    val INVALID_ICON = text("invalid_icon")
+    val INVALID_LIST_NAME = text("invalid_list_name")
+    val INVALID_ITEM_NAME = text("invalid_item_name")
+    val INVALID_AMOUNT = text("invalid_amount")
+    val INVALID_UNIT = text("invalid_unit")
+    val UNIT_WITHOUT_AMOUNT = text("unit_without_amount")
+    val UNKNOWN_CATEGORY = text("unknown_category")
+    val LIST_EXISTS = text("list_exists")
+    val LAST_LIST = text("last_list")
 }

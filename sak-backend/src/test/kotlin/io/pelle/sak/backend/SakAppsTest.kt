@@ -9,6 +9,7 @@ import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.TokenService
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.Json
 import io.kotest.matchers.string.shouldMatch
 import com.icegreen.greenmail.junit5.GreenMailExtension
 import com.icegreen.greenmail.util.GreenMailUtil
@@ -160,11 +161,14 @@ class SakAppsTest {
         contentType: String = "application/json",
         answer: HttpResponse.BodyHandler<T>,
         authorization: String? = null,
+        // the Accept-Language of the browser, none by default
+        language: String? = null,
     ): HttpResponse<T> =
         http.send(
             HttpRequest
                 .newBuilder(URI.create("http://localhost:$port$path"))
                 .apply { (authorization ?: sessionToken?.let { "Bearer $it" })?.let { header("Authorization", it) } }
+                .apply { language?.let { header("Accept-Language", it) } }
                 .apply { body?.let { header("Content-Type", contentType) } }
                 .method(method, body?.let { HttpRequest.BodyPublishers.ofByteArray(it) } ?: HttpRequest.BodyPublishers.noBody())
                 .build(),
@@ -395,11 +399,11 @@ class SakAppsTest {
 
             create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"message":"The domain is redirected already."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"The domain is redirected already."}]}"""
             }
             create("""{"sourceDomain":""").let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"The request is malformed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"api.malformed_request","message":"The request is malformed."}]}"""
             }
             get(port, "/api/v1/redirects?offset=-1", session).statusCode() shouldBe 400
             create("""{"sourceDomain":"sak.example.org","target":{"type":"domain","domain":"example.net"}}""").statusCode() shouldBe 400
@@ -437,7 +441,7 @@ class SakAppsTest {
             delete(port, "/api/v1/static-hosting/bucket1", session).let {
                 it.statusCode() shouldBe 409
                 it.body() shouldBe
-                    """{"errors":[{"message":"Redirects lead to the bucket: example.at. Delete them or change their target first."}]}"""
+                    """{"errors":[{"code":"hosting.redirected","message":"Redirects lead to the bucket: example.at. Delete them or change their target first."}]}"""
             }
             delete(port, "/api/v1/redirects/example.at", session).statusCode() shouldBe 204
             delete(port, "/api/v1/static-hosting/bucket1", session).statusCode() shouldBe 204
@@ -461,7 +465,7 @@ class SakAppsTest {
             post(port, "/api/v1/labels", """{"name":"work"}""", session).statusCode() shouldBe 201
             post(port, "/api/v1/labels", """{"name":"HOME office"}""", session).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"message":"A label of the name exists."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"labels.exists","message":"A label of the name exists."}]}"""
             }
             post(port, "/api/v1/labels", """{"name":" "}""", session).statusCode() shouldBe 400
             names(get(port, "/api/v1/labels?limit=1", session)) shouldBe listOf("home office")
@@ -490,11 +494,11 @@ class SakAppsTest {
             // an admin of the configuration is no user to add
             post(port, "/api/v1/users", """{"email":"SECOND@example.org"}""", admin).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"message":"The address is an admin of the deployment, it is no user to add."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"users.is_admin","message":"The address is an admin of the deployment, it is no user to add."}]}"""
             }
             post(port, "/api/v1/users", """{"email":"nobody"}""", admin).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"An e-mail address like name@example.org is needed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"users.invalid_email","message":"An e-mail address like name@example.org is needed."}]}"""
             }
             val users = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }
             users.map { it.string("email") } shouldBe listOf("admin@example.org", "second@example.org", "anna@example.org")
@@ -562,14 +566,14 @@ class SakAppsTest {
 
             post(port, "/api/v1/grocery/items", """{"name":"Milk"}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"The request is malformed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"api.malformed_request","message":"The request is malformed."}]}"""
             }
             val milk = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session)
             milk.statusCode() shouldBe 201
             post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Apples","category":"FRUIT_VEGETABLES"}""", session).statusCode() shouldBe 201
             post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","unit":"l"}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"A unit needs an amount."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"grocery.unit_without_amount","message":"A unit needs an amount."}]}"""
             }
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
                 listOf("Apples", "Milk")
@@ -589,7 +593,7 @@ class SakAppsTest {
             // the only own list stays, with another one it goes
             delete(port, "/api/v1/grocery/lists/$listId", session).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"message":"You can not delete your only list."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"grocery.last_list","message":"You can not delete your only list."}]}"""
             }
             post(port, "/api/v1/grocery/lists", """{"name":"Party","shared":false,"icon":"🎉"}""", session).let {
                 it.statusCode() shouldBe 201
@@ -638,7 +642,7 @@ class SakAppsTest {
             }
             val eleven = (1..11).joinToString(",") { "\"label $it\"" }
             post(port, "/api/v1/notes", """{"text":"x","labels":[$eleven]}""", session).body() shouldBe
-                """{"errors":[{"message":"A note can have at most 10 labels."}]}"""
+                """{"errors":[{"code":"notes.too_many_labels","message":"A note can have at most 10 labels."}]}"""
             put(port, "/api/v1/notes/4711", """{"text":"x"}""", session).statusCode() shouldBe 404
 
             delete(port, "/api/v1/notes/$milk", session).statusCode() shouldBe 204
@@ -671,13 +675,13 @@ class SakAppsTest {
             uploaded.json().string("contentType") shouldBe "image/jpeg"
             upload("<script>".toByteArray()).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"files.unsupported_type","message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
             upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
             // the apps scale photos down, the storage takes nothing larger
             upload(Media.jpeg(2049, 1)).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"An image must have at most 2048 pixels on its longer side."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"files.image_too_large","message":"An image must have at most 2048 pixels on its longer side."}]}"""
             }
             upload(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())).statusCode() shouldBe 400
 
@@ -770,12 +774,12 @@ class SakAppsTest {
                 // nothing goes to openrouter until the AI features are turned on
                 discover(receipt).let {
                     it.statusCode() shouldBe 409
-                    it.body() shouldBe """{"errors":[{"message":"The AI features are turned off in the settings."}]}"""
+                    it.body() shouldBe """{"errors":[{"code":"files.ai_off","message":"The AI features are turned off in the settings."}]}"""
                 }
                 completions shouldBe emptyList()
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"wrong"}""", session).let {
                     it.statusCode() shouldBe 400
-                    it.body() shouldBe """{"errors":[{"message":"OpenRouter does not take the API key."}]}"""
+                    it.body() shouldBe """{"errors":[{"code":"openrouter.key_refused","message":"OpenRouter does not take the API key."}]}"""
                 }
                 // the key shows its first four characters only
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).body() shouldBe
@@ -825,7 +829,7 @@ class SakAppsTest {
                 request(port, "POST", "/api/v1/files", session, png, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
             post(port, "/api/v1/files/$file/discover/text", "", session).let {
                 it.statusCode() shouldBe 503
-                it.body() shouldBe """{"errors":[{"message":"No OpenRouter API key is set in the settings."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"files.no_api_key","message":"No OpenRouter API key is set in the settings."}]}"""
             }
         }
     }
@@ -839,8 +843,8 @@ class SakAppsTest {
                 it.statusCode() shouldBe 200
                 it.body() shouldBe
                     "[" +
-                    """{"name":"Bucket domains","state":"UNKNOWN","message":"the addresses of the server are not configured","details":[]},""" +
-                    """{"name":"Redirect domains","state":"UNKNOWN","message":"the addresses of the server are not configured","details":[]}""" +
+                    """{"name":"Bucket domains","state":"UNKNOWN","message":"The addresses of the server are not configured.","details":[]},""" +
+                    """{"name":"Redirect domains","state":"UNKNOWN","message":"The addresses of the server are not configured.","details":[]}""" +
                     "]"
             }
         }
@@ -894,7 +898,7 @@ class SakAppsTest {
 
             post(port, "/api/v1/auth/login/link", """{"email":"$email"}""").let {
                 it.statusCode() shouldBe 413
-                it.body() shouldBe """{"errors":[{"message":"The request body is too large."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"api.too_large_request","message":"The request body is too large."}]}"""
             }
             greenMail.waitForIncomingEmail(500, 1) shouldBe false
         }
@@ -1137,6 +1141,28 @@ class SakAppsTest {
     }
 
     @Test
+    fun `the texts are in the language of the browser, the errors with their code`() {
+        withServer { port ->
+            val session = signIn(port)
+            val german = "de-DE,de;q=0.9,en;q=0.8"
+            request(port, "GET", "/api/v1/grocery/categories", session, answer = HttpResponse.BodyHandlers.ofString(), language = german)
+                .json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe "Obst & Gemüse"
+            get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
+                "Fruit & vegetables"
+
+            val invalid = """{"name":"Party","shared":false,"icon":"ab"}""".toByteArray()
+            request(port, "POST", "/api/v1/grocery/lists", session, invalid, answer = HttpResponse.BodyHandlers.ofString(), language = german).let {
+                it.statusCode() shouldBe 400
+                it.json() shouldBe
+                    Json.parseToJsonElement("""{"errors":[{"code":"grocery.invalid_icon","message":"Ein Icon muss ein Emoji sein."}]}""")
+            }
+            // a language without a catalog is english
+            request(port, "POST", "/api/v1/grocery/lists", session, invalid, answer = HttpResponse.BodyHandlers.ofString(), language = "fr").json() shouldBe
+                Json.parseToJsonElement("""{"errors":[{"code":"grocery.invalid_icon","message":"An icon must be one emoji."}]}""")
+        }
+    }
+
+    @Test
     fun `the info answers the name, the dns mode, the user mode and the version of the deployment without a session`() {
         withServer(config().copy(version = "1.2.3")) { port ->
             val info = get(port, "/api/v1/info")
@@ -1216,7 +1242,7 @@ class SakAppsTest {
             // the notes need the AI of the deployment turned on
             put(port, "/api/v1/settings/notes", """{"ai":true}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"\"AI features\" needs \"AI features\" of \"AI\" turned on."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"settings.requires","message":"\"AI features\" needs \"AI features\" of \"AI\" turned on."}]}"""
             }
             put(port, "/api/v1/settings/ai", """{"enabled":true}""", session).let {
                 it.statusCode() shouldBe 200
@@ -1225,14 +1251,14 @@ class SakAppsTest {
             put(port, "/api/v1/settings/ai", """{"enabled":"false","other":1}""", session).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe
-                    """{"errors":[{"message":"\"AI features\" must be true or false."},""" +
-                    """{"message":"There is no setting \"other\" in \"ai\"."}]}"""
+                    """{"errors":[{"code":"settings.not_boolean","message":"\"AI features\" must be true or false."},""" +
+                    """{"code":"settings.unknown_setting","message":"There is no setting \"other\" in \"ai\"."}]}"""
             }
             put(port, "/api/v1/settings/ai", "[]", session).statusCode() shouldBe 400
             // the models come from the configuration
             put(port, "/api/v1/settings/ai", """{"vision_model":"another/model"}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"message":"\"Vision model\" can not be changed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"settings.read_only","message":"\"Vision model\" can not be changed."}]}"""
             }
             get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
 

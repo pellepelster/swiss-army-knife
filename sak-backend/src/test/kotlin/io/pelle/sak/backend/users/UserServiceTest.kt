@@ -22,7 +22,7 @@ class UserServiceTest {
         // an admin of the configuration is never also a user
         service.add("admin@example.org", "ADMIN@example.org", "Admin") shouldBe AddUserResult.Admin
         service.add("admin@example.org", "no address", "x".repeat(65)) shouldBe
-            AddUserResult.Invalid(listOf(ErrorMessage(UserService.INVALID_EMAIL), ErrorMessage(UserService.INVALID_NAME)))
+            AddUserResult.Invalid(listOf(ErrorMessage(UsersTexts.INVALID_EMAIL), ErrorMessage(UsersTexts.INVALID_NAME, "max" to UserService.MAX_NAME_LENGTH)))
 
         service.users().map { it.email to it.configured } shouldBe
             listOf("admin@example.org" to true, "anna@example.org" to false, "bob@example.org" to false)

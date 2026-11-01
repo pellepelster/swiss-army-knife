@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.api.Language
+import io.pelle.sak.api.render
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
@@ -61,7 +63,7 @@ class GroceryServiceTest {
 
     @Test
     fun `every category can be given to an item`() {
-        GroceryCategory.entries.forEach { add(PELLE, list(PELLE), input(it.label, category = it)).category shouldBe it.name }
+        GroceryCategory.entries.forEach { add(PELLE, list(PELLE), input(it.label.render(Language.EN), category = it)).category shouldBe it.name }
     }
 
     @Test
@@ -107,12 +109,12 @@ class GroceryServiceTest {
     fun `tells every problem of an item at once`() {
         (service.addItem(PELLE, list(PELLE), GroceryItemInput(" ", BigDecimal("0.0001"), "l", "SWEETS")) as GroceryItemResult.Invalid).errors shouldBe
             listOf(
-                ErrorMessage("An item name must have 1 to 128 characters and no control characters."),
-                ErrorMessage("An amount must be a positive number up to 9999999.999 with at most 3 decimal places."),
-                ErrorMessage("There is no category \"SWEETS\"."),
+                ErrorMessage(GroceryTexts.INVALID_ITEM_NAME, "max" to GroceryService.MAX_ITEM_NAME_LENGTH),
+                ErrorMessage(GroceryTexts.INVALID_AMOUNT, "max" to GroceryService.MAX_AMOUNT),
+                ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY, "category" to "SWEETS"),
             )
         (service.addItem(PELLE, list(PELLE), input("Milk", unit = "l")) as GroceryItemResult.Invalid).errors shouldBe
-            listOf(ErrorMessage("A unit needs an amount."))
+            listOf(ErrorMessage(GroceryTexts.UNIT_WITHOUT_AMOUNT))
         add(PELLE, list(PELLE), input("Milk", "1.50", " l ")).let {
             it.amount!!.compareTo(BigDecimal("1.5")) shouldBe 0
             it.unit shouldBe "l"
@@ -163,6 +165,6 @@ class GroceryServiceTest {
         listOf("🇩🇪", "1️⃣", "👨‍👩‍👧‍👦", "👍🏽", "🛒").forEach { GroceryService.isOneEmoji(it) shouldBe true }
         listOf("a", "1", "🎉🎉", "🎉 a", "\u0007").forEach { GroceryService.isOneEmoji(it) shouldBe false }
         service.createList(PELLE, "Wrong", shared = false, icon = "ab") shouldBe
-            GroceryListResult.Invalid(listOf(ErrorMessage("An icon must be one emoji.")))
+            GroceryListResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_ICON)))
     }
 }

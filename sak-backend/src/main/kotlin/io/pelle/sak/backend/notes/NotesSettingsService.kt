@@ -22,12 +22,12 @@ class NotesSettingsService(
         val AI =
             BooleanSetting(
                 SettingName("ai"),
-                "AI features",
-                "Lets the notes discover the text in photos and recordings with the AI of the deployment.",
+                NotesTexts.AI_LABEL,
+                NotesTexts.AI_DESCRIPTION,
                 default = false,
                 requires = Requirement(OpenRouterManager.SCOPE, OpenRouterManager.ENABLED),
             )
 
-        val SCOPE = SettingScope(SettingScopeName("notes"), "Notes", "The settings of the notes.", listOf(AI))
+        val SCOPE = SettingScope(SettingScopeName("notes"), NotesTexts.SCOPE_LABEL, NotesTexts.SCOPE_DESCRIPTION, listOf(AI))
     }
 }

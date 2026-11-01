@@ -25,10 +25,6 @@ import kotlinx.coroutines.withContext
 
 private const val USERS_TAG = "users"
 
-private const val USER_EXISTS = "A user of the address exists."
-
-private const val USER_IS_ADMIN = "The address is an admin of the deployment, it is no user to add."
-
 private fun UserEntry.response() = UserResponse(id, email, name, configured)
 
 // the users who may sign in, meant to be mounted behind the authentication with the role admin
@@ -60,8 +56,8 @@ fun Route.users(userService: UserService) {
             is AddUserResult.Added ->
                 call.respond(HttpStatusCode.Created, UserResponse(result.user.id, result.user.email, result.user.name, configured = false))
             is AddUserResult.Invalid -> call.respondErrors(result.errors)
-            AddUserResult.Exists -> call.respondErrors(USER_EXISTS, status = HttpStatusCode.Conflict)
-            AddUserResult.Admin -> call.respondErrors(USER_IS_ADMIN, status = HttpStatusCode.Conflict)
+            AddUserResult.Exists -> call.respondErrors(UsersTexts.EXISTS, status = HttpStatusCode.Conflict)
+            AddUserResult.Admin -> call.respondErrors(UsersTexts.IS_ADMIN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(USERS_TAG)

@@ -1,0 +1,13 @@
+# the texts of the AI at OpenRouter (OpenRouterTexts), german
+settings.enabled.label: "KI-Funktionen"
+settings.enabled.description: "Lässt die Apps Daten an KI-Anbieter senden, zum Beispiel ein Foto oder eine Aufnahme, um ihren Text zu erkennen. Anbieter, die die Daten sammeln, werden nicht gefragt."
+settings.api_key.label: "API-Schlüssel"
+settings.api_key.description: "Der Schlüssel des OpenRouter-Kontos für die KI-Funktionen."
+settings.vision_model.label: "Bildmodell"
+settings.vision_model.description: "Das Modell, das Text in Fotos erkennt."
+settings.speech_model.label: "Sprachmodell"
+settings.speech_model.description: "Das Modell, das Aufnahmen verschriftlicht."
+settings.label: "KI"
+settings.description: "Alle KI-Funktionen einrichten"
+key_refused: "OpenRouter nimmt den API-Schlüssel nicht an."
+key_unchecked: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."

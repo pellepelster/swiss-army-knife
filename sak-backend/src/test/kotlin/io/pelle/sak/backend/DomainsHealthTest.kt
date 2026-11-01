@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.api.Language
 import io.pelle.sak.dns.model.AddressFamily
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.HealthState
@@ -51,9 +52,9 @@ class DomainsHealthTest {
 
         HostingHealth(buckets, check("site.example.com", "site.example.org"), addresses).check().state shouldBe HealthState.HEALTHY
         HostingHealth(buckets, check("site.example.com"), addresses).check().let {
-            it.name shouldBe "Bucket domains"
+            it.name.toString() shouldBe "Bucket domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "1 of 2 domains of the buckets do not point to the server"
+            it.message.toString() shouldBe "1 of 2 domains of the buckets do not point to the server."
             it.details.map { detail -> detail.name to detail.state } shouldBe
                 listOf("site.example.com" to HealthState.HEALTHY, "site.example.org" to HealthState.UNHEALTHY)
         }
@@ -66,10 +67,11 @@ class DomainsHealthTest {
 
         RedirectsHealth(redirects, check("old.example.com"), addresses).check().state shouldBe HealthState.HEALTHY
         RedirectsHealth(redirects, check(), addresses).check().let {
-            it.name shouldBe "Redirect domains"
+            it.name.toString() shouldBe "Redirect domains"
             it.state shouldBe HealthState.UNHEALTHY
-            it.message shouldBe "1 of 1 domains of the redirects do not point to the server"
-            it.details.single().message shouldBe "1.1.1.1 has no A, no AAAA"
+            it.message.toString() shouldBe "1 of 1 domains of the redirects do not point to the server."
+            it.message!!.render(Language.DE) shouldBe "1 von 1 Domains der Weiterleitungen zeigen nicht auf den Server."
+            it.details.single().message.toString() shouldBe "1.1.1.1 has no A, no AAAA"
         }
     }
 }
