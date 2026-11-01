@@ -156,25 +156,17 @@ cp -r ../sak-theme/fonts ui/theme/fonts
 cp -r ../sak-theme/icons ui/theme/icons
 """
 
-# without arguments the window, with a command (list, create, deploy, destroy, --help) the command line:
-# `mise run cli:run -- list`; tauri dev passes what follows its second -- to the app. The token
-# comes from pass unless HCLOUD_TOKEN is set
+# without arguments the window (`mise run cli:run`), with a command (list, create [<name>], deploy
+# <name>, destroy <name>) the command line: `mise run cli:run list`; a flag after --, `mise run
+# cli:run -- --help`. mise appends the arguments to the script as they are, sh -c takes them as
+# its own; tauri dev passes what follows its second -- to the app. The token comes from pass
+# unless HCLOUD_TOKEN is set
 [tasks."cli:run"]
 description = "Run sakctl with reload"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-usage = '''
-arg "<args>" var=#true default="" help="nothing for the window, or list, create [<name>], deploy <name> or destroy <name>"
-'''
-run = '''
-eval "set -- ${usage_args}"
-if [ $# -eq 0 ]; then
-  tauri dev
-else
-  tauri dev -- -- "$@"
-fi
-'''
+run = '''sh -c 'if [ $# -eq 0 ]; then tauri dev; else tauri dev -- -- "$@"; fi' sakctl'''
 
 # the bundles of the platform it runs on (deb, rpm and AppImage on linux, dmg on macos,
 # msi and nsis on windows) land in sak-cli/src-tauri/target/release/bundle/
@@ -249,21 +241,17 @@ gh release create "v${VERSION}" --verify-tag --title "sakctl $VERSION" \
 """
 
 # the wizard on the command line, the same code as its pages: list, create [<name>],
-# deploy <name> or destroy <name>, the token from pass, SAK_NAME, SAK_PASSWORD and SAK_LOCATION from the
-# environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run cli:sakctl -- create
+# deploy <name>, destroy <name> or ssh <name>, the token from pass, SAK_NAME, SAK_PASSWORD and
+# SAK_LOCATION from the environment, e.g. SAK_NAME=test SAK_PASSWORD=… mise run cli:sakctl create;
+# a flag after --, `mise run cli:sakctl -- deploy --force test`. mise appends the arguments to the
+# script as they are, sh -c takes them as its own
 [tasks."cli:sakctl"]
 description = "Run the sakctl command line"
 dir = "{{config_root}}/sak-cli/src-tauri"
 # the terminal of the user, not a pipe: the prompts of the passwords and an ssh session need it
 raw = true
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-usage = '''
-arg "<args>" var=#true help="list, create [<name>], deploy <name>, destroy <name> or ssh <name>"
-'''
-run = '''
-eval "set -- ${usage_args}"
-cargo run -q -- "$@"
-'''
+run = '''sh -c 'cargo run -q -- "$@"' sakctl'''
 
 # each image built, tested and pushed on its own (the github workflow runs them in parallel); the
 # layers are cached in the registry next to the image, tag buildcache: every build reads it, the

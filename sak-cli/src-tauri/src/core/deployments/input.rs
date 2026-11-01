@@ -11,13 +11,14 @@ pub struct DeploymentDefaults {
     pub(super) name: Option<String>,
     pub(super) password: Option<String>,
     pub(super) location: Option<String>,
-    /// the mail server of SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and
-    /// SAK_SMTP_STARTTLS
+    /// the mail server of SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD,
+    /// SAK_SMTP_STARTTLS and SAK_SMTP_FROM
     pub(super) smtp_host: Option<String>,
     pub(super) smtp_port: Option<String>,
     pub(super) smtp_username: Option<String>,
     pub(super) smtp_password: Option<String>,
     pub(super) smtp_starttls: Option<bool>,
+    pub(super) smtp_from: Option<String>,
     /// the admin of SAK_ADMIN_EMAIL
     pub(super) admin_email: Option<String>,
     /// the user mode of SAK_USER_MODE
@@ -36,6 +37,7 @@ pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
 pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
 pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
 pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
+pub const SMTP_FROM_VARIABLE: &str = "SAK_SMTP_FROM";
 /// the variable of the address of the admin, for the window and the command line
 pub const ADMIN_EMAIL_VARIABLE: &str = "SAK_ADMIN_EMAIL";
 /// the variable of the user mode, for the window and the command line
@@ -80,12 +82,36 @@ pub struct Smtp {
     pub username: String,
     #[serde(default)]
     pub password: String,
+    #[serde(default = "default_starttls")]
     pub starttls: bool,
+    /// the sender of the mails, empty for noreply@<root domain> (`sender`); none in the settings
+    /// an older sakctl kept
+    #[serde(default)]
+    pub from: String,
+}
+
+fn default_starttls() -> bool {
+    DEFAULT_SMTP_STARTTLS
+}
+
+impl Smtp {
+    /// the address the mails come from: the one given, else noreply@<root domain>
+    pub fn sender(&self, root_domain: &str) -> String {
+        match self.from.trim() {
+            "" => default_sender(root_domain),
+            from => from.to_string(),
+        }
+    }
+}
+
+/// the sender of the mails of a deployment that was given none
+pub fn default_sender(root_domain: &str) -> String {
+    format!("noreply@{}", root_domain.trim())
 }
 
 /// checks the mail server: a host name without spaces, a port that is not 0, and no line break in
 /// a value, because `backend.env` has one line for each value
-pub(super) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
+pub(crate) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
         return Err(t!(
@@ -102,6 +128,15 @@ pub(super) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
         .any(|value| value.contains(['\n', '\r']))
     {
         return Err(t!("common.deployments.invalid_smtp_value").to_string());
+    }
+    let from = smtp.from.trim();
+    if !from.is_empty() && !is_address(from) {
+        return Err(t!(
+            "common.deployments.invalid_smtp_from",
+            from = from,
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpFrom)
+        )
+        .to_string());
     }
     Ok(())
 }
@@ -203,6 +238,7 @@ pub fn defaults() -> DeploymentDefaults {
         smtp_username: variable(SMTP_USERNAME_VARIABLE),
         smtp_password: variable(SMTP_PASSWORD_VARIABLE),
         smtp_starttls: variable(SMTP_STARTTLS_VARIABLE).and_then(|value| parse_flag(&value).ok()),
+        smtp_from: variable(SMTP_FROM_VARIABLE),
         admin_email: variable(ADMIN_EMAIL_VARIABLE),
         user_mode: variable(USER_MODE_VARIABLE).and_then(|value| UserMode::parse(&value)),
     }

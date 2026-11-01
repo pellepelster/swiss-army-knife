@@ -43,7 +43,7 @@ is built is in [SYSTEM.md](architecture/SYSTEM.md).
   server, or someone with the cloud project, has everything the host key would give anyway.
 
 - **The settings of a deployment hold the password of the mail server.** sakctl reads them from the backend
-  (`GET /api/v1/deployment`) with a signed request, and keeps them after every create or deploy in
+  (`GET /api/v1/deployment`) with a signed request, and keeps them when a create or deploy starts in
   `~/.sak/<name>/config.json`, encrypted with a key derived from the password of the deployment, so a redeploy takes
   over the whole mail server and nobody types its password again; a session, also one of an admin, gets 401. A comfort
   feature: whoever holds the password of the deployment can read the password of the mail server, and send mail with

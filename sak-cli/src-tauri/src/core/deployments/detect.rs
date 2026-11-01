@@ -5,7 +5,7 @@
 
 use super::*;
 
-/// where the settings of a deployment came from, for its page and the form of a new config
+/// where the settings of a deployment came from, for its page and the config form
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsSource {
@@ -18,22 +18,45 @@ pub enum SettingsSource {
 }
 
 /// what a create or deploy keeps of a deployment on this machine (`local`), encrypted for its
-/// password: what a redeploy takes when the deployment does not answer. It holds the password of
-/// the mail server, so no Debug
+/// password: what the config form takes when the deployment does not answer. It holds the password of
+/// the mail server, so no Debug.
+///
+/// The file may come from another version of sakctl, older or newer, so every field is read on its
+/// own: a field it lacks or a value this version does not know (a new dns mode) is none, the
+/// others still count; a field this version does not know is ignored
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalSettings {
-    pub location: Location,
-    pub dns_mode: DnsMode,
-    pub root_domain: String,
-    pub user_mode: UserMode,
+    #[serde(default, deserialize_with = "lenient")]
+    pub location: Option<Location>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub dns_mode: Option<DnsMode>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub root_domain: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub user_mode: Option<UserMode>,
+    #[serde(default, deserialize_with = "lenient")]
     pub admin_email: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
     pub smtp: Option<Smtp>,
-    pub acme_ca: AcmeCa,
+    #[serde(default, deserialize_with = "lenient")]
+    pub acme_ca: Option<AcmeCa>,
     /// the version of sakctl that wrote them
-    pub version: String,
-    /// when the create or deploy ended, rfc 3339
-    pub deployed_at: String,
+    #[serde(default, deserialize_with = "lenient")]
+    pub version: Option<String>,
+    /// when the create or deploy that kept them started, rfc 3339
+    #[serde(default, deserialize_with = "lenient")]
+    pub deployed_at: Option<String>,
+}
+
+/// a field of `LocalSettings` as far as this version can read it: none when it cannot
+fn lenient<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
 }
 
 /// the settings a deploy takes from the existing deployment when they are not given
@@ -43,7 +66,7 @@ pub struct LocalSettings {
 pub struct Detected {
     /// where they came from; none when nothing was found
     pub source: Option<SettingsSource>,
-    /// when the create or deploy that kept them ended, for `SettingsSource::Local`
+    /// when the create or deploy that kept them started, for `SettingsSource::Local`
     pub deployed_at: Option<String>,
     pub dns_mode: Option<DnsMode>,
     pub root_domain: Option<String>,
@@ -67,6 +90,8 @@ pub struct DetectedSmtp {
     pub password: Option<String>,
     pub password_set: bool,
     pub starttls: bool,
+    /// the sender of the mails, as the deployment has it
+    pub from: String,
 }
 
 impl fmt::Debug for DetectedSmtp {
@@ -78,6 +103,7 @@ impl fmt::Debug for DetectedSmtp {
             .field("password", &self.password.as_ref().map(|_| "***"))
             .field("password_set", &self.password_set)
             .field("starttls", &self.starttls)
+            .field("from", &self.from)
             .finish()
     }
 }
@@ -101,6 +127,7 @@ impl Detected {
                 password: smtp.password,
                 password_set: smtp.password_set,
                 starttls: smtp.starttls,
+                from: smtp.from,
             }),
             ..Detected::default()
         }
@@ -108,14 +135,14 @@ impl Detected {
 
     /// the settings this machine kept of the last create or deploy
     pub(super) fn from_local(local: LocalSettings) -> Self {
-        let multi = local.user_mode == UserMode::Multi;
+        let multi = local.user_mode == Some(UserMode::Multi);
         Detected {
             source: Some(SettingsSource::Local),
-            deployed_at: Some(local.deployed_at),
-            dns_mode: Some(local.dns_mode),
-            root_domain: Some(local.root_domain),
-            acme_ca: Some(local.acme_ca),
-            user_mode: Some(local.user_mode),
+            deployed_at: local.deployed_at,
+            dns_mode: local.dns_mode,
+            root_domain: local.root_domain.filter(|domain| !domain.trim().is_empty()),
+            acme_ca: local.acme_ca,
+            user_mode: local.user_mode,
             admin_email: local.admin_email.filter(|_| multi),
             smtp: local.smtp.filter(|_| multi).map(|smtp| DetectedSmtp {
                 password_set: !smtp.password.is_empty(),
@@ -124,6 +151,7 @@ impl Detected {
                 port: smtp.port,
                 username: smtp.username,
                 starttls: smtp.starttls,
+                from: smtp.from,
             }),
             ..Detected::default()
         }
@@ -227,6 +255,7 @@ pub(super) fn complete(
             username: smtp.username.clone(),
             password,
             starttls: smtp.starttls,
+            from: smtp.from.clone(),
         });
     }
     Ok(deployment)

@@ -1,11 +1,11 @@
 // the page of one deployment, opened with its password: its state, its configuration and its
 // resources. When it opens it reads the configuration once, from the running deployment, else from
-// this machine; the check, the form of a new config and the deploys use what it read. With a
+// this machine; the check, the config form and the deploys use what it read. With a
 // configuration it checks the deployment: a deploy of the deployment as it is, planned in rust, its
 // rows those of the plan, the provisioning included. Without one there is nothing to deploy with:
-// check and the deploys stay disabled, new config gives one. The toolbar at the top right: destroy,
+// check and the deploys stay disabled, config… gives one. The toolbar at the top right: destroy,
 // which opens the form of a destroy, maintenance, a menu of status, update and reboot that each
-// open the maintenance view (a reboot after a confirmation), new config, the form of a deploy with
+// open the maintenance view (a reboot after a confirmation), config…, the form of a deploy with
 // the configuration filled in, and check, which checks again. At the bottom right, one group: back
 // to the list, force deploy (after a check, the playbook runs again) and deploy changes (only when
 // the check found changes). The one green button is check, or deploy changes when there are changes
@@ -91,6 +91,8 @@ function showConfig() {
     if (settings.smtp) {
       const { host, port, username } = settings.smtp;
       rows.push(configRow(text('ui.create.smtp'), `${host}:${port}`, username));
+      // the sender of the login mails, noreply@<root domain> unless another was given
+      rows.push(configRow(text('ui.create.smtp_from'), settings.smtp.from || `noreply@${settings.rootDomain ?? ''}`));
     }
   }
   configList.replaceChildren(...rows);
@@ -249,9 +251,9 @@ forceButton.addEventListener('click', () => deploy(true));
 document.getElementById('deployment-destroy').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'destroy' }),
 );
-// the form of a deploy with a new config, filled in with the configuration read when the page
+// config…: the form of a deploy with the config, filled in with the configuration read when the page
 // opened; empty without one
-document.getElementById('deployment-new-config').addEventListener('click', () =>
+document.getElementById('deployment-edit-config').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'deploy', settings }),
 );
 document.getElementById('deployment-back').addEventListener('click', async () => {

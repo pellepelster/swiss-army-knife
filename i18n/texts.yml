@@ -562,6 +562,9 @@ ctl:
       invalid_smtp_value:
         en: "A value of the mail server has a line break."
         de: "Ein Wert des Mailservers hat einen Zeilenumbruch."
+      invalid_smtp_from:
+        en: "The sender address %{from} is no e-mail address. %{hint}"
+        de: "Die Absenderadresse %{from} ist keine E-Mail-Adresse. %{hint}"
       invalid_admin_email:
         en: "The e-mail address of the admin is no e-mail address like admin@example.org. %{hint}"
         de: "Die E-Mail-Adresse des Admins ist keine E-Mail-Adresse wie admin@example.org. %{hint}"
@@ -647,6 +650,38 @@ ctl:
       not_https:
         en: "The api %{url} is no https address, sakctl asks the api over https only."
         de: "Die API %{url} ist keine https-Adresse, sakctl fragt die API nur über https."
+    smtp:
+      sent:
+        en: "The mail server %{host} took the test e-mail to %{to}. If it does not arrive, look in the spam folder."
+        de: "Der Mailserver %{host} hat die Test-E-Mail an %{to} angenommen. Kommt sie nicht an, sieh im Spam-Ordner nach."
+      invalid_to: { en: "%{to} is no e-mail address.", de: "%{to} ist keine E-Mail-Adresse." }
+      no_root_domain:
+        en: "Choose the root domain or a sender address first: without a sender address the test e-mail comes from noreply@<root domain>."
+        de: "Wähle zuerst die Root-Domain oder eine Absenderadresse: Ohne Absenderadresse kommt die Test-E-Mail von noreply@<Root-Domain>."
+      test_subject: { en: "Test e-mail of %{name}", de: "Test-E-Mail von %{name}" }
+      test_body:
+        en: "This e-mail tests the mail server %{host} of the SAK deployment %{name}. It arrived, so the deployment can send its login links with it."
+        de: "Diese E-Mail testet den Mailserver %{host} des SAK-Deployments %{name}. Sie ist angekommen, also kann das Deployment seine Login-Links damit senden."
+      timeout:
+        en: "The mail server %{host} did not answer within %{seconds} seconds."
+        de: "Der Mailserver %{host} hat nicht innerhalb von %{seconds} Sekunden geantwortet."
+      timeout_starttls:
+        en: "The mail server %{host} did not answer on port %{port} within %{seconds} seconds. A port of TLS without STARTTLS, usually 465, waits for TLS first: untick STARTTLS for it."
+        de: "Der Mailserver %{host} hat auf Port %{port} nicht innerhalb von %{seconds} Sekunden geantwortet. Ein Port für TLS ohne STARTTLS, meist 465, wartet zuerst auf TLS: Entferne dafür den Haken bei STARTTLS."
+      tls_first:
+        en: "The mail server %{host} expects TLS right away on port %{port}: untick STARTTLS for this port, or take the port of STARTTLS, usually 587."
+        de: "Der Mailserver %{host} erwartet auf Port %{port} sofort TLS: Entferne für diesen Port den Haken bei STARTTLS, oder nimm den Port für STARTTLS, meist 587."
+      no_tls:
+        en: "The mail server %{host} answers on port %{port} without TLS. Tick STARTTLS for this port, or take the port of TLS without STARTTLS, usually 465."
+        de: "Der Mailserver %{host} antwortet auf Port %{port} ohne TLS. Setze für diesen Port den Haken bei STARTTLS, oder nimm den Port für TLS ohne STARTTLS, meist 465."
+      tls: { en: "TLS with the mail server %{host} failed: %{error}", de: "TLS mit dem Mailserver %{host} ist fehlgeschlagen: %{error}" }
+      refused: { en: "The mail server %{host} refused: %{error}", de: "Der Mailserver %{host} hat abgelehnt: %{error}" }
+      failed:
+        en: "The mail server %{host} does not fit the settings: %{error}"
+        de: "Der Mailserver %{host} passt nicht zu den Einstellungen: %{error}"
+      unreachable:
+        en: "The mail server %{host} could not be reached: %{error}"
+        de: "Der Mailserver %{host} konnte nicht erreicht werden: %{error}"
     resource_status:
       up_to_date: { en: "up-to-date", de: "aktuell" }
       missing: { en: "missing", de: "fehlt" }
@@ -759,6 +794,15 @@ ctl:
         en: "sakctl at %{path} could not be replaced: %{error}"
         de: "sakctl unter %{path} konnte nicht ersetzt werden: %{error}"
   cli:
+    mail:
+      reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
+      sending: { en: "Sending a test e-mail to %{to} from %{from}…", de: "Sende eine Test-E-Mail an %{to} von %{from}…" }
+      no_smtp:
+        en: "The deployment %{name} has no mail server: give one with --smtp-host."
+        de: "Das Deployment %{name} hat keinen Mailserver: Gib einen mit --smtp-host an."
+      no_host:
+        en: "No mail server: give the name of a deployment or --smtp-host."
+        de: "Kein Mailserver: Gib den Namen eines Deployments oder --smtp-host an."
     hint:
       user_mode: { en: "Give it with --user-mode.", de: "Gib ihn mit --user-mode an." }
       smtp_host: { en: "Give it with --smtp-host.", de: "Gib ihn mit --smtp-host an." }
@@ -772,6 +816,9 @@ ctl:
       smtp_password:
         en: "Give it again with SAK_SMTP_PASSWORD or --smtp-password."
         de: "Gib es erneut mit SAK_SMTP_PASSWORD oder --smtp-password an."
+      smtp_from:
+        en: "Give it correctly with --smtp-from, or leave it out for noreply@<root domain>."
+        de: "Gib sie korrekt mit --smtp-from an, oder lass sie weg für noreply@<Root-Domain>."
     destroyed:
       en: "The deployment %{name} is destroyed, its data volume stays."
       de: "Das Deployment %{name} ist zerstört, sein Datenvolume bleibt."
@@ -853,6 +900,7 @@ ctl:
       smtp_password:
         en: "The window cannot ask for it: deploy it once with sakctl deploy and SAK_SMTP_PASSWORD."
         de: "Das Fenster kann nicht danach fragen: rolle es einmal mit sakctl deploy und SAK_SMTP_PASSWORD aus."
+      smtp_from: { en: "Correct the sender address in the form.", de: "Korrigiere die Absenderadresse im Formular." }
     quit: { en: "Quit", de: "Beenden" }
     update:
       version: { en: "sakctl %{version}", de: "sakctl %{version}" }
@@ -889,7 +937,7 @@ ctl:
       loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
       address: { en: "Address", de: "Adresse" }
     deployment:
-      new_config: { en: "New config", de: "Neue Konfiguration" }
+      edit_config: { en: "Config…", de: "Konfiguration…" }
       changed_since_check:
         en: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
         de: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."
@@ -909,8 +957,8 @@ ctl:
           en: "The configuration this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
           de: "Die Konfiguration, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
         source_none:
-          en: "No configuration is known: the deployment did not answer (%{error}) and this machine kept none. Give one with New config."
-          de: "Keine Konfiguration bekannt: Das Deployment hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit Neue Konfiguration an."
+          en: "No configuration is known: the deployment did not answer (%{error}) and this machine kept none. Give one with \"Config…\"."
+          de: "Keine Konfiguration bekannt: Das Deployment hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit „Konfiguration…“ an."
         not_read: { en: "The configuration could not be read: %{error}", de: "Die Konfiguration konnte nicht gelesen werden: %{error}" }
         admin: { en: "Admin", de: "Admin" }
         no_admin: { en: "none, signs in with the password", de: "keiner, meldet sich mit dem Passwort an" }
@@ -945,7 +993,7 @@ ctl:
     run:
       done: { en: "Done", de: "Fertig" }
     create:
-      title_deploy: { en: "New config", de: "Neue Konfiguration" }
+      title_deploy: { en: "Config", de: "Konfiguration" }
       password_hint_deploy:
         en: "The password the deployment was created with. Change the settings below, the plan shows what a deploy changes."
         de: "Das Passwort, mit dem das Deployment erstellt wurde. Ändere die Einstellungen darunter, der Plan zeigt, was ein Deployment ändert."
@@ -984,9 +1032,17 @@ ctl:
         en: "The admin always signs in with the password; with an address also by e-mail."
         de: "Der Admin meldet sich immer mit dem Passwort an, mit einer Adresse auch per E-Mail."
       smtp: { en: "Mail server (SMTP)", de: "Mailserver (SMTP)" }
+      smtp_test: { en: "Send test e-mail", de: "Test-E-Mail senden" }
+      smtp_test_title: { en: "Send a test e-mail", de: "Test-E-Mail senden" }
+      smtp_test_text:
+        en: "sakctl sends it with the mail server above from %{from}, as the deployment will send its login links."
+        de: "sakctl sendet sie mit dem Mailserver oben von %{from}, so wie das Deployment seine Login-Links senden wird."
+      smtp_test_to: { en: "Send to", de: "Senden an" }
+      smtp_test_send: { en: "Send", de: "Senden" }
+      smtp_sending: { en: "Sending the test e-mail…", de: "Sende die Test-E-Mail…" }
       smtp_hint:
-        en: "The login links are sent with it, from noreply@<root domain>. Without STARTTLS the connection is implicit TLS (usually port 465)."
-        de: "Damit werden die Login-Links verschickt, von noreply@<root domain>. Ohne STARTTLS ist die Verbindung implizites TLS (meist Port 465)."
+        en: "The login links are sent with it. Without STARTTLS the connection is implicit TLS (usually port 465)."
+        de: "Damit werden die Login-Links verschickt. Ohne STARTTLS ist die Verbindung implizites TLS (meist Port 465)."
       user_mode: { en: "Users", de: "Benutzer" }
       user_mode_single: { en: "Single user", de: "Ein Benutzer" }
       user_mode_multi: { en: "Multiple users", de: "Mehrere Benutzer" }
@@ -1004,6 +1060,10 @@ ctl:
         en: "Taken from the running deployment, all but its password: type it again, it never leaves the backend."
         de: "Aus dem laufenden Deployment übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
       smtp_starttls: { en: "Upgrade the connection with STARTTLS", de: "Verbindung mit STARTTLS absichern" }
+      smtp_from: { en: "Sender address", de: "Absenderadresse" }
+      smtp_from_hint:
+        en: "The login links come from it, noreply@<root domain> unless you change it. Many mail servers only send from an address of their account or of a verified domain."
+        de: "Von ihr kommen die Login-Links, noreply@<Root-Domain>, wenn du sie nicht änderst. Viele Mailserver senden nur von einer Adresse ihres Kontos oder einer bestätigten Domain."
       delete_data:
         en: "Also delete the data volume, with everything stored on it"
         de: "Auch das Datenvolume löschen, mit allem, was darauf gespeichert ist"

@@ -163,6 +163,7 @@ fn config_show_takes_the_name_and_password_and_prints_no_secret() {
             password: Some("the-smtp-password".to_string()),
             password_set: true,
             starttls: false,
+            from: "sak@pelle.io".to_string(),
         }),
         ..Detected::default()
     };
@@ -477,4 +478,74 @@ fn the_arguments_of_the_commands() {
         ])
         .is_err()
     );
+}
+
+fn mail_test_args(words: &[&str]) -> MailTestArgs {
+    let mut all = vec!["mail", "test"];
+    all.extend_from_slice(words);
+    match parse(&all).unwrap().command {
+        Some(Command::Mail(MailCommand::Test(args))) => args,
+        other => panic!("mail test: {other:?}"),
+    }
+}
+
+#[test]
+fn mail_test_takes_a_deployment_or_only_a_mail_server_and_the_recipient() {
+    let args = mail_test_args(&["pelle-io", "--to", "me@example.org"]);
+    assert_eq!(
+        (args.name.as_deref(), args.to.as_str()),
+        (Some("pelle-io"), "me@example.org")
+    );
+    let args = mail_test_args(&[
+        "--to",
+        "me@example.org",
+        "--smtp-host",
+        "smtp.example.org",
+        "--smtp-starttls",
+        "false",
+        "--smtp-from",
+        "sak@example.org",
+    ]);
+    assert_eq!(args.name, None);
+    assert_eq!(args.smtp.smtp_starttls, Some(false));
+    // the recipient is needed
+    assert!(parse(&["mail", "test", "pelle-io"]).is_err());
+}
+
+#[test]
+fn mail_test_changes_only_what_its_flags_name_of_the_mail_server_of_the_deployment() {
+    let deployment = crate::core::deployments::DetectedSmtp {
+        host: "smtp.example.org".to_string(),
+        port: 465,
+        username: "sak".to_string(),
+        password: Some("running".to_string()),
+        password_set: true,
+        starttls: false,
+        from: "sak@example.org".to_string(),
+    };
+    // as the deployment has it
+    let smtp = mail_server(&mail_test_args(&["pelle-io", "--to", "me@example.org"]), Some(&deployment), "").unwrap();
+    assert_eq!(
+        (smtp.host.as_str(), smtp.port, smtp.username.as_str(), smtp.password.as_str(), smtp.starttls, smtp.from.as_str()),
+        ("smtp.example.org", 465, "sak", "running", false, "sak@example.org")
+    );
+    // a flag changes what it names, a typed password wins
+    let args = mail_test_args(&["pelle-io", "--to", "me@example.org", "--smtp-from", "other@example.org", "--smtp-port", "587"]);
+    let smtp = mail_server(&args, Some(&deployment), "typed").unwrap();
+    assert_eq!(
+        (smtp.port, smtp.password.as_str(), smtp.from.as_str(), smtp.username.as_str()),
+        (587, "typed", "other@example.org", "sak")
+    );
+    // another host is another mail server: nothing of the deployment's
+    let args = mail_test_args(&["pelle-io", "--to", "me@example.org", "--smtp-host", "mail.example.net"]);
+    let smtp = mail_server(&args, Some(&deployment), "").unwrap();
+    assert_eq!(
+        (smtp.host.as_str(), smtp.port, smtp.username.as_str(), smtp.password.as_str(), smtp.starttls, smtp.from.as_str()),
+        ("mail.example.net", 587, "", "", true, "")
+    );
+    // without a mail server, a usage error
+    let error = mail_server(&mail_test_args(&["--to", "me@example.org"]), None, "").err().unwrap();
+    assert_eq!(error.exit_code, EXIT_USAGE);
+    let error = mail_server(&mail_test_args(&["single", "--to", "me@example.org"]), None, "").err().unwrap();
+    assert!(error.message.contains("single"), "{}", error.message);
 }

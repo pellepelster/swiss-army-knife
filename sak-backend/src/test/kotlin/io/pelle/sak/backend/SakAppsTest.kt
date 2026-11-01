@@ -1320,6 +1320,8 @@ class SakAppsTest {
             val smtp = answer.json().getValue("smtp").jsonObject
             smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
             smtp.string("password") shouldBe "the-smtp-password"
+            // the sender of the login mails, sakctl takes it over as well
+            smtp.string("from") shouldBe "login@example.org"
             // only for admins
             get(port, "/api/v1/deployment").statusCode() shouldBe 401
         }

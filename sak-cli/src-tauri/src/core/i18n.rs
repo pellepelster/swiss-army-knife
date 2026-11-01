@@ -25,6 +25,7 @@ pub enum Hint {
     AdminEmailSingle,
     RootDomain,
     SmtpPassword,
+    SmtpFrom,
 }
 
 /// how the user gives what `hint` names, in the frontend that runs: an argument or a variable on
@@ -38,6 +39,7 @@ pub fn hint(hint: Hint) -> String {
         Hint::AdminEmailSingle => "admin_email_single",
         Hint::RootDomain => "root_domain",
         Hint::SmtpPassword => "smtp_password",
+        Hint::SmtpFrom => "smtp_from",
     };
     match frontend {
         Frontend::CommandLine => t!(format!("cli.hint.{name}")).to_string(),
@@ -130,6 +132,7 @@ mod tests {
             Hint::AdminEmail,
             Hint::RootDomain,
             Hint::SmtpPassword,
+            Hint::SmtpFrom,
         ] {
             let name = format!("{hint:?}");
             let texts = keys("en");

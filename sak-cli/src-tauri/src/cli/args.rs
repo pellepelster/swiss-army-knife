@@ -36,6 +36,9 @@ pub enum Command {
     /// the commands on the deployments of a project: each needs its token and the checks
     #[command(flatten)]
     Project(ProjectCommand),
+    /// Send e-mail with the mail server of a deployment
+    #[command(subcommand)]
+    Mail(MailCommand),
     /// Update sakctl to the newest release from github.com
     ///
     /// Replaces sakctl only when the release is newer, after checking its sha-256.
@@ -278,6 +281,63 @@ pub enum ConfigCommand {
     },
 }
 
+#[derive(Subcommand, Debug, PartialEq, Eq)]
+pub enum MailCommand {
+    /// Send a test e-mail with the mail server of a deployment
+    ///
+    /// With a name, the mail server, the sender and the root domain of the deployment, read from
+    /// it, else from this machine; the --smtp-* flags change what they name. Without a name, the
+    /// mail server of the flags alone, e.g. before a create. It is sent from this machine as the
+    /// deployment sends its login links: from the sender, noreply@<root domain> without one.
+    #[command(after_help = EXIT_CODES)]
+    Test(MailTestArgs),
+}
+
+#[derive(Args, Debug, PartialEq, Eq)]
+pub struct MailTestArgs {
+    /// The name of the deployment whose mail server to test, none for the flags alone
+    pub(super) name: Option<String>,
+    /// The address the test e-mail goes to
+    #[arg(long)]
+    pub(super) to: String,
+    /// The root domain of the sender noreply@<root domain>; default: the deployment's own
+    #[arg(long)]
+    pub(super) root_domain: Option<String>,
+    #[command(flatten)]
+    pub(super) smtp: SmtpFlags,
+    #[command(flatten)]
+    pub(super) provider: Provider,
+    /// Ask for the password of the deployment, even when SAK_PASSWORD is set
+    #[arg(long)]
+    pub(super) password: bool,
+}
+
+/// the mail server of `mail test`, each flag changing only what it names
+#[derive(Args, Debug, PartialEq, Eq)]
+pub struct SmtpFlags {
+    /// The mail server; with it the other values are the flags' own, not the deployment's
+    #[arg(long, env = SMTP_HOST_VARIABLE)]
+    pub(super) smtp_host: Option<String>,
+    /// The port of the mail server, default 587
+    #[arg(long, env = SMTP_PORT_VARIABLE)]
+    pub(super) smtp_port: Option<u16>,
+    /// The user name at the mail server
+    #[arg(long, env = SMTP_USERNAME_VARIABLE)]
+    pub(super) smtp_username: Option<String>,
+    /// Ask for the password at the mail server, even when SAK_SMTP_PASSWORD is set
+    ///
+    /// It is never an argument: it comes from SAK_SMTP_PASSWORD or is typed without echo.
+    /// Without either, a deployment's own password.
+    #[arg(long)]
+    pub(super) smtp_password: bool,
+    /// Use STARTTLS with the mail server: true or false, default true
+    #[arg(long, action = clap::ArgAction::Set, env = SMTP_STARTTLS_VARIABLE, value_parser = parse_flag)]
+    pub(super) smtp_starttls: Option<bool>,
+    /// The sender address, default: the deployment's own, else noreply@<root domain>
+    #[arg(long, env = SMTP_FROM_VARIABLE)]
+    pub(super) smtp_from: Option<String>,
+}
+
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct Provider {
     /// Ask for the Hetzner Cloud API token, even when HCLOUD_TOKEN is set
@@ -336,6 +396,12 @@ pub struct DeploymentArgs {
     /// The user name at the mail server
     #[arg(long, env = SMTP_USERNAME_VARIABLE, default_value = "")]
     pub(super) smtp_username: String,
+    /// The sender address of the login mails
+    ///
+    /// Default: noreply@<root domain>. Many mail servers only send from an address of their
+    /// account or of a verified domain.
+    #[arg(long, env = SMTP_FROM_VARIABLE)]
+    pub(super) smtp_from: Option<String>,
     /// The CA of the certificates: production or staging
     ///
     /// staging is the staging CA of Let's Encrypt for test deployments, sakctl then trusts its
@@ -423,6 +489,7 @@ impl DeploymentArgs {
                 username: self.smtp_username.clone(),
                 password: smtp_password.to_string(),
                 starttls: self.smtp_starttls,
+                from: self.smtp_from.clone().unwrap_or_default(),
             }),
             admin_email: self.admin_email.clone(),
             // the command line always runs the playbook of a deploy

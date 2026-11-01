@@ -266,6 +266,7 @@ pub(super) fn config_lines(detected: &Detected) -> Vec<String> {
                     if smtp.password_set { "set" } else { "-" }
                 ),
                 format!("smtp.starttls {}", smtp.starttls),
+                format!("smtp.from {}", smtp.from),
             ]),
         }
     }

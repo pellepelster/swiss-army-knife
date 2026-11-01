@@ -40,6 +40,7 @@ pub fn run() {
             deployments::list_deployments,
             deployments::deployment_defaults,
             deployments::check_name,
+            deployments::send_test_mail,
             deployments::locations,
             deployments::open_url,
             deployments::root_domains,

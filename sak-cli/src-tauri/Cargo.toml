@@ -51,6 +51,8 @@ zip = { version = "9.1.3", default-features = false, features = ["deflate"] }
 async-trait = "0.1.89"
 # the copies of the password and of the keys are wiped when they go, not left in freed memory
 zeroize = "1.8"
+# sends a test e-mail with the mail server of a deployment from the form of the window (core/smtp.rs)
+lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "tokio1", "tokio1-rustls", "rustls-platform-verifier", "aws-lc-rs"] }
 
 [target.'cfg(unix)'.dependencies]
 # whether a process lives, without a process of its own (`provision::alive`)

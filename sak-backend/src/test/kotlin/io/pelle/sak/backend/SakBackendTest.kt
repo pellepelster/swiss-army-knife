@@ -151,6 +151,7 @@ class SakBackendTest {
                         "SAK_SMTP_PORT" to "465",
                         "SAK_SMTP_USERNAME" to "smtp-user",
                         "SAK_SMTP_PASSWORD" to "smtp-password",
+                        "SAK_SMTP_FROM" to "sak@pelle.io",
                     )
                 } else {
                     emptyMap()
@@ -184,7 +185,7 @@ class SakBackendTest {
                 port = 465,
                 username = "smtp-user",
                 password = "smtp-password",
-                from = "noreply@pelle.io",
+                from = "sak@pelle.io",
                 tls = true,
                 starttls = false,
             )

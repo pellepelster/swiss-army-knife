@@ -162,8 +162,10 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 - The password hash is `keys::password_hash` in `sak-cli` (30 bytes of the master key as hex); the firewall selects its
   servers by the name label alone.
 
-## Texts of sakctl (`ctl` in `i18n/texts.yml`)
+## Texts (`i18n/texts.yml`)
 
+- Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
+  run `mise run i18n:generate` after a change of it.
 - `ctl.cli` texts only the command line shows, `ctl.ui` texts only the window shows, `ctl.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
   `common.*`. A text moves to `ctl.common` once both use it. `sak-cli/src-tauri/locales/` is generated from it.

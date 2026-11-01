@@ -772,6 +772,9 @@ impl DeploymentManager {
                 return Ok(());
             }
         };
+        // the config is kept before anything changes: a deploy that fails or is cancelled midway
+        // leaves the config it was started with, which a new try or the config form finds
+        keep_settings(&prepared, provisioning, on_event);
         let provisioned = self
             .apply_resources(&prepared, planned, container, on_event)
             .await?;
@@ -784,7 +787,6 @@ impl DeploymentManager {
             self.after_provisioning(&prepared, provisioning, on_event)
                 .await?;
         }
-        keep_settings(&prepared, provisioning, on_event);
         Ok(())
     }
 
@@ -1033,8 +1035,8 @@ fn hetzner_api(
 }
 
 /// keeps the settings of the create or deploy on this machine, encrypted for its password
-/// (`local`), so a redeploy finds them when the deployment does not answer. A deploy that worked
-/// does not fail when they cannot be written: it says so
+/// (`local`), when it starts, so the config form finds them when the deployment does not answer. A
+/// deploy does not stop when they cannot be written: it says so
 fn keep_settings(
     prepared: &Prepared,
     provisioning: &Provisioning,
@@ -1045,15 +1047,15 @@ fn keep_settings(
         Users::Multi { smtp, admin_email } => (admin_email.clone(), Some(smtp.clone())),
     };
     let settings = LocalSettings {
-        location: prepared.spec.location,
-        dns_mode: prepared.spec.dns_mode,
-        root_domain: provisioning.root_domain.clone(),
-        user_mode: provisioning.users.mode(),
+        location: Some(prepared.spec.location),
+        dns_mode: Some(prepared.spec.dns_mode),
+        root_domain: Some(provisioning.root_domain.clone()),
+        user_mode: Some(provisioning.users.mode()),
         admin_email,
         smtp,
-        acme_ca: provisioning.acme_ca,
-        version: env!("SAK_VERSION").to_string(),
-        deployed_at: chrono::Utc::now().to_rfc3339(),
+        acme_ca: Some(provisioning.acme_ca),
+        version: Some(env!("SAK_VERSION").to_string()),
+        deployed_at: Some(chrono::Utc::now().to_rfc3339()),
     };
     let message = match crate::core::local::write_settings(
         &prepared.spec.name,

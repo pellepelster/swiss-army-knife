@@ -9,6 +9,7 @@
 mod args;
 mod deploy;
 mod log;
+mod mail;
 mod secrets;
 mod server;
 #[cfg(test)]
@@ -21,7 +22,7 @@ use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, AcmeCa, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentEvent,
     DeploymentManager, DeploymentRequest, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE,
     PASSWORD_VARIABLE, PlanAction, ResourceStatus, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE,
-    SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome,
+    SMTP_PORT_VARIABLE, SMTP_FROM_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome,
     USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
 };
 use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakctlError};
@@ -33,6 +34,7 @@ pub use args::{Cli, Command};
 use clap::{Args, Parser, Subcommand};
 use deploy::*;
 use log::*;
+use mail::*;
 use rust_i18n::t;
 use sak_cloud::hetzner::api::Location;
 use sak_cloud::hetzner::deployment::DnsMode;
@@ -60,6 +62,8 @@ pub fn run(command: Command) -> i32 {
     // an update needs neither a token nor the checks
     let result = match command {
         Command::Update { check } => tauri::async_runtime::block_on(update(check)),
+        // a test e-mail needs neither the checks nor, without a deployment, a token
+        Command::Mail(MailCommand::Test(args)) => tauri::async_runtime::block_on(mail_test(args)),
         Command::Project(command) => {
             // `ssh` passes on the exit code of the command on the server, so a failure of
             // sakctl itself is 255, as ssh has it, and never one of the codes of the table

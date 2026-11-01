@@ -74,6 +74,26 @@ private fun Page.tour(
     locator("#create-name").scrollIntoViewIfNeeded()
     step("create")
 
+    // multiple users need a mail server; a test e-mail goes to the address the dialog asks for,
+    // then back to a single user, the deployment of the tour
+    locator("#create-user-mode-multi").check()
+    // the sender is noreply@<root domain> until it is changed
+    assertThat(locator("#create-smtp-from")).hasValue("noreply@krawallbu.de")
+    assertThat(locator("#create-smtp-test")).isDisabled()
+    type(locator("#create-smtp-host"), "smtp.example.org")
+    type(locator("#create-smtp-username"), "sak@example.org")
+    type(locator("#create-smtp-password"), "mail server password")
+    locator("#create-smtp-test").click()
+    assertThat(locator("#smtp-test")).isVisible()
+    assertThat(locator("#smtp-test-text")).containsText("noreply@krawallbu.de")
+    type(locator("#smtp-test-to"), "admin@example.org")
+    step("create-smtp-test")
+    locator("#smtp-test button[value=send]").click()
+    assertThat(locator("#create-smtp-status")).containsText("took the test e-mail to admin@example.org")
+    locator("#create-smtp-test").scrollIntoViewIfNeeded()
+    step("create-smtp")
+    locator("#create-user-mode-single").check()
+
     // the plan with its changes, then the run: the resources and the provisioning, done at the end
     locator("#create-plan").click()
     assertThat(locator("#view-plan")).isVisible()
@@ -91,17 +111,17 @@ private fun Page.tour(
     locator("#run-done").click()
     assertThat(locator("#view-deployment")).isVisible()
     assertThat(locator("#deployment-config li").first()).containsText(ROOT_DOMAIN)
-    assertThat(locator("#deployment-config")).containsText("Single user")
+    assertThat(locator("#deployment-config")).containsText("sak@krawallbu.de")
     assertThat(locator("#deployment-force")).isEnabled()
     assertThat(locator("#deployment-deploy")).isDisabled()
     assertThat(locator("#deployment-check")).hasClass(java.util.regex.Pattern.compile("btn-primary"))
     step("deployment")
 
-    // new config: the form of a create, filled in with the configuration the page read
-    locator("#deployment-new-config").click()
+    // config…: the form of a create, filled in with the configuration the page read
+    locator("#deployment-edit-config").click()
     assertThat(locator("#view-create")).isVisible()
-    assertThat(locator("#create-title")).hasText("New config")
-    assertThat(locator("#create-user-mode-single")).isChecked()
+    assertThat(locator("#create-title")).hasText("Config")
+    assertThat(locator("#create-smtp-from")).hasValue("sak@krawallbu.de")
     assertThat(locator("#create-dns-mode-domain")).isChecked()
     // cancel leads to the list, with the deployment, and the password opens it again
     locator("#create-cancel").click()

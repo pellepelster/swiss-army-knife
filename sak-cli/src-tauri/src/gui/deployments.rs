@@ -58,6 +58,24 @@ pub fn check_name(name: String) -> Result<(), String> {
         .map_err(|error| error.message)
 }
 
+/// sends a test e-mail to `to` with the mail server of the form, from this machine and from its
+/// sender (noreply@`root_domain` without one) as the deployment `name` will (`core::smtp`); what the user reads when
+/// the mail server took it, else why it did not
+#[tauri::command]
+pub async fn send_test_mail(
+    smtp: crate::core::deployments::Smtp,
+    name: String,
+    root_domain: String,
+    to: String,
+) -> Result<String, String> {
+    let mail = crate::core::smtp::TestMail {
+        name: &name,
+        root_domain: &root_domain,
+        to: &to,
+    };
+    crate::core::smtp::send_test(&smtp, &mail).await
+}
+
 #[tauri::command]
 pub fn locations() -> Vec<LocationResponse> {
     crate::core::deployments::locations()
@@ -73,7 +91,7 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// the plan of a create, a new config or a destroy, as the form asks for it; a new config takes what
+/// the plan of a create, a config or a destroy, as the form asks for it; a config takes what
 /// it is not given from the deployment (`completed`), as the command line does
 #[tauri::command]
 pub async fn plan_deployment(
@@ -84,13 +102,13 @@ pub async fn plan_deployment(
     deployment: DeploymentRequest,
 ) -> Result<PlanResponse, SakctlError> {
     let tokens = tokens.tokens();
-    let deployment = completed_new_config(&manager, tokens.clone(), &loaded, deployment).await?;
+    let deployment = completed_config(&manager, tokens.clone(), &loaded, deployment).await?;
     manager.plan(tokens, &deployment, &container).await
 }
 
-/// a new config of the form completed from the settings of the deployment; a create or destroy
+/// a config of the form completed from the settings of the deployment; a create or destroy
 /// as it is
-async fn completed_new_config(
+async fn completed_config(
     manager: &DeploymentManager,
     tokens: Vec<(ProviderType, String)>,
     loaded: &LoadedSettings,
@@ -107,7 +125,7 @@ async fn completed_new_config(
 
 /// the settings of the deployment and where they come from: the running deployment, else this
 /// machine (`DeploymentManager::detected`). Read once when its page opens; the page shows them,
-/// the check deploys with them and the form of a new config is filled with them
+/// the check deploys with them and the config form is filled with them
 #[tauri::command]
 pub async fn deployment_settings(
     manager: State<'_, DeploymentManager>,
@@ -241,7 +259,7 @@ pub async fn apply_deployment(
     deployment: DeploymentRequest,
     on_event: Channel<DeploymentEvent>,
 ) -> Result<(), SakctlError> {
-    let deployment = completed_new_config(&manager, tokens.tokens(), &loaded, deployment).await?;
+    let deployment = completed_config(&manager, tokens.tokens(), &loaded, deployment).await?;
     apply(
         &manager,
         tokens.tokens(),

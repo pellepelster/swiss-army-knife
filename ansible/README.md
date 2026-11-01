@@ -21,12 +21,12 @@ deployed it, and `SAK_DOCKER_IMAGE_TAG` of sakctl sets another tag, e.g. `<versi
 It needs `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_public_key`
 (the public half of the key sakctl signs its requests with, never the key), and, for the e-mail login (multi user),
 `sak_smtp_enabled`, `sak_smtp_tls` and `sak_smtp_starttls`, optionally `sak_admin_email` (the admin, who always signs
-in with the password, then also signs in by e-mail); the login mails come from
-`noreply@<root domain>`. It writes them into the
+in with the password, then also signs in by e-mail). It writes them into the
 backend configuration it renders from `templates/backend-config.yaml.j2`; the frontend is then
 at `sak.<base domain>`, the api at `api.<base domain>`. It also needs `backend_env_src`, the
 environment file of the backend: `SAK_ADMIN_PASSWORD_HASH`, `SAK_IPV4`, `SAK_IPV6` and, with a mail
-server, `SAK_SMTP_HOST`, `SAK_SMTP_PORT`, `SAK_SMTP_USERNAME` and `SAK_SMTP_PASSWORD`. sakctl writes
+server, `SAK_SMTP_HOST`, `SAK_SMTP_PORT`, `SAK_SMTP_USERNAME`, `SAK_SMTP_PASSWORD` and `SAK_SMTP_FROM`, the
+sender of the login mails (sakctl writes `noreply@<root domain>` unless another is given). sakctl writes
 the inventory and this file for each run and runs the `server` playbook, which includes the role.
 
 ```yaml

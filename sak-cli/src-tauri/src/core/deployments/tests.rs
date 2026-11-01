@@ -252,7 +252,7 @@ fn running(
             username: Some("user".into()),
             password_set,
             password: smtp_password.map(String::from),
-            from: "noreply@pelle.io".into(),
+            from: "sak@pelle.io".into(),
             tls: true,
             starttls: false,
         }),
@@ -336,6 +336,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
             username: "sak".into(),
             password: "secret".into(),
             starttls: true,
+            from: String::new(),
         }),
         ..deploy()
     };
@@ -385,6 +386,7 @@ fn a_backend_that_does_not_answer_is_the_error_when_its_settings_are_needed() {
             username: "sak".into(),
             password: "secret".into(),
             starttls: true,
+            from: String::new(),
         }),
         ..deploy()
     };
@@ -434,23 +436,7 @@ fn the_settings_come_from_the_running_deployment_else_from_this_machine_else_fro
     assert_eq!(single.acme_ca, Some(AcmeCa::Production));
 
     // what this machine kept, with when
-    let local = Detected::from_local(LocalSettings {
-        location: Location::nbg1,
-        dns_mode: DnsMode::Subdomain,
-        root_domain: "pelle.io".into(),
-        user_mode: UserMode::Multi,
-        admin_email: None,
-        smtp: Some(Smtp {
-            host: "smtp.example.org".into(),
-            port: 587,
-            username: "sak".into(),
-            password: "kept".into(),
-            starttls: true,
-        }),
-        acme_ca: AcmeCa::Production,
-        version: "1.0.0".into(),
-        deployed_at: "2026-11-01T12:00:00+00:00".into(),
-    });
+    let local = Detected::from_local(kept());
     assert_eq!(local.source, Some(SettingsSource::Local));
     assert_eq!(
         local.deployed_at.as_deref(),
@@ -463,6 +449,7 @@ fn the_settings_come_from_the_running_deployment_else_from_this_machine_else_fro
             .and_then(|smtp| smtp.password.as_deref()),
         Some("kept")
     );
+    assert_eq!(local.smtp.as_ref().map(|smtp| smtp.from.as_str()), Some("sak@example.org"));
     assert_eq!(local.admin_email, None);
 
     // the records tell the root domain and the dns mode only
@@ -495,6 +482,8 @@ fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
     );
     assert_eq!(completed.admin_email.as_deref(), Some("admin@example.org"));
     let smtp = completed.smtp.unwrap();
+    // the sender of the running deployment stays
+    assert_eq!(smtp.sender("pelle.io"), "sak@pelle.io");
     assert_eq!(
         (
             smtp.host.as_str(),
@@ -794,6 +783,7 @@ fn smtp(host: &str, port: u16) -> Smtp {
         username: "user".to_string(),
         password: "secret".to_string(),
         starttls: true,
+        from: String::new(),
     }
 }
 
@@ -931,6 +921,19 @@ fn a_value_with_a_line_break_is_refused() {
 #[test]
 fn a_mail_server_needs_a_host_and_a_port() {
     assert!(check_smtp(&smtp("smtp.example.org", 587)).is_ok());
+    // a sender address is one, or empty for noreply@<root domain>
+    let from = |from: &str| Smtp { from: from.to_string(), ..smtp("smtp.example.org", 587) };
+    assert!(check_smtp(&from("sak@example.org")).is_ok());
+    assert!(check_smtp(&from("")).is_ok());
+    assert_eq!(
+        check_smtp(&from("sak at example.org")),
+        Err(t!(
+            "common.deployments.invalid_smtp_from",
+            from = "sak at example.org",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpFrom)
+        )
+        .to_string())
+    );
     assert!(check_smtp(&smtp(" smtp.example.org ", 465)).is_ok());
     assert_eq!(
         check_smtp(&smtp("", 587)),
@@ -970,6 +973,7 @@ fn the_page_gets_the_mail_server_of_the_environment() {
         smtp_username: Some("user".to_string()),
         smtp_password: Some("secret".to_string()),
         smtp_starttls: Some(false),
+        smtp_from: Some("sak@example.org".to_string()),
         admin_email: Some("admin@example.org".to_string()),
         user_mode: Some(UserMode::Multi),
     };
@@ -978,12 +982,17 @@ fn the_page_gets_the_mail_server_of_the_environment() {
     assert_eq!(json["smtpHost"], "smtp.example.org");
     assert_eq!(json["smtpPort"], "465");
     assert_eq!(json["smtpStarttls"], false);
-    // and reads it back from the page, the user name and password may be left out
+    assert_eq!(json["smtpFrom"], "sak@example.org");
+    // and reads it back from the page, the user name and password may be left out; an empty
+    // sender is noreply@<root domain>
     let page: Smtp = serde_json::from_value(serde_json::json!({
-        "host": "smtp.example.org", "port": 587, "starttls": true
+        "host": "smtp.example.org", "port": 587, "starttls": true, "from": ""
     }))
     .unwrap();
     assert_eq!((page.port, page.username.as_str()), (587, ""));
+    assert_eq!(page.sender("example.org"), "noreply@example.org");
+    let given = Smtp { from: " sak@example.org ".to_string(), ..page };
+    assert_eq!(given.sender("example.org"), "sak@example.org");
 }
 
 #[test]
@@ -1334,4 +1343,75 @@ fn what_a_plan_shows_leaves_out_the_provisioning_a_forced_deploy_changes() {
         DiffStatus::HasChanges,
     );
     assert_ne!(checked.seen(), changed.seen());
+}
+
+/// settings as this version keeps them, of a multi user deployment with a mail server
+fn kept() -> LocalSettings {
+    LocalSettings {
+        location: Some(Location::nbg1),
+        dns_mode: Some(DnsMode::Subdomain),
+        root_domain: Some("pelle.io".into()),
+        user_mode: Some(UserMode::Multi),
+        admin_email: None,
+        smtp: Some(Smtp {
+            host: "smtp.example.org".into(),
+            port: 587,
+            username: "sak".into(),
+            password: "kept".into(),
+            starttls: true,
+            from: "sak@example.org".into(),
+        }),
+        acme_ca: Some(AcmeCa::Production),
+        version: Some("1.0.0".into()),
+        deployed_at: Some("2026-11-01T12:00:00+00:00".into()),
+    }
+}
+
+/// the settings of another version, older or newer: what is missing or not known is none, a
+/// field this version does not know is ignored, the rest still counts
+#[test]
+fn the_settings_of_another_version_of_sakctl_are_read_as_far_as_they_go() {
+    let written = serde_json::to_value(kept().clone()).unwrap();
+    let read = |json: serde_json::Value| -> Detected {
+        Detected::from_local(serde_json::from_value::<LocalSettings>(json).unwrap())
+    };
+
+    // as written, it reads back
+    let same = read(written.clone());
+    assert_eq!(same.user_mode, Some(UserMode::Multi));
+    assert_eq!(same.smtp.as_ref().map(|smtp| smtp.from.as_str()), Some("sak@example.org"));
+
+    // an older sakctl: no sender, no acme ca, no version
+    let mut older = written.clone();
+    older["smtp"].as_object_mut().unwrap().remove("from");
+    for field in ["acmeCa", "version"] {
+        older.as_object_mut().unwrap().remove(field);
+    }
+    let older = read(older);
+    assert_eq!(older.smtp.as_ref().map(|smtp| (smtp.host.as_str(), smtp.from.as_str())), Some(("smtp.example.org", "")));
+    assert_eq!(older.acme_ca, None);
+    assert_eq!(older.root_domain.as_deref(), Some("pelle.io"));
+
+    // a newer sakctl: fields and values this version does not know
+    let mut newer = written.clone();
+    newer["somethingNew"] = serde_json::json!({ "nested": [1, 2, 3] });
+    newer["smtp"]["oauth"] = serde_json::json!(true);
+    newer["dnsMode"] = serde_json::json!("galaxy");
+    newer["userMode"] = serde_json::json!(42);
+    let newer = read(newer);
+    assert_eq!(newer.dns_mode, None);
+    assert_eq!(newer.user_mode, None);
+    assert_eq!(newer.root_domain.as_deref(), Some("pelle.io"));
+    assert_eq!(newer.acme_ca, Some(AcmeCa::Production));
+
+    // a mail server it cannot read is none, the rest stays
+    let mut damaged = written;
+    damaged["smtp"] = serde_json::json!({ "port": "not a port" });
+    let damaged = serde_json::from_value::<LocalSettings>(damaged).unwrap();
+    assert!(damaged.smtp.is_none());
+    assert_eq!(damaged.deployed_at.as_deref(), Some("2026-11-01T12:00:00+00:00"));
+
+    // even an empty object is settings, of nothing
+    let empty = read(serde_json::json!({}));
+    assert_eq!((empty.root_domain, empty.user_mode, empty.smtp.is_none()), (None, None, true));
 }

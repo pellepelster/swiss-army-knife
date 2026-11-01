@@ -100,9 +100,14 @@ class Texts private constructor(
 
         fun parse(yaml: String): Texts {
             val problems = mutableListOf<String>()
+            // a key twice in one map would silently replace the first one
+            val options = LoaderOptions().apply { isAllowDuplicateKeys = false }
             val loaded =
-                Yaml(SafeConstructor(LoaderOptions())).load<Any?>(yaml)
-                    ?: return Texts(Group.EMPTY)
+                try {
+                    Yaml(SafeConstructor(options)).load<Any?>(yaml)
+                } catch (e: org.yaml.snakeyaml.error.YAMLException) {
+                    throw TextsException(listOf(e.message ?: e.toString()))
+                } ?: return Texts(Group.EMPTY)
             val root = node(loaded, "", problems) as? Group ?: throw TextsException(listOf("texts.yml is no map of sections"))
             sections(root, problems)
             if (problems.isNotEmpty()) throw TextsException(problems)

@@ -186,7 +186,7 @@ mod tests {
 }
 
 /// the settings of the deployment whose page is open, read once when the page opened
-/// (`deployment_settings`): its check, the form of a new config and their deploys take them from
+/// (`deployment_settings`): its check, the config form and their deploys take them from
 /// here instead of asking the deployment again
 #[derive(Default)]
 pub struct LoadedSettings(Mutex<Option<(String, Detected)>>);

@@ -136,7 +136,7 @@
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="reboot" data-text="ui.maintenance.reboot"></button></li>
             </ul>
           </div>
-          <button type="button" class="btn btn-outline-secondary" id="deployment-new-config" data-text="ui.deployment.new_config"></button>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-edit-config" data-text="ui.deployment.edit_config"></button>
           <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </header>
@@ -198,7 +198,7 @@
         </div>
       </header>
       <form class="page-form" id="create-form">
-        <!-- a new config: where the settings of the form come from -->
+        <!-- the config of a deployment: where the settings of the form come from -->
         <p class="hint" id="create-source" aria-live="polite" hidden></p>
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>
@@ -279,9 +279,20 @@
               <div class="form-text" id="create-smtp-password-hint" data-text="ui.create.smtp_password_again" hidden></div>
             </div>
           </div>
+          <!-- the sender of the login mails, noreply@<root domain> until the user changes it -->
+          <div class="smtp-from">
+            <label class="form-label" for="create-smtp-from" data-text="ui.create.smtp_from"></label>
+            <input class="form-control" id="create-smtp-from" type="email" autocomplete="off" spellcheck="false" maxlength="254">
+            <div class="form-text" data-text="ui.create.smtp_from_hint"></div>
+          </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="create-smtp-starttls" checked>
             <label class="form-check-label" for="create-smtp-starttls" data-text="ui.create.smtp_starttls"></label>
+          </div>
+          <!-- a test e-mail with the mail server above, from this machine; its answer beside it -->
+          <div class="smtp-test">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="create-smtp-test" data-text="ui.create.smtp_test"></button>
+            <span class="hint" id="create-smtp-status" aria-live="polite"></span>
           </div>
         </fieldset>
         <div class="form-check" id="create-delete-data-group" hidden>
@@ -375,6 +386,21 @@
         <div class="btn-group" role="group">
           <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
           <button type="submit" class="btn btn-primary" value="reboot" data-text="ui.maintenance.reboot"></button>
+        </div>
+      </form>
+    </dialog>
+    <!-- the recipient of the test e-mail of the mail server of the form of a deployment -->
+    <dialog class="confirm" id="smtp-test">
+      <form method="dialog">
+        <h2 class="confirm-title" data-text="ui.create.smtp_test_title"></h2>
+        <p id="smtp-test-text"></p>
+        <div class="smtp-test-to">
+          <label class="form-label" for="smtp-test-to" data-text="ui.create.smtp_test_to"></label>
+          <input class="form-control" id="smtp-test-to" type="email" autocomplete="email" spellcheck="false" maxlength="254" required>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" formnovalidate data-text="ui.cancel"></button>
+          <button type="submit" class="btn btn-primary" value="send" data-text="ui.create.smtp_test_send"></button>
         </div>
       </form>
     </dialog>

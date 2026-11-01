@@ -462,6 +462,26 @@ body {
   margin: var(--sak-space-2) 0;
 }
 
+/* the test e-mail of the mail server and its answer beside it, which may take several lines */
+.smtp-test {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sak-space-3);
+  margin-top: var(--sak-space-2);
+}
+
+.smtp-from {
+  margin-bottom: var(--sak-space-2);
+}
+
+.smtp-test .btn {
+  flex: none;
+}
+
+.smtp-test-to {
+  margin-bottom: var(--sak-space-3);
+}
+
 /* the menu of the maintenance below its button, at its right edge; the page has no popper */
 .maintenance-menu {
   top: 100%;

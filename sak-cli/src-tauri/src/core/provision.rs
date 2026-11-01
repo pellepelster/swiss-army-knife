@@ -136,6 +136,7 @@ impl ProvisionRun {
             lines.push(format!("SAK_SMTP_PORT={}", smtp.port));
             lines.push(format!("SAK_SMTP_USERNAME={}", smtp.username));
             lines.push(format!("SAK_SMTP_PASSWORD={}", smtp.password));
+            lines.push(format!("SAK_SMTP_FROM={}", smtp.sender(&self.root_domain)));
         }
         lines.join("\n") + "\n"
     }
@@ -726,6 +727,7 @@ pub(crate) mod tests {
                 username: "user".to_string(),
                 password: "p@$$ w0rd#!".to_string(),
                 starttls: false,
+                from: String::new(),
             }),
             admin_password_hash: "$argon2id$v=19$m=19456,t=2,p=1$salt$hash".to_string(),
             acme_ca: Some("https://acme-staging-v02.api.letsencrypt.org/directory".to_string()),
@@ -795,7 +797,7 @@ pub(crate) mod tests {
             "SAK_ADMIN_PASSWORD_HASH=$argon2id$v=19$m=19456,t=2,p=1$salt$hash\n\
              SAK_IPV4=203.0.113.1\nSAK_IPV6=2001:db8::1\n\
              SAK_SMTP_HOST=smtp.example.org\nSAK_SMTP_PORT=465\nSAK_SMTP_USERNAME=user\n\
-             SAK_SMTP_PASSWORD=p@$$ w0rd#!\n"
+             SAK_SMTP_PASSWORD=p@$$ w0rd#!\nSAK_SMTP_FROM=noreply@pelle.io\n"
         );
         // no key of a secret: the database is plain until it is encrypted as a whole
         assert!(!env.contains("SECRET_KEY"));

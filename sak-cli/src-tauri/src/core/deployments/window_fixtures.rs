@@ -429,6 +429,7 @@ fn window_fixtures() {
             "list_deployments": [[], [created(&spec)]],
             "deployment_defaults": [DeploymentDefaults::default()],
             "check_name": [null],
+            "send_test_mail": [t!("common.smtp.sent", host = "smtp.example.org", to = "admin@example.org")],
             "locations": [crate::gui::deployments::locations()],
             "root_domains": [[root_domain_response(&root_domain, NAME)]],
             "plan_deployment": [plan(&spec, Intent::Create)],

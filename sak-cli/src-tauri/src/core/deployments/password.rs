@@ -38,7 +38,8 @@ pub(super) fn endpoint(
         url,
         key,
         trust: local_settings(&deployment.name, password)
-            .map(|settings| acme_trust(settings.acme_ca))
+            .and_then(|settings| settings.acme_ca)
+            .map(acme_trust)
             .unwrap_or(crate::core::config::Trust::LetsEncryptStaging),
         address: deployment
             .server

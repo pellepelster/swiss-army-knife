@@ -160,6 +160,17 @@ class GeneratorTest {
     }
 
     @Test
+    fun `a key is in a map once`() {
+        problems(
+            """
+            web:
+              save: { en: "Save", de: "Speichern" }
+              save: { en: "Store", de: "Ablegen" }
+            """,
+        ).single() shouldContain "duplicate key save"
+    }
+
+    @Test
     fun `two keys are not the same name on android`() {
         problems(
             """

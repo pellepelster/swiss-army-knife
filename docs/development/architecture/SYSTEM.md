@@ -189,6 +189,15 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `CLOUD-8` **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the
   data volume unless the user asks to delete it.
 
+## Texts
+
+- `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android app and sakctl,
+  is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is written into
+  code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what each part
+  reads from it; the generated files are committed, never edited, and a test fails when they are not up to date. A
+  text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
+  `backend`, `web` or `android`, one of sakctl in `ctl`; a text two parts show alike moves to their `common`.
+
 ## Privacy
 
 - `PRIVACY-1` **Nothing from outside.** No page loads anything from outside the root domain: no CDN, font service,

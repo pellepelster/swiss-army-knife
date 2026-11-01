@@ -37,8 +37,30 @@ const destroyHidden = ['create-password-group', 'create-location-group', 'create
 const multiUserGroups = ['create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
 const userModeHint = document.getElementById('create-user-mode-hint');
 const smtpInputs = Object.fromEntries(
-  ['host', 'port', 'username', 'password', 'starttls'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
+  ['host', 'port', 'username', 'password', 'starttls', 'from'].map((field) => [field, document.getElementById(`create-smtp-${field}`)]),
 );
+// whether the user gave the sender: until then it is noreply@<root domain> and follows the root
+// domain; emptied, it is that again
+let senderGiven = false;
+
+function defaultSender() {
+  return rootDomainInput.value ? `noreply@${rootDomainInput.value}` : '';
+}
+
+// the sender of the mails, noreply@<root domain> unless the user gave one
+function sender() {
+  return smtpInputs.from.value.trim() || defaultSender();
+}
+
+function showDefaultSender() {
+  if (!senderGiven) {
+    smtpInputs.from.value = defaultSender();
+  }
+}
+
+smtpInputs.from.addEventListener('input', () => {
+  senderGiven = smtpInputs.from.value.trim() !== '';
+});
 
 // the data volume cannot be restored after a delete, so the form shows that in red
 function showDeleteData() {
@@ -64,7 +86,7 @@ const repeatGroup = document.getElementById('create-repeat-group');
 // the deployment to destroy, null for a new one, and the intent: create or destroy
 let existing = null;
 let intent = 'create';
-// a new config: the configuration of the deployment its page read, null when it read none
+// a config: the configuration of the deployment its page read, null when it read none
 let loadedSettings = null;
 
 // the text of `key` for the intent: `<key>` for a create, `<key>_destroy` else
@@ -139,8 +161,76 @@ function smtp() {
     username: smtpInputs.username.value,
     password: smtpInputs.password.value,
     starttls: smtpInputs.starttls.checked,
+    from: smtpInputs.from.value.trim(),
   };
 }
+
+// the test e-mail of the mail server: a dialog asks for its recipient, the admin's address at
+// first, then rust sends it from this machine as the deployment will, from noreply@<root
+// domain>. The answer, or why it was not sent, stays until a field of the mail server changes
+const smtpTest = document.getElementById('create-smtp-test');
+const smtpStatus = document.getElementById('create-smtp-status');
+const smtpTestDialog = document.getElementById('smtp-test');
+const smtpTestTo = document.getElementById('smtp-test-to');
+
+// a test e-mail needs a host, a port and a sender
+function showSmtpTest() {
+  smtpTest.disabled = !smtpInputs.host.value.trim() || !smtpInputs.port.value || !sender();
+}
+
+for (const input of Object.values(smtpInputs)) {
+  input.addEventListener('input', () => {
+    setStatus(smtpStatus, '');
+    showSmtpTest();
+  });
+  input.addEventListener('change', () => setStatus(smtpStatus, ''));
+}
+
+// the recipient the user chose, null on cancel or escape
+function askRecipient() {
+  document.getElementById('smtp-test-text').textContent = text('ui.create.smtp_test_text', { from: sender() });
+  smtpTestTo.value = smtpTestTo.value || adminEmailInput.value.trim();
+  smtpTestDialog.returnValue = '';
+  smtpTestDialog.showModal();
+  smtpTestTo.focus();
+  return new Promise((resolve) => {
+    smtpTestDialog.addEventListener(
+      'close',
+      () => resolve(smtpTestDialog.returnValue === 'send' ? smtpTestTo.value.trim() : null),
+      { once: true },
+    );
+  });
+}
+
+smtpTest.addEventListener('click', async () => {
+  const to = await askRecipient();
+  if (!to) {
+    smtpTest.focus();
+    return;
+  }
+  smtpTest.disabled = true;
+  setStatus(smtpStatus, text('ui.create.smtp_sending'));
+  try {
+    const answer = await invoke('send_test_mail', {
+      smtp: {
+        host: smtpInputs.host.value.trim(),
+        port: Number(smtpInputs.port.value) || 0,
+        username: smtpInputs.username.value,
+        password: smtpInputs.password.value,
+        starttls: smtpInputs.starttls.checked,
+        from: smtpInputs.from.value.trim(),
+      },
+      name: nameInput.value.trim(),
+      rootDomain: rootDomainInput.value,
+      to,
+    });
+    setStatus(smtpStatus, answer);
+  } catch (error) {
+    setFailure(smtpStatus, String(error));
+  } finally {
+    showSmtpTest();
+  }
+});
 
 // the empty fields of the users take the values of the environment: SAK_USER_MODE,
 // SAK_ADMIN_EMAIL, SAK_SMTP_HOST, SAK_SMTP_PORT, SAK_SMTP_USERNAME, SAK_SMTP_PASSWORD and
@@ -160,9 +250,13 @@ function prefillUsers(defaults) {
   smtpInputs.username.value = defaults.smtpUsername ?? '';
   smtpInputs.password.value = defaults.smtpPassword ?? '';
   smtpInputs.starttls.checked = defaults.smtpStarttls ?? true;
+  if (defaults.smtpFrom) {
+    smtpInputs.from.value = defaults.smtpFrom;
+    senderGiven = true;
+  }
 }
 
-// a new config: the configuration the page of the deployment read when it opened fills the form,
+// a config: the configuration the page of the deployment read when it opened fills the form,
 // and a line says where it comes from and why the deployment did not answer. Without one the
 // settings of the users stay empty
 async function prefillNewConfig() {
@@ -183,6 +277,9 @@ async function prefillNewConfig() {
     smtpInputs.username.value = settings.smtp.username;
     smtpInputs.password.value = settings.smtp.password ?? '';
     smtpInputs.starttls.checked = settings.smtp.starttls;
+    // the sender the deployment has; its default follows the root domain as for a new one
+    senderGiven = Boolean(settings.smtp.from) && settings.smtp.from !== defaultSender();
+    smtpInputs.from.value = settings.smtp.from || defaultSender();
   }
   const values = { when: settings.deployedAt ?? '', error: settings.unread ?? '' };
   sourceHint.textContent = text(`ui.create.source_${settings.source ?? 'none'}`, values);
@@ -274,6 +371,8 @@ function applyRootDomain() {
   }
   planButton.disabled = (!destroying && modes.length === 0) || Boolean(nameRefusal) || multiUserIncomplete();
   showDnsModeHint();
+  showDefaultSender();
+  showSmtpTest();
 }
 
 rootDomainInput.addEventListener('change', applyRootDomain);
@@ -293,6 +392,7 @@ function setBusy(busy) {
     dnsModeGroup.disabled = intent === 'destroy';
     rootDomainInput.disabled = intent === 'destroy';
     applyRootDomain();
+    showSmtpTest();
   }
 }
 
@@ -327,8 +427,8 @@ async function loadLocations(chosen) {
 }
 
 // the empty fields take the values of the environment: SAK_NAME, SAK_PASSWORD, SAK_LOCATION and
-// those of the users. A destroy and a new config take their name, location, dns mode and root
-// domain from the deployment, and the password it was opened with; a new config all the other
+// those of the users. A destroy and a config take their name, location, dns mode and root
+// domain from the deployment, and the password it was opened with; a config all the other
 // settings too, from the configuration its page read
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
@@ -374,7 +474,7 @@ export async function showCreate(options = {}) {
   repeatInput.required = !existing;
   nameInput.readOnly = Boolean(existing);
   locationInput.disabled = Boolean(existing);
-  // a destroy ignores the dns mode and the root domain; a new config may change them
+  // a destroy ignores the dns mode and the root domain; a config may change them
   dnsModeGroup.disabled = intent === 'destroy';
   rootDomainInput.disabled = intent === 'destroy';
   // the submit button of a destroy is red and has the name of the destroy
@@ -393,6 +493,7 @@ export async function showCreate(options = {}) {
   }
   // a destroy needs no users: their hidden fields must not stop the form
   showUserMode();
+  showSmtpTest();
   show('view-create');
   // the first empty field; a destroy with both filled focuses cancel, the safe default, so enter
   // never leads straight to its confirmation
@@ -470,6 +571,9 @@ function resetForm() {
   intent = 'create';
   loadedSettings = null;
   setStatus(status, '');
+  setStatus(smtpStatus, '');
+  smtpTestTo.value = '';
+  senderGiven = false;
 }
 
 document.getElementById('create-cancel').addEventListener('click', backToDeployments);
