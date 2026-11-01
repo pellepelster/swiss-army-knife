@@ -5,6 +5,8 @@ interface AppEntry {
   readonly description: string;
   // the app icon, the one the app is installed with
   readonly icon: string;
+  // only for the role admin; a user (the role user) has the apps of the lists
+  readonly adminOnly?: boolean;
 }
 
 // the page of the app of the name, e.g. /grocery for grocery; null for a name of no app
@@ -30,11 +32,13 @@ export const APPS: readonly AppEntry[] = [
     name: 'Static hosting',
     description: 'Websites from S3 buckets',
     icon: 'icons/hosting.svg',
+    adminOnly: true,
   },
   {
     path: '/redirects',
     name: 'Redirects',
     description: 'Domains that lead elsewhere',
     icon: 'icons/redirects.svg',
+    adminOnly: true,
   },
 ];

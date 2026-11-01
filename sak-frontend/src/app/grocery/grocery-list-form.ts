@@ -94,7 +94,7 @@ import { ListIcon } from './list-icon';
             (change)="shared.set(sharedInput.checked)"
           />
           <label class="form-check-label" for="list-shared">Shared</label>
-          <div class="form-text">Every user sees a shared list and adds and removes its items.</div>
+          <div class="form-text">Every user sees a shared list and adds and deletes its items.</div>
         </div>
 
         <!-- one group of the actions; a delete asks inline in its place, Keep is the safe default -->
@@ -102,7 +102,7 @@ import { ListIcon } from './list-icon';
           @if (confirming()) {
             <span class="small">Delete the list and its items?</span>
             <div class="btn-group" role="group" aria-label="Delete the list">
-              <button type="button" class="btn btn-danger" (click)="remove()">Delete</button>
+              <button type="button" class="btn btn-danger" (click)="delete()">Delete</button>
               <button
                 type="button"
                 class="btn btn-outline-secondary"
@@ -227,7 +227,7 @@ export class GroceryListForm implements OnInit {
     this.picking.set(false);
   }
 
-  protected remove(): void {
+  protected delete(): void {
     const id = this.list()?.id;
     if (id === undefined) return;
     this.confirming.set(false);

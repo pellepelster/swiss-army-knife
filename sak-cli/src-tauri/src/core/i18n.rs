@@ -22,6 +22,7 @@ pub enum Hint {
     UserMode,
     SmtpHost,
     AdminEmail,
+    AdminEmailSingle,
     RootDomain,
     SmtpPassword,
 }
@@ -34,6 +35,7 @@ pub fn hint(hint: Hint) -> String {
         Hint::UserMode => "user_mode",
         Hint::SmtpHost => "smtp_host",
         Hint::AdminEmail => "admin_email",
+        Hint::AdminEmailSingle => "admin_email_single",
         Hint::RootDomain => "root_domain",
         Hint::SmtpPassword => "smtp_password",
     };

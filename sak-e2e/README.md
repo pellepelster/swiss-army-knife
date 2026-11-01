@@ -76,7 +76,7 @@ The tests run in this order:
 3. `BackupTest`: on both, a note, `sakctl backup`, the note deleted and another one created, `sakctl restore`: the
    note of the backup is back, the later one is gone.
 4. `SakctlTest`: the rules of the command line, without a server of their own. A second domain deployment and the
-   mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither removed nor taken over;
+   mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither deleted nor taken over;
    `config show` shows no secret; a deploy keeps the settings.
 
 Each step and each wait is a line on the output while the tests run, with the time and the deployment it is about.

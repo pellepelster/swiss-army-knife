@@ -20,13 +20,19 @@ user interface. Use the same term for the same thing every time.
   `*.<root domain>`. The mode `subdomain` manages `<name>.<root domain>` and `*.<name>.<root domain>`. The
   default is `subdomain` (refer to [FDR-001](fdr/FDR-001-dns-mode.md)).
 - **user mode** (`user_mode`): Who signs in to a deployment. The mode `single` has one user, the admin, who
-  signs in with the password of the deployment. The mode `multi` has users who sign in with a link by e-mail;
-  the admin also signs in with the password. It needs a mail server and the address of the admin.
+  signs in with the password of the deployment. The mode `multi` needs a mail server; its users, whom the admin
+  adds, sign in with a link by e-mail. The admin always signs in with the password, with an address (optional)
+  also by e-mail.
 - **base domain**: The domain the hosts of a deployment are below: the root domain in dns mode
   `domain`, `<name>.<root domain>` in dns mode `subdomain`. The frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>`.
 - **root domain** (`root_domain`): The domain under which a deployment serves its apps. The
   production deployment uses `pelle.io`. A local deployment uses `localhost`.
+- **delete**: The verb for taking away something a user made or added: a note, a list, an item, a label, a
+  bucket, a domain, a redirect, a user. Use it, and the noun **deletion**, every time; never "remove" or "removal".
+  Two exceptions: a label, a photo or a recording is **removed from** a note, it stays (the label with its other
+  notes, the file in the storage); a deployment is not deleted but **destroyed** (`sakctl destroy`), with its cloud
+  resources.
 - **setting scope**: Settings that belong together, for example **System**. A setting has one value in its scope.
   The settings page shows each scope as a tab and saves it on its own.
 - **backup**: One file with all data of a deployment (the database, the files, the buckets, the state of the

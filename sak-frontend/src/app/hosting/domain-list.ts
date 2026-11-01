@@ -24,9 +24,9 @@ import { DOMAIN_PATTERN } from '../shared/domains';
           <button
             type="button"
             class="btn btn-outline-secondary"
-            [attr.aria-label]="'Remove domain ' + (index + 1)"
-            title="Remove domain"
-            (click)="remove(index)"
+            [attr.aria-label]="'Delete domain ' + (index + 1)"
+            title="Delete domain"
+            (click)="delete(index)"
           >
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
@@ -63,7 +63,7 @@ export class DomainList {
     this.domains.update((domains) => [...domains, '']);
   }
 
-  protected remove(index: number): void {
+  protected delete(index: number): void {
     this.domains.update((domains) => domains.filter((_, i) => i !== index));
   }
 }

@@ -56,6 +56,7 @@ describe('Home', () => {
       ['Health', '/health'],
       ['Settings', '/settings'],
       ['API', '/swagger/'],
+      ['Users', '/users'],
     ]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();
@@ -102,5 +103,62 @@ describe('Home', () => {
     signIn();
     await RouterTestingHarness.create('/unknown');
     expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  // the tiles of a section: the name and the link, null for one that is disabled
+  const tiles = (page: HTMLElement, section: string) =>
+    [...page.querySelectorAll(`nav[aria-label="${section}"] li`)].map((tile) => [
+      tile.querySelector('[data-testid=app-name]')?.textContent,
+      tile.querySelector('a')?.getAttribute('href') ?? null,
+    ]);
+
+  it('shows a user their name and the apps of the lists, the rest disabled in its place', async () => {
+    signIn();
+    const harness = await RouterTestingHarness.create('/');
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/v1/auth/who-am-i').flush({
+      username: 'anna@example.org',
+      name: 'Anna',
+      expiresAt: '2099-01-01T00:00:00Z',
+      roles: ['user'],
+    });
+    http.expectOne('/api/v1/info').flush({ name: 'alpha', dnsMode: 'domain', userMode: 'multi' });
+    await harness.fixture.whenStable();
+    const page = harness.routeNativeElement!;
+
+    expect(page.querySelector('[data-testid=username]')?.textContent).toBe('Anna');
+    expect(tiles(page, 'Apps')).toEqual([
+      ['Notes', '/notes'],
+      ['Grocery', '/grocery'],
+      ['Static hosting', null],
+      ['Redirects', null],
+    ]);
+    expect(tiles(page, 'Maintenance').map(([, href]) => href)).toEqual([null, null, null, null]);
+    expect(
+      page.querySelector('nav[aria-label="Maintenance"] [aria-disabled]')?.getAttribute('title'),
+    ).toBe('Only for an admin');
+  });
+
+  it('disables the users in the single user mode, they sign in by e-mail', async () => {
+    signIn();
+    const harness = await RouterTestingHarness.create('/');
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/v1/auth/who-am-i').flush({
+      username: 'admin',
+      name: null,
+      expiresAt: '2099-01-01T00:00:00Z',
+      roles: ['admin'],
+    });
+    http.expectOne('/api/v1/info').flush({ name: 'alpha', dnsMode: 'domain', userMode: 'single' });
+    await harness.fixture.whenStable();
+    const page = harness.routeNativeElement!;
+
+    expect(page.querySelector('[data-testid=username]')?.textContent).toBe('admin');
+    expect(tiles(page, 'Maintenance')).toEqual([
+      ['Health', '/health'],
+      ['Settings', '/settings'],
+      ['API', '/swagger/'],
+      ['Users', null],
+    ]);
   });
 });

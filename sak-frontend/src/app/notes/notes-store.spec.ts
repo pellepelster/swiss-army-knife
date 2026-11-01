@@ -294,7 +294,7 @@ describe('NotesStore', () => {
   });
 
   it('deletes a note in the backend once it can no longer be brought back', () => {
-    store.remove(2);
+    store.delete(2);
     expect(store.notes().map((note) => note.id)).toEqual([1]);
     expect(store.removed()?.noteId).toBe(2);
     expect(store.pagination()?.total).toBe(1);
@@ -309,7 +309,7 @@ describe('NotesStore', () => {
   });
 
   it('brings a deleted note back in its place, the backend keeps it', () => {
-    store.remove(2);
+    store.delete(2);
     store.undoRemove();
 
     expect(store.notes().map((note) => note.id)).toEqual([2, 1]);
@@ -321,7 +321,7 @@ describe('NotesStore', () => {
 
   it('saves the text of a note brought back that was not saved before it was deleted', () => {
     store.setText(1, 'milk and bread');
-    store.remove(1);
+    store.delete(1);
     store.undoRemove();
 
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.text).toBe(
@@ -330,8 +330,8 @@ describe('NotesStore', () => {
   });
 
   it('deletes the note deleted before at once when another one is deleted', () => {
-    store.remove(2);
-    store.remove(1);
+    store.delete(2);
+    store.delete(1);
 
     http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' }).flush(null);
     expect(store.removed()?.noteId).toBe(1);
@@ -340,7 +340,7 @@ describe('NotesStore', () => {
   });
 
   it('brings a deleted note back when the backend can not delete it, keeping the edits meanwhile', () => {
-    store.remove(2);
+    store.delete(2);
     vi.advanceTimersByTime(UNDO_DELETE_MS);
     const deleting = http.expectOne({ method: 'DELETE', url: '/api/v1/notes/2' });
     store.setColor(1, 'blue');
@@ -540,7 +540,7 @@ describe('NotesStore', () => {
 
     it('keeps a note deleted and one created while they are loaded, once each', async () => {
       store.load();
-      store.remove(2);
+      store.delete(2);
       const added = store.add('tickets', 'blue');
       http
         .expectOne({ method: 'POST', url: '/api/v1/notes' })

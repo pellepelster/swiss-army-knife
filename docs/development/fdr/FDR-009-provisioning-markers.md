@@ -22,7 +22,7 @@ applied last, and the plan compares it with what this sakctl would apply.
   server and the data volume: up-to-date, missing or with changes, like every resource.
 - **A role runs again when it changes.** The playbook runs when the server is created or changes, when the server has
   no markers, or when a role has another fingerprint than the marker on the server. The changes name the roles.
-- **A failed run shows.** A run removes the markers before the roles run and writes them after the last role, so a
+- **A failed run shows.** A run deletes the markers before the roles run and writes them after the last role, so a
   run that failed leaves none, and the next plan finds the provisioning missing.
 - **Force deploy.** A forced deploy runs the playbook also when every role is up to date.
 - **A new version.** A new sakctl runs the role `backend` again (it gets the version, the tag of its images). The

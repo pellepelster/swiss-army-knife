@@ -20,8 +20,9 @@ small groups: a few people who know and trust each other.
 - **No complex permissions** Data is either private to the user who made it, or shared with all users of the
   deployment. There are no roles per item, no groups and no sharing with single users.
 - **Single user mode** One user, the admin, signs in with the password of the deployment. No mail server is needed.
-- **Multi user mode** Users sign in with a link by e-mail; the admin can also sign in with the password of the
-  deployment. It needs a mail server and the e-mail address of the admin as well as all other users.
+- **Multi user mode** Users sign in with a link by e-mail; the admin adds them by their address. The admin always
+  signs in with the password of the deployment, and with an address (optional) also by e-mail. It needs a mail
+  server.
 
 ## Apps
 

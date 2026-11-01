@@ -27,8 +27,8 @@ deployment, or puts more than one deployment under one root domain.
   modes are mixed. The records of the deployment itself do not count.
 - SAK never changes a record without the label of the deployment. Such a record at a managed name stops the deploy
   before anything is created.
-- The mode can change. The next deploy sets up the new names and removes the records of the old mode.
-- A destroy removes the records of the deployment, never the zone.
+- The mode can change. The next deploy sets up the new names and deletes the records of the old mode.
+- A destroy deletes the records of the deployment, never the zone.
 
 ## Design Decisions
 
@@ -62,15 +62,15 @@ counts as another deployment.
 
 ### 5. The zone and its other records belong to the user
 
-**Decision:** SAK uses a zone that exists, and changes or removes only the records with the label of the deployment
+**Decision:** SAK uses a zone that exists, and changes or deletes only the records with the label of the deployment
 (refer to "Cloud resources" in [SYSTEM.md](../architecture/SYSTEM.md)).
 **Why:** A root domain often holds records that are not part of SAK (mail, verification, other services), and in
 subdomain mode, other deployments.
-**Tradeoff:** The user creates the zone first, and removes records at the managed names that SAK must not take over.
+**Tradeoff:** The user creates the zone first, and deletes records at the managed names that SAK must not take over.
 
 ### 6. The mode can change
 
-**Decision:** A deploy changes the mode and removes the records of the old one.
+**Decision:** A deploy changes the mode and deletes the records of the old one.
 **Why:** A deployment can move between a subdomain and a dedicated domain without a new deployment. Old records keep
 old names in use, and an old domain wildcard covers the names of other deployments.
 **Tradeoff:** The addresses of all apps change, the old ones stop at once.

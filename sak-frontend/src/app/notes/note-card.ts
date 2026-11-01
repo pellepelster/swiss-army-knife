@@ -78,7 +78,7 @@ interface Media {
             <button
               type="button"
               class="photo-remove"
-              [attr.aria-label]="'Remove ' + item.label.toLowerCase()"
+              [attr.aria-label]="'Remove ' + item.label.toLowerCase() + ' from the note'"
               (click)="remove(item)"
             >
               <i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -110,7 +110,7 @@ interface Media {
           <button
             type="button"
             class="label-remove"
-            [attr.aria-label]="'Remove label ' + label"
+            [attr.aria-label]="'Remove label ' + label + ' from the note'"
             (click)="store.removeLabel(note().id, label)"
           >
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -196,7 +196,7 @@ interface Media {
           class="note-delete"
           [attr.aria-label]="'Delete note ' + note().id"
           title="Delete"
-          (click)="store.remove(note().id)"
+          (click)="store.delete(note().id)"
         >
           <i class="fa-solid fa-trash" aria-hidden="true"></i>
         </button>

@@ -76,11 +76,15 @@ impl<P> Purpose<P> {
     }
 }
 
-/// who signs in to a create or deploy: one user with the password, or users with a link by
-/// e-mail, which needs the mail server and the address of the admin
+/// who signs in to a create or deploy: the admin always with the password; in multi user also the
+/// users with a link by e-mail, which needs the mail server. The address of the admin is optional
+/// there, with it the admin also signs in by e-mail; single user has no e-mail login, so none
 pub(super) enum Users {
     Single,
-    Multi { smtp: Smtp, admin_email: String },
+    Multi {
+        smtp: Smtp,
+        admin_email: Option<String>,
+    },
 }
 
 impl Users {
@@ -93,7 +97,8 @@ impl Users {
 }
 
 /// who signs in to a create or deploy, from the user mode given or on the deployment: multi user
-/// needs the mail server and the address of the admin, single user uses neither
+/// needs the mail server and takes the address of the admin when it is given, single user takes
+/// neither and refuses an address, which it would not use
 pub(super) fn users(
     user_mode: Option<UserMode>,
     smtp: Option<&Smtp>,
@@ -106,7 +111,18 @@ pub(super) fn users(
         )
         .to_string()
         .into()),
-        Some(UserMode::Single) => Ok(Users::Single),
+        Some(UserMode::Single) => match admin_email
+            .map(str::trim)
+            .filter(|address| !address.is_empty())
+        {
+            None => Ok(Users::Single),
+            Some(_) => Err(t!(
+                "shared.deployments.admin_email_single",
+                hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmailSingle)
+            )
+            .to_string()
+            .into()),
+        },
         Some(UserMode::Multi) => {
             let smtp = smtp.cloned().ok_or_else(|| {
                 t!(
@@ -116,17 +132,21 @@ pub(super) fn users(
                 .to_string()
             })?;
             check_smtp(&smtp)?;
-            let admin_email = admin_email
+            let admin_email = match admin_email
                 .map(str::trim)
-                .filter(|address| is_address(address))
-                .map(str::to_lowercase)
-                .ok_or_else(|| {
-                    t!(
+                .filter(|address| !address.is_empty())
+            {
+                None => None,
+                Some(address) if is_address(address) => Some(address.to_lowercase()),
+                Some(_) => {
+                    return Err(t!(
                         "shared.deployments.invalid_admin_email",
                         hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
                     )
                     .to_string()
-                })?;
+                    .into());
+                }
+            };
             Ok(Users::Multi { smtp, admin_email })
         }
     }
@@ -164,7 +184,9 @@ impl Prepared {
     pub(super) fn provision_run(&self, provisioning: &Provisioning) -> ProvisionRun {
         let (admin_email, smtp) = match &provisioning.users {
             Users::Single => (String::new(), None),
-            Users::Multi { smtp, admin_email } => (admin_email.clone(), Some(smtp.clone())),
+            Users::Multi { smtp, admin_email } => {
+                (admin_email.clone().unwrap_or_default(), Some(smtp.clone()))
+            }
         };
         ProvisionRun {
             name: self.spec.name.clone(),

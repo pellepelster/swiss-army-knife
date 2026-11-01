@@ -12,7 +12,7 @@ pub(super) const EXIT_CODES: &str = "Exit codes:
      domain has one domain deployment or only subdomain deployments.
   5  A resource of a name the deployment uses belongs to someone else: it lacks the label
      sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.
-  6  The data volume or a primary IP would have to be created anew, which would remove its
+  6  The data volume or a primary IP would have to be created anew, which would delete its
      data or address. Nothing was changed.
   7  update --check: a newer release of sakctl exists.
 ssh ends with the exit code of the command on the server; when sakctl or ssh itself fails, 255.";
@@ -130,7 +130,7 @@ pub enum ProjectCommand {
     },
     /// Destroy a deployment, keeping its data volume
     ///
-    /// Removes its DNS records, server, addresses, firewall and ssh key. --delete-data also
+    /// Deletes its DNS records, server, addresses, firewall and ssh key. --delete-data also
     /// deletes the data volume. A deployment that is already gone counts as destroyed.
     #[command(after_help = EXIT_CODES)]
     Destroy {
@@ -154,7 +154,7 @@ pub enum MaintenanceCommand {
     Status(MaintenanceArgs),
     /// Upgrade all packages of the server
     ///
-    /// Installs new dependencies, removes no package. Tells what changed and whether a reboot is
+    /// Installs new dependencies, uninstalls no package. Tells what changed and whether a reboot is
     /// pending.
     #[command(after_help = EXIT_CODES)]
     Update(MaintenanceArgs),
@@ -320,10 +320,11 @@ pub struct DeploymentArgs {
     /// Who signs in: single or multi
     ///
     /// single: one user, the admin, signs in with the password of the deployment. multi: users
-    /// sign in by e-mail, the admin also with the password; needs --admin-email and --smtp-host.
+    /// sign in with a link by e-mail, needs --smtp-host; the admin always signs in with the
+    /// password, with --admin-email also by e-mail.
     #[arg(long, env = USER_MODE_VARIABLE, value_parser = parse_user_mode)]
     pub(super) user_mode: Option<UserMode>,
-    /// The e-mail address of the admin (multi user)
+    /// The e-mail address of the admin, optional, multi user only: the admin also signs in by e-mail
     #[arg(long, env = ADMIN_EMAIL_VARIABLE)]
     pub(super) admin_email: Option<String>,
     /// The mail server for the login links (multi user)

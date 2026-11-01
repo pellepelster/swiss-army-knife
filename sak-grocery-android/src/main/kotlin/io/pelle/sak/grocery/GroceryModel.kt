@@ -82,7 +82,7 @@ sealed interface Screen {
 
     data class Lists(
         val deployment: String,
-        // who is signed in, the e-mail address or admin
+        // who is signed in: their name, else the e-mail address, or admin
         val user: String,
         val lists: List<GroceryListResponse> = emptyList(),
         // the id of the list open, null on the home, which shows all lists
@@ -535,6 +535,12 @@ class GroceryModel(
     private fun showLists(stored: Stored) {
         state.value = Screen.Lists(stored.deployment ?: stored.apiUrl.orEmpty(), stored.email.orEmpty(), open = stored.openList)
         load()
+        // the name an admin gave the user, shown instead of the address; without it the address stays
+        scope.launch {
+            val url = stored.apiUrl ?: return@launch
+            val name = runCatching { apiOf(url, stored.token).whoAmI().name }.getOrNull() ?: return@launch
+            (state.value as? Screen.Lists)?.let { state.value = it.copy(user = name) }
+        }
     }
 
     // the lists, then the items of the one open; a list that is gone leads to the home. A session that

@@ -279,7 +279,7 @@ class AuthRoutesTest {
                 routing {
                     authenticate(SESSION_AUTH) {
                         route("/admin") {
-                            install(RequireRole) { role = Role.ADMIN }
+                            install(RequireRole) { roles = setOf(Role.ADMIN) }
                             get { call.respond(HttpStatusCode.OK) }
                         }
                     }

@@ -1,0 +1,131 @@
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterLink } from '@angular/router';
+import { apiErrorMessage } from '../shared/api';
+import { UsersService } from './users.service';
+
+// the longest name of a user (UserService.MAX_NAME_LENGTH)
+const MAX_NAME_LENGTH = 64;
+
+// one @ with something before it, a domain with a dot after it, no spaces (UserService.isEmail)
+export function validEmail(email: string): boolean {
+  const address = email.trim();
+  return address.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
+}
+
+// adds a user by their address, with an optional name, on a page of its own; afterwards the users
+// show. The address is checked when it loses focus (UX-6); no mail is sent, the user requests a
+// link on the login page
+@Component({
+  selector: 'app-user-create',
+  imports: [RouterLink],
+  host: { class: 'd-block container pb-5' },
+  template: `
+    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+      <a
+        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
+        routerLink="/users"
+        aria-label="All users"
+        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
+      ></a>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">Add user</h1>
+    </header>
+
+    <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); add()">
+      <div>
+        <label class="form-label" for="user-email">E-mail address</label>
+        <input
+          #emailField
+          class="form-control"
+          id="user-email"
+          type="email"
+          autocomplete="off"
+          autocapitalize="off"
+          maxlength="254"
+          aria-describedby="user-email-hint user-email-error"
+          [attr.aria-invalid]="emailInvalid()"
+          [class.is-invalid]="emailInvalid()"
+          [value]="email()"
+          (input)="email.set(emailField.value); emailLeft.set(false)"
+          (blur)="emailLeft.set(true)"
+        />
+        @if (emailInvalid()) {
+          <div class="invalid-feedback" id="user-email-error">
+            An e-mail address like name&#64;example.org is needed.
+          </div>
+        }
+        <span class="form-text" id="user-email-hint"
+          >The user signs in with a link sent to it. No mail goes out now.</span
+        >
+      </div>
+      <div>
+        <label class="form-label" for="user-name">Name (optional)</label>
+        <input
+          #nameField
+          class="form-control"
+          id="user-name"
+          autocomplete="off"
+          [attr.maxlength]="maxNameLength"
+          [value]="name()"
+          (input)="name.set(nameField.value)"
+        />
+        <span class="form-text">Shown instead of the address.</span>
+      </div>
+
+      @if (addError(); as error) {
+        <p class="alert alert-danger mb-0" role="alert" data-testid="add-error">{{ error }}</p>
+      }
+
+      <div class="d-flex flex-wrap justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" routerLink="/users">Cancel</a>
+        <button class="btn btn-primary" type="submit" [disabled]="!valid() || adding()">
+          @if (adding()) {
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="sak-icon-plus" aria-hidden="true"></i>
+          }
+          Add user
+        </button>
+      </div>
+    </form>
+  `,
+})
+export class UserCreate {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly service = inject(UsersService);
+  private readonly router = inject(Router);
+
+  protected readonly maxNameLength = MAX_NAME_LENGTH;
+  protected readonly email = signal('');
+  protected readonly name = signal('');
+  // the address was left since it was last typed in, its error shows (UX-6)
+  protected readonly emailLeft = signal(false);
+  protected readonly adding = signal(false);
+  protected readonly addError = signal<string | null>(null);
+
+  protected readonly valid = computed(() => validEmail(this.email()));
+  protected readonly emailInvalid = computed(
+    () => this.emailLeft() && this.email().trim() !== '' && !this.valid(),
+  );
+
+  protected add(): void {
+    this.emailLeft.set(true);
+    if (!this.valid()) return;
+    this.adding.set(true);
+    this.addError.set(null);
+    this.service
+      .add(this.email().trim(), this.name().trim() || null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => void this.router.navigate(['/users']),
+        error: (error: unknown) => {
+          this.adding.set(false);
+          this.addError.set(
+            apiErrorMessage(error, 'The user could not be added.', {
+              403: 'Only an admin adds users.',
+            }),
+          );
+        },
+      });
+  }
+}

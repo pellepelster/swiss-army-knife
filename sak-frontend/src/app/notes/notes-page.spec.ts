@@ -228,7 +228,7 @@ describe('NotesPage', () => {
   it('removes a photo at once, brings it back with undo and saves the note when the time is up', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const note = notes()[2];
-    button('Remove photo 1', note).click();
+    button('Remove photo 1 from the note', note).click();
     await fixture.whenStable();
     expect(note.querySelector('.note-photos a')).toBeNull();
     expect(page.querySelector('[role="status"]')?.textContent).toContain('Photo removed');
@@ -239,7 +239,7 @@ describe('NotesPage', () => {
     expect(note.querySelector('.note-photos img')).not.toBeNull();
     expect(page.querySelector('[role="status"]')).toBeNull();
 
-    button('Remove photo 1', note).click();
+    button('Remove photo 1 from the note', note).click();
     await fixture.whenStable();
     vi.advanceTimersByTime(UNDO_DELETE_MS);
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/notes/1' }).request.body.photos).toEqual(

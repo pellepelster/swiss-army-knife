@@ -343,7 +343,7 @@ describe('Hosting', () => {
     await harness.fixture.whenStable();
     expect(text('save-errors')).toBe('Another bucket is served at one of the domains.');
 
-    button('Remove domain 1').click();
+    button('Delete domain 1').click();
     await harness.fixture.whenStable();
     button('Save').click();
     http

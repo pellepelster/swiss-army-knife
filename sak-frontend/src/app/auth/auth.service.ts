@@ -27,6 +27,10 @@ export type UserMode = 'single' | 'multi';
 // who the backend takes the session for: admin for the password login, else the e-mail address
 export interface WhoAmI {
   username: string;
+  // the name an admin gave the user, null without one: the address shows then
+  name: string | null;
+  // admin, or user for the apps of the lists only
+  roles: string[];
 }
 
 export const SESSION_STORAGE_KEY = 'sak.session';

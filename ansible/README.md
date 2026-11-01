@@ -20,7 +20,8 @@ log images) on every run. The tag of `backend_image` and `backend_ingress_image`
 deployed it, and `SAK_DOCKER_IMAGE_TAG` of sakctl sets another tag, e.g. `<version>-rc` for the tests.
 It needs `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_public_key`
 (the public half of the key sakctl signs its requests with, never the key), and, for the e-mail login (multi user),
-`sak_smtp_enabled`, `sak_admin_email`, `sak_smtp_tls` and `sak_smtp_starttls`; the login mails come from
+`sak_smtp_enabled`, `sak_smtp_tls` and `sak_smtp_starttls`, optionally `sak_admin_email` (the admin, who always signs
+in with the password, then also signs in by e-mail); the login mails come from
 `noreply@<root domain>`. It writes them into the
 backend configuration it renders from `templates/backend-config.yaml.j2`; the frontend is then
 at `sak.<base domain>`, the api at `api.<base domain>`. It also needs `backend_env_src`, the

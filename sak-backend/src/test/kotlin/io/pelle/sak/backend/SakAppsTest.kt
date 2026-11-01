@@ -478,6 +478,50 @@ class SakAppsTest {
     }
 
     @Test
+    fun `an admin adds a user, who signs in to the apps of the lists only, and deletes them again`() {
+        withServer { port ->
+            val admin = signIn(port)
+            post(port, "/api/v1/users", """{"email":" Anna@Example.org ","name":"Anna"}""", admin).let {
+                it.statusCode() shouldBe 201
+                it.json().string("email") shouldBe "anna@example.org"
+                it.json().string("configured") shouldBe "false"
+            }
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 409
+            // an admin of the configuration is no user to add
+            post(port, "/api/v1/users", """{"email":"SECOND@example.org"}""", admin).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe """{"errors":[{"message":"The address is an admin of the deployment, it is no user to add."}]}"""
+            }
+            post(port, "/api/v1/users", """{"email":"nobody"}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"message":"An e-mail address like name@example.org is needed."}]}"""
+            }
+            val users = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }
+            users.map { it.string("email") } shouldBe listOf("admin@example.org", "second@example.org", "anna@example.org")
+            users.map { it.string("configured") } shouldBe listOf("true", "true", "false")
+            val annaId = users.last().string("id")
+
+            // the user signs in by e-mail, has a name and the role user: the lists, not the rest
+            val anna = signIn(port, email = "anna@example.org", mails = 2)
+            get(port, "/api/v1/auth/who-am-i", anna).json().let {
+                it.string("name") shouldBe "Anna"
+                it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("user")
+            }
+            get(port, "/api/v1/auth/who-am-i", admin).json().getValue("name") shouldBe JsonNull
+            get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 200
+            get(port, "/api/v1/notes", anna).statusCode() shouldBe 200
+            listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/users").forEach {
+                get(port, it, anna).statusCode() shouldBe 403
+            }
+
+            // deleted: the next request of the session is refused, no new link
+            delete(port, "/api/v1/users/$annaId", admin).statusCode() shouldBe 204
+            delete(port, "/api/v1/users/$annaId", admin).statusCode() shouldBe 404
+            get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 401
+        }
+    }
+
+    @Test
     fun `streams the changes of the grocery lists as server-sent events, a change carries only the id of its list`() {
         withServer { port ->
             val session = signIn(port)
@@ -1024,6 +1068,8 @@ class SakAppsTest {
                         "/api/v1/notes/{id}",
                         "/api/v1/grocery/categories",
                         "/api/v1/grocery/changes",
+                        "/api/v1/users",
+                        "/api/v1/users/{id}",
                         "/api/v1/grocery/lists",
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",

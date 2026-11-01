@@ -6,9 +6,8 @@
       - sak_dns_mode in ['domain', 'subdomain']
       - sak_root_domain | default('') | length > 0
       - sak_api_public_key is match('^[A-Za-z0-9+/]{43}=$')
-      - not (sak_smtp_enabled | bool) or (sak_admin_email | default('', true) | length > 0)
       - backend_env_src | length > 0
-    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_public_key (32 bytes as base64), sak_admin_email (with sak_smtp_enabled) and backend_env_src must be set"
+    fail_msg: "sak_name, sak_dns_mode (domain or subdomain), sak_root_domain, sak_api_public_key (32 bytes as base64) and backend_env_src must be set"
     quiet: true
 
 # sqlite3, zstd, age and curl for sak-backend backup and restore

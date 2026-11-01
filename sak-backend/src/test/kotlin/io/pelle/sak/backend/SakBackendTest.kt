@@ -105,12 +105,18 @@ class SakBackendTest {
     }
 
     // the template of the backend role rendered as ansible renders it, with the inventory sakctl
-    // writes: its variables, its filters and its one condition; anything else left is an error
-    private fun renderTemplate(smtp: Boolean): Path {
+    // writes: its variables, its filters and its conditions; anything else left is an error. The
+    // admin, inside the block of the mail server, goes first, so the block ends at its own endif
+    private fun renderTemplate(
+        smtp: Boolean,
+        admin: Boolean = smtp,
+    ): Path {
         val template = Files.readString(Path.of("../ansible/roles/backend/templates/backend-config.yaml.j2"))
+        val adminBlock = Regex("""\{% if sak_admin_email %}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)
         val block = Regex("""\{% if sak_smtp_enabled \| bool %}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)
         val rendered =
             template
+                .replace(adminBlock) { if (admin) it.groupValues[1] else "" }
                 .replace(block) { if (smtp) it.groupValues[1] else "" }
                 .replace(Regex("""\{% if sak_acme_ca [^%]*%}\n(.*?)\{% endif %}\n""", RegexOption.DOT_MATCHES_ALL)) { it.groupValues[1] }
                 .replace("{{ sak_acme_ca }}", "https://acme-staging-v02.api.letsencrypt.org/directory")
@@ -182,6 +188,18 @@ class SakBackendTest {
             )
         config.openrouter shouldBe SakConfig.OpenRouterConfig()
         config.addresses shouldBe SakConfig.AddressesConfig(listOf("203.0.113.1"), listOf("2001:db8::1"))
+    }
+
+    @Test
+    fun `the deployed configuration with a mail server and without an admin address is valid, the admin signs in with the password`() {
+        val config =
+            withBackendEnv(smtp = true) {
+                SakConfigLoader.load(ConfigLoader.loadAll(BUNDLED_CONFIG, renderTemplate(smtp = true, admin = false).toString()))
+            }
+
+        config.auth!!.admins shouldBe emptyList()
+        config.auth!!.smtp!!.host shouldBe "smtp.example.org"
+        config.auth!!.adminPassword!! shouldStartWith "\$argon2id\$"
     }
 
     @Test

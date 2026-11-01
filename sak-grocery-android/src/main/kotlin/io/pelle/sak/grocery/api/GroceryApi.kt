@@ -80,6 +80,13 @@ class GroceryApi(
                 setBody(PasswordLoginRequest(password))
             }.answer("The password could not be checked.", unauthorized = "The password is wrong.")
 
+    // the signed in user, with their name if they have one
+    suspend fun whoAmI(): WhoAmIResponse =
+        client
+            .get("$url/auth/who-am-i") {
+                token?.let { bearerAuth(it) }
+            }.answer("The user could not be read.")
+
     // in the order the backend gives them: by name
     suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", "The lists could not be loaded.")
 

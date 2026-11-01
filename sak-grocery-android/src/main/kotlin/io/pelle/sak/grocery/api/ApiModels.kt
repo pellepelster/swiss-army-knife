@@ -40,6 +40,14 @@ data class ExchangeResponse(
 )
 
 @Serializable
+data class WhoAmIResponse(
+    // the e-mail address, or admin for the password login
+    val username: String,
+    // the name an admin gave the user, null without one
+    val name: String? = null,
+)
+
+@Serializable
 data class PaginationResponse(
     val offset: Long,
     val limit: Int,

@@ -32,7 +32,7 @@ const adminEmailInput = document.getElementById('create-admin-email');
 // the fields a destroy hides: it asks only whether to delete the data volume, the password is the
 // one the deployment was opened with
 const destroyHidden = ['create-password-group', 'create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-user-mode'].map((id) => document.getElementById(id));
-// what only multiple users need: the admin's address and the mail server
+// what only multiple users have: the admin's address (optional) and the mail server
 const multiUserGroups = ['create-admin-email-group', 'create-smtp'].map((id) => document.getElementById(id));
 const userModeHint = document.getElementById('create-user-mode-hint');
 const smtpInputs = Object.fromEntries(
@@ -97,13 +97,12 @@ function multiUser() {
   return intent !== 'destroy' && userMode() === 'multi';
 }
 
-// the fields of multiple users show and are required only for multiple users
+// the fields of multiple users show only for multiple users, the mail server is required then
 function showUserMode() {
   const multi = multiUser();
   for (const element of multiUserGroups) {
     element.hidden = !multi;
   }
-  adminEmailInput.required = multi;
   smtpInputs.host.required = multi;
   smtpInputs.port.required = multi;
   userModeHint.textContent = text(`ui.create.user_mode_hint_${userMode()}`);
@@ -115,9 +114,10 @@ for (const input of form.elements['user-mode']) {
   input.addEventListener('change', showUserMode);
 }
 
-// true while multiple users miss the admin's address or the mail server; the plan waits for them
+// true while multiple users miss the mail server; the plan waits for it. The admin's address is
+// optional, the admin always signs in with the password
 function multiUserIncomplete() {
-  return multiUser() && (!adminEmailInput.value.trim() || !smtpInputs.host.value.trim() || !smtpInputs.port.value);
+  return multiUser() && (!smtpInputs.host.value.trim() || !smtpInputs.port.value);
 }
 
 for (const input of [adminEmailInput, smtpInputs.host, smtpInputs.port]) {

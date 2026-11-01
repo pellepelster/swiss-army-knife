@@ -1,0 +1,44 @@
+# the users an admin adds by e-mail address, with an optional name; they sign in with a link by
+# e-mail and use the apps of the role user. The admins of the configuration are no rows. The address
+# is unique among the rows that are not deleted, a partial index for sqlite only (0001-initial)
+databaseChangeLog:
+  - changeSet:
+      id: 0003-users
+      author: sak
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX users_email_key ON users (email) WHERE deleted_at IS NULL

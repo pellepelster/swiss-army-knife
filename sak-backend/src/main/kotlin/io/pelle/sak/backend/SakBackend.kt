@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.hosting.HostingHealth
 import io.pelle.sak.backend.redirects.RedirectsHealth
@@ -84,6 +85,8 @@ class SakServices(
     // whether the domains of the buckets and the redirects point to the server
     val hostingHealth: HostingHealth,
     val redirectsHealth: RedirectsHealth,
+    // the users an admin added, the role user
+    val userService: UserService,
 ) {
     // the apps that prepare the data of a user who signs in, e.g. their first list (SHARED-5)
     val loginListeners: List<LoginListener> get() = listOf(noteService, groceryService)
@@ -141,6 +144,7 @@ fun Application.sak(config: SakConfig): SakServices {
             fileTextService,
             HostingHealth(bucketService, domainCheck, config.addresses),
             RedirectsHealth(redirectService, domainCheck, config.addresses),
+            UserService(database, config.auth?.admins.orEmpty()),
         )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them

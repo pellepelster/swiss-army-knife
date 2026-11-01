@@ -50,7 +50,8 @@ pub struct ProvisionRun {
     pub host_key: DerivedKey,
     /// the block device of the data volume, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
     pub storage_device: String,
-    /// `sak_admin_email`: the admin of a multi user deployment, empty for a single user one
+    /// `sak_admin_email`: the admin of a multi user deployment who also signs in by e-mail, empty
+    /// without one and for a single user deployment
     pub admin_email: String,
     /// the mail server of the e-mail login; none for the password login only
     pub smtp: Option<crate::core::deployments::Smtp>,

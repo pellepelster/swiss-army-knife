@@ -120,9 +120,10 @@ data class SakConfig(
 
     @Serializable
     data class AuthConfig(
-        // the addresses that may sign in to sak-frontend, as admins, compared case-insensitively; no
-        // other address gets a login link. The first one is the admin. Needed with a mail
-        // server (multi user), none without
+        // the addresses that sign in to sak-frontend as admins, compared case-insensitively; the
+        // first one is the admin of the password login, who then also signs in by e-mail. Optional
+        // with a mail server (multi user): without one the admin signs in with the password only;
+        // the users an admin adds sign in by e-mail. None without a mail server
         val admins: List<String> = emptyList(),
         // the mail server of the login links (multi user); without it there is no e-mail login,
         // only the admin signs in, with the password (single user)
@@ -138,9 +139,6 @@ data class SakConfig(
         init {
             require(smtp != null || adminPassword != null) {
                 "auth needs a way to sign in: smtp for the e-mail login, admin_password for the password login, or both"
-            }
-            require(smtp == null || admins.isNotEmpty()) {
-                "auth.smtp needs the address of the admin, the first of auth.admins"
             }
             require(adminPassword == null || adminPassword.startsWith("\$argon2id\$")) {
                 "auth.admin_password is no argon2id hash (\$argon2id\$…)"

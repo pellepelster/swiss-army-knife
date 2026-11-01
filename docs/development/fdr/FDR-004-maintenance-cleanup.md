@@ -1,7 +1,7 @@
 ---
 title: "FDR-004: Maintenance Cleanup"
 linkTitle: "Maintenance Cleanup"
-description: "A maintenance task that marks unused data as deleted and removes soft-deleted data after a retention period."
+description: "A maintenance task that marks unused data as deleted and deletes soft-deleted data after a retention period."
 weight: 4
 ---
 
@@ -15,15 +15,15 @@ weight: 4
 The backend deletes nothing for real: a delete only sets `deleted_at` (refer to "Model" in
 [SYSTEM.md](../architecture/SYSTEM.md)). Some data is never deleted at all: an uploaded file that no note refers to stays for
 ever, and a user can upload files of 10 MB in a loop (issue #2, finding M-02). This feature adds a maintenance task
-that finds data nothing uses any more, marks it as deleted, and after a retention period removes soft-deleted data
+that finds data nothing uses any more, marks it as deleted, and after a retention period deletes soft-deleted data
 for real.
 
 ## Behavior
 
 - The maintenance task runs in the backend at a fixed interval. An admin can also start it through the api.
 - It soft-deletes files that no live note refers to and that are older than a grace period, so an upload in progress
-  is not removed.
-- It purges rows whose `deleted_at` is older than the retention period: it removes them for real, and with a file
+  is not deleted.
+- It purges rows whose `deleted_at` is older than the retention period: it deletes them for real, and with a file
   row the content of the file, when no other row has the same sha256.
 - A purged bucket name can be taken again.
 - Each run writes one log line with the number of rows it soft-deleted and purged. The log has no file names, user
@@ -47,8 +47,8 @@ for real.
 
 ### 3. Content is shared by its sha256
 
-**Decision:** The content of a file is removed only when no row, live or soft-deleted, has the same sha256.
-**Why:** Two uploads of the same content share it. A purge of one row must not remove the content of another.
+**Decision:** The content of a file is deleted only when no row, live or soft-deleted, has the same sha256.
+**Why:** Two uploads of the same content share it. A purge of one row must not delete the content of another.
 **Tradeoff:** One more query for each purged file.
 
 ## Related
@@ -62,4 +62,4 @@ for real.
 - Is there a quota for each user, as issue #2 suggests, and what happens at the limit?
 - Does the task also purge the other soft-deleted entities (notes, labels, redirects, buckets), or only files first?
 - Does the purge run `VACUUM`, so that SQLite gives the space back to the disk?
-- Does a deleted bucket keep its content in `sak-s3` until the purge, and does the purge remove it?
+- Does a deleted bucket keep its content in `sak-s3` until the purge, and does the purge delete it?

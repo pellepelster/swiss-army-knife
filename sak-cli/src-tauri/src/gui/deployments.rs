@@ -219,7 +219,7 @@ async fn apply(
 }
 
 /// stops the apply or the maintenance that runs: its requests to the provider end where they are,
-/// the container of a provisioning or an ssh session is removed. What was done stays, the plan of
+/// the container of a provisioning or an ssh session is deleted. What was done stays, the plan of
 /// the next deploy shows the rest
 #[tauri::command]
 pub fn cancel_apply(running: State<'_, RunningWork>) {

@@ -366,7 +366,7 @@ export class NotesStore {
 
   // the note goes at once, the backend deletes it after UNDO_DELETE_MS unless undoRemove brings it
   // back, and brings it back when it can not delete it
-  remove(id: number): void {
+  delete(id: number): void {
     this.error.set(null);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;

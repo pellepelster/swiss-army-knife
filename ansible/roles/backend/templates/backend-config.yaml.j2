@@ -20,10 +20,13 @@ sak:
     # the admin signs in with the password of the deployment
     admin_password: $SAK_ADMIN_PASSWORD_HASH
 {% if sak_smtp_enabled | bool %}
-    # multi user: the e-mail login, the admin is its first user; without a mail server the
-    # deployment is single user, only the admin signs in, with the password
+    # multi user: the e-mail login of the users an admin adds; with an address the admin signs in
+    # by e-mail too, as its first user. Without a mail server the deployment is single user, only
+    # the admin signs in, with the password
+{% if sak_admin_email %}
     admins:
       - {{ sak_admin_email }}
+{% endif %}
     smtp:
       host: $SAK_SMTP_HOST
       port: $SAK_SMTP_PORT

@@ -108,7 +108,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 - `EXT-1` **One manager for each external system.** A class that manages resources outside the process, at a cloud
   provider, in a container runtime or behind a remote api, is the one place they are looked up, created, changed and
-  removed, and the one place its clients are made; the rest of the code asks it. sakctl has one for the deployments,
+  deleted, and the one place its clients are made; the rest of the code asks it. sakctl has one for the deployments,
   the provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
   (`OpenRouterManager`).
 
@@ -146,7 +146,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   like the others: after the server and the data volume, with a diff and an apply. Ansible has no plan of its own, so
   the server tells what was applied last: a run that succeeded leaves one marker for each role, the fingerprint of the
   files of the role and of the values the run gave it. The plan reads the markers through ssh and runs the playbook
-  when the server changes, when there are no markers (never provisioned, or the last run failed: a run removes them
+  when the server changes, when there are no markers (never provisioned, or the last run failed: a run deletes them
   first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
   Refer to [FDR-009](../fdr/FDR-009-provisioning-markers.md).
 - `SAKCTL-7` **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the
@@ -180,8 +180,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   `sak.pelle.io/password-hash=<hash>`, a hash derived from the password. sakctl checks a password against it before it
   changes anything. The password itself is nowhere.
 - `CLOUD-4` **Identity.** The name label and the password hash label are the identity of a resource. Every lookup
-  checks them: a resource of the declared name without them belongs to someone else, and nothing changes or removes
-  it. A destroy removes only resources with both labels; a resource without the password hash label is never removed.
+  checks them: a resource of the declared name without them belongs to someone else, and nothing changes or deletes
+  it. A destroy deletes only resources with both labels; a resource without the password hash label is never deleted.
 - `CLOUD-5` **The settings of a deployment** are labels too: `sak.pelle.io/dns-mode`, `sak.pelle.io/root-domain` and
   `sak.pelle.io/user-mode`. A deploy reads them back; a change of one is a label change, never a recreate. The dns
   mode on a DNS record tells which deployments use a root domain.

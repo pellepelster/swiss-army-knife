@@ -301,7 +301,7 @@ private fun HomeScreen(
 }
 
 // a list on the home: its icon, its name, how many items are to buy and whether it is shared; its
-// menu leads to the settings, only of a list of the user's own (UX-8)
+// gear leads to the settings, as on the list itself, only of a list of the user's own (UX-8)
 @Composable
 private fun ListRow(
     list: GroceryListResponse,
@@ -319,7 +319,7 @@ private fun ListRow(
         },
         trailingContent = {
             IconButton(onClick = settings, enabled = list.mine, modifier = Modifier.testTag("settings-${list.id}")) {
-                Text("⋮", style = MaterialTheme.typography.titleLarge)
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings of ${list.name}")
             }
         },
         modifier = Modifier.clickable(onClick = open).testTag("list-${list.id}"),

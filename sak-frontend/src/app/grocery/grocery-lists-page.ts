@@ -35,7 +35,7 @@ import { ListIcon } from './list-icon';
     @if (lists().length) {
       <nav class="list-group" aria-label="Grocery lists">
         @for (list of lists(); track list.id) {
-          <!-- the row opens the list; its menu the settings, only of a list of the user's own (UX-8) -->
+          <!-- the row opens the list; its gear the settings, only of a list of the user's own (UX-8) -->
           <div class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
             <app-list-icon [name]="list.name" [icon]="list.icon" />
             <a
@@ -58,7 +58,7 @@ import { ListIcon } from './list-icon';
                 [queryParams]="{ from: 'lists' }"
                 [attr.aria-label]="'Settings of ' + list.name"
                 title="Settings"
-                ><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i
+                ><i class="fa-solid fa-gear" aria-hidden="true"></i
               ></a>
             } @else {
               <button
@@ -68,7 +68,7 @@ import { ListIcon } from './list-icon';
                 [attr.aria-label]="'Settings of ' + list.name"
                 title="Only the owner of a list changes it"
               >
-                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                <i class="fa-solid fa-gear" aria-hidden="true"></i>
               </button>
             }
           </div>

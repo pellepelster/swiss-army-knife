@@ -9,11 +9,13 @@ import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 
-// what a signed in address may do, the session token names its roles
+// what a signed in address may do, the session token names its roles: admin everything, user the
+// apps of the lists (the notes, the grocery lists) with their labels and files
 enum class Role(
     val key: String,
 ) {
     ADMIN("admin"),
+    USER("user"),
     ;
 
     companion object {
@@ -22,25 +24,25 @@ enum class Role(
 }
 
 class RequireRoleConfig {
-    var role: Role? = null
+    var roles: Set<Role> = emptySet()
 }
 
 // the routes it is installed on below authenticate answer 401 without a principal and 403 to one
-// without the role; a provider that refuses nothing on its own (e.g. API_SIGNATURE_AUTH alone,
-// which has no challenge) leaves no route open
+// with none of the roles; a provider that refuses nothing on its own (e.g. API_SIGNATURE_AUTH
+// alone, which has no challenge) leaves no route open
 val RequireRole =
     createRouteScopedPlugin("RequireRole", ::RequireRoleConfig) {
         // a route without a role would be open to every session, it must not start
-        val role = requireNotNull(pluginConfig.role) { "RequireRole needs the role it requires" }
+        val roles = pluginConfig.roles.also { require(it.isNotEmpty()) { "RequireRole needs the roles it allows" } }
         on(AuthenticationChecked) { call ->
             if (call.isHandled) return@on
             val principal = call.principal<SessionPrincipal>()
             when {
                 principal == null -> call.respond(HttpStatusCode.Unauthorized)
-                role !in principal.roles -> call.respond(HttpStatusCode.Forbidden)
+                principal.roles.none { it in roles } -> call.respond(HttpStatusCode.Forbidden)
             }
         }
     }
 
-// the routes below answer 403 to sessions without the role
-fun Route.requireRole(role: Role) = install(RequireRole) { this.role = role }
+// the routes below answer 403 to sessions with none of the roles
+fun Route.requireRole(vararg roles: Role) = install(RequireRole) { this.roles = roles.toSet() }

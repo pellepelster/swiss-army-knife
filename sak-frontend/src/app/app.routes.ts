@@ -10,6 +10,7 @@ import { NotesPage } from './notes/notes-page';
 import { SettingsPage } from './settings/settings-page';
 import { SettingsScopeTab } from './settings/settings-scope-tab';
 import { Signin } from './signin/signin';
+import { usersRoute } from './users/users.routes';
 
 // every app needs a session, without one the login is shown and leads back afterwards; an app
 // names its favicon in its data, the others show the swiss army knife (FaviconService)
@@ -26,6 +27,7 @@ export const routes: Routes = [
   redirectsRoute,
   groceryRoute,
   { path: 'health', component: HealthPage, canActivate: [authGuard], title: 'Health' },
+  usersRoute,
   {
     path: 'settings',
     component: SettingsPage,

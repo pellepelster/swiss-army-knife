@@ -735,7 +735,7 @@ fn smtp(host: &str, port: u16) -> Smtp {
 }
 
 #[test]
-fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
+fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
     let error = |result: Result<Users, SakctlError>| match result {
         Err(error) => error.message,
         Ok(users) => panic!("{:?}", users.mode()),
@@ -747,13 +747,26 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
         )
     );
-    // single user takes neither, also when they are given
-    let single = users(
-        Some(UserMode::Single),
-        Some(&smtp("", 0)),
-        Some("not an address"),
+    // single user has no e-mail login: a mail server is not used, an address is refused
+    assert!(matches!(
+        users(Some(UserMode::Single), Some(&smtp("", 0)), None),
+        Ok(Users::Single)
+    ));
+    assert!(matches!(
+        users(Some(UserMode::Single), None, Some("  ")),
+        Ok(Users::Single)
+    ));
+    assert_eq!(
+        error(users(
+            Some(UserMode::Single),
+            None,
+            Some("admin@example.org")
+        )),
+        t!(
+            "shared.deployments.admin_email_single",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmailSingle)
+        )
     );
-    assert!(matches!(single, Ok(Users::Single)));
     assert_eq!(
         error(users(
             Some(UserMode::Multi),
@@ -768,6 +781,14 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
     assert_eq!(
         error(users(
             Some(UserMode::Multi),
+            Some(&smtp("mail.example.org", 0)),
+            None
+        )),
+        t!("shared.deployments.invalid_smtp_port")
+    );
+    assert_eq!(
+        error(users(
+            Some(UserMode::Multi),
             Some(&smtp("mail.example.org", 587)),
             Some("admin")
         )),
@@ -776,15 +797,28 @@ fn multi_user_has_a_mail_server_and_an_admin_and_single_user_neither() {
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
         )
     );
-    let Ok(Users::Multi { smtp, admin_email }) = users(
+    let Ok(Users::Multi {
+        smtp: server,
+        admin_email,
+    }) = users(
         Some(UserMode::Multi),
         Some(&smtp("mail.example.org", 587)),
         Some(" Admin@Example.org "),
-    ) else {
+    )
+    else {
         panic!("multi user");
     };
-    assert_eq!(smtp.host, "mail.example.org");
-    assert_eq!(admin_email, "admin@example.org");
+    assert_eq!(server.host, "mail.example.org");
+    assert_eq!(admin_email.as_deref(), Some("admin@example.org"));
+    // the admin always signs in with the password, the address is optional
+    let Ok(Users::Multi { admin_email, .. }) = users(
+        Some(UserMode::Multi),
+        Some(&smtp("mail.example.org", 587)),
+        None,
+    ) else {
+        panic!("multi user without an admin");
+    };
+    assert_eq!(admin_email, None);
 }
 
 #[test]

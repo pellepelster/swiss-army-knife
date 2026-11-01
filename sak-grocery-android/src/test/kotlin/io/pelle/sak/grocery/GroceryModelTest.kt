@@ -524,4 +524,18 @@ class GroceryModelTest {
             advanceUntilIdle()
             assertNull((model.screen.value as Screen.Lists).open)
         }
+
+    @Test
+    fun `the menu shows the name of the user, else their address`() =
+        runTest {
+            backend.answers["GET /auth/who-am-i"] = HttpStatusCode.OK to """{"username":"anna@example.org","name":"Anna","roles":["user"]}"""
+            val named = model(signedInStore(openList = null).also { it.save(it.load().copy(email = "anna@example.org")) }).also { it.start() }
+            advanceUntilIdle()
+            assertEquals("Anna", (named.screen.value as Screen.Lists).user)
+
+            backend.answers["GET /auth/who-am-i"] = HttpStatusCode.OK to """{"username":"anna@example.org","name":null,"roles":["user"]}"""
+            val unnamed = model(signedInStore(openList = null).also { it.save(it.load().copy(email = "anna@example.org")) }).also { it.start() }
+            advanceUntilIdle()
+            assertEquals("anna@example.org", (unnamed.screen.value as Screen.Lists).user)
+        }
 }

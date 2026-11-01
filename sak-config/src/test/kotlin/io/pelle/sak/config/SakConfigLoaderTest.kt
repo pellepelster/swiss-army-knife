@@ -256,13 +256,12 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `auth needs a way to sign in, and the e-mail login needs an admin`() {
+    fun `auth needs a way to sign in, the e-mail login needs no admin`() {
         // neither a mail server nor an admin password
         shouldThrow<IllegalArgumentException> { load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  admins: [admin@example.org]\n") }
-        // a mail server without an admin to send the first link to
-        shouldThrow<IllegalArgumentException> {
-            load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  smtp:\n    host: localhost\n    from: login@example.org\n")
-        }
+        // a mail server without an admin: the users an admin adds sign in by e-mail
+        load("data_dir: /data\n${ROOT_DOMAIN}auth:\n  smtp:\n    host: localhost\n    from: login@example.org\n").auth!!.admins shouldBe
+            emptyList()
         System.setProperty("SAK_TEST_ADMIN_PASSWORD", "\$argon2id\$v=19\$m=19456,t=2,p=1\$qEK7\$o63n")
         try {
             // single user: the password alone, the admin has no address

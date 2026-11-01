@@ -206,7 +206,7 @@ describe('Grocery', () => {
     input('item-3').click();
     await harness.fixture.whenStable();
     expect(page().querySelector('[role=status]')?.textContent).toContain('Candles bought');
-    expect(page().querySelector('[aria-label="Remove Candles"]')).toBeNull();
+    expect(page().querySelector('[aria-label="Delete Candles"]')).toBeNull();
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
     http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/3' }).flush(null);
     await harness.fixture.whenStable();

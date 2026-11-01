@@ -22,9 +22,9 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   one that creates what the page is about (a note, a bucket, a redirect, a domain). Other add actions show only what
   they add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A
   small inline link to add something (`+ label`) may start with a plus in its text.
-- `UX-3` **Destructive is red.** A button that destroys, deletes or removes something has the danger color. The button
+- `UX-3` **Destructive is red.** A button that destroys or deletes something has the danger color. The button
   that does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
-- `UX-4` **Two ways to delete data.** An action that deletes or removes something that holds data or configuration the
+- `UX-4` **Two ways to delete data.** An action that deletes something that holds data or configuration the
   user made does one of two things:
   - `UX-4.1` **Confirm first.** It asks for confirmation and says what goes. Cancel is the safe default.
   - `UX-4.2` **Undo afterwards.** It takes effect in the ui at once; a toast centered at the bottom offers to undo it
@@ -75,7 +75,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 ## sakctl window
 
 - `WINDOW-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
-  created anew or removed. The plan of a deploy is the check on the page of the deployment. Only the apply changes
+  created anew or deleted. The plan of a deploy is the check on the page of the deployment. Only the apply changes
   something, and it shows each resource as it goes, with the output of the provisioning below.
 - `WINDOW-9` **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses
   always stay; a change that would need them created anew stops the plan before anything changes. A deploy happens where
@@ -121,6 +121,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   changes nothing.
 - `CLI-10` **One line per event.** Each line is a date, a level and a message, nothing indented. The level has a color
   on a terminal: info green, warning yellow, error red. A warning is what deserves a second look, for example a change
-  the plan found or a resource a destroy will remove.
+  the plan found or a resource a destroy will delete.
 - `CLI-11` **Resource first, the texts of the window.** What happens to a resource reads as the resource, then what is
   done to it, with the same texts as the window: "Server 'alpha': creating…", then "Server 'alpha': created".

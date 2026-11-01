@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.users.users
 import io.ktor.http.HttpHeaders
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole
@@ -126,7 +127,15 @@ fun Application.apps(
     // user), or ADMIN_USERNAME without admins (single user)
     val admin = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
     val admins = auth.admins.map { it.trim().lowercase() }.toSet() + admin
-    val rolesOf = { email: String -> if (email in admins) setOf(Role.ADMIN) else emptySet() }
+    // the admins of the configuration, then the users an admin added (the table, asked on every
+    // request of a session: a deleted user's next request is refused)
+    val rolesOf = { email: String ->
+        when {
+            email in admins -> setOf(Role.ADMIN)
+            userService.isUser(email) -> setOf(Role.USER)
+            else -> emptySet()
+        }
+    }
     // every app that prepares the data of a user who signs in (SHARED-5)
     val onLogin = LoginListener { owner -> loginListeners.forEach { it.signedIn(owner) } }
 
@@ -170,7 +179,7 @@ fun Application.apps(
                             }
                         }
                         authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
-                            whoAmI()
+                            whoAmI(nameOf = userService::name)
                         }
                     }
                     authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
@@ -192,16 +201,20 @@ fun Application.apps(
                             redirects(redirectService)
                         }
                         route("/labels") {
-                            requireRole(Role.ADMIN)
+                            requireRole(Role.ADMIN, Role.USER)
                             labels(labelService)
                         }
                         route("/notes") {
-                            requireRole(Role.ADMIN)
+                            requireRole(Role.ADMIN, Role.USER)
                             notes(noteService)
                         }
                         route("/grocery") {
-                            requireRole(Role.ADMIN)
+                            requireRole(Role.ADMIN, Role.USER)
                             grocery(groceryService)
+                        }
+                        route("/users") {
+                            requireRole(Role.ADMIN)
+                            users(userService)
                         }
                         route("/settings") {
                             requireRole(Role.ADMIN)
@@ -212,7 +225,7 @@ fun Application.apps(
                             health(listOf(hostingHealth, redirectsHealth))
                         }
                         route("/files") {
-                            requireRole(Role.ADMIN)
+                            requireRole(Role.ADMIN, Role.USER)
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
                             files(fileService, fileTextService)
                             servedFiles(fileService)

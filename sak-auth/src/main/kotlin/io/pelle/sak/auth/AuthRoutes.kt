@@ -279,20 +279,22 @@ private const val ALL_CLIENTS = "*"
 // the signed in user, meant to be mounted behind authenticate(SESSION_AUTH) with
 // authentication { session(tokens, rolesOf) }
 @OptIn(ExperimentalKtorApi::class)
-fun Route.whoAmI() {
+// nameOf is the name of an address, null when it has none; the apps show it instead of the address
+fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
     installApi()
 
     get("/who-am-i") {
         val principal = call.principal<SessionPrincipal>()!!
         call.response.header(HttpHeaders.CacheControl, "no-store")
         val username = if (principal.withPassword) ADMIN_USERNAME else principal.email
-        call.respond(WhoAmIResponse(username, principal.expiresAt?.apiTime(), principal.roles.keys()))
+        val name = if (principal.withPassword) null else withContext(Dispatchers.IO) { nameOf(principal.email) }
+        call.respond(WhoAmIResponse(username, name, principal.expiresAt?.apiTime(), principal.roles.keys()))
     }.describe {
         tag(AUTH_TAG)
         summary = "The signed in user"
         responses {
             HttpStatusCode.OK {
-                description = "The address, its roles and when the session expires"
+                description = "The address, its name if it has one, its roles and when the session expires"
                 schema = jsonSchema<WhoAmIResponse>()
             }
             HttpStatusCode.Unauthorized { description = "No valid session token" }
