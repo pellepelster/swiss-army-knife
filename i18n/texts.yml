@@ -1214,6 +1214,18 @@ grocery:
         de: "Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie."
       no_such_list: { en: "There is no such list of yours.", de: "Du hast keine solche Liste." }
       not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
+    download:
+      page_title: { en: "Download the app · Grocery", de: "App herunterladen · Einkaufslisten" }
+      title: { en: "The grocery app for Android", de: "Die Einkaufslisten-App für Android" }
+      started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
+      again: { en: "Download again", de: "Erneut herunterladen" }
+      no_release:
+        en: "This deployment runs no release, there is no app to download."
+        de: "Dieses Deployment läuft mit keinem Release, es gibt keine App zum Herunterladen."
+      failed:
+        en: "The version of the deployment could not be loaded."
+        de: "Die Version des Deployments konnte nicht geladen werden."
+      releases: { en: "All releases on GitHub", de: "Alle Releases auf GitHub" }
     list:
       add_item: { en: "Add item", de: "Artikel hinzufügen" }
       empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }

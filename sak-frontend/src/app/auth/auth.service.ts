@@ -24,6 +24,14 @@ interface ExchangeResponse {
 // admin by password
 export type UserMode = 'single' | 'multi';
 
+// what GET /api/v1/info tells about the deployment; no version for a build that is no release
+export interface DeploymentInfo {
+  name: string;
+  dnsMode: string;
+  userMode: UserMode;
+  version: string | null;
+}
+
 // who the backend takes the session for: admin for the password login, else the e-mail address
 export interface WhoAmI {
   username: string;
@@ -90,7 +98,12 @@ export class AuthService {
   // with an admin password
   // the user mode of the deployment, which the sign-in follows (UX-7)
   userMode(): Observable<UserMode> {
-    return this.http.get<{ userMode: UserMode }>('/api/v1/info').pipe(map((info) => info.userMode));
+    return this.info().pipe(map((info) => info.userMode));
+  }
+
+  // the deployment that answers, without a session
+  info(): Observable<DeploymentInfo> {
+    return this.http.get<DeploymentInfo>('/api/v1/info');
   }
 
   // trades the login token from the e-mailed link for a session, emits where to go next

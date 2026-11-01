@@ -466,12 +466,13 @@ mkdir -p data
 """
 
 # the documents of docs/ as a site with the theme relearn in the look of sak-theme (site/),
-# reloaded on every change: http://localhost:1313
+# rebuilt as a whole on every change of what site/hugo.toml mounts (docs/, the README, the theme),
+# so the menu and the links of every page follow too, not only the page shown: http://localhost:1313
 [tasks."docs:serve"]
 description = "Serve the docs"
 depends = ["docs:data"]
 dir = "{{config_root}}/site"
-run = "hugo server"
+run = "hugo server --disableFastRender"
 
 # the same site as files in build/site; a link that does not resolve fails it
 [tasks."docs:build"]

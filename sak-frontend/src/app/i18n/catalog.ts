@@ -180,6 +180,15 @@ export const CATALOG = {
       only_owner: 'Only the owner of a list changes it',
       shared_badge: 'shared',
       lists_forbidden: 'Your role does not allow to see the grocery lists.',
+      download: {
+        page_title: 'Download the app · Grocery',
+        title: 'The grocery app for Android',
+        started: 'The download of the app has started.',
+        again: 'Download again',
+        no_release: 'This deployment runs no release, there is no app to download.',
+        failed: 'The version of the deployment could not be loaded.',
+        releases: 'All releases on GitHub',
+      },
     },
     health: {
       title: 'Health',
@@ -624,6 +633,15 @@ export const CATALOG = {
       only_owner: 'Nur der Besitzer einer Liste kann sie ändern',
       shared_badge: 'geteilt',
       lists_forbidden: 'Deine Rolle erlaubt es nicht, die Einkaufslisten zu sehen.',
+      download: {
+        page_title: 'App herunterladen · Einkaufslisten',
+        title: 'Die Einkaufslisten-App für Android',
+        started: 'Der Download der App hat begonnen.',
+        again: 'Erneut herunterladen',
+        no_release: 'Dieses Deployment läuft mit keinem Release, es gibt keine App zum Herunterladen.',
+        failed: 'Die Version des Deployments konnte nicht geladen werden.',
+        releases: 'Alle Releases auf GitHub',
+      },
     },
     health: {
       title: 'Zustand',

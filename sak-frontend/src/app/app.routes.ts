@@ -5,7 +5,7 @@ import { HealthPage } from './health/health-page';
 import { Home } from './home/home';
 import { hostingRoute } from './hosting/hosting.routes';
 import { redirectsRoute } from './redirects/redirects.routes';
-import { groceryRoute } from './grocery/grocery.routes';
+import { groceryDownloadRoute, groceryRoute } from './grocery/grocery.routes';
 import { Login } from './login/login';
 import { NotesPage } from './notes/notes-page';
 import { SettingsPage } from './settings/settings-page';
@@ -26,6 +26,7 @@ export const routes: Routes = [
   },
   hostingRoute,
   redirectsRoute,
+  groceryDownloadRoute,
   groceryRoute,
   {
     path: 'health',
