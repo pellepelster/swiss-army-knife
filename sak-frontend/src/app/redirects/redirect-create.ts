@@ -10,21 +10,16 @@ import {
   validDomain,
 } from './redirect-target-fields';
 import { RedirectsService } from './redirects.service';
+import { PageHeader } from '../shared/page-header';
 
 // redirects a domain to an external domain or to the domain a bucket is served at, on a page
 // of its own; afterwards the redirect shows
 @Component({
   selector: 'app-redirect-create',
-  imports: [RedirectTargetFields, RouterLink, TranslatePipe],
+  imports: [PageHeader, RedirectTargetFields, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/redirects"
-        [attr.aria-label]="'redirects.all_redirects' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/redirects" [backLabel]="'redirects.all_redirects' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'redirects.create' | t }}</h1>
     </header>
 

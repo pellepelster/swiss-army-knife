@@ -1,38 +1,24 @@
-import {
-  Component,
-  DestroyRef,
-  effect,
-  inject,
-  input,
-  numberAttribute,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { Subscription, timer } from 'rxjs';
-import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
+import { RouterLink } from '@angular/router';
+import { apiErrorMessage } from '../shared/api';
 import { formatBytes, formatCount } from '../shared/format';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
+import { pagedList, pageOffset } from '../shared/paged-list';
 import { ActionMenu } from '../shared/action-menu';
-import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
+import { BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
+import { PageHeader } from '../shared/page-header';
 
 // the buckets with their domains, objects and size, a page at a time; the numbers are counted in
 // the background, the list asks again while a bucket of the page is still being counted; the menu
 // of a row deletes its bucket
 @Component({
   selector: 'app-bucket-list',
-  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
+  imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.static_hosting' | t }}</h1>
       <a
         class="btn btn-primary"
@@ -43,13 +29,13 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
       </a>
     </header>
 
-    @if (error(); as error) {
+    @if (list.error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    @if (loaded()) {
+    @if (list.loaded()) {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'hosting.list.buckets' | t">
-        @for (bucket of buckets(); track bucket.name) {
+        @for (bucket of list.items(); track bucket.name) {
           <li class="card card-body flex-row align-items-center gap-3">
             <a
               class="flex-grow-1 d-flex justify-content-between gap-3 link-body-emphasis text-decoration-none stretched-link"
@@ -74,11 +60,14 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
                 }
               </span>
             </a>
-            <app-action-menu
-              [name]="bucket.name"
-              [question]="'hosting.list.delete_question' | t: { name: bucket.name }"
-              (deleted)="delete(bucket.name)"
-            />
+            <app-action-menu [name]="bucket.name" deletes (deleted)="delete(bucket.name)">
+              <a
+                class="dropdown-item"
+                role="menuitem"
+                [routerLink]="['/static-hosting', bucket.name, 'edit']"
+                ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
+              >
+            </app-action-menu>
           </li>
         } @empty {
           <li class="card card-body text-center py-4">
@@ -88,10 +77,10 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
       </ul>
       <app-pagination
         [label]="'hosting.list.pages' | t"
-        [pagination]="pagination()"
-        (offsetChange)="goTo($event)"
+        [pagination]="list.pagination()"
+        (offsetChange)="list.goTo($event)"
       />
-    } @else if (!error()) {
+    } @else if (!list.error()) {
       <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
@@ -99,38 +88,28 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
 export class BucketList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
-  private readonly router = inject(Router);
   private readonly i18n = inject(I18n);
 
   // the route's offset query parameter, where the page shown starts
-  readonly offset = input(0, {
-    transform: (value: unknown) => Math.max(0, numberAttribute(value, 0)),
-  });
+  readonly offset = input(0, { transform: pageOffset });
 
-  protected readonly buckets = signal<Bucket[]>([]);
-  protected readonly loaded = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly pagination = signal<Pagination | null>(null);
+  protected readonly list = pagedList({
+    path: '/static-hosting',
+    offset: this.offset,
+    page: (offset) => this.service.page(offset),
+    error: (error) =>
+      apiErrorMessage(error, this.i18n.t('hosting.list.load_failed'), {
+        403: this.i18n.t('hosting.forbidden'),
+      }),
+    again: {
+      while: (buckets) => buckets.some((bucket) => bucket.statistics.computing),
+      ms: POLL_INTERVAL_MS,
+    },
+  });
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
   protected readonly served = servedDomains;
-
-  // the loading of the page shown or the wait before asking again, replaced by the next one
-  private loading?: Subscription;
-
-  constructor() {
-    effect(() => {
-      const offset = this.offset();
-      untracked(() => this.load(offset));
-    });
-  }
-
-  protected goTo(offset: number): void {
-    void this.router.navigate(['/static-hosting'], {
-      queryParams: { offset: offset > 0 ? offset : null },
-    });
-  }
 
   // its objects stay, the name stays taken
   protected delete(name: string): void {
@@ -138,42 +117,11 @@ export class BucketList {
       .delete(name)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => this.load(this.offset()),
+        next: () => this.list.reload(),
         error: (error: unknown) =>
-          this.error.set(
+          this.list.error.set(
             apiErrorMessage(error, this.i18n.t('hosting.view.delete_failed', { name }), {
               403: this.i18n.t('hosting.view.delete_forbidden'),
-            }),
-          ),
-      });
-  }
-
-  private load(offset: number): void {
-    this.loading?.unsubscribe();
-    this.loading = this.service
-      .page(offset)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (page) => {
-          // the page is gone, e.g. its last bucket
-          if (page.items.length === 0 && offset > 0) {
-            this.goTo(lastPageOffset(page.pagination));
-            return;
-          }
-          this.error.set(null);
-          this.buckets.set(page.items);
-          this.pagination.set(page.pagination);
-          this.loaded.set(true);
-          if (page.items.some((bucket) => bucket.statistics.computing)) {
-            this.loading = timer(POLL_INTERVAL_MS)
-              .pipe(takeUntilDestroyed(this.destroyRef))
-              .subscribe(() => this.load(offset));
-          }
-        },
-        error: (error: unknown) =>
-          this.error.set(
-            apiErrorMessage(error, this.i18n.t('hosting.list.load_failed'), {
-              403: this.i18n.t('hosting.forbidden'),
             }),
           ),
       });

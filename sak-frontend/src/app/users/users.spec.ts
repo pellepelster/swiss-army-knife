@@ -67,9 +67,7 @@ describe('Users', () => {
     await list([admin, anna]);
     button('Delete', await rowMenu('anna@example.org')).click();
     await harness.fixture.whenStable();
-    expect(page().textContent).toContain(
-      'Delete Anna? They can no longer sign in; their data stays.',
-    );
+    expect(page().textContent).toContain('Delete anna@example.org?');
     button('Keep').click();
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });

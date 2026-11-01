@@ -8,6 +8,7 @@ import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
 import { GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
 import { ActionMenu } from '../shared/action-menu';
+import { PageHeader } from '../shared/page-header';
 
 // the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
 // others, each with how many items are to buy; a list opens on its own page, its menu leads to its
@@ -15,16 +16,10 @@ import { ActionMenu } from '../shared/action-menu';
 // loads them again (LIST-4)
 @Component({
   selector: 'app-grocery-lists-page',
-  imports: [ListIcon, RouterLink, ActionMenu, TranslatePipe],
+  imports: [PageHeader, ListIcon, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.grocery' | t }}</h1>
       <a class="btn btn-primary" routerLink="lists/create">
         <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.lists.add' | t }}
@@ -59,7 +54,7 @@ import { ActionMenu } from '../shared/action-menu';
             </a>
             <app-action-menu
               [name]="list.name"
-              [question]="'grocery.lists.delete_question' | t: { name: list.name }"
+              deletes
               [deleteDisabled]="undeletable(list)"
               (deleted)="delete(list)"
             >

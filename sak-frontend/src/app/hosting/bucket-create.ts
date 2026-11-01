@@ -6,20 +6,15 @@ import { I18n, TranslatePipe } from '../i18n/i18n';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
 import { DomainList } from './domain-list';
+import { PageHeader } from '../shared/page-header';
 
 // creates a bucket with its domains on a page of its own, the new bucket opens afterwards
 @Component({
   selector: 'app-bucket-create',
-  imports: [DomainList, RouterLink, TranslatePipe],
+  imports: [PageHeader, DomainList, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/static-hosting"
-        [attr.aria-label]="'hosting.all_buckets' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/static-hosting" [backLabel]="'hosting.all_buckets' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'hosting.create_page.title' | t }}</h1>
     </header>
 

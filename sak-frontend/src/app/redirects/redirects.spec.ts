@@ -44,7 +44,7 @@ describe('Redirects', () => {
 
   afterEach(() => http.verify());
 
-  const { page, button, type, open, url, deleteFromRow } = pageHelpers(() => harness);
+  const { page, button, type, open, url, rowMenu, deleteFromRow } = pageHelpers(() => harness);
 
   it('lists the redirects with their targets and where they lead', async () => {
     await open('/redirects');
@@ -141,6 +141,9 @@ describe('Redirects', () => {
     button('Delete the redirect of example.com').click();
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });
+    // it says what goes, Keep is the safe default
+    expect(page().textContent).toContain('Delete example.com?');
+    expect(document.activeElement?.textContent?.trim()).toBe('Keep');
     button('Keep').click();
     await harness.fixture.whenStable();
     button('Delete the redirect of example.com').click();
@@ -155,8 +158,67 @@ describe('Redirects', () => {
     http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toBucket]));
   });
 
+  it('the menu of a row leads to the edit page of the redirect', async () => {
+    await open('/redirects');
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toExternal]));
+    await harness.fixture.whenStable();
+    expect(button('Edit', await rowMenu('example.com')).getAttribute('href')).toBe(
+      '/redirects/example.com/edit',
+    );
+  });
+
+  it('says when the role does not allow to delete a redirect, in the list and on its page', async () => {
+    const forbidden = { status: 403, statusText: 'Forbidden' };
+    await open('/redirects');
+    http.expectOne('/api/v1/redirects?offset=0&limit=50').flush(pageOf([toExternal]));
+    await harness.fixture.whenStable();
+    await deleteFromRow('example.com');
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' })
+      .flush(null, forbidden);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'Your role does not allow to delete redirects.',
+    );
+
+    await open('/redirects/example.com');
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
+    await harness.fixture.whenStable();
+    button('Delete the redirect of example.com').click();
+    await harness.fixture.whenStable();
+    button(
+      'Delete',
+      page().querySelector('[aria-label="Delete example.com"][role=group]')!,
+    ).click();
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' })
+      .flush(null, forbidden);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'Your role does not allow to delete redirects.',
+    );
+  });
+
+  it('follows the redirect the route names, what was shown of the one before goes', async () => {
+    await open('/redirects/missing.org');
+    http
+      .expectOne('/api/v1/redirects/missing.org')
+      .flush(null, { status: 404, statusText: 'Not Found' });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'There is no such redirect.',
+    );
+
+    await open('/redirects/example.com');
+    expect(page().querySelector('[role=alert]')).toBeNull();
+    http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('h1')?.textContent).toContain('example.com');
+  });
+
   it('changes where a redirect leads to on its edit page', async () => {
     await open('/redirects/example.com/edit');
+    expect(page().textContent).toContain('Loading…');
     http.expectOne('/api/v1/redirects/example.com').flush(toExternal);
     await harness.fixture.whenStable();
     http
@@ -167,6 +229,11 @@ describe('Redirects', () => {
     await harness.fixture.whenStable();
 
     expect(page().querySelector<HTMLInputElement>('#source-domain')!.readOnly).toBe(true);
+    // cancel and save are one group
+    const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Cancel', 'Save']);
     expect(page().querySelector<HTMLInputElement>('#target-domain-name')!.value).toBe(
       'example.org',
     );

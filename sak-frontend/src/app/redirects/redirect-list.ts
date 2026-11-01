@@ -1,21 +1,14 @@
-import {
-  Component,
-  DestroyRef,
-  effect,
-  inject,
-  input,
-  numberAttribute,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
-import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
+import { RouterLink } from '@angular/router';
+import { apiErrorMessage } from '../shared/api';
 import { I18n, TextKey, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
+import { pagedList, pageOffset } from '../shared/paged-list';
 import { ActionMenu } from '../shared/action-menu';
-import { Redirect, RedirectsService, RedirectTarget } from './redirects.service';
+import { redirectDeleteErrorMessage } from './redirect-store';
+import { RedirectsService, RedirectTarget } from './redirects.service';
+import { PageHeader } from '../shared/page-header';
 
 const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
   domain: 'redirects.types.domain',
@@ -27,16 +20,10 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
 // page of its own
 @Component({
   selector: 'app-redirect-list',
-  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
+  imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.redirects' | t }}</h1>
       <a class="btn btn-primary" routerLink="/redirects/create" [title]="'redirects.create' | t">
         <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.create' | t }}
@@ -47,13 +34,13 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
       {{ 'redirects.list.intro' | t }}
     </p>
 
-    @if (error(); as error) {
+    @if (list.error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    @if (loaded()) {
+    @if (list.loaded()) {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'app.redirects' | t">
-        @for (redirect of redirects(); track redirect.sourceDomain) {
+        @for (redirect of list.items(); track redirect.sourceDomain) {
           <li
             class="card card-body flex-row align-items-center gap-3"
             [attr.data-testid]="'redirect-' + redirect.sourceDomain"
@@ -82,9 +69,16 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
             </div>
             <app-action-menu
               [name]="redirect.sourceDomain"
-              [question]="'redirects.list.delete_question' | t: { domain: redirect.sourceDomain }"
+              deletes
               (deleted)="delete(redirect.sourceDomain)"
-            />
+            >
+              <a
+                class="dropdown-item"
+                role="menuitem"
+                [routerLink]="['/redirects', redirect.sourceDomain, 'edit']"
+                ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
+              >
+            </app-action-menu>
           </li>
         } @empty {
           <li class="card card-body text-center py-4">{{ 'redirects.list.empty' | t }}</li>
@@ -92,10 +86,10 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
       </ul>
       <app-pagination
         [label]="'redirects.list.pages' | t"
-        [pagination]="pagination()"
-        (offsetChange)="goTo($event)"
+        [pagination]="list.pagination()"
+        (offsetChange)="list.goTo($event)"
       />
-    } @else if (!error()) {
+    } @else if (!list.error()) {
       <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
@@ -103,74 +97,32 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
 export class RedirectList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
-  private readonly router = inject(Router);
   private readonly i18n = inject(I18n);
 
   // the name of the type of a target
   protected readonly TYPES = TARGET_TYPES;
 
   // the route's offset query parameter, where the page shown starts
-  readonly offset = input(0, {
-    transform: (value: unknown) => Math.max(0, numberAttribute(value, 0)),
+  readonly offset = input(0, { transform: pageOffset });
+
+  protected readonly list = pagedList({
+    path: '/redirects',
+    offset: this.offset,
+    page: (offset) => this.service.page(offset),
+    error: (error) =>
+      apiErrorMessage(error, this.i18n.t('redirects.list.load_failed'), {
+        403: this.i18n.t('redirects.forbidden'),
+      }),
   });
-
-  protected readonly redirects = signal<Redirect[]>([]);
-  protected readonly loaded = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly pagination = signal<Pagination | null>(null);
-
-  // the loading of the page shown, replaced by the next one
-  private loading?: Subscription;
-
-  constructor() {
-    effect(() => {
-      const offset = this.offset();
-      untracked(() => this.load(offset));
-    });
-  }
-
-  protected goTo(offset: number): void {
-    void this.router.navigate(['/redirects'], {
-      queryParams: { offset: offset > 0 ? offset : null },
-    });
-  }
 
   protected delete(domain: string): void {
     this.service
       .delete(domain)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => this.load(this.offset()),
+        next: () => this.list.reload(),
         error: (error: unknown) =>
-          this.error.set(
-            apiErrorMessage(error, this.i18n.t('redirects.view.delete_failed', { domain })),
-          ),
-      });
-  }
-
-  private load(offset: number): void {
-    this.loading?.unsubscribe();
-    this.loading = this.service
-      .page(offset)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (page) => {
-          // the page is gone, e.g. its last redirect
-          if (page.items.length === 0 && offset > 0) {
-            this.goTo(lastPageOffset(page.pagination));
-            return;
-          }
-          this.error.set(null);
-          this.redirects.set(page.items);
-          this.pagination.set(page.pagination);
-          this.loaded.set(true);
-        },
-        error: (error: unknown) =>
-          this.error.set(
-            apiErrorMessage(error, this.i18n.t('redirects.list.load_failed'), {
-              403: this.i18n.t('redirects.forbidden'),
-            }),
-          ),
+          this.list.error.set(redirectDeleteErrorMessage(this.i18n, error, domain)),
       });
   }
 }

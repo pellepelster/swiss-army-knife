@@ -147,11 +147,11 @@ describe('Hosting', () => {
       .expectOne('/api/v1/static-hosting?offset=0&limit=50')
       .flush(pageOf([bucket('site', []), bucket('blog', [])]));
     await harness.fixture.whenStable();
-    button('Delete', await rowMenu('site')).click();
+    const menu = await rowMenu('site');
+    expect(button('Edit', menu).getAttribute('href')).toBe('/static-hosting/site/edit');
+    button('Delete', menu).click();
     await harness.fixture.whenStable();
-    expect(page().textContent).toContain(
-      'Delete the bucket site? Its files stay, its name stays taken.',
-    );
+    expect(page().textContent).toContain('Delete site?');
     button('Keep').click();
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });
@@ -277,6 +277,11 @@ describe('Hosting', () => {
     await open('/static-hosting/other/edit');
     http.expectOne('/api/v1/static-hosting/other').flush(bucket('other', ['example.com']));
     await harness.fixture.whenStable();
+    // cancel and save are one group
+    const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
+    expect(
+      [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
+    ).toEqual(['Cancel', 'Save']);
     expect(page().querySelector<HTMLInputElement>('#edit-bucket-name')!.value).toBe('other');
     expect(page().querySelector<HTMLInputElement>('#domain-0')!.value).toBe('example.com');
   });

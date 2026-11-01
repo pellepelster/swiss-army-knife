@@ -506,8 +506,7 @@ private fun ListSettingsScreen(
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.grocery_delete_list_title)) },
-            text = { Text(stringResource(R.string.grocery_delete_list_text, settings.name)) },
+            title = { Text(stringResource(R.string.shared_confirm_delete, settings.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {

@@ -1,37 +1,23 @@
-import {
-  Component,
-  DestroyRef,
-  effect,
-  inject,
-  input,
-  numberAttribute,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
-import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
+import { apiErrorMessage } from '../shared/api';
 import { PaginationControl } from '../shared/pagination';
+import { pagedList, pageOffset } from '../shared/paged-list';
 import { ActionMenu } from '../shared/action-menu';
-import { User, UsersService } from './users.service';
+import { UsersService } from './users.service';
+import { PageHeader } from '../shared/page-header';
 
 // who may sign in, a page at a time, as a table of the address, the name, the role and the
 // actions: the admins of the configuration of the deployment, then the users an admin added. A user is added on a page of its own
 // and deleted after a confirmation in its place (UX-4.1); an admin of the configuration is not
 @Component({
   selector: 'app-user-list',
-  imports: [PaginationControl, RouterLink, ActionMenu, TranslatePipe],
+  imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.title' | t }}</h1>
       <a class="btn btn-primary" routerLink="/users/create" [title]="'users.add_user' | t">
         <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.add' | t }}
@@ -40,11 +26,11 @@ import { User, UsersService } from './users.service';
 
     <p class="text-body-secondary">{{ 'users.intro' | t }}</p>
 
-    @if (error(); as error) {
+    @if (list.error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    @if (loaded()) {
+    @if (list.loaded()) {
       <div class="card table-responsive">
         <table class="table align-middle mb-0" [attr.aria-label]="'users.title' | t">
           <thead>
@@ -52,11 +38,11 @@ import { User, UsersService } from './users.service';
               <th scope="col">{{ 'users.column.email' | t }}</th>
               <th scope="col">{{ 'shared.name' | t }}</th>
               <th scope="col">{{ 'users.column.role' | t }}</th>
-              <th scope="col" class="text-end">{{ 'users.column.actions' | t }}</th>
+              <th scope="col" class="text-end">{{ 'shared.actions' | t }}</th>
             </tr>
           </thead>
           <tbody>
-            @for (user of users(); track user.email) {
+            @for (user of list.items(); track user.email) {
               <tr [attr.data-testid]="'user-' + user.email">
                 <td class="text-break" data-testid="email">{{ user.email }}</td>
                 <td class="text-break" data-testid="name">
@@ -77,7 +63,7 @@ import { User, UsersService } from './users.service';
                   <!-- an admin comes from the configuration, it is not deleted here (UX-8) -->
                   <app-action-menu
                     [name]="user.email"
-                    [question]="'users.confirm_delete' | t: { name: user.name ?? user.email }"
+                    deletes
                     [deleteDisabled]="user.configured || user.id === null ? configured : null"
                     (deleted)="user.id !== null && delete(user.id)"
                   />
@@ -89,10 +75,10 @@ import { User, UsersService } from './users.service';
       </div>
       <app-pagination
         [label]="'users.pages' | t"
-        [pagination]="pagination()"
-        (offsetChange)="goTo($event)"
+        [pagination]="list.pagination()"
+        (offsetChange)="list.goTo($event)"
       />
-    } @else if (!error()) {
+    } @else if (!list.error()) {
       <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
@@ -100,69 +86,31 @@ import { User, UsersService } from './users.service';
 export class UserList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(UsersService);
-  private readonly router = inject(Router);
   private readonly i18n = inject(I18n);
 
   // the route's offset query parameter, where the page shown starts
-  readonly offset = input(0, {
-    transform: (value: unknown) => Math.max(0, numberAttribute(value, 0)),
-  });
+  readonly offset = input(0, { transform: pageOffset });
 
-  protected readonly users = signal<User[]>([]);
-  protected readonly loaded = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly pagination = signal<Pagination | null>(null);
+  protected readonly list = pagedList({
+    path: '/users',
+    offset: this.offset,
+    page: (offset) => this.service.page(offset),
+    error: (error) =>
+      apiErrorMessage(error, this.i18n.t('users.not_loaded'), {
+        403: this.i18n.t('users.forbidden_see'),
+      }),
+  });
   // why an admin is not deleted
   protected readonly configured = this.i18n.t('users.configured');
-
-  // the loading of the page shown, replaced by the next one
-  private loading?: Subscription;
-
-  constructor() {
-    effect(() => {
-      const offset = this.offset();
-      untracked(() => this.load(offset));
-    });
-  }
-
-  protected goTo(offset: number): void {
-    void this.router.navigate(['/users'], { queryParams: { offset: offset > 0 ? offset : null } });
-  }
 
   protected delete(id: number): void {
     this.service
       .delete(id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => this.load(this.offset()),
+        next: () => this.list.reload(),
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, this.i18n.t('users.not_deleted'))),
-      });
-  }
-
-  private load(offset: number): void {
-    this.loading?.unsubscribe();
-    this.loading = this.service
-      .page(offset)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (page) => {
-          // the page is gone, e.g. its last user
-          if (page.items.length === 0 && offset > 0) {
-            this.goTo(lastPageOffset(page.pagination));
-            return;
-          }
-          this.error.set(null);
-          this.users.set(page.items);
-          this.pagination.set(page.pagination);
-          this.loaded.set(true);
-        },
-        error: (error: unknown) =>
-          this.error.set(
-            apiErrorMessage(error, this.i18n.t('users.not_loaded'), {
-              403: this.i18n.t('users.forbidden_see'),
-            }),
-          ),
+          this.list.error.set(apiErrorMessage(error, this.i18n.t('users.not_deleted'))),
       });
   }
 }

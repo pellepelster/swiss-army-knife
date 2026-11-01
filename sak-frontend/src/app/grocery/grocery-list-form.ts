@@ -11,9 +11,11 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
+import { ConfirmDelete } from '../shared/confirm-delete';
 import { apiErrorMessage } from '../shared/api';
 import { GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
+import { PageHeader } from '../shared/page-header';
 
 // creates a grocery list, or changes the settings of one of the user (its name, whether it is
 // shared, its icon) and deletes it, on a page of its own. Afterwards the list shows. The icon is one
@@ -21,17 +23,11 @@ import { ListIcon } from './list-icon';
 // from the frontend itself (/emoji/data.json), not from a cdn
 @Component({
   selector: 'app-grocery-list-form',
-  imports: [ListIcon, RouterLink, TranslatePipe],
+  imports: [PageHeader, ConfirmDelete, ListIcon, RouterLink, TranslatePipe],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        [routerLink]="back()"
-        [attr.aria-label]="'grocery.back' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader [back]="back()" [backLabel]="'grocery.back' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">
         {{ (id() ? 'shared.settings' : 'grocery.form.create') | t }}
       </h1>
@@ -100,24 +96,16 @@ import { ListIcon } from './list-icon';
           <div class="form-text">{{ 'grocery.form.shared_hint' | t }}</div>
         </div>
 
-        <!-- one group of the actions; a delete asks inline in its place, Keep is the safe default -->
+        <!-- one group of the actions; a delete asks inline in its place (UX-9) -->
         <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
           @if (confirming()) {
-            <span class="small">{{ 'grocery.form.delete_question' | t }}</span>
-            <div class="btn-group" role="group" [attr.aria-label]="'grocery.form.delete_label' | t">
-              <button type="button" class="btn btn-danger" (click)="delete()">
-                {{ 'shared.delete' | t }}
-              </button>
-              <button
-                type="button"
-                class="btn btn-outline-secondary"
-                (click)="confirming.set(false)"
-              >
-                {{ 'shared.keep' | t }}
-              </button>
-            </div>
+            <app-confirm-delete
+              [name]="list()?.name ?? ''"
+              (confirmed)="delete()"
+              (kept)="confirming.set(false)"
+            />
           } @else {
-            <div class="btn-group" role="group" [attr.aria-label]="'grocery.form.actions' | t">
+            <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
               @if (list()) {
                 <button
                   type="button"

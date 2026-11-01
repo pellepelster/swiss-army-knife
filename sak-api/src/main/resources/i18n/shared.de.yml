@@ -2,6 +2,7 @@
 undo: "Rückgängig"
 delete: "Löschen"
 keep: "Behalten"
+confirm_delete: "%{name} löschen?"
 save: "Speichern"
 name: "Name"
 settings: "Einstellungen"

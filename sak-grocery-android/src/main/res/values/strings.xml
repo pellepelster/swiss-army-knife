@@ -11,6 +11,7 @@
     <string name="shared_undo">Undo</string>
     <string name="shared_delete">Delete</string>
     <string name="shared_keep">Keep</string>
+    <string name="shared_confirm_delete">Delete %1$s?</string>
     <string name="shared_save">Save</string>
     <string name="shared_name">Name</string>
     <string name="shared_settings">Settings</string>
@@ -73,8 +74,6 @@
     <string name="grocery_settings_of">Settings of %1$s</string>
     <string name="grocery_new_list">New list</string>
     <string name="grocery_saving">Saving…</string>
-    <string name="grocery_delete_list_title">Delete the list?</string>
-    <string name="grocery_delete_list_text">%1$s and its items go.</string>
     <string name="grocery_nothing_to_buy">Nothing to buy.</string>
     <string name="grocery_bought">%1$s bought</string>
     <plurals name="grocery_to_buy">

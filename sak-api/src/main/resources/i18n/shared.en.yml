@@ -2,6 +2,7 @@
 undo: "Undo"
 delete: "Delete"
 keep: "Keep"
+confirm_delete: "Delete %{name}?"
 save: "Save"
 name: "Name"
 settings: "Settings"

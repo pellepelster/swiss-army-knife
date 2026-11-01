@@ -14,6 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { debounceTime, filter, Observable, Subscription } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
+import { PendingUndo } from '../shared/pending-undo';
 import { UndoToast } from '../shared/undo-toast';
 import { ListIcon } from './list-icon';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
@@ -24,6 +25,7 @@ import {
   GroceryService,
   GrocerySuggestion,
 } from './grocery.service';
+import { PageHeader } from '../shared/page-header';
 
 // how long a check can be undone, shorter than for the notes: while shopping one
 // item follows the other
@@ -45,18 +47,12 @@ interface ItemGroup {
 // list shown, the suggestions are the items added before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
-  imports: [ListIcon, NgTemplateOutlet, RouterLink, TranslatePipe, UndoToast],
+  imports: [PageHeader, ListIcon, NgTemplateOutlet, RouterLink, TranslatePipe, UndoToast],
   host: {
     class: 'd-block container pb-5',
   },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/grocery"
-        [attr.aria-label]="'grocery.all_lists' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/grocery" [backLabel]="'grocery.all_lists' | t">
       @if (shown(); as list) {
         <app-list-icon [name]="list.name" [icon]="list.icon" />
       }
@@ -70,19 +66,12 @@ interface ItemGroup {
       </h1>
       <!-- always in its place (UX-8): only the owner changes a list -->
       @if (shown()?.mine) {
-        <a
-          class="btn btn-outline-secondary"
-          [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
-          >{{ 'shared.settings' | t }}</a
+        <a class="btn btn-primary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+          ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
         >
       } @else {
-        <button
-          type="button"
-          class="btn btn-outline-secondary"
-          disabled
-          [title]="'grocery.only_owner' | t"
-        >
-          {{ 'shared.settings' | t }}
+        <button type="button" class="btn btn-primary" disabled [title]="'grocery.only_owner' | t">
+          <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}
         </button>
       }
     </header>
@@ -194,17 +183,13 @@ export class GroceryPage {
   // the items bought while the bar runs, struck through until they go
   protected readonly struck = signal<ReadonlySet<number>>(new Set());
 
-  // what was bought last while it can be undone; a list, so the bar showing the time
-  // left starts anew for the next one
-  protected readonly undoable = signal<{ text: string }[]>([]);
-
-  // what was done last while it can be undone: the timer sending it to the backend, how it is sent
-  // and how it is undone
-  private pending: {
-    timer: ReturnType<typeof setTimeout>;
-    commit: () => void;
-    undo: () => void;
-  } | null = null;
+  // what was bought last while it can be undone: what the toast says
+  private readonly pending = new PendingUndo<{ text: string }>(GROCERY_UNDO_MS);
+  // a list, so the bar showing the time left starts anew for the next one
+  protected readonly undoable = computed(() => {
+    const current = this.pending.current();
+    return current ? [current] : [];
+  });
 
   protected readonly shown = computed(
     () => this.lists().find((list) => String(list.id) === this.id()) ?? null,
@@ -238,11 +223,11 @@ export class GroceryPage {
     effect(() => {
       const list = this.shown();
       untracked(() => {
-        this.commitPending();
+        this.pending.commit();
         this.loadItems(list);
       });
     });
-    this.destroyRef.onDestroy(() => this.commitPending());
+    this.destroyRef.onDestroy(() => this.pending.commit());
     // a change of the list shown, or of everything after the stream was away, loads it again; a list
     // that is gone leads to all lists (LIST-4)
     inject(GroceryChanges)
@@ -321,8 +306,9 @@ export class GroceryPage {
       this.undo();
       return;
     }
-    this.startPending(
-      this.i18n.t('grocery.list.bought', { name: item.name }),
+    this.error.set(null);
+    this.pending.start(
+      { text: this.i18n.t('grocery.list.bought', { name: item.name }) },
       () => {
         this.struck.update((ids) => without(ids, item.id));
         this.items.update((items) => items.filter((each) => each.id !== item.id));
@@ -334,30 +320,7 @@ export class GroceryPage {
   }
 
   protected undo(): void {
-    const pending = this.pending;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pending = null;
-    this.undoable.set([]);
-    pending.undo();
-  }
-
-  // the items go from the list shown at once; what was done before goes to the backend now
-  private startPending(text: string, commit: () => void, undo: () => void): void {
-    this.commitPending();
-    this.error.set(null);
-    const timer = setTimeout(() => this.commitPending(), GROCERY_UNDO_MS);
-    this.pending = { timer, commit, undo };
-    this.undoable.set([{ text }]);
-  }
-
-  private commitPending(): void {
-    const pending = this.pending;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pending = null;
-    this.undoable.set([]);
-    pending.commit();
+    this.pending.undo();
   }
 
   // not ended with the page: what was done is sent also when the page is left; a failure brings

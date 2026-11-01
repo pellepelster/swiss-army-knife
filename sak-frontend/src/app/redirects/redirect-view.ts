@@ -1,44 +1,41 @@
-import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
+import { ConfirmDelete } from '../shared/confirm-delete';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
-import { RedirectStore } from './redirect-store';
+import { RedirectStore, redirectDeleteErrorMessage } from './redirect-store';
 import { RedirectsService } from './redirects.service';
+import { PageHeader } from '../shared/page-header';
 
 // one redirect: its overview on top, its details in the tabs below, the first one its
 // configuration; it is edited on a page of its own and deleted after a second click
 @Component({
   selector: 'app-redirect-view',
-  imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
+  imports: [
+    PageHeader,
+    ConfirmDelete,
+    LocalDateTimePipe,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    TranslatePipe,
+  ],
   providers: [RedirectStore],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/redirects"
-        [attr.aria-label]="'redirects.all_redirects' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/redirects" [backLabel]="'redirects.all_redirects' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ source() }}</h1>
       @if (store.redirect()) {
         <!-- one group, the delete leftmost; it asks in its place, Keep is the safe default -->
         @if (confirming()) {
-          <div
-            class="btn-group"
-            role="group"
-            [attr.aria-label]="'redirects.view.delete_redirect' | t: { domain: source() }"
-          >
-            <button class="btn btn-danger" type="button" (click)="delete()">
-              {{ 'shared.delete' | t }}
-            </button>
-            <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-              {{ 'shared.keep' | t }}
-            </button>
-          </div>
+          <app-confirm-delete
+            [name]="source()"
+            (confirmed)="delete()"
+            (kept)="confirming.set(false)"
+          />
         } @else {
-          <div class="btn-group" role="group" [attr.aria-label]="'shared.view.actions' | t">
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.actions' | t">
             <button
               class="btn btn-outline-danger"
               type="button"
@@ -109,7 +106,7 @@ import { RedirectsService } from './redirects.service';
     }
   `,
 })
-export class RedirectView implements OnInit {
+export class RedirectView {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly store = inject(RedirectStore);
   private readonly service = inject(RedirectsService);
@@ -121,8 +118,12 @@ export class RedirectView implements OnInit {
 
   protected readonly confirming = signal(false);
 
-  ngOnInit(): void {
-    this.store.load(this.source());
+  constructor() {
+    // the redirect of the route, again when the route names another one
+    effect(() => {
+      const source = this.source();
+      untracked(() => this.store.load(source));
+    });
   }
 
   protected delete(): void {
@@ -132,10 +133,8 @@ export class RedirectView implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => void this.router.navigate(['/redirects']),
-        error: () =>
-          this.store.error.set(
-            this.i18n.t('redirects.view.delete_failed', { domain: this.source() }),
-          ),
+        error: (error: unknown) =>
+          this.store.error.set(redirectDeleteErrorMessage(this.i18n, error, this.source())),
       });
   }
 }

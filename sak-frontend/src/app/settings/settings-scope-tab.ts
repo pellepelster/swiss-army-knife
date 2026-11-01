@@ -87,13 +87,16 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
           <p class="alert alert-danger mb-0" role="alert" data-testid="save-error">{{ error }}</p>
         }
 
-        <div class="d-flex flex-wrap justify-content-end gap-2">
-          <button class="btn btn-primary" type="submit" [disabled]="!changed() || saving()">
-            @if (saving()) {
-              <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-            }
-            {{ 'shared.save' | t }}
-          </button>
+        <!-- the actions of the form, one group (UX-9) -->
+        <div class="d-flex justify-content-end">
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
+            <button class="btn btn-primary" type="submit" [disabled]="!changed() || saving()">
+              @if (saving()) {
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+              }
+              {{ 'shared.save' | t }}
+            </button>
+          </div>
         </div>
       </form>
     }

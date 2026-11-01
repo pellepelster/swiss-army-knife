@@ -1,4 +1,13 @@
-import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
@@ -6,21 +15,20 @@ import { apiErrorMessage } from '../shared/api';
 import { redirectErrorMessage } from './redirect-store';
 import { RedirectTargetFields, redirectTarget, TargetType } from './redirect-target-fields';
 import { RedirectsService } from './redirects.service';
+import { PageHeader } from '../shared/page-header';
 
 // edits where a redirect leads to on a page of its own, the redirected domain can not be
 // changed; saving or cancelling goes back to the redirect
 @Component({
   selector: 'app-redirect-edit',
-  imports: [RedirectTargetFields, RouterLink, TranslatePipe],
+  imports: [PageHeader, RedirectTargetFields, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        [routerLink]="['/redirects', source()]"
-        [attr.aria-label]="'redirects.back_to_redirect' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header
+      appPageHeader
+      [back]="['/redirects', source()]"
+      [backLabel]="'redirects.back_to_redirect' | t"
+    >
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'redirects.edit_page.title' | t }}</h1>
     </header>
 
@@ -47,22 +55,31 @@ import { RedirectsService } from './redirects.service';
           <p class="alert alert-danger mb-0" role="alert" data-testid="save-error">{{ error }}</p>
         }
 
-        <div class="d-flex flex-wrap justify-content-end gap-2">
-          <a class="btn btn-outline-secondary" [routerLink]="['/redirects', source()]">{{
-            'shared.cancel' | t
-          }}</a>
-          <button class="btn btn-primary" type="submit" [disabled]="target() === null || saving()">
-            @if (saving()) {
-              <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-            }
-            {{ 'shared.save' | t }}
-          </button>
+        <!-- cancel and save are one group (UX-9) -->
+        <div class="d-flex justify-content-end">
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
+            <a class="btn btn-outline-secondary" [routerLink]="['/redirects', source()]">{{
+              'shared.cancel' | t
+            }}</a>
+            <button
+              class="btn btn-primary"
+              type="submit"
+              [disabled]="target() === null || saving()"
+            >
+              @if (saving()) {
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+              }
+              {{ 'shared.save' | t }}
+            </button>
+          </div>
         </div>
       </form>
+    } @else if (!error()) {
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })
-export class RedirectEdit implements OnInit {
+export class RedirectEdit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
@@ -83,11 +100,17 @@ export class RedirectEdit implements OnInit {
     redirectTarget(this.type(), this.domain(), this.bucket()),
   );
 
-  ngOnInit(): void {
-    this.service
-      .redirect(this.source())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
+  constructor() {
+    // the redirect of the route, again when the route names another one; a late answer for the
+    // redirect before never fills the form
+    effect((onCleanup) => {
+      const source = this.source();
+      untracked(() => {
+        this.loaded.set(false);
+        this.error.set(null);
+        this.saveError.set(null);
+      });
+      const subscription = this.service.redirect(source).subscribe({
         next: (redirect) => {
           this.type.set(redirect.target.type);
           if (redirect.target.type === 'domain') this.domain.set(redirect.target.domain);
@@ -99,6 +122,8 @@ export class RedirectEdit implements OnInit {
             redirectErrorMessage(this.i18n, error, this.i18n.t('redirects.load_failed')),
           ),
       });
+      onCleanup(() => subscription.unsubscribe());
+    });
   }
 
   protected save(): void {

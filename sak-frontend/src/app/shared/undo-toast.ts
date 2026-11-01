@@ -1,8 +1,8 @@
 import { Component, input, output } from '@angular/core';
 import { TranslatePipe } from '../i18n/i18n';
 
-// how long what was removed can be brought back before the backend removes it
-export const UNDO_DELETE_MS = 5000;
+// how long what was removed can be brought back before the backend removes it (UX-4.2)
+export const UNDO_DELETE_MS = 2000;
 
 // tells what was removed and offers to bring it back while the bar shrinks; centered at the bottom,
 // on a phone above the floating buttons of a page that has them. Shown anew for every removal, the

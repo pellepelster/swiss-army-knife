@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { UsersService } from './users.service';
+import { PageHeader } from '../shared/page-header';
 
 // the longest name of a user (UserService.MAX_NAME_LENGTH)
 const MAX_NAME_LENGTH = 64;
@@ -19,16 +20,10 @@ export function validEmail(email: string): boolean {
 // link on the login page
 @Component({
   selector: 'app-user-create',
-  imports: [RouterLink, TranslatePipe],
+  imports: [PageHeader, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/users"
-        [attr.aria-label]="'users.all_users' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/users" [backLabel]="'users.all_users' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.add_user' | t }}</h1>
     </header>
 

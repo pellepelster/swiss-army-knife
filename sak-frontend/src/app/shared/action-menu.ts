@@ -1,5 +1,6 @@
 import {
   afterNextRender,
+  booleanAttribute,
   Component,
   computed,
   ElementRef,
@@ -11,15 +12,16 @@ import {
   viewChild,
 } from '@angular/core';
 import { I18n, TranslatePipe } from '../i18n/i18n';
+import { ConfirmDelete } from './confirm-delete';
 
 // a menu behind a ⋮ button, at the right end of a row of a list or of the header of a page; its
-// entries come as content, e.g. `<a class="dropdown-item" role="menuitem">`. Given a question, its
+// entries come as content, e.g. `<a class="dropdown-item" role="menuitem">`. With `deletes`, its
 // last entry deletes what the row shows: it asks inline in place of the button, Keep is the safe
 // default (UX-4.1, WEB-3); a delete that does not apply stays disabled and says why (UX-8). The menu is fixed to the window, so a
 // card or a scrolling table does not cut it off; it closes on a click elsewhere, Escape, a scroll
 @Component({
   selector: 'app-action-menu',
-  imports: [TranslatePipe],
+  imports: [ConfirmDelete, TranslatePipe],
   host: {
     class: 'd-flex align-items-center justify-content-end flex-shrink-0 position-relative',
     // above a stretched link of its row, and when open above the rows below
@@ -31,21 +33,12 @@ import { I18n, TranslatePipe } from '../i18n/i18n';
   },
   template: `
     @if (confirming()) {
-      <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
-        <span class="small">{{ question() }}</span>
-        <div
-          class="btn-group"
-          role="group"
-          [attr.aria-label]="'shared.action_menu.delete' | t: { name: name() ?? '' }"
-        >
-          <button type="button" class="btn btn-danger btn-sm" (click)="confirm()">
-            {{ 'shared.delete' | t }}
-          </button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="keep()">
-            {{ 'shared.keep' | t }}
-          </button>
-        </div>
-      </div>
+      <app-confirm-delete
+        [name]="name() ?? ''"
+        [small]="true"
+        (confirmed)="confirm()"
+        (kept)="keep()"
+      />
     }
     <button
       #toggle
@@ -55,7 +48,7 @@ import { I18n, TranslatePipe } from '../i18n/i18n';
       aria-haspopup="menu"
       [attr.aria-expanded]="open()"
       [attr.aria-label]="label()"
-      [title]="'shared.action_menu.actions' | t"
+      [title]="'shared.actions' | t"
       (click)="toggleMenu()"
     >
       <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
@@ -72,7 +65,7 @@ import { I18n, TranslatePipe } from '../i18n/i18n';
       (click)="close()"
     >
       <ng-content />
-      @if (question()) {
+      @if (deletes()) {
         <button
           type="button"
           role="menuitem"
@@ -95,8 +88,8 @@ export class ActionMenu {
 
   // what the row shows, for the labels; none for the menu of a page
   readonly name = input<string | null>(null);
-  // what the delete asks before it is done; none for a menu without a delete
-  readonly question = input<string | null>(null);
+  // whether its last entry deletes what the row shows
+  readonly deletes = input(false, { transform: booleanAttribute });
   // why the delete does not apply to the row, null when it does
   readonly deleteDisabled = input<string | null>(null);
   // the delete was confirmed

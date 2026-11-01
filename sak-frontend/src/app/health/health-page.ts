@@ -1,11 +1,11 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { I18n, TextKey, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { HealthService, HealthState, HealthStatus } from './health.service';
+import { PageHeader } from '../shared/page-header';
 
 const STATES: Record<HealthState, { label: TextKey; badge: string; icon: string }> = {
   HEALTHY: { label: 'health.state.healthy', badge: 'text-bg-success', icon: 'fa-circle-check' },
@@ -21,16 +21,10 @@ const STATES: Record<HealthState, { label: TextKey; badge: string; icon: string 
 // domain; checked anew when the page opens and on demand
 @Component({
   selector: 'app-health-page',
-  imports: [NgTemplateOutlet, RouterLink, TranslatePipe],
+  imports: [PageHeader, NgTemplateOutlet, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'health.title' | t }}</h1>
       <button
         type="button"

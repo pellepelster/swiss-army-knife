@@ -4,42 +4,39 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { apiErrorMessage } from '../shared/api';
 import { formatBytes, formatCount } from '../shared/format';
 import { I18n, TranslatePipe } from '../i18n/i18n';
+import { ConfirmDelete } from '../shared/confirm-delete';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { BucketStore } from './bucket-store';
 import { BucketsService } from './buckets.service';
+import { PageHeader } from '../shared/page-header';
 
 // one bucket: its overview on top, its details in the tabs below, the first one its configuration
 @Component({
   selector: 'app-bucket-view',
-  imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
+  imports: [
+    PageHeader,
+    ConfirmDelete,
+    LocalDateTimePipe,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    TranslatePipe,
+  ],
   providers: [BucketStore],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/static-hosting"
-        [attr.aria-label]="'hosting.all_buckets' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/static-hosting" [backLabel]="'hosting.all_buckets' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ name() }}</h1>
       @if (store.bucket()) {
         <!-- one group, the delete leftmost; it asks in its place, Keep is the safe default -->
         @if (confirming()) {
-          <div
-            class="btn-group"
-            role="group"
-            [attr.aria-label]="'hosting.view.delete_bucket' | t: { name: name() }"
-          >
-            <button class="btn btn-danger" type="button" (click)="delete()">
-              {{ 'shared.delete' | t }}
-            </button>
-            <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-              {{ 'shared.keep' | t }}
-            </button>
-          </div>
+          <app-confirm-delete
+            [name]="name()"
+            (confirmed)="delete()"
+            (kept)="confirming.set(false)"
+          />
         } @else {
-          <div class="btn-group" role="group" [attr.aria-label]="'shared.view.actions' | t">
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.actions' | t">
             <button
               class="btn btn-outline-danger"
               type="button"

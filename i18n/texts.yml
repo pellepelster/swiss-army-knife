@@ -31,6 +31,7 @@ common:
     undo: { en: "Undo", de: "Rückgängig" }
     delete: { en: "Delete", de: "Löschen" }
     keep: { en: "Keep", de: "Behalten" }
+    confirm_delete: { en: "Delete %{name}?", de: "%{name} löschen?" }
     save: { en: "Save", de: "Speichern" }
     name: { en: "Name", de: "Name" }
     settings: { en: "Settings", de: "Einstellungen" }
@@ -240,14 +241,13 @@ web:
     add: { en: "Add", de: "Hinzufügen" }
     create: { en: "Create", de: "Erstellen" }
     edit: { en: "Edit", de: "Bearbeiten" }
+    actions: { en: "Actions", de: "Aktionen" }
     form_actions: { en: "Actions of the form", de: "Aktionen des Formulars" }
+    delete_name: { en: "Delete %{name}", de: "%{name} löschen" }
     action_menu:
       menu: { en: "Menu", de: "Menü" }
-      actions: { en: "Actions", de: "Aktionen" }
       actions_of: { en: "Actions of %{name}", de: "Aktionen von %{name}" }
-      delete: { en: "Delete %{name}", de: "%{name} löschen" }
     view:
-      actions: { en: "Actions", de: "Aktionen" }
       overview: { en: "Overview", de: "Übersicht" }
       details: { en: "Details", de: "Details" }
       configuration: { en: "Configuration", de: "Konfiguration" }
@@ -278,16 +278,10 @@ web:
     column:
       email: { en: "E-mail", de: "E-Mail" }
       role: { en: "Role", de: "Rolle" }
-      actions: { en: "Actions", de: "Aktionen" }
     no_name: { en: "No name", de: "Kein Name" }
     role:
       admin: { en: "admin", de: "Admin" }
       user: { en: "user", de: "Benutzer" }
-    confirm_delete:
-      en: "Delete %{name}? They can no longer sign in; their data stays."
-      de: "%{name} löschen? Die Anmeldung ist dann nicht mehr möglich; die Daten bleiben erhalten."
-    delete_the_user: { en: "Delete the user", de: "Den Benutzer löschen" }
-    delete_user: { en: "Delete %{email}", de: "%{email} löschen" }
     configured:
       en: "Set by the configuration of the deployment"
       de: "Durch die Konfiguration des Deployments festgelegt"
@@ -1212,16 +1206,12 @@ grocery:
       empty: { en: "You have no list yet, add one first.", de: "Du hast noch keine Liste, füge zuerst eine hinzu." }
       to_buy_one: { en: "1 item to buy", de: "1 Artikel zu kaufen" }
       to_buy_other: { en: "%{count} items to buy", de: "%{count} Artikel zu kaufen" }
-      delete_question: { en: "Delete %{name} and its items?", de: "%{name} und ihre Artikel löschen?" }
     form:
       icon: { en: "Icon", de: "Icon" }
       shared: { en: "Shared", de: "Geteilt" }
       shared_hint:
         en: "Every user sees a shared list and adds and deletes its items."
         de: "Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie."
-      delete_question: { en: "Delete the list and its items?", de: "Die Liste und ihre Artikel löschen?" }
-      delete_label: { en: "Delete the list", de: "Die Liste löschen" }
-      actions: { en: "List actions", de: "Aktionen der Liste" }
       no_such_list: { en: "There is no such list of yours.", de: "Du hast keine solche Liste." }
       not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
     list:
@@ -1236,8 +1226,6 @@ grocery:
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
     new_list: { en: "New list", de: "Neue Liste" }
     saving: { en: "Saving…", de: "Wird gespeichert…" }
-    delete_list_title: { en: "Delete the list?", de: "Die Liste löschen?" }
-    delete_list_text: { en: "%{list} and its items go.", de: "%{list} und ihre Artikel werden gelöscht." }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
     bought: { en: "%{item} bought", de: "%{item} gekauft" }
     to_buy:
@@ -1313,9 +1301,6 @@ hosting:
         de: "Noch keine Buckets. Ein Bucket enthält die Dateien einer Website, ausgeliefert unter ihren Domains."
       pages: { en: "Pages of the buckets", de: "Seiten der Buckets" }
       load_failed: { en: "The buckets could not be loaded.", de: "Die Buckets konnten nicht geladen werden." }
-      delete_question:
-        en: "Delete the bucket %{name}? Its files stay, its name stays taken."
-        de: "Den Bucket %{name} löschen? Seine Dateien bleiben, sein Name bleibt vergeben."
     view:
       delete_bucket: { en: "Delete the bucket %{name}", de: "Den Bucket %{name} löschen" }
       objects: { en: "Objects", de: "Objekte" }
@@ -1576,7 +1561,6 @@ redirects:
       empty: { en: "No redirects yet.", de: "Noch keine Weiterleitungen." }
       pages: { en: "Pages of the redirects", de: "Seiten der Weiterleitungen" }
       load_failed: { en: "The redirects could not be loaded.", de: "Die Weiterleitungen konnten nicht geladen werden." }
-      delete_question: { en: "Delete the redirect of %{domain}?", de: "Die Weiterleitung von %{domain} löschen?" }
     create_page:
       domain_hint:
         en: "Every request for it is redirected. It needs a DNS record pointing at the server."
@@ -1599,6 +1583,9 @@ redirects:
       delete_redirect: { en: "Delete the redirect of %{domain}", de: "Die Weiterleitung von %{domain} löschen" }
       leads_to: { en: "Leads to", de: "Führt zu" }
       nowhere: { en: "nowhere", de: "nirgendwohin" }
+      delete_forbidden:
+        en: "Your role does not allow to delete redirects."
+        de: "Deine Rolle erlaubt nicht, Weiterleitungen zu löschen."
       delete_failed:
         en: "The redirect of %{domain} could not be deleted."
         de: "Die Weiterleitung von %{domain} konnte nicht gelöscht werden."

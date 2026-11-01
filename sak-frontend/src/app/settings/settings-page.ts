@@ -10,6 +10,7 @@ import {
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { SettingScope, SettingsService } from './settings.service';
+import { PageHeader } from '../shared/page-header';
 
 // the scopes of settings, shared by the page and its tabs; provided by the page
 @Injectable()
@@ -21,17 +22,11 @@ export class SettingScopes {
 // url the first is opened
 @Component({
   selector: 'app-settings-page',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
+  imports: [PageHeader, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   providers: [SettingScopes],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'shared.settings' | t }}</h1>
     </header>
 

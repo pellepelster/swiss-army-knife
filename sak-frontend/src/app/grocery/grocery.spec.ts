@@ -272,14 +272,14 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=last-list]')).toBeNull();
 
     // delete, cancel and save are one group; the delete asks in its place
-    const group = () => page().querySelector('[role=group][aria-label="List actions"]');
+    const group = () => page().querySelector('[role=group][aria-label="Actions of the form"]');
     expect(
       [...group()!.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
     ).toEqual(['Delete list', 'Cancel', 'Save']);
     button('Delete list').click();
     await harness.fixture.whenStable();
     expect(group()).toBeNull();
-    expect(page().textContent).toContain('Delete the list and its items?');
+    expect(page().textContent).toContain('Delete Default?');
     button('Keep').click();
     await harness.fixture.whenStable();
     expect(group()).not.toBeNull();
@@ -317,7 +317,7 @@ describe('Grocery', () => {
     await overview([defaultList, { ...defaultList, id: 3, name: 'Weekly' }]);
     button('Delete', await rowMenu('Weekly')).click();
     await harness.fixture.whenStable();
-    expect(page().textContent).toContain('Delete Weekly and its items?');
+    expect(page().textContent).toContain('Delete Weekly?');
     button('Keep').click();
     await harness.fixture.whenStable();
     http.expectNone({ method: 'DELETE' });

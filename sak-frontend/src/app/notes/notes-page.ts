@@ -8,7 +8,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
 import { SettingsStore } from '../settings/settings-store';
@@ -16,21 +15,21 @@ import { NoteCard } from './note-card';
 import { UndoToast } from '../shared/undo-toast';
 import { Note, NotesStore, Removal } from './notes-store';
 import { RecordingOverlay } from './recording-overlay';
+import { PageHeader } from '../shared/page-header';
 
 // the notes as a wall of post-its, a page at a time, filtered by one label at a time
 @Component({
   selector: 'app-notes-page',
-  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink, TranslatePipe, UndoToast],
+  imports: [PageHeader, NoteCard, PaginationControl, RecordingOverlay, TranslatePipe, UndoToast],
   styleUrl: './notes-page.scss',
   host: { class: 'd-block container-xl pb-md-5' },
   template: `
-    <header class="toolbar d-flex flex-wrap align-items-center gap-2 py-3 sticky-top bg-body">
-      <a
-        class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
-        routerLink="/"
-        [attr.aria-label]="'shared.all_apps' | t"
-        ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
-      ></a>
+    <header
+      appPageHeader
+      class="toolbar sticky-top bg-body"
+      back="/"
+      [backLabel]="'shared.all_apps' | t"
+    >
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.notes' | t }}</h1>
       <input
         #camera

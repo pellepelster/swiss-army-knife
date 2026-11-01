@@ -7,6 +7,7 @@ import { TextKey, TranslatePipe } from '../i18n/i18n';
 import { InstallService } from '../install.service';
 import { ServiceWorkerUpdates, UpdateCheck } from '../service-worker-updates';
 import { ActionMenu } from '../shared/action-menu';
+import { PageHeader } from '../shared/page-header';
 
 // what the user reads after a check for updates
 const UPDATE_CHECKS: Record<UpdateCheck, TextKey> = {
@@ -61,10 +62,10 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
 // else their address
 @Component({
   selector: 'app-home',
-  imports: [ActionMenu, RouterLink, TranslatePipe],
+  imports: [PageHeader, ActionMenu, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
-    <header class="d-flex flex-wrap align-items-center gap-2 py-3">
+    <header appPageHeader>
       <h1 class="h3 mb-0 flex-grow-1">{{ 'home.title' | t }}</h1>
       @if (installer.canInstall()) {
         <button

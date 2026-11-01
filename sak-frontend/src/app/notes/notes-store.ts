@@ -6,6 +6,7 @@ import { AuthService } from '../auth/auth.service';
 import { I18n } from '../i18n/i18n';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
+import { PendingUndo } from '../shared/pending-undo';
 import { UNDO_DELETE_MS } from '../shared/undo-toast';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
@@ -89,14 +90,9 @@ export class NotesStore {
 
   private loadingNotes?: Subscription;
 
-  // what was removed last while it can be brought back: the timer removing it in the backend, how
-  // it is removed there (with keepalive when the page goes away) and how it is brought back
-  private pendingRemoval: {
-    removal: Removal;
-    timer: ReturnType<typeof setTimeout>;
-    commit: (leaving: boolean) => void;
-    undo: () => void;
-  } | null = null;
+  // what was removed last while it can be brought back, removed in the backend after
+  // UNDO_DELETE_MS (with keepalive when the page goes away)
+  private readonly removal = new PendingUndo<Removal>(UNDO_DELETE_MS);
 
   // the page and label loaded last, e.g. `0|work`
   private loadedQuery: string | null = null;
@@ -119,7 +115,7 @@ export class NotesStore {
   readonly discovering = signal<ReadonlySet<number>>(new Set());
 
   // what was removed last while it can be brought back with undoRemove, null otherwise
-  readonly removed = signal<Removal | null>(null);
+  readonly removed = this.removal.current.asReadonly();
 
   // what went wrong last, null when everything is saved; every action clears it when it starts
   readonly error = signal<string | null>(null);
@@ -147,7 +143,7 @@ export class NotesStore {
     this.document.addEventListener('visibilitychange', hidden);
     inject(DestroyRef).onDestroy(() => {
       this.pendingText.forEach((timer) => clearTimeout(timer));
-      clearTimeout(this.pendingRemoval?.timer);
+      this.removal.dispose();
       this.loadingNotes?.unsubscribe();
       window?.removeEventListener('pagehide', leaving);
       this.document.removeEventListener('visibilitychange', hidden);
@@ -412,12 +408,7 @@ export class NotesStore {
 
   // brings back what was removed last, as long as the backend has not removed it
   undoRemove(): void {
-    const pending = this.pendingRemoval;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pendingRemoval = null;
-    this.removed.set(null);
-    pending.undo();
+    this.removal.undo();
   }
 
   // the photo or recording goes from the note at once, the note is saved without it after
@@ -462,19 +453,12 @@ export class NotesStore {
     undo: () => void,
   ): void {
     this.commitRemoval();
-    const timer = setTimeout(() => this.commitRemoval(), UNDO_DELETE_MS);
-    this.pendingRemoval = { removal, timer, commit, undo };
-    this.removed.set(removal);
+    this.removal.start(removal, commit, undo);
   }
 
   private commitRemoval(leaving = false): void {
-    const pending = this.pendingRemoval;
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pendingRemoval = null;
-    this.removed.set(null);
     this.savedWhileRemoving.clear();
-    pending.commit(leaving);
+    this.removal.commit(leaving);
   }
 
   private restore(note: Note): void {
@@ -490,7 +474,7 @@ export class NotesStore {
     this.pendingText.delete(id);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
-    const pending = this.pendingRemoval?.removal;
+    const pending = this.removal.current();
     if (pending && pending.kind !== 'note' && pending.noteId === id)
       this.savedWhileRemoving.add(id);
     this.startRequest(id);
