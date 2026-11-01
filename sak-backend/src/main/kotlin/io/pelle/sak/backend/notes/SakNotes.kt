@@ -195,7 +195,7 @@ private fun Parameters.Builder.noteId() =
         schema = jsonSchema<Int>()
     }
 
-// the texts of the notes (i18n/notes.<language>.yml)
+// the texts of the notes (notes.backend in i18n/texts.yml)
 object NotesTexts : Catalog("notes") {
     val TEXT_TOO_LONG = text("text_too_long")
     val INVALID_COLOR = text("invalid_color")

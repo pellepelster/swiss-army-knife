@@ -1,0 +1,9 @@
+# the texts of the catalog redirects in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_domains: "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket."
+exists: "The domain is redirected already."
+unknown_bucket: "There is no such bucket."
+bucket_not_served: "The bucket is not served at a domain."
+invalid_target: "The domain redirected to must be valid and differ from the redirected one."
+health:
+  name: "Redirect domains"
+  what: "redirects"

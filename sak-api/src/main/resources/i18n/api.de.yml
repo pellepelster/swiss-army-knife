@@ -1,4 +1,4 @@
-# the texts of the api itself (ApiTexts), german
+# the texts of the catalog api in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 malformed_request: "Die Anfrage ist fehlerhaft."
 too_large_request: "Der Inhalt der Anfrage ist zu groß."
 unexpected_error: "Etwas ist schiefgegangen, die Anfrage konnte nicht beantwortet werden."

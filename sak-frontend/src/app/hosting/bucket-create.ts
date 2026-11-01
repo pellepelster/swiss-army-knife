@@ -25,7 +25,7 @@ import { DomainList } from './domain-list';
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
       <div>
-        <label class="form-label" for="bucket-name">{{ 'hosting.name' | t }}</label>
+        <label class="form-label" for="bucket-name">{{ 'shared.name' | t }}</label>
         <input
           class="form-control font-monospace text-break"
           id="bucket-name"
@@ -55,7 +55,7 @@ import { DomainList } from './domain-list';
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
         <a class="btn btn-outline-secondary" routerLink="/static-hosting">{{
-          'hosting.cancel' | t
+          'shared.cancel' | t
         }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!valid() || creating()">
           @if (creating()) {

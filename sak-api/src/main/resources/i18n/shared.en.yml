@@ -1,0 +1,8 @@
+# the texts of the catalog shared in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+undo: "Undo"
+delete: "Delete"
+keep: "Keep"
+save: "Save"
+name: "Name"
+settings: "Settings"
+email: "E-mail address"

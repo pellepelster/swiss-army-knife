@@ -28,10 +28,10 @@ import { RecordingOverlay } from './recording-overlay';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'notes.page.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'notes.page.title' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.notes' | t }}</h1>
       <input
         #camera
         class="d-none"
@@ -131,7 +131,7 @@ import { RecordingOverlay } from './recording-overlay';
         <!-- the whole width of the row, which gives each column half or a third of it -->
         <p class="col w-100 text-center text-body-secondary fs-4 py-5">
           @if (store.loading()) {
-            {{ 'notes.page.loading' | t }}
+            {{ 'shared.loading' | t }}
           } @else if (filter(); as label) {
             {{ 'notes.page.none_labelled' | t: { label } }}
           } @else {

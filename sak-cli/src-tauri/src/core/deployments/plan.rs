@@ -55,7 +55,7 @@ pub struct PlannedResource {
 }
 
 /// the kind of a planned resource: one of the cloud, or the provisioning of the server. It is the
-/// word of its text, `shared.deployments.resource.<kind>`
+/// word of its text, `common.deployments.resource.<kind>`
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PlannedKind {
@@ -86,9 +86,9 @@ impl ResourceStatus {
     /// the key of its text, for the command line and the window alike
     pub fn text_key(self) -> &'static str {
         match self {
-            ResourceStatus::UpToDate => "shared.resource_status.up_to_date",
-            ResourceStatus::Missing => "shared.resource_status.missing",
-            ResourceStatus::HasChanges => "shared.resource_status.has_changes",
+            ResourceStatus::UpToDate => "common.resource_status.up_to_date",
+            ResourceStatus::Missing => "common.resource_status.missing",
+            ResourceStatus::HasChanges => "common.resource_status.has_changes",
         }
     }
 }
@@ -113,13 +113,13 @@ pub enum PlanAction {
 impl PlanAction {
     pub fn text_key(self) -> &'static str {
         match self {
-            PlanAction::WillCreate => "shared.plan.will_create",
-            PlanAction::WillUpdate => "shared.plan.will_update",
-            PlanAction::WillDestroy => "shared.plan.will_destroy",
-            PlanAction::WillKeep => "shared.plan.will_keep",
-            PlanAction::AlreadyDeleted => "shared.plan.already_deleted",
-            PlanAction::WillRun => "shared.plan.will_run",
-            PlanAction::RunsWhenForced => "shared.plan.runs_when_forced",
+            PlanAction::WillCreate => "common.plan.will_create",
+            PlanAction::WillUpdate => "common.plan.will_update",
+            PlanAction::WillDestroy => "common.plan.will_destroy",
+            PlanAction::WillKeep => "common.plan.will_keep",
+            PlanAction::AlreadyDeleted => "common.plan.already_deleted",
+            PlanAction::WillRun => "common.plan.will_run",
+            PlanAction::RunsWhenForced => "common.plan.runs_when_forced",
         }
     }
 }
@@ -144,11 +144,11 @@ pub enum Working {
 impl Working {
     pub fn text_key(self) -> &'static str {
         match self {
-            Working::Create => "shared.working.working",
-            Working::Update => "shared.working.working_update",
-            Working::Recreate => "shared.working.working_recreate",
-            Working::Check => "shared.working.working_check",
-            Working::Destroy => "shared.working.working_destroy",
+            Working::Create => "common.working.working",
+            Working::Update => "common.working.working_update",
+            Working::Recreate => "common.working.working_recreate",
+            Working::Check => "common.working.working_check",
+            Working::Destroy => "common.working.working_destroy",
         }
     }
 }
@@ -157,8 +157,8 @@ impl Working {
 /// stays as up-to-date
 pub(super) fn applied_key(applied: Applied) -> &'static str {
     match applied {
-        Applied::Created | Applied::Recreated => "shared.done.created",
-        Applied::Updated => "shared.done.updated",
+        Applied::Created | Applied::Recreated => "common.done.created",
+        Applied::Updated => "common.done.updated",
         Applied::Unchanged => ResourceStatus::UpToDate.text_key(),
     }
 }
@@ -166,7 +166,7 @@ pub(super) fn applied_key(applied: Applied) -> &'static str {
 /// the key of the text of a destroyed resource: destroyed, or gone already
 pub(super) fn destroyed_key(gone: bool) -> &'static str {
     if gone {
-        "shared.done.destroyed"
+        "common.done.destroyed"
     } else {
         PlanAction::AlreadyDeleted.text_key()
     }

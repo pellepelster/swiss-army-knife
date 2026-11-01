@@ -21,7 +21,7 @@ export const redirectsRoute: Route = {
   canActivate: [authGuard],
   data: { favicon: REDIRECTS_FAVICON },
   children: [
-    { path: '', component: RedirectList, title: pageTitle('redirects.title') },
+    { path: '', component: RedirectList, title: pageTitle('app.redirects') },
     { path: 'create', component: RedirectCreate, title: pageTitle('redirects.route.create') },
     { path: ':source/edit', component: RedirectEdit, title: pageTitle('redirects.route.edit') },
     {

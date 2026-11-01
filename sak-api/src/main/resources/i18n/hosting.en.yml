@@ -1,0 +1,10 @@
+# the texts of the catalog hosting in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_name: "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, and must not be reserved for the apps or the api."
+name_taken: "A bucket of the name exists."
+subdomain_taken: "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
+invalid_domain: "Every domain must be valid and neither one of the apps or the api nor a redirected one."
+domain_taken: "Another bucket is served at one of the domains."
+redirected: "Redirects lead to the bucket: %{sources}. Delete them or change their target first."
+health:
+  name: "Bucket domains"
+  what: "buckets"

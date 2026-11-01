@@ -31,12 +31,12 @@ export function groceryAppLink(token: string): string {
           } @else if (failed()) {
             <h1 class="h4 mb-3">{{ 'signin.failed_title' | t }}</h1>
             <p class="alert alert-danger mb-0" role="alert">
-              {{ 'signin.failed_before' | t }}
+              {{ 'login.link_invalid' | t }}
               <a routerLink="/login">{{ 'signin.request_new' | t }}</a
               >{{ 'signin.failed_after' | t }}
             </p>
           } @else {
-            <p class="mb-0">{{ 'signin.signing_in' | t }}</p>
+            <p class="mb-0">{{ 'login.signing_in' | t }}</p>
           }
         </div>
       </main>

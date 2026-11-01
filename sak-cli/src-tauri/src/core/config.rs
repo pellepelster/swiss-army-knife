@@ -187,7 +187,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
     let url = format!("{api}/v1/{what}");
     let https_only = transport == Transport::HttpsOnly;
     if https_only && !api.starts_with("https://") {
-        return Err(t!("shared.config.not_https", url = api).to_string());
+        return Err(t!("common.config.not_https", url = api).to_string());
     }
     let parsed = reqwest::Url::parse(&url).map_err(|error| error.to_string())?;
     let response = pinned(client_builder(transport, trust)?, &url, address)
@@ -202,7 +202,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
         .await
         .map_err(|error| {
             t!(
-                "shared.config.unreachable",
+                "common.config.unreachable",
                 url = url,
                 error = with_causes(&error)
             )
@@ -212,13 +212,13 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
         status if status.is_success() => response
             .json::<T>()
             .await
-            .map_err(|error| t!("shared.config.unreadable", error = error.to_string()).to_string()),
+            .map_err(|error| t!("common.config.unreadable", error = error.to_string()).to_string()),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-            Err(t!("shared.config.refused").to_string())
+            Err(t!("common.config.refused").to_string())
         }
         // also a redirect: the request goes to the api only
         status => Err(t!(
-            "shared.config.failed",
+            "common.config.failed",
             url = url,
             status = status.to_string()
         )
@@ -299,7 +299,7 @@ async fn wait_from(
         };
         if tokio::time::Instant::now() + interval > deadline {
             return Err(t!(
-                "shared.config.api_not_answering",
+                "common.config.api_not_answering",
                 url = url,
                 seconds = timeout.as_secs(),
                 error = last
@@ -512,7 +512,7 @@ mod tests {
                 None
             )
             .await,
-            Err(t!("shared.config.refused").to_string())
+            Err(t!("common.config.refused").to_string())
         );
         let failing = backend(500, serde_json::json!({})).await;
         assert!(
@@ -572,7 +572,7 @@ mod tests {
                 None
             )
             .await,
-            Err(t!("shared.config.refused").to_string())
+            Err(t!("common.config.refused").to_string())
         );
     }
 
@@ -582,7 +582,7 @@ mod tests {
 
         assert_eq!(
             fetch_deployment(&server.uri(), &key(), Trust::Public, None).await,
-            Err(t!("shared.config.not_https", url = server.uri()).to_string())
+            Err(t!("common.config.not_https", url = server.uri()).to_string())
         );
         assert!(server.received_requests().await.unwrap().is_empty());
     }
@@ -619,7 +619,7 @@ mod tests {
         assert_eq!(
             error,
             t!(
-                "shared.config.failed",
+                "common.config.failed",
                 url = format!("{}/v1/deployment", api.uri()),
                 status = "302 Found"
             )

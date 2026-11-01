@@ -32,7 +32,7 @@ let checked = null;
 function setState(state) {
   badge.hidden = !state;
   badge.dataset.sakState = STATES[state] ?? 'neutral';
-  badge.textContent = state ? text(`shared.deployments.status.${state}`) : '';
+  badge.textContent = state ? text(`common.deployments.status.${state}`) : '';
 }
 
 // the green button of the page

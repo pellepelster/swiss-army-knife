@@ -33,7 +33,7 @@ pub const SSH_FAILED: i32 = 255;
 
 /// the error of an ssh that failed itself, in its own words: the last line it wrote
 pub fn failed(last_line: Option<&str>) -> String {
-    t!("shared.ssh.failed", error = last_line.unwrap_or_default()).to_string()
+    t!("common.ssh.failed", error = last_line.unwrap_or_default()).to_string()
 }
 
 /// the server of a deployment and the keys to reach it
@@ -239,7 +239,7 @@ impl SessionContainer {
         };
         // a session stopped before its container is there starts none
         if stopped(&container.name) {
-            return Err(t!("shared.provision.stopped").to_string());
+            return Err(t!("common.provision.stopped").to_string());
         }
         let status = container::command(runtime)
             .args([
@@ -262,7 +262,7 @@ impl SessionContainer {
         }
         // a stop while the container started removed nothing: the drop removes it
         if stopped(&container.name) {
-            return Err(t!("shared.provision.stopped").to_string());
+            return Err(t!("common.provision.stopped").to_string());
         }
         // the agent listens a moment after the container started
         for _ in 0..50 {

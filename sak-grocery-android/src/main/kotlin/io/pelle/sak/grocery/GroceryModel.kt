@@ -334,7 +334,7 @@ class GroceryModel(
             }
         pending = item to timer
         (state.value as? Screen.Lists)?.let {
-            state.value = it.copy(struck = it.struck + item.id, undo = Undo(uiText(R.string.bought, item.name), ++serial), error = null)
+            state.value = it.copy(struck = it.struck + item.id, undo = Undo(uiText(R.string.grocery_bought, item.name), ++serial), error = null)
         }
     }
 
@@ -369,7 +369,7 @@ class GroceryModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failed(failure(e, R.string.error_item_not_checked))
+                failed(failure(e, R.string.grocery_list_not_checked))
             }
         }
     }
@@ -429,7 +429,7 @@ class GroceryModel(
         val name = settings.name.trim()
         if (name.isEmpty() || settings.busy) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
-        settingsRequest(settings, if (settings.id == null) R.string.error_list_not_created else R.string.error_list_not_saved) { api ->
+        settingsRequest(settings, if (settings.id == null) R.string.grocery_error_list_not_created else R.string.grocery_form_not_saved) { api ->
             if (settings.id == null) {
                 val created = api.createList(name, settings.shared, settings.icon)
                 (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists + created, settings = null) }
@@ -449,7 +449,7 @@ class GroceryModel(
         val id = settings.id ?: return
         if (settings.busy || settings.last) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
-        settingsRequest(settings, R.string.error_list_not_deleted) { api ->
+        settingsRequest(settings, R.string.grocery_form_not_deleted) { api ->
             api.deleteList(id)
             (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists.filter { list -> list.id != id }, settings = null) }
             load()
@@ -530,7 +530,7 @@ class GroceryModel(
                 throw e
             } catch (e: Exception) {
                 (state.value as? Screen.Lists)?.let {
-                    state.value = it.copy(adding = false, error = failure(e, R.string.error_item_not_added))
+                    state.value = it.copy(adding = false, error = failure(e, R.string.grocery_list_not_added))
                 }
             }
         }
@@ -641,7 +641,7 @@ class GroceryModel(
                     throw e
                 } catch (e: Exception) {
                     (state.value as? Screen.Lists)?.let {
-                        state.value = it.copy(loading = false, error = failure(e, R.string.error_lists_not_loaded))
+                        state.value = it.copy(loading = false, error = failure(e, R.string.grocery_lists_not_loaded))
                     }
                 }
             }
@@ -682,7 +682,7 @@ class GroceryModel(
         }
 
     companion object {
-        val NO_CATEGORY = uiText(R.string.no_category)
+        val NO_CATEGORY = uiText(R.string.grocery_list_no_category)
 
         // the waits before the stream of the changes is opened again
         const val RETRY_DELAY_MS = 1_000L

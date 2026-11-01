@@ -20,13 +20,13 @@ interface MaintenanceEntry {
 
 const MAINTENANCE: readonly MaintenanceEntry[] = [
   {
-    name: 'home.health',
+    name: 'health.title',
     description: 'home.health_description',
     icon: 'fa-heart-pulse',
     path: '/health',
   },
   {
-    name: 'home.settings',
+    name: 'shared.settings',
     description: 'home.settings_description',
     icon: 'fa-gear',
     path: '/settings',
@@ -38,7 +38,7 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
     href: '/swagger/',
   },
   {
-    name: 'home.users',
+    name: 'users.title',
     description: 'home.users_description',
     icon: 'fa-users',
     path: '/users',
@@ -70,10 +70,10 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
         whoAmI()?.name ?? whoAmI()?.username
       }}</span>
       <button type="button" class="btn btn-outline-secondary" (click)="signOut()">
-        {{ 'home.sign_out' | t }}
+        {{ 'login.sign_out' | t }}
       </button>
     </header>
-    <nav [attr.aria-label]="'home.apps' | t">
+    <nav [attr.aria-label]="'home.title' | t">
       <ul class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 list-unstyled">
         @for (app of apps; track app.path) {
           <li class="col">

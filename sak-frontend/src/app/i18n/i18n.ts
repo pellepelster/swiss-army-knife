@@ -51,7 +51,7 @@ export function pageTitle(key: TextKey): () => string {
   return () => inject(I18n).t(key);
 }
 
-// {{ 'login.title' | t }}, {{ 'notes.count' | t: { count: 3 } }}
+// {{ 'login.sign_in' | t }}, {{ 'notes.count' | t: { count: 3 } }}
 @Pipe({ name: 't' })
 export class TranslatePipe implements PipeTransform {
   private readonly i18n = inject(I18n);

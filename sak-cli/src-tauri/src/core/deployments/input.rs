@@ -89,19 +89,19 @@ pub(super) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
         return Err(t!(
-            "shared.deployments.invalid_smtp_host",
+            "common.deployments.invalid_smtp_host",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
         )
         .to_string());
     }
     if smtp.port == 0 {
-        return Err(t!("shared.deployments.invalid_smtp_port").to_string());
+        return Err(t!("common.deployments.invalid_smtp_port").to_string());
     }
     if [smtp.username.as_str(), smtp.password.as_str()]
         .iter()
         .any(|value| value.contains(['\n', '\r']))
     {
-        return Err(t!("shared.deployments.invalid_smtp_value").to_string());
+        return Err(t!("common.deployments.invalid_smtp_value").to_string());
     }
     Ok(())
 }
@@ -285,7 +285,7 @@ pub fn checked_name(name: &str) -> Result<&str, SakctlError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
         SakctlError::new(
-            t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
+            t!("common.deployments.invalid_name", max = MAX_NAME_LEN),
             EXIT_USAGE,
         )
     })?;

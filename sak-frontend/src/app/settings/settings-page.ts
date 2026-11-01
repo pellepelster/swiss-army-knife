@@ -29,10 +29,10 @@ export class SettingScopes {
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'settings.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'settings.title' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'shared.settings' | t }}</h1>
     </header>
 
     @if (error(); as error) {
@@ -53,7 +53,7 @@ export class SettingScopes {
       </nav>
       <router-outlet />
     } @else if (!error()) {
-      <p class="text-body-secondary">{{ 'settings.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

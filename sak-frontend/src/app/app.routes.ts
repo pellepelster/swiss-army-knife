@@ -38,11 +38,11 @@ export const routes: Routes = [
     path: 'settings',
     component: SettingsPage,
     canActivate: [authGuard],
-    title: pageTitle('settings.title'),
+    title: pageTitle('shared.settings'),
     // a tab for every scope, the first is opened without one
     children: [{ path: ':scope', component: SettingsScopeTab }],
   },
-  { path: 'login', component: Login, title: pageTitle('login.title') },
+  { path: 'login', component: Login, title: pageTitle('login.sign_in') },
   { path: 'signin', component: Signin, title: pageTitle('signin.page_title') },
   { path: '**', redirectTo: '' },
 ];

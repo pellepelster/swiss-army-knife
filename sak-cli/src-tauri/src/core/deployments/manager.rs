@@ -106,7 +106,7 @@ pub(super) fn users(
 ) -> Result<Users, SakctlError> {
     match user_mode {
         None => Err(t!(
-            "shared.deployments.no_user_mode",
+            "common.deployments.no_user_mode",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
         )
         .to_string()
@@ -117,7 +117,7 @@ pub(super) fn users(
         {
             None => Ok(Users::Single),
             Some(_) => Err(t!(
-                "shared.deployments.admin_email_single",
+                "common.deployments.admin_email_single",
                 hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmailSingle)
             )
             .to_string()
@@ -126,7 +126,7 @@ pub(super) fn users(
         Some(UserMode::Multi) => {
             let smtp = smtp.cloned().ok_or_else(|| {
                 t!(
-                    "shared.deployments.invalid_smtp_host",
+                    "common.deployments.invalid_smtp_host",
                     hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
                 )
                 .to_string()
@@ -140,7 +140,7 @@ pub(super) fn users(
                 Some(address) if is_address(address) => Some(address.to_lowercase()),
                 Some(_) => {
                     return Err(t!(
-                        "shared.deployments.invalid_admin_email",
+                        "common.deployments.invalid_admin_email",
                         hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
                     )
                     .to_string()
@@ -257,7 +257,7 @@ impl Prepared {
 }
 
 pub(super) fn failed(provider: ProviderType, error: impl ToString) -> String {
-    message("shared.deployments.failed", provider, error)
+    message("common.deployments.failed", provider, error)
 }
 
 /// a failure of the provider in a plan or an apply. A resource of a declared name that belongs
@@ -271,12 +271,12 @@ pub(super) fn cloud_failure(
 ) -> SakctlError {
     match error {
         sak_cloud::api::Error::NotOwned { .. } => SakctlError::new(
-            t!("shared.deployments.not_owned", error = error.to_string()),
+            t!("common.deployments.not_owned", error = error.to_string()),
             EXIT_NOT_OWNED,
         ),
         sak_cloud::api::Error::RecreateRefused { .. } => SakctlError::new(
             t!(
-                "shared.deployments.recreate_refused",
+                "common.deployments.recreate_refused",
                 error = error.to_string()
             ),
             EXIT_RECREATE_REFUSED,
@@ -380,7 +380,7 @@ impl DeploymentManager {
             .iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
         else {
-            return Err(t!("shared.deployments.no_provider").to_string().into());
+            return Err(t!("common.deployments.no_provider").to_string().into());
         };
         discover(&HetznerApi::new(token))
             .await
@@ -388,7 +388,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|deployment| deployment.name == name)
             .ok_or_else(|| {
-                t!("shared.deployments.not_found", name = name)
+                t!("common.deployments.not_found", name = name)
                     .to_string()
                     .into()
             })
@@ -449,7 +449,7 @@ impl DeploymentManager {
             host: server
                 .public_ipv4
                 .clone()
-                .ok_or_else(|| t!("shared.provision.no_address", name = name).to_string())?,
+                .ok_or_else(|| t!("common.provision.no_address", name = name).to_string())?,
             host_ipv6: server
                 .public_ipv6
                 .clone()
@@ -481,7 +481,7 @@ impl DeploymentManager {
             .into_iter()
             .find(|(provider, _)| *provider == ProviderType::Hetzner)
         else {
-            return Err(t!("shared.deployments.no_provider").to_string());
+            return Err(t!("common.deployments.no_provider").to_string());
         };
         let runtime = HetznerProviderRuntime::from_api(Arc::new(HetznerApi::new(&token)));
         let domains = root_domains(&runtime)
@@ -629,7 +629,7 @@ impl DeploymentManager {
             Purpose::Create { .. } | Purpose::Deploy { .. } => registry.diff_all().await,
         }
         .map_err(|error| {
-            cloud_failure("shared.deployments.plan_failed", prepared.provider, error)
+            cloud_failure("common.deployments.plan_failed", prepared.provider, error)
         })?;
         let plan = PlanResponse {
             name: prepared.spec.name.clone(),
@@ -705,7 +705,7 @@ impl DeploymentManager {
                         working: Working::Check,
                         status: DiffStatus::Duplicate,
                         keep: intent == Intent::Destroy,
-                        changes: vec![t!("shared.plan.left_out").to_string()],
+                        changes: vec![t!("common.plan.left_out").to_string()],
                     })
                 }))
                 .collect::<Result<Vec<_>, SakctlError>>()?,
@@ -783,7 +783,7 @@ impl DeploymentManager {
         self.remove_records(&prepared, on_event)
             .await
             .map_err(|error| {
-                cloud_failure("shared.deployments.create_failed", prepared.provider, error)
+                cloud_failure("common.deployments.create_failed", prepared.provider, error)
             })?;
         if provisioned {
             self.after_provisioning(&prepared, provisioning, on_event)
@@ -803,7 +803,7 @@ impl DeploymentManager {
     ) -> Result<(), SakctlError> {
         let destroy_failed = |error| {
             cloud_failure(
-                "shared.deployments.destroy_failed",
+                "common.deployments.destroy_failed",
                 prepared.provider,
                 error,
             )
@@ -893,7 +893,7 @@ impl DeploymentManager {
         };
         let (result, ()) = tokio::join!(apply, forward);
         result.map_err(|error| {
-            cloud_failure("shared.deployments.create_failed", prepared.provider, error)
+            cloud_failure("common.deployments.create_failed", prepared.provider, error)
         })?;
         Ok(provisioned.load(Ordering::SeqCst))
     }
@@ -917,7 +917,7 @@ impl DeploymentManager {
             .await
             .map_err(|error| failed(prepared.provider, error))?
             .ok_or_else(|| {
-                t!("shared.deployments.not_found", name = prepared.spec.name).to_string()
+                t!("common.deployments.not_found", name = prepared.spec.name).to_string()
             })?;
         // the server runs the images of this version now, its version label says so; before the
         // wait, which a next deploy does not repeat: the markers tell it the provisioning is done
@@ -939,7 +939,7 @@ impl DeploymentManager {
             &provisioning.root_domain,
         ));
         on_event(DeploymentEvent::Provisioning {
-            message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
+            message: t!("common.deployments.waiting_for_api", url = api.as_str()).to_string(),
         });
         crate::core::config::wait_for_api(
             &api,
@@ -995,20 +995,20 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> 
     // destroy needs no location
     if *location == Location::unknown && *intent != Intent::Destroy {
         return Err(SakctlError::new(
-            t!("shared.deployments.unknown_location", name = name),
+            t!("common.deployments.unknown_location", name = name),
             crate::core::error::EXIT_USAGE,
         ));
     }
     if password.chars().count() < MIN_PASSWORD_CHARS {
         return Err(t!(
-            "shared.deployments.short_password",
+            "common.deployments.short_password",
             min = MIN_PASSWORD_CHARS
         )
         .to_string()
         .into());
     }
     if password != password_repeat {
-        return Err(t!("shared.deployments.password_mismatch")
+        return Err(t!("common.deployments.password_mismatch")
             .to_string()
             .into());
     }
@@ -1017,7 +1017,7 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> 
     if *intent == Intent::Create
         && let Some(hint) = crate::core::keys::weak_password(name, password)
     {
-        return Err(t!("shared.deployments.weak_password", hint = hint)
+        return Err(t!("common.deployments.weak_password", hint = hint)
             .to_string()
             .into());
     }
@@ -1032,7 +1032,7 @@ fn hetzner_api(
         .into_iter()
         .find(|(provider, _)| *provider == ProviderType::Hetzner)
     else {
-        return Err(t!("shared.deployments.no_provider").to_string().into());
+        return Err(t!("common.deployments.no_provider").to_string().into());
     };
     Ok((provider, Arc::new(HetznerApi::new(&token))))
 }
@@ -1065,8 +1065,8 @@ fn keep_settings(
         &provisioning.local_key,
         &settings,
     ) {
-        Ok(path) => t!("shared.deployments.settings_kept", path = path.display()).to_string(),
-        Err(error) => t!("shared.deployments.settings_not_kept", error = error).to_string(),
+        Ok(path) => t!("common.deployments.settings_kept", path = path.display()).to_string(),
+        Err(error) => t!("common.deployments.settings_not_kept", error = error).to_string(),
     };
     on_event(DeploymentEvent::Provisioning { message });
 }
@@ -1121,11 +1121,11 @@ fn location_of(
     records: &[DeploymentRecord],
 ) -> Result<Location, SakctlError> {
     match (intent, existing) {
-        (Intent::Create, Some(_)) => Err(t!("shared.deployments.name_taken", name = name)
+        (Intent::Create, Some(_)) => Err(t!("common.deployments.name_taken", name = name)
             .to_string()
             .into()),
         (Intent::Create, None) => Ok(given),
-        (Intent::Deploy, None) => Err(t!("shared.deployments.not_found", name = name)
+        (Intent::Deploy, None) => Err(t!("common.deployments.not_found", name = name)
             .to_string()
             .into()),
         // destroyed already, maybe with records left: check the password against their hashes.
@@ -1148,7 +1148,7 @@ fn location_of(
                 .location()
                 .map_err(|resources| {
                     t!(
-                        "shared.deployments.mixed_locations",
+                        "common.deployments.mixed_locations",
                         name = name,
                         resources = resources
                     )
@@ -1225,9 +1225,9 @@ fn check_records_in_the_way(
     }
     Err(SakctlError::new(
         t!(
-            "shared.deployments.not_owned",
+            "common.deployments.not_owned",
             error = t!(
-                "shared.deployments.records_in_the_way",
+                "common.deployments.records_in_the_way",
                 records = in_the_way.join(", ")
             )
         ),

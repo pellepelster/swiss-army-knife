@@ -1,5 +1,0 @@
-# the texts of the users (UsersTexts), german
-invalid_email: "Es wird eine E-Mail-Adresse wie name@example.org gebraucht."
-invalid_name: "Ein Name darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
-exists: "Einen Benutzer mit dieser Adresse gibt es schon."
-is_admin: "Die Adresse ist ein Admin des Deployments, sie ist kein Benutzer zum Hinzufügen."

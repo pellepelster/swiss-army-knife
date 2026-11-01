@@ -53,7 +53,7 @@ import { RedirectsService } from './redirects.service';
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
         <a class="btn btn-outline-secondary" routerLink="/redirects">{{
-          'redirects.cancel' | t
+          'shared.cancel' | t
         }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
           @if (creating()) {

@@ -28,7 +28,7 @@ const STATES: Record<HealthState, { label: TextKey; badge: string; icon: string 
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'health.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'health.title' | t }}</h1>

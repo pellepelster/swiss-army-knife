@@ -34,7 +34,7 @@ export function validEmail(email: string): boolean {
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); add()">
       <div>
-        <label class="form-label" for="user-email">{{ 'users.email' | t }}</label>
+        <label class="form-label" for="user-email">{{ 'shared.email' | t }}</label>
         <input
           #emailField
           class="form-control"
@@ -52,7 +52,7 @@ export function validEmail(email: string): boolean {
         />
         @if (emailInvalid()) {
           <div class="invalid-feedback" id="user-email-error">
-            {{ 'users.email_invalid' | t }}
+            {{ 'users.invalid_email' | t }}
           </div>
         }
         <span class="form-text" id="user-email-hint">{{ 'users.email_hint' | t }}</span>
@@ -76,7 +76,7 @@ export function validEmail(email: string): boolean {
       }
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/users">{{ 'users.cancel' | t }}</a>
+        <a class="btn btn-outline-secondary" routerLink="/users">{{ 'shared.cancel' | t }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!valid() || adding()">
           @if (adding()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

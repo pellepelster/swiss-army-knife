@@ -26,12 +26,12 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
             let error = match &api_error {
                 Some(api_error) => format!(
                     "{error}\n{}",
-                    t!("shared.checks.image.api_failed", error = api_error)
+                    t!("common.checks.image.api_failed", error = api_error)
                 ),
                 None => error,
             };
             t!(
-                "shared.checks.image.not_pulled",
+                "common.checks.image.not_pulled",
                 image = image(),
                 runtime = runtime,
                 error = error
@@ -41,7 +41,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     }
     let answer = output(runtime, &["run", "--rm", image(), "id", "-un"]).map_err(|error| {
         t!(
-            "shared.checks.image.not_run",
+            "common.checks.image.not_run",
             image = image(),
             runtime = runtime,
             error = error
@@ -50,7 +50,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
     })?;
     if answer != IMAGE_USER {
         return Err(t!(
-            "shared.checks.image.wrong_answer",
+            "common.checks.image.wrong_answer",
             image = image(),
             answer = answer,
             expected = IMAGE_USER
@@ -62,7 +62,7 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
 
 // on an error `pull` uses the command line, and shows both errors
 async fn pull_with_api(on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
-    let docker = docker_api().ok_or_else(|| t!("shared.checks.image.no_api").to_string())?;
+    let docker = docker_api().ok_or_else(|| t!("common.checks.image.no_api").to_string())?;
     let (image, tag) = image().rsplit_once(':').ok_or("no tag")?;
     let options = CreateImageOptionsBuilder::new()
         .from_image(image)
@@ -182,7 +182,7 @@ impl PullProgress {
         let megabytes = |bytes: u64| (bytes as f64 / 1_000_000.0).round() as u64;
         let downloaded = self.layers.values().map(|layer| layer.downloaded).sum();
         t!(
-            "shared.checks.image.progress",
+            "common.checks.image.progress",
             downloaded = megabytes(downloaded),
             total = megabytes(self.total())
         )

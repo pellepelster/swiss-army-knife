@@ -41,7 +41,7 @@ import { DomainList } from './domain-list';
     @if (loaded()) {
       <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
         <div>
-          <label class="form-label" for="edit-bucket-name">{{ 'hosting.name' | t }}</label>
+          <label class="form-label" for="edit-bucket-name">{{ 'shared.name' | t }}</label>
           <input
             class="form-control-plaintext font-monospace text-break"
             id="edit-bucket-name"
@@ -63,18 +63,18 @@ import { DomainList } from './domain-list';
 
         <div class="d-flex flex-wrap justify-content-end gap-2">
           <a class="btn btn-outline-secondary" [routerLink]="['/static-hosting', name()]">{{
-            'hosting.cancel' | t
+            'shared.cancel' | t
           }}</a>
           <button class="btn btn-primary" type="submit" [disabled]="!valid() || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }
-            {{ 'hosting.save' | t }}
+            {{ 'shared.save' | t }}
           </button>
         </div>
       </form>
     } @else if (!error()) {
-      <p class="text-body-secondary">{{ 'hosting.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

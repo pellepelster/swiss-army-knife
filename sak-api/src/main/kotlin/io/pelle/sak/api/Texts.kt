@@ -67,9 +67,10 @@ data class Joined(
 )
 
 // the texts of one module, `i18n/<name>.<language>.yml` on the class path, one file per language
-// (Language). Every key of the module is a property of its object, made with text(); a test of the
-// module checks the files against them (the test fixture assertCatalog). The yaml is read by ktor,
-// which reads $NAME as a variable of the environment: no text has a $
+// (Language), generated into sak-api from i18n/texts.yml: backend.<name>, or common and backend of
+// the app <name>. Every key of the module is a property of its object, made with text(); a test of
+// the module checks the files against them (the test fixture catalogProblems). The yaml is read by
+// ktor, which reads $NAME as a variable of the environment: sak-i18n refuses a text with a $
 abstract class Catalog(
     val name: String,
 ) {
@@ -133,7 +134,7 @@ object Catalogs {
         }
 }
 
-// the texts of the api itself, what every route answers alike (i18n/api.<language>.yml)
+// the texts of the api itself, what every route answers alike (backend.api in i18n/texts.yml)
 object ApiTexts : Catalog("api") {
     val MALFORMED_REQUEST = text("malformed_request")
     val TOO_LARGE_REQUEST = text("too_large_request")

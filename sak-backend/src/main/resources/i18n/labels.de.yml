@@ -1,3 +1,0 @@
-# the texts of the labels (LabelsTexts), german
-invalid_name: "Ein Labelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
-exists: "Ein Label mit diesem Namen gibt es schon."

@@ -1,0 +1,5 @@
+# the texts of the catalog users in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_email: "An e-mail address like name@example.org is needed."
+invalid_name: "A name must have at most %{max} characters and no control characters."
+exists: "A user of the address exists."
+is_admin: "The address is an admin of the deployment, it is no user to add."

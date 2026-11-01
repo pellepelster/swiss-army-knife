@@ -103,7 +103,7 @@ pub(super) fn resources(spec: &DeploymentSpec) -> Vec<sak_cloud::api::ResourceRe
 }
 
 fn provisioning(spec: &DeploymentSpec) -> String {
-    t!("shared.provision.resource", name = spec.resource_name()).to_string()
+    t!("common.provision.resource", name = spec.resource_name()).to_string()
 }
 
 /// the plan of the create (every resource missing, then the provisioning) or of a check of the
@@ -185,7 +185,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
         400,
         DeploymentEvent::Provisioning {
             message: t!(
-                "shared.provision.running",
+                "common.provision.running",
                 name = spec.resource_name(),
                 host = IPV4
             )
@@ -239,7 +239,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     events.push(after(
         2_000,
         DeploymentEvent::Provisioning {
-            message: t!("shared.deployments.waiting_for_api", url = api.as_str()).to_string(),
+            message: t!("common.deployments.waiting_for_api", url = api.as_str()).to_string(),
         },
     ));
     events
@@ -316,7 +316,7 @@ fn checks() -> Vec<Value> {
             id: runtime.id(),
             name: runtime.name(),
             text: t!(
-                "shared.checks.container_runtime.passed",
+                "common.checks.container_runtime.passed",
                 runtime = "docker",
                 version = "28.5.1"
             )
@@ -337,7 +337,7 @@ fn checks() -> Vec<Value> {
                 id: image.id(),
                 fraction: megabytes as f64 / 371.0,
                 text: t!(
-                    "shared.checks.image.progress",
+                    "common.checks.image.progress",
                     downloaded = megabytes,
                     total = 371
                 )
@@ -351,7 +351,7 @@ fn checks() -> Vec<Value> {
             id: image.id(),
             name: image.name(),
             text: t!(
-                "shared.checks.image.passed",
+                "common.checks.image.passed",
                 image = crate::core::container::image()
             )
             .to_string(),

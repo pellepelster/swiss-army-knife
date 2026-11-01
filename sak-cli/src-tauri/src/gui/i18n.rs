@@ -8,7 +8,7 @@ pub fn locale() -> String {
     rust_i18n::locale().to_string()
 }
 
-// the texts of the page: below `ui.` (the window alone) and `shared.` (the window and the command
+// the texts of the page: below `ui.` (the window alone) and `common.` (the window and the command
 // line) in locales/, english for the ones missing in the language
 #[tauri::command]
 pub fn ui_texts() -> HashMap<String, String> {
@@ -16,7 +16,7 @@ pub fn ui_texts() -> HashMap<String, String> {
         .messages_for_locale("en")
         .unwrap_or_default()
         .into_iter()
-        .filter(|(key, _)| key.starts_with("ui.") || key.starts_with("shared."))
+        .filter(|(key, _)| key.starts_with("ui.") || key.starts_with("common."))
         .map(|(key, _)| {
             let text = rust_i18n::t!(key.as_ref()).to_string();
             (key.to_string(), text)

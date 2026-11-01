@@ -20,12 +20,12 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
     <div class="row min-vh-100 align-items-center justify-content-center py-3">
       <main class="col-12 col-sm-8 col-md-6 col-lg-4">
         <div class="card card-body">
-          <h1 class="h4 mb-3">{{ 'login.title' | t }}</h1>
+          <h1 class="h4 mb-3">{{ 'login.sign_in' | t }}</h1>
           @if (userMode() === null) {
             @if (state() === 'failed') {
               <p class="alert alert-danger mb-0" role="alert">{{ 'login.not_loaded' | t }}</p>
             } @else {
-              <p class="text-body-secondary mb-0" role="status">{{ 'login.loading' | t }}</p>
+              <p class="text-body-secondary mb-0" role="status">{{ 'shared.loading' | t }}</p>
             }
           } @else if (state() === 'sent') {
             <p class="mb-0" role="status" data-testid="login-sent">
@@ -64,7 +64,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
             }
           } @else {
             <form [formGroup]="emailForm" (ngSubmit)="requestLink()">
-              <label class="form-label" for="email">{{ 'login.email' | t }}</label>
+              <label class="form-label" for="email">{{ 'shared.email' | t }}</label>
               <input
                 class="form-control mb-3"
                 id="email"

@@ -213,7 +213,7 @@ impl ProvisionManager {
     ) -> Result<(), ProvisionFailure> {
         let runtime = runtime
             .get()
-            .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+            .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
         let dir = RunDir::create(runtime)?;
         dir.write_run(run)?;
 
@@ -230,12 +230,12 @@ impl ProvisionManager {
 
         // a run stopped before its container is there starts none
         if stopped(&dir.container) {
-            return Err(t!("shared.provision.stopped").to_string().into());
+            return Err(t!("common.provision.stopped").to_string().into());
         }
         let mut child = container_command(runtime, &dir, events.port())?
             .spawn()
             .map_err(|e| {
-                t!("shared.provision.not_started", runtime = runtime, error = e).to_string()
+                t!("common.provision.not_started", runtime = runtime, error = e).to_string()
             })?;
         // the key, then the end of the input (the drop of `stdin`): ssh-add reads until there
         if let Some(mut stdin) = child.stdin.take() {
@@ -409,22 +409,22 @@ fn pump_output(
 fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), ProvisionFailure> {
     let task = pumped.failed.as_ref().map(|(task, _)| task.clone());
     let message = if pumped.stopped {
-        t!("shared.provision.stopped")
+        t!("common.provision.stopped")
     } else if pumped.timed_out {
         t!(
-            "shared.provision.timed_out",
+            "common.provision.timed_out",
             minutes = RUN_TIMEOUT.as_secs() / 60
         )
     } else {
         match (status.success(), pumped.failed) {
             (true, _) => return Ok(()),
             (false, Some((task, message))) => t!(
-                "shared.provision.task_failed",
+                "common.provision.task_failed",
                 task = task,
                 message = message.unwrap_or_default()
             ),
             (false, None) => t!(
-                "shared.provision.failed",
+                "common.provision.failed",
                 status = status.code().unwrap_or(-1)
             ),
         }
@@ -972,7 +972,7 @@ pub(crate) mod tests {
         assert!(pumped.stopped && !pumped.timed_out);
         assert_eq!(stops, 1);
         let failure = outcome(child.wait().unwrap(), pumped).unwrap_err();
-        assert_eq!(failure.message, t!("shared.provision.stopped"));
+        assert_eq!(failure.message, t!("common.provision.stopped"));
 
         // a run not stopped runs to its end
         let mut child = start("echo one; echo two");

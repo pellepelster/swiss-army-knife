@@ -20,10 +20,10 @@ import { ListIcon } from './list-icon';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'grocery.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'grocery.title' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.grocery' | t }}</h1>
       <a class="btn btn-primary" routerLink="lists/create">
         <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.lists.add' | t }}
       </a>
@@ -60,7 +60,7 @@ import { ListIcon } from './list-icon';
                 [routerLink]="['lists', list.id, 'edit']"
                 [queryParams]="{ from: 'lists' }"
                 [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
-                [title]="'grocery.settings' | t"
+                [title]="'shared.settings' | t"
                 ><i class="fa-solid fa-gear" aria-hidden="true"></i
               ></a>
             } @else {

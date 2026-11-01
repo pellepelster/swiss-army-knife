@@ -28,7 +28,7 @@ function show(next, message, { busy = false, failed = false } = {}) {
 }
 
 async function check() {
-  show('check', text('shared.update.checking', { receiver }), { busy: true });
+  show('check', text('common.update.checking', { receiver }), { busy: true });
   try {
     const answer = await invoke('check_update');
     newest = answer.newest;
@@ -39,7 +39,7 @@ async function check() {
 }
 
 async function install() {
-  show('install', text('shared.update.installing', { version: newest, receiver }), { busy: true });
+  show('install', text('common.update.installing', { version: newest, receiver }), { busy: true });
   try {
     const answer = await invoke('install_update');
     if (answer.installed) {

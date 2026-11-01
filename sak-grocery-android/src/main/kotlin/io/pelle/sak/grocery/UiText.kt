@@ -2,7 +2,7 @@ package io.pelle.sak.grocery
 
 import androidx.annotation.StringRes
 
-// a text the user reads: one of the app (res/values/strings.xml, values-de for german) with its
+// a text the user reads: one of the app (a string resource, from i18n/texts.yml) with its
 // arguments, read in the language of the phone only by the ui; or one the backend sent, already in
 // that language (Accept-Language). The model stays without android
 sealed interface UiText {

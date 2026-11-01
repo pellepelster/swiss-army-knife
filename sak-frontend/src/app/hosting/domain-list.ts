@@ -8,7 +8,7 @@ import { DOMAIN_PATTERN } from '../shared/domains';
   imports: [TranslatePipe],
   template: `
     <fieldset class="vstack gap-2">
-      <legend class="form-label fs-6 mb-0">{{ 'hosting.domains.legend' | t }}</legend>
+      <legend class="form-label fs-6 mb-0">{{ 'hosting.configuration.domains' | t }}</legend>
       @for (domain of domains(); track $index; let index = $index) {
         <div class="input-group">
           <input

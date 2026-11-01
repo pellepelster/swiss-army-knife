@@ -183,7 +183,7 @@ private fun SignInScreen(
     var password by rememberSaveable { mutableStateOf("") }
     Page(screen.deployment, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
         Form(padding) {
-            Text(stringResource(R.string.sign_in), style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.login_sign_in), style = MaterialTheme.typography.headlineSmall)
             Error(screen.error)
             when {
                 screen.linkSentTo != null ->
@@ -196,24 +196,24 @@ private fun SignInScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text(stringResource(R.string.email)) },
+                        label = { Text(stringResource(R.string.shared_email)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = { model.requestLink(email) }),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(onClick = { model.requestLink(email) }, enabled = email.isNotBlank() && !screen.busy) {
-                        Text(stringResource(R.string.send_link))
+                        Text(stringResource(R.string.login_send_link))
                     }
                     TextButton(onClick = { model.usePassword(true) }, modifier = Modifier.testTag("use-password")) {
-                        Text(stringResource(R.string.sign_in_with_password))
+                        Text(stringResource(R.string.login_use_password))
                     }
                 }
                 else -> {
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text(stringResource(R.string.admin_password)) },
+                        label = { Text(stringResource(R.string.login_admin_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
@@ -221,11 +221,11 @@ private fun SignInScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy) {
-                        Text(stringResource(R.string.sign_in_with_password))
+                        Text(stringResource(R.string.login_use_password))
                     }
                     if (screen.multiUser) {
                         TextButton(onClick = { model.usePassword(false) }, modifier = Modifier.testTag("use-email")) {
-                            Text(stringResource(R.string.sign_in_with_email))
+                            Text(stringResource(R.string.login_use_email))
                         }
                     }
                 }
@@ -260,7 +260,7 @@ private fun Menu(
     IconButton(onClick = { menu = true }) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)
-        DropdownMenuItem(text = { Text(stringResource(R.string.sign_out)) }, onClick = {
+        DropdownMenuItem(text = { Text(stringResource(R.string.login_sign_out)) }, onClick = {
             menu = false
             model.signOut()
         })
@@ -279,7 +279,7 @@ private fun HomeScreen(
         screen.deployment,
         actions = {
             IconButton(onClick = model::newList, modifier = Modifier.testTag("new-list")) {
-                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.add_list))
+                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.grocery_lists_add))
             }
             Menu(screen, model)
         },
@@ -293,7 +293,7 @@ private fun HomeScreen(
                 screen.update?.let { item { UpdateBanner(it, model::update) } }
                 screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                 if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
-                    item { Empty(stringResource(R.string.no_lists)) }
+                    item { Empty(stringResource(R.string.grocery_no_lists)) }
                 }
                 itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
                     ListRow(list, open = { model.open(list.id) }, settings = { model.openSettings(list.id) })
@@ -336,12 +336,12 @@ private fun ListRow(
         supportingContent = {
             Column {
                 Text(toBuy(list.items))
-                if (list.shared) Text(stringResource(R.string.shared), color = MaterialTheme.colorScheme.primary)
+                if (list.shared) Text(stringResource(R.string.grocery_shared), color = MaterialTheme.colorScheme.primary)
             }
         },
         trailingContent = {
             IconButton(onClick = settings, enabled = list.mine, modifier = Modifier.testTag("settings-${list.id}")) {
-                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_of, list.name))
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.grocery_settings_of, list.name))
             }
         },
         modifier = Modifier.clickable(onClick = open).testTag("list-${list.id}"),
@@ -376,7 +376,7 @@ private fun ListIcon(
 // No items to buy, 1 item to buy, 3 items to buy
 @Composable
 private fun toBuy(items: Int) =
-    if (items == 0) stringResource(R.string.no_items_to_buy) else pluralStringResource(R.plurals.to_buy, items, items)
+    if (items == 0) stringResource(R.string.grocery_lists_to_buy_none) else pluralStringResource(R.plurals.grocery_to_buy, items, items)
 
 // the settings of a new list or of one of the user's own: its name, whether all users see it and its
 // icon, one emoji of the picker of the system; a list of the user's own is deleted after a
@@ -393,10 +393,10 @@ private fun ListSettingsScreen(
     val canSave = settings.name.isNotBlank() && !settings.busy
     val edit = { name: String, shared: Boolean, icon: String? -> model.editSettings(name, shared, icon) }
     Page(
-        stringResource(if (settings.id == null) R.string.new_list else R.string.settings),
+        stringResource(if (settings.id == null) R.string.grocery_new_list else R.string.shared_settings),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.all_lists))
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))
             }
         },
     ) { padding ->
@@ -404,7 +404,7 @@ private fun ListSettingsScreen(
             OutlinedTextField(
                 value = settings.name,
                 onValueChange = { edit(it, settings.shared, settings.icon) },
-                label = { Text(stringResource(R.string.name)) },
+                label = { Text(stringResource(R.string.shared_name)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),
@@ -412,9 +412,9 @@ private fun ListSettingsScreen(
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ListIcon(settings.name, settings.icon, size = 48)
-                TextButton(onClick = { picking = true }, modifier = Modifier.testTag("choose-icon")) { Text(stringResource(R.string.choose_icon)) }
+                TextButton(onClick = { picking = true }, modifier = Modifier.testTag("choose-icon")) { Text(stringResource(R.string.grocery_form_choose_icon)) }
                 TextButton(onClick = { edit(settings.name, settings.shared, null) }, enabled = settings.icon != null) {
-                    Text(stringResource(R.string.no_icon))
+                    Text(stringResource(R.string.grocery_form_no_icon))
                 }
             }
             Row(
@@ -423,7 +423,7 @@ private fun ListSettingsScreen(
                     .toggleable(value = settings.shared, role = Role.Switch, onValueChange = { edit(settings.name, it, settings.icon) }),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.shared), modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.grocery_shared), modifier = Modifier.weight(1f))
                 Switch(checked = settings.shared, onCheckedChange = null)
             }
             Error(settings.error)
@@ -442,21 +442,21 @@ private fun ListSettingsScreen(
                             ),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (enabled) 1f else 0.38f)),
                         modifier = Modifier.testTag("delete-list"),
-                    ) { Text(stringResource(R.string.delete_list)) }
+                    ) { Text(stringResource(R.string.grocery_form_delete_list)) }
                 }
                 Button(onClick = model::saveSettings, enabled = canSave, modifier = Modifier.testTag("save-list")) {
                     Text(
                         stringResource(
                             when {
-                                settings.busy -> R.string.saving
-                                settings.id == null -> R.string.create_list
-                                else -> R.string.save
+                                settings.busy -> R.string.grocery_saving
+                                settings.id == null -> R.string.grocery_form_create
+                                else -> R.string.shared_save
                             },
                         ),
                     )
                 }
             }
-            if (settings.last) Text(stringResource(R.string.only_list), style = MaterialTheme.typography.bodySmall)
+            if (settings.last) Text(stringResource(R.string.grocery_form_last_list), style = MaterialTheme.typography.bodySmall)
         }
     }
     if (picking) {
@@ -477,8 +477,8 @@ private fun ListSettingsScreen(
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.delete_list_title)) },
-            text = { Text(stringResource(R.string.delete_list_text, settings.name)) },
+            title = { Text(stringResource(R.string.grocery_delete_list_title)) },
+            text = { Text(stringResource(R.string.grocery_delete_list_text, settings.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -486,10 +486,10 @@ private fun ListSettingsScreen(
                         model.deleteList()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text(stringResource(R.string.delete)) }
+                ) { Text(stringResource(R.string.shared_delete)) }
             },
             // the safe default
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.keep)) } },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.shared_keep)) } },
         )
     }
 }
@@ -508,7 +508,7 @@ private fun ListScreen(
         list?.let { listOfNotNull(it.icon, it.name).joinToString(" ") + if (it.shared) " · shared" else "" }.orEmpty(),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.all_lists))
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))
             }
         },
         actions = {
@@ -518,7 +518,7 @@ private fun ListScreen(
                 enabled = list?.mine == true,
                 modifier = Modifier.testTag("list-settings"),
             ) {
-                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings))
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.shared_settings))
             }
             Menu(screen, model)
         },
@@ -529,7 +529,7 @@ private fun ListScreen(
             PullToRefreshBox(isRefreshing = screen.loading, onRefresh = model::refresh, modifier = Modifier.fillMaxSize()) {
                 LazyColumn(Modifier.fillMaxSize().testTag("items")) {
                     screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
-                    if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty(stringResource(R.string.nothing_to_buy)) }
+                    if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty(stringResource(R.string.grocery_nothing_to_buy)) }
                     screen.groups.forEachIndexed { index, group ->
                         item(key = "group-$index") {
                             Text(
@@ -566,7 +566,7 @@ private fun NewItem(
     OutlinedTextField(
         value = screen.itemName,
         onValueChange = model::typed,
-        label = { Text(stringResource(R.string.item)) },
+        label = { Text(stringResource(R.string.grocery_list_item)) },
         singleLine = true,
         trailingIcon =
             if (screen.adding) {
@@ -612,7 +612,7 @@ private fun UndoBar(
         Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(undo.text.resolve(), modifier = Modifier.weight(1f))
-                TextButton(onClick = onUndo) { Text(stringResource(R.string.undo)) }
+                TextButton(onClick = onUndo) { Text(stringResource(R.string.shared_undo)) }
             }
             LinearProgressIndicator(progress = { left.value }, modifier = Modifier.fillMaxWidth(), drawStopIndicator = {})
         }

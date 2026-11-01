@@ -196,7 +196,7 @@ fun Route.redirects(redirectService: RedirectService) {
     }
 }
 
-// the texts of the redirects (i18n/redirects.<language>.yml)
+// the texts of the redirects (redirects.backend in i18n/texts.yml)
 object RedirectsTexts : Catalog("redirects") {
     val INVALID_DOMAINS = text("invalid_domains")
     val EXISTS = text("exists")

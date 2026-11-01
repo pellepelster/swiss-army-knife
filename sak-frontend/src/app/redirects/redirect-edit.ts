@@ -49,13 +49,13 @@ import { RedirectsService } from './redirects.service';
 
         <div class="d-flex flex-wrap justify-content-end gap-2">
           <a class="btn btn-outline-secondary" [routerLink]="['/redirects', source()]">{{
-            'redirects.cancel' | t
+            'shared.cancel' | t
           }}</a>
           <button class="btn btn-primary" type="submit" [disabled]="target() === null || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }
-            {{ 'redirects.save' | t }}
+            {{ 'shared.save' | t }}
           </button>
         </div>
       </form>

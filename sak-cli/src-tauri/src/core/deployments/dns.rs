@@ -31,7 +31,7 @@ pub(super) fn by_text(by: &[Option<String>]) -> String {
     by.iter()
         .map(|name| match name {
             Some(name) => name.clone(),
-            None => t!("shared.deployments.unnamed").to_string(),
+            None => t!("common.deployments.unnamed").to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -39,15 +39,15 @@ pub(super) fn by_text(by: &[Option<String>]) -> String {
 
 pub(super) fn conflict_text(domain: &str, conflict: &RootDomainConflict) -> String {
     let (key, by) = match conflict {
-        RootDomainConflict::DomainTaken { by } => ("shared.deployments.domain_taken", by),
+        RootDomainConflict::DomainTaken { by } => ("common.deployments.domain_taken", by),
         RootDomainConflict::MixedModes {
             used: DnsMode::Domain,
             by,
-        } => ("shared.deployments.domain_mixed", by),
+        } => ("common.deployments.domain_mixed", by),
         RootDomainConflict::MixedModes {
             used: DnsMode::Subdomain,
             by,
-        } => ("shared.deployments.subdomain_only", by),
+        } => ("common.deployments.subdomain_only", by),
     };
     t!(key, domain = domain, by = by_text(by)).to_string()
 }
@@ -69,7 +69,7 @@ pub(super) fn check_root_domain(
     dns_mode: DnsMode,
 ) -> Result<String, SakctlError> {
     if domains.is_empty() {
-        return Err(t!("shared.deployments.no_zones").to_string().into());
+        return Err(t!("common.deployments.no_zones").to_string().into());
     }
     let known = || {
         domains
@@ -79,13 +79,13 @@ pub(super) fn check_root_domain(
             .join(", ")
     };
     let Some(chosen) = chosen.map(str::trim).filter(|chosen| !chosen.is_empty()) else {
-        return Err(t!("shared.deployments.no_root_domain", domains = known())
+        return Err(t!("common.deployments.no_root_domain", domains = known())
             .to_string()
             .into());
     };
     let Some(domain) = domains.iter().find(|domain| domain.name == chosen) else {
         return Err(t!(
-            "shared.deployments.unknown_root_domain",
+            "common.deployments.unknown_root_domain",
             domain = chosen,
             domains = known()
         )
@@ -122,7 +122,7 @@ pub(super) fn resolve_dns(
         Intent::Deploy => {
             let domain = given_domain.or(labeled_domain).ok_or_else(|| {
                 t!(
-                    "shared.deployments.deploy_without_root_domain",
+                    "common.deployments.deploy_without_root_domain",
                     name = name,
                     hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
                 )

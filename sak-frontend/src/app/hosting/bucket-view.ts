@@ -26,14 +26,14 @@ import { BucketsService } from './buckets.service';
       @if (store.bucket()) {
         @if (confirming()) {
           <button class="btn btn-danger" type="button" (click)="delete()">
-            {{ 'hosting.delete' | t }}
+            {{ 'shared.delete' | t }}
           </button>
           <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-            {{ 'hosting.keep' | t }}
+            {{ 'shared.keep' | t }}
           </button>
         } @else {
           <a class="btn btn-primary" [routerLink]="['/static-hosting', name(), 'edit']">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'hosting.edit' | t }}
+            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'shared.edit' | t }}
           </a>
           <button
             class="btn btn-outline-danger"
@@ -41,7 +41,7 @@ import { BucketsService } from './buckets.service';
             [attr.aria-label]="'hosting.view.delete_bucket' | t: { name: name() }"
             (click)="confirming.set(true)"
           >
-            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'hosting.delete' | t }}
+            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'shared.delete' | t }}
           </button>
         }
       }
@@ -54,11 +54,11 @@ import { BucketsService } from './buckets.service';
     @if (store.bucket(); as bucket) {
       <dl
         class="card card-body flex-row flex-wrap gap-4 mb-3"
-        [attr.aria-label]="'hosting.view.overview' | t"
+        [attr.aria-label]="'shared.view.overview' | t"
       >
         <div>
           <dt class="small text-uppercase text-body-secondary fw-normal">
-            {{ 'hosting.view.created' | t }}
+            {{ 'shared.view.created' | t }}
           </dt>
           <dd class="mb-0 fw-semibold" data-testid="created">
             {{ bucket.createdAt | localDateTime: 'medium' : 'short' }}
@@ -67,7 +67,7 @@ import { BucketsService } from './buckets.service';
         @if (bucket.updatedAt; as updatedAt) {
           <div>
             <dt class="small text-uppercase text-body-secondary fw-normal">
-              {{ 'hosting.view.updated' | t }}
+              {{ 'shared.view.updated' | t }}
             </dt>
             <dd class="mb-0 fw-semibold" data-testid="updated">
               {{ updatedAt | localDateTime: 'medium' : 'short' }}
@@ -110,20 +110,20 @@ import { BucketsService } from './buckets.service';
         }
       </dl>
 
-      <nav class="nav nav-underline mb-3" [attr.aria-label]="'hosting.view.details' | t">
+      <nav class="nav nav-underline mb-3" [attr.aria-label]="'shared.view.details' | t">
         <a
           class="nav-link"
           routerLink="configuration"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
-          >{{ 'hosting.view.configuration' | t }}</a
+          >{{ 'shared.view.configuration' | t }}</a
         >
         <a
           class="nav-link"
           routerLink="credentials"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
-          >{{ 'hosting.view.credentials' | t }}</a
+          >{{ 'hosting.credentials.label' | t }}</a
         >
         <a
           class="nav-link"
@@ -142,7 +142,7 @@ import { BucketsService } from './buckets.service';
       </nav>
       <router-outlet />
     } @else if (!store.error()) {
-      <p class="text-body-secondary">{{ 'hosting.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

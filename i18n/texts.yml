@@ -1,0 +1,1523 @@
+# every text a user reads, in every language: the source of the texts of the backend, the web
+# apps, the android app and sakctl. `mise run i18n:generate` writes them into the files each of them
+# reads (sak-i18n), the generated files are committed and a test fails when they are not up to date.
+#
+# A section is either for every app, or the one of an app with its texts by platform:
+#   common, backend, web, android    texts of no app: for backend, web and android, or for one
+#   <app>.common                     texts of the app on every platform it has a part for
+#   <app>.backend, .web, .android    texts of the app on one platform
+#   ctl.common, ctl.cli, ctl.ui      sakctl, a program of its own: both, the command line, the
+#                                    window; it reads all three, as common.*, cli.* and ui.*
+# A platform reads common and its own part merged, the platform drops out of the key: notes.backend
+# .too_many_photos is notes.too_many_photos in the backend, its error code. A key is in one part only.
+#
+# A text has every language, `{ en: "…", de: "…" }`, with the same %{name} placeholders; a text
+# that is the same in every language, a name, is a plain string. A plural (android only) has the
+# forms of the language, `en: { one: "%{count} item", other: "%{count} items" }`. German uses "du"
+# in sakctl and no form of address elsewhere, the words are the ones of the glossary.
+
+common:
+  login:
+    sign_in: { en: "Sign in", de: "Anmelden" }
+    admin_password: { en: "Admin password", de: "Admin-Passwort" }
+    use_email: { en: "Sign in with an e-mail link", de: "Mit einem E-Mail-Link anmelden" }
+    send_link: { en: "Send login link", de: "Login-Link senden" }
+    use_password: { en: "Sign in with password", de: "Mit Passwort anmelden" }
+    sign_out: { en: "Sign out", de: "Abmelden" }
+    link_invalid:
+      en: "The login link is invalid, expired or was already used."
+      de: "Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt."
+  shared:
+    undo: { en: "Undo", de: "Rückgängig" }
+    delete: { en: "Delete", de: "Löschen" }
+    keep: { en: "Keep", de: "Behalten" }
+    save: { en: "Save", de: "Speichern" }
+    name: { en: "Name", de: "Name" }
+    settings: { en: "Settings", de: "Einstellungen" }
+    email: { en: "E-mail address", de: "E-Mail-Adresse" }
+  users:
+    invalid_email:
+      en: "An e-mail address like name@example.org is needed."
+      de: "Eine E-Mail-Adresse wie name@example.org ist nötig."
+
+backend:
+  api:
+    malformed_request: { en: "The request is malformed.", de: "Die Anfrage ist fehlerhaft." }
+    too_large_request: { en: "The request body is too large.", de: "Der Inhalt der Anfrage ist zu groß." }
+    unexpected_error:
+      en: "Something went wrong, the request could not be answered."
+      de: "Etwas ist schiefgegangen, die Anfrage konnte nicht beantwortet werden."
+    invalid_offset: { en: "offset must be a number of at least 0.", de: "offset muss eine Zahl von mindestens 0 sein." }
+    invalid_limit: { en: "limit must be a number from 1 to %{max}.", de: "limit muss eine Zahl von 1 bis %{max} sein." }
+  auth:
+    invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
+    mail_subject: { en: "Sign in to %{app}", de: "Anmelden bei %{app}" }
+    mail_body:
+      en: |
+        Hello,
+
+        use the following link to sign in to %{app}:
+
+        %{link}
+
+        The link is valid for %{minutes} minutes and can only be used once. If you did not
+        request it, you can ignore this e-mail.
+      de: |
+        Hallo,
+
+        mit dem folgenden Link meldest du dich bei %{app} an:
+
+        %{link}
+
+        Der Link ist %{minutes} Minuten gültig und funktioniert nur einmal. Wenn du ihn nicht
+        angefordert hast, kannst du diese E-Mail ignorieren.
+  files:
+    too_large: { en: "A file must have at most %{max} MB.", de: "Eine Datei darf höchstens %{max} MB groß sein." }
+    unsupported_type:
+      en: "Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."
+      de: "Nur Bilder als JPEG, PNG, GIF und WebP und Aufnahmen als WAV können gespeichert werden."
+    image_too_large:
+      en: "An image must have at most %{max} pixels on its longer side."
+      de: "Ein Bild darf an seiner längeren Seite höchstens %{max} Pixel haben."
+    recording_too_long:
+      en: "A recording must be at most %{max} minutes long."
+      de: "Eine Aufnahme darf höchstens %{max} Minuten lang sein."
+    too_many_discoveries:
+      en: "Too many texts were discovered, please try again later."
+      de: "Es wurden zu viele Texte erkannt, bitte versuche es später erneut."
+    not_discoverable:
+      en: "Text is only discovered in images and recordings."
+      de: "Text wird nur in Bildern und Aufnahmen erkannt."
+    no_api_key:
+      en: "No OpenRouter API key is set in the settings."
+      de: "In den Einstellungen ist kein API-Schlüssel für OpenRouter gesetzt."
+    ai_off:
+      en: "The AI features are turned off in the settings."
+      de: "Die KI-Funktionen sind in den Einstellungen ausgeschaltet."
+    discovery_failed:
+      en: "The text could not be discovered, please try again later."
+      de: "Der Text konnte nicht erkannt werden, bitte versuche es später erneut."
+  labels:
+    invalid_name:
+      en: "A label name must have 1 to %{max} characters and no control characters."
+      de: "Ein Labelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    exists: { en: "A label of the name exists.", de: "Ein Label mit diesem Namen gibt es schon." }
+  openrouter:
+    settings:
+      enabled:
+        label: { en: "AI features", de: "KI-Funktionen" }
+        description:
+          en: "Lets the apps send data to AI providers, for example a photo or a recording to discover its text. Providers that collect the data are not asked."
+          de: "Lässt die Apps Daten an KI-Anbieter senden, zum Beispiel ein Foto oder eine Aufnahme, um ihren Text zu erkennen. Anbieter, die die Daten sammeln, werden nicht gefragt."
+      api_key:
+        label: { en: "API key", de: "API-Schlüssel" }
+        description:
+          en: "The key of the OpenRouter account to use for AI features."
+          de: "Der Schlüssel des OpenRouter-Kontos für die KI-Funktionen."
+      vision_model:
+        label: { en: "Vision model", de: "Bildmodell" }
+        description: { en: "The model that transcribes text in photos.", de: "Das Modell, das Text in Fotos erkennt." }
+      speech_model:
+        label: { en: "Speech model", de: "Sprachmodell" }
+        description: { en: "The model that transcribes recordings.", de: "Das Modell, das Aufnahmen verschriftlicht." }
+      label: { en: "AI", de: "KI" }
+      description: { en: "Configure all AI features", de: "Alle KI-Funktionen einrichten" }
+    key_refused: { en: "OpenRouter does not take the API key.", de: "OpenRouter nimmt den API-Schlüssel nicht an." }
+    key_unchecked:
+      en: "The API key could not be checked at OpenRouter, please try again later."
+      de: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."
+  settings:
+    not_boolean: { en: "\"%{label}\" must be true or false.", de: "\"%{label}\" muss wahr oder falsch sein." }
+    not_text: { en: "\"%{label}\" must be a text.", de: "\"%{label}\" muss ein Text sein." }
+    too_long:
+      en: "\"%{label}\" must be at most %{max} characters."
+      de: "\"%{label}\" darf höchstens %{max} Zeichen haben."
+    unknown_setting:
+      en: "There is no setting \"%{name}\" in \"%{scope}\"."
+      de: "Es gibt keine Einstellung \"%{name}\" in \"%{scope}\"."
+    read_only: { en: "\"%{label}\" can not be changed.", de: "\"%{label}\" kann nicht geändert werden." }
+    requires:
+      en: "\"%{label}\" needs \"%{required}\" of \"%{scope}\" turned on."
+      de: "\"%{label}\" braucht \"%{required}\" von \"%{scope}\" eingeschaltet."
+  users:
+    invalid_name:
+      en: "A name must have at most %{max} characters and no control characters."
+      de: "Ein Name darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
+    exists: { en: "A user of the address exists.", de: "Einen Benutzer mit dieser Adresse gibt es schon." }
+    is_admin:
+      en: "The address is an admin of the deployment, it is no user to add."
+      de: "Die Adresse ist ein Admin des Deployments, sie ist kein Benutzer zum Hinzufügen."
+  dns:
+    not_checked:
+      en: "The domains of the %{what} could not be checked."
+      de: "Die Domains der %{what} konnten nicht geprüft werden."
+    no_addresses:
+      en: "The addresses of the server are not configured."
+      de: "Die Adressen des Servers sind nicht konfiguriert."
+    no_domains: { en: "The %{what} have no domains.", de: "Die %{what} haben keine Domains." }
+    wrong_domains:
+      en: "%{count} of %{total} domains of the %{what} do not point to the server."
+      de: "%{count} von %{total} Domains der %{what} zeigen nicht auf den Server."
+    unanswered_domains:
+      en: "No name server answered for %{count} of %{total} domains of the %{what}."
+      de: "Kein Nameserver hat für %{count} von %{total} Domains der %{what} geantwortet."
+    right_domains:
+      en: "The %{total} domains of the %{what} point to the server."
+      de: "Die %{total} Domains der %{what} zeigen auf den Server."
+    answers: { en: "%{answers}", de: "%{answers}" }
+    no_answer: { en: "No name server answered.", de: "Kein Nameserver hat geantwortet." }
+    no_answer_from: { en: "No answer from %{servers}.", de: "Keine Antwort von %{servers}." }
+    answer: { en: "%{server} has %{a}, %{aaaa}", de: "%{server} hat %{a}, %{aaaa}" }
+    records: { en: "%{type} %{addresses}", de: "%{type} %{addresses}" }
+    no_records: { en: "no %{type}", de: "kein %{type}" }
+  logs:
+    invalid_range: { en: "range must be one of %{ranges}.", de: "range muss einer von %{ranges} sein." }
+    empty_search: { en: "q must not be empty.", de: "q darf nicht leer sein." }
+    long_search: { en: "q must have at most %{max} characters.", de: "q darf höchstens %{max} Zeichen haben." }
+    control_search: { en: "q must not contain control characters.", de: "q darf keine Steuerzeichen enthalten." }
+    range:
+      minutes: { en: "%{count} minutes", de: "%{count} Minuten" }
+      hour: { en: "1 hour", de: "1 Stunde" }
+      hours: { en: "%{count} hours", de: "%{count} Stunden" }
+      days: { en: "%{count} days", de: "%{count} Tage" }
+
+web:
+  app:
+    notes: { en: "Notes", de: "Notizen" }
+    notes_description: { en: "Post-Its from text, images or audio", de: "Post-its aus Text, Bildern oder Audio" }
+    grocery: { en: "Grocery", de: "Einkaufslisten" }
+    grocery_description: { en: "Shopping lists to share", de: "Einkaufslisten zum Teilen" }
+    static_hosting: { en: "Static hosting", de: "Statisches Hosting" }
+    static_hosting_description: { en: "Websites from S3 buckets", de: "Websites aus S3-Buckets" }
+    redirects: { en: "Redirects", de: "Weiterleitungen" }
+    redirects_description: { en: "Domains that lead elsewhere", de: "Domains, die woanders hinführen" }
+  home:
+    title: { en: "Apps", de: "Apps" }
+    install_label: { en: "Install the notes as an app", de: "Die Notizen als App installieren" }
+    install: { en: "Install", de: "Installieren" }
+    only_admin: { en: "Only for an admin", de: "Nur für einen Admin" }
+    needs_multi_user: { en: "Needs the multi user mode", de: "Braucht den Mehrbenutzermodus" }
+    maintenance: { en: "Maintenance", de: "Wartung" }
+    health_description: { en: "The status of all health checks", de: "Der Stand aller Health-Checks" }
+    settings_description: { en: "What the whole deployment does", de: "Was das ganze Deployment tut" }
+    api: { en: "API", de: "API" }
+    api_description:
+      en: "The full api of the backend, to try out"
+      de: "Die ganze API des Backends, zum Ausprobieren"
+    users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
+  signin:
+    page_title: { en: "Signing in", de: "Anmeldung läuft" }
+    grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }
+    grocery_text:
+      en: "This link signs you in to the SAK grocery app. Open it on the phone with the app."
+      de: "Dieser Link meldet dich in der SAK-Einkaufslisten-App an. Öffne ihn auf dem Handy mit der App."
+    open_in_app: { en: "Open in the app", de: "In der App öffnen" }
+    failed_title: { en: "Sign in failed", de: "Anmelden fehlgeschlagen" }
+    request_new: { en: "Request a new one", de: "Fordere einen neuen an" }
+    failed_after: { en: ".", de: "." }
+  shared:
+    copy: { en: "Copy", de: "Kopieren" }
+    copied: { en: "Copied", de: "Kopiert" }
+    pages: { en: "Pages", de: "Seiten" }
+    previous_page: { en: "Previous page", de: "Vorherige Seite" }
+    previous: { en: "Previous", de: "Zurück" }
+    next_page: { en: "Next page", de: "Nächste Seite" }
+    next: { en: "Next", de: "Weiter" }
+    range: { en: "%{first}–%{last} of %{total}", de: "%{first}–%{last} von %{total}" }
+    all_apps: { en: "All apps", de: "Alle Apps" }
+    loading: { en: "Loading…", de: "Wird geladen…" }
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    edit: { en: "Edit", de: "Bearbeiten" }
+    view:
+      overview: { en: "Overview", de: "Übersicht" }
+      details: { en: "Details", de: "Details" }
+      configuration: { en: "Configuration", de: "Konfiguration" }
+      created: { en: "Created", de: "Erstellt" }
+      updated: { en: "Updated", de: "Geändert" }
+  settings:
+    scopes: { en: "Scopes", de: "Bereiche" }
+    needs_before: { en: "Needs", de: "Dafür muss" }
+    needs_after: { en: "turned on.", de: "eingeschaltet sein." }
+    required_label: { en: "%{setting} of %{scope}", de: "%{setting} in %{scope}" }
+    no_scope: { en: "There is no such scope of settings.", de: "Diesen Bereich der Einstellungen gibt es nicht." }
+    not_loaded: { en: "The settings could not be loaded.", de: "Die Einstellungen konnten nicht geladen werden." }
+    not_saved: { en: "The settings could not be saved.", de: "Die Einstellungen konnten nicht gespeichert werden." }
+    forbidden_see:
+      en: "Your role does not allow to see the settings."
+      de: "Deine Rolle erlaubt nicht, die Einstellungen zu sehen."
+    forbidden_change:
+      en: "Your role does not allow to change the settings."
+      de: "Deine Rolle erlaubt nicht, die Einstellungen zu ändern."
+  users:
+    title: { en: "Users", de: "Benutzer" }
+    add_title: { en: "Add user · Users", de: "Benutzer hinzufügen · Benutzer" }
+    all_users: { en: "All users", de: "Alle Benutzer" }
+    add_user: { en: "Add user", de: "Benutzer hinzufügen" }
+    intro:
+      en: "The admins come from the configuration of the deployment. A user signs in with a link by e-mail and uses the notes and the grocery lists."
+      de: "Die Admins kommen aus der Konfiguration des Deployments. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten."
+    column:
+      email: { en: "E-mail", de: "E-Mail" }
+      role: { en: "Role", de: "Rolle" }
+      actions: { en: "Actions", de: "Aktionen" }
+    no_name: { en: "No name", de: "Kein Name" }
+    role:
+      admin: { en: "admin", de: "Admin" }
+      user: { en: "user", de: "Benutzer" }
+    confirm_delete:
+      en: "Delete %{name}? They can no longer sign in; their data stays."
+      de: "%{name} löschen? Die Anmeldung ist dann nicht mehr möglich; die Daten bleiben erhalten."
+    delete_the_user: { en: "Delete the user", de: "Den Benutzer löschen" }
+    delete_user: { en: "Delete %{email}", de: "%{email} löschen" }
+    configured:
+      en: "Set by the configuration of the deployment"
+      de: "Durch die Konfiguration des Deployments festgelegt"
+    pages: { en: "Pages of the users", de: "Seiten der Benutzer" }
+    not_loaded: { en: "The users could not be loaded.", de: "Die Benutzer konnten nicht geladen werden." }
+    forbidden_see: { en: "Only an admin sees the users.", de: "Nur ein Admin sieht die Benutzer." }
+    not_deleted: { en: "The user could not be deleted.", de: "Der Benutzer konnte nicht gelöscht werden." }
+    email_hint:
+      en: "The user signs in with a link sent to it. No mail goes out now."
+      de: "Der Benutzer meldet sich mit einem Link an, der an diese Adresse geht. Jetzt wird keine E-Mail verschickt."
+    name: { en: "Name (optional)", de: "Name (optional)" }
+    name_hint: { en: "Shown instead of the address.", de: "Wird statt der Adresse angezeigt." }
+    not_added: { en: "The user could not be added.", de: "Der Benutzer konnte nicht hinzugefügt werden." }
+    forbidden_add: { en: "Only an admin adds users.", de: "Nur ein Admin fügt Benutzer hinzu." }
+  login:
+    not_loaded:
+      en: "The sign in could not be loaded, please try again."
+      de: "Die Anmeldung konnte nicht geladen werden, bitte versuche es erneut."
+    sent_before: { en: "If", de: "Wenn sich" }
+    sent_after:
+      en: "may sign in, a link is on its way. Open it in this browser to continue."
+      de: "anmelden darf, ist ein Link unterwegs. Öffne ihn in diesem Browser, um fortzufahren."
+    signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
+    sending: { en: "Sending…", de: "Wird gesendet…" }
+    wrong_password: { en: "The password is not right.", de: "Das Passwort ist nicht richtig." }
+    rate_limited:
+      en: "Too many login attempts, please try again later."
+      de: "Zu viele Anmeldeversuche, bitte versuche es später erneut."
+    failed:
+      en: "The sign in did not work, please try again."
+      de: "Die Anmeldung hat nicht funktioniert, bitte versuche es erneut."
+
+android:
+  app_name: "SAK Grocery List"
+  deployment_title: "SAK Grocery List"
+  deployment_hint:
+    en: "Enter the base domain of your SAK deployment, the one the web app is at as sak.<base domain>."
+    de: "Gib die Basisdomain deines SAK-Deployments ein, unter der die Web-App als sak.<Basisdomain> erreichbar ist."
+  base_domain: { en: "Base domain", de: "Basisdomain" }
+  connecting: { en: "Connecting…", de: "Verbinde…" }
+  connect: { en: "Connect", de: "Verbinden" }
+  other_deployment: { en: "Other deployment", de: "Anderes Deployment" }
+  link_sent:
+    en: "A login link is on its way to %{email} if the address may sign in. Open it on this phone and tap \"Open in the app\"."
+    de: "Ein Login-Link ist an %{email} unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\"."
+  signed_in_as: { en: "Signed in as %{email}", de: "Angemeldet als %{email}" }
+  update_available:
+    en: "Version %{version} of the app is available, the version of your deployment."
+    de: "Version %{version} der App ist verfügbar, die Version deines Deployments."
+  downloading: { en: "Downloading…", de: "Wird heruntergeladen…" }
+  update: { en: "Update", de: "Aktualisieren" }
+  error:
+    base_domain:
+      en: "Enter the base domain of your SAK deployment, e.g. example.org."
+      de: "Gib die Basisdomain deines SAK-Deployments ein, z. B. example.org."
+    no_deployment:
+      en: "No SAK deployment answers at this domain."
+      de: "Unter dieser Domain antwortet kein SAK-Deployment."
+    no_sak: { en: "This is no SAK deployment.", de: "Das ist kein SAK-Deployment." }
+    link_not_requested:
+      en: "The login link could not be requested."
+      de: "Der Login-Link konnte nicht angefordert werden."
+    link_not_used: { en: "The login link could not be used.", de: "Der Login-Link konnte nicht benutzt werden." }
+    not_asked:
+      en: "This login link was not requested in this app, or it is older than 15 minutes. Request a new one."
+      de: "Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als 15 Minuten. Fordere einen neuen an."
+    password_not_checked: { en: "The password could not be checked.", de: "Das Passwort konnte nicht geprüft werden." }
+    password_wrong: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
+    user_not_read: { en: "The user could not be read.", de: "Der Benutzer konnte nicht gelesen werden." }
+    deployment_unreachable: { en: "The deployment could not be reached.", de: "Das Deployment war nicht erreichbar." }
+    connection:
+      en: "The deployment could not be reached, check the connection."
+      de: "Das Deployment war nicht erreichbar, prüfe die Verbindung."
+    session_ended:
+      en: "Your session ended, please sign in again."
+      de: "Deine Sitzung ist abgelaufen, bitte melde dich erneut an."
+    too_many_attempts:
+      en: "Too many attempts, please try again later."
+      de: "Zu viele Versuche, bitte versuche es später erneut."
+    update_not_downloaded:
+      en: "The update could not be downloaded, check the connection."
+      de: "Das Update konnte nicht heruntergeladen werden, prüfe die Verbindung."
+    update_not_installed:
+      en: "The update could not be installed."
+      de: "Das Update konnte nicht installiert werden."
+    update_damaged:
+      en: "The download of version %{version} is damaged, please try again."
+      de: "Der Download der Version %{version} ist beschädigt, bitte versuche es erneut."
+  update_not_installed: { en: "The update was not installed", de: "Das Update wurde nicht installiert" }
+  update_not_installed_because:
+    en: "The update was not installed: %{reason}"
+    de: "Das Update wurde nicht installiert: %{reason}"
+
+ctl:
+  common:
+    backup:
+      no_home:
+        en: "The home directory of the user is not known."
+        de: "Das Home-Verzeichnis des Benutzers ist nicht bekannt."
+      not_written:
+        en: "%{path} could not be written: %{error}"
+        de: "%{path} konnte nicht geschrieben werden: %{error}"
+      not_read: { en: "%{path} could not be read: %{error}", de: "%{path} konnte nicht gelesen werden: %{error}" }
+      not_decrypted:
+        en: "%{path} does not decrypt with the password of the deployment, or is damaged or not complete: %{error}"
+        de: "%{path} lässt sich mit dem Passwort des Deployments nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
+    checks:
+      not_finished: { en: "A check did not finish: %{error}", de: "Eine Prüfung wurde nicht beendet: %{error}" }
+      splash_not_updated:
+        en: "The splash screen could not be updated: %{error}"
+        de: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
+      container_runtime:
+        name: { en: "Verify container runtime", de: "docker oder podman prüfen" }
+        running: { en: "Verifying container runtime…", de: "Prüfe docker oder podman…" }
+        done: { en: "Found %{text}", de: "Verwende %{text}" }
+        passed: { en: "%{runtime} %{version}", de: "%{runtime} %{version}" }
+        needed:
+          en: "Swiss Army Knife needs docker or podman to run containers. Install one of them, make sure it runs containers without sudo, and start Swiss Army Knife again."
+          de: "Swiss Army Knife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte Swiss Army Knife erneut."
+        not_working: { en: "%{runtime} does not work: %{error}", de: "%{runtime} funktioniert nicht: %{error}" }
+        wrong_answer:
+          en: "The image %{image} answered '%{answer}' instead of '%{expected}'."
+          de: "Das Image %{image} antwortete '%{answer}' statt '%{expected}'."
+        no_answer:
+          en: "`%{command}` did not answer within %{seconds} seconds and was stopped."
+          de: "`%{command}` hat nicht innerhalb von %{seconds} Sekunden geantwortet und wurde beendet."
+      image:
+        name: { en: "Pull the latest tool image", de: "Neuestes Image laden" }
+        running: { en: "Pulling the latest tool image…", de: "Lade das neueste Image…" }
+        done: { en: "Pulled %{text}", de: "Geladen: %{text}" }
+        passed: { en: "%{image}", de: "%{image}" }
+        not_pulled:
+          en: "The tool image %{image} could not be pulled, make sure %{runtime} can reach ghcr.io: %{error}"
+          de: "Das Image %{image} konnte nicht geladen werden, stelle sicher, dass %{runtime} ghcr.io erreichen kann: %{error}"
+        not_run:
+          en: "%{runtime} could not run the tool image %{image}: %{error}"
+          de: "%{runtime} konnte das Image %{image} nicht ausführen: %{error}"
+        progress: { en: "%{downloaded} MB of %{total} MB", de: "%{downloaded} MB von %{total} MB" }
+        wrong_answer:
+          en: "The tool image %{image} runs as '%{answer}' instead of '%{expected}', it is not the image of Swiss Army Knife."
+          de: "Das Image %{image} läuft als '%{answer}' statt '%{expected}', es ist nicht das Image von Swiss Army Knife."
+        no_api:
+          en: "No api of docker was found at DOCKER_HOST or in the current docker context."
+          de: "Unter DOCKER_HOST oder im aktuellen Docker-Kontext wurde keine API von Docker gefunden."
+        api_failed:
+          en: "The api of docker could not pull it either: %{error}"
+          de: "Auch die API von Docker konnte es nicht laden: %{error}"
+      provider_tokens:
+        name: { en: "Verify the provider API tokens", de: "Provider-Tokens prüfen" }
+        running: { en: "Verifying provider API tokens…", de: "Prüfe die Provider-Tokens…" }
+        done: { en: "All cloud provider API tokens are valid", de: "Alle Cloud-Provider-Tokens sind gültig" }
+        passed: { en: "The API tokens of %{variables} are valid", de: "Die Tokens von %{variables} sind gültig" }
+        invalid:
+          en: "%{variable} holds no valid %{provider} API token: %{error} Correct %{variable} or unset it and start Swiss Army Knife again."
+          de: "%{variable} enthält kein gültiges %{provider}-Token: %{error} Korrigiere %{variable} oder lösche sie und starte Swiss Army Knife erneut."
+    providers:
+      empty_token: { en: "Enter the provider API token.", de: "Gib das Token ein." }
+      duplicate: { en: "This token was already added.", de: "Dieses Token wurde bereits hinzugefügt." }
+      hetzner:
+        token_hint:
+          en: "Create a token with the permissions read & write in the Hetzner Cloud console for your project."
+          de: "Erstelle ein Token mit den Berechtigungen Lesen & Schreiben in der Hetzner Cloud Console deines Projekts, unter Sicherheit → API-Tokens."
+        unreachable:
+          en: "The Hetzner Cloud API could not be reached: %{error}"
+          de: "Die Hetzner Cloud API ist nicht erreichbar: %{error}"
+        unauthorized:
+          en: "The token is not valid, check that it was copied completely."
+          de: "Das Token ist nicht gültig, prüfe, ob es vollständig kopiert wurde."
+        forbidden:
+          en: "The token can only read, create one with the permissions read & write."
+          de: "Das Token kann nur lesen, erstelle eines mit den Berechtigungen Lesen & Schreiben."
+        refused:
+          en: "The Hetzner Cloud API refused the token: %{error}"
+          de: "Die Hetzner Cloud API hat das Token abgelehnt: %{error}"
+        not_deleted:
+          en: "The ssh key %{name} created to check the token could not be deleted, delete it in the Hetzner Cloud console: %{error}"
+          de: "Der zur Prüfung des Tokens erstellte SSH-Key %{name} konnte nicht gelöscht werden, lösche ihn in der Hetzner Cloud Console: %{error}"
+    provision:
+      no_events_address:
+        en: "The endpoint for the events of the playbook got no address on this machine."
+        de: "Der Endpunkt für die Ereignisse des Playbooks hat auf diesem Rechner keine Adresse bekommen."
+      markers_failed:
+        en: "Reading the markers of the roles on the server ended with exit code %{code}."
+        de: "Das Lesen der Markierungen der Rollen auf dem Server endete mit Exit-Code %{code}."
+      no_runtime:
+        en: "No container runtime to run ansible in, docker or podman is needed."
+        de: "Keine Container-Runtime, in der Ansible laufen kann, docker oder podman wird gebraucht."
+      running: { en: "Provisioning server %{name} (%{host})…", de: "Richte Server %{name} (%{host}) ein…" }
+      not_started:
+        en: "%{runtime} could not run the image of the tools: %{error}"
+        de: "%{runtime} konnte das Image der Werkzeuge nicht starten: %{error}"
+      failed: { en: "ansible failed (exit code %{status}).", de: "Ansible ist fehlgeschlagen (Exit-Code %{status})." }
+      timed_out:
+        en: "ansible did not finish within %{minutes} minutes and was stopped. Deploy again, a deploy goes on from where it stopped."
+        de: "Ansible ist nicht innerhalb von %{minutes} Minuten fertig geworden und wurde gestoppt. Rolle erneut aus, ein Deploy macht dort weiter, wo er aufgehört hat."
+      task_failed:
+        en: "ansible failed at the task '%{task}': %{message}"
+        de: "Ansible ist bei der Aufgabe '%{task}' fehlgeschlagen: %{message}"
+      no_address:
+        en: "The server of %{name} has no public address."
+        de: "Der Server von %{name} hat keine öffentliche Adresse."
+      stopped:
+        en: "The run was stopped, its container deleted."
+        de: "Der Lauf wurde gestoppt, sein Container gelöscht."
+      resource: { en: "provisioning '%{name}'", de: "Einrichtung '%{name}'" }
+    deployments:
+      invalid_name:
+        en: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
+        de: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+      short_password:
+        en: "The password needs at least %{min} characters."
+        de: "Das Passwort braucht mindestens %{min} Zeichen."
+      weak_password:
+        en: "The password is too easy to guess, choose a longer one of unrelated words or random characters. %{hint}"
+        de: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen. %{hint}"
+      password_mismatch: { en: "The passwords do not match.", de: "Die Passwörter stimmen nicht überein." }
+      plan_failed:
+        en: "The deployment could not be planned at %{provider}: %{error}"
+        de: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"
+      create_failed:
+        en: "The deployment could not be created at %{provider}: %{error}"
+        de: "Das Deployment konnte bei %{provider} nicht erstellt werden: %{error}"
+      destroy_failed:
+        en: "The deployment could not be destroyed at %{provider}: %{error}"
+        de: "Das Deployment konnte bei %{provider} nicht zerstört werden: %{error}"
+      not_found: { en: "There is no deployment named %{name}.", de: "Es gibt kein Deployment namens %{name}." }
+      wrong_password:
+        en: "The password is not the one of the deployment %{name}."
+        de: "Das Passwort ist nicht das des Deployments %{name}."
+      cancelled:
+        en: "Cancelled. What was done stays, a deploy finishes the rest."
+        de: "Abgebrochen. Was erledigt ist, bleibt, ein Deploy erledigt den Rest."
+      unverifiable:
+        en: "Nothing of the deployment %{name} carries what its password could be checked against, so nothing of it is changed or shown. Delete what is left of it in the console of the Hetzner Cloud project."
+        de: "Nichts vom Deployment %{name} trägt etwas, gegen das sein Passwort geprüft werden kann, darum wird nichts davon geändert oder gezeigt. Lösche, was davon übrig ist, in der Konsole des Hetzner-Cloud-Projekts."
+      no_provider:
+        en: "No provider token to create the deployment at."
+        de: "Kein Provider-Token, bei dem das Deployment erstellt werden kann."
+      name_taken:
+        en: "A deployment named %{name} exists already."
+        de: "Ein Deployment namens %{name} gibt es schon."
+      failed:
+        en: "The deployments at %{provider} could not be listed: %{error}"
+        de: "Die Deployments bei %{provider} konnten nicht aufgelistet werden: %{error}"
+      recreate_refused:
+        en: "%{error}. SAK never creates the data volume or the primary IPs of a deployment anew; nothing was changed."
+        de: "%{error}. SAK erstellt das Datenvolume und die Primary IPs eines Deployments nie neu; nichts wurde verändert."
+      mixed_locations:
+        en: "The resources of the deployment %{name} are in different locations: %{resources}. SAK does not guess where to deploy."
+        de: "Die Ressourcen des Deployments %{name} sind an verschiedenen Standorten: %{resources}. SAK rät nicht, wohin es ausrollt."
+      deploy_without_root_domain:
+        en: "The deployment %{name} has no root domain on its resources. %{hint}"
+        de: "Das Deployment %{name} hat keine Root-Domain auf seinen Ressourcen. %{hint}"
+      records_in_the_way:
+        en: "The names of the deployment are used by records of another owner: %{records}"
+        de: "Die Namen des Deployments werden von Einträgen eines anderen Besitzers verwendet: %{records}"
+      smtp_password_needed:
+        en: "The mail server of the running deployment has a password its backend does not tell. %{hint}"
+        de: "Der Mailserver des laufenden Deployments hat ein Passwort, das sein Backend nicht verrät. %{hint}"
+      settings_kept:
+        en: "The settings of the deployment are kept in %{path}, encrypted with its password."
+        de: "Die Einstellungen des Deployments liegen in %{path}, verschlüsselt mit seinem Passwort."
+      settings_not_kept:
+        en: "The deployment is done, but its settings could not be kept on this machine: %{error}"
+        de: "Das Deployment ist fertig, aber seine Einstellungen konnten auf diesem Rechner nicht abgelegt werden: %{error}"
+      waiting_for_api:
+        en: "Waiting for the deployment to answer at %{url}…"
+        de: "Warte, bis das Deployment unter %{url} antwortet…"
+      not_owned:
+        en: "%{error}. SAK changes and deletes only resources with the label sak.pelle.io/name and the password hash of the deployment; nothing of it was changed."
+        de: "%{error}. SAK ändert und löscht nur Ressourcen mit dem Label sak.pelle.io/name und dem Passwort-Hash des Deployments; nichts davon wurde verändert."
+      no_user_mode:
+        en: "Choose who signs in: single, one user who signs in with the password of the deployment, or multi, users who sign in by e-mail. %{hint}"
+        de: "Wähle, wer sich anmeldet: single, ein Benutzer, der sich mit dem Passwort des Deployments anmeldet, oder multi, Benutzer, die sich per E-Mail anmelden. %{hint}"
+      invalid_smtp_host:
+        en: "Multiple users need a mail server with a host name without blanks, for example smtp.example.org. %{hint}"
+        de: "Mehrere Benutzer brauchen einen Mailserver mit einem Hostnamen ohne Leerzeichen, zum Beispiel smtp.example.org. %{hint}"
+      invalid_smtp_port:
+        en: "The port of the mail server is a number from 1 to 65535."
+        de: "Der Port des Mailservers ist eine Zahl von 1 bis 65535."
+      invalid_smtp_value:
+        en: "A value of the mail server has a line break."
+        de: "Ein Wert des Mailservers hat einen Zeilenumbruch."
+      invalid_admin_email:
+        en: "The e-mail address of the admin is no e-mail address like admin@example.org. %{hint}"
+        de: "Die E-Mail-Adresse des Admins ist keine E-Mail-Adresse wie admin@example.org. %{hint}"
+      admin_email_single:
+        en: "A single user deployment has no e-mail login, its admin signs in with the password. %{hint}"
+        de: "Ein Deployment mit einem Benutzer hat kein E-Mail-Login, sein Admin meldet sich mit dem Passwort an. %{hint}"
+      unnamed: { en: "an entry without a name", de: "ein Eintrag ohne SAK-Namen" }
+      no_zones:
+        en: "The project has no DNS zone. Create the zone of the root domain first, SAK does not create it."
+        de: "Das Projekt hat keine DNS-Zone. Erstelle zuerst die Zone der Root-Domain, SAK erstellt sie nicht."
+      no_root_domain:
+        en: "Select the root domain of the deployment, one of: %{domains}."
+        de: "Wähle die Root-Domain des Deployments, eine von: %{domains}."
+      unknown_root_domain:
+        en: "%{domain} is no DNS zone of the project. Create the zone first, or select one of: %{domains}."
+        de: "%{domain} ist keine DNS-Zone des Projekts. Erstelle zuerst die Zone oder wähle eine von: %{domains}."
+      domain_taken:
+        en: "The deployment %{by} manages %{domain} in domain mode already. A root domain has one domain deployment only."
+        de: "Das Deployment %{by} verwaltet %{domain} schon im Domain-Modus. Eine Root-Domain hat nur ein Domain-Deployment."
+      domain_mixed:
+        en: "The deployment %{by} manages %{domain} in domain mode. A subdomain deployment cannot use %{domain}, a root domain has one domain deployment or only subdomain deployments."
+        de: "Das Deployment %{by} verwaltet %{domain} im Domain-Modus. Ein Subdomain-Deployment kann %{domain} nicht nutzen, eine Root-Domain hat ein Domain-Deployment oder nur Subdomain-Deployments."
+      subdomain_only:
+        en: "Subdomain deployments use %{domain} already (%{by}). Only the subdomain mode is possible."
+        de: "Subdomain-Deployments nutzen %{domain} schon (%{by}). Nur der Subdomain-Modus ist möglich."
+      resource:
+        ssh_key: { en: "ssh key", de: "SSH-Key" }
+        volume: { en: "volume", de: "Volume" }
+        primary_ip: { en: "primary ip", de: "Primäre IP" }
+        firewall: { en: "firewall", de: "Firewall" }
+        server: { en: "server", de: "Server" }
+        dns_record: { en: "dns record", de: "DNS-Eintrag" }
+        provisioning: { en: "provisioning", de: "Einrichtung" }
+      status:
+        ok: { en: "up-to-date", de: "aktuell" }
+        incomplete: { en: "incomplete", de: "unvollständig" }
+        changed: { en: "has changes", de: "hat Änderungen" }
+        unknown: { en: "unknown", de: "unbekannt" }
+      settings_unread:
+        en: "The user mode, the admin and the mail server of %{name} could not be read from its backend: %{error}"
+        de: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
+      unknown_location:
+        en: "%{name} is in a location this sakctl does not know. Update sakctl (sakctl update) to deploy it."
+        de: "%{name} ist an einem Standort, den dieses sakctl nicht kennt. Aktualisiere sakctl (sakctl update), um es zu deployen."
+      not_compared:
+        en: "%{name} could not be compared with what a deploy declares: %{error}"
+        de: "%{name} konnte nicht mit dem verglichen werden, was ein Deployment anlegt: %{error}"
+      empty:
+        en: "No deployment found. Install one with the button at the top."
+        de: "Kein Deployment gefunden. Installiere eines mit dem Knopf oben."
+    config:
+      unreachable:
+        en: "The backend at %{url} could not be reached: %{error}"
+        de: "Das Backend unter %{url} ist nicht erreichbar: %{error}"
+      unreadable:
+        en: "The backend answered something that is no configuration: %{error}"
+        de: "Das Backend hat etwas geantwortet, das keine Konfiguration ist: %{error}"
+      refused:
+        en: "The backend refused the signature of this password. Deploy the deployment, so the backend knows its key."
+        de: "Das Backend hat die Signatur dieses Passworts abgelehnt. Rolle das Deployment aus, damit das Backend seinen Schlüssel kennt."
+      failed:
+        en: "The backend at %{url} answered %{status}."
+        de: "Das Backend unter %{url} hat %{status} geantwortet."
+      no_root_domain:
+        en: "The deployment %{name} has no DNS records, so its api is not known. %{hint}"
+        de: "Das Deployment %{name} hat keine DNS-Einträge, darum ist seine API nicht bekannt. %{hint}"
+      shown_running:
+        en: "The settings a redeploy of %{name} takes, as the running deployment answers them"
+        de: "Die Einstellungen, die ein erneutes Deployment von %{name} nimmt, wie das laufende Deployment sie nennt"
+      shown_local:
+        en: "The settings a redeploy of %{name} takes, as this machine kept them at the deploy of %{when}; the deployment did not answer: %{error}"
+        de: "Die Einstellungen, die ein erneutes Deployment von %{name} nimmt, wie dieser Rechner sie beim Deployment am %{when} abgelegt hat; das Deployment hat nicht geantwortet: %{error}"
+      shown_records:
+        en: "Only the DNS records of %{name} tell its settings; the deployment did not answer: %{error}"
+        de: "Nur die DNS-Einträge von %{name} nennen seine Einstellungen; das Deployment hat nicht geantwortet: %{error}"
+      shown_none:
+        en: "Nothing tells the settings of %{name}; the deployment did not answer: %{error}"
+        de: "Nichts nennt die Einstellungen von %{name}; das Deployment hat nicht geantwortet: %{error}"
+      api_not_answering:
+        en: "The deployment does not answer at %{url} within %{seconds} seconds, the last time: %{error}. New DNS records and the TLS certificate can take a while to be in place: try again later with a deploy, nothing of the deployment is lost."
+        de: "Das Deployment antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, vom Deployment geht nichts verloren."
+      no_smtp: { en: "No mail server", de: "Kein Mailserver" }
+      not_https:
+        en: "The api %{url} is no https address, sakctl asks the api over https only."
+        de: "Die API %{url} ist keine https-Adresse, sakctl fragt die API nur über https."
+    resource_status:
+      up_to_date: { en: "up-to-date", de: "aktuell" }
+      missing: { en: "missing", de: "fehlt" }
+      has_changes: { en: "has changes", de: "hat Änderungen" }
+    plan:
+      left_out:
+        en: "a second one of the deployment, sakctl leaves it as it is; delete it if it is not needed"
+        de: "ein zweites des Deployments, sakctl lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
+      intro: { en: "Create the Swiss Army Knife deployment", de: "Erstelle das Swiss-Army-Knife-Deployment" }
+      intro_deploy:
+        en: "Redeploy the Swiss Army Knife deployment"
+        de: "Rolle das Swiss-Army-Knife-Deployment erneut aus"
+      intro_destroy: { en: "Destroy the Swiss Army Knife deployment", de: "Zerstöre das Swiss-Army-Knife-Deployment" }
+      will_create: { en: "will be created", de: "wird erstellt" }
+      will_update: { en: "will be updated", de: "wird aktualisiert" }
+      will_destroy: { en: "will be destroyed", de: "wird zerstört" }
+      will_keep: { en: "will be kept", de: "wird behalten" }
+      already_deleted: { en: "already deleted", de: "schon gelöscht" }
+      will_run: { en: "will run", de: "wird ausgeführt" }
+      runs_when_forced: { en: "runs only with Force deploy", de: "läuft nur beim erzwungenen Ausrollen" }
+    working:
+      working: { en: "creating…", de: "wird erstellt…" }
+      working_update: { en: "updating…", de: "wird geändert…" }
+      working_recreate: { en: "recreating…", de: "wird neu erstellt…" }
+      working_check: { en: "checking…", de: "wird geprüft…" }
+      working_destroy: { en: "destroying…", de: "wird zerstört…" }
+    done:
+      created: { en: "created", de: "erstellt" }
+      updated: { en: "updated", de: "aktualisiert" }
+      destroyed: { en: "destroyed", de: "zerstört" }
+    ssh:
+      failed: { en: "ssh to the server failed: %{error}", de: "ssh zum Server ist fehlgeschlagen: %{error}" }
+    sak_backend:
+      no_script:
+        en: "The server has no %{script}: deploy the deployment first."
+        de: "Der Server hat kein %{script}: deploye das Deployment zuerst."
+      ended:
+        en: "%{script} on the server ended with exit code %{code}."
+        de: "%{script} auf dem Server endete mit Exit-Code %{code}."
+      busy:
+        en: "Another backup, restore, update or reboot runs on the server, try again when it is done."
+        de: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
+      failed: { en: "The server failed: %{error}", de: "Der Server ist fehlgeschlagen: %{error}" }
+      unreadable:
+        en: "The server answered something that is not readable: %{error}"
+        de: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
+    maintenance:
+      timeout:
+        en: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."
+        de: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
+      connecting:
+        en: "Asking the server of %{name} at root@%{host}…"
+        de: "Frage den Server von %{name} unter root@%{host}…"
+      pending:
+        en: "A reboot of %{name} is pending: %{reasons}."
+        de: "Ein Neustart von %{name} steht an: %{reasons}."
+      not_pending: { en: "No reboot of %{name} is pending.", de: "Kein Neustart von %{name} steht an." }
+      reason_kernel: { en: "kernel %{running} → %{installed}", de: "Kernel %{running} → %{installed}" }
+      reason_reboot_required: { en: "an upgrade asks for it", de: "eine Aktualisierung verlangt ihn" }
+      services: { en: "Services on old libraries: %{services}", de: "Dienste mit alten Bibliotheken: %{services}" }
+      since_boot: { en: "Upgraded since the boot at %{time}:", de: "Seit dem Start um %{time} aktualisiert:" }
+      installed_new: { en: "%{package} %{to} (new)", de: "%{package} %{to} (neu)" }
+      updated:
+        en: "%{upgraded} packages upgraded, %{installed} installed."
+        de: "%{upgraded} Pakete aktualisiert, %{installed} installiert."
+      up_to_date: { en: "All packages of %{name} are up-to-date.", de: "Alle Pakete von %{name} sind aktuell." }
+      rebooting:
+        en: "The deployment %{name} is stopped, its server reboots at %{at}."
+        de: "Das Deployment %{name} ist gestoppt, sein Server startet um %{at} neu."
+      reboot_not_pending:
+        en: "No reboot of %{name} is pending, nothing was changed."
+        de: "Kein Neustart von %{name} steht an, nichts wurde geändert."
+      back: { en: "The deployment %{name} answers again.", de: "Das Deployment %{name} antwortet wieder." }
+    update:
+      checking:
+        en: "Asking %{receiver} for the newest release of sakctl…"
+        de: "Frage %{receiver} nach dem neuesten Release von sakctl…"
+      no_release:
+        en: "This sakctl (%{version}) is no release, there is no version to compare it with."
+        de: "Dieses sakctl (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+      up_to_date: { en: "sakctl %{version} is up-to-date.", de: "sakctl %{version} ist aktuell." }
+      newer:
+        en: "sakctl %{newest} is available, this is %{current}."
+        de: "sakctl %{newest} ist verfügbar, dies ist %{current}."
+      installing:
+        en: "Downloading sakctl %{version} from %{receiver}…"
+        de: "Lade sakctl %{version} von %{receiver}…"
+      installed:
+        en: "sakctl is updated from %{current} to %{newest}. Start sakctl again to use it."
+        de: "sakctl ist von %{current} auf %{newest} aktualisiert. Starte sakctl erneut, um es zu verwenden."
+      unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
+      failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
+      not_https:
+        en: "%{url} is no https address, sakctl asks github over https only."
+        de: "%{url} ist keine https-Adresse, sakctl fragt github nur über https."
+      not_github:
+        en: "%{url} is no address of github, sakctl downloads from github only."
+        de: "%{url} ist keine Adresse von github, sakctl lädt nur von github herunter."
+      unreadable:
+        en: "The newest release on %{receiver} could not be read: %{error}"
+        de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
+      no_asset: { en: "The release %{version} has no %{name}.", de: "Das Release %{version} hat kein %{name}." }
+      checksum_mismatch:
+        en: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
+        de: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+      no_binary:
+        en: "%{name} has no %{binary}, nothing was changed."
+        de: "%{name} enthält kein %{binary}, nichts wurde geändert."
+      not_replaced:
+        en: "sakctl at %{path} could not be replaced: %{error}"
+        de: "sakctl unter %{path} konnte nicht ersetzt werden: %{error}"
+  cli:
+    hint:
+      user_mode: { en: "Give it with --user-mode.", de: "Gib ihn mit --user-mode an." }
+      smtp_host: { en: "Give it with --smtp-host.", de: "Gib ihn mit --smtp-host an." }
+      admin_email:
+        en: "Give it correctly with --admin-email, or leave it out."
+        de: "Gib sie richtig mit --admin-email an, oder lass sie weg."
+      admin_email_single:
+        en: "Leave out --admin-email, or choose --user-mode multi."
+        de: "Lass --admin-email weg, oder wähle --user-mode multi."
+      root_domain: { en: "Deploy it once with --root-domain.", de: "Rolle es einmal mit --root-domain aus." }
+      smtp_password:
+        en: "Give it again with SAK_SMTP_PASSWORD or --smtp-password."
+        de: "Gib es erneut mit SAK_SMTP_PASSWORD oder --smtp-password an."
+    destroyed:
+      en: "The deployment %{name} is destroyed, its data volume stays."
+      de: "Das Deployment %{name} ist zerstört, sein Datenvolume bleibt."
+    destroyed_with_data:
+      en: "The deployment %{name} and its data volume are destroyed."
+      de: "Das Deployment %{name} und sein Datenvolume sind zerstört."
+    task:
+      ok: { en: "[ok] %{task}", de: "[ok] %{task}" }
+      changed: { en: "[changed] %{task}", de: "[geändert] %{task}" }
+      skipped: { en: "[skipped] %{task}", de: "[übersprungen] %{task}" }
+      ignored: { en: "[failed, ignored] %{task}: %{message}", de: "[fehlgeschlagen, ignoriert] %{task}: %{message}" }
+      failed: { en: "[failed] %{task}: %{message}", de: "[fehlgeschlagen] %{task}: %{message}" }
+      unreachable: { en: "[unreachable] %{task}: %{message}", de: "[nicht erreichbar] %{task}: %{message}" }
+    no_password:
+      en: "No password: set SAK_PASSWORD, or run the command in a terminal to type it."
+      de: "Kein Passwort: setze SAK_PASSWORD oder führe den Befehl in einem Terminal aus, um es einzugeben."
+    password_prompt: { en: "Password of the deployment: ", de: "Passwort des Deployments: " }
+    password_repeat_prompt: { en: "Repeat the password: ", de: "Passwort wiederholen: " }
+    no_smtp_password:
+      en: "No terminal to type the password at the mail server: set SAK_SMTP_PASSWORD instead of --smtp-password."
+      de: "Kein Terminal, um das Passwort des Mailservers einzugeben: setze SAK_SMTP_PASSWORD statt --smtp-password."
+    smtp_password_prompt: { en: "Password for the mail server: ", de: "Passwort am Mailserver: " }
+    no_hcloud_token:
+      en: "No Hetzner Cloud token: set HCLOUD_TOKEN, or run the command in a terminal to type it."
+      de: "Kein Hetzner-Cloud-Token: setze HCLOUD_TOKEN oder führe den Befehl in einem Terminal aus, um es einzugeben."
+    hcloud_token_prompt:
+      en: "API token of the Hetzner Cloud project: "
+      de: "API-Token des Hetzner-Cloud-Projekts: "
+    done: { en: "The deployment %{name} is up-to-date.", de: "Das Deployment %{name} ist aktuell." }
+    ssh_connecting:
+      en: "Connecting to root@%{host}, the server of %{name}…"
+      de: "Verbinde mit root@%{host}, dem Server von %{name}…"
+    ssh_ended: { en: "ssh ended with exit code %{code}.", de: "ssh endete mit Exit-Code %{code}." }
+    ssh_no_server: { en: "The deployment %{name} has no server.", de: "Das Deployment %{name} hat keinen Server." }
+    ssh_not_started:
+      en: "%{runtime} could not start the container of the ssh session: %{error}"
+      de: "%{runtime} konnte den Container der ssh-Sitzung nicht starten: %{error}"
+    backup_started: { en: "Backing up %{name} from root@%{host}…", de: "Sichere %{name} von root@%{host}…" }
+    backup_done:
+      en: "Backup of %{name} written to %{path} (%{size})."
+      de: "Sicherung von %{name} nach %{path} geschrieben (%{size})."
+    restore_started:
+      en: "Restoring %{name} on root@%{host} from %{path}…"
+      de: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
+    restore_done:
+      en: "The deployment %{name} is restored from %{path}."
+      de: "Das Deployment %{name} ist aus %{path} wiederhergestellt."
+    not_confirmed: { en: "Not confirmed, nothing was changed.", de: "Nicht bestätigt, nichts wurde geändert." }
+    plan_confirm:
+      en: "The plan destroys or creates anew what is marked WARN above. Type the name of %{name} to continue: "
+      de: "Der Plan löscht oder legt neu an, was oben mit WARN markiert ist. Gib den Namen von %{name} ein, um fortzufahren: "
+    plan_no_terminal:
+      en: "No terminal to confirm a plan that destroys or creates anew: give --yes to apply it to %{name}."
+      de: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
+    restore_confirm:
+      en: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
+      de: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
+    restore_no_terminal:
+      en: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
+      de: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
+    update_hint: { en: "Run sakctl update to install it.", de: "sakctl update installiert es." }
+    maintenance:
+      reboot_hint:
+        en: "A reboot is pending, run sakctl maintenance reboot %{name}."
+        de: "Ein Neustart steht an, führe sakctl maintenance reboot %{name} aus."
+  ui:
+    hint:
+      user_mode: { en: "Choose it in the form.", de: "Wähle ihn im Formular." }
+      smtp_host: { en: "Fill in the mail server in the form.", de: "Trage den Mailserver im Formular ein." }
+      admin_email:
+        en: "Correct the e-mail address of the admin in the form, or empty it."
+        de: "Korrigiere die E-Mail-Adresse des Admins im Formular, oder leere sie."
+      admin_email_single:
+        en: "Empty the e-mail address of the admin, or choose multiple users."
+        de: "Leere die E-Mail-Adresse des Admins, oder wähle mehrere Benutzer."
+      root_domain:
+        en: "The window cannot set it on an existing deployment: deploy it once with sakctl deploy --root-domain."
+        de: "Das Fenster kann sie bei einem bestehenden Deployment nicht setzen: rolle es einmal mit sakctl deploy --root-domain aus."
+      smtp_password:
+        en: "The window cannot ask for it: deploy it once with sakctl deploy and SAK_SMTP_PASSWORD."
+        de: "Das Fenster kann nicht danach fragen: rolle es einmal mit sakctl deploy und SAK_SMTP_PASSWORD aus."
+    quit: { en: "Quit", de: "Beenden" }
+    update:
+      version: { en: "sakctl %{version}", de: "sakctl %{version}" }
+      check: { en: "Check for updates", de: "Nach Updates suchen" }
+      idle:
+        en: "Asks %{receiver} for the newest release of sakctl."
+        de: "Fragt %{receiver} nach dem neuesten Release von sakctl."
+      install: { en: "Update to %{version}", de: "Auf %{version} aktualisieren" }
+      restart: { en: "Restart", de: "Neu starten" }
+      restart_hint: { en: "Restart to use sakctl %{version}.", de: "Starte neu, um sakctl %{version} zu verwenden." }
+      restart_while_running:
+        en: "A deployment is being changed, restart when it is done."
+        de: "Ein Deployment wird gerade geändert, starte neu, wenn es fertig ist."
+    providers:
+      title: { en: "Provider tokens", de: "Provider-Tokens" }
+      empty:
+        en: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
+        de: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."
+      add: { en: "Add", de: "Hinzufügen" }
+    select:
+      title: { en: "Select the provider", de: "Wähle den Provider" }
+    token:
+      label: { en: "API token", de: "API-Token" }
+      add: { en: "Add", de: "Hinzufügen" }
+      checking:
+        en: "Checking the token, an ssh key is created and deleted again…"
+        de: "Prüfe das Token, ein SSH-Key wird erstellt und wieder gelöscht…"
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    next: { en: "Next", de: "Weiter" }
+    back: { en: "Back", de: "Zurück" }
+    deployments:
+      title: { en: "Deployments", de: "Deployments" }
+      create: { en: "Create", de: "Erstellen" }
+      loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
+      address: { en: "Address", de: "Adresse" }
+    deployment:
+      redeploy: { en: "Redeploy…", de: "Erneut deployen…" }
+      changed_since_check:
+        en: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
+        de: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."
+      maintenance: { en: "Maintenance", de: "Wartung" }
+      destroy: { en: "Destroy", de: "Zerstören" }
+      location: { en: "Location", de: "Standort" }
+      check: { en: "Check", de: "Prüfen" }
+      checking: { en: "Checking the deployment…", de: "Prüfe das Deployment…" }
+      changes: { en: "%{count} of its resources have changes.", de: "%{count} seiner Ressourcen haben Änderungen." }
+      up_to_date: { en: "Everything is up-to-date.", de: "Alles ist aktuell." }
+      not_checked: { en: "Check the deployment first.", de: "Prüfe das Deployment zuerst." }
+    maintenance:
+      confirm_title: { en: "Reboot %{name}?", de: "%{name} neu starten?" }
+      confirm_text:
+        en: "The deployment is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."
+        de: "Das Deployment wird gestoppt und sein Server neu gestartet. Bis es wieder antwortet, ist es nicht erreichbar, meist einige Minuten."
+      title_status: { en: "Server status", de: "Serverstatus" }
+      title_update: { en: "Update the server", de: "Server aktualisieren" }
+      title_reboot: { en: "Reboot the server", de: "Server neu starten" }
+      intro: { en: "The server of the deployment", de: "Der Server des Deployments" }
+      status: { en: "Status", de: "Status" }
+      update: { en: "Update", de: "Aktualisieren" }
+      reboot: { en: "Reboot", de: "Neu starten" }
+      running_status: { en: "Asking the server…", de: "Frage den Server…" }
+      running_update: { en: "Upgrading the packages of the server…", de: "Aktualisiere die Pakete des Servers…" }
+      running_reboot:
+        en: "Stopping the deployment and rebooting its server…"
+        de: "Stoppe das Deployment und starte seinen Server neu…"
+      finished: { en: "Finished.", de: "Fertig." }
+      reboot_hint:
+        en: "A reboot is pending: Maintenance, Reboot reboots the server."
+        de: "Ein Neustart steht an: Wartung, Neu starten startet den Server neu."
+    password:
+      title: { en: "Password", de: "Passwort" }
+      intro: { en: "The password of the deployment", de: "Das Passwort des Deployments" }
+      checking: { en: "Checking the password…", de: "Das Passwort wird geprüft…" }
+      right: { en: "The password is valid.", de: "Das Passwort stimmt." }
+      show: { en: "Show the password", de: "Passwort zeigen" }
+      hide: { en: "Hide the password", de: "Passwort verbergen" }
+    run:
+      done: { en: "Done", de: "Fertig" }
+    create:
+      title_deploy: { en: "Redeploy the deployment", de: "Das Deployment erneut deployen" }
+      password_hint_deploy:
+        en: "The password the deployment was created with. The settings below come from the deployment, change what is to change."
+        de: "Das Passwort, mit dem das Deployment erstellt wurde. Die Einstellungen darunter kommen vom Deployment, ändere, was sich ändern soll."
+      source_running:
+        en: "Filled in with the settings the running deployment answered."
+        de: "Ausgefüllt mit den Einstellungen, die das laufende Deployment genannt hat."
+      source_local:
+        en: "Filled in with the settings this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
+        de: "Ausgefüllt mit den Einstellungen, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
+      source_records:
+        en: "Only the root domain and the DNS mode are known, from the DNS records. The deployment did not answer: %{error}"
+        de: "Nur die Root-Domain und der DNS-Modus sind bekannt, aus den DNS-Einträgen. Das Deployment hat nicht geantwortet: %{error}"
+      source_none:
+        en: "Nothing is known of the settings of the deployment. It did not answer: %{error}"
+        de: "Von den Einstellungen des Deployments ist nichts bekannt. Es hat nicht geantwortet: %{error}"
+      title_destroy: { en: "Destroy the deployment", de: "Deployment zerstören" }
+      password_hint_destroy:
+        en: "The password the deployment was created with; everything but its data volume is deleted."
+        de: "Das Passwort, mit dem das Deployment erstellt wurde; alles außer seinem Datenvolume wird gelöscht."
+      title: { en: "New deployment", de: "Neues Deployment" }
+      name: { en: "Name", de: "Name" }
+      name_hint:
+        en: "Lower case letters, digits and dashes; the name of every resource of the deployment."
+        de: "Kleinbuchstaben, Ziffern und Bindestriche; der Name jeder Ressource des Deployments."
+      password: { en: "Password", de: "Passwort" }
+      password_hint:
+        en: "At least 16 characters. The ssh key of the deployment is derived from the name and the password, the same name and password give the same key again."
+        de: "Mindestens 16 Zeichen. Der SSH-Key des Deployments wird aus Name und Passwort abgeleitet, derselbe Name und dasselbe Passwort ergeben wieder denselben Key."
+      password_repeat: { en: "Repeat the password", de: "Passwort wiederholen" }
+      location: { en: "Location", de: "Standort" }
+      location_hint:
+        en: "Where the server, its data volume and its addresses are created."
+        de: "Wo der Server, sein Datenvolume und seine Adressen erstellt werden."
+      admin_email: { en: "Admin e-mail address (optional)", de: "E-Mail-Adresse des Admins (optional)" }
+      admin_email_hint:
+        en: "The admin always signs in with the password; with an address also by e-mail."
+        de: "Der Admin meldet sich immer mit dem Passwort an, mit einer Adresse auch per E-Mail."
+      smtp: { en: "Mail server (SMTP)", de: "Mailserver (SMTP)" }
+      smtp_hint:
+        en: "The login links are sent with it, from noreply@<root domain>. Without STARTTLS the connection is implicit TLS (usually port 465)."
+        de: "Damit werden die Login-Links verschickt, von noreply@<root domain>. Ohne STARTTLS ist die Verbindung implizites TLS (meist Port 465)."
+      user_mode: { en: "Users", de: "Benutzer" }
+      user_mode_single: { en: "Single user", de: "Ein Benutzer" }
+      user_mode_multi: { en: "Multiple users", de: "Mehrere Benutzer" }
+      user_mode_hint_single:
+        en: "One user, the admin, who signs in with the password of the deployment. No mail server needed."
+        de: "Ein Benutzer, der Admin, der sich mit dem Passwort des Deployments anmeldet. Kein Mailserver nötig."
+      user_mode_hint_multi:
+        en: "Users sign in with a link by e-mail, the admin also with the password of the deployment. Needs a mail server."
+        de: "Benutzer melden sich mit einem Link per E-Mail an, der Admin auch mit dem Passwort des Deployments. Braucht einen Mailserver."
+      smtp_host: { en: "Host", de: "Host" }
+      smtp_port: { en: "Port", de: "Port" }
+      smtp_username: { en: "User name", de: "Benutzername" }
+      smtp_password: { en: "Password", de: "Passwort" }
+      smtp_password_again:
+        en: "Taken from the running deployment, all but its password: type it again, it never leaves the backend."
+        de: "Aus dem laufenden Deployment übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
+      smtp_starttls: { en: "Upgrade the connection with STARTTLS", de: "Verbindung mit STARTTLS absichern" }
+      delete_data:
+        en: "Also delete the data volume, with everything stored on it"
+        de: "Auch das Datenvolume löschen, mit allem, was darauf gespeichert ist"
+      root_domain: { en: "Root domain", de: "Root-Domain" }
+      root_domain_hint:
+        en: "A DNS zone of the project. SAK does not create the zone, create it at the provider first."
+        de: "Eine DNS-Zone des Projekts. SAK erstellt die Zone nicht, erstelle sie zuerst beim Provider."
+      no_zones:
+        en: "The project has no DNS zone. Create the zone of the root domain at the provider first."
+        de: "Das Projekt hat keine DNS-Zone. Erstelle zuerst die Zone der Root-Domain beim Provider."
+      dns_mode: { en: "DNS Mode", de: "DNS-Modus" }
+      dns_mode_subdomain: { en: "Subdomain", de: "Subdomain" }
+      dns_mode_domain: { en: "Domain", de: "Domain" }
+      dns_mode_hint_subdomain:
+        en: "The deployment manages %{name}.<root domain> and *.%{name}.<root domain>. Its apps are at sak.%{name}.<root domain>, their api at api.%{name}.<root domain>. More subdomain deployments can use the same root domain."
+        de: "Das Deployment verwaltet %{name}.<root domain> und *.%{name}.<root domain>. Seine Apps sind unter sak.%{name}.<root domain> erreichbar, ihre API unter api.%{name}.<root domain>. Weitere Subdomain-Deployments können dieselbe Root-Domain nutzen."
+      dns_mode_hint_domain:
+        en: "The deployment manages <root domain> and *.<root domain>. Its apps are at sak.<root domain>, their api at api.<root domain>. No other deployment can use the same root domain."
+        de: "Das Deployment verwaltet <root domain> und *.<root domain>. Seine Apps sind unter sak.<root domain> erreichbar, ihre API unter api.<root domain>. Kein anderes Deployment kann dieselbe Root-Domain nutzen."
+      plan: { en: "Plan", de: "Planen" }
+      planning:
+        en: "Planning, the resources are compared with the project…"
+        de: "Plane, die Ressourcen werden mit dem Projekt verglichen…"
+    confirm:
+      title: { en: "Destroy %{name}?", de: "%{name} zerstören?" }
+      text:
+        en: "Its DNS records, server, addresses, firewall and ssh key are deleted. Its data volume stays."
+        de: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall und sein SSH-Key werden gelöscht. Sein Datenvolume bleibt."
+      text_with_data:
+        en: "Its DNS records, server, addresses, firewall, ssh key and its data volume with everything stored on it are deleted. This cannot be undone."
+        de: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall, sein SSH-Key und sein Datenvolume mit allem, was darauf gespeichert ist, werden gelöscht. Das kann nicht rückgängig gemacht werden."
+    plan:
+      title: { en: "Plan", de: "Plan" }
+      deploy_changes: { en: "Deploy changes", de: "Änderungen ausrollen" }
+      force_deploy: { en: "Force deploy", de: "Erzwungen ausrollen" }
+      title_create: { en: "Creating", de: "Wird erstellt" }
+      title_deploy: { en: "Redeploying", de: "Wird neu ausgerollt" }
+      title_destroy: { en: "Destroying", de: "Wird gelöscht" }
+      deploying:
+        en: "Deploying, a server that must change is created anew, its data volume and addresses stay…"
+        de: "Rolle aus, ein Server, der sich ändern muss, wird neu erstellt, sein Datenvolume und seine Adressen bleiben…"
+      destroy: { en: "Destroy", de: "Zerstören" }
+      destroying:
+        en: "Destroying the deployment, its data volume stays…"
+        de: "Zerstöre das Deployment, sein Datenvolume bleibt…"
+      destroying_with_data:
+        en: "Destroying the deployment and its data volume…"
+        de: "Zerstöre das Deployment und sein Datenvolume…"
+      destroyed:
+        en: "The deployment is destroyed, its data volume stays."
+        de: "Das Deployment ist zerstört, sein Datenvolume bleibt."
+      destroyed_with_data:
+        en: "The deployment and its data volume are destroyed."
+        de: "Das Deployment und sein Datenvolume sind zerstört."
+      creating:
+        en: "Creating the deployment, this takes a few minutes…"
+        de: "Erstelle das Deployment, das dauert ein paar Minuten…"
+      provisioning:
+        failed: { en: "failed at %{task}: %{message}", de: "fehlgeschlagen bei %{task}: %{message}" }
+      provisioned:
+        en: "The deployment is up-to-date and its server provisioned."
+        de: "Das Deployment ist aktuell und sein Server eingerichtet."
+
+grocery:
+  common:
+    all_lists: { en: "All lists", de: "Alle Listen" }
+    lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
+    lists:
+      add: { en: "Add list", de: "Liste hinzufügen" }
+      to_buy_none: { en: "No items to buy", de: "Keine Artikel zu kaufen" }
+    form:
+      create: { en: "Create list", de: "Liste erstellen" }
+      no_icon: { en: "No icon", de: "Kein Icon" }
+      delete_list: { en: "Delete list", de: "Liste löschen" }
+      last_list: { en: "Your only list can not be deleted.", de: "Deine einzige Liste kann nicht gelöscht werden." }
+      not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
+      not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
+      choose_icon: { en: "Choose icon", de: "Icon auswählen" }
+    list:
+      item: { en: "Item", de: "Artikel" }
+      no_category: { en: "No category", de: "Keine Kategorie" }
+      not_added: { en: "The item could not be added.", de: "Der Artikel konnte nicht hinzugefügt werden." }
+      not_checked: { en: "The item could not be checked.", de: "Der Artikel konnte nicht abgehakt werden." }
+      items_not_loaded: { en: "The items could not be loaded.", de: "Die Artikel konnten nicht geladen werden." }
+  backend:
+    category:
+      fruit_vegetables: { en: "Fruit & vegetables", de: "Obst & Gemüse" }
+      bakery: { en: "Bakery", de: "Backwaren" }
+      dairy: { en: "Dairy & eggs", de: "Milchprodukte & Eier" }
+      meat_fish: { en: "Meat & fish", de: "Fleisch & Fisch" }
+      pantry: { en: "Pantry", de: "Vorrat" }
+      frozen: { en: "Frozen", de: "Tiefkühl" }
+      drinks: { en: "Drinks", de: "Getränke" }
+      household: { en: "Household", de: "Haushalt" }
+      other: { en: "Other", de: "Sonstiges" }
+    invalid_icon: { en: "An icon must be one emoji.", de: "Ein Icon muss ein Emoji sein." }
+    invalid_list_name:
+      en: "A list name must have 1 to %{max} characters and no control characters."
+      de: "Ein Listenname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    invalid_item_name:
+      en: "An item name must have 1 to %{max} characters and no control characters."
+      de: "Ein Artikelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    invalid_amount:
+      en: "An amount must be a positive number up to %{max} with at most 3 decimal places."
+      de: "Eine Menge muss eine positive Zahl bis %{max} mit höchstens 3 Nachkommastellen sein."
+    invalid_unit:
+      en: "A unit must have at most %{max} characters and no control characters."
+      de: "Eine Einheit darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
+    unit_without_amount: { en: "A unit needs an amount.", de: "Eine Einheit braucht eine Menge." }
+    unknown_category: { en: "There is no category \"%{category}\".", de: "Es gibt keine Kategorie \"%{category}\"." }
+    list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    last_list: { en: "You can not delete your only list.", de: "Du kannst deine einzige Liste nicht löschen." }
+  web:
+    page_title:
+      create: { en: "Create list · Grocery", de: "Liste erstellen · Einkaufslisten" }
+      list: { en: "List · Grocery", de: "Liste · Einkaufslisten" }
+      settings: { en: "Settings · Grocery", de: "Einstellungen · Einkaufslisten" }
+    back: { en: "Back", de: "Zurück" }
+    settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
+    only_owner: { en: "Only the owner of a list changes it", de: "Nur der Besitzer einer Liste kann sie ändern" }
+    shared_badge: { en: "shared", de: "geteilt" }
+    lists_forbidden:
+      en: "Your role does not allow to see the grocery lists."
+      de: "Deine Rolle erlaubt es nicht, die Einkaufslisten zu sehen."
+    lists:
+      label: { en: "Grocery lists", de: "Einkaufslisten" }
+      empty: { en: "You have no list yet, add one first.", de: "Du hast noch keine Liste, füge zuerst eine hinzu." }
+      to_buy_one: { en: "1 item to buy", de: "1 Artikel zu kaufen" }
+      to_buy_other: { en: "%{count} items to buy", de: "%{count} Artikel zu kaufen" }
+    form:
+      icon: { en: "Icon", de: "Icon" }
+      shared: { en: "Shared", de: "Geteilt" }
+      shared_hint:
+        en: "Every user sees a shared list and adds and deletes its items."
+        de: "Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie."
+      delete_question: { en: "Delete the list and its items?", de: "Die Liste und ihre Artikel löschen?" }
+      delete_label: { en: "Delete the list", de: "Die Liste löschen" }
+      actions: { en: "List actions", de: "Aktionen der Liste" }
+      no_such_list: { en: "There is no such list of yours.", de: "Du hast keine solche Liste." }
+      not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
+    list:
+      add_item: { en: "Add item", de: "Artikel hinzufügen" }
+      empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }
+      bought: { en: "%{name} bought", de: "%{name} gekauft" }
+  android:
+    no_lists:
+      en: "You have no list yet, add one with the plus at the top."
+      de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."
+    shared: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
+    settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
+    new_list: { en: "New list", de: "Neue Liste" }
+    saving: { en: "Saving…", de: "Wird gespeichert…" }
+    delete_list_title: { en: "Delete the list?", de: "Die Liste löschen?" }
+    delete_list_text: { en: "%{list} and its items go.", de: "%{list} und ihre Artikel werden gelöscht." }
+    nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
+    bought: { en: "%{item} bought", de: "%{item} gekauft" }
+    to_buy:
+      en: { one: "%{count} item to buy", other: "%{count} items to buy" }
+      de: { one: "%{count} Artikel zu kaufen", other: "%{count} Artikel zu kaufen" }
+    error:
+      categories_not_loaded:
+        en: "The categories could not be loaded."
+        de: "Die Kategorien konnten nicht geladen werden."
+      changes_not_read: { en: "The changes could not be read.", de: "Die Änderungen konnten nicht gelesen werden." }
+      list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
+
+health:
+  web:
+    title: { en: "Health", de: "Zustand" }
+    check_again: { en: "Check again", de: "Erneut prüfen" }
+    checks: { en: "Health checks", de: "Zustandsprüfungen" }
+    none: { en: "There are no health checks.", de: "Es gibt keine Zustandsprüfungen." }
+    checking: { en: "Checking…", de: "Wird geprüft…" }
+    state:
+      healthy: { en: "Healthy", de: "Gesund" }
+      unhealthy: { en: "Unhealthy", de: "Nicht gesund" }
+      unknown: { en: "Unknown", de: "Unbekannt" }
+    not_checked: { en: "The health could not be checked.", de: "Der Zustand konnte nicht geprüft werden." }
+    forbidden_see:
+      en: "Your role does not allow to see the health."
+      de: "Deine Rolle erlaubt nicht, den Zustand zu sehen."
+
+hosting:
+  backend:
+    invalid_name:
+      en: "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, and must not be reserved for the apps or the api."
+      de: "Der Name muss 3 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben, mit einem Buchstaben oder einer Ziffer beginnen und enden und darf nicht für die Apps oder die API reserviert sein."
+    name_taken: { en: "A bucket of the name exists.", de: "Einen Bucket mit diesem Namen gibt es schon." }
+    subdomain_taken:
+      en: "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
+      de: "Die Subdomain des Namens ist schon eine Domain eines anderen Buckets, einer Weiterleitung, der Apps oder der API."
+    invalid_domain:
+      en: "Every domain must be valid and neither one of the apps or the api nor a redirected one."
+      de: "Jede Domain muss gültig sein und darf weder eine der Apps oder der API noch eine weitergeleitete sein."
+    domain_taken:
+      en: "Another bucket is served at one of the domains."
+      de: "Ein anderer Bucket wird unter einer der Domains ausgeliefert."
+    redirected:
+      en: "Redirects lead to the bucket: %{sources}. Delete them or change their target first."
+      de: "Weiterleitungen führen zum Bucket: %{sources}. Lösche sie zuerst oder ändere ihr Ziel."
+    health:
+      name: { en: "Bucket domains", de: "Domains der Buckets" }
+      what: { en: "buckets", de: "Buckets" }
+  web:
+    all_buckets: { en: "All buckets", de: "Alle Buckets" }
+    back_to_bucket: { en: "Back to the bucket", de: "Zurück zum Bucket" }
+    create: { en: "Create", de: "Erstellen" }
+    copy_failed:
+      en: "The browser did not allow to copy, please select the text instead."
+      de: "Der Browser hat das Kopieren nicht erlaubt, bitte markiere den Text stattdessen."
+    forbidden:
+      en: "Your role does not allow to see the buckets."
+      de: "Deine Rolle erlaubt nicht, die Buckets zu sehen."
+    not_found: { en: "There is no such bucket.", de: "Diesen Bucket gibt es nicht." }
+    load_failed: { en: "The bucket could not be loaded.", de: "Der Bucket konnte nicht geladen werden." }
+    not_counted: { en: "not counted", de: "nicht gezählt" }
+    counting: { en: "counting…", de: "wird gezählt…" }
+    route:
+      create: { en: "Create static hosting · Static hosting", de: "Statisches Hosting erstellen · Statisches Hosting" }
+      edit: { en: "Edit bucket · Static hosting", de: "Bucket bearbeiten · Statisches Hosting" }
+      bucket: { en: "Bucket · Static hosting", de: "Bucket · Statisches Hosting" }
+    list:
+      buckets: { en: "Buckets", de: "Buckets" }
+      not_served: { en: "not served at a domain", de: "unter keiner Domain ausgeliefert" }
+      objects: { en: "objects", de: "Objekte" }
+      empty:
+        en: "No buckets yet. A bucket keeps the files of a website, served at its domains."
+        de: "Noch keine Buckets. Ein Bucket enthält die Dateien einer Website, ausgeliefert unter ihren Domains."
+      pages: { en: "Pages of the buckets", de: "Seiten der Buckets" }
+      load_failed: { en: "The buckets could not be loaded.", de: "Die Buckets konnten nicht geladen werden." }
+    view:
+      delete_bucket: { en: "Delete the bucket %{name}", de: "Den Bucket %{name} löschen" }
+      objects: { en: "Objects", de: "Objekte" }
+      size: { en: "Size", de: "Größe" }
+      publishing: { en: "Publishing", de: "Veröffentlichen" }
+      logs: { en: "Logs", de: "Logs" }
+      delete_failed:
+        en: "The bucket %{name} could not be deleted."
+        de: "Der Bucket %{name} konnte nicht gelöscht werden."
+      delete_forbidden:
+        en: "Your role does not allow to delete buckets."
+        de: "Deine Rolle erlaubt nicht, Buckets zu löschen."
+    create_page:
+      title: { en: "Create static hosting", de: "Statisches Hosting erstellen" }
+      name_hint:
+        en: "3 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit. The bucket is also served at its name as subdomain. The name can not be changed later."
+        de: "3 bis 63 Kleinbuchstaben, Ziffern und Bindestriche, mit einem Buchstaben oder einer Ziffer am Anfang und Ende. Der Bucket wird auch unter seinem Namen als Subdomain ausgeliefert. Der Name lässt sich später nicht ändern."
+      failed: { en: "The bucket %{name} could not be created.", de: "Der Bucket %{name} konnte nicht erstellt werden." }
+      forbidden:
+        en: "Your role does not allow to create buckets."
+        de: "Deine Rolle erlaubt nicht, Buckets zu erstellen."
+    edit_page:
+      title: { en: "Edit bucket", de: "Bucket bearbeiten" }
+      name_fixed: { en: "The name can not be changed.", de: "Der Name lässt sich nicht ändern." }
+      save_failed: { en: "The bucket could not be saved.", de: "Der Bucket konnte nicht gespeichert werden." }
+    domains:
+      domain: { en: "Domain %{number}", de: "Domain %{number}" }
+      delete_domain: { en: "Delete domain %{number}", de: "Domain %{number} löschen" }
+      delete: { en: "Delete domain", de: "Domain löschen" }
+      none: { en: "Not served at a domain yet.", de: "Noch unter keiner Domain ausgeliefert." }
+      add: { en: "Add domain", de: "Domain hinzufügen" }
+      hint:
+        en: "The objects of the bucket are served at every domain, redirects to the bucket lead to the first one. Each domain needs a DNS record pointing at the server."
+        de: "Die Objekte des Buckets werden unter jeder Domain ausgeliefert, Weiterleitungen zum Bucket führen zur ersten. Jede Domain braucht einen DNS-Eintrag, der auf den Server zeigt."
+    configuration:
+      domains: { en: "Domains", de: "Domains" }
+      served_at:
+        en: "Files uploaded to this bucket are served at the following addresses:"
+        de: "In diesen Bucket hochgeladene Dateien werden unter diesen Adressen ausgeliefert:"
+      index_before: { en: "An", de: "Für einen Ordner wird eine" }
+      index_after:
+        en: "is served for a folder, e.g. at the address itself."
+        de: "ausgeliefert, z. B. unter der Adresse selbst."
+      not_served:
+        en: "Files uploaded to this bucket are not served yet, add a domain on its edit page."
+        de: "In diesen Bucket hochgeladene Dateien werden noch nicht ausgeliefert, füge auf seiner Bearbeiten-Seite eine Domain hinzu."
+    credentials:
+      label: { en: "Credentials", de: "Zugangsdaten" }
+      intro:
+        en: "Upload the files of the website with any S3 client, e.g. the AWS CLI. The key pair may access this bucket only."
+        de: "Lade die Dateien der Website mit einem beliebigen S3-Client hoch, z. B. der AWS CLI. Das Schlüsselpaar hat nur Zugriff auf diesen Bucket."
+      endpoint: { en: "Endpoint", de: "Endpunkt" }
+      copy_endpoint: { en: "Copy endpoint", de: "Endpunkt kopieren" }
+      bucket: { en: "Bucket", de: "Bucket" }
+      access_key: { en: "Access key", de: "Access Key" }
+      copy_access_key: { en: "Copy access key", de: "Access Key kopieren" }
+      secret_key: { en: "Secret key", de: "Geheimer Schlüssel" }
+      hide_secret_key: { en: "Hide secret key", de: "Geheimen Schlüssel verbergen" }
+      show_secret_key: { en: "Show secret key", de: "Geheimen Schlüssel zeigen" }
+      copy_secret_key: { en: "Copy secret key", de: "Geheimen Schlüssel kopieren" }
+      keys: { en: "Keys", de: "Schlüssel" }
+      show_keys: { en: "Show the key pair", de: "Schlüsselpaar zeigen" }
+      keys_failed: { en: "The key pair could not be fetched.", de: "Das Schlüsselpaar konnte nicht abgerufen werden." }
+    publishing:
+      label: { en: "Publishing with Hugo", de: "Veröffentlichen mit Hugo" }
+      target_before:
+        en: "Add the bucket as deployment target to the configuration of the"
+        de: "Trage den Bucket als Deployment-Ziel in die Konfiguration der"
+      target_after: { en: "site,", de: "Site ein," }
+      base_url:
+        en: "The base URL is the first domain the bucket is served at."
+        de: "Die Base URL ist die erste Domain, unter der der Bucket ausgeliefert wird."
+      copy_target: { en: "Copy the deployment target", de: "Deployment-Ziel kopieren" }
+      deploy_intro:
+        en: "Build the site and deploy it with the key pair of the bucket, which may access this bucket only."
+        de: "Baue die Site und veröffentliche sie mit dem Schlüsselpaar des Buckets, das nur Zugriff auf diesen Bucket hat."
+      deploy_only_before: { en: "is only part of the", de: "gibt es nur in den" }
+      deploy_only_after: { en: "builds of Hugo, e.g.", de: "Builds von Hugo, z. B." }
+      deploy_archives: { en: "or the withdeploy archives of the", de: "oder den withdeploy-Archiven der" }
+      releases: { en: "Hugo releases", de: "Hugo-Releases" }
+      copy_command: { en: "Copy the deploy command", de: "Deploy-Befehl kopieren" }
+      hide_secret_key: { en: "Hide the secret key", de: "Den geheimen Schlüssel verbergen" }
+      show_secret_key: { en: "Show the secret key", de: "Den geheimen Schlüssel zeigen" }
+      hide: { en: "Hide", de: "Verbergen" }
+      show: { en: "Show", de: "Zeigen" }
+      show_command:
+        en: "Show the deploy command with the key pair"
+        de: "Deploy-Befehl mit dem Schlüsselpaar zeigen"
+      uploads:
+        en: "It only uploads what changed and deletes what is gone. The site is served at the domains of the bucket once their DNS records point at the server."
+        de: "Es lädt nur hoch, was sich geändert hat, und löscht, was weg ist. Die Site wird unter den Domains des Buckets ausgeliefert, sobald ihre DNS-Einträge auf den Server zeigen."
+    logs:
+      label: { en: "Logs", de: "Zugriffslogs" }
+      unknown:
+        en: "The bucket is not served at a domain, it has no access logs."
+        de: "Der Bucket wird unter keiner Domain ausgeliefert, er hat keine Zugriffslogs."
+      forbidden:
+        en: "Your role does not allow to see the logs."
+        de: "Deine Rolle erlaubt nicht, die Zugriffslogs zu sehen."
+      requests_to: { en: "The requests to", de: "Die Anfragen an" }
+      range: { en: "Range", de: "Zeitraum" }
+      failed:
+        en: "The logs could not be loaded, they may not be available right now."
+        de: "Die Zugriffslogs konnten nicht geladen werden, sie sind gerade vielleicht nicht verfügbar."
+      requests: { en: "Requests", de: "Anfragen" }
+      error_rate: { en: "Error rate", de: "Fehlerquote" }
+      transferred: { en: "Transferred", de: "Übertragen" }
+      no_requests: { en: "No requests in this range.", de: "Keine Anfragen in diesem Zeitraum." }
+      requests_by_status: { en: "Requests by status", de: "Anfragen nach Status" }
+      status:
+        success: { en: "Success", de: "Erfolg" }
+        redirect: { en: "Redirect", de: "Weiterleitung" }
+        client_error: { en: "Client error", de: "Client-Fehler" }
+        server_error: { en: "Server error", de: "Server-Fehler" }
+
+notes:
+  backend:
+    text_too_long:
+      en: "The text must have at most %{max} characters."
+      de: "Der Text darf höchstens %{max} Zeichen haben."
+    invalid_color: { en: "The color must be one of %{colors}.", de: "Die Farbe muss eine von %{colors} sein." }
+    too_many_labels:
+      en: "A note can have at most %{max} labels."
+      de: "Eine Notiz kann höchstens %{max} Labels haben."
+    unknown_photo:
+      en: "Every photo must be an image of the file storage."
+      de: "Jedes Foto muss ein Bild aus dem Dateispeicher sein."
+    too_many_photos:
+      en: "A note can have at most %{max} photos."
+      de: "Eine Notiz kann höchstens %{max} Fotos haben."
+    unknown_recording:
+      en: "Every recording must be a recording of the file storage."
+      de: "Jede Aufnahme muss eine Aufnahme aus dem Dateispeicher sein."
+    too_many_recordings:
+      en: "A note can have at most %{max} recordings."
+      de: "Eine Notiz kann höchstens %{max} Aufnahmen haben."
+    no_list:
+      en: "You have no list of notes yet, sign in again to get one."
+      de: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekommen."
+    settings:
+      ai:
+        label: { en: "AI features", de: "KI-Funktionen" }
+        description:
+          en: "Lets the notes discover the text in photos and recordings with the AI of the deployment."
+          de: "Lässt die Notizen den Text in Fotos und Aufnahmen mit der KI des Deployments erkennen."
+      label: { en: "Notes", de: "Notizen" }
+      description: { en: "The settings of the notes.", de: "Die Einstellungen der Notizen." }
+  web:
+    page:
+      new_notes: { en: "New notes", de: "Neue Notizen" }
+      new_with_photo: { en: "New note with a photo", de: "Neue Notiz mit einem Foto" }
+      new_with_recording: { en: "New note with a recording", de: "Neue Notiz mit einer Aufnahme" }
+      new_note: { en: "New note", de: "Neue Notiz" }
+      filter: { en: "Filter by label", de: "Nach Label filtern" }
+      all: { en: "All", de: "Alle" }
+      none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }
+      empty: { en: "No notes yet, add one.", de: "Noch keine Notizen, leg eine an." }
+      pages: { en: "Pages of the notes", de: "Seiten der Notizen" }
+    removed:
+      note: { en: "Note deleted", de: "Notiz gelöscht" }
+      photo: { en: "Photo removed", de: "Foto entfernt" }
+      recording: { en: "Recording removed", de: "Aufnahme entfernt" }
+    card:
+      media: { en: "Photos and recordings", de: "Fotos und Aufnahmen" }
+      photo:
+        alt: { en: "Photo %{number} of note %{note}", de: "Foto %{number} von Notiz %{note}" }
+        discover: { en: "Discover the text in photo %{number}", de: "Text in Foto %{number} erkennen" }
+        remove: { en: "Remove photo %{number} from the note", de: "Foto %{number} von der Notiz entfernen" }
+      recording:
+        play: { en: "Play Recording %{number}", de: "Aufnahme %{number} abspielen" }
+        pause: { en: "Pause Recording %{number}", de: "Aufnahme %{number} pausieren" }
+        discover: { en: "Discover the text in recording %{number}", de: "Text in Aufnahme %{number} erkennen" }
+        remove: { en: "Remove recording %{number} from the note", de: "Aufnahme %{number} von der Notiz entfernen" }
+      discover: { en: "Discover the text", de: "Text erkennen" }
+      write: { en: "Write something…", de: "Schreib etwas…" }
+      text_of: { en: "Text of note %{note}", de: "Text von Notiz %{note}" }
+      labels: { en: "Labels", de: "Labels" }
+      show_labelled: { en: "Show the notes labelled %{label}", de: "Die Notizen mit dem Label %{label} zeigen" }
+      remove_label: { en: "Remove label %{label} from the note", de: "Label %{label} von der Notiz entfernen" }
+      add_label: { en: "+ label", de: "+ Label" }
+      add_label_to: { en: "Add a label to note %{note}", de: "Ein Label zu Notiz %{note} hinzufügen" }
+      labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
+      color: { en: "Color", de: "Farbe" }
+      add_photo_to: { en: "Add a photo to note %{note}", de: "Ein Foto zu Notiz %{note} hinzufügen" }
+      add_photo: { en: "Add a photo", de: "Foto hinzufügen" }
+      record_for: { en: "Record for note %{note}", de: "Aufnahme für Notiz %{note}" }
+      record: { en: "Record", de: "Aufnehmen" }
+      delete_note: { en: "Delete note %{note}", de: "Notiz %{note} löschen" }
+    colors:
+      yellow: { en: "yellow", de: "gelb" }
+      pink: { en: "pink", de: "rosa" }
+      blue: { en: "blue", de: "blau" }
+      green: { en: "green", de: "grün" }
+      orange: { en: "orange", de: "orange" }
+    recording:
+      dialog_new: { en: "Recording the new note", de: "Aufnahme für die neue Notiz" }
+      dialog: { en: "Recording note %{note}", de: "Aufnahme für Notiz %{note}" }
+      stop_new: { en: "Stop the recording of the new note", de: "Die Aufnahme für die neue Notiz stoppen" }
+      stop_of: { en: "Stop the recording of note %{note}", de: "Die Aufnahme für Notiz %{note} stoppen" }
+      stop: { en: "Stop recording", de: "Aufnahme stoppen" }
+      starting: { en: "Starting…", de: "Wird gestartet…" }
+      subject_new: { en: "the new note", de: "die neue Notiz" }
+      subject: { en: "note %{note}", de: "Notiz %{note}" }
+    errors:
+      not_loaded: { en: "The notes could not be loaded.", de: "Die Notizen konnten nicht geladen werden." }
+      not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht angelegt werden." }
+      microphone: { en: "The microphone could not be used.", de: "Das Mikrofon konnte nicht verwendet werden." }
+      recording_not_stored:
+        en: "The recording could not be stored."
+        de: "Die Aufnahme konnte nicht gespeichert werden."
+      no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
+      no_text_in_photo: { en: "There is no text in the photo.", de: "Auf dem Foto ist kein Text." }
+      not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
+      not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
+      not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
+      photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
+
+redirects:
+  backend:
+    invalid_domains:
+      en: "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket."
+      de: "Beide Domains müssen gültig und verschieden sein, und die weitergeleitete darf weder eine der Apps oder der API noch eine eines Buckets sein."
+    exists: { en: "The domain is redirected already.", de: "Die Domain wird schon weitergeleitet." }
+    unknown_bucket: { en: "There is no such bucket.", de: "Diesen Bucket gibt es nicht." }
+    bucket_not_served:
+      en: "The bucket is not served at a domain."
+      de: "Der Bucket wird unter keiner Domain ausgeliefert."
+    invalid_target:
+      en: "The domain redirected to must be valid and differ from the redirected one."
+      de: "Die Zieldomain muss gültig sein und sich von der weitergeleiteten unterscheiden."
+    health:
+      name: { en: "Redirect domains", de: "Domains der Weiterleitungen" }
+      what: { en: "redirects", de: "Weiterleitungen" }
+  web:
+    all_redirects: { en: "All redirects", de: "Alle Weiterleitungen" }
+    back_to_redirect: { en: "Back to the redirect", de: "Zurück zur Weiterleitung" }
+    create: { en: "Create redirect", de: "Weiterleitung erstellen" }
+    domain: { en: "Domain", de: "Domain" }
+    forbidden:
+      en: "Your role does not allow to see the redirects."
+      de: "Deine Rolle erlaubt nicht, die Weiterleitungen zu sehen."
+    not_found: { en: "There is no such redirect.", de: "Diese Weiterleitung gibt es nicht." }
+    load_failed: { en: "The redirect could not be loaded.", de: "Die Weiterleitung konnte nicht geladen werden." }
+    bucket_unknown:
+      en: "The bucket is unknown or not served at a domain."
+      de: "Der Bucket ist unbekannt oder wird unter keiner Domain ausgeliefert."
+    route:
+      create: { en: "Create redirect · Redirects", de: "Weiterleitung erstellen · Weiterleitungen" }
+      edit: { en: "Edit redirect · Redirects", de: "Weiterleitung bearbeiten · Weiterleitungen" }
+      redirect: { en: "Redirect · Redirects", de: "Weiterleitung · Weiterleitungen" }
+    types:
+      domain: { en: "domain", de: "Domain" }
+      bucket: { en: "bucket", de: "Bucket" }
+    list:
+      intro:
+        en: "Every request for a redirected domain is answered with a permanent redirect, the path stays."
+        de: "Jede Anfrage an eine weitergeleitete Domain wird dauerhaft weitergeleitet, der Pfad bleibt erhalten."
+      empty: { en: "No redirects yet.", de: "Noch keine Weiterleitungen." }
+      pages: { en: "Pages of the redirects", de: "Seiten der Weiterleitungen" }
+      load_failed: { en: "The redirects could not be loaded.", de: "Die Weiterleitungen konnten nicht geladen werden." }
+    create_page:
+      domain_hint:
+        en: "Every request for it is redirected. It needs a DNS record pointing at the server."
+        de: "Jede Anfrage an sie wird weitergeleitet. Sie braucht einen DNS-Eintrag, der auf den Server zeigt."
+      failed: { en: "The redirect could not be created.", de: "Die Weiterleitung konnte nicht erstellt werden." }
+      forbidden:
+        en: "Your role does not allow to create redirects."
+        de: "Deine Rolle erlaubt nicht, Weiterleitungen zu erstellen."
+      exists: { en: "%{domain} is redirected already.", de: "%{domain} wird schon weitergeleitet." }
+    edit_page:
+      title: { en: "Edit redirect", de: "Weiterleitung bearbeiten" }
+      domain_fixed:
+        en: "The redirected domain can not be changed."
+        de: "Die weitergeleitete Domain lässt sich nicht ändern."
+      save_failed: { en: "The redirect could not be saved.", de: "Die Weiterleitung konnte nicht gespeichert werden." }
+      forbidden:
+        en: "Your role does not allow to change redirects."
+        de: "Deine Rolle erlaubt nicht, Weiterleitungen zu ändern."
+    view:
+      delete_redirect: { en: "Delete the redirect of %{domain}", de: "Die Weiterleitung von %{domain} löschen" }
+      leads_to: { en: "Leads to", de: "Führt zu" }
+      nowhere: { en: "nowhere", de: "nirgendwohin" }
+      delete_failed:
+        en: "The redirect of %{domain} could not be deleted."
+        de: "Die Weiterleitung von %{domain} konnte nicht gelöscht werden."
+    configuration:
+      target: { en: "Target", de: "Ziel" }
+      to_bucket_before: { en: "Redirects to the bucket", de: "Leitet weiter zum Bucket" }
+      to_bucket_after:
+        en: ", at the first domain it is served at."
+        de: ", an die erste Domain, unter der er ausgeliefert wird."
+      to_domain: { en: "Redirects to the external domain", de: "Leitet weiter zur externen Domain" }
+      request_before: { en: "Every request for", de: "Jede Anfrage an" }
+      request_middle:
+        en: "is answered with a permanent redirect to"
+        de: "beantwortet der Server mit einer dauerhaften Weiterleitung nach"
+      request_after: { en: ", the path stays.", de: ", der Pfad bleibt erhalten." }
+      not_served:
+        en: "The bucket is not served at a domain, the redirect leads nowhere until it is."
+        de: "Der Bucket wird unter keiner Domain ausgeliefert, die Weiterleitung führt nirgendwohin, bis er es wird."
+    target:
+      redirect_to: { en: "Redirect to", de: "Weiterleiten zu" }
+      external_domain_choice: { en: "An external domain", de: "Einer externen Domain" }
+      bucket_choice: { en: "A bucket", de: "Einem Bucket" }
+      external_domain: { en: "External domain", de: "Externe Domain" }
+      bucket: { en: "Bucket", de: "Bucket" }
+      choose_bucket: { en: "Choose a bucket", de: "Wähle einen Bucket" }
+      bucket_hint:
+        en: "Only buckets served at a domain, the redirect leads to their first one."
+        de: "Nur Buckets, die unter einer Domain ausgeliefert werden, die Weiterleitung führt zu ihrer ersten."

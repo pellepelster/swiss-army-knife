@@ -512,7 +512,7 @@ class SettingsRegistry(
     private fun List<SettingValue<*>>.json() = associate { it.setting.name.value to it.toApiJson() }
 }
 
-// the texts of the settings (i18n/settings.<language>.yml)
+// the texts of the settings (backend.settings in i18n/texts.yml)
 object SettingsTexts : Catalog("settings") {
     val NOT_BOOLEAN = text("not_boolean")
     val NOT_TEXT = text("not_text")

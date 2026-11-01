@@ -1,0 +1,18 @@
+# the texts of the catalog openrouter in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+settings:
+  enabled:
+    label: "KI-Funktionen"
+    description: "Lässt die Apps Daten an KI-Anbieter senden, zum Beispiel ein Foto oder eine Aufnahme, um ihren Text zu erkennen. Anbieter, die die Daten sammeln, werden nicht gefragt."
+  api_key:
+    label: "API-Schlüssel"
+    description: "Der Schlüssel des OpenRouter-Kontos für die KI-Funktionen."
+  vision_model:
+    label: "Bildmodell"
+    description: "Das Modell, das Text in Fotos erkennt."
+  speech_model:
+    label: "Sprachmodell"
+    description: "Das Modell, das Aufnahmen verschriftlicht."
+  label: "KI"
+  description: "Alle KI-Funktionen einrichten"
+key_refused: "OpenRouter nimmt den API-Schlüssel nicht an."
+key_unchecked: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."

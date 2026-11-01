@@ -1,7 +1,0 @@
-# the texts of the settings (SettingsTexts), german
-not_boolean: "\"%{label}\" muss wahr oder falsch sein."
-not_text: "\"%{label}\" muss ein Text sein."
-too_long: "\"%{label}\" darf höchstens %{max} Zeichen haben."
-unknown_setting: "Es gibt keine Einstellung \"%{name}\" in \"%{scope}\"."
-read_only: "\"%{label}\" kann nicht geändert werden."
-requires: "\"%{label}\" braucht \"%{required}\" von \"%{scope}\" eingeschaltet."

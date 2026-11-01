@@ -1,8 +1,0 @@
-# the texts of the redirects (RedirectsTexts), english: the source of every language and its fallback
-invalid_domains: "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket."
-exists: "The domain is redirected already."
-unknown_bucket: "There is no such bucket."
-bucket_not_served: "The bucket is not served at a domain."
-invalid_target: "The domain redirected to must be valid and differ from the redirected one."
-health.name: "Redirect domains"
-health.what: "redirects"

@@ -94,7 +94,7 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
             />
           }
         } @else {
-          <p class="text-body-secondary mb-0">{{ 'hosting.loading' | t }}</p>
+          <p class="text-body-secondary mb-0">{{ 'shared.loading' | t }}</p>
         }
       }
     </section>

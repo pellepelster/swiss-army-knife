@@ -74,7 +74,7 @@ pub(super) fn config_endpoint(
     verify_password(deployment, name, password)?;
     let root_domain = deployment.root_domain().ok_or_else(|| {
         t!(
-            "shared.config.no_root_domain",
+            "common.config.no_root_domain",
             name = name,
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
         )
@@ -119,7 +119,7 @@ pub(super) fn check_password(
     name: &str,
     password: &str,
 ) -> Result<(), String> {
-    let wrong = || t!("shared.deployments.wrong_password", name = name).to_string();
+    let wrong = || t!("common.deployments.wrong_password", name = name).to_string();
     if !hashes.is_empty() {
         let hash = crate::core::keys::password_hash(name, password)?;
         return match hashes.iter().all(|found| *found == hash) {
@@ -135,5 +135,5 @@ pub(super) fn check_password(
         }
         return Ok(());
     }
-    Err(t!("shared.deployments.unverifiable", name = name).to_string())
+    Err(t!("common.deployments.unverifiable", name = name).to_string())
 }

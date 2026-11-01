@@ -1,0 +1,13 @@
+# the texts of the catalog dns in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+not_checked: "The domains of the %{what} could not be checked."
+no_addresses: "The addresses of the server are not configured."
+no_domains: "The %{what} have no domains."
+wrong_domains: "%{count} of %{total} domains of the %{what} do not point to the server."
+unanswered_domains: "No name server answered for %{count} of %{total} domains of the %{what}."
+right_domains: "The %{total} domains of the %{what} point to the server."
+answers: "%{answers}"
+no_answer: "No name server answered."
+no_answer_from: "No answer from %{servers}."
+answer: "%{server} has %{a}, %{aaaa}"
+records: "%{type} %{addresses}"
+no_records: "no %{type}"

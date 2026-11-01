@@ -1,0 +1,15 @@
+# the texts of the catalog notes in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+text_too_long: "The text must have at most %{max} characters."
+invalid_color: "The color must be one of %{colors}."
+too_many_labels: "A note can have at most %{max} labels."
+unknown_photo: "Every photo must be an image of the file storage."
+too_many_photos: "A note can have at most %{max} photos."
+unknown_recording: "Every recording must be a recording of the file storage."
+too_many_recordings: "A note can have at most %{max} recordings."
+no_list: "You have no list of notes yet, sign in again to get one."
+settings:
+  ai:
+    label: "AI features"
+    description: "Lets the notes discover the text in photos and recordings with the AI of the deployment."
+  label: "Notes"
+  description: "The settings of the notes."

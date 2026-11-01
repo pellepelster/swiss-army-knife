@@ -81,7 +81,7 @@ class GroceryApi(
             .post("$url/auth/login/exchange") {
                 contentType(ContentType.Application.Json)
                 setBody(ExchangeRequest(loginToken))
-            }.answer(R.string.error_link_invalid, unauthorized = R.string.error_link_invalid)
+            }.answer(R.string.login_link_invalid, unauthorized = R.string.login_link_invalid)
 
     suspend fun passwordLogin(password: String): ExchangeResponse =
         client
@@ -98,7 +98,7 @@ class GroceryApi(
             }.answer(R.string.error_user_not_read)
 
     // in the order the backend gives them: by name
-    suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.error_lists_not_loaded)
+    suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.grocery_lists_not_loaded)
 
     // the new list of the signed in user
     suspend fun createList(
@@ -111,7 +111,7 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer(R.string.error_list_not_created)
+            }.answer(R.string.grocery_error_list_not_created)
 
     // the settings of a list of the user's own
     suspend fun updateList(
@@ -125,18 +125,18 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer(R.string.error_list_not_saved)
+            }.answer(R.string.grocery_form_not_saved)
 
     // a list of the user's own with its items, not their last one (LIST-1)
     suspend fun deleteList(id: Int) {
         client
             .delete("$url/grocery/lists/$id") {
                 token?.let { bearerAuth(it) }
-            }.answer<Unit>(R.string.error_list_not_deleted)
+            }.answer<Unit>(R.string.grocery_form_not_deleted)
     }
 
     // the items to buy, by the order of their category, the ones without one last
-    suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", R.string.error_items_not_loaded)
+    suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", R.string.grocery_list_items_not_loaded)
 
     // the new item, on the list it names (GROCERY-2)
     suspend fun addItem(
@@ -148,14 +148,14 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryNewItemRequest(listId, name))
-            }.answer(R.string.error_item_not_added)
+            }.answer(R.string.grocery_list_not_added)
 
     // the item is bought: the backend deletes it (DELETE answers 204, no body)
     suspend fun checkItem(id: Int) {
         client
             .delete("$url/grocery/items/$id") {
                 token?.let { bearerAuth(it) }
-            }.answer<Unit>(R.string.error_item_not_checked)
+            }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
     // the ids of the lists the user sees as they change, server-sent events (LIST-4); opened calls
@@ -169,7 +169,7 @@ class GroceryApi(
                     // the backend keeps the stream open with a comment every 25 seconds
                     timeout { socketTimeoutMillis = CHANGES_TIMEOUT_MS }
                 }.execute { response ->
-                    if (!response.status.isSuccess()) response.answer<Unit>(R.string.error_changes_not_read)
+                    if (!response.status.isSuccess()) response.answer<Unit>(R.string.grocery_error_changes_not_read)
                     opened()
                     val channel = response.bodyAsChannel()
                     var event: String? = null
@@ -186,7 +186,7 @@ class GroceryApi(
         }
 
     // in the order a list shows them
-    suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", R.string.error_categories_not_loaded)
+    suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", R.string.grocery_error_categories_not_loaded)
 
     // every page of a list
     private suspend inline fun <reified T> all(

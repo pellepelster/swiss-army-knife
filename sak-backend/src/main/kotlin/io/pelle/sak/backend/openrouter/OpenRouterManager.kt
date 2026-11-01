@@ -125,7 +125,7 @@ class OpenRouterManager(
     }
 }
 
-// the texts of the AI at OpenRouter (i18n/openrouter.<language>.yml)
+// the texts of the AI at OpenRouter (backend.openrouter in i18n/texts.yml)
 object OpenRouterTexts : Catalog("openrouter") {
     val ENABLED_LABEL = text("settings.enabled.label")
     val ENABLED_DESCRIPTION = text("settings.enabled.description")

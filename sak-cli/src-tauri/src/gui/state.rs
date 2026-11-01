@@ -130,7 +130,7 @@ mod tests {
                             let _ = wait.await;
                             Ok::<_, String>(())
                         },
-                        "shared.deployments.cancelled",
+                        "common.deployments.cancelled",
                     )
                     .await
             })
@@ -141,7 +141,7 @@ mod tests {
         running
             .run(
                 async { Ok::<_, String>(()) },
-                "shared.deployments.cancelled",
+                "common.deployments.cancelled",
             )
             .await
             .unwrap();

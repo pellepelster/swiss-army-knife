@@ -1,0 +1,8 @@
+# the texts of the catalog login in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+sign_in: "Anmelden"
+admin_password: "Admin-Passwort"
+use_email: "Mit einem E-Mail-Link anmelden"
+send_link: "Login-Link senden"
+use_password: "Mit Passwort anmelden"
+sign_out: "Abmelden"
+link_invalid: "Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt."

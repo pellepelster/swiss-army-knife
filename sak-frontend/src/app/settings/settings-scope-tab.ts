@@ -80,7 +80,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
             }
           }
         } @else {
-          <p class="text-body-secondary mb-0">{{ 'settings.loading' | t }}</p>
+          <p class="text-body-secondary mb-0">{{ 'shared.loading' | t }}</p>
         }
 
         @if (saveError(); as error) {
@@ -92,7 +92,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }
-            {{ 'settings.save' | t }}
+            {{ 'shared.save' | t }}
           </button>
         </div>
       </form>

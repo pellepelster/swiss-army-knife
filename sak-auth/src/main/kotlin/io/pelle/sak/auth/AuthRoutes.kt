@@ -362,7 +362,7 @@ internal fun ApplicationCall.clientAddress(): String =
     request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
         ?: request.local.remoteAddress
 
-// the texts of the sign-in (i18n/auth.<language>.yml)
+// the texts of the sign-in (backend.auth in i18n/texts.yml)
 object AuthTexts : Catalog("auth") {
     val INVALID_EMAIL = text("invalid_email")
     val MAIL_SUBJECT = text("mail_subject")

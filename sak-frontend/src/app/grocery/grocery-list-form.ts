@@ -33,7 +33,7 @@ import { ListIcon } from './list-icon';
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">
-        {{ (id() ? 'grocery.settings' : 'grocery.form.create') | t }}
+        {{ (id() ? 'shared.settings' : 'grocery.form.create') | t }}
       </h1>
     </header>
 
@@ -44,7 +44,7 @@ import { ListIcon } from './list-icon';
     @if (!id() || list()) {
       <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
         <div>
-          <label class="form-label" for="list-name">{{ 'grocery.form.name' | t }}</label>
+          <label class="form-label" for="list-name">{{ 'shared.name' | t }}</label>
           <input
             #nameField
             id="list-name"
@@ -106,14 +106,14 @@ import { ListIcon } from './list-icon';
             <span class="small">{{ 'grocery.form.delete_question' | t }}</span>
             <div class="btn-group" role="group" [attr.aria-label]="'grocery.form.delete_label' | t">
               <button type="button" class="btn btn-danger" (click)="delete()">
-                {{ 'grocery.form.delete' | t }}
+                {{ 'shared.delete' | t }}
               </button>
               <button
                 type="button"
                 class="btn btn-outline-secondary"
                 (click)="confirming.set(false)"
               >
-                {{ 'grocery.form.keep' | t }}
+                {{ 'shared.keep' | t }}
               </button>
             </div>
           } @else {
@@ -129,7 +129,7 @@ import { ListIcon } from './list-icon';
                 </button>
               }
               <a class="btn btn-outline-secondary" [routerLink]="back()">{{
-                'grocery.form.cancel' | t
+                'shared.cancel' | t
               }}</a>
               <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
                 @if (saving()) {
@@ -137,7 +137,7 @@ import { ListIcon } from './list-icon';
                 } @else if (!id()) {
                   <i class="sak-icon-plus" aria-hidden="true"></i>
                 }
-                {{ (id() ? 'grocery.form.save' : 'grocery.form.create') | t }}
+                {{ (id() ? 'shared.save' : 'grocery.form.create') | t }}
               </button>
             </div>
           }

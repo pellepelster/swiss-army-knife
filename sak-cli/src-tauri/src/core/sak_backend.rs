@@ -107,7 +107,7 @@ fn answer<T: for<'de> Deserialize<'de>>(
 ) -> Result<T, String> {
     ended(code, Some(out), last_line)?;
     serde_json::from_slice(out)
-        .map_err(|error| t!("shared.sak_backend.unreadable", error = error.to_string()).to_string())
+        .map_err(|error| t!("common.sak_backend.unreadable", error = error.to_string()).to_string())
 }
 
 /// the exit code of the script as the result: the lock held, the script missing, ssh failed, the
@@ -119,14 +119,14 @@ fn ended(code: i32, out: Option<&[u8]>, last_line: Option<&str>) -> Result<(), S
     }
     match code {
         0 => Ok(()),
-        BUSY => Err(t!("shared.sak_backend.busy").to_string()),
-        NOT_FOUND => Err(t!("shared.sak_backend.no_script", script = SCRIPT).to_string()),
+        BUSY => Err(t!("common.sak_backend.busy").to_string()),
+        NOT_FOUND => Err(t!("common.sak_backend.no_script", script = SCRIPT).to_string()),
         SSH_FAILED => Err(crate::core::ssh::failed(last_line)),
         code => match out.and_then(|out| serde_json::from_slice::<Failure>(out).ok()) {
             Some(failure) => {
-                Err(t!("shared.sak_backend.failed", error = failure.error).to_string())
+                Err(t!("common.sak_backend.failed", error = failure.error).to_string())
             }
-            None => Err(t!("shared.sak_backend.ended", script = SCRIPT, code = code).to_string()),
+            None => Err(t!("common.sak_backend.ended", script = SCRIPT, code = code).to_string()),
         },
     }
 }
@@ -161,11 +161,11 @@ mod tests {
         // the lock, for a backup as for an update
         assert_eq!(
             ended(BUSY, None, None).unwrap_err(),
-            t!("shared.sak_backend.busy").to_string()
+            t!("common.sak_backend.busy").to_string()
         );
         assert_eq!(
             ended(NOT_FOUND, None, None).unwrap_err(),
-            t!("shared.sak_backend.no_script", script = SCRIPT).to_string()
+            t!("common.sak_backend.no_script", script = SCRIPT).to_string()
         );
         // ssh failed itself: its own words, not an exit code of the script
         let ssh = ended(SSH_FAILED, None, Some("Host key verification failed.")).unwrap_err();

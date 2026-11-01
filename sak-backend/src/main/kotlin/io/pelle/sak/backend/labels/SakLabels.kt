@@ -159,7 +159,7 @@ private fun Parameters.Builder.labelId() =
         schema = jsonSchema<Int>()
     }
 
-// the texts of the labels (i18n/labels.<language>.yml)
+// the texts of the labels (backend.labels in i18n/texts.yml)
 object LabelsTexts : Catalog("labels") {
     val INVALID_NAME = text("invalid_name")
     val EXISTS = text("exists")

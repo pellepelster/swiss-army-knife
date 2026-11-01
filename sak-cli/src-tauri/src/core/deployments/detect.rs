@@ -168,7 +168,7 @@ pub(super) fn completed_from(
     };
     match &detected.unread {
         Some(error) if lacking => Err(t!(
-            "shared.deployments.settings_unread",
+            "common.deployments.settings_unread",
             name = deployment.name,
             error = error
         )
@@ -213,7 +213,7 @@ pub(super) fn complete(
             ("", None) if smtp.password_set => {
                 return Err(SakctlError::new(
                     t!(
-                        "shared.deployments.smtp_password_needed",
+                        "common.deployments.smtp_password_needed",
                         hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpPassword)
                     ),
                     crate::core::error::EXIT_USAGE,

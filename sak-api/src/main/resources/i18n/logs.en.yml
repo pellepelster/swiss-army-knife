@@ -1,0 +1,10 @@
+# the texts of the catalog logs in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_range: "range must be one of %{ranges}."
+empty_search: "q must not be empty."
+long_search: "q must have at most %{max} characters."
+control_search: "q must not contain control characters."
+range:
+  minutes: "%{count} minutes"
+  hour: "1 hour"
+  hours: "%{count} hours"
+  days: "%{count} days"

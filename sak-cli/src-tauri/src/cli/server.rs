@@ -19,7 +19,7 @@ async fn session(
         .await?;
     let runtime = runtime
         .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+        .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
     Ok((name, target, runtime))
 }
 
@@ -207,17 +207,17 @@ pub(super) fn shown_lines(name: &str, detected: &Detected) -> Vec<String> {
     let name = name.trim();
     let error = detected.unread.as_deref().unwrap_or_default();
     let source = match detected.source {
-        Some(SettingsSource::Running) => t!("shared.config.shown_running", name = name),
+        Some(SettingsSource::Running) => t!("common.config.shown_running", name = name),
         Some(SettingsSource::Local) => t!(
-            "shared.config.shown_local",
+            "common.config.shown_local",
             name = name,
             when = detected.deployed_at.as_deref().unwrap_or("-"),
             error = error
         ),
         Some(SettingsSource::Records) => {
-            t!("shared.config.shown_records", name = name, error = error)
+            t!("common.config.shown_records", name = name, error = error)
         }
-        None => t!("shared.config.shown_none", name = name, error = error),
+        None => t!("common.config.shown_none", name = name, error = error),
     };
     std::iter::once(source.to_string())
         .chain(config_lines(detected))
@@ -249,7 +249,7 @@ pub(super) fn config_lines(detected: &Detected) -> Vec<String> {
             or_none(detected.admin_email.clone())
         ));
         match &detected.smtp {
-            None => lines.push(t!("shared.config.no_smtp").to_string()),
+            None => lines.push(t!("common.config.no_smtp").to_string()),
             Some(smtp) => lines.extend([
                 format!("smtp.host {}", smtp.host),
                 format!("smtp.port {}", smtp.port),

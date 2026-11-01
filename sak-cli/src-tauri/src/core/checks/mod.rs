@@ -198,7 +198,7 @@ pub async fn run_all(
 }
 
 fn not_finished(error: impl std::fmt::Display) -> String {
-    t!("shared.checks.not_finished", error = error).to_string()
+    t!("common.checks.not_finished", error = error).to_string()
 }
 
 #[cfg(test)]

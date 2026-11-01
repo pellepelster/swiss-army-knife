@@ -15,7 +15,7 @@ const HOSTING_FAVICON: Favicon = { svg: 'icons/hosting.svg', png: 'icons/hosting
 // the buckets of the s3 api: the list, a page to create one, a bucket's page with its tabs and a
 // page to edit it; create and edit come first, the bucket's page would take them as its name
 export const hostingRoutes: Routes = [
-  { path: '', component: BucketList, title: pageTitle('hosting.title') },
+  { path: '', component: BucketList, title: pageTitle('app.static_hosting') },
   { path: 'create', component: BucketCreate, title: pageTitle('hosting.route.create') },
   { path: ':name/edit', component: BucketEdit, title: pageTitle('hosting.route.edit') },
   {

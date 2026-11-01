@@ -1,5 +1,0 @@
-# the texts of the users (UsersTexts), english: the source of every language and its fallback
-invalid_email: "An e-mail address like name@example.org is needed."
-invalid_name: "A name must have at most %{max} characters and no control characters."
-exists: "A user of the address exists."
-is_admin: "The address is an admin of the deployment, it is no user to add."

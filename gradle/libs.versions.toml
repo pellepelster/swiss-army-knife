@@ -16,6 +16,7 @@ ktor = "3.6.0"
 liquibase = "5.0.4"
 logback = "1.6.5"
 playwright = "1.64.0"
+snakeyaml = "2.6"
 sqlite-jdbc = "3.53.4.0"
 
 [libraries]
@@ -56,6 +57,7 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
 liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 [plugins]

@@ -9,7 +9,7 @@ pub(super) async fn list(
 ) -> Result<(), SakctlError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
-        log(Level::Info, t!("shared.deployments.empty"));
+        log(Level::Info, t!("common.deployments.empty"));
     }
     for deployment in deployments {
         let location = deployment
@@ -22,7 +22,7 @@ pub(super) async fn list(
                 "{} {} {} {} {}",
                 deployment.name,
                 t!(format!(
-                    "shared.deployments.status.{}",
+                    "common.deployments.status.{}",
                     key(&deployment.status)
                 )),
                 location,
@@ -35,7 +35,7 @@ pub(super) async fn list(
             log(
                 Level::Warn,
                 t!(
-                    "shared.deployments.not_compared",
+                    "common.deployments.not_compared",
                     name = deployment.name,
                     error = error
                 ),
@@ -80,9 +80,9 @@ pub(super) async fn plan_and_apply(
     let planned = manager.plan_prepared(prepared, runtime).await?;
     let plan = &planned.plan;
     let intro = match deployment.intent {
-        Intent::Create => t!("shared.plan.intro"),
-        Intent::Deploy => t!("shared.plan.intro_deploy"),
-        Intent::Destroy => t!("shared.plan.intro_destroy"),
+        Intent::Create => t!("common.plan.intro"),
+        Intent::Deploy => t!("common.plan.intro_deploy"),
+        Intent::Destroy => t!("common.plan.intro_destroy"),
     };
     log(Level::Info, format!("{intro} {}", plan.name));
     // each resource by its kind and name in the language of the command line

@@ -32,10 +32,10 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'redirects.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'redirects.title' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.redirects' | t }}</h1>
       <a class="btn btn-primary" routerLink="/redirects/create">
         <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'redirects.create' | t }}
       </a>
@@ -50,7 +50,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
     }
 
     @if (loaded()) {
-      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'redirects.title' | t">
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'app.redirects' | t">
         @for (redirect of redirects(); track redirect.sourceDomain) {
           <li class="card card-body" [attr.data-testid]="'redirect-' + redirect.sourceDomain">
             <div class="vstack gap-1">
@@ -86,7 +86,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
         (offsetChange)="goTo($event)"
       />
     } @else if (!error()) {
-      <p class="text-body-secondary">{{ 'redirects.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

@@ -530,6 +530,14 @@ description = "Run the backend unit tests"
 dir = "{{config_root}}"
 run = "./gradlew test"
 
+# every text of every app is in i18n/texts.yml: written into the files the backend, the web apps,
+# the android app and sakctl read, which are committed; the test of sak-i18n fails when they are
+# not up to date
+[tasks."i18n:generate"]
+description = "Write the texts of every app from i18n/texts.yml"
+dir = "{{config_root}}"
+run = "./gradlew -q :sak-i18n:run --args=generate"
+
 [tasks."frontend:test:unit"]
 description = "Run the frontend unit tests"
 depends = ["frontend:install"]

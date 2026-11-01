@@ -92,7 +92,7 @@ class UserService(
     }
 }
 
-// the texts of the users (i18n/users.<language>.yml)
+// the texts of the users (backend.users in i18n/texts.yml)
 object UsersTexts : Catalog("users") {
     val INVALID_EMAIL = text("invalid_email")
     val INVALID_NAME = text("invalid_name")

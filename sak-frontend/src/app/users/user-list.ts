@@ -28,7 +28,7 @@ import { User, UsersService } from './users.service';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'users.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.title' | t }}</h1>
@@ -49,7 +49,7 @@ import { User, UsersService } from './users.service';
           <thead>
             <tr>
               <th scope="col">{{ 'users.column.email' | t }}</th>
-              <th scope="col">{{ 'users.column.name' | t }}</th>
+              <th scope="col">{{ 'shared.name' | t }}</th>
               <th scope="col">{{ 'users.column.role' | t }}</th>
               <th scope="col" class="text-end">{{ 'users.column.actions' | t }}</th>
             </tr>
@@ -84,14 +84,14 @@ import { User, UsersService } from './users.service';
                         [attr.aria-label]="'users.delete_the_user' | t"
                       >
                         <button type="button" class="btn btn-danger" (click)="delete(user.id)">
-                          {{ 'users.delete' | t }}
+                          {{ 'shared.delete' | t }}
                         </button>
                         <button
                           type="button"
                           class="btn btn-outline-secondary"
                           (click)="confirming.set(null)"
                         >
-                          {{ 'users.keep' | t }}
+                          {{ 'shared.keep' | t }}
                         </button>
                       </div>
                     </div>
@@ -101,10 +101,10 @@ import { User, UsersService } from './users.service';
                       class="btn btn-outline-danger"
                       [disabled]="user.configured"
                       [attr.aria-label]="'users.delete_user' | t: { email: user.email }"
-                      [title]="(user.configured ? 'users.configured' : 'users.delete') | t"
+                      [title]="(user.configured ? 'users.configured' : 'shared.delete') | t"
                       (click)="confirming.set(user.id)"
                     >
-                      {{ 'users.delete' | t }}
+                      {{ 'shared.delete' | t }}
                     </button>
                   }
                 </td>
@@ -119,7 +119,7 @@ import { User, UsersService } from './users.service';
         (offsetChange)="goTo($event)"
       />
     } @else if (!error()) {
-      <p class="text-body-secondary">{{ 'users.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

@@ -199,7 +199,7 @@ interface Media {
           type="button"
           class="note-delete"
           [attr.aria-label]="'notes.card.delete_note' | t: { note: note().id }"
-          [title]="'notes.card.delete' | t"
+          [title]="'shared.delete' | t"
           (click)="store.delete(note().id)"
         >
           <i class="fa-solid fa-trash" aria-hidden="true"></i>

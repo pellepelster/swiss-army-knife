@@ -187,7 +187,7 @@ fun SiteMetrics.response() =
         userAgents = userAgents.map { UserAgentSeriesResponse(it.group.key, it.values) },
     )
 
-// the texts of the logs of the sites (i18n/logs.<language>.yml)
+// the texts of the logs of the sites (backend.logs in i18n/texts.yml)
 object LogsTexts : Catalog("logs") {
     val INVALID_RANGE = text("invalid_range")
     val EMPTY_SEARCH = text("empty_search")

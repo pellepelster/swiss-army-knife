@@ -61,12 +61,12 @@ impl Status {
     /// the status in the language of the user, as the window and the command line show it
     pub fn message(&self) -> String {
         match self {
-            Status::NoRelease => t!("shared.update.no_release", version = VERSION).to_string(),
+            Status::NoRelease => t!("common.update.no_release", version = VERSION).to_string(),
             Status::UpToDate { current } => {
-                t!("shared.update.up_to_date", version = current).to_string()
+                t!("common.update.up_to_date", version = current).to_string()
             }
             Status::Newer { current, newest } => {
-                t!("shared.update.newer", current = current, newest = newest).to_string()
+                t!("common.update.newer", current = current, newest = newest).to_string()
             }
         }
     }
@@ -75,7 +75,7 @@ impl Status {
     pub fn installed_message(&self) -> String {
         match self {
             Status::Newer { current, newest } => t!(
-                "shared.update.installed",
+                "common.update.installed",
                 current = current,
                 newest = newest
             )
@@ -176,7 +176,7 @@ impl Updater {
         let response = self.get(&url).await?;
         let latest: LatestRelease = response.json().await.map_err(|error| {
             t!(
-                "shared.update.unreadable",
+                "common.update.unreadable",
                 receiver = RECEIVER,
                 error = with_causes(&error)
             )
@@ -184,7 +184,7 @@ impl Updater {
         })?;
         let version = Version::parse(latest.tag_name.trim_start_matches('v')).map_err(|error| {
             t!(
-                "shared.update.unreadable",
+                "common.update.unreadable",
                 receiver = RECEIVER,
                 error = format!("{}: {error}", latest.tag_name)
             )
@@ -199,7 +199,7 @@ impl Updater {
                 .cloned()
                 .ok_or_else(|| {
                     t!(
-                        "shared.update.no_asset",
+                        "common.update.no_asset",
                         version = version.to_string(),
                         name = name
                     )
@@ -217,7 +217,7 @@ impl Updater {
         let response = self.get(url).await?;
         let bytes = response.bytes().await.map_err(|error| {
             t!(
-                "shared.update.unreachable",
+                "common.update.unreachable",
                 url = url,
                 error = with_causes(&error)
             )
@@ -237,7 +237,7 @@ impl Updater {
             .await
             .map_err(|error| {
                 t!(
-                    "shared.update.unreachable",
+                    "common.update.unreachable",
                     url = url,
                     error = with_causes(&error)
                 )
@@ -247,7 +247,7 @@ impl Updater {
             status if status.is_success() => Ok(response),
             // also a redirect the client did not follow, to a host that is not github's
             status => Err(t!(
-                "shared.update.failed",
+                "common.update.failed",
                 url = url,
                 status = status.to_string()
             )
@@ -295,13 +295,13 @@ fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
 /// the first url as the redirects after it: https, to github or its storage
 fn to_github(url: &str) -> Result<(), String> {
     if !url.starts_with("https://") {
-        return Err(t!("shared.update.not_https", url = url).to_string());
+        return Err(t!("common.update.not_https", url = url).to_string());
     }
     let host = reqwest::Url::parse(url)
         .ok()
         .and_then(|url| url.host_str().map(str::to_string));
     if !host.as_deref().is_some_and(is_github) {
-        return Err(t!("shared.update.not_github", url = url).to_string());
+        return Err(t!("common.update.not_github", url = url).to_string());
     }
     Ok(())
 }
@@ -321,12 +321,12 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
     if expected == actual {
         Ok(())
     } else {
-        Err(t!("shared.update.checksum_mismatch", name = name).to_string())
+        Err(t!("common.update.checksum_mismatch", name = name).to_string())
     }
 }
 
 fn unzip(zip: &[u8], name: &str) -> Result<Vec<u8>, String> {
-    let no_binary = |_| t!("shared.update.no_binary", name = name, binary = BINARY).to_string();
+    let no_binary = |_| t!("common.update.no_binary", name = name, binary = BINARY).to_string();
     let mut archive = zip::ZipArchive::new(Cursor::new(zip)).map_err(no_binary)?;
     let mut file = archive.by_name(BINARY).map_err(no_binary)?;
     let mut binary = Vec::new();
@@ -358,7 +358,7 @@ fn write_and_replace(
     result.map_err(|error| {
         let target = std::env::current_exe().unwrap_or_default();
         t!(
-            "shared.update.not_replaced",
+            "common.update.not_replaced",
             path = target.display().to_string(),
             error = error.to_string()
         )

@@ -1,4 +1,4 @@
-# the texts of the api itself (ApiTexts), english: the source of every language and its fallback
+# the texts of the catalog api in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 malformed_request: "The request is malformed."
 too_large_request: "The request body is too large."
 unexpected_error: "Something went wrong, the request could not be answered."

@@ -1,0 +1,12 @@
+# the texts of the catalog auth in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_email: "No valid e-mail address."
+mail_subject: "Sign in to %{app}"
+mail_body: |
+  Hello,
+
+  use the following link to sign in to %{app}:
+
+  %{link}
+
+  The link is valid for %{minutes} minutes and can only be used once. If you did not
+  request it, you can ignore this e-mail.

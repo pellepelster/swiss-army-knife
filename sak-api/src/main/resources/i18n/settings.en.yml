@@ -1,0 +1,7 @@
+# the texts of the catalog settings in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+not_boolean: "\"%{label}\" must be true or false."
+not_text: "\"%{label}\" must be a text."
+too_long: "\"%{label}\" must be at most %{max} characters."
+unknown_setting: "There is no setting \"%{name}\" in \"%{scope}\"."
+read_only: "\"%{label}\" can not be changed."
+requires: "\"%{label}\" needs \"%{required}\" of \"%{scope}\" turned on."

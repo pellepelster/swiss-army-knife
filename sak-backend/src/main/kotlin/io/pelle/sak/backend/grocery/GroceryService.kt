@@ -277,7 +277,7 @@ class GroceryService(
     }
 }
 
-// the texts of the grocery lists (i18n/grocery.<language>.yml)
+// the texts of the grocery lists (grocery.backend in i18n/texts.yml)
 object GroceryTexts : Catalog("grocery") {
     val FRUIT_VEGETABLES = text("category.fruit_vegetables")
     val BAKERY = text("category.bakery")

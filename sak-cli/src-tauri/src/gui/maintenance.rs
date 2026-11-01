@@ -63,7 +63,7 @@ pub async fn run_maintenance(
         send,
     );
     // the view has no cancel; this keeps a restart from stopping it halfway
-    let answer = running.run(work, "shared.deployments.cancelled").await?;
+    let answer = running.run(work, "common.deployments.cancelled").await?;
     Ok(answer.lines(name, &t!("ui.maintenance.reboot_hint")))
 }
 

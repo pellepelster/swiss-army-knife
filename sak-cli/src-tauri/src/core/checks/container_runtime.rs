@@ -11,14 +11,14 @@ impl Check for ContainerRuntimeCheck {
     }
 
     fn name(&self) -> String {
-        t!("shared.checks.container_runtime.name").to_string()
+        t!("common.checks.container_runtime.name").to_string()
     }
 
     fn run(&self, found: &mut Found, _: &Progress) -> CheckResult {
         let (runtime, version) = container::find(container::RUNTIMES)?;
         found.runtime = Some(runtime);
         Ok(t!(
-            "shared.checks.container_runtime.passed",
+            "common.checks.container_runtime.passed",
             runtime = runtime,
             version = version
         )

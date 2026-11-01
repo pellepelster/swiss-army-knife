@@ -199,7 +199,7 @@ private fun Parameters.Builder.fileId() =
         schema = jsonSchema<Int>()
     }
 
-// the texts of the files (i18n/files.<language>.yml)
+// the texts of the files (backend.files in i18n/texts.yml)
 object FilesTexts : Catalog("files") {
     val TOO_LARGE = text("too_large")
     val UNSUPPORTED_TYPE = text("unsupported_type")

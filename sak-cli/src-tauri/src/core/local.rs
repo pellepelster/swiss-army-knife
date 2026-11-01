@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 /// `~/.sak/<name>`, where sakctl keeps what it knows of the deployment
 pub fn directory(name: &str) -> Result<PathBuf, String> {
-    let home = std::env::home_dir().ok_or_else(|| t!("shared.backup.no_home").to_string())?;
+    let home = std::env::home_dir().ok_or_else(|| t!("common.backup.no_home").to_string())?;
     Ok(home.join(".sak").join(name))
 }
 
@@ -50,7 +50,7 @@ pub(crate) fn create_private_file(path: &Path) -> Result<File, String> {
 
 fn not_written(path: &Path, error: impl std::fmt::Display) -> String {
     t!(
-        "shared.backup.not_written",
+        "common.backup.not_written",
         path = path.display(),
         error = error
     )
@@ -111,7 +111,7 @@ fn read_settings_from<T: DeserializeOwned>(
     }
     .map_err(|error| {
         t!(
-            "shared.backup.not_read",
+            "common.backup.not_read",
             path = path.display(),
             error = error
         )
@@ -119,7 +119,7 @@ fn read_settings_from<T: DeserializeOwned>(
     })?;
     let plain = age::decrypt(key.identity(), &encrypted).map_err(|error| {
         t!(
-            "shared.backup.not_decrypted",
+            "common.backup.not_decrypted",
             path = path.display(),
             error = error
         )
@@ -127,7 +127,7 @@ fn read_settings_from<T: DeserializeOwned>(
     })?;
     serde_json::from_slice(&plain).map(Some).map_err(|error| {
         t!(
-            "shared.backup.not_read",
+            "common.backup.not_read",
             path = path.display(),
             error = error
         )

@@ -36,7 +36,7 @@ pub fn file_name(name: &str, time: chrono::DateTime<chrono::Utc>) -> String {
 fn decrypted(path: &Path, key: &BackupKey) -> Result<impl Read + Send + use<>, String> {
     let file = File::open(path).map_err(|error| {
         t!(
-            "shared.backup.not_read",
+            "common.backup.not_read",
             path = path.display(),
             error = error
         )
@@ -44,7 +44,7 @@ fn decrypted(path: &Path, key: &BackupKey) -> Result<impl Read + Send + use<>, S
     })?;
     let decryptor = age::Decryptor::new_buffered(BufReader::new(file)).map_err(|error| {
         t!(
-            "shared.backup.not_decrypted",
+            "common.backup.not_decrypted",
             path = path.display(),
             error = error
         )
@@ -54,7 +54,7 @@ fn decrypted(path: &Path, key: &BackupKey) -> Result<impl Read + Send + use<>, S
         .decrypt(std::iter::once(key.identity() as &dyn age::Identity))
         .map_err(|error| {
             t!(
-                "shared.backup.not_decrypted",
+                "common.backup.not_decrypted",
                 path = path.display(),
                 error = error
             )
@@ -69,7 +69,7 @@ pub fn check(path: &Path, key: &BackupKey) -> Result<u64, String> {
     let mut plain = decrypted(path, key)?;
     std::io::copy(&mut plain, &mut std::io::sink()).map_err(|error| {
         t!(
-            "shared.backup.not_decrypted",
+            "common.backup.not_decrypted",
             path = path.display(),
             error = error
         )
@@ -118,7 +118,7 @@ pub fn backup(
         check(&partial, key)?;
         std::fs::rename(&partial, &path).map_err(|error| {
             t!(
-                "shared.backup.not_written",
+                "common.backup.not_written",
                 path = path.display(),
                 error = error
             )

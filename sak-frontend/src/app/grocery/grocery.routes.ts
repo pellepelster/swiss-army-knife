@@ -15,7 +15,7 @@ export const groceryRoute: Route = {
     app: { manifest: 'grocery.webmanifest', appleTouchIcon: 'icons/grocery-apple-touch-180.png' },
   },
   children: [
-    { path: '', component: GroceryListsPage, title: pageTitle('grocery.title') },
+    { path: '', component: GroceryListsPage, title: pageTitle('app.grocery') },
     {
       path: 'lists/create',
       component: GroceryListForm,

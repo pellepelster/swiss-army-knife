@@ -200,7 +200,7 @@ pub async fn apply_checked(
         }
         manager.apply(planned, &container, &mut report).await
     };
-    running.run(work, "shared.deployments.cancelled").await
+    running.run(work, "common.deployments.cancelled").await
 }
 
 #[tauri::command]
@@ -240,7 +240,7 @@ async fn apply(
     running
         .run(
             manager.prepare_and_apply(tokens, deployment, container, &mut report),
-            "shared.deployments.cancelled",
+            "common.deployments.cancelled",
         )
         .await
 }

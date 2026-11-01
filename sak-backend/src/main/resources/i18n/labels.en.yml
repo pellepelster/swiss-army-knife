@@ -1,3 +1,0 @@
-# the texts of the labels (LabelsTexts), english: the source of every language and its fallback
-invalid_name: "A label name must have 1 to %{max} characters and no control characters."
-exists: "A label of the name exists."

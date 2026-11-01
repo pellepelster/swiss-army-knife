@@ -5,7 +5,7 @@
 //! sakctl: the window (gui) or, with a command as the first argument, the command line
 //! (cli), both on the same core
 
-// the texts of locales/, english for the ones missing in a language
+// the texts of locales/, generated from ctl in i18n/texts.yml, english for the ones missing in a language
 rust_i18n::i18n!("locales", fallback = "en");
 
 mod cli;

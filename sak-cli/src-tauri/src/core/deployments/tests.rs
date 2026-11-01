@@ -2,8 +2,8 @@
 
 use super::*;
 
-/// the page shows a plan by these words (`shared.resource_status.<status>`, `shared.plan.<action>`,
-/// `shared.working.<working>` in run.js); each has its text
+/// the page shows a plan by these words (`common.resource_status.<status>`, `common.plan.<action>`,
+/// `common.working.<working>` in run.js); each has its text
 #[test]
 fn the_words_of_a_plan_are_those_of_the_texts() {
     let word = |value: serde_json::Value| value.as_str().unwrap().to_string();
@@ -12,7 +12,7 @@ fn the_words_of_a_plan_are_those_of_the_texts() {
         ResourceStatus::Missing,
         ResourceStatus::HasChanges,
     ] {
-        let key = format!("shared.resource_status.{}", word(serde_json::json!(status)));
+        let key = format!("common.resource_status.{}", word(serde_json::json!(status)));
         assert_eq!(key, status.text_key());
     }
     for action in [
@@ -24,7 +24,7 @@ fn the_words_of_a_plan_are_those_of_the_texts() {
         PlanAction::WillRun,
         PlanAction::RunsWhenForced,
     ] {
-        let key = format!("shared.plan.{}", word(serde_json::json!(action)));
+        let key = format!("common.plan.{}", word(serde_json::json!(action)));
         assert_eq!(key, action.text_key());
     }
     for working in [
@@ -34,7 +34,7 @@ fn the_words_of_a_plan_are_those_of_the_texts() {
         Working::Check,
         Working::Destroy,
     ] {
-        let key = format!("shared.working.{}", word(serde_json::json!(working)));
+        let key = format!("common.working.{}", word(serde_json::json!(working)));
         assert_eq!(key, working.text_key());
     }
     // the kind of a planned resource is the word of its text
@@ -48,9 +48,9 @@ fn the_words_of_a_plan_are_those_of_the_texts() {
         .messages_for_locale("en")
         .unwrap_or_default();
     for key in [
-        "shared.plan.will_run",
-        "shared.working.working_check",
-        "shared.done.created",
+        "common.plan.will_run",
+        "common.working.working_check",
+        "common.done.created",
     ] {
         assert!(texts.iter().any(|(known, _)| &**known == key), "{key}");
     }
@@ -173,7 +173,7 @@ fn config_show_refuses_a_wrong_password_before_any_request() {
     // no address and no key come out of it, so nothing is sent
     assert_eq!(
         config_endpoint(&deployment, "alpha", "another password here").err(),
-        Some(t!("shared.deployments.wrong_password", name = "alpha").to_string())
+        Some(t!("common.deployments.wrong_password", name = "alpha").to_string())
     );
 }
 
@@ -185,7 +185,7 @@ fn a_deployment_without_dns_records_has_no_api_and_says_so() {
         config_endpoint(&deployment, "alpha", password).err(),
         Some(
             t!(
-                "shared.config.no_root_domain",
+                "common.config.no_root_domain",
                 name = "alpha",
                 hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
             )
@@ -202,7 +202,7 @@ fn config_show_refuses_a_deployment_with_nothing_to_check_the_password_against()
     };
     assert_eq!(
         config_endpoint(&deployment, "alpha", "a password of sixteen").err(),
-        Some(t!("shared.deployments.unverifiable", name = "alpha").to_string())
+        Some(t!("common.deployments.unverifiable", name = "alpha").to_string())
     );
 }
 
@@ -213,7 +213,7 @@ fn a_name_is_checked_once_and_a_wrong_one_is_a_usage_error() {
         assert_eq!(
             checked_name(wrong),
             Err(SakctlError::new(
-                t!("shared.deployments.invalid_name", max = MAX_NAME_LEN),
+                t!("common.deployments.invalid_name", max = MAX_NAME_LEN),
                 EXIT_USAGE
             )),
             "{wrong}"
@@ -307,7 +307,7 @@ async fn a_wrong_name_is_a_usage_error_before_the_provider_is_asked() {
     assert_eq!(error.exit_code, crate::core::error::EXIT_FAILED);
     assert_eq!(
         error.message,
-        t!("shared.deployments.no_provider").to_string()
+        t!("common.deployments.no_provider").to_string()
     );
 }
 
@@ -353,7 +353,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
     };
     assert_eq!(
         error.message,
-        t!("shared.deployments.no_provider").to_string()
+        t!("common.deployments.no_provider").to_string()
     );
 }
 
@@ -602,7 +602,7 @@ fn every_hash_on_the_resources_has_to_match() {
     // nothing to check against, a data volume left without a hash: refused, not any password
     assert_eq!(
         check_password(&[], None, name, password),
-        Err(t!("shared.deployments.unverifiable", name = name).to_string())
+        Err(t!("common.deployments.unverifiable", name = name).to_string())
     );
 }
 
@@ -660,7 +660,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
             "alpha",
             DnsMode::Subdomain
         )),
-        t!("shared.deployments.no_zones")
+        t!("common.deployments.no_zones")
     );
     assert_eq!(
         en(check_root_domain(
@@ -670,7 +670,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
             DnsMode::Subdomain
         )),
         t!(
-            "shared.deployments.no_root_domain",
+            "common.deployments.no_root_domain",
             domains = "pelle.io, example.com, free.org"
         )
     );
@@ -682,7 +682,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
             DnsMode::Subdomain
         )),
         t!(
-            "shared.deployments.no_root_domain",
+            "common.deployments.no_root_domain",
             domains = "pelle.io, example.com, free.org"
         )
     );
@@ -694,7 +694,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
             DnsMode::Subdomain
         )),
         t!(
-            "shared.deployments.unknown_root_domain",
+            "common.deployments.unknown_root_domain",
             domain = "other.net",
             domains = "pelle.io, example.com, free.org"
         )
@@ -711,7 +711,7 @@ fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Domain),
         Err(SakctlError::new(
             t!(
-                "shared.deployments.domain_taken",
+                "common.deployments.domain_taken",
                 domain = "pelle.io",
                 by = "beta"
             ),
@@ -722,7 +722,7 @@ fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Subdomain),
         Err(SakctlError::new(
             t!(
-                "shared.deployments.domain_mixed",
+                "common.deployments.domain_mixed",
                 domain = "pelle.io",
                 by = "beta"
             ),
@@ -737,12 +737,12 @@ fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
 
 #[test]
 fn a_root_domain_of_subdomain_deployments_takes_only_the_subdomain_mode() {
-    let by = format!("gamma, {}", t!("shared.deployments.unnamed"));
+    let by = format!("gamma, {}", t!("common.deployments.unnamed"));
     assert_eq!(
         check_root_domain(&domains(), Some("example.com"), "alpha", DnsMode::Domain),
         Err(SakctlError::new(
             t!(
-                "shared.deployments.subdomain_only",
+                "common.deployments.subdomain_only",
                 domain = "example.com",
                 by = by
             ),
@@ -766,7 +766,7 @@ fn the_page_gets_the_modes_of_each_root_domain_and_why_one_is_not_possible() {
         responses[0].note.as_deref(),
         Some(
             t!(
-                "shared.deployments.domain_taken",
+                "common.deployments.domain_taken",
                 domain = "pelle.io",
                 by = "beta"
             )
@@ -806,7 +806,7 @@ fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
     assert_eq!(
         error(users(None, None, None)),
         t!(
-            "shared.deployments.no_user_mode",
+            "common.deployments.no_user_mode",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
         )
     );
@@ -826,7 +826,7 @@ fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
             Some("admin@example.org")
         )),
         t!(
-            "shared.deployments.admin_email_single",
+            "common.deployments.admin_email_single",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmailSingle)
         )
     );
@@ -837,7 +837,7 @@ fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
             Some("admin@example.org")
         )),
         t!(
-            "shared.deployments.invalid_smtp_host",
+            "common.deployments.invalid_smtp_host",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
         )
     );
@@ -847,7 +847,7 @@ fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
             Some(&smtp("mail.example.org", 0)),
             None
         )),
-        t!("shared.deployments.invalid_smtp_port")
+        t!("common.deployments.invalid_smtp_port")
     );
     assert_eq!(
         error(users(
@@ -856,7 +856,7 @@ fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
             Some("admin")
         )),
         t!(
-            "shared.deployments.invalid_admin_email",
+            "common.deployments.invalid_admin_email",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
         )
     );
@@ -924,7 +924,7 @@ fn a_value_with_a_line_break_is_refused() {
     with_break.password = "secret\nSAK_ADMIN_PASSWORD_HASH=x".to_string();
     assert_eq!(
         check_smtp(&with_break),
-        Err(t!("shared.deployments.invalid_smtp_value").to_string())
+        Err(t!("common.deployments.invalid_smtp_value").to_string())
     );
 }
 
@@ -935,7 +935,7 @@ fn a_mail_server_needs_a_host_and_a_port() {
     assert_eq!(
         check_smtp(&smtp("", 587)),
         Err(t!(
-            "shared.deployments.invalid_smtp_host",
+            "common.deployments.invalid_smtp_host",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
         )
         .to_string())
@@ -944,7 +944,7 @@ fn a_mail_server_needs_a_host_and_a_port() {
     assert!(check_smtp(&smtp(&"a".repeat(MAX_HOST_LEN + 1), 587)).is_err());
     assert_eq!(
         check_smtp(&smtp("smtp.example.org", 0)),
-        Err(t!("shared.deployments.invalid_smtp_port").to_string())
+        Err(t!("common.deployments.invalid_smtp_port").to_string())
     );
 }
 
@@ -989,7 +989,7 @@ fn the_page_gets_the_mail_server_of_the_environment() {
 #[test]
 fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
     let not_owned = cloud_failure(
-        "shared.deployments.destroy_failed",
+        "common.deployments.destroy_failed",
         ProviderType::Hetzner,
         sak_cloud::api::Error::NotOwned {
             resource: "server 'web'".to_string(),
@@ -1001,7 +1001,7 @@ fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
         "server 'web' exists and does not belong to this deployment: it has no label 'sak.pelle.io/name'"
     ));
     let refused = cloud_failure(
-        "shared.deployments.create_failed",
+        "common.deployments.create_failed",
         ProviderType::Hetzner,
         sak_cloud::api::Error::RecreateRefused {
             resource: "volume 'web-data'".to_string(),
@@ -1016,7 +1016,7 @@ fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
     );
     // any other failure of the provider is a failure as before
     let other = cloud_failure(
-        "shared.deployments.destroy_failed",
+        "common.deployments.destroy_failed",
         ProviderType::Hetzner,
         sak_cloud::api::Error::message("timeout"),
     );
@@ -1059,7 +1059,7 @@ fn a_deploy_keeps_the_dns_mode_and_root_domain_of_the_deployment_unless_given() 
     assert_eq!(
         resolve_dns("beta", Intent::Deploy, None, None, None, None),
         Err(t!(
-            "shared.deployments.deploy_without_root_domain",
+            "common.deployments.deploy_without_root_domain",
             name = "beta",
             hint = crate::core::i18n::hint(crate::core::i18n::Hint::RootDomain)
         )

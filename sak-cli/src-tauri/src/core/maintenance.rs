@@ -135,7 +135,7 @@ async fn limited<T: Send + 'static>(
         Err(_) => {
             // the container goes with a process of the runtime, not on a worker of tokio
             let _ = tokio::task::spawn_blocking(move || sessions.stop()).await;
-            Err(t!("shared.maintenance.timeout", minutes = limit.as_secs() / 60).to_string())
+            Err(t!("common.maintenance.timeout", minutes = limit.as_secs() / 60).to_string())
         }
     }
 }
@@ -179,7 +179,7 @@ impl Answer {
             }
             // the reboot itself went by while the deployment was waited for
             Answer::Reboot { back: true, .. } => {
-                vec![Line::info(t!("shared.maintenance.back", name = name))]
+                vec![Line::info(t!("common.maintenance.back", name = name))]
             }
             Answer::Reboot { reboot, .. } => vec![reboot_line(name, reboot)],
         }
@@ -201,11 +201,11 @@ pub async fn perform(
     let target = manager.ssh_target(tokens.clone(), name, password).await?;
     let runtime = container
         .get()
-        .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+        .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
     let mut on_step = on_line.clone();
     on_step(
         t!(
-            "shared.maintenance.connecting",
+            "common.maintenance.connecting",
             name = name,
             host = target.host.as_str()
         )
@@ -277,37 +277,37 @@ fn status_lines(name: &str, status: &RebootStatus) -> Vec<Line> {
             .iter()
             .map(|reason| match reason {
                 Reason::Kernel => t!(
-                    "shared.maintenance.reason_kernel",
+                    "common.maintenance.reason_kernel",
                     running = status.kernel.running.as_str(),
                     installed = status.kernel.installed.as_str()
                 )
                 .to_string(),
                 Reason::RebootRequired => {
-                    t!("shared.maintenance.reason_reboot_required").to_string()
+                    t!("common.maintenance.reason_reboot_required").to_string()
                 }
                 Reason::Other(other) => other.clone(),
             })
             .collect();
         lines.push(Line::warn(t!(
-            "shared.maintenance.pending",
+            "common.maintenance.pending",
             name = name,
             reasons = reasons.join(", ")
         )));
     } else {
         lines.push(Line::info(t!(
-            "shared.maintenance.not_pending",
+            "common.maintenance.not_pending",
             name = name
         )));
     }
     if !status.services.is_empty() {
         lines.push(Line::info(t!(
-            "shared.maintenance.services",
+            "common.maintenance.services",
             services = status.services.join(", ")
         )));
     }
     if !status.updates_since_boot.is_empty() {
         lines.push(Line::info(t!(
-            "shared.maintenance.since_boot",
+            "common.maintenance.since_boot",
             time = status.booted_at.as_str()
         )));
         lines.extend(
@@ -330,10 +330,10 @@ fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
         .map(|change| Line::info(change_line(change)))
         .collect();
     lines.push(Line::info(if lines.is_empty() {
-        t!("shared.maintenance.up_to_date", name = name)
+        t!("common.maintenance.up_to_date", name = name)
     } else {
         t!(
-            "shared.maintenance.updated",
+            "common.maintenance.updated",
             upgraded = update.upgraded.len(),
             installed = update.installed.len()
         )
@@ -345,12 +345,12 @@ fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
 fn reboot_line(name: &str, reboot: &RebootResult) -> Line {
     if reboot.rebooting {
         Line::info(t!(
-            "shared.maintenance.rebooting",
+            "common.maintenance.rebooting",
             name = name,
             at = reboot.at.as_deref().unwrap_or_default()
         ))
     } else {
-        Line::info(t!("shared.maintenance.reboot_not_pending", name = name))
+        Line::info(t!("common.maintenance.reboot_not_pending", name = name))
     }
 }
 
@@ -359,7 +359,7 @@ fn change_line(change: &PackageChange) -> String {
     match &change.from {
         Some(from) => format!("{} {from} → {}", change.package, change.to),
         None => t!(
-            "shared.maintenance.installed_new",
+            "common.maintenance.installed_new",
             package = change.package.as_str(),
             to = change.to.as_str()
         )
@@ -382,7 +382,7 @@ async fn wait_after_reboot(
     tokio::time::sleep(Duration::from_secs(10)).await;
     on_line(
         t!(
-            "shared.deployments.waiting_for_api",
+            "common.deployments.waiting_for_api",
             url = endpoint.url.as_str()
         )
         .to_string(),
@@ -547,7 +547,7 @@ mod tests {
         .await;
         assert_eq!(
             late,
-            Err(t!("shared.maintenance.timeout", minutes = 0).to_string())
+            Err(t!("common.maintenance.timeout", minutes = 0).to_string())
         );
     }
 

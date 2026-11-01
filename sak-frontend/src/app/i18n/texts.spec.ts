@@ -34,7 +34,7 @@ describe('texts', () => {
   });
 
   it('fills in the placeholders', () => {
-    expect(translate('de', 'login.title')).toBe('Anmelden');
-    expect(translate('en', 'login.title', { unused: 1 })).toBe('Sign in');
+    expect(translate('de', 'login.sign_in')).toBe('Anmelden');
+    expect(translate('en', 'login.sign_in', { unused: 1 })).toBe('Sign in');
   });
 });

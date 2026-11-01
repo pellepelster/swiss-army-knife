@@ -91,7 +91,7 @@ private fun DnsAnswer.describe(): Text {
     return Text(DnsTexts.ANSWER, "server" to server, "a" to records("A", ipv4), "aaaa" to records("AAAA", ipv6))
 }
 
-// the texts of the checks of the domains (i18n/dns.<language>.yml)
+// the texts of the checks of the domains (backend.dns in i18n/texts.yml)
 object DnsTexts : Catalog("dns") {
     val NOT_CHECKED = text("not_checked")
     val NO_ADDRESSES = text("no_addresses")

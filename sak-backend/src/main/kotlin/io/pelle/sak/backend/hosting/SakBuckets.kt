@@ -255,7 +255,7 @@ private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatis
         BucketStatisticsResponse(computing = false, failed = true)
     }
 
-// the texts of the static hosting (i18n/hosting.<language>.yml)
+// the texts of the static hosting (hosting.backend in i18n/texts.yml)
 object HostingTexts : Catalog("hosting") {
     val INVALID_NAME = text("invalid_name")
     val NAME_TAKEN = text("name_taken")

@@ -95,7 +95,7 @@ impl EventServer {
         let address = server
             .server_addr()
             .to_ip()
-            .ok_or_else(|| t!("shared.provision.no_events_address").to_string())?;
+            .ok_or_else(|| t!("common.provision.no_events_address").to_string())?;
         let token = crate::core::encoding::random_hex::<32>()?;
         let stop = Arc::new(AtomicBool::new(false));
         let thread = {

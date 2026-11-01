@@ -57,7 +57,7 @@ impl Lookup for AnsibleRolesLookup {
     }
 
     fn log_text(&self) -> String {
-        t!("shared.provision.resource", name = self.name.as_str()).to_string()
+        t!("common.provision.resource", name = self.name.as_str()).to_string()
     }
 }
 
@@ -134,7 +134,7 @@ impl AnsibleRolesProvisioner {
         let runtime = self
             .runtime
             .get()
-            .ok_or_else(|| t!("shared.provision.no_runtime").to_string())?;
+            .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
         let target = SshTarget {
             host: run.host.clone(),
             host_ipv6: run.host_ipv6.clone(),
@@ -155,7 +155,7 @@ impl AnsibleRolesProvisioner {
             match code {
                 0 => Ok(roles::parse(&String::from_utf8_lossy(&out))),
                 SSH_FAILED => Err(crate::core::ssh::failed(last_line.as_deref())),
-                code => Err(t!("shared.provision.markers_failed", code = code).to_string()),
+                code => Err(t!("common.provision.markers_failed", code = code).to_string()),
             }
         })
         .await
@@ -227,14 +227,14 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
     ) -> Result<AnsibleRolesRuntime> {
         let run = self.run_on(resource, context).await?.ok_or_else(|| {
             Error::message(t!(
-                "shared.provision.no_address",
+                "common.provision.no_address",
                 name = self.run.name.as_str()
             ))
         })?;
         let name = resource.as_lookup().log_text();
         self.send(DeploymentEvent::Provisioning {
             message: t!(
-                "shared.provision.running",
+                "common.provision.running",
                 name = run.name.as_str(),
                 host = run.host.as_str()
             )

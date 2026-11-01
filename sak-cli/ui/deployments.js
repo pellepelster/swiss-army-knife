@@ -24,7 +24,7 @@ export function resource(state) {
   mark.setAttribute('aria-hidden', 'true');
   const kind = document.createElement('span');
   kind.className = 'resource-kind';
-  kind.textContent = text(`shared.deployments.resource.${state.kind}`);
+  kind.textContent = text(`common.deployments.resource.${state.kind}`);
   const name = document.createElement('span');
   name.className = 'resource-name';
   name.textContent = state.name;
@@ -81,7 +81,7 @@ function deployment(data) {
   if (data.error) {
     const error = document.createElement('li');
     error.className = 'deployment-error status-failed';
-    error.textContent = text('shared.deployments.not_compared', { name, error: data.error });
+    error.textContent = text('common.deployments.not_compared', { name, error: data.error });
     group.append(error);
   }
   // the last line of the list, so it starts where the resources start; hidden for a deployment
@@ -101,7 +101,7 @@ export async function showDeployments() {
   try {
     const deployments = await invoke('list_deployments');
     list.replaceChildren(...deployments.map(deployment));
-    setStatus(status, deployments.length === 0 ? text('shared.deployments.empty') : '');
+    setStatus(status, deployments.length === 0 ? text('common.deployments.empty') : '');
   } catch (error) {
     setFailure(status, String(error));
   }

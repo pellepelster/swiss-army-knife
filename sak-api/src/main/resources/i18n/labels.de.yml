@@ -1,0 +1,3 @@
+# the texts of the catalog labels in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_name: "Ein Labelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+exists: "Ein Label mit diesem Namen gibt es schon."

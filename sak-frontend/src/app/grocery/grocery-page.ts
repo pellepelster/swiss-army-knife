@@ -73,7 +73,7 @@ interface ItemGroup {
         <a
           class="btn btn-outline-secondary"
           [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
-          >{{ 'grocery.settings' | t }}</a
+          >{{ 'shared.settings' | t }}</a
         >
       } @else {
         <button
@@ -82,7 +82,7 @@ interface ItemGroup {
           disabled
           [title]="'grocery.only_owner' | t"
         >
-          {{ 'grocery.settings' | t }}
+          {{ 'shared.settings' | t }}
         </button>
       }
     </header>

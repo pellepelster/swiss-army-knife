@@ -1,0 +1,18 @@
+# the texts of the catalog openrouter in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+settings:
+  enabled:
+    label: "AI features"
+    description: "Lets the apps send data to AI providers, for example a photo or a recording to discover its text. Providers that collect the data are not asked."
+  api_key:
+    label: "API key"
+    description: "The key of the OpenRouter account to use for AI features."
+  vision_model:
+    label: "Vision model"
+    description: "The model that transcribes text in photos."
+  speech_model:
+    label: "Speech model"
+    description: "The model that transcribes recordings."
+  label: "AI"
+  description: "Configure all AI features"
+key_refused: "OpenRouter does not take the API key."
+key_unchecked: "The API key could not be checked at OpenRouter, please try again later."

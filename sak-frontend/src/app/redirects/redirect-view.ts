@@ -25,14 +25,14 @@ import { RedirectsService } from './redirects.service';
       @if (store.redirect()) {
         @if (confirming()) {
           <button class="btn btn-danger" type="button" (click)="delete()">
-            {{ 'redirects.delete' | t }}
+            {{ 'shared.delete' | t }}
           </button>
           <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-            {{ 'redirects.keep' | t }}
+            {{ 'shared.keep' | t }}
           </button>
         } @else {
           <a class="btn btn-primary" [routerLink]="['/redirects', source(), 'edit']">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'redirects.edit' | t }}
+            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'shared.edit' | t }}
           </a>
           <button
             class="btn btn-outline-danger"
@@ -40,7 +40,7 @@ import { RedirectsService } from './redirects.service';
             [attr.aria-label]="'redirects.view.delete_redirect' | t: { domain: source() }"
             (click)="confirming.set(true)"
           >
-            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'redirects.delete' | t }}
+            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'shared.delete' | t }}
           </button>
         }
       }
@@ -53,11 +53,11 @@ import { RedirectsService } from './redirects.service';
     @if (store.redirect(); as redirect) {
       <dl
         class="card card-body flex-row flex-wrap gap-4 mb-3"
-        [attr.aria-label]="'redirects.view.overview' | t"
+        [attr.aria-label]="'shared.view.overview' | t"
       >
         <div>
           <dt class="small text-uppercase text-body-secondary fw-normal">
-            {{ 'redirects.view.created' | t }}
+            {{ 'shared.view.created' | t }}
           </dt>
           <dd class="mb-0 fw-semibold" data-testid="created">
             {{ redirect.createdAt | localDateTime: 'medium' : 'short' }}
@@ -66,7 +66,7 @@ import { RedirectsService } from './redirects.service';
         @if (redirect.updatedAt; as updatedAt) {
           <div>
             <dt class="small text-uppercase text-body-secondary fw-normal">
-              {{ 'redirects.view.updated' | t }}
+              {{ 'shared.view.updated' | t }}
             </dt>
             <dd class="mb-0 fw-semibold" data-testid="updated">
               {{ updatedAt | localDateTime: 'medium' : 'short' }}
@@ -87,13 +87,13 @@ import { RedirectsService } from './redirects.service';
         </div>
       </dl>
 
-      <nav class="nav nav-underline mb-3" [attr.aria-label]="'redirects.view.details' | t">
+      <nav class="nav nav-underline mb-3" [attr.aria-label]="'shared.view.details' | t">
         <a
           class="nav-link"
           routerLink="configuration"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
-          >{{ 'redirects.view.configuration' | t }}</a
+          >{{ 'shared.view.configuration' | t }}</a
         >
       </nav>
       <router-outlet />

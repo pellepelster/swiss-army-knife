@@ -1,7 +1,0 @@
-# the texts of the settings (SettingsTexts), english: the source of every language and its fallback
-not_boolean: "\"%{label}\" must be true or false."
-not_text: "\"%{label}\" must be a text."
-too_long: "\"%{label}\" must be at most %{max} characters."
-unknown_setting: "There is no setting \"%{name}\" in \"%{scope}\"."
-read_only: "\"%{label}\" can not be changed."
-requires: "\"%{label}\" needs \"%{required}\" of \"%{scope}\" turned on."

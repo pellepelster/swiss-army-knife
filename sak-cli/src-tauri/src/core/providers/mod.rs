@@ -32,7 +32,7 @@ impl ProviderType {
 
     fn token_hint(self) -> String {
         match self {
-            ProviderType::Hetzner => t!("shared.providers.hetzner.token_hint").to_string(),
+            ProviderType::Hetzner => t!("common.providers.hetzner.token_hint").to_string(),
         }
     }
 
@@ -93,7 +93,7 @@ impl ProviderTokens {
             .iter()
             .any(|known| known.provider == provider && known.token == token)
         {
-            return Err(t!("shared.providers.duplicate").to_string());
+            return Err(t!("common.providers.duplicate").to_string());
         }
         let token = ProviderToken {
             provider,

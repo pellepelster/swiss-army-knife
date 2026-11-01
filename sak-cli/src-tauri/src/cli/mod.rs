@@ -88,7 +88,7 @@ async fn update(check: bool) -> Result<i32, SakctlError> {
     }
     log(
         Level::Info,
-        t!("shared.update.checking", receiver = RECEIVER),
+        t!("common.update.checking", receiver = RECEIVER),
     );
     let status = update::check().await?;
     log(Level::Info, status.message());
@@ -102,7 +102,7 @@ async fn update(check: bool) -> Result<i32, SakctlError> {
     log(
         Level::Info,
         t!(
-            "shared.update.installing",
+            "common.update.installing",
             version = newest,
             receiver = RECEIVER
         ),
@@ -125,7 +125,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     let found = checks::run_all(tokens, move |event| {
         match event {
             CheckEvent::Started { id, .. } => {
-                log(Level::Info, t!(format!("shared.checks.{id}.running")))
+                log(Level::Info, t!(format!("common.checks.{id}.running")))
             }
             CheckEvent::Progress { fraction, text, .. } => {
                 let tenth = (fraction * 10.0).floor() as u32;
@@ -138,7 +138,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
                 logged = 0;
                 log(
                     Level::Info,
-                    t!(format!("shared.checks.{id}.done"), text = text),
+                    t!(format!("common.checks.{id}.done"), text = text),
                 )
             }
             // the failure ends the command; `run` logs the error one time

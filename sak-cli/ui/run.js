@@ -35,7 +35,7 @@ function intentText(key, intent) {
 
 
 // a resource of the plan: its kind, name and resource status, then what the plan does to it.
-// Rust decides the action and the working text (`shared.working.<working>`) that the row shows when the
+// Rust decides the action and the working text (`common.working.<working>`) that the row shows when the
 // run starts
 export function row({ kind, name: resourceName, resourceStatus, action, working, status: state, changes }) {
   const item = document.createElement('li');
@@ -48,14 +48,14 @@ export function row({ kind, name: resourceName, resourceStatus, action, working,
   mark.setAttribute('aria-hidden', 'true');
   const kindLabel = document.createElement('span');
   kindLabel.className = 'resource-kind';
-  kindLabel.textContent = text(`shared.deployments.resource.${kind}`);
+  kindLabel.textContent = text(`common.deployments.resource.${kind}`);
   const name = document.createElement('span');
   name.className = 'resource-name';
   name.textContent = resourceName;
   const detail = document.createElement('span');
   detail.className = 'resource-detail';
-  const status = text(`shared.resource_status.${resourceStatus}`);
-  detail.textContent = action ? `${status}, ${text(`shared.plan.${action}`)}` : status;
+  const status = text(`common.resource_status.${resourceStatus}`);
+  detail.textContent = action ? `${status}, ${text(`common.plan.${action}`)}` : status;
   item.append(mark, kindLabel, name, detail);
   // the provisioning tells no more than that it runs
   for (const change of kind === 'provisioning' ? [] : changes) {
@@ -73,7 +73,7 @@ export function showPlan(plan, deployment, onCancel) {
   planned = deployment;
   cancelPlan = onCancel;
   document.getElementById('plan-name').textContent = plan.name;
-  document.getElementById('plan-intro').textContent = intentText('shared.plan.intro', deployment.intent);
+  document.getElementById('plan-intro').textContent = intentText('common.plan.intro', deployment.intent);
   planList.replaceChildren(...plan.resources.map(row));
   // deploy changes only when there is something to change; the button stays, disabled
   deployButton.disabled = plan.resources.every((resource) => resource.resourceStatus === 'up_to_date');
@@ -100,7 +100,7 @@ function onEvent(message) {
   switch (message.event) {
     case 'started':
       led.dataset.sakState = 'busy';
-      detail.textContent = text(`shared.working.${item.dataset.working}`);
+      detail.textContent = text(`common.working.${item.dataset.working}`);
       break;
     // rust names the text of what was done, the command line shows the same
     case 'applied':
@@ -130,7 +130,7 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('app
   running = { deployment, afterDone };
   const { intent } = deployment;
   document.getElementById('run-title').textContent = text(`ui.plan.title_${intent}`);
-  document.getElementById('run-intro').textContent = intentText('shared.plan.intro', intent);
+  document.getElementById('run-intro').textContent = intentText('common.plan.intro', intent);
   document.getElementById('run-name').textContent = plan.name;
   rows.clear();
   runList.replaceChildren(

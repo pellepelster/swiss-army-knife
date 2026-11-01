@@ -28,15 +28,15 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        [attr.aria-label]="'hosting.all_apps' | t"
+        [attr.aria-label]="'shared.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'hosting.title' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.static_hosting' | t }}</h1>
       <a
         class="btn btn-primary"
         routerLink="/static-hosting/create"
-        [attr.aria-label]="'hosting.list.create' | t"
-        [title]="'hosting.list.create' | t"
+        [attr.aria-label]="'hosting.create_page.title' | t"
+        [title]="'hosting.create_page.title' | t"
       >
         <i class="sak-icon-plus" aria-hidden="true"></i>
       </a>
@@ -86,7 +86,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
         (offsetChange)="goTo($event)"
       />
     } @else if (!error()) {
-      <p class="text-body-secondary">{{ 'hosting.loading' | t }}</p>
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
   `,
 })

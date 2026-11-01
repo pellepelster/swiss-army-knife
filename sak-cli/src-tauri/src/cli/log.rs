@@ -8,7 +8,7 @@ use super::*;
 pub(super) fn title(kind: &str, name: &str) -> String {
     format!(
         "{} '{name}'",
-        t!(format!("shared.deployments.resource.{kind}"))
+        t!(format!("common.deployments.resource.{kind}"))
     )
 }
 

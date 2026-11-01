@@ -78,7 +78,7 @@ pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String>
     }
     Err(format!(
         "{}\n\n{}",
-        t!("shared.checks.container_runtime.needed"),
+        t!("common.checks.container_runtime.needed"),
         errors.join("\n")
     ))
 }
@@ -89,7 +89,7 @@ pub fn find(runtimes: &[&'static str]) -> Result<(&'static str, String), String>
 fn canary(runtime: &str) -> Result<String, String> {
     let not_working = |error: String| {
         t!(
-            "shared.checks.container_runtime.not_working",
+            "common.checks.container_runtime.not_working",
             runtime = runtime,
             error = error
         )
@@ -102,7 +102,7 @@ fn canary(runtime: &str) -> Result<String, String> {
     if answer != CANARY_ANSWER {
         return Err(not_working(
             t!(
-                "shared.checks.container_runtime.wrong_answer",
+                "common.checks.container_runtime.wrong_answer",
                 image = canary_image(),
                 answer = answer,
                 expected = CANARY_ANSWER
@@ -149,7 +149,7 @@ fn output_within(runtime: &str, args: &[&str], limit: Duration) -> Result<String
             let _ = child.kill();
             let _ = child.wait();
             return Err(t!(
-                "shared.checks.container_runtime.no_answer",
+                "common.checks.container_runtime.no_answer",
                 command = format!("{runtime} {}", args.join(" ")),
                 seconds = limit.as_secs()
             )
