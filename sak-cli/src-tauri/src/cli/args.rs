@@ -97,7 +97,7 @@ pub enum ProjectCommand {
     /// Back up all data of a deployment
     ///
     /// The server compresses the data and encrypts it with a key derived from the password, to
-    /// ~/.sak/backups/<name>/<name>-<UTC time>.age.sak.
+    /// ~/.sak/<name>/backups/<name>-<UTC time>.age.sak.
     #[command(after_help = EXIT_CODES)]
     Backup {
         #[command(flatten)]

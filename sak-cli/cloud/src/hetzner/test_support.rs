@@ -48,6 +48,15 @@ pub async fn mock_api_all(resources: &[(&str, Vec<Value>)]) -> (MockServer, Arc<
             .mount(&server)
             .await;
     }
+    // a project without dns zones, unless a test mounts its own (discover asks for them)
+    if !resources.iter().any(|(key, _)| *key == "zones") {
+        Mock::given(method("GET"))
+            .and(path("/zones"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(page("zones", vec![])))
+            .with_priority(u8::MAX)
+            .mount(&server)
+            .await;
+    }
     let api = HetznerApi::with_base_url("token", &server.uri()).with_retry(Backoff::new(
         1,
         Duration::ZERO,

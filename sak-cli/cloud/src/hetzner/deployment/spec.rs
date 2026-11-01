@@ -13,10 +13,7 @@ use crate::hetzner::primary_ip::HetznerPrimaryIp;
 use crate::hetzner::server::{HetznerServer, UserData};
 use crate::hetzner::ssh_key::HetznerSshKey;
 use crate::hetzner::volume::HetznerVolume;
-use crate::hetzner::{
-    ACME_CA_LABEL, DNS_MODE_LABEL, NAME_LABEL, PASSWORD_HASH_LABEL, ROOT_DOMAIN_LABEL,
-    USER_DATA_LABEL, USER_MODE_LABEL, VERSION_LABEL,
-};
+use crate::hetzner::{NAME_LABEL, PASSWORD_HASH_LABEL, USER_DATA_LABEL, VERSION_LABEL};
 use crate::providers::hetzner::HetznerProviderRuntime;
 
 /// the cloud-init of a new spec; sakctl replaces it with the cloud-init that installs the host key
@@ -164,21 +161,12 @@ impl DeploymentSpec {
         labels
     }
 
-    /// the labels of a resource: those of `labels()`, the dns mode, the user mode, the acme ca,
-    /// the root domain and the password hash. The firewall selects its servers by `labels()`
-    /// alone
+    /// the labels of a resource: those of `labels()` and the password hash, the identity. The
+    /// settings of the deployment are no labels: the backend answers them, sakctl keeps them in
+    /// `~/.sak/<name>/config.json`, the dns records tell the root domain and the dns mode. The
+    /// firewall selects its servers by `labels()` alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
-        labels.insert(DNS_MODE_LABEL.to_string(), self.dns_mode.to_string());
-        if let Some(user_mode) = self.user_mode {
-            labels.insert(USER_MODE_LABEL.to_string(), user_mode.to_string());
-        }
-        if let Some(acme_ca) = self.acme_ca {
-            labels.insert(ACME_CA_LABEL.to_string(), acme_ca.to_string());
-        }
-        if let Some(root_domain) = &self.root_domain {
-            labels.insert(ROOT_DOMAIN_LABEL.to_string(), root_domain.clone());
-        }
         if let Some(hash) = &self.password_hash {
             labels.insert(PASSWORD_HASH_LABEL.to_string(), hash.clone());
         }
@@ -405,8 +393,6 @@ impl ObservedSpec {
         if let Some(root_domain) = deployment.root_domain() {
             spec = spec.with_root_domain(&root_domain);
         }
-        spec.user_mode = deployment.user_mode();
-        spec.acme_ca = deployment.acme_ca();
         spec.version = deployment.version();
         if let Some(hash) = deployment.label(PASSWORD_HASH_LABEL) {
             spec = spec.with_password_hash(hash);
@@ -457,14 +443,12 @@ mod tests {
     use crate::hetzner::dns_record::{HetznerDnsRecord, RecordValue};
     use crate::hetzner::primary_ip::HetznerPrimaryIpLookup;
     use crate::hetzner::test_support::mock_api_all;
-    use crate::hetzner::{
-        DNS_MODE_LABEL, NAME_LABEL, PASSWORD_HASH_LABEL, ROOT_DOMAIN_LABEL, VERSION_LABEL,
-    };
+    use crate::hetzner::{NAME_LABEL, PASSWORD_HASH_LABEL, VERSION_LABEL};
     use crate::providers::hetzner::HetznerProviderRuntime;
     use serde_json::{Value, json};
 
     #[test]
-    fn the_dns_mode_is_on_every_resource_and_read_back_from_them() {
+    fn the_settings_of_the_deployment_are_no_labels_of_its_resources() {
         let spec = DeploymentSpec::new(
             "alpha",
             "ssh-ed25519 AAAA",
@@ -472,7 +456,9 @@ mod tests {
             ServerType::cx23,
         )
         .unwrap()
-        .with_dns_mode(DnsMode::Domain);
+        .with_dns_mode(DnsMode::Domain)
+        .with_root_domain("pelle.io")
+        .with_password_hash("abc");
         for labels in [
             spec.ssh_key().labels,
             spec.data_volume().labels,
@@ -481,59 +467,10 @@ mod tests {
             spec.firewall().labels,
             spec.server().labels,
         ] {
-            assert_eq!(labels[DNS_MODE_LABEL], "domain");
+            let mut keys: Vec<&str> = labels.keys().map(String::as_str).collect();
+            keys.sort();
+            assert_eq!(keys, vec![NAME_LABEL, PASSWORD_HASH_LABEL]);
         }
-
-        let mut deployment = DiscoveredDeployment::new("alpha");
-        assert_eq!(deployment.dns_mode(), None);
-        let key: crate::hetzner::api::ssh_keys::SshKey = serde_json::from_value(key(
-            7,
-            "alpha",
-            json!({ NAME_LABEL: "alpha", DNS_MODE_LABEL: "domain" }),
-        ))
-        .unwrap();
-        deployment.ssh_key = Some(key.into());
-        assert_eq!(deployment.dns_mode(), Some(DnsMode::Domain));
-    }
-
-    #[test]
-    fn the_root_domain_is_on_every_resource_and_read_back_from_them() {
-        let spec = DeploymentSpec::new(
-            "alpha",
-            "ssh-ed25519 AAAA",
-            Location::hel1,
-            ServerType::cx23,
-        )
-        .unwrap()
-        .with_root_domain("pelle.io");
-        for labels in [
-            spec.ssh_key().labels,
-            spec.data_volume().labels,
-            spec.ipv4().labels,
-            spec.ipv6().labels,
-            spec.firewall().labels,
-            spec.server().labels,
-        ] {
-            assert_eq!(labels[ROOT_DOMAIN_LABEL], "pelle.io");
-        }
-        assert_eq!(
-            spec.firewall().applied_to_labels.get(ROOT_DOMAIN_LABEL),
-            None
-        );
-        // without a root domain, no label
-        let without = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
-        assert_eq!(without.server().labels.get(ROOT_DOMAIN_LABEL), None);
-
-        let mut deployment = DiscoveredDeployment::new("alpha");
-        assert_eq!(deployment.root_domain(), None);
-        let key: crate::hetzner::api::ssh_keys::SshKey = serde_json::from_value(key(
-            7,
-            "alpha",
-            json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io" }),
-        ))
-        .unwrap();
-        deployment.ssh_key = Some(key.into());
-        assert_eq!(deployment.root_domain().as_deref(), Some("pelle.io"));
     }
 
     #[test]
@@ -629,7 +566,6 @@ mod tests {
             )]
         );
         assert_eq!(subdomain[0].labels[NAME_LABEL], "alpha");
-        assert_eq!(subdomain[0].labels[DNS_MODE_LABEL], "subdomain");
         // without a root domain, no records
         let without = DeploymentSpec::new("alpha", "k", Location::hel1, ServerType::cx23).unwrap();
         assert!(without.dns_records().is_empty());
@@ -902,7 +838,6 @@ mod tests {
         .with_password_hash("abc")
         .with_labels(Labels::from([("env".to_string(), "test".to_string())]));
         assert_eq!(spec.dns_mode, DnsMode::Subdomain);
-        assert_eq!(spec.server().labels[DNS_MODE_LABEL], "subdomain");
         assert_eq!(spec.server().labels[NAME_LABEL], "alpha");
         assert_eq!(spec.server().labels[PASSWORD_HASH_LABEL], "abc");
         assert_eq!(spec.server().labels["env"], "test");
@@ -914,10 +849,7 @@ mod tests {
             spec.firewall().labels,
         ] {
             assert_eq!(labels[PASSWORD_HASH_LABEL], "abc");
-            assert_eq!(labels[DNS_MODE_LABEL], "subdomain");
         }
-        // not by the dns mode: a change of it keeps the firewall on its servers
-        assert_eq!(spec.firewall().applied_to_labels.get(DNS_MODE_LABEL), None);
         // not by the password hash: the firewall selects the servers by the name
         assert_eq!(
             spec.firewall().applied_to_labels.get(PASSWORD_HASH_LABEL),

@@ -2,14 +2,15 @@
 //! a deployment below its root domain
 
 use crate::api::Result;
+use crate::hetzner::NAME_LABEL;
 use crate::hetzner::dns_zone::HetznerDnsZoneListing;
-use crate::hetzner::{DNS_MODE_LABEL, NAME_LABEL};
 use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// a dns zone of the project: a root domain that a deployment can use, with the deployments
-/// that use it. A use is an entry (the zone or one of its rrsets) with a dns mode label
+/// that use it. A use is an rrset with the name label of a deployment; its name tells the dns mode
+/// (`DnsMode::of_record`), no label does
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RootDomain {
     /// `pelle.io`
@@ -20,7 +21,7 @@ pub struct RootDomain {
 /// a deployment found on the entries of a root domain
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DomainUse {
-    /// the name label of the entry; none for an entry with a dns mode but no name
+    /// the name label of the rrset
     pub name: Option<String>,
     pub dns_mode: DnsMode,
 }
@@ -41,16 +42,17 @@ pub enum RootDomainConflict {
 }
 
 impl RootDomain {
-    /// the root domain of a zone listing: the dns modes on the zone and its rrsets, each
-    /// deployment once
+    /// the root domain of a zone listing: the deployments of its rrsets and the dns mode their
+    /// names tell, each deployment once
     pub fn of(listing: &HetznerDnsZoneListing) -> Self {
-        let mut uses: Vec<DomainUse> = std::iter::once(&listing.zone.labels)
-            .chain(listing.rrsets.iter().map(|rrset| &rrset.labels))
-            .filter_map(|labels| {
-                let dns_mode = DnsMode::parse(labels.get(DNS_MODE_LABEL)?)?;
+        let mut uses: Vec<DomainUse> = listing
+            .rrsets
+            .iter()
+            .filter_map(|rrset| {
+                let name = rrset.labels.get(NAME_LABEL)?;
                 Some(DomainUse {
-                    name: labels.get(NAME_LABEL).cloned(),
-                    dns_mode,
+                    dns_mode: DnsMode::of_record(&rrset.name, name)?,
+                    name: Some(name.clone()),
                 })
             })
             .collect();
@@ -149,6 +151,19 @@ pub enum DnsMode {
 }
 
 impl DnsMode {
+    /// the dns mode a record of the deployment `name` belongs to, from its name: `@` and `*` in
+    /// domain mode, `<name>` and `*.<name>` in subdomain mode (`DeploymentSpec::record_names`);
+    /// none for another name
+    pub fn of_record(record: &str, name: &str) -> Option<DnsMode> {
+        match record {
+            "@" | "*" => Some(DnsMode::Domain),
+            _ if record == name || record.strip_prefix("*.") == Some(name) => {
+                Some(DnsMode::Subdomain)
+            }
+            _ => None,
+        }
+    }
+
     pub const ALL: [DnsMode; 2] = [DnsMode::Domain, DnsMode::Subdomain];
 
     /// the value in the label and on the command line, `domain` or `subdomain`
@@ -174,24 +189,28 @@ impl fmt::Display for DnsMode {
 mod tests {
     use super::*;
     use crate::api::Labels;
-    use crate::hetzner::deployment::fixtures::*;
+    use crate::hetzner::NAME_LABEL;
     use crate::hetzner::deployment::*;
     use crate::hetzner::dns_zone::HetznerDnsZoneListing;
-    use crate::hetzner::{DNS_MODE_LABEL, NAME_LABEL, ROOT_DOMAIN_LABEL};
     use crate::providers::hetzner::HetznerProviderRuntime;
-    use serde_json::{Value, json};
+    use serde_json::json;
 
-    /// the labels of an entry: the dns mode and, when given, the name
-    fn entry(name: Option<&str>, mode: &str) -> Labels {
-        let mut labels = Labels::from([(DNS_MODE_LABEL.to_string(), mode.to_string())]);
-        if let Some(name) = name {
-            labels.insert(NAME_LABEL.to_string(), name.to_string());
-        }
-        labels
+    /// a record of the deployment `name` in `mode`: `@` in domain mode, `<name>` in subdomain
+    /// mode, with its name label
+    fn entry(name: &str, mode: &str) -> (String, Labels) {
+        let record = if mode == "domain" {
+            "@".to_string()
+        } else {
+            name.to_string()
+        };
+        (
+            record,
+            Labels::from([(NAME_LABEL.to_string(), name.to_string())]),
+        )
     }
 
-    /// the root domain `pelle.io` with the labels of its zone and of its rrsets
-    fn domain(zone_labels: Labels, rrset_labels: Vec<Labels>) -> RootDomain {
+    /// the root domain `pelle.io` with its records, each a name and its labels
+    fn domain(records: Vec<(String, Labels)>) -> RootDomain {
         RootDomain::of(&HetznerDnsZoneListing {
             zone: crate::hetzner::dns_zone::HetznerDnsZoneRuntime {
                 id: 1,
@@ -200,15 +219,14 @@ mod tests {
                 status: crate::hetzner::api::zones::ZoneStatus::Ok,
                 nameservers: vec![],
                 delete_protected: false,
-                labels: zone_labels,
+                labels: Labels::new(),
             },
-            rrsets: rrset_labels
+            rrsets: records
                 .iter()
-                .enumerate()
-                .map(|(index, labels)| {
+                .map(|(record, labels)| {
                     serde_json::from_value(crate::hetzner::dns_zone::provisioner_tests::rrset(
                         1,
-                        &format!("r{index}"),
+                        record,
                         serde_json::to_value(labels).unwrap(),
                     ))
                     .unwrap()
@@ -218,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn the_dns_mode_is_its_label_value_in_json_and_parsed() {
+    fn the_dns_mode_is_its_value_in_json_and_parsed() {
         assert_eq!(DnsMode::parse("subdomain"), Some(DnsMode::Subdomain));
         assert_eq!(DnsMode::parse("whole"), None);
         assert_eq!(
@@ -228,8 +246,24 @@ mod tests {
     }
 
     #[test]
+    fn the_name_of_a_record_tells_the_dns_mode_of_its_deployment() {
+        assert_eq!(DnsMode::of_record("@", "alpha"), Some(DnsMode::Domain));
+        assert_eq!(DnsMode::of_record("*", "alpha"), Some(DnsMode::Domain));
+        assert_eq!(
+            DnsMode::of_record("alpha", "alpha"),
+            Some(DnsMode::Subdomain)
+        );
+        assert_eq!(
+            DnsMode::of_record("*.alpha", "alpha"),
+            Some(DnsMode::Subdomain)
+        );
+        assert_eq!(DnsMode::of_record("www", "alpha"), None);
+        assert_eq!(DnsMode::of_record("*.beta", "alpha"), None);
+    }
+
+    #[test]
     fn a_root_domain_nobody_uses_takes_both_modes() {
-        let free = domain(Labels::new(), vec![Labels::new()]);
+        let free = domain(vec![("www".to_string(), Labels::new())]);
         assert!(free.uses.is_empty());
         assert_eq!(free.check("alpha", DnsMode::Domain), Ok(()));
         assert_eq!(free.check("alpha", DnsMode::Subdomain), Ok(()));
@@ -241,7 +275,7 @@ mod tests {
 
     #[test]
     fn a_root_domain_of_a_domain_deployment_takes_no_other_deployment() {
-        let taken = domain(Labels::new(), vec![entry(Some("beta"), "domain")]);
+        let taken = domain(vec![entry("beta", "domain")]);
         let by = vec![Some("beta".to_string())];
         assert_eq!(
             taken.check("alpha", DnsMode::Domain),
@@ -259,13 +293,10 @@ mod tests {
 
     #[test]
     fn a_root_domain_with_subdomain_deployments_takes_only_subdomains() {
-        let shared = domain(
-            Labels::new(),
-            vec![
-                entry(Some("beta"), "subdomain"),
-                entry(Some("gamma"), "subdomain"),
-            ],
-        );
+        let shared = domain(vec![
+            entry("beta", "subdomain"),
+            entry("gamma", "subdomain"),
+        ]);
         assert_eq!(
             shared.check("alpha", DnsMode::Domain),
             Err(RootDomainConflict::MixedModes {
@@ -278,59 +309,37 @@ mod tests {
     }
 
     #[test]
-    fn the_entries_of_the_deployment_itself_do_not_count() {
+    fn the_records_of_the_deployment_itself_do_not_count() {
         // a deploy again in domain mode, or a change to subdomain
-        let own_domain = domain(Labels::new(), vec![entry(Some("alpha"), "domain")]);
+        let own_domain = domain(vec![entry("alpha", "domain")]);
         assert_eq!(
             own_domain.dns_modes("alpha"),
             vec![DnsMode::Domain, DnsMode::Subdomain]
         );
         // the only subdomain deployment can change to domain
-        let own_subdomain = domain(Labels::new(), vec![entry(Some("alpha"), "subdomain")]);
+        let own_subdomain = domain(vec![entry("alpha", "subdomain")]);
         assert_eq!(own_subdomain.check("alpha", DnsMode::Domain), Ok(()));
         // with another subdomain deployment on the root domain, it cannot
-        let shared = domain(
-            Labels::new(),
-            vec![
-                entry(Some("alpha"), "subdomain"),
-                entry(Some("beta"), "subdomain"),
-            ],
-        );
+        let shared = domain(vec![
+            entry("alpha", "subdomain"),
+            entry("beta", "subdomain"),
+        ]);
         assert_eq!(shared.dns_modes("alpha"), vec![DnsMode::Subdomain]);
     }
 
     #[test]
-    fn the_zone_and_entries_without_a_name_count_as_well() {
-        let zone_labeled = domain(entry(Some("beta"), "domain"), vec![]);
-        assert!(zone_labeled.dns_modes("alpha").is_empty());
-
-        let unnamed = domain(Labels::new(), vec![entry(None, "domain")]);
-        assert_eq!(
-            unnamed.check("alpha", DnsMode::Subdomain),
-            Err(RootDomainConflict::MixedModes {
-                used: DnsMode::Domain,
-                by: vec![None]
-            })
-        );
-    }
-
-    #[test]
-    fn entries_without_a_known_dns_mode_are_left_out_and_each_deployment_counts_once() {
-        let mut name_only = Labels::new();
-        name_only.insert(NAME_LABEL.to_string(), "beta".to_string());
-        let found = domain(
-            Labels::new(),
-            vec![
-                name_only,
-                entry(Some("gamma"), "whole"),
-                entry(Some("delta"), "subdomain"),
-                entry(Some("delta"), "subdomain"),
-            ],
-        );
+    fn records_without_a_name_label_or_of_another_name_are_left_out_each_deployment_counts_once() {
+        let beta = Labels::from([(NAME_LABEL.to_string(), "beta".to_string())]);
+        let found = domain(vec![
+            ("@".to_string(), Labels::new()),
+            ("www".to_string(), beta.clone()),
+            ("beta".to_string(), beta.clone()),
+            ("*.beta".to_string(), beta),
+        ]);
         assert_eq!(
             found.uses,
             vec![DomainUse {
-                name: Some("delta".to_string()),
+                name: Some("beta".to_string()),
                 dns_mode: DnsMode::Subdomain
             }]
         );
@@ -342,11 +351,7 @@ mod tests {
         let (_server, api) = mock_zones(&[
             (
                 zone(1, "pelle.io", json!({})),
-                vec![rrset(
-                    1,
-                    "beta",
-                    json!({ NAME_LABEL: "beta", DNS_MODE_LABEL: "subdomain" }),
-                )],
+                vec![rrset(1, "beta", json!({ NAME_LABEL: "beta" }))],
             ),
             (zone(2, "example.com", json!({})), vec![]),
         ])
@@ -374,20 +379,12 @@ mod tests {
 
         let mut deployment = DiscoveredDeployment::new("alpha");
         assert_eq!(deployment.frontend_url(), None);
-        let key = |labels: Value| -> crate::hetzner::api::ssh_keys::SshKey {
-            serde_json::from_value(key(7, "alpha", labels)).unwrap()
-        };
-        // without a dns mode on the resources, the deployment uses subdomain
-        deployment.ssh_key =
-            Some(key(json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io" })).into());
+        deployment.domain = Some(("pelle.io".to_string(), DnsMode::Subdomain));
         assert_eq!(
             deployment.frontend_url().as_deref(),
             Some("https://sak.alpha.pelle.io")
         );
-        deployment.ssh_key = Some(
-            key(json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }))
-                .into(),
-        );
+        deployment.domain = Some(("pelle.io".to_string(), DnsMode::Domain));
         assert_eq!(
             deployment.frontend_url().as_deref(),
             Some("https://sak.pelle.io")

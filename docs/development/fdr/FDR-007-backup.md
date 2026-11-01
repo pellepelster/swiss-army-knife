@@ -19,7 +19,7 @@ lost.
 ## Behavior
 
 - **Backup.** `sakctl backup <name>` writes all data of the deployment to one file,
-  `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`: the database, the files of the notes, the buckets, the state of
+  `~/.sak/<name>/backups/<name>-<UTC time>.age.sak`: the database, the files of the notes, the buckets, the state of
   the ingress (its certificates) and the logs. The configuration that a deploy writes is not in it.
 - **Nothing stops for a backup.** The apps and the logs stay available while it runs.
 - **Encrypted before it leaves the server.** Only the name and the password of the deployment decrypt a backup. A

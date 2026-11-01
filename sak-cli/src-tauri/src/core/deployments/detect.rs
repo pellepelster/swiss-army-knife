@@ -1,17 +1,58 @@
-//! the settings a deploy takes from the existing deployment when they are not given
+//! the settings a deploy takes from the existing deployment when they are not given: from the
+//! running deployment (`GET /v1/deployment`), else from what this machine kept of its last
+//! create or deploy (`~/.sak/<name>/config.json`), else from its dns records, which tell the root
+//! domain and the dns mode only. The resources carry no settings as labels
 
 use super::*;
+
+/// where the settings of a redeploy came from
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum SettingsSource {
+    /// the running deployment answered them
+    Running,
+    /// the settings this machine kept of the last create or deploy
+    Local,
+    /// the dns records of the deployment: its root domain and dns mode only
+    Records,
+}
+
+/// what a create or deploy keeps of a deployment on this machine (`local`), encrypted for its
+/// password: what a redeploy takes when the deployment does not answer. It holds the password of
+/// the mail server, so no Debug
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalSettings {
+    pub location: Location,
+    pub dns_mode: DnsMode,
+    pub root_domain: String,
+    pub user_mode: UserMode,
+    pub admin_email: Option<String>,
+    pub smtp: Option<Smtp>,
+    pub acme_ca: AcmeCa,
+    /// the version of sakctl that wrote them
+    pub version: String,
+    /// when the create or deploy ended, rfc 3339
+    pub deployed_at: String,
+}
 
 /// the settings a deploy takes from the existing deployment when they are not given
 /// (`DeploymentManager::detected`)
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Detected {
+    /// where they came from; none when nothing was found
+    pub source: Option<SettingsSource>,
+    /// when the create or deploy that kept them ended, for `SettingsSource::Local`
+    pub deployed_at: Option<String>,
+    pub dns_mode: Option<DnsMode>,
+    pub root_domain: Option<String>,
+    pub acme_ca: Option<AcmeCa>,
     pub user_mode: Option<UserMode>,
     pub admin_email: Option<String>,
     pub smtp: Option<DetectedSmtp>,
-    /// why the running configuration could not be read: the backend did not answer, its
-    /// certificate was refused, …; none when it was read or not needed (single user)
+    /// why the running deployment could not be read: the backend did not answer, its
+    /// certificate was refused, …; none when it was read
     pub unread: Option<String>,
 }
 
@@ -41,36 +82,73 @@ impl fmt::Debug for DetectedSmtp {
     }
 }
 
-/// the user mode of the label, else of the running configuration (multi user when it has a mail
-/// server); the admin and the mail server only for multi user
-pub(super) fn detect(
-    label: Option<UserMode>,
-    running: Option<&crate::core::config::RunningConfig>,
-) -> Detected {
-    let user_mode = label.or_else(|| {
-        running.map(|config| match config.smtp {
-            Some(_) => UserMode::Multi,
-            None => UserMode::Single,
-        })
-    });
-    let Some(running) = running.filter(|_| user_mode == Some(UserMode::Multi)) else {
-        return Detected {
+impl Detected {
+    /// the settings the running deployment answered
+    pub(super) fn from_running(running: crate::core::config::DeploymentSettings) -> Self {
+        let user_mode = UserMode::parse(&running.user_mode);
+        let multi = user_mode == Some(UserMode::Multi);
+        Detected {
+            source: Some(SettingsSource::Running),
+            dns_mode: DnsMode::parse(&running.dns_mode),
+            root_domain: Some(running.root_domain),
+            acme_ca: Some(acme_ca_of(running.acme_ca.as_deref())),
             user_mode,
+            admin_email: running.admin_email.filter(|_| multi),
+            smtp: running.smtp.filter(|_| multi).map(|smtp| DetectedSmtp {
+                host: smtp.host,
+                port: smtp.port,
+                username: smtp.username.unwrap_or_default(),
+                password: smtp.password,
+                password_set: smtp.password_set,
+                starttls: smtp.starttls,
+            }),
             ..Detected::default()
+        }
+    }
+
+    /// the settings this machine kept of the last create or deploy
+    pub(super) fn from_local(local: LocalSettings) -> Self {
+        let multi = local.user_mode == UserMode::Multi;
+        Detected {
+            source: Some(SettingsSource::Local),
+            deployed_at: Some(local.deployed_at),
+            dns_mode: Some(local.dns_mode),
+            root_domain: Some(local.root_domain),
+            acme_ca: Some(local.acme_ca),
+            user_mode: Some(local.user_mode),
+            admin_email: local.admin_email.filter(|_| multi),
+            smtp: local.smtp.filter(|_| multi).map(|smtp| DetectedSmtp {
+                password_set: !smtp.password.is_empty(),
+                password: Some(smtp.password),
+                host: smtp.host,
+                port: smtp.port,
+                username: smtp.username,
+                starttls: smtp.starttls,
+            }),
+            ..Detected::default()
+        }
+    }
+
+    /// what the dns records of the deployment tell: its root domain and dns mode; nothing without
+    /// records
+    pub(super) fn from_records(deployment: &DiscoveredDeployment) -> Self {
+        let Some(root_domain) = deployment.root_domain() else {
+            return Detected::default();
         };
-    };
-    Detected {
-        user_mode,
-        admin_email: running.admins.first().cloned(),
-        smtp: running.smtp.as_ref().map(|smtp| DetectedSmtp {
-            host: smtp.host.clone(),
-            port: smtp.port,
-            username: smtp.username.clone().unwrap_or_default(),
-            password: smtp.password.clone(),
-            password_set: smtp.password_set,
-            starttls: smtp.starttls,
-        }),
-        unread: None,
+        Detected {
+            source: Some(SettingsSource::Records),
+            dns_mode: deployment.dns_mode(),
+            root_domain: Some(root_domain),
+            ..Detected::default()
+        }
+    }
+}
+
+/// the acme ca of an acme directory as the backend has it: none is the production ca
+fn acme_ca_of(directory: Option<&str>) -> AcmeCa {
+    match directory {
+        Some(directory) if acme_directory(AcmeCa::Staging) == Some(directory) => AcmeCa::Staging,
+        _ => AcmeCa::Production,
     }
 }
 
@@ -100,8 +178,8 @@ pub(super) fn completed_from(
     }
 }
 
-/// a deploy completed from `detected` where a value is not given: the user mode and, for multi
-/// user, the admin and the mail server. A given `smtp_password` wins over the detected one. An
+/// a deploy completed from `detected` where a value is not given: the dns mode, the root domain,
+/// the acme ca, the user mode and, for multi user, the admin and the mail server. A given `smtp_password` wins over the detected one. An
 /// older backend does not answer the password; then the password must be given, because a deploy
 /// without it removes it
 pub(super) fn complete(
@@ -109,6 +187,15 @@ pub(super) fn complete(
     detected: &Detected,
     smtp_password: &str,
 ) -> Result<DeploymentRequest, SakctlError> {
+    if deployment.dns_mode.is_none() {
+        deployment.dns_mode = detected.dns_mode;
+    }
+    if deployment.root_domain.is_none() {
+        deployment.root_domain = detected.root_domain.clone();
+    }
+    if deployment.acme_ca.is_none() {
+        deployment.acme_ca = detected.acme_ca;
+    }
     if deployment.user_mode.is_none() {
         deployment.user_mode = detected.user_mode;
     }

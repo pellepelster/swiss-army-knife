@@ -1,20 +1,17 @@
-//! the deployments of a project, found by the name label on their resources
+//! the deployments of a project, found by the name label on their resources; the dns records with
+//! the name label tell the root domain and the dns mode of each
 
 use crate::api::{Labels, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location};
 use crate::hetzner::deployment::ResourceKind;
 use crate::hetzner::deployment::spec::{IPV4_SUFFIX, IPV6_SUFFIX};
-use crate::hetzner::deployment::{
-    AcmeCa, DATA_VOLUME_SUFFIX, DnsMode, RESOURCE_PREFIX, UserMode, frontend_host,
-};
+use crate::hetzner::deployment::{DATA_VOLUME_SUFFIX, DnsMode, RESOURCE_PREFIX, frontend_host};
 use crate::hetzner::firewall::HetznerFirewallRuntime;
 use crate::hetzner::primary_ip::HetznerPrimaryIpRuntime;
 use crate::hetzner::server::HetznerServerRuntime;
 use crate::hetzner::ssh_key::HetznerSshKeyRuntime;
 use crate::hetzner::volume::HetznerVolumeRuntime;
-use crate::hetzner::{
-    ACME_CA_LABEL, DNS_MODE_LABEL, NAME_LABEL, ROOT_DOMAIN_LABEL, USER_MODE_LABEL, VERSION_LABEL,
-};
+use crate::hetzner::{NAME_LABEL, VERSION_LABEL};
 use std::collections::BTreeMap;
 
 /// the resources of a deployment in the cloud: the resources with its name label
@@ -35,6 +32,9 @@ pub struct DiscoveredDeployment {
     /// one. They are kept here, so the list shows them and the password is checked against their
     /// hashes too
     pub left_out: Vec<LeftOut>,
+    /// the root domain whose zone has its dns records and the dns mode their names tell; none
+    /// without records
+    pub domain: Option<(String, DnsMode)>,
 }
 
 /// a resource with the name label of a deployment that has one of its kind already, or a volume
@@ -54,29 +54,16 @@ impl DiscoveredDeployment {
         }
     }
 
-    /// the dns mode on its resources, the label of the server first; none when no resource has
-    /// it (created before the label) or the value is unknown
+    /// the dns mode its dns records tell; none without records
     pub fn dns_mode(&self) -> Option<DnsMode> {
-        self.label(DNS_MODE_LABEL)
-            .and_then(|value| DnsMode::parse(value))
+        self.domain.as_ref().map(|(_, mode)| *mode)
     }
 
-    /// the root domain on its resources, the label of the server first; none when no resource
-    /// has it
+    /// the root domain whose zone has its dns records; none without records
     pub fn root_domain(&self) -> Option<String> {
-        self.label(ROOT_DOMAIN_LABEL).cloned()
-    }
-
-    /// the user mode on its resources, `single` or `multi`; none for a deployment created before
-    /// the label and for a value this sakctl does not know
-    pub fn user_mode(&self) -> Option<UserMode> {
-        UserMode::parse(self.label(USER_MODE_LABEL)?)
-    }
-
-    /// the acme ca on its resources, `staging`; none for the default and for a value this sakctl
-    /// does not know
-    pub fn acme_ca(&self) -> Option<AcmeCa> {
-        AcmeCa::parse(self.label(ACME_CA_LABEL)?)
+        self.domain
+            .as_ref()
+            .map(|(root_domain, _)| root_domain.clone())
     }
 
     /// the version of sak that last created or deployed it, as its resources tell
@@ -84,8 +71,7 @@ impl DiscoveredDeployment {
         self.label(VERSION_LABEL).cloned()
     }
 
-    /// the url of its frontend, `https://sak.<base domain>`; none without a root domain on its
-    /// resources. Without a dns mode it uses `subdomain`
+    /// the url of its frontend, `https://sak.<base domain>`; none without dns records
     pub fn frontend_url(&self) -> Option<String> {
         let root_domain = self.root_domain()?;
         let dns_mode = self.dns_mode().unwrap_or_default();
@@ -236,6 +222,22 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             });
         }
     }
+    // the root domain and the dns mode of the deployments found: the zone with their records
+    let zones = api.zones();
+    for zone in zones.list(&ListQuery::new()).await? {
+        for rrset in zones.rrsets(&zone.name).list(&query).await? {
+            let Some(deployment) = rrset
+                .labels
+                .get(NAME_LABEL)
+                .and_then(|name| deployments.get_mut(name))
+            else {
+                continue;
+            };
+            if let Some(mode) = DnsMode::of_record(&rrset.name, &deployment.name) {
+                deployment.domain.get_or_insert((zone.name.clone(), mode));
+            }
+        }
+    }
     Ok(deployments.into_values().collect())
 }
 
@@ -311,8 +313,57 @@ mod tests {
     use serde_json::json;
 
     #[tokio::test]
+    async fn the_records_of_a_deployment_tell_its_root_domain_and_dns_mode() {
+        use crate::hetzner::dns_zone::provisioner_tests::{rrset, zone};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, ResponseTemplate};
+        let alpha = json!({ NAME_LABEL: "alpha" });
+        let beta = json!({ NAME_LABEL: "beta" });
+        let (server, api) = mock_api_all(&[
+            ("servers", vec![]),
+            (
+                "ssh_keys",
+                vec![
+                    key(7, "sak-alpha", alpha.clone()),
+                    key(8, "sak-beta", beta.clone()),
+                ],
+            ),
+            ("firewalls", vec![]),
+            ("volumes", vec![]),
+            ("primary_ips", vec![]),
+            ("zones", vec![zone(1, "pelle.io", json!({}))]),
+        ])
+        .await;
+        Mock::given(method("GET"))
+            .and(path("/zones/pelle.io/rrsets"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                crate::hetzner::test_support::page(
+                    "rrsets",
+                    vec![
+                        rrset(1, "@", alpha.clone()),
+                        rrset(1, "*", alpha),
+                        rrset(1, "www", beta),
+                    ],
+                ),
+            ))
+            .mount(&server)
+            .await;
+
+        let deployments = discover(&api).await.unwrap();
+
+        assert_eq!(deployments[0].root_domain().as_deref(), Some("pelle.io"));
+        assert_eq!(deployments[0].dns_mode(), Some(DnsMode::Domain));
+        assert_eq!(
+            deployments[0].frontend_url().as_deref(),
+            Some("https://sak.pelle.io")
+        );
+        // www is no name of the deployment beta: no root domain for it
+        assert_eq!(deployments[1].root_domain(), None);
+    }
+
+    #[tokio::test]
     async fn a_volume_and_a_primary_ip_of_another_name_are_left_out_and_listed() {
-        let labels = json!({ NAME_LABEL: "alpha", DNS_MODE_LABEL: "subdomain" });
+        let labels = json!({ NAME_LABEL: "alpha" });
         let mut old = volume(4, "sak-alpha-old", "hel1", labels.clone());
         old["size"] = json!(64);
         let mut data = volume(3, "sak-alpha-data", "hel1", labels.clone());

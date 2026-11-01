@@ -70,8 +70,8 @@ pub const DEFAULT_SMTP_PORT: u16 = 587;
 pub const DEFAULT_SMTP_STARTTLS: bool = true;
 
 /// the mail server the backend sends its login links with. No Debug, the password never shows in
-/// a log
-#[derive(Clone, Deserialize)]
+/// a log; Serialize only for the encrypted settings of `local`
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Smtp {
     pub host: String,

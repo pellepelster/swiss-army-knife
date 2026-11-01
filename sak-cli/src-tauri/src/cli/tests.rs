@@ -148,36 +148,64 @@ fn config_show_takes_the_name_and_password_and_prints_no_secret() {
     );
     assert!(is_command_line(&["config".to_string()]));
 
-    let config = crate::core::config::RunningConfig {
-        smtp: Some(crate::core::config::RunningSmtp {
+    use crate::core::deployments::{Detected, DetectedSmtp, SettingsSource, UserMode};
+    let detected = Detected {
+        source: Some(SettingsSource::Running),
+        dns_mode: Some(sak_cloud::hetzner::deployment::DnsMode::Domain),
+        root_domain: Some("pelle.io".to_string()),
+        acme_ca: Some(sak_cloud::hetzner::deployment::AcmeCa::Production),
+        user_mode: Some(UserMode::Multi),
+        admin_email: Some("admin@example.org".to_string()),
+        smtp: Some(DetectedSmtp {
             host: "smtp.example.org".to_string(),
             port: 465,
-            username: None,
-            password_set: true,
+            username: String::new(),
             password: Some("the-smtp-password".to_string()),
-            from: "noreply@example.org".to_string(),
-            tls: true,
+            password_set: true,
             starttls: false,
         }),
-        admins: vec!["admin@example.org".to_string()],
+        ..Detected::default()
     };
-    let lines = config_lines(&config);
-    assert!(lines.contains(&"smtp.host smtp.example.org".to_string()));
-    assert!(lines.contains(&"smtp.username -".to_string()));
-    assert!(lines.contains(&"smtp.password set".to_string()));
-    assert_eq!(
-        config_lines(&crate::core::config::RunningConfig {
-            smtp: None,
-            admins: vec![]
-        }),
-        vec![t!("shared.config.no_smtp").to_string()]
+    let lines = config_lines(&detected);
+    for line in [
+        "dns_mode domain",
+        "root_domain pelle.io",
+        "user_mode multi",
+        "admin_email admin@example.org",
+        "smtp.host smtp.example.org",
+        "smtp.username -",
+        "smtp.password set",
+    ] {
+        assert!(lines.contains(&line.to_string()), "{line} in {lines:?}");
+    }
+    // single user: no admin, no mail server
+    let single = Detected {
+        user_mode: Some(UserMode::Single),
+        ..detected.clone()
+    };
+    assert!(
+        !config_lines(&single)
+            .iter()
+            .any(|line| line.starts_with("smtp.") || line.starts_with("admin_email"))
+    );
+    // where they come from, and why the deployment did not answer
+    let local = Detected {
+        source: Some(SettingsSource::Local),
+        deployed_at: Some("2026-11-01T12:00:00+00:00".to_string()),
+        unread: Some("no answer".to_string()),
+        ..detected.clone()
+    };
+    let first = &shown_lines("alpha", &local)[0];
+    assert!(
+        first.contains("2026-11-01T12:00:00+00:00") && first.contains("no answer"),
+        "{first}"
     );
 
     // the output has no password and no part of the api key
     let password = "a password of sixteen";
     let key = crate::core::keys::api_key("alpha", password).unwrap();
-    let shown = shown_lines(" alpha ", "https://api.pelle.io", &config).join("\n");
-    assert!(shown.contains("https://api.pelle.io"), "{shown}");
+    let shown = shown_lines(" alpha ", &detected).join("\n");
+    assert!(shown.contains("alpha"), "{shown}");
     assert!(!shown.contains(password) && !shown.contains(&key.public_key()));
     // nor the password of the mail server, which the backend answers for a redeploy
     assert!(!shown.contains("the-smtp-password"));

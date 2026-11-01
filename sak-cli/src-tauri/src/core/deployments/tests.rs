@@ -1,7 +1,6 @@
 //! the tests of the deployments
 
 use super::*;
-use sak_cloud::hetzner::{DNS_MODE_LABEL, ROOT_DOMAIN_LABEL};
 
 /// the page shows a plan by these words (`shared.resource_status.<status>`, `shared.plan.<action>`,
 /// `shared.working.<working>` in run.js); each has its text
@@ -125,9 +124,10 @@ fn the_password_of_a_deployment_is_checked_against_its_server_or_its_key() {
     assert!(verify_password(&with_key, name, "another password here").is_err());
 }
 
-/// a deployment of `alpha` whose server carries the password hash of `password` and the labels
-fn deployment_with(password: &str, labels: serde_json::Value) -> DiscoveredDeployment {
-    let mut labels = labels;
+/// a deployment of `alpha` whose server carries the password hash of `password`, and whose dns
+/// records are in the zone of `domain` in its dns mode
+fn deployment_with(password: &str, domain: Option<(&str, DnsMode)>) -> DiscoveredDeployment {
+    let mut labels = serde_json::json!({});
     labels[PASSWORD_HASH_LABEL] =
         serde_json::json!(crate::core::keys::password_hash("alpha", password).unwrap());
     let server: sak_cloud::hetzner::api::servers::Server =
@@ -142,21 +142,16 @@ fn deployment_with(password: &str, labels: serde_json::Value) -> DiscoveredDeplo
     DiscoveredDeployment {
         name: "alpha".to_string(),
         server: Some(server.into()),
+        domain: domain.map(|(root_domain, mode)| (root_domain.to_string(), mode)),
         ..Default::default()
     }
 }
 
 #[test]
-fn config_show_reads_the_host_from_the_root_domain_and_dns_mode_labels() {
+fn the_api_is_below_the_root_domain_and_dns_mode_of_the_records() {
     let password = "a password of sixteen";
-    let domain = deployment_with(
-        password,
-        serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }),
-    );
-    let subdomain = deployment_with(
-        password,
-        serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "subdomain" }),
-    );
+    let domain = deployment_with(password, Some(("pelle.io", DnsMode::Domain)));
+    let subdomain = deployment_with(password, Some(("pelle.io", DnsMode::Subdomain)));
 
     let (url, key) = config_endpoint(&domain, "alpha", password).unwrap();
     assert_eq!(url, "https://api.pelle.io");
@@ -174,10 +169,7 @@ fn config_show_reads_the_host_from_the_root_domain_and_dns_mode_labels() {
 
 #[test]
 fn config_show_refuses_a_wrong_password_before_any_request() {
-    let deployment = deployment_with(
-        "a password of sixteen",
-        serde_json::json!({ ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" }),
-    );
+    let deployment = deployment_with("a password of sixteen", Some(("pelle.io", DnsMode::Domain)));
     // no address and no key come out of it, so nothing is sent
     assert_eq!(
         config_endpoint(&deployment, "alpha", "another password here").err(),
@@ -186,9 +178,9 @@ fn config_show_refuses_a_wrong_password_before_any_request() {
 }
 
 #[test]
-fn config_show_without_a_root_domain_label_says_so() {
+fn a_deployment_without_dns_records_has_no_api_and_says_so() {
     let password = "a password of sixteen";
-    let deployment = deployment_with(password, serde_json::json!({ DNS_MODE_LABEL: "domain" }));
+    let deployment = deployment_with(password, None);
     assert_eq!(
         config_endpoint(&deployment, "alpha", password).err(),
         Some(
@@ -242,8 +234,18 @@ fn a_task_event_names_the_task_without_its_role() {
     ));
 }
 
-fn running(smtp_password: Option<&str>, password_set: bool) -> crate::core::config::RunningConfig {
-    crate::core::config::RunningConfig {
+/// what a multi user deployment answers at `/v1/deployment`, the password of its mail server
+/// when the backend tells it
+fn running(
+    smtp_password: Option<&str>,
+    password_set: bool,
+) -> crate::core::config::DeploymentSettings {
+    crate::core::config::DeploymentSettings {
+        name: "alpha".into(),
+        dns_mode: "domain".into(),
+        root_domain: "pelle.io".into(),
+        user_mode: "multi".into(),
+        admin_email: Some("admin@example.org".into()),
         smtp: Some(crate::core::config::RunningSmtp {
             host: "smtp.example.org".into(),
             port: 465,
@@ -254,7 +256,7 @@ fn running(smtp_password: Option<&str>, password_set: bool) -> crate::core::conf
             tls: true,
             starttls: false,
         }),
-        admins: vec!["admin@example.org".into()],
+        acme_ca: Some(acme_directory(AcmeCa::Staging).unwrap().to_string()),
     }
 }
 
@@ -315,6 +317,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
     // never asks
     let single = DeploymentRequest {
         user_mode: Some(UserMode::Single),
+        acme_ca: Some(AcmeCa::Production),
         ..deploy()
     };
     let completed = DeploymentManager
@@ -325,6 +328,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
 
     let given = DeploymentRequest {
         user_mode: Some(UserMode::Multi),
+        acme_ca: Some(AcmeCa::Production),
         admin_email: Some("admin@example.com".into()),
         smtp: Some(Smtp {
             host: "smtp.example.com".into(),
@@ -393,43 +397,102 @@ fn a_backend_that_does_not_answer_is_the_error_when_its_settings_are_needed() {
 }
 
 #[test]
-fn the_user_mode_is_detected_from_the_label_else_from_the_running_configuration() {
-    // the label wins
+fn the_settings_come_from_the_running_deployment_else_from_this_machine_else_from_the_records() {
+    // the running deployment tells all of them
+    let multi = Detected::from_running(running(Some("secret"), true));
+    assert_eq!(multi.source, Some(SettingsSource::Running));
     assert_eq!(
-        detect(Some(UserMode::Single), Some(&running(None, false))).user_mode,
-        Some(UserMode::Single)
+        (
+            multi.dns_mode,
+            multi.root_domain.as_deref(),
+            multi.acme_ca,
+            multi.user_mode
+        ),
+        (
+            Some(DnsMode::Domain),
+            Some("pelle.io"),
+            Some(AcmeCa::Staging),
+            Some(UserMode::Multi)
+        )
     );
-    // without it: a mail server makes it multi user, none single user, nothing running nothing
-    let multi = detect(None, Some(&running(Some("secret"), true)));
-    assert_eq!(multi.user_mode, Some(UserMode::Multi));
     assert_eq!(multi.admin_email.as_deref(), Some("admin@example.org"));
     let smtp = multi.smtp.unwrap();
     assert_eq!(smtp.password.as_deref(), Some("secret"));
     // the password never shows, not in a {:?} either
     assert!(!format!("{smtp:?}").contains("secret"));
     assert!(!format!("{:?}", running(Some("secret"), true)).contains("secret"));
-    let without_mail = crate::core::config::RunningConfig {
-        smtp: None,
-        admins: vec![],
-    };
+    // single user: no admin and no mail server; no acme directory is the production ca
+    let single = Detected::from_running(crate::core::config::DeploymentSettings {
+        user_mode: "single".into(),
+        acme_ca: None,
+        ..running(None, false)
+    });
     assert_eq!(
-        detect(None, Some(&without_mail)).user_mode,
-        Some(UserMode::Single)
+        (single.user_mode, single.smtp, single.admin_email),
+        (Some(UserMode::Single), None, None)
     );
-    assert_eq!(detect(None, None), Detected::default());
-    // single user: no admin and no mail server even when the backend has them
+    assert_eq!(single.acme_ca, Some(AcmeCa::Production));
+
+    // what this machine kept, with when
+    let local = Detected::from_local(LocalSettings {
+        location: Location::nbg1,
+        dns_mode: DnsMode::Subdomain,
+        root_domain: "pelle.io".into(),
+        user_mode: UserMode::Multi,
+        admin_email: None,
+        smtp: Some(Smtp {
+            host: "smtp.example.org".into(),
+            port: 587,
+            username: "sak".into(),
+            password: "kept".into(),
+            starttls: true,
+        }),
+        acme_ca: AcmeCa::Production,
+        version: "1.0.0".into(),
+        deployed_at: "2026-11-01T12:00:00+00:00".into(),
+    });
+    assert_eq!(local.source, Some(SettingsSource::Local));
     assert_eq!(
-        detect(Some(UserMode::Single), Some(&running(None, false))).smtp,
-        None
+        local.deployed_at.as_deref(),
+        Some("2026-11-01T12:00:00+00:00")
+    );
+    assert_eq!(
+        local
+            .smtp
+            .as_ref()
+            .and_then(|smtp| smtp.password.as_deref()),
+        Some("kept")
+    );
+    assert_eq!(local.admin_email, None);
+
+    // the records tell the root domain and the dns mode only
+    let records = Detected::from_records(&deployment_with(
+        "a password of sixteen",
+        Some(("pelle.io", DnsMode::Subdomain)),
+    ));
+    assert_eq!(records.source, Some(SettingsSource::Records));
+    assert_eq!(
+        (records.dns_mode, records.root_domain.as_deref()),
+        (Some(DnsMode::Subdomain), Some("pelle.io"))
+    );
+    assert_eq!((records.user_mode, records.acme_ca), (None, None));
+    assert_eq!(
+        Detected::from_records(&deployment_with("a password of sixteen", None)),
+        Detected::default()
     );
 }
 
 #[test]
 fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
-    let detected = detect(Some(UserMode::Multi), Some(&running(Some("secret"), true)));
+    let detected = Detected::from_running(running(Some("secret"), true));
 
     let completed = complete(deploy(), &detected, "").unwrap();
     assert_eq!(completed.user_mode, Some(UserMode::Multi));
+    assert_eq!(completed.acme_ca, Some(AcmeCa::Staging));
+    assert_eq!(
+        (completed.dns_mode, completed.root_domain.as_deref()),
+        (Some(DnsMode::Domain), Some("pelle.io"))
+    );
     assert_eq!(completed.admin_email.as_deref(), Some("admin@example.org"));
     let smtp = completed.smtp.unwrap();
     assert_eq!(
@@ -460,7 +523,7 @@ fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
         "given"
     );
     // a backend of before tells no password: it has to be given
-    let before = detect(Some(UserMode::Multi), Some(&running(None, true)));
+    let before = Detected::from_running(running(None, true));
     assert_eq!(
         complete(deploy(), &before, "")
             .err()
@@ -1131,6 +1194,8 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
             api_public_key: String::new(),
             admin_password_hash: String::new(),
             force: false,
+            local_key: crate::core::keys::local_settings_key("alpha", "a password of sixteen")
+                .unwrap(),
         },
     });
     let destroy = prepared(Purpose::Destroy { delete_data: false });

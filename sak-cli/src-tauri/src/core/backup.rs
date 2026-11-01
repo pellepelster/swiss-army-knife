@@ -1,12 +1,13 @@
 //! the backups of a deployment (docs/development/fdr/FDR-007-backup.md). `sak-backend backup` on the server writes all data
 //! of the deployment as one tar stream, compressed with zstd and encrypted with age to the
 //! recipient of the backup key; sakctl stores the bytes as they come, in
-//! `~/.sak/backups/<name>/<name>-<UTC time>.age.sak`, and decrypts them once to check them. A
+//! `~/.sak/<name>/backups/<name>-<UTC time>.age.sak`, and decrypts them once to check them. A
 //! restore decrypts a backup and streams it, still compressed, into `sak-backend restore`, which checks it
 //! before it replaces the data. The plain data of a backup is never on the disk of the user, and
 //! the secret half of the key never on the server
 
 use crate::core::keys::BackupKey;
+use crate::core::local::{create_private_dir, create_private_file};
 use crate::core::sak_backend::{self, Command};
 use crate::core::ssh::{SshTarget, Stream};
 use rust_i18n::t;
@@ -21,53 +22,14 @@ pub struct Backup {
     pub size: u64,
 }
 
-/// `~/.sak/backups/<name>`, where the backups of a deployment are
+/// `~/.sak/<name>/backups`, where the backups of a deployment are, next to its settings
 pub fn directory(name: &str) -> Result<PathBuf, String> {
-    let home = std::env::home_dir().ok_or_else(|| t!("shared.backup.no_home").to_string())?;
-    Ok(home.join(".sak").join("backups").join(name))
+    Ok(crate::core::local::directory(name)?.join("backups"))
 }
 
 /// `<name>-<UTC time>.age.sak`, e.g. `alpha-20261029T080000Z.age.sak`
 pub fn file_name(name: &str, time: chrono::DateTime<chrono::Utc>) -> String {
     format!("{name}-{}.age.sak", time.format("%Y%m%dT%H%M%SZ"))
-}
-
-/// creates the directory and those above it below the home of the user, each only for the user
-fn create_private_dir(path: &Path) -> Result<(), String> {
-    let mut builder = std::fs::DirBuilder::new();
-    builder.recursive(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    builder.create(path).map_err(|error| {
-        t!(
-            "shared.backup.not_written",
-            path = path.display(),
-            error = error
-        )
-        .to_string()
-    })
-}
-
-/// a new file only the user reads, never one that is there already
-fn create_private_file(path: &Path) -> Result<File, String> {
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    options.open(path).map_err(|error| {
-        t!(
-            "shared.backup.not_written",
-            path = path.display(),
-            error = error
-        )
-        .to_string()
-    })
 }
 
 /// the plain stream of a backup, as `sak-backend backup` wrote it before age: still compressed
@@ -235,7 +197,7 @@ mod tests {
         assert!(
             directory("alpha")
                 .unwrap()
-                .ends_with(Path::new(".sak/backups/alpha"))
+                .ends_with(Path::new(".sak/alpha/backups"))
         );
     }
 

@@ -136,6 +136,7 @@
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="reboot" data-text="ui.maintenance.reboot"></button></li>
             </ul>
           </div>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-redeploy" data-text="ui.deployment.redeploy"></button>
           <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </header>
@@ -195,6 +196,8 @@
         </div>
       </header>
       <form class="page-form" id="create-form">
+        <!-- a redeploy: where the settings of the form come from -->
+        <p class="hint" id="create-source" aria-live="polite" hidden></p>
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>
           <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required aria-describedby="create-name-invalid">

@@ -4,7 +4,7 @@
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     DeploymentDefaults, DeploymentEvent, DeploymentManager, DeploymentRequest, DeploymentResponse,
-    LocationResponse, PlanResponse, RootDomainResponse, defaults,
+    Detected, Intent, LocationResponse, PlanResponse, RootDomainResponse, defaults,
 };
 use crate::core::error::SakctlError;
 use crate::core::providers::{ProviderTokens, ProviderType};
@@ -73,7 +73,8 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// the plan of a create or a destroy, as the form asks for it
+/// the plan of a create, a redeploy or a destroy, as the form asks for it; a redeploy takes what
+/// it is not given from the deployment (`completed`), as the command line does
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
@@ -82,7 +83,32 @@ pub async fn plan_deployment(
     deployment: DeploymentRequest,
 ) -> Result<PlanResponse, SakctlError> {
     let tokens = tokens.tokens();
+    let deployment = completed_redeploy(&manager, tokens.clone(), deployment).await?;
     manager.plan(tokens, &deployment, &container).await
+}
+
+/// a redeploy of the form completed from the deployment; a create or destroy as it is
+async fn completed_redeploy(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    deployment: DeploymentRequest,
+) -> Result<DeploymentRequest, SakctlError> {
+    match deployment.intent {
+        Intent::Deploy => manager.completed(tokens, deployment, "").await,
+        _ => Ok(deployment),
+    }
+}
+
+/// the settings a redeploy of the deployment takes, and where they come from: the form of a
+/// redeploy is filled with them (`DeploymentManager::detected`)
+#[tauri::command]
+pub async fn deployment_settings(
+    manager: State<'_, DeploymentManager>,
+    tokens: State<'_, ProviderTokens>,
+    name: String,
+    password: String,
+) -> Result<Detected, SakctlError> {
+    manager.detected(tokens.tokens(), &name, &password).await
 }
 
 /// the plan of a check and its number, which the deploy names
@@ -186,6 +212,7 @@ pub async fn apply_deployment(
     deployment: DeploymentRequest,
     on_event: Channel<DeploymentEvent>,
 ) -> Result<(), SakctlError> {
+    let deployment = completed_redeploy(&manager, tokens.tokens(), deployment).await?;
     apply(
         &manager,
         tokens.tokens(),

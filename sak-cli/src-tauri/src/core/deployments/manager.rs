@@ -167,6 +167,8 @@ pub(super) struct Provisioning {
     pub(super) admin_password_hash: String,
     /// the playbook runs even when the provisioning is up to date
     pub(super) force: bool,
+    /// the key the settings are kept with on this machine after the apply (`local`)
+    pub(super) local_key: crate::core::keys::BackupKey,
 }
 
 /// a prepared deployment with its plan: `plan` is what sakctl shows, the apply applies its diffs,
@@ -353,10 +355,10 @@ impl DeploymentManager {
         deployment: DeploymentRequest,
         smtp_password: &str,
     ) -> Result<DeploymentRequest, SakctlError> {
-        let incomplete = deployment.user_mode != Some(UserMode::Single)
-            && (deployment.user_mode.is_none()
-                || deployment.smtp.is_none()
-                || deployment.admin_email.is_none());
+        let incomplete = deployment.user_mode.is_none()
+            || deployment.acme_ca.is_none()
+            || (deployment.user_mode == Some(UserMode::Multi)
+                && (deployment.smtp.is_none() || deployment.admin_email.is_none()));
         if !incomplete {
             return Ok(deployment);
         }
@@ -393,10 +395,10 @@ impl DeploymentManager {
     }
 
     /// the settings a deploy can take from an existing deployment, for the window and the command
-    /// line: the user mode on its labels and, for multi user, the admin and the mail server of its
-    /// running configuration (read with a request signed with the api key). A deployment without
-    /// the label is multi user when its backend has a mail server. A deployment that does not
-    /// answer gives only its label
+    /// line: what the running deployment answers (`GET /v1/deployment`, signed with the api key);
+    /// when it does not answer, what this machine kept of its last create or deploy
+    /// (`~/.sak/<name>/config.json`), else the root domain and the dns mode of its dns records.
+    /// Why it did not answer is `unread`
     pub async fn detected(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -404,17 +406,14 @@ impl DeploymentManager {
         password: &str,
     ) -> Result<Detected, SakctlError> {
         let deployment = self.find(&tokens, name).await?;
-        let label = deployment.user_mode();
-        // a single user deployment has no more settings
-        let running = match label {
-            Some(UserMode::Single) => Ok(None),
-            _ => running_config_of(&deployment, password).await.map(Some),
-        };
-        Ok(match running {
-            Ok(running) => detect(label, running.as_ref()),
+        verify_password(&deployment, &deployment.name, password)?;
+        Ok(match deployment_settings_of(&deployment, password).await {
+            Ok(running) => Detected::from_running(running),
             Err(error) => Detected {
                 unread: Some(error),
-                ..detect(label, None)
+                ..local_settings(&deployment.name, password)
+                    .map(Detected::from_local)
+                    .unwrap_or_else(|| Detected::from_records(&deployment))
             },
         })
     }
@@ -471,27 +470,6 @@ impl DeploymentManager {
         Ok(endpoint(&deployment, password)?)
     }
 
-    /// the api url and the running configuration of a deployment, read from its backend at
-    /// `api.<base domain>` with a request signed with the api key. sakctl checks the password
-    /// against the deployment first
-    pub async fn running_config(
-        &self,
-        tokens: Vec<(ProviderType, String)>,
-        name: &str,
-        password: &str,
-    ) -> Result<(String, crate::core::config::RunningConfig), SakctlError> {
-        let deployment = self.find(&tokens, name).await?;
-        let endpoint = endpoint(&deployment, password)?;
-        let config = crate::core::config::fetch(
-            &endpoint.url,
-            &endpoint.key,
-            endpoint.trust,
-            endpoint.address,
-        )
-        .await?;
-        Ok((endpoint.url, config))
-    }
-
     /// the dns zones of the first hetzner project, each with the dns modes the deployment
     /// `name` can use it in
     pub async fn root_domains(
@@ -533,7 +511,7 @@ impl DeploymentManager {
             .map_err(|error| failed(provider, error))?
             .into_iter()
             .find(|deployment| deployment.name == name);
-        let (purpose, acme_ca) = users_and_acme_ca(deployment, existing.as_ref())?;
+        let (purpose, acme_ca) = users_and_acme_ca(deployment)?;
         let (dns_mode, root_domain) = resolve_dns(
             name,
             intent,
@@ -600,6 +578,7 @@ impl DeploymentManager {
                 api_public_key: keys.api_public_key,
                 admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
                 force: deployment.force,
+                local_key: crate::core::keys::local_settings_key(name, password)?,
             })
         })?;
         Ok(Prepared {
@@ -790,7 +769,12 @@ impl DeploymentManager {
                 } else {
                     DataVolume::Keep
                 };
-                return self.destroy(&prepared, data_volume, on_event).await;
+                self.destroy(&prepared, data_volume, on_event).await?;
+                // with its data the deployment is gone; else a create of the name finds them again
+                if *delete_data {
+                    let _ = crate::core::local::delete_settings(&prepared.spec.name);
+                }
+                return Ok(());
             }
         };
         let provisioned = self
@@ -805,6 +789,7 @@ impl DeploymentManager {
             self.after_provisioning(&prepared, provisioning, on_event)
                 .await?;
         }
+        keep_settings(&prepared, provisioning, on_event);
         Ok(())
     }
 
@@ -1052,20 +1037,55 @@ fn hetzner_api(
     Ok((provider, Arc::new(HetznerApi::new(&token))))
 }
 
-/// the purpose of the request with who signs in for a create or deploy, and the acme ca: each the
-/// one given, else the one on the `existing` deployment (a deploy keeps them); the ca else
+/// keeps the settings of the create or deploy on this machine, encrypted for its password
+/// (`local`), so a redeploy finds them when the deployment does not answer. A deploy that worked
+/// does not fail when they cannot be written: it says so
+fn keep_settings(
+    prepared: &Prepared,
+    provisioning: &Provisioning,
+    on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+) {
+    let (admin_email, smtp) = match &provisioning.users {
+        Users::Single => (None, None),
+        Users::Multi { smtp, admin_email } => (admin_email.clone(), Some(smtp.clone())),
+    };
+    let settings = LocalSettings {
+        location: prepared.spec.location,
+        dns_mode: prepared.spec.dns_mode,
+        root_domain: provisioning.root_domain.clone(),
+        user_mode: provisioning.users.mode(),
+        admin_email,
+        smtp,
+        acme_ca: provisioning.acme_ca,
+        version: env!("SAK_VERSION").to_string(),
+        deployed_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let message = match crate::core::local::write_settings(
+        &prepared.spec.name,
+        &provisioning.local_key,
+        &settings,
+    ) {
+        Ok(path) => t!("shared.deployments.settings_kept", path = path.display()).to_string(),
+        Err(error) => t!("shared.deployments.settings_not_kept", error = error).to_string(),
+    };
+    on_event(DeploymentEvent::Provisioning { message });
+}
+
+/// the settings this machine kept of the deployment `name` (`local`), none when there are none or
+/// they do not open with the password
+pub(super) fn local_settings(name: &str, password: &str) -> Option<LocalSettings> {
+    let key = crate::core::keys::local_settings_key(name, password).ok()?;
+    crate::core::local::read_settings(name, &key).ok().flatten()
+}
+
+/// the purpose of the request with who signs in for a create or deploy, and the acme ca, as the
+/// request has them: a deploy is completed from the deployment first (`completed`); the ca else
 /// production
 fn users_and_acme_ca(
     deployment: &DeploymentRequest,
-    existing: Option<&DiscoveredDeployment>,
 ) -> Result<(Purpose<Users>, AcmeCa), SakctlError> {
-    let user_mode = deployment
-        .user_mode
-        .or_else(|| existing.and_then(DiscoveredDeployment::user_mode));
-    let acme_ca = deployment
-        .acme_ca
-        .or_else(|| existing.and_then(DiscoveredDeployment::acme_ca))
-        .unwrap_or_default();
+    let user_mode = deployment.user_mode;
+    let acme_ca = deployment.acme_ca.unwrap_or_default();
     let users = || {
         users(
             user_mode,

@@ -57,8 +57,8 @@ new record.
 **Decision:** Domain and subdomain deployments never share a root domain.
 **Why:** The wildcard of a domain deployment covers the names of the subdomain deployments.
 **Tradeoff:** To add a subdomain deployment, a domain deployment must first change to subdomain mode. The wizard finds
-the deployments of a root domain by the labels on the zone and its records. A record with a mode but no name
-counts as another deployment.
+the deployments of a root domain by their records in its zone: a record with the name label of a deployment, whose
+name tells the mode (`@` and `*` in domain mode, `<name>` and `*.<name>` in subdomain mode).
 
 ### 5. The zone and its other records belong to the user
 

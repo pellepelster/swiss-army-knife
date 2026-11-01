@@ -177,6 +177,10 @@ forceButton.addEventListener('click', () => deploy(true));
 document.getElementById('deployment-destroy').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'destroy' }),
 );
+// the form of a deploy with new settings, filled in from the deployment
+document.getElementById('deployment-redeploy').addEventListener('click', () =>
+  showCreate({ existing: current, intent: 'deploy' }),
+);
 document.getElementById('deployment-back').addEventListener('click', async () => {
   current = null;
   await navigate('deployments');

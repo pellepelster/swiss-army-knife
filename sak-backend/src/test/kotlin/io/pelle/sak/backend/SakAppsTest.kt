@@ -1051,6 +1051,7 @@ class SakAppsTest {
                         "/api/v1/info",
                         "/api/v1/auth/who-am-i",
                         "/api/v1/config",
+                        "/api/v1/deployment",
                         "/api/v1/settings",
                         "/api/v1/settings/{scope}",
                         "/api/v1/static-hosting",
@@ -1171,6 +1172,34 @@ class SakAppsTest {
             // the addresses of the e-mail login as configured, the first the admin
             config.json().getValue("admins").jsonArray.map { it.jsonPrimitive.content } shouldBe
                 listOf("Admin@example.org", "second@example.org")
+        }
+    }
+
+    @Test
+    fun `sakctl reads the settings of the deployment to deploy it again, no session does`() {
+        withServer { port ->
+            get(port, "/api/v1/deployment").statusCode() shouldBe 401
+            get(port, "/api/v1/deployment", signIn(port)).statusCode() shouldBe 401
+            val deployment = signed(port, "/api/v1/deployment")
+            deployment.statusCode() shouldBe 200
+            deployment.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+            deployment.json().let {
+                it.string("name") shouldBe "alpha"
+                it.string("dnsMode") shouldBe "domain"
+                it.string("rootDomain") shouldBe "example.org"
+                it.string("userMode") shouldBe "multi"
+                it.string("adminEmail") shouldBe "admin@example.org"
+                it.getValue("smtp").jsonObject.string("host") shouldBe "localhost"
+                it.getValue("acmeCa") shouldBe JsonNull
+            }
+        }
+        // single user: no mail server, no admin address
+        withServer(config(smtp = false, admins = false)) { port ->
+            signed(port, "/api/v1/deployment").json().let {
+                it.string("userMode") shouldBe "single"
+                it.getValue("adminEmail") shouldBe JsonNull
+                it.getValue("smtp") shouldBe JsonNull
+            }
         }
     }
 

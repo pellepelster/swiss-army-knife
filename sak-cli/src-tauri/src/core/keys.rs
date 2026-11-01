@@ -1,6 +1,7 @@
 //! everything a deployment derives from its password: the ssh client key, the ssh host key, the
 //! password hash label, the api key, the backup key and the admin password hash.
-//! The same name and password give the same values on every machine, so sakctl keeps nothing.
+//! The same name and password give the same values on every machine, so sakctl keeps no key; what it
+//! keeps of a deployment (`local`: its settings, its backups) is encrypted with values derived here.
 //!
 //! One strong argon2id of the password (`MASTER_PARAMS`) gives the master key of the deployment.
 //! hkdf-sha256 expands each value from it with a purpose of its own, so no value gives away
@@ -195,6 +196,18 @@ impl BackupKey {
 pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
     use std::str::FromStr;
     let secret = expand::<32>(name, password, "backup")?;
+    let hrp = bech32::Hrp::parse("age-secret-key-").map_err(|e| e.to_string())?;
+    let encoded = bech32::encode::<bech32::Bech32>(hrp, &secret).map_err(|e| e.to_string())?;
+    age::x25519::Identity::from_str(&encoded.to_uppercase())
+        .map(BackupKey)
+        .map_err(|e| e.to_string())
+}
+
+/// the age key of the settings sakctl keeps of a deployment on this machine (`local`): a purpose of
+/// its own, so it opens no backup and a backup key opens no settings
+pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, String> {
+    use std::str::FromStr;
+    let secret = expand::<32>(name, password, "local-settings")?;
     let hrp = bech32::Hrp::parse("age-secret-key-").map_err(|e| e.to_string())?;
     let encoded = bech32::encode::<bech32::Bech32>(hrp, &secret).map_err(|e| e.to_string())?;
     age::x25519::Identity::from_str(&encoded.to_uppercase())

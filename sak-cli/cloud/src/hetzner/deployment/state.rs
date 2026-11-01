@@ -299,10 +299,10 @@ fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> 
 mod tests {
     use super::*;
     use crate::api::DiffStatus;
+    use crate::hetzner::NAME_LABEL;
     use crate::hetzner::deployment::fixtures::*;
     use crate::hetzner::deployment::*;
     use crate::hetzner::test_support::mock_api_all;
-    use crate::hetzner::{DNS_MODE_LABEL, NAME_LABEL, ROOT_DOMAIN_LABEL};
     use crate::providers::hetzner::HetznerProviderRuntime;
     use serde_json::json;
 
@@ -424,8 +424,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_state_shows_the_dns_records_of_a_deployment_with_a_root_domain() {
-        let labels =
-            json!({ NAME_LABEL: "alpha", ROOT_DOMAIN_LABEL: "pelle.io", DNS_MODE_LABEL: "domain" });
+        let labels = json!({ NAME_LABEL: "alpha" });
         let (_server, api) = mock_api_all(&[
             ("servers", vec![]),
             ("ssh_keys", vec![key(7, "sak-alpha", labels)]),
@@ -435,7 +434,9 @@ mod tests {
         ])
         .await;
         let provider = HetznerProviderRuntime::from_api(api.clone());
-        let deployments = discover(&api).await.unwrap();
+        let mut deployments = discover(&api).await.unwrap();
+        // as its records in the zone tell (discover)
+        deployments[0].domain = Some(("pelle.io".to_string(), DnsMode::Domain));
 
         let alpha = state(&provider, &deployments[0]).await;
 

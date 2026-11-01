@@ -29,6 +29,7 @@ const deleteDataInput = document.getElementById('create-delete-data');
 const createView = document.getElementById('view-create');
 const confirmDialog = document.getElementById('destroy-confirm');
 const adminEmailInput = document.getElementById('create-admin-email');
+const sourceHint = document.getElementById('create-source');
 // the fields a destroy hides: it asks only whether to delete the data volume, the password is the
 // one the deployment was opened with
 const destroyHidden = ['create-password-group', 'create-location-group', 'create-root-domain-group', 'create-dns-mode', 'create-user-mode'].map((id) => document.getElementById(id));
@@ -157,6 +158,35 @@ function prefillUsers(defaults) {
   smtpInputs.username.value = defaults.smtpUsername ?? '';
   smtpInputs.password.value = defaults.smtpPassword ?? '';
   smtpInputs.starttls.checked = defaults.smtpStarttls ?? true;
+}
+
+// a redeploy: the settings of the deployment (`deployment_settings`) fill the form, and a line
+// says where they come from and why the deployment did not answer
+async function prefillRedeploy() {
+  const settings = await invoke('deployment_settings', {
+    name: nameInput.value,
+    password: passwordInput.value,
+  });
+  if (settings.dnsMode) {
+    setDnsMode(settings.dnsMode);
+  }
+  if (settings.rootDomain) {
+    await loadRootDomains(settings.rootDomain);
+  }
+  if (settings.userMode) {
+    form.elements['user-mode'].value = settings.userMode;
+  }
+  adminEmailInput.value = settings.adminEmail ?? '';
+  if (settings.smtp) {
+    smtpInputs.host.value = settings.smtp.host;
+    smtpInputs.port.value = String(settings.smtp.port);
+    smtpInputs.username.value = settings.smtp.username;
+    smtpInputs.password.value = settings.smtp.password ?? '';
+    smtpInputs.starttls.checked = settings.smtp.starttls;
+  }
+  const values = { when: settings.deployedAt ?? '', error: settings.unread ?? '' };
+  sourceHint.textContent = text(`ui.create.source_${settings.source ?? 'none'}`, values);
+  sourceHint.hidden = false;
 }
 
 // the chosen dns mode, subdomain unless domain is chosen
@@ -297,19 +327,25 @@ async function loadLocations(chosen) {
 }
 
 // the empty fields take the values of the environment: SAK_NAME, SAK_PASSWORD, SAK_LOCATION and
-// those of the users. A destroy takes its name, location, dns mode and root domain from the
-// deployment, and the password it was opened with
+// those of the users. A destroy and a redeploy take their name, location, dns mode and root domain
+// from the deployment, and the password it was opened with; a redeploy all the other settings
+// too, from the running deployment, else from this machine, else from its dns records
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
-  prefillUsers(defaults);
   if (existing) {
     nameInput.value = existing.name;
     passwordInput.value = openedDeployment()?.password ?? '';
     await loadLocations(existing.location);
-    // a deployment without a dns mode on its resources is in dns mode `subdomain`
+    // a deployment without dns records is in dns mode `subdomain`
     setDnsMode(existing.dnsMode ?? 'subdomain');
     await loadRootDomains(existing.rootDomain);
+    if (intent === 'deploy') {
+      await prefillRedeploy();
+    } else {
+      prefillUsers(defaults);
+    }
   } else {
+    prefillUsers(defaults);
     await loadLocations(defaults.location);
     await loadRootDomains(rootDomainInput.value);
     if (!nameInput.value && defaults.name) {
@@ -337,7 +373,7 @@ export async function showCreate(options = {}) {
   repeatInput.required = !existing;
   nameInput.readOnly = Boolean(existing);
   locationInput.disabled = Boolean(existing);
-  // a destroy ignores the dns mode and the root domain
+  // a destroy ignores the dns mode and the root domain; a redeploy may change them
   dnsModeGroup.disabled = intent === 'destroy';
   rootDomainInput.disabled = intent === 'destroy';
   // the submit button of a destroy is red and has the name of the destroy
@@ -425,6 +461,8 @@ function resetForm() {
     element.hidden = false;
   }
   createView.classList.remove('danger-zone');
+  sourceHint.hidden = true;
+  sourceHint.textContent = '';
   repeatGroup.hidden = false;
   repeatInput.required = true;
   existing = null;

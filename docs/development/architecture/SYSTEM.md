@@ -150,8 +150,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
   Refer to [FDR-009](../fdr/FDR-009-provisioning-markers.md).
 - `SAKCTL-7` **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the
-  staging ca of Let's Encrypt for a test deployment (a setting kept as the label `sak.pelle.io/acme-ca`, whose roots
-  sakctl then trusts). The integration tests use the staging ca, so they never run into the limits of the production
+  staging ca of Let's Encrypt for a test deployment (a setting of the deployment like the others, whose roots sakctl
+  then trusts). The integration tests use the staging ca, so they never run into the limits of the production
   one.
 - `SAKCTL-8` **Backups through ssh.** A backup is pulled through ssh into one file on the user's machine, compressed
   and encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
@@ -182,11 +182,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `CLOUD-4` **Identity.** The name label and the password hash label are the identity of a resource. Every lookup
   checks them: a resource of the declared name without them belongs to someone else, and nothing changes or deletes
   it. A destroy deletes only resources with both labels; a resource without the password hash label is never deleted.
-- `CLOUD-5` **The settings of a deployment** are labels too: `sak.pelle.io/dns-mode`, `sak.pelle.io/root-domain` and
-  `sak.pelle.io/user-mode`. A deploy reads them back; a change of one is a label change, never a recreate. The dns
-  mode on a DNS record tells which deployments use a root domain.
-- `CLOUD-6` **Kinds of labels.** The plan compares the identity labels and the settings. It never compares the labels
-  that sakctl keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
+- `CLOUD-6` **Kinds of labels.** The plan compares the identity labels. It never compares the labels that sakctl
+  keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
 - `CLOUD-7` **Own prefix.** Labels of SAK are under `sak.pelle.io/`, labels of the user never are.
 - `CLOUD-8` **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the
   data volume unless the user asks to delete it.

@@ -25,7 +25,10 @@ pub struct Endpoint {
     pub address: Option<std::net::IpAddr>,
 }
 
-/// the endpoint of `deployment`, the password checked against it first
+/// the endpoint of `deployment`, the password checked against it first. Its certificates are
+/// trusted as the ca this machine kept for it (`local`) says; without, the roots of the staging
+/// ca of let's encrypt as well as the public ones, so a deployment of either answers: the request
+/// is signed and goes to the server of the deployment
 pub(super) fn endpoint(
     deployment: &DiscoveredDeployment,
     password: &str,
@@ -34,7 +37,9 @@ pub(super) fn endpoint(
     Ok(Endpoint {
         url,
         key,
-        trust: acme_trust(deployment.acme_ca().unwrap_or_default()),
+        trust: local_settings(&deployment.name, password)
+            .map(|settings| acme_trust(settings.acme_ca))
+            .unwrap_or(crate::core::config::Trust::LetsEncryptStaging),
         address: deployment
             .server
             .as_ref()
@@ -43,13 +48,13 @@ pub(super) fn endpoint(
     })
 }
 
-/// the running configuration of `deployment`, from its backend
-pub(super) async fn running_config_of(
+/// the settings `deployment` runs with, from its backend (`GET /v1/deployment`)
+pub(super) async fn deployment_settings_of(
     deployment: &DiscoveredDeployment,
     password: &str,
-) -> Result<crate::core::config::RunningConfig, String> {
+) -> Result<crate::core::config::DeploymentSettings, String> {
     let endpoint = endpoint(deployment, password)?;
-    crate::core::config::fetch(
+    crate::core::config::fetch_deployment(
         &endpoint.url,
         &endpoint.key,
         endpoint.trust,

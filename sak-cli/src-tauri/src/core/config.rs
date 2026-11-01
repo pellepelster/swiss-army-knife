@@ -1,5 +1,5 @@
-//! the running configuration of a deployment, as `sakctl config show` prints it. sakctl reads it
-//! from the backend with a request signed with the api key (`keys::api_key`). No request carries
+//! the settings a deployment runs with, as a redeploy and `sakctl config show` take them. sakctl
+//! reads them from the backend with a request signed with the api key (`keys::api_key`). No request carries
 //! a secret. The signature covers the method, the host, the path, the time, a nonce and the body,
 //! so the backend refuses a request sent to a wrong host or sent again
 
@@ -10,18 +10,6 @@ use rust_i18n::t;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
-
-/// what `GET /v1/config` answers. It holds the password of the mail server, because a redeploy
-/// takes the mail server over from it (`deployments::detect`). Read from the backend only, never
-/// written: no `Serialize`, so the password cannot reach an output
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct RunningConfig {
-    /// the mail server of the login links, none without the login
-    pub smtp: Option<RunningSmtp>,
-    /// the addresses of the e-mail login, the first is the admin; an older backend answers none
-    #[serde(default)]
-    pub admins: Vec<String>,
-}
 
 /// no derived Debug and no Serialize, the password never shows
 #[derive(Deserialize, PartialEq, Eq)]
@@ -58,20 +46,6 @@ impl std::fmt::Debug for RunningSmtp {
 /// the api of a deployment, `https://api.<base domain>`; caddy leads its `/v1` to the backend
 pub fn api_url(base_domain: &str) -> String {
     format!("https://api.{base_domain}")
-}
-
-/// `GET <api>/v1/config`, signed with the api key. A refused signature means that the backend
-/// does not know the key of this password (yet). Over https only and to the api only: sakctl
-/// refuses a plain http api before any request, and a redirect fails. The request goes to
-/// `address`, the server of the deployment, when it is known: a resolver of this machine can still
-/// know the address of an earlier server of the name
-pub async fn fetch(
-    api: &str,
-    key: &ApiKey,
-    trust: Trust,
-    address: Option<std::net::IpAddr>,
-) -> Result<RunningConfig, String> {
-    fetch_from(api, key, Transport::HttpsOnly, trust, address).await
 }
 
 /// the client of `url` that connects to `address` for the host of the url, when it is given
@@ -159,14 +133,58 @@ enum Transport {
     PlainHttp,
 }
 
+/// `GET <api>/v1/deployment`, signed with the api key: the settings the deployment runs with, so
+/// a redeploy takes them over. A refused signature means that the backend does not know the key
+/// of this password (yet). Over https only and to the api only: sakctl refuses a plain http api
+/// before any request, and a redirect fails. The request goes to `address`, the server of the
+/// deployment, when it is known: a resolver of this machine can still know the address of an
+/// earlier server of the name
+pub async fn fetch_deployment(
+    api: &str,
+    key: &ApiKey,
+    trust: Trust,
+    address: Option<std::net::IpAddr>,
+) -> Result<DeploymentSettings, String> {
+    fetch_from(api, key, Transport::HttpsOnly, trust, address).await
+}
+
 async fn fetch_from(
     api: &str,
     key: &ApiKey,
     transport: Transport,
     trust: Trust,
     address: Option<std::net::IpAddr>,
-) -> Result<RunningConfig, String> {
-    let url = format!("{api}/v1/config");
+) -> Result<DeploymentSettings, String> {
+    fetch_json(api, "deployment", key, transport, trust, address).await
+}
+
+/// what `GET /v1/deployment` answers. It holds the password of the mail server; read from the
+/// backend only, never written: no `Serialize`
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentSettings {
+    pub name: String,
+    /// `domain` or `subdomain`
+    pub dns_mode: String,
+    pub root_domain: String,
+    /// `single` or `multi`
+    pub user_mode: String,
+    pub admin_email: Option<String>,
+    pub smtp: Option<RunningSmtp>,
+    /// the acme directory of the certificates, none for the production ca
+    pub acme_ca: Option<String>,
+}
+
+/// a signed `GET <api>/v1/<what>` and its json answer
+async fn fetch_json<T: serde::de::DeserializeOwned>(
+    api: &str,
+    what: &str,
+    key: &ApiKey,
+    transport: Transport,
+    trust: Trust,
+    address: Option<std::net::IpAddr>,
+) -> Result<T, String> {
+    let url = format!("{api}/v1/{what}");
     let https_only = transport == Transport::HttpsOnly;
     if https_only && !api.starts_with("https://") {
         return Err(t!("shared.config.not_https", url = api).to_string());
@@ -192,7 +210,7 @@ async fn fetch_from(
         })?;
     match response.status() {
         status if status.is_success() => response
-            .json::<RunningConfig>()
+            .json::<T>()
             .await
             .map_err(|error| t!("shared.config.unreadable", error = error.to_string()).to_string()),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
@@ -367,10 +385,18 @@ mod tests {
                 .is_ok()
     }
 
+    /// what the backend answers of `alpha`, with the mail server `smtp`
+    fn settings(smtp: serde_json::Value) -> serde_json::Value {
+        serde_json::json!({
+            "name": "alpha", "dnsMode": "domain", "rootDomain": "example.org", "userMode": "multi",
+            "adminEmail": null, "smtp": smtp, "acmeCa": null
+        })
+    }
+
     async fn backend(status: u16, body: serde_json::Value) -> MockServer {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
-            .and(path("/v1/config"))
+            .and(path("/v1/deployment"))
             .and(signed_by_alpha)
             .respond_with(ResponseTemplate::new(status).set_body_json(body))
             .mount(&server)
@@ -422,13 +448,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_config_is_read_with_a_signed_request() {
+    async fn the_settings_are_read_with_a_signed_request() {
         let server = backend(
             200,
-            serde_json::json!({ "smtp": {
+            settings(serde_json::json!({
                 "host": "smtp.example.org", "port": 465, "username": "user", "passwordSet": true,
                 "from": "noreply@example.org", "tls": true, "starttls": false
-            } }),
+            })),
         )
         .await;
 
@@ -445,7 +471,7 @@ mod tests {
         let smtp = config.smtp.unwrap();
         assert_eq!((smtp.host.as_str(), smtp.port), ("smtp.example.org", 465));
         assert!(smtp.password_set && smtp.tls && !smtp.starttls);
-        let none = backend(200, serde_json::json!({ "smtp": null })).await;
+        let none = backend(200, settings(serde_json::Value::Null)).await;
         assert_eq!(
             fetch_from(
                 &none.uri(),
@@ -517,7 +543,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_config_is_asked_at_the_address_of_the_server_whatever_its_name_resolves_to() {
-        let server = backend(200, serde_json::json!({ "smtp": null })).await;
+        let server = backend(200, settings(serde_json::Value::Null)).await;
         let port = server.address().port();
         // a name no resolver knows, the request goes to the address of the server
         let api = format!("http://api.sak-test.invalid:{port}");
@@ -552,10 +578,10 @@ mod tests {
 
     #[tokio::test]
     async fn a_plain_http_api_is_refused_before_any_request() {
-        let server = backend(200, serde_json::json!({ "smtp": null })).await;
+        let server = backend(200, settings(serde_json::Value::Null)).await;
 
         assert_eq!(
-            fetch(&server.uri(), &key(), Trust::Public, None).await,
+            fetch_deployment(&server.uri(), &key(), Trust::Public, None).await,
             Err(t!("shared.config.not_https", url = server.uri()).to_string())
         );
         assert!(server.received_requests().await.unwrap().is_empty());
@@ -566,16 +592,16 @@ mod tests {
         let elsewhere = MockServer::start().await;
         Mock::given(method("GET"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({ "smtp": null })),
+                ResponseTemplate::new(200).set_body_json(settings(serde_json::Value::Null)),
             )
             .mount(&elsewhere)
             .await;
         let api = MockServer::start().await;
         Mock::given(method("GET"))
-            .and(path("/v1/config"))
+            .and(path("/v1/deployment"))
             .respond_with(
                 ResponseTemplate::new(302)
-                    .insert_header("location", format!("{}/v1/config", elsewhere.uri())),
+                    .insert_header("location", format!("{}/v1/deployment", elsewhere.uri())),
             )
             .mount(&api)
             .await;
@@ -594,7 +620,7 @@ mod tests {
             error,
             t!(
                 "shared.config.failed",
-                url = format!("{}/v1/config", api.uri()),
+                url = format!("{}/v1/deployment", api.uri()),
                 status = "302 Found"
             )
             .to_string()
@@ -605,7 +631,7 @@ mod tests {
     #[tokio::test]
     async fn the_errors_carry_no_signature() {
         let failing = backend(500, serde_json::json!({})).await;
-        let unreadable = backend(200, serde_json::json!({ "smtp": "no config" })).await;
+        let unreadable = backend(200, settings(serde_json::json!("no config"))).await;
         let errors = [
             fetch_from(
                 "http://127.0.0.1:1",
@@ -631,7 +657,7 @@ mod tests {
                 None,
             )
             .await,
-            fetch("http://api.example.org", &key(), Trust::Public, None).await,
+            fetch_deployment("http://api.example.org", &key(), Trust::Public, None).await,
         ];
         for error in errors {
             let error = error.unwrap_err();

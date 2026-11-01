@@ -2,6 +2,7 @@
 //! and its running configuration
 
 use super::*;
+use crate::core::deployments::{Detected, SettingsSource, UserMode};
 
 /// what a command on the server needs: the name trimmed, the server and the keys to reach it (the
 /// password checked first), and the container runtime ssh runs in
@@ -107,7 +108,7 @@ pub(super) async fn maintenance(
     Ok(())
 }
 
-/// a backup of the deployment to `~/.sak/backups/<name>/`, each step of the server logged
+/// a backup of the deployment to `~/.sak/<name>/backups/`, each step of the server logged
 pub(super) async fn backup(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -186,49 +187,87 @@ pub(super) async fn restore(
     Ok(())
 }
 
-/// prints the running configuration of the deployment, one line for each setting
+/// prints the settings a redeploy of the deployment takes and where they come from, one line for
+/// each setting
 pub(super) async fn show_config(
     manager: &DeploymentManager,
     provider: &HetznerToken,
     name: &str,
     password: &str,
 ) -> Result<(), SakctlError> {
-    let (url, config) = manager
-        .running_config(provider.tokens(), name, password)
-        .await?;
-    for line in shown_lines(name, &url, &config) {
+    let detected = manager.detected(provider.tokens(), name, password).await?;
+    for line in shown_lines(name, &detected) {
         log(Level::Info, line);
     }
     Ok(())
 }
 
-/// what `config show` prints: where it asked, then the settings; no secret
-pub(super) fn shown_lines(
-    name: &str,
-    url: &str,
-    config: &crate::core::config::RunningConfig,
-) -> Vec<String> {
-    std::iter::once(t!("shared.config.shown", name = name.trim(), url = url).to_string())
-        .chain(config_lines(config))
+/// what `config show` prints: where the settings come from, then the settings; no secret
+pub(super) fn shown_lines(name: &str, detected: &Detected) -> Vec<String> {
+    let name = name.trim();
+    let error = detected.unread.as_deref().unwrap_or_default();
+    let source = match detected.source {
+        Some(SettingsSource::Running) => t!("shared.config.shown_running", name = name),
+        Some(SettingsSource::Local) => t!(
+            "shared.config.shown_local",
+            name = name,
+            when = detected.deployed_at.as_deref().unwrap_or("-"),
+            error = error
+        ),
+        Some(SettingsSource::Records) => {
+            t!("shared.config.shown_records", name = name, error = error)
+        }
+        None => t!("shared.config.shown_none", name = name, error = error),
+    };
+    std::iter::once(source.to_string())
+        .chain(config_lines(detected))
         .collect()
 }
 
-/// `smtp.host smtp.example.org`, … : the settings as `<key> <value>`; the password of the mail
-/// server only as `set` or `-`
-pub(super) fn config_lines(config: &crate::core::config::RunningConfig) -> Vec<String> {
-    let Some(smtp) = &config.smtp else {
-        return vec![t!("shared.config.no_smtp").to_string()];
-    };
-    vec![
-        format!("smtp.host {}", smtp.host),
-        format!("smtp.port {}", smtp.port),
-        format!("smtp.username {}", smtp.username.as_deref().unwrap_or("-")),
+/// `dns_mode domain`, `smtp.host smtp.example.org`, … : the settings as `<key> <value>`, `-` for
+/// one that is not known; the password of the mail server only as `set` or `-`
+pub(super) fn config_lines(detected: &Detected) -> Vec<String> {
+    let or_none = |value: Option<String>| value.unwrap_or_else(|| "-".to_string());
+    let mut lines = vec![
         format!(
-            "smtp.password {}",
-            if smtp.password_set { "set" } else { "-" }
+            "dns_mode {}",
+            or_none(detected.dns_mode.map(|mode| mode.to_string()))
         ),
-        format!("smtp.from {}", smtp.from),
-        format!("smtp.tls {}", smtp.tls),
-        format!("smtp.starttls {}", smtp.starttls),
-    ]
+        format!("root_domain {}", or_none(detected.root_domain.clone())),
+        format!(
+            "acme_ca {}",
+            or_none(detected.acme_ca.map(|ca| ca.to_string()))
+        ),
+        format!(
+            "user_mode {}",
+            or_none(detected.user_mode.map(|mode| mode.to_string()))
+        ),
+    ];
+    if detected.user_mode == Some(UserMode::Multi) {
+        lines.push(format!(
+            "admin_email {}",
+            or_none(detected.admin_email.clone())
+        ));
+        match &detected.smtp {
+            None => lines.push(t!("shared.config.no_smtp").to_string()),
+            Some(smtp) => lines.extend([
+                format!("smtp.host {}", smtp.host),
+                format!("smtp.port {}", smtp.port),
+                format!(
+                    "smtp.username {}",
+                    if smtp.username.is_empty() {
+                        "-"
+                    } else {
+                        &smtp.username
+                    }
+                ),
+                format!(
+                    "smtp.password {}",
+                    if smtp.password_set { "set" } else { "-" }
+                ),
+                format!("smtp.starttls {}", smtp.starttls),
+            ]),
+        }
+    }
+    lines
 }

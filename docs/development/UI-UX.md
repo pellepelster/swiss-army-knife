@@ -103,7 +103,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   password goes to an ssh-agent in the container and is never written, the server is checked against its derived host
   key.
 - `CLI-5` **Backup and restore, on the command line only.** `sakctl backup <name>` writes all data of a deployment to
-  `~/.sak/backups/<name>/<name>-<UTC time>.age.sak` and shows the path and the size. `sakctl restore <name> <file>`
+  `~/.sak/<name>/backups/<name>-<UTC time>.age.sak` and shows the path and the size. `sakctl restore <name> <file>`
   replaces the data with that of a backup, after the user types the name of the deployment (`--yes` without asking).
   Both show each step of the server while it runs. Refer to [FDR-007](fdr/FDR-007-backup.md).
 - `CLI-6` **Scriptable.** Every input is an argument or an environment variable, so a script types nothing. `--help`

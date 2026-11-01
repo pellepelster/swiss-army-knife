@@ -1,6 +1,7 @@
 package io.pelle.sak.backend
 
 import io.pelle.sak.backend.users.users
+import io.pelle.sak.backend.config.deployment
 import io.ktor.http.HttpHeaders
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole
@@ -237,6 +238,10 @@ fun Application.apps(
                         route("/config") {
                             requireRole(Role.ADMIN)
                             config(config)
+                        }
+                        route("/deployment") {
+                            requireRole(Role.ADMIN)
+                            deployment(config)
                         }
                     }
                 }

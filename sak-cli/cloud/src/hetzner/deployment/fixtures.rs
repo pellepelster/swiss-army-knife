@@ -4,7 +4,7 @@ use crate::hetzner::api::{HetznerApi, Location, ServerType};
 use crate::hetzner::deployment::{DeploymentSpec, DnsMode};
 use crate::hetzner::labels::HetznerLabels;
 use crate::hetzner::test_support::mock_api_all;
-use crate::hetzner::{DNS_MODE_LABEL, NAME_LABEL, SSH_KEYS_LABEL, USER_DATA_LABEL};
+use crate::hetzner::{NAME_LABEL, SSH_KEYS_LABEL, USER_DATA_LABEL};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
@@ -53,11 +53,7 @@ pub(super) async fn project() -> (wiremock::MockServer, Arc<HetznerApi>) {
             "ssh_keys",
             vec![
                 key(7, "sak-alpha", named("alpha")),
-                key(
-                    8,
-                    "sak-beta",
-                    json!({ NAME_LABEL: "beta", DNS_MODE_LABEL: "subdomain" }),
-                ),
+                key(8, "sak-beta", json!({ NAME_LABEL: "beta" })),
             ],
         ),
         ("firewalls", vec![firewall(5, "sak-alpha", named("alpha"))]),
