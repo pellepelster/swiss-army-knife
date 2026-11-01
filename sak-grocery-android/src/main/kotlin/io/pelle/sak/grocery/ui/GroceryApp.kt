@@ -28,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -653,7 +652,8 @@ private fun NewItem(
     )
 }
 
-// a tap on the row or its box checks the item, struck through while the check can be undone
+// a tap on the row checks the item, struck through while the check can be undone; no checkbox, the
+// row tells a screen reader it is one
 @Composable
 private fun ItemRow(
     item: GroceryItemResponse,
@@ -663,7 +663,6 @@ private fun ItemRow(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val style = if (struck) TextStyle(textDecoration = TextDecoration.LineThrough, color = muted) else TextStyle.Default
     ListItem(
-        leadingContent = { Checkbox(checked = struck, onCheckedChange = null) },
         headlineContent = { Text(item.name, style = style) },
         trailingContent = quantity(item)?.let { { Text(it, style = style, color = muted) } },
         modifier =

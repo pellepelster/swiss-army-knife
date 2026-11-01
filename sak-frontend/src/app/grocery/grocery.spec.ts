@@ -176,11 +176,14 @@ describe('Grocery', () => {
     // bought: struck through while the bar runs, unstruck with undo or a second click, nothing sent
     const struck = () =>
       page()
-        .querySelector('[data-testid=item-2] label')!
+        .querySelector('[data-testid=item-2] .item-name')!
         .classList.contains('text-decoration-line-through');
+    // a tap on the row, no checkbox; the row says it is pressed while it is struck through
+    expect(page().querySelector('[data-testid=item-2] input[type=checkbox]')).toBeNull();
     input('item-2').click();
     await harness.fixture.whenStable();
     expect(struck()).toBe(true);
+    expect(input('item-2').getAttribute('aria-pressed')).toBe('true');
     expect(page().querySelector('[role=status]')?.textContent).toContain('Milk bought');
     button('Undo').click();
     await harness.fixture.whenStable();

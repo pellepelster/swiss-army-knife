@@ -125,28 +125,26 @@ interface ItemGroup {
     }
 
     <ng-template #row let-item>
-      <li
-        class="list-group-item d-flex flex-wrap align-items-center gap-2"
-        [attr.data-testid]="'item-' + item.id"
-      >
-        <input
-          class="form-check-input mt-0"
-          type="checkbox"
+      <!-- a tap on the row checks the item (GROCERY-3), struck through while it can be undone -->
+      <li class="list-group-item p-0" [attr.data-testid]="'item-' + item.id">
+        <button
+          type="button"
+          class="btn w-100 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
           [id]="'item-' + item.id"
-          [checked]="struck().has(item.id)"
-          (change)="check(item)"
-        />
-        <label
-          class="form-check-label flex-grow-1 text-break"
-          [class.text-decoration-line-through]="struck().has(item.id)"
-          [class.text-body-secondary]="struck().has(item.id)"
-          [for]="'item-' + item.id"
+          [attr.aria-pressed]="struck().has(item.id)"
+          (click)="check(item)"
         >
-          {{ item.name }}
-          @if (item.amount !== null) {
-            <span class="text-body-secondary">· {{ item.amount }} {{ item.unit ?? '' }}</span>
-          }
-        </label>
+          <span
+            class="item-name flex-grow-1 text-break"
+            [class.text-decoration-line-through]="struck().has(item.id)"
+            [class.text-body-secondary]="struck().has(item.id)"
+          >
+            {{ item.name }}
+            @if (item.amount !== null) {
+              <span class="text-body-secondary">· {{ item.amount }} {{ item.unit ?? '' }}</span>
+            }
+          </span>
+        </button>
       </li>
     </ng-template>
 
