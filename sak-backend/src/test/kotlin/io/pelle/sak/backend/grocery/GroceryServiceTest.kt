@@ -1,7 +1,6 @@
 package io.pelle.sak.backend.grocery
 
 import io.pelle.sak.api.Language
-import io.pelle.sak.api.render
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
@@ -27,8 +26,8 @@ private fun input(
     name: String,
     amount: String? = null,
     unit: String? = null,
-    category: GroceryCategory? = null,
-) = GroceryItemInput(name, amount?.let(::BigDecimal), unit, category?.name)
+    categoryId: Int? = null,
+) = GroceryItemInput(name, amount?.let(::BigDecimal), unit, categoryId)
 
 class GroceryServiceTest {
     @TempDir
@@ -44,26 +43,145 @@ class GroceryServiceTest {
 
     // the list of the user, the one they get when they sign in
     private fun list(user: String): Int {
-        service.signedIn(user)
+        service.signedIn(user, Language.EN)
         return service.lists(user).first { it.owner == user }.id
     }
 
+    // the id of the category of the name on the list
+    private fun category(
+        listId: Int,
+        name: String,
+    ) = service.categories(PELLE, listId)!!.single { it.name == name }.id
+
     @Test
     fun `a list shows the items to buy by category, the ones without one last, not the bought ones`() {
-        val soap = add(PELLE, list(PELLE), input("Soap", category = GroceryCategory.HOUSEHOLD))
-        val apples = add(PELLE, list(PELLE), input("Apples", "1", "kg", GroceryCategory.FRUIT_VEGETABLES))
-        val candles = add(PELLE, list(PELLE), input("Candles"))
-        val milk = add(PELLE, list(PELLE), input("Milk", category = GroceryCategory.DAIRY))
+        val own = list(PELLE)
+        val soap = add(PELLE, own, input("Soap", categoryId = category(own, "Household")))
+        val apples = add(PELLE, own, input("Apples", "1", "kg", category(own, "Fruit & vegetables")))
+        val candles = add(PELLE, own, input("Candles"))
+        val milk = add(PELLE, own, input("Milk", categoryId = category(own, "Dairy & eggs")))
         service.deleteItem(PELLE, apples.id) shouldBe true
 
-        service.items(PELLE, soap.listId)!!.map { it.name } shouldBe listOf("Milk", "Soap", "Candles")
+        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Milk", "Soap", "Candles")
         milk.listId shouldBe soap.listId
-        candles.category shouldBe null
+        candles.categoryId shouldBe null
+
+        // in the new order of the categories
+        val ids = service.categories(PELLE, own)!!.map { it.id }
+        (service.orderCategories(PELLE, own, ids.reversed()) as GroceryCategoriesResult.Ordered).categories.map { it.id } shouldBe ids.reversed()
+        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Soap", "Milk", "Candles")
     }
 
     @Test
-    fun `every category can be given to an item`() {
-        GroceryCategory.entries.forEach { add(PELLE, list(PELLE), input(it.label.render(Language.EN), category = it)).category shouldBe it.name }
+    fun `a new list starts with the default categories in the language of its request, with their icons (GROCERY-13)`() {
+        service.categories(PELLE, list(PELLE))!!.map { it.icon to it.name } shouldBe
+            listOf(
+                "🥦" to "Fruit & vegetables",
+                "🥖" to "Bakery",
+                "🧀" to "Dairy & eggs",
+                "🥩" to "Meat & fish",
+                "🥫" to "Pantry",
+                "🧊" to "Frozen",
+                "🥤" to "Drinks",
+                "🧻" to "Household",
+                "🛒" to "Other",
+            )
+        val party = (service.createList(PELLE, "Party", shared = false, language = Language.DE) as GroceryListResult.Saved).list.id
+        service.categories(PELLE, party)!!.first().name shouldBe "Obst & Gemüse"
+    }
+
+    @Test
+    fun `only the owner changes the categories of a list, every user who sees it sees them, an item takes one of its list only`() {
+        val own = list(PELLE)
+        val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+        val secret = (service.createList(PELLE, "Secret", shared = false) as GroceryListResult.Saved).list.id
+
+        val snacks = (service.createCategory(PELLE, party, " Snacks ", "🍿") as GroceryCategoryResult.Saved).category
+        snacks.name shouldBe "Snacks"
+        service.categories(OTHER, party)!!.last() shouldBe snacks
+        service.categories(OTHER, secret) shouldBe null
+        service.createCategory(OTHER, party, "Mine", null) shouldBe GroceryCategoryResult.NotFound
+        service.updateCategory(OTHER, party, snacks.id, "Mine", null) shouldBe GroceryCategoryResult.NotFound
+        service.deleteCategory(OTHER, party, snacks.id) shouldBe false
+        service.orderCategories(OTHER, party, emptyList()) shouldBe GroceryCategoriesResult.NotFound
+        // one name in any case and whitespace
+        service.createCategory(PELLE, party, "snacks", null) shouldBe GroceryCategoryResult.Exists
+        service.createCategory(PELLE, party, "SNACKS ", null) shouldBe GroceryCategoryResult.Exists
+        service.updateCategory(PELLE, party, snacks.id, "Crisps", "")
+            .let { (it as GroceryCategoryResult.Saved).category } shouldBe snacks.copy(name = "Crisps", icon = null)
+        // a category of another list is none of this one
+        service.updateCategory(PELLE, own, snacks.id, "Crisps", null) shouldBe GroceryCategoryResult.NotFound
+        (service.orderCategories(PELLE, party, listOf(snacks.id)) as GroceryCategoriesResult.Invalid).errors shouldBe
+            listOf(ErrorMessage(GroceryTexts.INVALID_CATEGORY_ORDER))
+
+        // every user of the list sets a category of the list, no other one
+        val chips = add(OTHER, party, input("Chips"))
+        (service.setCategory(OTHER, chips.id, snacks.id) as GroceryItemResult.Saved).item.categoryId shouldBe snacks.id
+        (service.setCategory(OTHER, chips.id, category(own, "Bakery")) as GroceryItemResult.Invalid).errors shouldBe
+            listOf(ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY))
+        (service.addItem(PELLE, own, input("Bread", categoryId = snacks.id)) as GroceryItemResult.Invalid).errors shouldBe
+            listOf(ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY))
+        service.setCategory(OTHER, add(PELLE, secret, input("Wine")).id, null) shouldBe GroceryItemResult.NotFound
+        // the next item of the name on the list gets it
+        service.deleteItem(OTHER, chips.id)
+        add(PELLE, party, input("chips")).categoryId shouldBe snacks.id
+        add(PELLE, own, input("chips")).categoryId shouldBe null
+
+        // a deleted category goes from its items and suggestions
+        service.deleteCategory(PELLE, party, snacks.id) shouldBe true
+        service.items(PELLE, party)!!.single().categoryId shouldBe null
+        service.suggestions(PELLE, party, "chips")!!.let { it shouldBe emptyList() }
+        service.deleteItem(PELLE, service.items(PELLE, party)!!.single().id)
+        service.suggestions(PELLE, party, "chips")!!.single().categoryId shouldBe null
+    }
+
+    @Test
+    fun `every change of a category and of the category of an item reaches the users who see the list (LIST-4)`() =
+        runBlocking {
+            val own = list(PELLE)
+            val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+            val chips = add(PELLE, party, input("Chips"))
+            val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(5).toList() } }
+
+            // the own list of pelle is private, the other user hears none of its changes
+            service.createCategory(PELLE, own, "Private", null)
+            val snacks = (service.createCategory(PELLE, party, "Snacks", null) as GroceryCategoryResult.Saved).category
+            service.updateCategory(PELLE, party, snacks.id, "Crisps", null)
+            service.orderCategories(PELLE, party, service.categories(PELLE, party)!!.map { it.id }.reversed())
+            service.setCategory(OTHER, chips.id, snacks.id)
+            service.deleteCategory(PELLE, party, snacks.id) shouldBe true
+
+            heard.await() shouldBe List(5) { party }
+        }
+
+    @Test
+    fun `a change of an item sets its category or takes it away, the list learns it (GROCERY-13)`() {
+        val own = list(PELLE)
+        val bread = add(PELLE, own, input("Bread"))
+        (service.updateItem(PELLE, bread.id, input("Bread", categoryId = category(own, "Bakery"))) as GroceryItemResult.Saved).item.categoryId shouldBe
+            category(own, "Bakery")
+        service.deleteItem(PELLE, bread.id)
+        add(PELLE, own, input("bread")).let {
+            it.categoryId shouldBe category(own, "Bakery")
+            (service.updateItem(PELLE, it.id, input("bread")) as GroceryItemResult.Saved).item.categoryId shouldBe null
+            service.deleteItem(PELLE, it.id)
+        }
+        add(PELLE, own, input("Bread")).categoryId shouldBe null
+    }
+
+    @Test
+    fun `a name, an icon and a number of the categories that do not fit are refused`() {
+        val own = list(PELLE)
+        (service.createCategory(PELLE, own, " ", "ab") as GroceryCategoryResult.Invalid).errors shouldBe
+            listOf(
+                ErrorMessage(GroceryTexts.INVALID_CATEGORY_NAME, "max" to GroceryService.MAX_CATEGORY_NAME_LENGTH),
+                ErrorMessage(GroceryTexts.INVALID_ICON),
+            )
+        (service.createCategory(PELLE, own, "x".repeat(33), null) as GroceryCategoryResult.Invalid).errors.single().key shouldBe
+            GroceryTexts.INVALID_CATEGORY_NAME
+        repeat(GroceryService.MAX_CATEGORIES - 9) { service.createCategory(PELLE, own, "C$it", null).shouldBeInstanceOf<GroceryCategoryResult.Saved>() }
+        (service.createCategory(PELLE, own, "One more", null) as GroceryCategoryResult.Invalid).errors shouldBe
+            listOf(ErrorMessage(GroceryTexts.TOO_MANY_CATEGORIES, "max" to GroceryService.MAX_CATEGORIES))
     }
 
     @Test
@@ -90,10 +208,10 @@ class GroceryServiceTest {
 
     @Test
     fun `the list of the sign-in is a list like the others`() {
-        service.signedIn(PELLE)
+        service.signedIn(PELLE, Language.EN)
         val default = service.lists(PELLE).single()
         default.name shouldBe DEFAULT_GROCERY_LIST
-        service.signedIn(PELLE)
+        service.signedIn(PELLE, Language.EN)
         service.lists(PELLE) shouldBe listOf(default)
 
         (service.updateList(PELLE, default.id, "Weekly", shared = true) as GroceryListResult.Saved).list.shared shouldBe true
@@ -101,17 +219,16 @@ class GroceryServiceTest {
         service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.LastList
         val party = (service.createList(PELLE, "Party", shared = false) as GroceryListResult.Saved).list
         service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.Deleted
-        service.signedIn(PELLE)
+        service.signedIn(PELLE, Language.EN)
         service.lists(PELLE) shouldBe listOf(party)
     }
 
     @Test
     fun `tells every problem of an item at once`() {
-        (service.addItem(PELLE, list(PELLE), GroceryItemInput(" ", BigDecimal("0.0001"), "l", "SWEETS")) as GroceryItemResult.Invalid).errors shouldBe
+        (service.addItem(PELLE, list(PELLE), GroceryItemInput(" ", BigDecimal("0.0001"), "l", null)) as GroceryItemResult.Invalid).errors shouldBe
             listOf(
                 ErrorMessage(GroceryTexts.INVALID_ITEM_NAME, "max" to GroceryService.MAX_ITEM_NAME_LENGTH),
                 ErrorMessage(GroceryTexts.INVALID_AMOUNT, "max" to GroceryService.MAX_AMOUNT),
-                ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY, "category" to "SWEETS"),
             )
         (service.addItem(PELLE, list(PELLE), input("Milk", unit = "l")) as GroceryItemResult.Invalid).errors shouldBe
             listOf(ErrorMessage(GroceryTexts.UNIT_WITHOUT_AMOUNT))
@@ -125,7 +242,7 @@ class GroceryServiceTest {
     fun `suggests what was added to the list before, by every user who sees it, on that list only (GROCERY-11)`() {
         val own = list(PELLE)
         val otherOwn = list(OTHER)
-        val milk = add(PELLE, own, input("Milk", "1", "l", GroceryCategory.DAIRY))
+        val milk = add(PELLE, own, input("Milk", "1", "l", category(own, "Dairy & eggs")))
         // bought, no longer to buy
         service.deleteItem(PELLE, milk.id) shouldBe true
         val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
@@ -133,7 +250,7 @@ class GroceryServiceTest {
 
         val suggestion = service.suggestions(PELLE, own, "mi")!!.single()
         suggestion.name shouldBe "Milk"
-        suggestion.category shouldBe GroceryCategory.DAIRY.name
+        suggestion.categoryId shouldBe category(own, "Dairy & eggs")
         service.suggestions(PELLE, party, "mi")!!.map { it.name } shouldBe listOf("Mints")
         service.suggestions(OTHER, otherOwn, "mi") shouldBe emptyList()
         service.suggestions(OTHER, own, "mi") shouldBe null

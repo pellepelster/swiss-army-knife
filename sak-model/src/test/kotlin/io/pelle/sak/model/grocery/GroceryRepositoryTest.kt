@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.collections.shouldContain
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
+import io.pelle.sak.model.jooq.tables.references.GROCERY_CATEGORIES
 import io.pelle.sak.model.jooq.tables.references.GROCERY_ITEMS
 import io.pelle.sak.model.jooq.tables.references.GROCERY_PRODUCTS
 import org.jooq.exception.DataAccessException
@@ -24,8 +25,8 @@ private fun values(
     name: String,
     amount: String? = null,
     unit: String? = null,
-    category: String? = null,
-) = GroceryItemValues(name, amount?.let(::BigDecimal), unit, category)
+    categoryId: Int? = null,
+) = GroceryItemValues(name, amount?.let(::BigDecimal), unit, categoryId)
 
 class GroceryRepositoryTest {
     @TempDir
@@ -53,7 +54,7 @@ class GroceryRepositoryTest {
         val default = repository.lists(PELLE).single()
         default shouldBe GroceryList(default.id, PELLE, DEFAULT_GROCERY_LIST, false, now, null, items = 0)
         repository.lists(OTHER) shouldBe listOf(weekly)
-        val milk = repository.insertItem(PELLE, default.id, values("Milk", "2", "l", "DAIRY"))!!
+        val milk = repository.insertItem(PELLE, default.id, values("Milk", "2", "l"))!!
         repository.items(PELLE, default.id)!!.map { it.name } shouldBe listOf("Milk")
         milk.amount!!.compareTo(BigDecimal("2")) shouldBe 0
 
@@ -150,10 +151,10 @@ class GroceryRepositoryTest {
     fun `every item teaches the list's product of its name, in any case, the suggestions leave out what is to buy`() {
         val own = list(PELLE)
         // bought, no longer to buy
-        val milk = repository.insertItem(PELLE, own, values("Milk", "1", "l", "DAIRY"))!!
+        val milk = repository.insertItem(PELLE, own, values("Milk", "1", "l"))!!
         repository.deleteItem(PELLE, milk.id)
-        val again = repository.insertItem(PELLE, own, values("milk", "2", "l", "DAIRY"))!!
-        val bread = repository.insertItem(PELLE, own, values("Bread", category = "BAKERY"))!!
+        val again = repository.insertItem(PELLE, own, values("milk", "2", "l"))!!
+        val bread = repository.insertItem(PELLE, own, values("Bread"))!!
         repository.deleteItem(PELLE, bread.id)
         repository.deleteItem(PELLE, again.id)
 
@@ -175,11 +176,12 @@ class GroceryRepositoryTest {
     fun `a list learns alone, what one list learned is never suggested on another, not of the same user`() {
         val own = list(PELLE)
         val party = repository.insertList(PELLE, "Party", shared = false)!!.id
-        repository.insertItem(PELLE, own, values("Milk", category = "DAIRY")).let { repository.deleteItem(PELLE, it!!.id) }
+        val dairy = (repository.insertCategory(PELLE, own, GroceryCategoryValues("Dairy", null), 30) as GroceryCategoryChange.Saved).category.id
+        repository.insertItem(PELLE, own, values("Milk", categoryId = dairy)).let { repository.deleteItem(PELLE, it!!.id) }
         repository.insertItem(PELLE, party, values("Chips")).let { repository.deleteItem(PELLE, it!!.id) }
         repository.insertItem(PELLE, party, values("Milk", "2", "l")).let { repository.deleteItem(PELLE, it!!.id) }
 
-        repository.products(PELLE, own, "", 10)!!.map { it.name to it.category } shouldBe listOf("Milk" to "DAIRY")
+        repository.products(PELLE, own, "", 10)!!.map { it.name to it.categoryId } shouldBe listOf("Milk" to dairy)
         repository.products(PELLE, party, "", 10)!!.map { it.name to it.timesUsed } shouldBe listOf("Chips" to 1, "Milk" to 1)
         val chips = repository.products(PELLE, party, "chips", 10)!!.single()
         // forgotten on its own list only
@@ -259,9 +261,64 @@ class GroceryRepositoryTest {
     }
 
     @Test
+    fun `a list has its categories in their order, only its owner changes them, an item takes one of its list only`() {
+        val own = list(PELLE)
+        val party = repository.insertList(PELLE, "Party", shared = true, categories = listOf(GroceryCategoryValues("Snacks", "🍿"), GroceryCategoryValues("Drinks", null)))!!.id
+        val (snacks, drinks) = repository.categories(OTHER, party)!!
+        listOf(snacks.name, snacks.icon, snacks.position) shouldBe listOf("Snacks", "🍿", 0)
+        drinks.position shouldBe 1
+        repository.categories(OTHER, own) shouldBe null
+        repository.categories(PELLE, own) shouldBe emptyList()
+
+        repository.insertCategory(OTHER, party, GroceryCategoryValues("Mine", null), 30) shouldBe GroceryCategoryChange.NotFound
+        repository.insertCategory(PELLE, party, GroceryCategoryValues("Snacks", null), 30) shouldBe GroceryCategoryChange.NameTaken
+        repository.insertCategory(PELLE, party, GroceryCategoryValues("Fruit", null), 2) shouldBe GroceryCategoryChange.TooMany
+        val fruit = (repository.insertCategory(PELLE, party, GroceryCategoryValues("Fruit", "🍎"), 30) as GroceryCategoryChange.Saved).category
+        fruit.position shouldBe 2
+        repository.updateCategory(PELLE, party, fruit.id, GroceryCategoryValues("Drinks", null)) shouldBe GroceryCategoryChange.NameTaken
+        repository.updateCategory(OTHER, party, fruit.id, GroceryCategoryValues("Obst", null)) shouldBe GroceryCategoryChange.NotFound
+        repository.updateCategory(PELLE, own, fruit.id, GroceryCategoryValues("Obst", null)) shouldBe GroceryCategoryChange.NotFound
+
+        repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id)) shouldBe GroceryCategoryOrder.Mismatch
+        repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id, snacks.id)) shouldBe GroceryCategoryOrder.Mismatch
+        repository.orderCategories(OTHER, party, listOf(fruit.id, snacks.id, drinks.id)) shouldBe GroceryCategoryOrder.NotFound
+        (repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id, drinks.id)) as GroceryCategoryOrder.Ordered).categories.map { it.id } shouldBe
+            listOf(fruit.id, snacks.id, drinks.id)
+
+        // a category of another list is none
+        repository.insertItem(PELLE, own, values("Chips", categoryId = snacks.id))!!.categoryId shouldBe null
+        val chips = repository.insertItem(OTHER, party, values("Chips", categoryId = drinks.id))!!
+        chips.categoryId shouldBe drinks.id
+        repository.setCategory(OTHER, chips.id, fruit.id)!!.categoryId shouldBe fruit.id
+        repository.setCategory(OTHER, chips.id, 9999) shouldBe null
+        repository.updateItem(OTHER, chips.id, values("Crisps", categoryId = snacks.id))!!.categoryId shouldBe snacks.id
+
+        // deleted, it goes from its items and the suggestions of the list
+        repository.deleteCategory(OTHER, party, snacks.id) shouldBe false
+        repository.deleteCategory(PELLE, party, snacks.id) shouldBe true
+        repository.deleteCategory(PELLE, party, snacks.id) shouldBe false
+        repository.item(PELLE, chips.id)!!.let {
+            it.categoryId shouldBe null
+            it.updatedAt shouldBe now
+        }
+        repository.categories(PELLE, party)!!.map { it.name } shouldBe listOf("Fruit", "Drinks")
+
+        // a deleted list takes them along
+        repository.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
+        database.dsl.fetchCount(GROCERY_CATEGORIES, GROCERY_CATEGORIES.LIST_ID.eq(party), GROCERY_CATEGORIES.DELETED_AT.isNull) shouldBe 0
+    }
+
+    @Test
+    fun `the list of the sign-in gets the categories, once`() {
+        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST, listOf(GroceryCategoryValues("Bakery", "🥖")))
+        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST, listOf(GroceryCategoryValues("Other", null)))
+        repository.categories(PELLE, repository.lists(PELLE).single().id)!!.map { it.name } shouldBe listOf("Bakery")
+    }
+
+    @Test
     fun `the schema takes positive amounts only and a unit with an amount only`() {
         shouldThrow<DataAccessException> { repository.insertItem(PELLE, list(PELLE), values("Milk", "0")) }
         shouldThrow<DataAccessException> { repository.insertItem(PELLE, list(PELLE), values("Milk", unit = "l")) }
-        repository.insertItem(PELLE, list(PELLE), values("Milk", "1.5", "l", "DAIRY"))!!.amount!!.compareTo(BigDecimal("1.5")) shouldBe 0
+        repository.insertItem(PELLE, list(PELLE), values("Milk", "1.5", "l"))!!.amount!!.compareTo(BigDecimal("1.5")) shouldBe 0
     }
 }

@@ -15,7 +15,16 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { debounceTime, filter, firstValueFrom, Observable, Subscription } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  filter,
+  firstValueFrom,
+  forkJoin,
+  Observable,
+  of,
+  Subscription,
+} from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { PendingUndo } from '../shared/pending-undo';
@@ -45,7 +54,11 @@ function without(ids: ReadonlySet<number>, id: number): ReadonlySet<number> {
 
 // one group of the items to buy, of a category or of none
 interface ItemGroup {
+  // the id of the category, null for the items without one
+  key: number | null;
   label: string;
+  // one emoji, null for none
+  icon: string | null;
   items: GroceryItem[];
 }
 
@@ -127,8 +140,16 @@ interface ItemGroup {
         </datalist>
       </form>
 
-      @for (group of toBuy(); track group.label) {
-        <h2 class="h6 text-body-secondary mt-3">{{ group.label }}</h2>
+      @for (group of toBuy(); track group.key) {
+        <h2
+          class="h6 text-body-secondary mt-3"
+          [attr.data-testid]="'group-' + (group.key ?? 'none')"
+        >
+          @if (group.icon) {
+            <span class="me-1" aria-hidden="true">{{ group.icon }}</span>
+          }
+          {{ group.label }}
+        </h2>
         <ul class="list-group mb-3" [attr.aria-label]="group.label">
           @for (item of group.items; track item.id) {
             <ng-container *ngTemplateOutlet="row; context: { $implicit: item }"></ng-container>
@@ -143,7 +164,8 @@ interface ItemGroup {
 
     <ng-template #row let-item>
       <!-- the photo shows the photo in full, a tap on the rest of the row checks the item
-           (GROCERY-3), struck through while it can be undone; the menu attaches a photo -->
+           (GROCERY-3), struck through while it can be undone; the menu attaches a photo and sets
+           the category, one of the list or none (GROCERY-13) -->
       <li
         class="list-group-item p-0 d-flex align-items-center"
         [attr.data-testid]="'item-' + item.id"
@@ -203,6 +225,44 @@ interface ItemGroup {
             <i class="fa-solid fa-image me-2" aria-hidden="true"></i
             >{{ 'grocery.photo.remove' | t }}
           </button>
+          <div class="dropdown-divider"></div>
+          <h6 class="dropdown-header" [id]="'category-of-' + item.id">
+            {{ 'grocery.list.category' | t }}
+          </h6>
+          <div role="group" [attr.aria-labelledby]="'category-of-' + item.id">
+            @for (category of categories(); track category.id) {
+              <button
+                type="button"
+                class="dropdown-item"
+                role="menuitemradio"
+                [attr.aria-checked]="item.categoryId === category.id"
+                [disabled]="categoryBusy() === item.id"
+                (click)="setCategory(item, category.id)"
+              >
+                <span class="d-inline-block me-2 category-icon" aria-hidden="true">{{
+                  category.icon ?? ''
+                }}</span
+                >{{ category.name }}
+                @if (item.categoryId === category.id) {
+                  <i class="fa-solid fa-check ms-2" aria-hidden="true"></i>
+                }
+              </button>
+            }
+            <button
+              type="button"
+              class="dropdown-item"
+              role="menuitemradio"
+              [attr.aria-checked]="item.categoryId === null"
+              [disabled]="categoryBusy() === item.id"
+              (click)="setCategory(item, null)"
+            >
+              <span class="d-inline-block me-2 category-icon" aria-hidden="true"></span
+              >{{ 'grocery.list.no_category' | t }}
+              @if (item.categoryId === null) {
+                <i class="fa-solid fa-check ms-2" aria-hidden="true"></i>
+              }
+            </button>
+          </div>
         </app-action-menu>
       </li>
     </ng-template>
@@ -275,7 +335,9 @@ export class GroceryPage {
   // the quantity and the category of the suggestion chosen, taken over without being shown
   private readonly itemAmount = signal('');
   private readonly itemUnit = signal('');
-  private readonly itemCategory = signal<string | null>(null);
+  private readonly itemCategory = signal<number | null>(null);
+  // the item whose category is being set
+  protected readonly categoryBusy = signal<number | null>(null);
   protected readonly adding = signal(false);
 
   protected readonly undoMs = GROCERY_UNDO_MS;
@@ -295,17 +357,27 @@ export class GroceryPage {
     () => this.lists().find((list) => String(list.id) === this.id()) ?? null,
   );
 
-  // the items to buy by category, in the order of the categories, the ones without one last
+  // the items to buy by the categories of the list, in their order, the ones without one last
+  // (GROCERY-13)
   protected readonly toBuy = computed<ItemGroup[]>(() => {
-    const groups = new Map<string, ItemGroup>();
+    const categories = this.categories();
+    const groups: ItemGroup[] = categories.map((category) => ({
+      key: category.id,
+      label: category.name,
+      icon: category.icon,
+      items: [],
+    }));
+    const none: ItemGroup = {
+      key: null,
+      label: this.i18n.t('grocery.list.no_category'),
+      icon: null,
+      items: [],
+    };
     for (const item of this.items()) {
-      const label =
-        this.categories().find((each) => each.name === item.category)?.label ??
-        this.i18n.t('grocery.list.no_category');
-      if (!groups.has(label)) groups.set(label, { label, items: [] });
-      groups.get(label)!.items.push(item);
+      const index = categories.findIndex((each) => each.id === item.categoryId);
+      (index < 0 ? none : groups[index]).items.push(item);
     }
-    return [...groups.values()];
+    return [...groups, none].filter((group) => group.items.length);
   });
 
   private loadingItems?: Subscription;
@@ -313,12 +385,8 @@ export class GroceryPage {
   private loadingSuggestions?: Subscription;
 
   constructor() {
-    this.service
-      .categories()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (categories) => this.categories.set(categories) });
     this.loadLists();
-    // the items of the list shown, anew when another one is chosen; what was done on the list
+    // the items and the categories of the list shown, anew when another one is chosen; what was done on the list
     // before goes to the backend
     effect(() => {
       const list = this.shown();
@@ -351,7 +419,7 @@ export class GroceryPage {
     if (chosen) {
       this.itemAmount.set(chosen.amount === null ? '' : String(chosen.amount));
       this.itemUnit.set(chosen.unit ?? '');
-      this.itemCategory.set(chosen.category);
+      this.itemCategory.set(chosen.categoryId);
       return;
     }
     this.itemAmount.set('');
@@ -383,7 +451,7 @@ export class GroceryPage {
         name,
         amount,
         unit,
-        category: this.itemCategory(),
+        categoryId: this.itemCategory(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -426,6 +494,30 @@ export class GroceryPage {
 
   protected undo(): void {
     this.pending.undo();
+  }
+
+  // the category of the item, one of the list or none; the backend learns it for the next item of
+  // the name on the list (GROCERY-13)
+  protected setCategory(item: GroceryItem, categoryId: number | null): void {
+    if (item.categoryId === categoryId) return;
+    this.categoryBusy.set(item.id);
+    this.error.set(null);
+    this.service
+      .setCategory(item.id, categoryId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (changed) => {
+          this.categoryBusy.set(null);
+          this.items.update((items) =>
+            items.map((each) => (each.id === changed.id ? changed : each)),
+          );
+        },
+        error: (error: unknown) => {
+          this.categoryBusy.set(null);
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.category_not_set')));
+          this.loadItems(this.shown());
+        },
+      });
   }
 
   // the item the photo input chooses a photo for, and the item whose photo is being sent
@@ -546,18 +638,27 @@ export class GroceryPage {
       });
   }
 
+  // the items with the categories of the list, together, so the groups fit the items; categories
+  // that could not be loaded show the items without them, with the error
   private loadItems(list: GroceryList | null): void {
     this.loadingItems?.unsubscribe();
     if (!list) {
       this.items.set([]);
+      this.categories.set([]);
       return;
     }
-    this.loadingItems = this.service
-      .items(list.id)
+    const categories = this.service.categories(list.id).pipe(
+      catchError((error: unknown) => {
+        this.error.set(apiErrorMessage(error, this.i18n.t('grocery.categories.not_loaded')));
+        return of([]);
+      }),
+    );
+    this.loadingItems = forkJoin([this.service.items(list.id), categories])
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (items) => {
+        next: ([items, categories]) => {
           this.items.set(items);
+          this.categories.set(categories);
           this.loaded.set(true);
         },
         error: (error: unknown) =>

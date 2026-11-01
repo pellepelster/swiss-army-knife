@@ -29,12 +29,15 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -73,6 +77,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -110,6 +115,7 @@ import io.pelle.sak.grocery.Screen
 import io.pelle.sak.grocery.UNDO_MS
 import io.pelle.sak.grocery.UiText
 import io.pelle.sak.grocery.Undo
+import io.pelle.sak.grocery.api.GroceryCategoryResponse
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
 import io.pelle.sak.grocery.scaledSize
@@ -236,6 +242,7 @@ private fun Form(
     Column(
         Modifier
             .padding(padding)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
             .fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -342,9 +349,11 @@ private fun ListsScreen(
 ) {
     val open = screen.open
     val settings = screen.settings
+    val choosing = screen.choosing
     when {
         settings != null -> ListSettingsScreen(settings, model)
         open == null -> HomeScreen(screen, model)
+        choosing != null -> CategoryScreen(screen, choosing, model)
         else -> ListScreen(screen, open, model)
     }
 }
@@ -476,7 +485,7 @@ private fun ListRow(
         supportingContent = {
             Column {
                 Text(toBuy(list.items))
-                if (list.shared) Text(stringResource(R.string.grocery_shared), color = MaterialTheme.colorScheme.primary)
+                if (list.shared) Text(stringResource(R.string.grocery_shared_badge), color = MaterialTheme.colorScheme.primary)
             }
         },
         trailingContent = {
@@ -592,64 +601,12 @@ private fun ListSettingsScreen(
             }
         },
     ) { padding ->
-        Form(padding) {
-            OutlinedTextField(
-                value = settings.name,
-                onValueChange = { edit(it, settings.shared, settings.icon) },
-                label = { Text(stringResource(R.string.shared_name)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),
-                modifier = Modifier.fillMaxWidth().testTag("list-name"),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ListIcon(settings.name, settings.icon, size = 48)
-                TextButton(onClick = { picking = true }, modifier = Modifier.testTag("choose-icon")) { Text(stringResource(R.string.grocery_form_choose_icon)) }
-                TextButton(onClick = { edit(settings.name, settings.shared, null) }, enabled = settings.icon != null) {
-                    Text(stringResource(R.string.grocery_form_no_icon))
-                }
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .toggleable(value = settings.shared, role = Role.Switch, onValueChange = { edit(settings.name, it, settings.icon) }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.grocery_shared), modifier = Modifier.weight(1f))
-                Switch(checked = settings.shared, onCheckedChange = null)
-            }
-            Error(settings.error)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (settings.id != null) {
-                    // the button that leads to a delete (UX-3): filled like the other buttons, not
-                    // the color of the screen, the line and the text in the color of danger
-                    val enabled = !settings.last && !settings.busy
-                    OutlinedButton(
-                        onClick = { confirming = true },
-                        enabled = enabled,
-                        colors =
-                            ButtonDefaults.outlinedButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (enabled) 1f else 0.38f)),
-                        modifier = Modifier.testTag("delete-list"),
-                    ) { Text(stringResource(R.string.grocery_form_delete_list)) }
-                }
-                Button(onClick = model::saveSettings, enabled = canSave, modifier = Modifier.testTag("save-list")) {
-                    Text(
-                        stringResource(
-                            when {
-                                settings.busy -> R.string.grocery_saving
-                                settings.id == null -> R.string.grocery_form_create
-                                else -> R.string.shared_save
-                            },
-                        ),
-                    )
-                }
-            }
-            if (settings.last) Text(stringResource(R.string.grocery_form_last_list), style = MaterialTheme.typography.bodySmall)
-        }
+        // an existing list loads its categories again when pulled down (ANDROID-3), a new one has none
+        PullToRefreshBox(
+            isRefreshing = settings.categoriesLoading,
+            onRefresh = model::refreshCategories,
+            modifier = Modifier.fillMaxSize(),
+        ) { SettingsForm(padding, settings, model, edit, canSave, { picking = true }, { confirming = true }) }
     }
     if (picking) {
         ModalBottomSheet(onDismissRequest = { picking = false }) {
@@ -669,6 +626,249 @@ private fun ListSettingsScreen(
     if (confirming) ConfirmDelete(settings.name, onDelete = { model.deleteList() }, onDismiss = { confirming = false })
 }
 
+// the fields and buttons of the settings, the categories of an existing list below them
+@Composable
+private fun SettingsForm(
+    padding: PaddingValues,
+    settings: ListSettings,
+    model: GroceryModel,
+    edit: (String, Boolean, String?) -> Unit,
+    canSave: Boolean,
+    pick: () -> Unit,
+    confirm: () -> Unit,
+) {
+    Form(padding) {
+        OutlinedTextField(
+            value = settings.name,
+            onValueChange = { edit(it, settings.shared, settings.icon) },
+            label = { Text(stringResource(R.string.shared_name)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),
+            modifier = Modifier.fillMaxWidth().testTag("list-name"),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ListIcon(settings.name, settings.icon, size = 48)
+            TextButton(onClick = pick, modifier = Modifier.testTag("choose-icon")) { Text(stringResource(R.string.grocery_form_choose_icon)) }
+            TextButton(onClick = { edit(settings.name, settings.shared, null) }, enabled = settings.icon != null) {
+                Text(stringResource(R.string.grocery_form_no_icon))
+            }
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .toggleable(value = settings.shared, role = Role.Switch, onValueChange = { edit(settings.name, it, settings.icon) }),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.grocery_shared), modifier = Modifier.weight(1f))
+            Switch(checked = settings.shared, onCheckedChange = null)
+        }
+        Error(settings.error)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (settings.id != null) {
+                // the button that leads to a delete (UX-3): filled like the other buttons, not
+                // the color of the screen, the line and the text in the color of danger
+                val enabled = !settings.last && !settings.busy
+                OutlinedButton(
+                    onClick = confirm,
+                    enabled = enabled,
+                    colors =
+                        ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (enabled) 1f else 0.38f)),
+                    modifier = Modifier.testTag("delete-list"),
+                ) { Text(stringResource(R.string.grocery_form_delete_list)) }
+            }
+            Button(onClick = model::saveSettings, enabled = canSave, modifier = Modifier.testTag("save-list")) {
+                Text(
+                    stringResource(
+                        when {
+                            settings.busy -> R.string.grocery_saving
+                            settings.id == null -> R.string.grocery_form_create
+                            else -> R.string.shared_save
+                        },
+                    ),
+                )
+            }
+        }
+        if (settings.last) Text(stringResource(R.string.grocery_form_last_list), style = MaterialTheme.typography.bodySmall)
+        if (settings.id != null) Categories(settings, model)
+    }
+}
+
+// the categories of a list of the user's own in the order of the groups of its items (GROCERY-13),
+// each change saved at once, one after the other: the icon, the name when its field is left or done,
+// one place up or down (the ends disabled, UX-8), a delete from the menu of its row after a
+// confirmation (UX-12); a name typed below adds one as the last. Their errors show here; categories
+// that could not be loaded show no rows, but why and a way to load them again
+@Composable
+private fun Categories(
+    settings: ListSettings,
+    model: GroceryModel,
+) {
+    HorizontalDivider()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.grocery_categories), style = MaterialTheme.typography.titleMedium)
+        if (settings.categoriesPending > 0) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+    }
+    Box(Modifier.testTag("categories-error")) { Error(settings.categoriesError) }
+    if (!settings.categoriesLoaded) {
+        if (settings.categoriesError != null && !settings.categoriesLoading) {
+            OutlinedButton(onClick = model::refreshCategories, modifier = Modifier.testTag("categories-retry")) {
+                Text(stringResource(R.string.grocery_categories_retry))
+            }
+        } else {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    if (settings.categories.isEmpty()) Text(stringResource(R.string.grocery_no_categories))
+    settings.categories.forEachIndexed { index, category ->
+        // the state of a row stays with its category when the rows move (GC-1)
+        key(category.id) {
+            CategoryRow(
+                category,
+                name = settings.drafts[category.id] ?: category.name,
+                invalid = category.id in settings.invalidNames,
+                first = index == 0,
+                last = index == settings.categories.lastIndex,
+                model = model,
+            )
+        }
+    }
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = settings.newCategory,
+            onValueChange = model::editNewCategory,
+            label = { Text(stringResource(R.string.grocery_category_name)) },
+            singleLine = true,
+            isError = settings.newCategoryInvalid,
+            supportingText = if (settings.newCategoryInvalid) ({ Text(stringResource(R.string.grocery_category_name_invalid)) }) else null,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { model.addCategory() }),
+            modifier = Modifier.weight(1f).testTag("new-category"),
+        )
+        OutlinedButton(
+            onClick = model::addCategory,
+            enabled = settings.newCategory.isNotBlank(),
+            modifier = Modifier.padding(top = 8.dp).testTag("add-category"),
+        ) { Text(stringResource(R.string.grocery_category_add)) }
+    }
+}
+
+// a category in the settings: its icon, a tap chooses another; its name, kept by the model while it is
+// typed, checked and saved when its field is left or done (UX-6); up, down and its menu with the
+// delete. A change made while another one is sent waits for it
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryRow(
+    category: GroceryCategoryResponse,
+    name: String,
+    invalid: Boolean,
+    first: Boolean,
+    last: Boolean,
+    model: GroceryModel,
+) {
+    var focused by remember { mutableStateOf(false) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    var menu by rememberSaveable { mutableStateOf(false) }
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("category-${category.id}")) {
+        val iconLabel = stringResource(R.string.grocery_category_icon, category.name)
+        Box(
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable(onClickLabel = iconLabel) { picking = true }
+                .semantics { contentDescription = iconLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(category.icon ?: "＋", fontSize = 28.sp, color = if (category.icon == null) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified)
+        }
+        OutlinedTextField(
+            value = name,
+            onValueChange = { model.editCategoryName(category.id, it) },
+            singleLine = true,
+            isError = invalid,
+            supportingText = if (invalid) ({ Text(stringResource(R.string.grocery_category_name_invalid)) }) else null,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { model.saveCategoryName(category.id) }),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .onFocusChanged {
+                        if (focused && !it.isFocused) model.saveCategoryName(category.id)
+                        focused = it.isFocused
+                    }.testTag("category-name-${category.id}"),
+        )
+        val up = stringResource(R.string.grocery_category_up)
+        val down = stringResource(R.string.grocery_category_down)
+        IconButton(
+            onClick = { model.moveCategory(category.id, up = true) },
+            enabled = !first,
+            modifier = Modifier.semantics { contentDescription = up }.testTag("category-up-${category.id}"),
+        ) { Text("↑", style = MaterialTheme.typography.titleLarge) }
+        IconButton(
+            onClick = { model.moveCategory(category.id, up = false) },
+            enabled = !last,
+            modifier = Modifier.semantics { contentDescription = down }.testTag("category-down-${category.id}"),
+        ) { Text("↓", style = MaterialTheme.typography.titleLarge) }
+        Box {
+            val menuLabel = stringResource(R.string.grocery_category_menu, category.name)
+            IconButton(
+                onClick = { menu = true },
+                modifier = Modifier.semantics { contentDescription = menuLabel }.testTag("menu-category-${category.id}"),
+            ) {
+                Text("⋮", style = MaterialTheme.typography.titleLarge)
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.grocery_form_choose_icon)) },
+                    onClick = {
+                        menu = false
+                        picking = true
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.grocery_form_no_icon)) },
+                    onClick = {
+                        menu = false
+                        model.setCategoryIcon(category.id, null)
+                    },
+                    enabled = category.icon != null,
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.shared_delete)) },
+                    onClick = {
+                        menu = false
+                        confirming = true
+                    },
+                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("delete-category-${category.id}"),
+                )
+            }
+        }
+    }
+    if (picking) {
+        ModalBottomSheet(onDismissRequest = { picking = false }) {
+            AndroidView(
+                factory = { context ->
+                    EmojiPickerView(context).apply {
+                        setOnEmojiPickedListener { emoji ->
+                            model.setCategoryIcon(category.id, emoji.emoji)
+                            picking = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(400.dp),
+            )
+        }
+    }
+    if (confirming) ConfirmDelete(category.name, onDelete = { model.deleteCategory(category.id) }, onDismiss = { confirming = false })
+}
+
 // the items to buy of one list, the field to add one at the top; back leads to the home
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -681,7 +881,7 @@ private fun ListScreen(
     screen.viewing?.let { PhotoDialog(it, model) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
-        list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
+        list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared_badge).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))
@@ -707,9 +907,9 @@ private fun ListScreen(
                     screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                     if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty(stringResource(R.string.grocery_nothing_to_buy)) }
                     screen.groups.forEach { group ->
-                        item(key = "group-${group.category ?: ""}") {
+                        item(key = "group-${group.categoryId ?: ""}") {
                             Text(
-                                group.label.resolve(),
+                                listOfNotNull(group.icon, group.label.resolve()).joinToString(" "),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
@@ -725,6 +925,61 @@ private fun ListScreen(
             }
         }
     }
+}
+
+// the categories of the list to choose the one of an item from, and no category; a tap sets it and
+// leads straight back to the list, back too without a change (ANDROID-2)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryScreen(
+    screen: Screen.Lists,
+    item: GroceryItemResponse,
+    model: GroceryModel,
+) {
+    BackHandler(onBack = model::back)
+    Page(
+        stringResource(R.string.grocery_category_of, item.name),
+        navigationIcon = {
+            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
+                // back leads to the list
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_back_to_list))
+            }
+        },
+    ) { padding ->
+        // pulled down, the list loads again with its categories and the item (ANDROID-3)
+        PullToRefreshBox(isRefreshing = screen.loading, onRefresh = model::refresh, modifier = Modifier.padding(padding).fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize().testTag("categories")) {
+                items(screen.categories, key = { it.id }) { category ->
+                    CategoryChoice(category.icon, category.name, item.categoryId == category.id, "choose-category-${category.id}") {
+                        model.setCategory(category.id)
+                    }
+                    HorizontalDivider()
+                }
+                item(key = "none") {
+                    CategoryChoice(null, stringResource(R.string.grocery_list_no_category), item.categoryId == null, "choose-no-category") {
+                        model.setCategory(null)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// one category to choose, the one of the item marked
+@Composable
+private fun CategoryChoice(
+    icon: String?,
+    name: String,
+    current: Boolean,
+    tag: String,
+    onChoose: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp)) },
+        leadingContent = { Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { icon?.let { Text(it, fontSize = 28.sp) } } },
+        trailingContent = if (current) ({ Text("✓", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) }) else null,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onChoose).testTag(tag),
+    )
 }
 
 @Composable
@@ -804,7 +1059,7 @@ private fun ItemRow(
     }
 }
 
-// the menu of an item: a photo from the camera or the photos of the phone (PhotoPicker), scaled down
+// the menu of an item: its category, chosen on a screen of its own (CategoryScreen); a photo from the camera or the photos of the phone (PhotoPicker), scaled down
 // on the phone before it is sent, or the photo removed; the camera only when the phone has one (UX-8)
 @Composable
 private fun ItemMenu(
@@ -823,6 +1078,14 @@ private fun ItemMenu(
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_item_category)) },
+                onClick = {
+                    menu = false
+                    model.chooseCategory(item)
+                },
+                modifier = Modifier.testTag("category-item-${item.id}"),
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.grocery_photo_take)) },
                 onClick = {

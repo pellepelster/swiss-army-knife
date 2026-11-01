@@ -368,6 +368,17 @@ a {
   height: 48px;
 }
 
+// the icon of a grocery category in a menu, one width for all, so the names line up
+.category-icon {
+  width: 1.5em;
+}
+
+// the button of the icon of a grocery category in the settings, one width for all, so the names
+// line up; its input group gives it the height of the name field
+.category-icon-button {
+  width: 3rem;
+}
+
 // a flex child that may shrink below its content, e.g. a long name next to a photo and a menu
 .min-w-0 {
   min-width: 0;

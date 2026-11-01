@@ -56,7 +56,7 @@ class AuthRoutesTest {
     private fun authTest(
         loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
         linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
-        onLogin: LoginListener = LoginListener { signedIn += it },
+        onLogin: LoginListener = LoginListener { owner, _ -> signedIn += owner },
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
@@ -171,7 +171,7 @@ class AuthRoutesTest {
 
     @Test
     fun `a login listener that fails does not fail the sign-in`() =
-        authTest(onLogin = { error("no list") }) {
+        authTest(onLogin = { _, _ -> error("no list") }) {
             client.login("admin@example.org").status shouldBe HttpStatusCode.Accepted
             val token = receiveLink().parameters["token"]!!
 

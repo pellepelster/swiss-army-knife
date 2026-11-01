@@ -2,6 +2,7 @@ package io.pelle.sak.backend.notes
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.pelle.sak.api.Language
 import io.pelle.sak.api.Page
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService
@@ -38,7 +39,7 @@ class NoteServiceTest {
     private val files by lazy { FileService(database, tempDir.resolve("files"), clock) }
 
     // both users signed in once, so they have their list (LIST-1)
-    private val service by lazy { NoteService(database, labels, files, clock).also { listOf(PELLE, OTHER).forEach(it::signedIn) } }
+    private val service by lazy { NoteService(database, labels, files, clock).also { listOf(PELLE, OTHER).forEach { user -> it.signedIn(user, Language.EN) } } }
 
     private fun photo(content: String) =
         (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
@@ -60,8 +61,8 @@ class NoteServiceTest {
     fun `a user gets their list when they sign in, before that a note can not be created`() {
         service.create(NEWCOMER, "milk", "yellow", listOf("todo")) shouldBe SaveNoteResult.NoList
         labels.byName(NEWCOMER, "todo") shouldBe null
-        service.signedIn(NEWCOMER)
-        service.signedIn(NEWCOMER)
+        service.signedIn(NEWCOMER, Language.EN)
+        service.signedIn(NEWCOMER, Language.EN)
         create("milk", owner = NEWCOMER).owner shouldBe NEWCOMER
     }
 

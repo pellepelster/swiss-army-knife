@@ -32,11 +32,11 @@ class GroceryModelTest {
             answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party", shared = true))
             answers["GET /grocery/lists/1/items"] =
-                HttpStatusCode.OK to page(item(10, 1, "Apples", "FRUIT_VEGETABLES"), item(11, 1, "Milk", "DAIRY", 1.5, "l"), item(12, 1, "Candles", null))
+                HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(11, 1, "Milk", 2, 1.5, "l"), item(12, 1, "Candles", null))
             answers["GET /grocery/lists/2/items"] = HttpStatusCode.OK to page()
-            answers["GET /grocery/categories"] =
-                HttpStatusCode.OK to
-                page("""{"name":"FRUIT_VEGETABLES","label":"Fruit & vegetables"}""", """{"name":"DAIRY","label":"Dairy & eggs"}""")
+            answers["GET /grocery/lists/1/categories"] =
+                HttpStatusCode.OK to page(category(1, "Fruit & vegetables", "🥦"), category(2, "Dairy & eggs", null))
+            answers["GET /grocery/lists/2/categories"] = HttpStatusCode.OK to page()
         }
 
     private fun session(
@@ -54,10 +54,16 @@ class GroceryModelTest {
         id: Int,
         listId: Int,
         name: String,
-        category: String?,
+        categoryId: Int?,
         amount: Double? = null,
         unit: String? = null,
-    ) = """{"id":$id,"listId":$listId,"name":"$name","amount":$amount,"unit":${unit?.let { "\"$it\"" }},"category":${category?.let { "\"$it\"" }}}"""
+    ) = """{"id":$id,"listId":$listId,"name":"$name","amount":$amount,"unit":${unit?.let { "\"$it\"" }},"categoryId":$categoryId}"""
+
+    private fun category(
+        id: Int,
+        name: String,
+        icon: String?,
+    ) = """{"id":$id,"name":"$name","icon":${icon?.let { "\"$it\"" }}}"""
 
     private fun TestScope.model(
         store: MemorySessionStore,
@@ -109,6 +115,7 @@ class GroceryModelTest {
             val lists = model.screen.value as Screen.Lists
             assertEquals(1, lists.open)
             assertEquals(listOf("Fruit & vegetables", "Dairy & eggs", GroceryModel.NO_CATEGORY.english()), lists.groups.map { it.label.english() })
+            assertEquals(listOf("🥦", null, null), lists.groups.map { it.icon })
             assertEquals(listOf("Apples", "Milk", "Candles"), lists.groups.flatMap { group -> group.items.map { it.name } })
             assertEquals("password-session", backend.tokens["/grocery/lists/1/items"])
             assertEquals(1, store.load().openList)
@@ -476,7 +483,8 @@ class GroceryModelTest {
             assertNull((model.screen.value as Screen.Lists).settings)
 
             model.openSettings(2)
-            assertEquals(ListSettings(2, "Party", shared = true), (model.screen.value as Screen.Lists).settings)
+            // its categories loading
+            assertEquals(ListSettings(2, "Party", shared = true, categoriesLoading = true), (model.screen.value as Screen.Lists).settings)
             model.editSettings("Party", shared = true, icon = "🎉")
             model.saveSettings()
             advanceUntilIdle()
@@ -537,8 +545,8 @@ class GroceryModelTest {
     fun `the menu of an item attaches a photo, stored first, and removes it, a photo is fetched once a size`() =
         runTest {
             backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9}"""
-            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
-            backend.answers["DELETE /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
+            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
+            backend.answers["DELETE /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
             backend.answers["GET /grocery/items/10/photos/9"] = HttpStatusCode.OK to "jpeg"
             val model = signedIn()
             advanceUntilIdle()
@@ -565,7 +573,7 @@ class GroceryModelTest {
     fun `a photo the camera took while android ended the app is attached once the lists are back`() =
         runTest {
             backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9}"""
-            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
+            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
             val store = signedInStore(openList = 1)
             backend.dispatcher = StandardTestDispatcher(testScheduler)
             val model = GroceryModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC))
@@ -604,16 +612,280 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the categories are asked for once a session, not on every load`() =
+    fun `the categories of a list are loaded with its items, on every load, an unknown one is none`() =
         runTest {
+            backend.answers["GET /grocery/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Apples", 7), item(11, 1, "Milk", 2))
             val model = signedIn()
             advanceUntilIdle()
             model.refresh()
             advanceUntilIdle()
+            assertEquals(2, backend.requests.count { it == "GET /grocery/lists/1/categories" })
+            assertEquals(listOf("Dairy & eggs", GroceryModel.NO_CATEGORY.english()), (model.screen.value as Screen.Lists).groups.map { it.label.english() })
+            assertTrue(backend.requests.none { it == "GET /grocery/categories" })
+        }
+
+    @Test
+    fun `the category of an item is chosen on a screen of its own, which leads straight back to the list`() =
+        runTest {
+            backend.answers["PUT /grocery/items/12/category"] = HttpStatusCode.OK to item(12, 1, "Candles", 2)
+            backend.answers["PUT /grocery/items/11/category"] = HttpStatusCode.BadRequest to """{"errors":[{"message":"The list has no such category."}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.chooseCategory(model.item("Candles"))
+            assertEquals("Candles", (model.screen.value as Screen.Lists).choosing?.name)
+            assertEquals(listOf(1, 2), (model.screen.value as Screen.Lists).categories.map { it.id })
+            // back without a change
+            model.back()
+            assertNull((model.screen.value as Screen.Lists).choosing)
+            assertEquals(1, (model.screen.value as Screen.Lists).open)
+
+            model.chooseCategory(model.item("Candles"))
+            val loads = backend.requests.count { it == "GET /grocery/lists/1/items" }
+            model.setCategory(2)
+            assertNull((model.screen.value as Screen.Lists).choosing)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/12/category {"categoryId":2}"""))
+            assertEquals(loads + 1, backend.requests.count { it == "GET /grocery/lists/1/items" })
+
+            // the one it has already: nothing is sent
+            model.chooseCategory(model.item("Milk"))
+            model.setCategory(2)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("PUT /grocery/items/11/category") })
+
+            // none, refused: the list says why
+            model.chooseCategory(model.item("Milk"))
+            model.setCategory(null)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/11/category {"categoryId":null}"""))
+            assertEquals("The list has no such category.", (model.screen.value as Screen.Lists).error.english())
+        }
+
+    @Test
+    fun `the settings of a list add, rename, move and delete its categories, each at once`() =
+        runTest {
+            backend.answers["POST /grocery/lists/1/categories"] = HttpStatusCode.Created to category(3, "Drinks", null)
+            backend.answers["PUT /grocery/lists/1/categories/2"] = HttpStatusCode.OK to category(2, "Dairy", "🧀")
+            backend.answers["PUT /grocery/lists/1/categories/order"] =
+                HttpStatusCode.OK to page(category(2, "Dairy", "🧀"), category(1, "Fruit & vegetables", "🥦"), category(3, "Drinks", null))
+            backend.answers["DELETE /grocery/lists/1/categories/1"] = HttpStatusCode.NoContent to ""
+            backend.answers["POST /grocery/lists/2/categories"] = HttpStatusCode.Conflict to """{"errors":[{"message":"The list has a category of the name."}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as Screen.Lists).settings!!
+
+            model.openSettings(1)
+            advanceUntilIdle()
+            assertEquals(listOf("Fruit & vegetables", "Dairy & eggs"), settings().categories.map { it.name })
+
+            model.editNewCategory(" Drinks ")
+            model.addCategory()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /grocery/lists/1/categories {"name":"Drinks","icon":null}"""))
+            assertEquals(listOf(1, 2, 3), settings().categories.map { it.id })
+            assertEquals("", settings().newCategory)
+
+            model.editCategoryName(2, "Dairy")
+            model.saveCategoryName(2)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/2 {"name":"Dairy","icon":null}"""))
+            assertEquals("Dairy", settings().categories[1].name)
+            assertEquals(emptyMap<Int, String>(), settings().drafts)
+            // unchanged, empty or too long: nothing is sent, the field says why
+            val sent = backend.requests.size
+            model.editCategoryName(2, "Dairy ")
+            model.saveCategoryName(2)
+            model.setCategoryIcon(2, "🧀")
+            model.editCategoryName(2, " ")
+            model.saveCategoryName(2)
+            advanceUntilIdle()
+            assertTrue(backend.requests.drop(sent).none { it.startsWith("PUT") })
+            assertEquals(setOf(2), settings().invalidNames)
+            model.editCategoryName(2, "Dairy")
+            assertEquals(emptySet<Int>(), settings().invalidNames)
+            model.editNewCategory("x".repeat(33))
+            model.addCategory()
+            assertTrue(settings().newCategoryInvalid)
+            model.editNewCategory("")
+            assertTrue(!settings().newCategoryInvalid)
+
+            // the first one up stays, the second one goes up
+            model.moveCategory(1, up = true)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("PUT /grocery/lists/1/categories/order") })
+            model.moveCategory(2, up = true)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/order {"ids":[2,1,3]}"""))
+            assertEquals(listOf(2, 1, 3), settings().categories.map { it.id })
+
+            model.deleteCategory(1)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/lists/1/categories/1"))
+            assertEquals(listOf(2, 3), settings().categories.map { it.id })
+            assertNull(settings().error)
+
+            // a refused name stays on the settings with the reason, in the section of the categories,
+            // which load again as the backend has them
+            model.back()
+            model.openSettings(2)
+            advanceUntilIdle()
+            val loads = backend.requests.count { it == "GET /grocery/lists/2/categories" }
+            model.editNewCategory("Drinks")
+            model.addCategory()
+            advanceUntilIdle()
+            assertEquals("The list has a category of the name.", settings().categoriesError.english())
+            assertNull(settings().error)
+            assertEquals("Drinks", settings().newCategory)
+            assertEquals(0, settings().categoriesPending)
+            assertEquals(loads + 1, backend.requests.count { it == "GET /grocery/lists/2/categories" })
+        }
+
+    @Test
+    fun `changes of the categories made while one is sent wait for it and are all sent, in their order`() =
+        runTest {
+            backend.answers["PUT /grocery/lists/1/categories/order"] =
+                HttpStatusCode.OK to page(category(2, "Dairy & eggs", null), category(1, "Fruit & vegetables", "🥦"))
+            backend.answers["PUT /grocery/lists/1/categories/1"] = HttpStatusCode.OK to category(1, "Fruit & vegetables", "🍎")
+            backend.answers["PUT /grocery/lists/1/categories/2"] = HttpStatusCode.OK to category(2, "Milk", null)
+            val model = signedIn()
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as Screen.Lists).settings!!
+            model.openSettings(1)
+            advanceUntilIdle()
+
+            // all at once, before the first answer
+            model.moveCategory(2, up = true)
+            model.setCategoryIcon(1, "🍎")
+            model.editCategoryName(2, "Milk")
+            model.saveCategoryName(2)
+            assertEquals(3, settings().categoriesPending)
+            advanceUntilIdle()
+            assertEquals(
+                listOf(
+                    """PUT /grocery/lists/1/categories/order {"ids":[2,1]}""",
+                    """PUT /grocery/lists/1/categories/1 {"name":"Fruit & vegetables","icon":"🍎"}""",
+                    """PUT /grocery/lists/1/categories/2 {"name":"Milk","icon":null}""",
+                ),
+                backend.requests.filter { it.startsWith("PUT") },
+            )
+            assertEquals(listOf("Milk", "Fruit & vegetables"), settings().categories.map { it.name })
+            assertEquals(0, settings().categoriesPending)
+        }
+
+    @Test
+    fun `a name typed and not yet saved is saved when the settings close, also by save`() =
+        runTest {
+            backend.answers["PUT /grocery/lists/1/categories/2"] = HttpStatusCode.OK to category(2, "Milk", null)
+            backend.answers["PUT /grocery/lists/1/categories/1"] = HttpStatusCode.OK to category(1, "Fruit", "🥦")
+            backend.answers["PUT /grocery/lists/1"] = HttpStatusCode.OK to list(1, "Default")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editCategoryName(2, "Milk")
+            // a name that is not valid is not saved
+            model.editCategoryName(1, " ")
+            model.back()
+            assertNull((model.screen.value as Screen.Lists).settings)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/2 {"name":"Milk","icon":null}"""))
+            assertTrue(backend.requests.none { it.startsWith("PUT /grocery/lists/1/categories/1") })
+
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editCategoryName(1, "Fruit")
+            model.saveSettings()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/1 {"name":"Fruit","icon":"🥦"}"""))
+        }
+
+    @Test
+    fun `categories that can not be loaded show none but why, until they are loaded again`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as Screen.Lists).settings!!
+            backend.answers["GET /grocery/lists/1/categories"] =
+                HttpStatusCode.InternalServerError to """{"errors":[{"code":"api.unexpected_error","message":"Something went wrong."}]}"""
+
+            model.openSettings(1)
+            advanceUntilIdle()
+            assertTrue(!settings().categoriesLoaded)
+            assertTrue(!settings().categoriesLoading)
+            assertEquals("Something went wrong.", settings().categoriesError.english())
+
+            backend.answers["GET /grocery/lists/1/categories"] = HttpStatusCode.OK to page(category(1, "Fruit & vegetables", "🥦"))
+            model.refreshCategories()
+            advanceUntilIdle()
+            assertTrue(settings().categoriesLoaded)
+            assertNull(settings().categoriesError)
+            assertEquals(listOf(1), settings().categories.map { it.id })
+        }
+
+    @Test
+    fun `a session that ended during a change of a category leads to the sign-in`() =
+        runTest {
+            backend.answers["POST /grocery/lists/1/categories"] = HttpStatusCode.Unauthorized to ""
+            val model = signedIn()
+            advanceUntilIdle()
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editNewCategory("Drinks")
+            model.addCategory()
+            advanceUntilIdle()
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error.english())
+        }
+
+    @Test
+    fun `the settings load the categories again on a change of their list, the names typed stay`() =
+        runTest {
+            backend.answers["GET /grocery/changes"] = HttpStatusCode.OK to ": listening\n\n${changed(2)}${changed(1)}"
+            val model = signedIn()
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as Screen.Lists).settings!!
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editCategoryName(2, "Mil")
+            val loads = backend.requests.count { it == "GET /grocery/lists/1/categories" }
+            backend.answers["GET /grocery/lists/1/categories"] =
+                HttpStatusCode.OK to page(category(2, "Dairy & eggs", null), category(1, "Fruit & vegetables", "🥦"), category(3, "Drinks", null))
+
+            model.startListening()
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            runCurrent()
+            model.stopListening()
+            // the change of list 1, not the one of list 2; the list open loads too
+            assertTrue(backend.requests.count { it == "GET /grocery/lists/1/categories" } >= loads + 1)
+            assertEquals(listOf(2, 1, 3), settings().categories.map { it.id })
+            assertEquals(mapOf(2 to "Mil"), settings().drafts)
+        }
+
+    @Test
+    fun `the category screen follows the item as it is loaded, an item that is gone leads back to the list`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            model.chooseCategory(model.item("Candles"))
+
+            // set to a category meanwhile by another user: choosing that one is no change
+            backend.answers["GET /grocery/lists/1/items"] =
+                HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(11, 1, "Milk", 2, 1.5, "l"), item(12, 1, "Candles", 2))
             model.refresh()
             advanceUntilIdle()
-            assertEquals(3, backend.requests.count { it == "GET /grocery/lists/1/items" })
-            assertEquals(1, backend.requests.count { it == "GET /grocery/categories" })
+            assertEquals(2, (model.screen.value as Screen.Lists).choosing?.categoryId)
+            model.setCategory(2)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("PUT /grocery/items/12/category") })
+
+            // bought by another user: the list shows
+            model.chooseCategory(model.item("Candles"))
+            backend.answers["GET /grocery/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Apples", 1))
+            model.refresh()
+            advanceUntilIdle()
+            assertNull((model.screen.value as Screen.Lists).choosing)
+            assertEquals(1, (model.screen.value as Screen.Lists).open)
         }
 
     @Test

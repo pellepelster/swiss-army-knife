@@ -1,11 +1,14 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { fetchAll } from '../shared/api';
+import { map, Observable } from 'rxjs';
+import { fetchAll, Page } from '../shared/api';
 
+// a category of a list, the groups of its items in the order the list answers them (GROCERY-13)
 export interface GroceryCategory {
+  id: number;
   name: string;
-  label: string;
+  // one emoji, null for none
+  icon: string | null;
 }
 
 export interface GroceryList {
@@ -27,7 +30,8 @@ export interface GroceryItem {
   name: string;
   amount: number | null;
   unit: string | null;
-  category: string | null;
+  // a category of its list, null for none
+  categoryId: number | null;
   // the file of its photo, null without one
   photoId?: number | null;
 }
@@ -37,7 +41,8 @@ export interface GroceryItemValues {
   name: string;
   amount: number | null;
   unit: string | null;
-  category: string | null;
+  // a category of the list; a new item without one gets the one the list learned of its name
+  categoryId: number | null;
 }
 
 // an item added before, with the quantity and the category used last
@@ -46,17 +51,13 @@ export interface GrocerySuggestion {
   name: string;
   amount: number | null;
   unit: string | null;
-  category: string | null;
+  categoryId: number | null;
 }
 
 // the grocery lists of the signed in user and the shared ones, their items and the suggestions
 @Injectable({ providedIn: 'root' })
 export class GroceryService {
   private readonly http = inject(HttpClient);
-
-  categories(): Observable<GroceryCategory[]> {
-    return fetchAll<GroceryCategory>(this.http, '/api/v1/grocery/categories');
-  }
 
   lists(): Observable<GroceryList[]> {
     return fetchAll<GroceryList>(this.http, '/api/v1/grocery/lists');
@@ -92,6 +93,11 @@ export class GroceryService {
     return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}`, values);
   }
 
+  // one of the categories of its list, null for none; also of the next item of its name on the list
+  setCategory(id: number, categoryId: number | null): Observable<GroceryItem> {
+    return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}/category`, { categoryId });
+  }
+
   // checks the item: it is bought and deleted
   deleteItem(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/grocery/items/${id}`);
@@ -111,6 +117,43 @@ export class GroceryService {
 
   removePhoto(id: number): Observable<GroceryItem> {
     return this.http.delete<GroceryItem>(`/api/v1/grocery/items/${id}/photo`);
+  }
+
+  // the categories of a list in their order (GROCERY-13); only its owner changes them
+  categories(listId: number): Observable<GroceryCategory[]> {
+    return fetchAll<GroceryCategory>(this.http, `/api/v1/grocery/lists/${listId}/categories`);
+  }
+
+  // the last category of the list
+  createCategory(listId: number, name: string, icon: string | null): Observable<GroceryCategory> {
+    return this.http.post<GroceryCategory>(`/api/v1/grocery/lists/${listId}/categories`, {
+      name,
+      icon,
+    });
+  }
+
+  updateCategory(
+    listId: number,
+    id: number,
+    name: string,
+    icon: string | null,
+  ): Observable<GroceryCategory> {
+    return this.http.put<GroceryCategory>(`/api/v1/grocery/lists/${listId}/categories/${id}`, {
+      name,
+      icon,
+    });
+  }
+
+  // its items and the suggestions of the list lose it
+  deleteCategory(listId: number, id: number): Observable<void> {
+    return this.http.delete<void>(`/api/v1/grocery/lists/${listId}/categories/${id}`);
+  }
+
+  // the ids of all categories of the list, each once, in their new order; all of them in it
+  orderCategories(listId: number, ids: number[]): Observable<GroceryCategory[]> {
+    return this.http
+      .put<Page<GroceryCategory>>(`/api/v1/grocery/lists/${listId}/categories/order`, { ids })
+      .pipe(map((page) => page.items));
   }
 
   // the items added to the list before whose name contains the text, the ones to buy on it left

@@ -1217,7 +1217,15 @@ grocery:
       en: "A unit must have at most %{max} characters and no control characters."
       de: "Eine Einheit darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
     unit_without_amount: { en: "A unit needs an amount.", de: "Eine Einheit braucht eine Menge." }
-    unknown_category: { en: "There is no category \"%{category}\".", de: "Es gibt keine Kategorie \"%{category}\"." }
+    unknown_category: { en: "The list has no such category.", de: "Die Liste hat keine solche Kategorie." }
+    invalid_category_name:
+      en: "A category name must have 1 to %{max} characters and no control characters."
+      de: "Ein Kategoriename muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    category_exists: { en: "The list has a category of the name.", de: "Die Liste hat schon eine Kategorie mit diesem Namen." }
+    too_many_categories: { en: "A list has at most %{max} categories.", de: "Eine Liste hat höchstens %{max} Kategorien." }
+    invalid_category_order:
+      en: "The order must name every category of the list once."
+      de: "Die Reihenfolge muss jede Kategorie der Liste einmal nennen."
     list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
     last_list: { en: "You can not delete your only list.", de: "Du kannst deine einzige Liste nicht löschen." }
     not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
@@ -1262,6 +1270,31 @@ grocery:
       add_item: { en: "Add item", de: "Artikel hinzufügen" }
       empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }
       bought: { en: "%{name} bought", de: "%{name} gekauft" }
+      category: { en: "Category", de: "Kategorie" }
+      category_not_set: { en: "The category could not be set.", de: "Die Kategorie konnte nicht gesetzt werden." }
+    categories:
+      title: { en: "Categories", de: "Kategorien" }
+      hint:
+        en: "The items of the list show in groups of their category, in this order."
+        de: "Die Artikel der Liste stehen in Gruppen nach ihrer Kategorie, in dieser Reihenfolge."
+      none: { en: "The list has no categories yet.", de: "Die Liste hat noch keine Kategorien." }
+      name_of: { en: "Name of %{name}", de: "Name von %{name}" }
+      icon_of: { en: "Choose the icon of %{name}", de: "Icon von %{name} auswählen" }
+      up: { en: "Move %{name} up", de: "%{name} nach oben schieben" }
+      down: { en: "Move %{name} down", de: "%{name} nach unten schieben" }
+      new: { en: "New category", de: "Neue Kategorie" }
+      add: { en: "Add category", de: "Kategorie hinzufügen" }
+      name_required: { en: "A category needs a name.", de: "Eine Kategorie braucht einen Namen." }
+      no_icon_yet: { en: "The category has no icon.", de: "Die Kategorie hat kein Icon." }
+      saving:
+        en: "Wait until the changes of the categories are saved."
+        de: "Warte, bis die Änderungen der Kategorien gespeichert sind."
+      not_loaded: { en: "The categories could not be loaded.", de: "Die Kategorien konnten nicht geladen werden." }
+      not_saved: { en: "The category could not be saved.", de: "Die Kategorie konnte nicht gespeichert werden." }
+      not_deleted: { en: "The category could not be deleted.", de: "Die Kategorie konnte nicht gelöscht werden." }
+      not_ordered:
+        en: "The order of the categories could not be saved."
+        de: "Die Reihenfolge der Kategorien konnte nicht gespeichert werden."
   android:
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }
     photo_choose: { en: "Choose photo", de: "Foto auswählen" }
@@ -1270,11 +1303,32 @@ grocery:
       en: "You have no list yet, add one with the plus at the top."
       de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."
     shared: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
+    shared_badge: { en: "Shared", de: "Geteilt" }
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
     new_list: { en: "New list", de: "Neue Liste" }
     saving: { en: "Saving…", de: "Wird gespeichert…" }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
     bought: { en: "%{item} bought", de: "%{item} gekauft" }
+    item_category: { en: "Category", de: "Kategorie" }
+    category_of: { en: "Category of %{item}", de: "Kategorie von %{item}" }
+    categories: { en: "Categories", de: "Kategorien" }
+    no_categories: { en: "The list has no categories yet.", de: "Die Liste hat noch keine Kategorien." }
+    category_name: { en: "New category", de: "Neue Kategorie" }
+    category_add: { en: "Add category", de: "Kategorie hinzufügen" }
+    category_up: { en: "Move up", de: "Nach oben" }
+    category_down: { en: "Move down", de: "Nach unten" }
+    category_icon: { en: "Icon of %{category}", de: "Icon von %{category}" }
+    category_name_invalid:
+      en: "A category name must have 1 to 32 characters."
+      de: "Ein Kategoriename muss 1 bis 32 Zeichen haben."
+    category_not_saved: { en: "The category could not be saved.", de: "Die Kategorie konnte nicht gespeichert werden." }
+    category_not_deleted: { en: "The category could not be deleted.", de: "Die Kategorie konnte nicht gelöscht werden." }
+    category_not_set:
+      en: "The category of the item could not be set."
+      de: "Die Kategorie des Artikels konnte nicht gesetzt werden."
+    category_menu: { en: "Menu of %{category}", de: "Menü von %{category}" }
+    categories_retry: { en: "Load again", de: "Erneut laden" }
+    back_to_list: { en: "Back to the list", de: "Zurück zur Liste" }
     to_buy:
       en: { one: "%{count} item to buy", other: "%{count} items to buy" }
       de: { one: "%{count} Artikel zu kaufen", other: "%{count} Artikel zu kaufen" }

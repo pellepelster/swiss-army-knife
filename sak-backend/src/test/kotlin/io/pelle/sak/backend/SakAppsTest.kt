@@ -626,13 +626,22 @@ class SakAppsTest {
                     it.string("id")
                 }
 
+            // the categories of the list of the sign-in, the default ones in the language of the sign-in
+            val categories = get(port, "/api/v1/grocery/lists/$listId/categories", session).json().getValue("items").jsonArray.map { it.jsonObject }
+            categories.first().let {
+                it.string("name") shouldBe "Fruit & vegetables"
+                it.string("icon") shouldBe "🥦"
+            }
+            fun category(name: String) = categories.single { it.string("name") == name }.string("id")
+            val dairy = category("Dairy & eggs")
+
             post(port, "/api/v1/grocery/items", """{"name":"Milk"}""", session).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"api.malformed_request","message":"The request is malformed."}]}"""
             }
-            val milk = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session)
+            val milk = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session)
             milk.statusCode() shouldBe 201
-            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Apples","category":"FRUIT_VEGETABLES"}""", session).statusCode() shouldBe 201
+            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Apples","categoryId":${category("Fruit & vegetables")}}""", session).statusCode() shouldBe 201
             post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Milk","unit":"l"}""", session).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"grocery.unit_without_amount","message":"A unit needs an amount."}]}"""
@@ -641,7 +650,7 @@ class SakAppsTest {
                 listOf("Apples", "Milk")
 
             val milkId = milk.json().string("id")
-            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","category":"DAIRY"}""", session).json().let {
+            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session).json().let {
                 it.string("amount") shouldBe "1.5"
             }
             delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 204
@@ -654,8 +663,35 @@ class SakAppsTest {
                 delete(port, "/api/v1/grocery/lists/$listId/suggestions/${it.string("id")}", session).statusCode() shouldBe 204
             }
             get(port, "/api/v1/grocery/lists/0/suggestions", session).statusCode() shouldBe 404
-            get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
-                "Fruit & vegetables"
+            // the owner changes the categories, an item takes one of them
+            val snacks =
+                post(port, "/api/v1/grocery/lists/$listId/categories", """{"name":"Snacks","icon":"🍿"}""", session).let {
+                    it.statusCode() shouldBe 201
+                    it.json().string("id")
+                }
+            post(port, "/api/v1/grocery/lists/$listId/categories", """{"name":"Snacks"}""", session).statusCode() shouldBe 409
+            put(port, "/api/v1/grocery/lists/$listId/categories/$snacks", """{"name":"Crisps"}""", session).json().string("name") shouldBe "Crisps"
+            // a name is the same in any case
+            put(port, "/api/v1/grocery/lists/$listId/categories/$snacks", """{"name":"BAKERY"}""", session).statusCode() shouldBe 409
+            val ids = categories.map { it.string("id") } + snacks
+            put(port, "/api/v1/grocery/lists/$listId/categories/order", """{"ids":[${ids.reversed().joinToString(",")}]}""", session).let {
+                it.statusCode() shouldBe 200
+                it.json().getValue("items").jsonArray.map { category -> category.jsonObject.string("id") } shouldBe ids.reversed()
+            }
+            put(port, "/api/v1/grocery/lists/$listId/categories/order", """{"ids":[$snacks]}""", session).statusCode() shouldBe 400
+            val apples = get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":$snacks}""", session).json().string("categoryId") shouldBe snacks
+            put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":0}""", session).statusCode() shouldBe 400
+            // a change of the item without a category takes it away
+            put(port, "/api/v1/grocery/items/$apples", """{"name":"Apples"}""", session).json()["categoryId"].toString() shouldBe "null"
+            put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":$snacks}""", session).statusCode() shouldBe 200
+            delete(port, "/api/v1/grocery/lists/$listId/categories/$snacks", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/grocery/lists/$listId/categories/$snacks", session).statusCode() shouldBe 404
+            get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.single().jsonObject.let {
+                it.containsKey("categoryId") shouldBe true
+                it["categoryId"].toString() shouldBe "null"
+            }
+            get(port, "/api/v1/grocery/lists/0/categories", session).statusCode() shouldBe 404
             // the only own list stays, with another one it goes
             delete(port, "/api/v1/grocery/lists/$listId", session).let {
                 it.statusCode() shouldBe 409
@@ -1136,7 +1172,6 @@ class SakAppsTest {
                         "/api/v1/labels/{id}",
                         "/api/v1/notes",
                         "/api/v1/notes/{id}",
-                        "/api/v1/grocery/categories",
                         "/api/v1/grocery/changes",
                         "/api/v1/users",
                         "/api/v1/users/app-link",
@@ -1145,9 +1180,13 @@ class SakAppsTest {
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",
                         "/api/v1/grocery/lists/{id}/suggestions",
+                        "/api/v1/grocery/lists/{id}/categories",
+                        "/api/v1/grocery/lists/{id}/categories/order",
+                        "/api/v1/grocery/lists/{id}/categories/{categoryId}",
                         "/api/v1/grocery/lists/{id}/suggestions/{suggestionId}",
                         "/api/v1/grocery/items",
                         "/api/v1/grocery/items/{id}",
+                        "/api/v1/grocery/items/{id}/category",
                         "/api/v1/grocery/items/{id}/photo",
                         "/api/v1/grocery/items/{id}/photos/{fileId}",
                         "/api/v1/files",
@@ -1214,10 +1253,13 @@ class SakAppsTest {
         withServer { port ->
             val session = signIn(port)
             val german = "de-DE,de;q=0.9,en;q=0.8"
-            request(port, "GET", "/api/v1/grocery/categories", session, answer = HttpResponse.BodyHandlers.ofString(), language = german)
-                .json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe "Obst & Gemüse"
-            get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
-                "Fruit & vegetables"
+            // a new list has the default categories in the language of the request
+            val party =
+                request(port, "POST", "/api/v1/grocery/lists", session, """{"name":"Fest"}""".toByteArray(), answer = HttpResponse.BodyHandlers.ofString(), language = german)
+                    .json()
+                    .string("id")
+            get(port, "/api/v1/grocery/lists/$party/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("name") shouldBe
+                "Obst & Gemüse"
 
             val invalid = """{"name":"Party","shared":false,"icon":"ab"}""".toByteArray()
             request(port, "POST", "/api/v1/grocery/lists", session, invalid, answer = HttpResponse.BodyHandlers.ofString(), language = german).let {

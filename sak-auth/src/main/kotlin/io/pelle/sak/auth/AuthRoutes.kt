@@ -122,7 +122,7 @@ fun Route.login(
     // links altogether, the ceiling of what the smtp server is asked to send
     linksPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
     // told of every exchange that issued a session
-    onLogin: LoginListener = LoginListener {},
+    onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
     installApi()
 
@@ -195,7 +195,7 @@ fun Route.login(
         }
 
         val session = tokens.issueSessionToken(claims.email, roles)
-        onLogin.notifySignedIn(session.email)
+        onLogin.notifySignedIn(session.email, call.language())
         call.response.header(HttpHeaders.CacheControl, "no-store")
         call.respond(
             ExchangeResponse(session.token, session.email, session.expiresAt.apiTime(), roles.keys(), safeRedirect(claims.redirect)),
@@ -236,7 +236,7 @@ fun Route.passwordLogin(
     attemptsPerClient: RateLimiter = RateLimiter(10, Duration.ofHours(1)),
     attemptsPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
     // told of every password login that issued a session
-    onLogin: LoginListener = LoginListener {},
+    onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
     route("/password") {
         installApi()
@@ -256,7 +256,7 @@ fun Route.passwordLogin(
                 return@post
             }
             val session = tokens.issueSessionToken(admin, roles, withPassword = true)
-            onLogin.notifySignedIn(session.email)
+            onLogin.notifySignedIn(session.email, call.language())
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(
                 ExchangeResponse(session.token, session.email, session.expiresAt.apiTime(), roles.keys(), safeRedirect(request.redirect)),

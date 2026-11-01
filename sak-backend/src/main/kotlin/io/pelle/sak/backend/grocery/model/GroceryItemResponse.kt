@@ -9,7 +9,8 @@ data class GroceryItemResponse(
     val name: String,
     val amount: Double?,
     val unit: String?,
-    val category: String?,
+    // a category of its list, null for none (GROCERY-13)
+    val categoryId: Int?,
     val createdAt: String,
     // missing until it is changed
     val updatedAt: String?,

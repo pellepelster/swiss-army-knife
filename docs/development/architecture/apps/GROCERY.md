@@ -31,4 +31,14 @@ An app to manage grocery lists.
   it, no item on another list. The photos stay with what a list learned when it is unshared. A photo is fetched in
   the size it shows at: the smallest of the sizes the backend scales to that has at least the pixels of the screen
   there, the photo itself when none has.
+- `GROCERY-13` **The categories of a list.** Every list has its own categories, each with a name (unique on the list,
+  in any case), an icon (one emoji or none) and a place in their order; a list shows its items in groups by category in that order, the items without a
+  category last. A new list starts with the default categories (fruit & vegetables, bakery, dairy & eggs, meat & fish,
+  pantry, frozen, drinks, household, other, each with an icon), named in the language of the request that makes it,
+  for the list of the sign-in that of the sign-in. Only the owner of the list adds, renames, orders and deletes them,
+  in the settings of the list; every user who sees the list sees them. An item has one category of its list or none,
+  set from the menu of its row by every user who sees the list (on Android on a screen of its own, which goes back to
+  the list once one is chosen). It goes onto the learned item of the name of the list (`GROCERY-11`): the next item of
+  the name on that list gets it. A category never applies to another list. A deleted category goes from its items and
+  the learned items; a deleted list takes its categories along.
 

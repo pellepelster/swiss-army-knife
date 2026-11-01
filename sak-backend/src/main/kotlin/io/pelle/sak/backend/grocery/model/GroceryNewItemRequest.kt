@@ -11,6 +11,7 @@ data class GroceryNewItemRequest(
     val amount: Double? = null,
     // free text, only with an amount
     val unit: String? = null,
-    // one of the categories, none when missing
-    val category: String? = null,
+    // one of the categories of the list, none when missing (GROCERY-13); a new item without one gets
+    // the one the list learned of its name
+    val categoryId: Int? = null,
 )

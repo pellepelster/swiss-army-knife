@@ -229,8 +229,69 @@ class GroceryApi(
                 }
         }
 
-    // in the order a list shows them
-    suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", R.string.grocery_error_categories_not_loaded)
+    // the categories of a list the user sees, in the order it shows them (GROCERY-13)
+    suspend fun categories(listId: Int): List<GroceryCategoryResponse> =
+        all("$url/grocery/lists/$listId/categories", R.string.grocery_error_categories_not_loaded)
+
+    // the last category of a list of the user's own
+    suspend fun createCategory(
+        listId: Int,
+        name: String,
+        icon: String?,
+    ): GroceryCategoryResponse =
+        client
+            .post("$url/grocery/lists/$listId/categories") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(GroceryCategoryRequest(name, icon))
+            }.answer(R.string.grocery_category_not_saved)
+
+    suspend fun updateCategory(
+        listId: Int,
+        id: Int,
+        name: String,
+        icon: String?,
+    ): GroceryCategoryResponse =
+        client
+            .put("$url/grocery/lists/$listId/categories/$id") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(GroceryCategoryRequest(name, icon))
+            }.answer(R.string.grocery_category_not_saved)
+
+    // its items and the suggestions of the list lose it
+    suspend fun deleteCategory(
+        listId: Int,
+        id: Int,
+    ) {
+        client
+            .delete("$url/grocery/lists/$listId/categories/$id") { session() }.answer<Unit>(R.string.grocery_category_not_deleted)
+    }
+
+    // the ids of all categories of the list, each once, in their new order; the categories in it
+    suspend fun orderCategories(
+        listId: Int,
+        ids: List<Int>,
+    ): List<GroceryCategoryResponse> =
+        client
+            .put("$url/grocery/lists/$listId/categories/order") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(GroceryCategoryOrderRequest(ids))
+            }.answer<PageResponse<GroceryCategoryResponse>>(R.string.grocery_category_not_saved)
+            .items
+
+    // the category of an item, one of its list or none; the next item of its name on the list gets it too
+    suspend fun setCategory(
+        id: Int,
+        categoryId: Int?,
+    ): GroceryItemResponse =
+        client
+            .put("$url/grocery/items/$id/category") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(GroceryItemCategoryRequest(categoryId))
+            }.answer(R.string.grocery_category_not_set)
 
     // every page of a list
     private suspend inline fun <reified T> all(

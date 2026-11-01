@@ -7,5 +7,5 @@
   `%{name}`. The compiler refuses an unknown key; sak-i18n refuses a german text that is missing or has other
   placeholders.
 - The language is the first one of the browser there are texts for, else english; the browser sends the same
-  languages to the api, which answers its own texts (errors, labels of the settings, categories) in it. Data from the
-  backend is never translated in the frontend.
+  languages to the api, which answers its own texts (errors, labels of the settings, the names of the categories of a
+  new grocery list) in it. Data from the backend is never translated in the frontend.

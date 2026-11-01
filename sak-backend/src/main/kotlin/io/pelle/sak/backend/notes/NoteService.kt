@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.notes
 
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.api.Language
 import io.pelle.sak.api.Page
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
@@ -98,7 +99,10 @@ class NoteService(
     }
 
     // the list of the notes of a user who has none (LIST-1)
-    override fun signedIn(owner: String) = repository.ensureList(owner, DEFAULT_LIST)
+    override fun signedIn(
+        owner: String,
+        language: Language,
+    ) = repository.ensureList(owner, DEFAULT_LIST)
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
     fun page(

@@ -1,7 +1,6 @@
 package io.pelle.sak.backend.grocery
 
 import io.pelle.sak.api.language
-import io.pelle.sak.api.render
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -25,11 +24,15 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.PageRequest
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
+import io.pelle.sak.backend.grocery.model.GroceryCategoryOrderRequest
+import io.pelle.sak.backend.grocery.model.GroceryCategoryRequest
 import io.pelle.sak.backend.grocery.model.GroceryCategoryResponse
+import io.pelle.sak.backend.grocery.model.GroceryItemCategoryRequest
 import io.pelle.sak.backend.grocery.model.GroceryItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryNewItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryPhotoRequest
@@ -40,6 +43,7 @@ import io.pelle.sak.backend.grocery.model.GroceryItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.GroceryListResponse
 import io.pelle.sak.backend.grocery.model.GrocerySuggestionResponse
+import io.pelle.sak.model.grocery.GroceryCategory
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryList
@@ -64,13 +68,32 @@ private fun GroceryList.response(user: String) =
     GroceryListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
-    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime(), photoFileId)
+    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, categoryId, createdAt.apiTime(), updatedAt?.apiTime(), photoFileId)
 
-private fun GroceryProduct.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, category)
+private fun GroceryProduct.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, categoryId)
 
-private fun GroceryItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, category)
+private fun GroceryCategory.response() = GroceryCategoryResponse(id, name, icon)
 
-private fun GroceryNewItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, category)
+private fun GroceryItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
+
+private fun GroceryNewItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
+
+private suspend fun ApplicationCall.respondCategory(
+    result: GroceryCategoryResult,
+    created: Boolean = false,
+) = when (result) {
+    is GroceryCategoryResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.category.response())
+    is GroceryCategoryResult.Invalid -> respondErrors(result.errors)
+    GroceryCategoryResult.NotFound -> respond(HttpStatusCode.NotFound)
+    GroceryCategoryResult.Exists -> respondErrors(GroceryTexts.CATEGORY_EXISTS, status = HttpStatusCode.Conflict)
+}
+
+// the id of the category in the path, a 404 without one
+private suspend fun ApplicationCall.categoryIdParameter(): Int? =
+    parameters["categoryId"]?.toIntOrNull() ?: run {
+        respond(HttpStatusCode.NotFound)
+        null
+    }
 
 private suspend fun ApplicationCall.respondList(result: GroceryListResult) =
     when (result) {
@@ -105,23 +128,6 @@ fun Route.grocery(
 ) {
     installApi()
 
-    get("/categories") {
-        val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(GroceryCategory.entries.map { GroceryCategoryResponse(it.name, it.label.render(call.language())) })))
-    }.describe {
-        tag(GROCERY_TAG)
-        summary = "The categories of the items"
-        description = "In the order a list shows them."
-        parameters { pagination() }
-        responses {
-            HttpStatusCode.OK {
-                description = "A page of the categories"
-                schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
-            }
-            errors(HttpStatusCode.BadRequest, "An invalid page")
-        }
-    }
-
     route("/lists") {
         get {
             val page = call.pageRequest() ?: return@get
@@ -143,11 +149,13 @@ fun Route.grocery(
 
         post {
             val request = call.receive<GroceryListRequest>()
-            val result = withContext(Dispatchers.IO) { groceryService.createList(call.owner, request.name, request.shared, request.icon) }
+            val result =
+                withContext(Dispatchers.IO) { groceryService.createList(call.owner, request.name, request.shared, request.icon, call.language()) }
             if (result is GroceryListResult.Saved) call.respond(HttpStatusCode.Created, result.list.response(call.owner)) else call.respondList(result)
         }.describe {
             tag(GROCERY_TAG)
             summary = "Create a grocery list"
+            description = "With the default categories, named in the language of the request (Accept-Language, GROCERY-13)."
             requestBody {
                 required = true
                 schema = jsonSchema<GroceryListRequest>()
@@ -263,6 +271,133 @@ fun Route.grocery(
             }
         }
 
+        get("/{id}/categories") {
+            val id = call.idParameter() ?: return@get
+            val page = call.pageRequest() ?: return@get
+            when (val categories = withContext(Dispatchers.IO) { groceryService.categories(call.owner, id) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(page.of(page.of(categories.map { it.response() })))
+            }
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "The categories of a grocery list"
+            description = "In the order the list shows the groups of its items; every user who sees the list sees them (GROCERY-13)."
+            parameters {
+                listId()
+                pagination()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "A page of the categories"
+                    schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
+                }
+                errors(HttpStatusCode.BadRequest, "An invalid page")
+                HttpStatusCode.NotFound { description = "The user sees no such list" }
+            }
+        }
+
+        post("/{id}/categories") {
+            val id = call.idParameter() ?: return@post
+            val request = call.receive<GroceryCategoryRequest>()
+            call.respondCategory(withContext(Dispatchers.IO) { groceryService.createCategory(call.owner, id, request.name, request.icon) }, created = true)
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Add a category to a grocery list"
+            description = "The last one; only the owner of the list (GROCERY-13), at most ${GroceryService.MAX_CATEGORIES}."
+            parameters { listId() }
+            requestBody {
+                required = true
+                schema = jsonSchema<GroceryCategoryRequest>()
+            }
+            responses {
+                HttpStatusCode.Created {
+                    description = "The new category"
+                    schema = jsonSchema<GroceryCategoryResponse>()
+                }
+                errors(HttpStatusCode.BadRequest, "An invalid name or icon, too many categories, or a malformed request")
+                errors(HttpStatusCode.Conflict, "The list has a category of the name")
+                HttpStatusCode.NotFound { description = "The user owns no such list" }
+            }
+        }
+
+        put("/{id}/categories/order") {
+            val id = call.idParameter() ?: return@put
+            val request = call.receive<GroceryCategoryOrderRequest>()
+            when (val result = withContext(Dispatchers.IO) { groceryService.orderCategories(call.owner, id, request.ids) }) {
+                is GroceryCategoriesResult.Ordered -> {
+                    // a page of all of them, as GET /lists/{id}/categories answers
+                    val all = PageRequest(limit = GroceryService.MAX_CATEGORIES)
+                    call.respond(all.of(all.of(result.categories.map { it.response() })))
+                }
+                is GroceryCategoriesResult.Invalid -> call.respondErrors(result.errors)
+                GroceryCategoriesResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            }
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Order the categories of a grocery list"
+            description = "The ids of all categories of the list, each once, in their new order; only the owner of the list (GROCERY-13)."
+            parameters { listId() }
+            requestBody {
+                required = true
+                schema = jsonSchema<GroceryCategoryOrderRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "A page of all categories in their new order"
+                    schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
+                }
+                errors(HttpStatusCode.BadRequest, "Ids that are not the categories of the list, each once, or a malformed request")
+                HttpStatusCode.NotFound { description = "The user owns no such list" }
+            }
+        }
+
+        put("/{id}/categories/{categoryId}") {
+            val id = call.idParameter() ?: return@put
+            val categoryId = call.categoryIdParameter() ?: return@put
+            val request = call.receive<GroceryCategoryRequest>()
+            call.respondCategory(withContext(Dispatchers.IO) { groceryService.updateCategory(call.owner, id, categoryId, request.name, request.icon) })
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Change a category of a grocery list"
+            description = "Its name and its icon; only the owner of the list (GROCERY-13)."
+            parameters {
+                listId()
+                categoryId()
+            }
+            requestBody {
+                required = true
+                schema = jsonSchema<GroceryCategoryRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The changed category"
+                    schema = jsonSchema<GroceryCategoryResponse>()
+                }
+                errors(HttpStatusCode.BadRequest, "An invalid name or icon, or a malformed request")
+                errors(HttpStatusCode.Conflict, "The list has another category of the name")
+                HttpStatusCode.NotFound { description = "The user owns no such list, or it has no such category" }
+            }
+        }
+
+        delete("/{id}/categories/{categoryId}") {
+            val id = call.idParameter() ?: return@delete
+            val categoryId = call.categoryIdParameter() ?: return@delete
+            val deleted = withContext(Dispatchers.IO) { groceryService.deleteCategory(call.owner, id, categoryId) }
+            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Delete a category of a grocery list"
+            description = "Its items and the suggestions of the list lose it; only the owner of the list (GROCERY-13)."
+            parameters {
+                listId()
+                categoryId()
+            }
+            responses {
+                HttpStatusCode.NoContent { description = "The category is gone" }
+                HttpStatusCode.NotFound { description = "The user owns no such list, or it has no such category" }
+            }
+        }
+
         delete("/{id}/suggestions/{suggestionId}") {
             val id = call.idParameter() ?: return@delete
             val suggestionId = call.parameters["suggestionId"]?.toIntOrNull()
@@ -327,6 +462,31 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryItemResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request")
+                HttpStatusCode.NotFound { description = "The user sees no such item" }
+            }
+        }
+
+        put("/{id}/category") {
+            val id = call.idParameter() ?: return@put
+            val request = call.receive<GroceryItemCategoryRequest>()
+            call.respondItem(withContext(Dispatchers.IO) { groceryService.setCategory(call.owner, id, request.categoryId) })
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Set the category of an item"
+            description =
+                "One of the categories of its list, or none; the list's suggestion of the item's name takes it too, so the next " +
+                "item of the name on the list has it (GROCERY-13)."
+            parameters { itemId() }
+            requestBody {
+                required = true
+                schema = jsonSchema<GroceryItemCategoryRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The item with its category"
+                    schema = jsonSchema<GroceryItemResponse>()
+                }
+                errors(HttpStatusCode.BadRequest, "No category of the list, or a malformed request")
                 HttpStatusCode.NotFound { description = "The user sees no such item" }
             }
         }
@@ -478,6 +638,13 @@ fun Route.grocery(
 private fun Parameters.Builder.listId() =
     path("id") {
         description = "The id of the list"
+        required = true
+        schema = jsonSchema<Int>()
+    }
+
+private fun Parameters.Builder.categoryId() =
+    path("categoryId") {
+        description = "The id of the category"
         required = true
         schema = jsonSchema<Int>()
     }

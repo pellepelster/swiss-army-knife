@@ -2,9 +2,11 @@ package io.pelle.sak.backend.grocery.model
 
 import kotlinx.serialization.Serializable
 
-// a category of the items, the categories are in the order a list shows them
+// a category of a list (GROCERY-13); a list answers them in the order its groups show
 @Serializable
 data class GroceryCategoryResponse(
+    val id: Int,
     val name: String,
-    val label: String,
+    // one emoji, missing for none
+    val icon: String?,
 )

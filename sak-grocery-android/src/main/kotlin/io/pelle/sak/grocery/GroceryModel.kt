@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 import java.time.Clock
 import java.time.Duration
@@ -32,12 +34,15 @@ const val UNDO_MS = 1500L
 // how long a login link the app asked for is taken (the login token of the backend lives as long)
 val PENDING_FOR: Duration = Duration.ofMinutes(15)
 
-// the items of a category, in the order of the categories of the backend, the ones without one last
+// the items of a category, in the order of the categories of the list, the ones without one last
+// (GROCERY-13)
 data class ItemGroup(
-    // the name of the category, null for the items without one; the key of the group
-    val category: String?,
-    // the label of the category the backend sent, or no category
+    // the id of the category, null for the items without one; the key of the group
+    val categoryId: Int?,
+    // the name of the category, or no category
     val label: UiText,
+    // the emoji of the category, null without one
+    val icon: String?,
     val items: List<GroceryItemResponse>,
 )
 
@@ -48,7 +53,8 @@ data class Undo(
 )
 
 // the settings of a list the user creates (no id) or changes, one of their own: its name, whether
-// all users see it and its icon, one emoji
+// all users see it and its icon, one emoji; of a list that exists also its categories, each change
+// of them saved at once (GROCERY-13)
 data class ListSettings(
     val id: Int? = null,
     val name: String = "",
@@ -58,6 +64,25 @@ data class ListSettings(
     val last: Boolean = false,
     val busy: Boolean = false,
     val error: UiText? = null,
+    // the categories of the list in their order, none for a new list
+    val categories: List<GroceryCategoryResponse> = emptyList(),
+    // the categories are as the backend has them; false while they load the first time and when they
+    // could not be loaded, the section then shows no rows and no field to add one
+    val categoriesLoaded: Boolean = false,
+    // while the categories load
+    val categoriesLoading: Boolean = false,
+    // the names typed into the fields of the categories, by their id, until they are saved; they
+    // stay over a load and are saved before the settings close
+    val drafts: Map<Int, String> = emptyMap(),
+    // the categories whose typed name is no valid one, said under its field (UX-6)
+    val invalidNames: Set<Int> = emptySet(),
+    // the name typed into the field that adds a category, and whether it is no valid one
+    val newCategory: String = "",
+    val newCategoryInvalid: Boolean = false,
+    // how many changes of the categories wait or are sent, one after the other
+    val categoriesPending: Int = 0,
+    // why the categories could not be loaded or a change of them was refused, said in their section
+    val categoriesError: UiText? = null,
 )
 
 // the version of the app the deployment runs, newer than the app; busy while it is downloaded and
@@ -137,6 +162,10 @@ sealed interface Screen {
         // the id of the list open, null on the home, which shows all lists
         val open: Int? = null,
         val groups: List<ItemGroup> = emptyList(),
+        // the categories of the list open, in their order (GROCERY-13)
+        val categories: List<GroceryCategoryResponse> = emptyList(),
+        // the item whose category is chosen, on a screen over the list; null for the list
+        val choosing: GroceryItemResponse? = null,
         val loading: Boolean = true,
         val error: UiText? = null,
         // the name typed into the field at the top, kept while it is sent (GROCERY-2)
@@ -190,8 +219,9 @@ class GroceryModel(
     // start(), which a link of a cold start waits for, so its screen does not come after the lists
     private var starting: Job? = null
 
-    // the categories of the deployment, asked for once a session: they do not change
-    private var categories: List<GroceryCategoryResponse>? = null
+    // the changes of the categories of the settings and their loads, one after the other in the order
+    // they were made; a change takes the state it finds when it is its turn
+    private val categoryChanges = Mutex()
 
     // the photos fetched, by their file and size, the ones used last kept; a file id names one photo
     private val photos =
@@ -221,6 +251,8 @@ class GroceryModel(
                             }).collect { listId ->
                                 val lists = state.value as? Screen.Lists
                                 if (lists != null && (lists.open == null || lists.open == listId)) load()
+                                // the categories of the settings of the list as the backend has them now
+                                if (lists?.settings?.id == listId) loadCategories(listId)
                             }
                     } catch (e: CancellationException) {
                         throw e
@@ -286,7 +318,6 @@ class GroceryModel(
     fun changeDeployment() =
         scope.launch {
             store.save(Stored())
-            categories = null
             photos.clear()
             restartListening()
             state.value = Screen.Deployment()
@@ -418,12 +449,34 @@ class GroceryModel(
         show(id)
     }
 
-    // from a list or the settings back to the home, the next start shows the home
+    // from the settings or the category of an item back to where they were opened, from a list to the
+    // home; the next start shows the home
     fun back() {
         val lists = state.value as? Screen.Lists ?: return
         when {
-            lists.settings != null -> state.value = lists.copy(settings = null)
+            lists.settings != null -> {
+                saveDrafts()
+                this.lists { it.copy(settings = null) }
+            }
+            lists.choosing != null -> state.value = lists.copy(choosing = null)
             lists.open != null -> show(null)
+        }
+    }
+
+    // the screen that chooses the category of an item from the categories of its list, from its menu
+    fun chooseCategory(item: GroceryItemResponse) = lists { it.copy(choosing = item) }
+
+    // the category chosen, one of the list or none: the list shows again at once, then with the item
+    // in its group; a failure shows on the list
+    fun setCategory(categoryId: Int?) {
+        val lists = state.value as? Screen.Lists ?: return
+        val item = lists.choosing ?: return
+        state.value = lists.copy(choosing = null, error = null)
+        if (item.categoryId == categoryId) return
+        scope.launch {
+            request(R.string.grocery_category_not_set, { error -> lists { it.copy(error = error) } }) { it.setCategory(item.id, categoryId) }
+                ?: return@launch
+            load()
         }
     }
 
@@ -440,6 +493,176 @@ class GroceryModel(
         val list = lists.lists.firstOrNull { it.id == id && it.mine } ?: return
         val last = lists.lists.count { it.mine } == 1
         state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, last))
+        loadCategories(id)
+    }
+
+    // the categories of the settings loaded again, pulled down (ANDROID-3) or after a failed load
+    fun refreshCategories() {
+        val id = (state.value as? Screen.Lists)?.settings?.id ?: return
+        settings(id) { it.copy(categoriesError = null) }
+        loadCategories(id)
+    }
+
+    // the categories of the list of the settings, as the backend has them, after the changes made
+    // before; the names typed stay. A failure shows no categories, but why (GC-6)
+    private fun loadCategories(id: Int) {
+        settings(id) { it.copy(categoriesLoading = true) }
+        scope.launch {
+            categoryChanges.withLock {
+                val failed = { error: UiText -> settings(id) { it.copy(categoriesLoaded = false, categoriesLoading = false, categoriesError = error) } }
+                val categories = request(R.string.grocery_error_categories_not_loaded, failed) { it.categories(id) } ?: return@withLock
+                settings(id) { settings ->
+                    val ids = categories.map { it.id }.toSet()
+                    settings.copy(
+                        categories = categories,
+                        categoriesLoaded = true,
+                        categoriesLoading = false,
+                        drafts = settings.drafts.filterKeys { it in ids },
+                        invalidNames = settings.invalidNames.filter { it in ids }.toSet(),
+                    )
+                }
+            }
+        }
+    }
+
+    fun editNewCategory(name: String) = settingsOf { it.copy(newCategory = name, newCategoryInvalid = false) }
+
+    // the name typed becomes the last category of the list, the field is empty again; a name that is
+    // empty or too long is said under the field (UX-6)
+    fun addCategory() {
+        val settings = (state.value as? Screen.Lists)?.settings ?: return
+        val name = settings.newCategory.trim()
+        if (!validCategoryName(name)) {
+            settingsOf { it.copy(newCategoryInvalid = true) }
+            return
+        }
+        categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
+            val created = api.createCategory(id, name, null)
+            settings(id) { it.copy(categories = it.categories + created, newCategory = if (it.newCategory.trim() == name) "" else it.newCategory) }
+        }
+    }
+
+    // the name typed into the field of a category, kept until it is saved
+    fun editCategoryName(
+        categoryId: Int,
+        name: String,
+    ) = settingsOf { it.copy(drafts = it.drafts + (categoryId to name), invalidNames = it.invalidNames - categoryId) }
+
+    // the name typed into the field of a category, when the field is left or done: an empty or too
+    // long one is said under the field (UX-6), the one the category has is no change
+    fun saveCategoryName(categoryId: Int) {
+        val settings = (state.value as? Screen.Lists)?.settings ?: return
+        val draft = settings.drafts[categoryId] ?: return
+        val category = settings.categories.firstOrNull { it.id == categoryId } ?: return
+        val name = draft.trim()
+        when {
+            !validCategoryName(name) -> settingsOf { it.copy(invalidNames = it.invalidNames + categoryId) }
+            name == category.name -> settingsOf { it.copy(drafts = it.drafts - categoryId) }
+            else -> rename(categoryId, draft, name)
+        }
+    }
+
+    private fun rename(
+        categoryId: Int,
+        draft: String,
+        name: String,
+    ) = categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
+        val icon = currentCategory(id, categoryId)?.icon
+        val updated = api.updateCategory(id, categoryId, name, icon)
+        settings(id) { settings ->
+            settings.copy(
+                categories = settings.categories.map { if (it.id == categoryId) updated else it },
+                // a name typed again meanwhile stays
+                drafts = if (settings.drafts[categoryId] == draft) settings.drafts - categoryId else settings.drafts,
+            )
+        }
+    }
+
+    // the names typed and not yet saved, saved before the settings close (GC-5); an invalid one is not
+    private fun saveDrafts() {
+        val settings = (state.value as? Screen.Lists)?.settings ?: return
+        settings.drafts.forEach { (categoryId, draft) ->
+            val name = draft.trim()
+            val category = settings.categories.firstOrNull { it.id == categoryId }
+            if (category != null && validCategoryName(name) && name != category.name) rename(categoryId, draft, name)
+        }
+    }
+
+    // the icon of a category, one emoji or none; its name stays as the backend has it
+    fun setCategoryIcon(
+        categoryId: Int,
+        icon: String?,
+    ) = categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
+        val category = currentCategory(id, categoryId) ?: return@categoriesRequest
+        if (category.icon == icon) return@categoriesRequest
+        val updated = api.updateCategory(id, categoryId, category.name, icon)
+        settings(id) { it.copy(categories = it.categories.map { each -> if (each.id == categoryId) updated else each }) }
+    }
+
+    // a category one place up or down from where it is when the change is sent, the ends stay
+    fun moveCategory(
+        categoryId: Int,
+        up: Boolean,
+    ) = categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
+        val ids = (state.value as? Screen.Lists)?.settings?.takeIf { it.id == id }?.categories?.map { it.id }?.toMutableList() ?: return@categoriesRequest
+        val from = ids.indexOf(categoryId)
+        val to = if (up) from - 1 else from + 1
+        if (from < 0 || to !in ids.indices) return@categoriesRequest
+        ids[from] = ids[to].also { ids[to] = ids[from] }
+        val ordered = api.orderCategories(id, ids)
+        settings(id) { it.copy(categories = ordered) }
+    }
+
+    // a category of the list of the settings, after the user confirmed it (UX-4.1); its items lose it
+    fun deleteCategory(categoryId: Int) =
+        categoriesRequest(R.string.grocery_category_not_deleted) { api, id ->
+            api.deleteCategory(id, categoryId)
+            settings(id) {
+                it.copy(
+                    categories = it.categories.filter { each -> each.id != categoryId },
+                    drafts = it.drafts - categoryId,
+                    invalidNames = it.invalidNames - categoryId,
+                )
+            }
+        }
+
+    // a change of the categories of the list of the settings, after the ones made before it (GC-4);
+    // the list open loads again, its groups follow the categories. A refused change loads the
+    // categories again, as the backend has them (GC-3)
+    private fun categoriesRequest(
+        @StringRes failure: Int,
+        call: suspend (GroceryApi, Int) -> Unit,
+    ) {
+        val id = (state.value as? Screen.Lists)?.settings?.id ?: return
+        settings(id) { it.copy(categoriesPending = it.categoriesPending + 1, categoriesError = null) }
+        scope.launch {
+            val done =
+                categoryChanges.withLock {
+                    request(failure, { error -> settings(id) { it.copy(categoriesError = error) } }) { api -> call(api, id) }
+                }
+            settings(id) { it.copy(categoriesPending = it.categoriesPending - 1) }
+            if (done == null) loadCategories(id)
+            load()
+        }
+    }
+
+    // the category as the settings of the list have it now
+    private fun currentCategory(
+        listId: Int,
+        categoryId: Int,
+    ) = (state.value as? Screen.Lists)?.settings?.takeIf { it.id == listId }?.categories?.firstOrNull { it.id == categoryId }
+
+    // changes the settings shown, nothing without
+    private inline fun settingsOf(change: (ListSettings) -> ListSettings) {
+        lists { lists -> lists.settings?.let { lists.copy(settings = change(it)) } ?: lists }
+    }
+
+    // changes the settings of the list id, nothing when other settings or none are shown
+    private inline fun settings(
+        id: Int,
+        change: (ListSettings) -> ListSettings,
+    ) {
+        lists { lists -> lists.settings?.takeIf { it.id == id }?.let { lists.copy(settings = change(it)) } ?: lists }
     }
 
     fun editSettings(
@@ -455,10 +678,11 @@ class GroceryModel(
     // a new list is created and opens, a changed one shows on the home; a failure, e.g. a list of the
     // name exists, stays on the settings with the reason
     fun saveSettings() {
+        val name = (state.value as? Screen.Lists)?.settings?.name?.trim() ?: return
+        if (name.isEmpty() || (state.value as? Screen.Lists)?.settings?.busy != false) return
+        saveDrafts()
         val lists = state.value as? Screen.Lists ?: return
         val settings = lists.settings ?: return
-        val name = settings.name.trim()
-        if (name.isEmpty() || settings.busy) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
         settingsRequest(settings, if (settings.id == null) R.string.grocery_error_list_not_created else R.string.grocery_form_not_saved) { api ->
             if (settings.id == null) {
@@ -573,7 +797,7 @@ class GroceryModel(
     private fun show(open: Int?) {
         commitPending()
         val lists = state.value as? Screen.Lists ?: return
-        state.value = lists.copy(open = open, groups = emptyList(), loading = true, error = null, itemName = "")
+        state.value = lists.copy(open = open, groups = emptyList(), categories = emptyList(), choosing = null, loading = true, error = null, itemName = "")
         scope.launch { store.update { it.copy(openList = open) } }
         load()
     }
@@ -611,7 +835,6 @@ class GroceryModel(
             commitPending()?.join()
             loading?.cancel()
             store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, openList = null) }
-            categories = null
             photos.clear()
             restartListening()
             showSignIn(store.load())
@@ -734,8 +957,13 @@ class GroceryModel(
                     val wanted = (state.value as? Screen.Lists ?: return@request).open
                     val open = wanted?.takeIf { id -> lists.any { it.id == id } }
                     if (wanted != null && open == null) store.update { it.copy(openList = null) }
-                    val groups = open?.let { groups(api.items(it), api) }.orEmpty()
-                    lists { it.copy(lists = lists, open = open, groups = groups, loading = false) }
+                    val items = open?.let { api.items(it) }.orEmpty()
+                    val categories = open?.let { api.categories(it) }.orEmpty()
+                    lists { current ->
+                        // the item whose category is chosen as it is now; gone, e.g. bought by another user, the list shows
+                        val choosing = current.choosing?.let { chosen -> items.firstOrNull { it.id == chosen.id } }
+                        current.copy(lists = lists, open = open, groups = groups(items, categories), categories = categories, choosing = choosing, loading = false)
+                    }
                 }
             }
     }
@@ -773,27 +1001,31 @@ class GroceryModel(
     // session goes last, it may be the one that found the end
     private suspend fun sessionEnded(e: ApiException) {
         dropPending()
-        categories = null
         photos.clear()
         store.update { it.copy(token = null, email = null, expiresAt = null, openList = null) }
         showSignIn(store.load(), error = e.text)
         restartListening()
     }
 
-    private suspend fun groups(
+    // the items by category, in the order of the categories of the list; an item of a category the list
+    // no longer has is one without
+    private fun groups(
         items: List<GroceryItemResponse>,
-        api: GroceryApi,
+        categories: List<GroceryCategoryResponse>,
     ): List<ItemGroup> {
-        if (items.isEmpty()) return emptyList()
-        val categories = categories ?: api.categories().also { categories = it }
-        val order = categories.withIndex().associate { (index, category) -> category.name to index }
-        val labels = categories.associate { it.name to it.label }
+        val order = categories.withIndex().associate { (index, category) -> category.id to index }
         return items
-            .groupBy { it.category?.takeIf { category -> category in order } }
+            .groupBy { it.categoryId?.takeIf { id -> id in order } }
             .entries
-            .sortedBy { (category, _) -> category?.let { order.getValue(it) } ?: Int.MAX_VALUE }
-            .map { (category, grouped) -> ItemGroup(category, category?.let { UiText.Plain(labels.getValue(it)) } ?: NO_CATEGORY, grouped.sortedBy { it.id }) }
+            .sortedBy { (id, _) -> id?.let { order.getValue(it) } ?: Int.MAX_VALUE }
+            .map { (id, grouped) ->
+                val category = id?.let { categories[order.getValue(it)] }
+                ItemGroup(id, category?.let { UiText.Plain(it.name) } ?: NO_CATEGORY, category?.icon, grouped.sortedBy { it.id })
+            }
     }
+
+    // a name of a category the backend takes (GroceryService.MAX_CATEGORY_NAME_LENGTH)
+    private fun validCategoryName(name: String) = name.isNotEmpty() && name.length <= MAX_CATEGORY_NAME
 
     private fun failure(
         e: Exception,
@@ -807,6 +1039,9 @@ class GroceryModel(
 
     companion object {
         val NO_CATEGORY = uiText(R.string.grocery_list_no_category)
+
+        // the most characters of the name of a category (GroceryService.MAX_CATEGORY_NAME_LENGTH)
+        const val MAX_CATEGORY_NAME = 32
 
         // the waits before the stream of the changes is opened again
         const val RETRY_DELAY_MS = 1_000L
