@@ -6,19 +6,22 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.engine.okhttp.OkHttp
 import io.pelle.sak.grocery.api.GroceryApi
+import io.pelle.sak.grocery.api.groceryClient
 import io.pelle.sak.grocery.session.DataStoreSessionStore
 import io.pelle.sak.grocery.update.AndroidUpdater
 
-// the model of the app for the activity, kept across a rotation; one okhttp engine for every api
+// the model of the app for the activity, kept across a rotation; one okhttp engine and one client for
+// every api
 class GroceryViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
     private val engine = OkHttp.create()
+    private val client = groceryClient(engine)
 
     val model =
         GroceryModel(
             store = DataStoreSessionStore(application),
-            apiOf = { url, token -> GroceryApi(engine, url, token, LocaleList.getDefault().toLanguageTags()) },
+            apiOf = { url, token -> GroceryApi(client, url, token, LocaleList.getDefault().toLanguageTags()) },
             scope = viewModelScope,
             allowUrl = BuildConfig.DEBUG,
             appVersion = BuildConfig.VERSION_NAME,
@@ -26,6 +29,7 @@ class GroceryViewModel(
         ).also { it.start() }
 
     override fun onCleared() {
+        client.close()
         engine.close()
     }
 }

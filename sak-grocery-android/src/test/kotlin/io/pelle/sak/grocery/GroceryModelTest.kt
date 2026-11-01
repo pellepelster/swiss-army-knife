@@ -501,6 +501,61 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `the menu of a row on the home deletes an own list, not one of another user and not the last own one`() =
+        runTest {
+            backend.answers["GET /grocery/lists"] =
+                HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party"), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0}""")
+            backend.answers["DELETE /grocery/lists/2"] = HttpStatusCode.NoContent to ""
+            val model = signedIn(openList = null)
+            advanceUntilIdle()
+
+            model.deleteList(3)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page(list(1, "Default"))
+            model.deleteList(2)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/lists/2"))
+            assertEquals(listOf("Default"), (model.screen.value as Screen.Lists).lists.map { it.name })
+
+            // the only own list stays
+            model.deleteList(1)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
+        }
+
+    @Test
+    fun `the categories are asked for once a session, not on every load`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            model.refresh()
+            advanceUntilIdle()
+            model.refresh()
+            advanceUntilIdle()
+            assertEquals(3, backend.requests.count { it == "GET /grocery/lists/1/items" })
+            assertEquals(1, backend.requests.count { it == "GET /grocery/categories" })
+        }
+
+    @Test
+    fun `a check is not sent once the session ended, the sign-in is shown once`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            val infos = backend.requests.count { it == "GET /info" }
+            model.check(model.item("Apples"))
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.Unauthorized to ""
+            model.refresh()
+            advanceUntilIdle()
+
+            assertTrue(model.screen.value is Screen.SignIn)
+            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+            // the sign-in asked the deployment once, the dropped check did not end the session again
+            assertEquals(infos + 1, backend.requests.count { it == "GET /info" })
+        }
+
+    @Test
     fun `the settings opened from a list return to it, a deleted list leads to the home`() =
         runTest {
             backend.answers["PUT /grocery/lists/1"] = HttpStatusCode.OK to list(1, "Weekly")

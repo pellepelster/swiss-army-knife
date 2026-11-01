@@ -3,6 +3,7 @@ package io.pelle.sak.grocery
 import androidx.annotation.StringRes
 import io.pelle.sak.grocery.api.ApiException
 import io.pelle.sak.grocery.api.GroceryApi
+import io.pelle.sak.grocery.api.GroceryCategoryResponse
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
 import io.pelle.sak.grocery.session.PendingLogin
@@ -33,6 +34,8 @@ val PENDING_FOR: Duration = Duration.ofMinutes(15)
 
 // the items of a category, in the order of the categories of the backend, the ones without one last
 data class ItemGroup(
+    // the name of the category, null for the items without one; the key of the group
+    val category: String?,
     // the label of the category the backend sent, or no category
     val label: UiText,
     val items: List<GroceryItemResponse>,
@@ -176,6 +179,9 @@ class GroceryModel(
     // start(), which a link of a cold start waits for, so its screen does not come after the lists
     private var starting: Job? = null
 
+    // the categories of the deployment, asked for once a session: they do not change
+    private var categories: List<GroceryCategoryResponse>? = null
+
     // the app comes to the foreground: it hears the changes of the lists once the user is signed in,
     // a change of the list open, or of any list on the home, loads it again (LIST-4). A stream that
     // ends is opened again, after a longer wait each time, up to MAX_RETRY_DELAY_MS
@@ -202,7 +208,7 @@ class GroceryModel(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: ApiException) {
-                        if (e.status == 401) sessionEnded(stored, e)
+                        if (e.status == 401) sessionEnded(e)
                     } catch (_: Exception) {
                         // the connection ended, it is opened again
                     }
@@ -218,16 +224,25 @@ class GroceryModel(
         listening = null
     }
 
+    // the session or the deployment changed: a stream that is open goes, with the token it was opened
+    // with, and opens again for what is stored now
+    private fun restartListening() {
+        val wasListening = listening != null
+        stopListening()
+        listenedBefore = false
+        if (wasListening) startListening()
+    }
+
     // where the app was left: the lists while the session lasts, else the sign-in, else the deployment
     fun start() {
         starting =
             scope.launch {
-            val stored = store.load()
-            when {
-                stored.apiUrl == null -> state.value = Screen.Deployment()
-                signedIn(stored) -> showLists(stored)
-                else -> showSignIn(stored)
-            }
+                val stored = store.load()
+                when {
+                    stored.apiUrl == null -> state.value = Screen.Deployment()
+                    signedIn(stored) -> showLists(stored)
+                    else -> showSignIn(stored)
+                }
             }
     }
 
@@ -254,6 +269,8 @@ class GroceryModel(
     fun changeDeployment() =
         scope.launch {
             store.save(Stored())
+            categories = null
+            restartListening()
             state.value = Screen.Deployment()
         }
 
@@ -267,7 +284,7 @@ class GroceryModel(
             val url = stored.apiUrl ?: return@launch
             try {
                 apiOf(url, null).requestLink(address)
-                store.save(stored.copy(pending = PendingLogin(url, clock.instant())))
+                store.update { it.copy(pending = PendingLogin(url, clock.instant())) }
                 state.value = signIn.copy(busy = false, linkSentTo = address)
             } catch (e: Exception) {
                 state.value = signIn.copy(busy = false, error = failure(e, R.string.error_link_not_requested))
@@ -290,7 +307,7 @@ class GroceryModel(
             val url = stored.apiUrl ?: return@launch
             try {
                 val session = apiOf(url, null).passwordLogin(password)
-                signedIn(stored, session.sessionToken, session.email, session.expiresAt)
+                signedIn(session.sessionToken, session.email, session.expiresAt)
             } catch (e: Exception) {
                 state.value = signIn.copy(busy = false, error = failure(e, R.string.error_password_not_checked))
             }
@@ -317,7 +334,7 @@ class GroceryModel(
             (state.value as? Screen.SignIn)?.let { state.value = it.copy(busy = true, error = null) }
             try {
                 val session = apiOf(url, null).exchange(token)
-                signedIn(stored.copy(pending = null), session.sessionToken, session.email, session.expiresAt)
+                signedIn(session.sessionToken, session.email, session.expiresAt)
             } catch (e: Exception) {
                 showSignIn(stored, error = failure(e, R.string.error_link_not_used))
             }
@@ -361,26 +378,16 @@ class GroceryModel(
             val groups = lists.groups.map { it.copy(items = it.items.filter { each -> each.id != item.id }) }.filter { it.items.isNotEmpty() }
             state.value = lists.copy(groups = groups, struck = lists.struck - item.id, undo = null)
         }
-        return scope.launch {
-            val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
-            try {
-                apiOf(url, stored.token).checkItem(item.id)
-            } catch (e: ApiException) {
-                if (e.status == 401) {
-                    sessionEnded(stored, e)
-                } else {
-                    failed(e.text)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failed(failure(e, R.string.grocery_list_not_checked))
-            }
-        }
+        return scope.launch { request(R.string.grocery_list_not_checked, ::failed) { it.checkItem(item.id) } }
     }
 
-    private fun failed(error: UiText?) {
+    // the check that can be undone goes without being sent, e.g. the session ended
+    private fun dropPending() {
+        pending?.second?.cancel()
+        pending = null
+    }
+
+    private fun failed(error: UiText) {
         val lists = state.value as? Screen.Lists ?: return
         state.value = lists.copy(error = error)
         load()
@@ -462,24 +469,24 @@ class GroceryModel(
         }
     }
 
+    // a list of the user's own from the menu of its row on the home, after the user confirmed it
+    // (UX-12); not the last one (LIST-1). A failure shows on the home
+    fun deleteList(id: Int) {
+        val lists = state.value as? Screen.Lists ?: return
+        if (lists.lists.none { it.id == id && it.mine } || lists.lists.count { it.mine } == 1) return
+        scope.launch {
+            request(R.string.grocery_form_not_deleted, { error -> lists { it.copy(error = error) } }) { it.deleteList(id) } ?: return@launch
+            lists { it.copy(lists = it.lists.filter { list -> list.id != id }) }
+            load()
+        }
+    }
+
     private fun settingsRequest(
         settings: ListSettings,
         @StringRes failure: Int,
-        request: suspend (GroceryApi) -> Unit,
+        call: suspend (GroceryApi) -> Unit,
     ) {
-        scope.launch {
-            val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
-            try {
-                request(apiOf(url, stored.token))
-            } catch (e: ApiException) {
-                if (e.status == 401) sessionEnded(stored, e) else settingsFailed(settings, e.text)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                settingsFailed(settings, failure(e, failure))
-            }
-        }
+        scope.launch { request(failure, { settingsFailed(settings, it) }, call) }
     }
 
     private fun settingsFailed(
@@ -496,7 +503,7 @@ class GroceryModel(
         commitPending()
         val lists = state.value as? Screen.Lists ?: return
         state.value = lists.copy(open = open, groups = emptyList(), loading = true, error = null, itemName = "")
-        scope.launch { store.save(store.load().copy(openList = open)) }
+        scope.launch { store.update { it.copy(openList = open) } }
         load()
     }
 
@@ -520,25 +527,10 @@ class GroceryModel(
         if (name.isEmpty() || list == null || lists.adding) return
         state.value = lists.copy(adding = true, error = null)
         scope.launch {
-            val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
-            try {
-                apiOf(url, stored.token).addItem(list, name)
-                (state.value as? Screen.Lists)?.let { state.value = it.copy(itemName = "", adding = false) }
-                load()
-            } catch (e: ApiException) {
-                if (e.status == 401) {
-                    sessionEnded(stored, e)
-                } else {
-                    (state.value as? Screen.Lists)?.let { state.value = it.copy(adding = false, error = e.text) }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                (state.value as? Screen.Lists)?.let {
-                    state.value = it.copy(adding = false, error = failure(e, R.string.grocery_list_not_added))
-                }
-            }
+            request(R.string.grocery_list_not_added, { error -> lists { it.copy(adding = false, error = error) } }) { it.addItem(list, name) }
+                ?: return@launch
+            lists { it.copy(itemName = "", adding = false) }
+            load()
         }
     }
 
@@ -546,20 +538,22 @@ class GroceryModel(
     fun signOut() =
         scope.launch {
             commitPending()?.join()
-            val stored = store.load().copy(token = null, email = null, expiresAt = null, pending = null, openList = null)
-            store.save(stored)
-            showSignIn(stored)
+            loading?.cancel()
+            store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, openList = null) }
+            categories = null
+            restartListening()
+            showSignIn(store.load())
         }
 
+    // the session of a sign-in; a login link that was pending is used up
     private suspend fun signedIn(
-        stored: Stored,
         token: String,
         email: String,
         expiresAt: String,
     ) {
-        val session = stored.copy(token = token, email = email, expiresAt = runCatching { Instant.parse(expiresAt) }.getOrNull())
-        store.save(session)
-        showLists(session)
+        val until = runCatching { Instant.parse(expiresAt) }.getOrNull()
+        store.update { it.copy(token = token, email = email, expiresAt = until, pending = null) }
+        showLists(store.load())
     }
 
     private fun signedIn(stored: Stored) = stored.token != null && stored.expiresAt?.isAfter(clock.instant()) == true
@@ -574,6 +568,8 @@ class GroceryModel(
         state.value =
             try {
                 Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode == "multi", error = error)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Screen.SignIn(deployment, multiUser = null, error = failure(e, R.string.error_deployment_unreachable))
             }
@@ -661,39 +657,54 @@ class GroceryModel(
         loading?.cancel()
         loading =
             scope.launch {
-                val stored = store.load()
-                val url = stored.apiUrl ?: return@launch
-                val api = apiOf(url, stored.token)
-                try {
+                request(R.string.grocery_lists_not_loaded, { error -> lists { it.copy(loading = false, error = error) } }) { api ->
                     val lists = api.lists()
-                    val wanted = (state.value as? Screen.Lists ?: return@launch).open
+                    val wanted = (state.value as? Screen.Lists ?: return@request).open
                     val open = wanted?.takeIf { id -> lists.any { it.id == id } }
-                    if (wanted != null && open == null) store.save(store.load().copy(openList = null))
+                    if (wanted != null && open == null) store.update { it.copy(openList = null) }
                     val groups = open?.let { groups(api.items(it), api) }.orEmpty()
-                    (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = lists, open = open, groups = groups, loading = false) }
-                } catch (e: ApiException) {
-                    if (e.status == 401) {
-                        sessionEnded(stored, e)
-                    } else {
-                        (state.value as? Screen.Lists)?.let { state.value = it.copy(loading = false, error = e.text) }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    (state.value as? Screen.Lists)?.let {
-                        state.value = it.copy(loading = false, error = failure(e, R.string.grocery_lists_not_loaded))
-                    }
+                    lists { it.copy(lists = lists, open = open, groups = groups, loading = false) }
                 }
             }
     }
 
-    private suspend fun sessionEnded(
-        stored: Stored,
-        e: ApiException,
-    ) {
-        val ended = stored.copy(token = null, email = null, expiresAt = null, openList = null)
-        store.save(ended)
-        showSignIn(ended, error = e.text)
+    // a request of the signed in user with the api of their session; nothing without one, e.g. signed
+    // out meanwhile. A session that ended leads to the sign-in, another failure goes to failed with
+    // its text, or the fallback when it has none. The answer, null when there is none
+    private suspend fun <T> request(
+        @StringRes fallback: Int,
+        failed: (UiText) -> Unit,
+        call: suspend (GroceryApi) -> T,
+    ): T? {
+        val stored = store.load()
+        val url = stored.apiUrl ?: return null
+        val token = stored.token ?: return null
+        return try {
+            call(apiOf(url, token))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            if (e.status == 401) sessionEnded(e) else failed(e.text)
+            null
+        } catch (e: Exception) {
+            failed(failure(e, fallback))
+            null
+        }
+    }
+
+    // changes the screen of the lists, nothing when another screen is shown
+    private inline fun lists(change: (Screen.Lists) -> Screen.Lists) {
+        (state.value as? Screen.Lists)?.let { state.value = change(it) }
+    }
+
+    // the session ended: what was checked is not sent, the sign-in says why; the stream of the old
+    // session goes last, it may be the one that found the end
+    private suspend fun sessionEnded(e: ApiException) {
+        dropPending()
+        categories = null
+        store.update { it.copy(token = null, email = null, expiresAt = null, openList = null) }
+        showSignIn(store.load(), error = e.text)
+        restartListening()
     }
 
     private suspend fun groups(
@@ -701,14 +712,14 @@ class GroceryModel(
         api: GroceryApi,
     ): List<ItemGroup> {
         if (items.isEmpty()) return emptyList()
-        val categories = api.categories()
+        val categories = categories ?: api.categories().also { categories = it }
         val order = categories.withIndex().associate { (index, category) -> category.name to index }
         val labels = categories.associate { it.name to it.label }
         return items
             .groupBy { it.category?.takeIf { category -> category in order } }
             .entries
             .sortedBy { (category, _) -> category?.let { order.getValue(it) } ?: Int.MAX_VALUE }
-            .map { (category, grouped) -> ItemGroup(category?.let { UiText.Plain(labels.getValue(it)) } ?: NO_CATEGORY, grouped.sortedBy { it.id }) }
+            .map { (category, grouped) -> ItemGroup(category, category?.let { UiText.Plain(labels.getValue(it)) } ?: NO_CATEGORY, grouped.sortedBy { it.id }) }
     }
 
     private fun failure(

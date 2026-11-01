@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.pelle.sak.grocery.api.GroceryApi
+import io.pelle.sak.grocery.api.groceryClient
 import kotlinx.coroutines.CoroutineDispatcher
 
 // a backend of one deployment at URL for the tests: the answers by method and path, what was asked
@@ -55,7 +56,9 @@ class FakeBackend {
         url: String,
         token: String?,
         languages: String? = null,
-    ) = GroceryApi(engine, url, token, languages)
+    ) = GroceryApi(client, url, token, languages)
+
+    private val client by lazy { groceryClient(engine) }
 
     private fun body(request: HttpRequestData) = String((request.body as OutgoingContent.ByteArrayContent).bytes())
 

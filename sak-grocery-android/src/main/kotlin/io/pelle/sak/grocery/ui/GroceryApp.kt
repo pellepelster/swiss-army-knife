@@ -1,30 +1,13 @@
 package io.pelle.sak.grocery.ui
 
-import io.pelle.sak.grocery.UiText
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextDecoration
-import io.pelle.sak.grocery.UNDO_MS
-import io.pelle.sak.grocery.Undo
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,20 +16,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.emoji2.emojipicker.EmojiPickerView
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,18 +36,26 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,17 +63,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.grocery.AppUpdate
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.Screen
+import io.pelle.sak.grocery.UNDO_MS
+import io.pelle.sak.grocery.UiText
+import io.pelle.sak.grocery.Undo
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
 import java.math.BigDecimal
@@ -310,8 +311,15 @@ private fun HomeScreen(
                 if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
                     item { Empty(stringResource(R.string.grocery_no_lists)) }
                 }
+                val last = screen.lists.count { it.mine } == 1
                 itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
-                    ListRow(list, open = { model.open(list.id) }, settings = { model.openSettings(list.id) })
+                    ListRow(
+                        list,
+                        deletable = list.mine && !last,
+                        open = { model.open(list.id) },
+                        settings = { model.openSettings(list.id) },
+                        delete = { model.deleteList(list.id) },
+                    )
                     if (index < screen.lists.lastIndex) HorizontalDivider()
                 }
             }
@@ -351,14 +359,19 @@ private fun UpdateNotice(
     }
 }
 
-// a list on the home: its icon, its name, how many items are to buy and whether it is shared; its
-// gear leads to the settings, as on the list itself, only of a list of the user's own (UX-8)
+// a list on the home: its icon, its name, how many items are to buy and whether it is shared; the
+// menu of its row leads to its settings and deletes it after a confirmation (UX-12, UX-4.1), both only
+// of a list of the user's own and the delete not of their last one (UX-8, LIST-1)
 @Composable
 private fun ListRow(
     list: GroceryListResponse,
+    deletable: Boolean,
     open: () -> Unit,
     settings: () -> Unit,
+    delete: () -> Unit,
 ) {
+    var menu by rememberSaveable { mutableStateOf(false) }
+    var confirming by rememberSaveable { mutableStateOf(false) }
     ListItem(
         leadingContent = { ListIcon(list.name, list.icon) },
         headlineContent = { Text(list.name) },
@@ -369,11 +382,59 @@ private fun ListRow(
             }
         },
         trailingContent = {
-            IconButton(onClick = settings, enabled = list.mine, modifier = Modifier.testTag("settings-${list.id}")) {
-                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.grocery_settings_of, list.name))
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-${list.id}")) {
+                    Text("⋮", style = MaterialTheme.typography.titleLarge)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.shared_settings)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
+                        onClick = {
+                            menu = false
+                            settings()
+                        },
+                        enabled = list.mine,
+                        modifier = Modifier.testTag("settings-${list.id}"),
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.shared_delete)) },
+                        onClick = {
+                            menu = false
+                            confirming = true
+                        },
+                        enabled = deletable,
+                        colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.testTag("delete-${list.id}"),
+                    )
+                }
             }
         },
         modifier = Modifier.clickable(onClick = open).testTag("list-${list.id}"),
+    )
+    if (confirming) ConfirmDelete(list.name, onDelete = delete, onDismiss = { confirming = false })
+}
+
+// "Delete <name>?" before a delete (UX-4.1), Keep the safe default
+@Composable
+private fun ConfirmDelete(
+    name: String,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.shared_confirm_delete, name)) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    onDelete()
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text(stringResource(R.string.shared_delete)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.shared_keep)) } },
     )
 }
 
@@ -503,23 +564,7 @@ private fun ListSettingsScreen(
             )
         }
     }
-    if (confirming) {
-        AlertDialog(
-            onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.shared_confirm_delete, settings.name)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirming = false
-                        model.deleteList()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text(stringResource(R.string.shared_delete)) }
-            },
-            // the safe default
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.shared_keep)) } },
-        )
-    }
+    if (confirming) ConfirmDelete(settings.name, onDelete = { model.deleteList() }, onDismiss = { confirming = false })
 }
 
 // the items to buy of one list, the field to add one at the top; back leads to the home
@@ -533,7 +578,7 @@ private fun ListScreen(
     BackHandler(onBack = model::back)
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
-        list?.let { listOfNotNull(it.icon, it.name).joinToString(" ") + if (it.shared) " · shared" else "" }.orEmpty(),
+        list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))
@@ -558,8 +603,8 @@ private fun ListScreen(
                 LazyColumn(Modifier.fillMaxSize().testTag("items")) {
                     screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                     if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty(stringResource(R.string.grocery_nothing_to_buy)) }
-                    screen.groups.forEachIndexed { index, group ->
-                        item(key = "group-$index") {
+                    screen.groups.forEach { group ->
+                        item(key = "group-${group.category ?: ""}") {
                             Text(
                                 group.label.resolve(),
                                 style = MaterialTheme.typography.labelLarge,

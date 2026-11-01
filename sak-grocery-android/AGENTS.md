@@ -1,8 +1,8 @@
 # Grocery Android app
 
-How this app is built is in [GROCERY.md](../docs/development/architecture/apps/GROCERY.md), "Android app"
-(`GROCERY-10` to `GROCERY-13`), which adds to [apps/INDEX.md](../docs/development/architecture/apps/INDEX.md) and to
-the system architecture; its look is in [UI-UX.md](../docs/development/UI-UX.md), "Android app".
+How this app is built is in [GROCERY.md](../docs/development/architecture/apps/GROCERY.md), which adds to
+[apps/INDEX.md](../docs/development/architecture/apps/INDEX.md) and to the system architecture; its look is in
+[UI-UX.md](../docs/development/UI-UX.md), "All apps" and "Android app" (`ANDROID-*`).
 Every change here keeps to them; a change that breaks a rule of the app changes GROCERY.md in the same commit.
 
 - A gradle build of its own with its own wrapper: `mise run grocery:android:build`, `grocery:android:test`,

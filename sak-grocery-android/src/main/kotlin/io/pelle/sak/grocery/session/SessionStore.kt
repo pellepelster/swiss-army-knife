@@ -1,5 +1,7 @@
 package io.pelle.sak.grocery.session
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 
 // a login link the app asked for and waits for: a link is only taken while one is pending, from the
@@ -23,19 +25,22 @@ data class Stored(
     val openList: Int? = null,
 )
 
-// where the app keeps what it stores; the token never in plain text (KeystoreCipher)
+// where the app keeps what it stores; the token never in plain text (KeystoreCipher). update changes
+// what is stored at once, so two changes at the same time do not undo each other
 interface SessionStore {
     suspend fun load(): Stored
 
-    suspend fun save(stored: Stored)
+    suspend fun update(change: (Stored) -> Stored)
+
+    suspend fun save(stored: Stored) = update { stored }
 }
 
 class MemorySessionStore(
     private var stored: Stored = Stored(),
 ) : SessionStore {
+    private val lock = Mutex()
+
     override suspend fun load() = stored
 
-    override suspend fun save(stored: Stored) {
-        this.stored = stored
-    }
+    override suspend fun update(change: (Stored) -> Stored) = lock.withLock { stored = change(stored) }
 }

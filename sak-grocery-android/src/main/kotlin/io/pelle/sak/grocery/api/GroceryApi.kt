@@ -1,11 +1,5 @@
 package io.pelle.sak.grocery.api
 
-import io.ktor.http.HttpHeaders
-import io.ktor.client.request.header
-import io.ktor.client.plugins.defaultRequest
-import io.pelle.sak.grocery.uiText
-import io.pelle.sak.grocery.UiText
-import io.pelle.sak.grocery.R
 import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -13,9 +7,11 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.timeout
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
@@ -25,18 +21,22 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.readLine
+import io.pelle.sak.grocery.R
+import io.pelle.sak.grocery.UiText
+import io.pelle.sak.grocery.uiText
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.Json
-import java.io.IOException
 
 val ApiJson = Json { ignoreUnknownKeys = true }
 
@@ -47,30 +47,36 @@ class ApiException(
     val text: UiText,
 ) : Exception(text.toString())
 
+// the one client of the app, shared by the api of every deployment and session; the engine does the io
+fun groceryClient(engine: HttpClientEngine): HttpClient =
+    HttpClient(engine) {
+        expectSuccess = false
+        install(ContentNegotiation) { json(ApiJson) }
+        install(HttpTimeout)
+    }
+
 // the api of one deployment, below its url, e.g. https://api.example.org/v1; token is the session,
-// null before signing in. Every call is suspending, the engine does the io. The backend answers its
-// texts in the languages of the phone (Accept-Language, e.g. de-DE,en-US)
+// null before signing in. Cheap to make, the client is shared. Every call is suspending. The backend
+// answers its texts in the languages of the phone (Accept-Language, e.g. de-DE,en-US)
 class GroceryApi(
-    engine: HttpClientEngine,
+    private val client: HttpClient,
     private val url: String,
     private val token: String? = null,
     private val languages: String? = null,
 ) {
-    private val client =
-        HttpClient(engine) {
-            expectSuccess = false
-            install(ContentNegotiation) { json(ApiJson) }
-            install(HttpTimeout)
-            defaultRequest { languages?.let { header(HttpHeaders.AcceptLanguage, it) } }
-        }
+    // the session and the languages, on every request
+    private fun HttpRequestBuilder.session() {
+        token?.let { bearerAuth(it) }
+        languages?.let { header(HttpHeaders.AcceptLanguage, it) }
+    }
 
-    suspend fun info(): InfoResponse = client.get("$url/info").answer(R.string.error_no_sak)
-
+    suspend fun info(): InfoResponse = client.get("$url/info") { session() }.answer(R.string.error_no_sak)
 
     // the link goes out by mail if the address may sign in, the answer is the same for every address
     suspend fun requestLink(email: String) {
         client
             .post("$url/auth/login/link") {
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(LoginRequest(email, client = "android"))
             }.answer<Unit>(R.string.error_link_not_requested)
@@ -79,6 +85,7 @@ class GroceryApi(
     suspend fun exchange(loginToken: String): ExchangeResponse =
         client
             .post("$url/auth/login/exchange") {
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(ExchangeRequest(loginToken))
             }.answer(R.string.login_link_invalid, unauthorized = R.string.login_link_invalid)
@@ -86,6 +93,7 @@ class GroceryApi(
     suspend fun passwordLogin(password: String): ExchangeResponse =
         client
             .post("$url/auth/login/password") {
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(PasswordLoginRequest(password))
             }.answer(R.string.error_password_not_checked, unauthorized = R.string.error_password_wrong)
@@ -94,7 +102,7 @@ class GroceryApi(
     suspend fun whoAmI(): WhoAmIResponse =
         client
             .get("$url/auth/who-am-i") {
-                token?.let { bearerAuth(it) }
+                session()
             }.answer(R.string.error_user_not_read)
 
     // in the order the backend gives them: by name
@@ -108,7 +116,7 @@ class GroceryApi(
     ): GroceryListResponse =
         client
             .post("$url/grocery/lists") {
-                token?.let { bearerAuth(it) }
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
             }.answer(R.string.grocery_error_list_not_created)
@@ -122,7 +130,7 @@ class GroceryApi(
     ): GroceryListResponse =
         client
             .put("$url/grocery/lists/$id") {
-                token?.let { bearerAuth(it) }
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
             }.answer(R.string.grocery_form_not_saved)
@@ -130,9 +138,7 @@ class GroceryApi(
     // a list of the user's own with its items, not their last one (LIST-1)
     suspend fun deleteList(id: Int) {
         client
-            .delete("$url/grocery/lists/$id") {
-                token?.let { bearerAuth(it) }
-            }.answer<Unit>(R.string.grocery_form_not_deleted)
+            .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(R.string.grocery_form_not_deleted)
     }
 
     // the items to buy, by the order of their category, the ones without one last
@@ -145,7 +151,7 @@ class GroceryApi(
     ): GroceryItemResponse =
         client
             .post("$url/grocery/items") {
-                token?.let { bearerAuth(it) }
+                session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryNewItemRequest(listId, name))
             }.answer(R.string.grocery_list_not_added)
@@ -154,7 +160,7 @@ class GroceryApi(
     suspend fun checkItem(id: Int) {
         client
             .delete("$url/grocery/items/$id") {
-                token?.let { bearerAuth(it) }
+                session()
             }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
@@ -165,7 +171,7 @@ class GroceryApi(
         flow {
             client
                 .prepareGet("$url/grocery/changes") {
-                    token?.let { bearerAuth(it) }
+                    session()
                     // the backend keeps the stream open with a comment every 25 seconds
                     timeout { socketTimeoutMillis = CHANGES_TIMEOUT_MS }
                 }.execute { response ->
@@ -198,7 +204,7 @@ class GroceryApi(
             val page: PageResponse<T> =
                 client
                     .get(path) {
-                        token?.let { bearerAuth(it) }
+                        session()
                         parameter("offset", all.size)
                         parameter("limit", PAGE_LIMIT)
                     }.answer(failure)

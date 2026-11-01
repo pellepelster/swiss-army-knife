@@ -4,6 +4,8 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -33,9 +35,15 @@ private val OPEN_LIST = intPreferencesKey("open_list")
 class DataStoreSessionStore(
     private val context: Context,
 ) : SessionStore {
-    override suspend fun load(): Stored {
-        val preferences = context.dataStore.data.first()
-        return Stored(
+    override suspend fun load(): Stored = read(context.dataStore.data.first())
+
+    // read and written in one edit of the data store, which takes one edit at a time
+    override suspend fun update(change: (Stored) -> Stored) {
+        context.dataStore.edit { preferences -> write(preferences, change(read(preferences))) }
+    }
+
+    private fun read(preferences: Preferences) =
+        Stored(
             apiUrl = preferences[API_URL],
             deployment = preferences[DEPLOYMENT],
             // a token the key can not open any more (e.g. the app was restored elsewhere) is none
@@ -48,22 +56,22 @@ class DataStoreSessionStore(
                 },
             openList = preferences[OPEN_LIST],
         )
-    }
 
-    override suspend fun save(stored: Stored) {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-            stored.apiUrl?.let { preferences[API_URL] = it }
-            stored.deployment?.let { preferences[DEPLOYMENT] = it }
-            stored.token?.let { preferences[TOKEN] = KeystoreCipher.encrypt(it) }
-            stored.email?.let { preferences[EMAIL] = it }
-            stored.expiresAt?.let { preferences[EXPIRES_AT] = it.toEpochMilli() }
-            stored.pending?.let {
-                preferences[PENDING_API_URL] = it.apiUrl
-                preferences[PENDING_STARTED_AT] = it.startedAt.toEpochMilli()
-            }
-            stored.openList?.let { preferences[OPEN_LIST] = it }
+    private fun write(
+        preferences: MutablePreferences,
+        stored: Stored,
+    ) {
+        preferences.clear()
+        stored.apiUrl?.let { preferences[API_URL] = it }
+        stored.deployment?.let { preferences[DEPLOYMENT] = it }
+        stored.token?.let { preferences[TOKEN] = KeystoreCipher.encrypt(it) }
+        stored.email?.let { preferences[EMAIL] = it }
+        stored.expiresAt?.let { preferences[EXPIRES_AT] = it.toEpochMilli() }
+        stored.pending?.let {
+            preferences[PENDING_API_URL] = it.apiUrl
+            preferences[PENDING_STARTED_AT] = it.startedAt.toEpochMilli()
         }
+        stored.openList?.let { preferences[OPEN_LIST] = it }
     }
 }
 
