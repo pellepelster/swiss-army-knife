@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, input } from '@angular/core';
+import { Component, DestroyRef, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
@@ -28,6 +28,11 @@ import { PageHeader } from '../shared/page-header';
 
     @if (list.error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
+    }
+
+    <!-- what the sending of a link of the grocery app did -->
+    @if (sent(); as sent) {
+      <p class="alert alert-success" role="status" data-testid="app-link-sent">{{ sent }}</p>
     }
 
     @if (list.loaded()) {
@@ -66,7 +71,18 @@ import { PageHeader } from '../shared/page-header';
                     deletes
                     [deleteDisabled]="user.configured || user.id === null ? configured : null"
                     (deleted)="user.id !== null && delete(user.id)"
-                  />
+                  >
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      role="menuitem"
+                      [disabled]="sending()"
+                      (click)="sendAppLink(user.email)"
+                    >
+                      <i class="fa-solid fa-mobile-screen me-2" aria-hidden="true"></i
+                      >{{ 'users.send_app_link' | t }}
+                    </button>
+                  </app-action-menu>
                 </td>
               </tr>
             }
@@ -102,6 +118,29 @@ export class UserList {
   });
   // why an admin is not deleted
   protected readonly configured = this.i18n.t('users.configured');
+
+  // a link of the grocery app on its way, and to whom it went last
+  protected readonly sending = signal(false);
+  protected readonly sent = signal<string | null>(null);
+
+  protected sendAppLink(email: string): void {
+    this.sending.set(true);
+    this.sent.set(null);
+    this.list.error.set(null);
+    this.service
+      .sendAppLink(email)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.sending.set(false);
+          this.sent.set(this.i18n.t('users.app_link_sent', { email }));
+        },
+        error: (error: unknown) => {
+          this.sending.set(false);
+          this.list.error.set(apiErrorMessage(error, this.i18n.t('users.app_link_not_sent')));
+        },
+      });
+  }
 
   protected delete(id: number): void {
     this.service

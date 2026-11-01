@@ -32,6 +32,7 @@ import io.pelle.sak.auth.passwordLogin
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
+import io.pelle.sak.backend.users.AppLinkMailer
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.login
 import io.pelle.sak.auth.whoAmI
@@ -214,7 +215,7 @@ fun Application.apps(
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)
-                            users(userService)
+                            users(userService, mailSender?.let { AppLinkMailer(it, loginApp(config)) })
                         }
                         route("/settings") {
                             requireRole(Role.ADMIN)

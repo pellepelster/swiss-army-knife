@@ -27,6 +27,11 @@ export class UsersService {
     return this.http.post<User>('/api/v1/users', { email, name });
   }
 
+  // an e-mail with the link to the page that downloads the android app of the grocery lists
+  sendAppLink(email: string): Observable<void> {
+    return this.http.post<void>('/api/v1/users/app-link', { email });
+  }
+
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/users/${id}`);
   }
