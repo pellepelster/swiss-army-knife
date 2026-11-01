@@ -4,11 +4,11 @@
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     DeploymentDefaults, DeploymentEvent, DeploymentManager, DeploymentRequest, DeploymentResponse,
-    Detected, Intent, LocationResponse, PlanResponse, RootDomainResponse, defaults,
+    Detected, Intent, LocationResponse, PlanResponse, RootDomainResponse, completed_with, defaults,
 };
 use crate::core::error::SakctlError;
 use crate::core::providers::{ProviderTokens, ProviderType};
-use crate::gui::state::{CheckedDeployment, RunningWork};
+use crate::gui::state::{CheckedDeployment, LoadedSettings, RunningWork};
 use rust_i18n::t;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -73,42 +73,68 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// the plan of a create, a redeploy or a destroy, as the form asks for it; a redeploy takes what
+/// the plan of a create, a new config or a destroy, as the form asks for it; a new config takes what
 /// it is not given from the deployment (`completed`), as the command line does
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
+    loaded: State<'_, LoadedSettings>,
     deployment: DeploymentRequest,
 ) -> Result<PlanResponse, SakctlError> {
     let tokens = tokens.tokens();
-    let deployment = completed_redeploy(&manager, tokens.clone(), deployment).await?;
+    let deployment = completed_new_config(&manager, tokens.clone(), &loaded, deployment).await?;
     manager.plan(tokens, &deployment, &container).await
 }
 
-/// a redeploy of the form completed from the deployment; a create or destroy as it is
-async fn completed_redeploy(
+/// a new config of the form completed from the settings of the deployment; a create or destroy
+/// as it is
+async fn completed_new_config(
     manager: &DeploymentManager,
     tokens: Vec<(ProviderType, String)>,
+    loaded: &LoadedSettings,
     deployment: DeploymentRequest,
 ) -> Result<DeploymentRequest, SakctlError> {
     match deployment.intent {
-        Intent::Deploy => manager.completed(tokens, deployment, "").await,
+        Intent::Deploy => {
+            let detected = settings_of(manager, tokens, loaded, &deployment.name, &deployment.password).await?;
+            completed_with(deployment, &detected, "")
+        }
         _ => Ok(deployment),
     }
 }
 
-/// the settings a redeploy of the deployment takes, and where they come from: the form of a
-/// redeploy is filled with them (`DeploymentManager::detected`)
+/// the settings of the deployment and where they come from: the running deployment, else this
+/// machine (`DeploymentManager::detected`). Read once when its page opens; the page shows them,
+/// the check deploys with them and the form of a new config is filled with them
 #[tauri::command]
 pub async fn deployment_settings(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
+    loaded: State<'_, LoadedSettings>,
     name: String,
     password: String,
 ) -> Result<Detected, SakctlError> {
-    manager.detected(tokens.tokens(), &name, &password).await
+    let detected = manager.detected(tokens.tokens(), &name, &password).await?;
+    loaded.set(&name, detected.clone());
+    Ok(detected)
+}
+
+/// the settings read when the page of `name` opened, read now when it was not
+async fn settings_of(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    loaded: &LoadedSettings,
+    name: &str,
+    password: &str,
+) -> Result<Detected, SakctlError> {
+    if let Some(detected) = loaded.get(name) {
+        return Ok(detected);
+    }
+    let detected = manager.detected(tokens, name, password).await?;
+    loaded.set(name, detected.clone());
+    Ok(detected)
 }
 
 /// the plan of a check and its number, which the deploy names
@@ -127,14 +153,16 @@ pub async fn check_deployment(
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
     checked: State<'_, CheckedDeployment>,
+    loaded: State<'_, LoadedSettings>,
     name: String,
     password: String,
     location: Option<sak_cloud::hetzner::api::Location>,
 ) -> Result<CheckResponse, SakctlError> {
     let number = checked.start();
     let location = location.unwrap_or_else(default_location);
+    let detected = settings_of(&manager, tokens.tokens(), &loaded, &name, &password).await?;
     let (deployment, plan) = manager
-        .check(tokens.tokens(), &name, &password, location, &container)
+        .check(tokens.tokens(), &name, &password, location, &detected, &container)
         .await?;
     checked.done(number, deployment, plan.seen());
     Ok(CheckResponse {
@@ -209,10 +237,11 @@ pub async fn apply_deployment(
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
     running: State<'_, RunningWork>,
+    loaded: State<'_, LoadedSettings>,
     deployment: DeploymentRequest,
     on_event: Channel<DeploymentEvent>,
 ) -> Result<(), SakctlError> {
-    let deployment = completed_redeploy(&manager, tokens.tokens(), deployment).await?;
+    let deployment = completed_new_config(&manager, tokens.tokens(), &loaded, deployment).await?;
     apply(
         &manager,
         tokens.tokens(),

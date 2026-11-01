@@ -1,7 +1,7 @@
-//! what the window keeps between its commands: the work that runs and the deploy the last check
-//! planned
+//! what the window keeps between its commands: the work that runs, the deploy the last check
+//! planned and the settings of the deployment whose page is open
 
-use crate::core::deployments::{DeploymentRequest, Seen};
+use crate::core::deployments::{DeploymentRequest, Detected, Seen};
 use futures_util::future::{AbortHandle, Abortable};
 use rust_i18n::t;
 use std::sync::Mutex;
@@ -182,5 +182,29 @@ mod tests {
         checked.done(delta, deployment("delta"), Vec::new());
         checked.start();
         assert!(checked.take(delta).is_none());
+    }
+}
+
+/// the settings of the deployment whose page is open, read once when the page opened
+/// (`deployment_settings`): its check, the form of a new config and their deploys take them from
+/// here instead of asking the deployment again
+#[derive(Default)]
+pub struct LoadedSettings(Mutex<Option<(String, Detected)>>);
+
+impl LoadedSettings {
+    pub fn set(&self, name: &str, detected: Detected) {
+        if let Ok(mut loaded) = self.0.lock() {
+            *loaded = Some((name.to_string(), detected));
+        }
+    }
+
+    /// the settings of the deployment `name`, none when another one's page was opened last
+    pub fn get(&self, name: &str) -> Option<Detected> {
+        self.0.lock().ok().and_then(|loaded| {
+            loaded
+                .as_ref()
+                .filter(|(loaded, _)| loaded == name)
+                .map(|(_, detected)| detected.clone())
+        })
     }
 }

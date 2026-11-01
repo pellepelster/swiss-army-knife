@@ -64,6 +64,8 @@ const repeatGroup = document.getElementById('create-repeat-group');
 // the deployment to destroy, null for a new one, and the intent: create or destroy
 let existing = null;
 let intent = 'create';
+// a new config: the configuration of the deployment its page read, null when it read none
+let loadedSettings = null;
 
 // the text of `key` for the intent: `<key>` for a create, `<key>_destroy` else
 function intentText(key) {
@@ -160,13 +162,11 @@ function prefillUsers(defaults) {
   smtpInputs.starttls.checked = defaults.smtpStarttls ?? true;
 }
 
-// a redeploy: the settings of the deployment (`deployment_settings`) fill the form, and a line
-// says where they come from and why the deployment did not answer
-async function prefillRedeploy() {
-  const settings = await invoke('deployment_settings', {
-    name: nameInput.value,
-    password: passwordInput.value,
-  });
+// a new config: the configuration the page of the deployment read when it opened fills the form,
+// and a line says where it comes from and why the deployment did not answer. Without one the
+// settings of the users stay empty
+async function prefillNewConfig() {
+  const settings = loadedSettings ?? {};
   if (settings.dnsMode) {
     setDnsMode(settings.dnsMode);
   }
@@ -327,9 +327,9 @@ async function loadLocations(chosen) {
 }
 
 // the empty fields take the values of the environment: SAK_NAME, SAK_PASSWORD, SAK_LOCATION and
-// those of the users. A destroy and a redeploy take their name, location, dns mode and root domain
-// from the deployment, and the password it was opened with; a redeploy all the other settings
-// too, from the running deployment, else from this machine, else from its dns records
+// those of the users. A destroy and a new config take their name, location, dns mode and root
+// domain from the deployment, and the password it was opened with; a new config all the other
+// settings too, from the configuration its page read
 async function prefill() {
   const defaults = await invoke('deployment_defaults');
   if (existing) {
@@ -340,7 +340,7 @@ async function prefill() {
     setDnsMode(existing.dnsMode ?? 'subdomain');
     await loadRootDomains(existing.rootDomain);
     if (intent === 'deploy') {
-      await prefillRedeploy();
+      await prefillNewConfig();
     } else {
       prefillUsers(defaults);
     }
@@ -365,6 +365,7 @@ export async function showCreate(options = {}) {
   resetForm();
   existing = options.existing ?? null;
   intent = existing ? options.intent : 'create';
+  loadedSettings = options.settings ?? null;
   nameRefusal = null;
   nameInput.classList.remove('is-invalid');
   document.getElementById('create-title').textContent = intentText('ui.create.title');
@@ -373,7 +374,7 @@ export async function showCreate(options = {}) {
   repeatInput.required = !existing;
   nameInput.readOnly = Boolean(existing);
   locationInput.disabled = Boolean(existing);
-  // a destroy ignores the dns mode and the root domain; a redeploy may change them
+  // a destroy ignores the dns mode and the root domain; a new config may change them
   dnsModeGroup.disabled = intent === 'destroy';
   rootDomainInput.disabled = intent === 'destroy';
   // the submit button of a destroy is red and has the name of the destroy
@@ -467,6 +468,7 @@ function resetForm() {
   repeatInput.required = true;
   existing = null;
   intent = 'create';
+  loadedSettings = null;
   setStatus(status, '');
 }
 

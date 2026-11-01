@@ -265,16 +265,23 @@ ui:
     loading: "Suche Deployments bei den Providern…"
     address: "Adresse"
   deployment:
-    redeploy: "Erneut deployen…"
+    new_config: "Neue Konfiguration"
     changed_since_check: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."
     maintenance: "Wartung"
     destroy: "Zerstören"
-    location: "Standort"
     check: "Prüfen"
     checking: "Prüfe das Deployment…"
     changes: "%{count} seiner Ressourcen haben Änderungen."
     up_to_date: "Alles ist aktuell."
     not_checked: "Prüfe das Deployment zuerst."
+    config:
+      loading: "Lese die Konfiguration…"
+      source_running: "Die Konfiguration, die das laufende Deployment genannt hat."
+      source_local: "Die Konfiguration, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
+      source_none: "Keine Konfiguration bekannt: Das Deployment hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit Neue Konfiguration an."
+      not_read: "Die Konfiguration konnte nicht gelesen werden: %{error}"
+      admin: "Admin"
+      no_admin: "keiner, meldet sich mit dem Passwort an"
   maintenance:
     confirm_title: "%{name} neu starten?"
     confirm_text: "Das Deployment wird gestoppt und sein Server neu gestartet. Bis es wieder antwortet, ist es nicht erreichbar, meist einige Minuten."
@@ -300,8 +307,8 @@ ui:
   run:
     done: "Fertig"
   create:
-    title_deploy: "Das Deployment erneut deployen"
-    password_hint_deploy: "Das Passwort, mit dem das Deployment erstellt wurde. Die Einstellungen darunter kommen vom Deployment, ändere, was sich ändern soll."
+    title_deploy: "Neue Konfiguration"
+    password_hint_deploy: "Das Passwort, mit dem das Deployment erstellt wurde. Ändere die Einstellungen darunter, der Plan zeigt, was ein Deployment ändert."
     source_running: "Ausgefüllt mit den Einstellungen, die das laufende Deployment genannt hat."
     source_local: "Ausgefüllt mit den Einstellungen, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
     source_records: "Nur die Root-Domain und der DNS-Modus sind bekannt, aus den DNS-Einträgen. Das Deployment hat nicht geantwortet: %{error}"

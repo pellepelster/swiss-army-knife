@@ -30,6 +30,7 @@ private val VIDEOS: Path = Paths.get(System.getProperty("sak.e2e.videos") ?: "bu
 private const val TOKEN = "kGq7XnL2cVb9WmR4tYp8sZ1aD6fH3jK5eQ0uI2oP7lN9xC4vB8mT1rE6yU3wA5sD"
 private const val NAME = "example1"
 private const val PASSWORD = "correct horse battery staple"
+private const val ROOT_DOMAIN = "krawallbu.de"
 
 // the events of the channels where the screenshots stop them: the image half pulled, the 20th task
 // of the playbook running (10 resources with 2 events each, the start of the provisioning, 2
@@ -84,17 +85,26 @@ private fun Page.tour(
     assertThat(locator("#run-done")).isEnabled(EnabledTimeout.long)
     step("done")
 
-    // the page of the new deployment checks it at once: everything up to date, so deploy changes
-    // stays disabled and check is the green button; force deploy is there after the check
+    // the page of the new deployment reads its configuration once, shows it above the resources
+    // and checks it with it: everything up to date, so deploy changes stays disabled and check is
+    // the green button; force deploy is there after the check
     locator("#run-done").click()
     assertThat(locator("#view-deployment")).isVisible()
+    assertThat(locator("#deployment-config li").first()).containsText(ROOT_DOMAIN)
+    assertThat(locator("#deployment-config")).containsText("Single user")
     assertThat(locator("#deployment-force")).isEnabled()
     assertThat(locator("#deployment-deploy")).isDisabled()
     assertThat(locator("#deployment-check")).hasClass(java.util.regex.Pattern.compile("btn-primary"))
     step("deployment")
 
-    // the list with it, and the password that opens it again
-    locator("#deployment-back").click()
+    // new config: the form of a create, filled in with the configuration the page read
+    locator("#deployment-new-config").click()
+    assertThat(locator("#view-create")).isVisible()
+    assertThat(locator("#create-title")).hasText("New config")
+    assertThat(locator("#create-user-mode-single")).isChecked()
+    assertThat(locator("#create-dns-mode-domain")).isChecked()
+    // cancel leads to the list, with the deployment, and the password opens it again
+    locator("#create-cancel").click()
     assertThat(locator("#deployments li.deployment")).hasCount(1)
     step("deployments")
     locator("#deployments .deployment-open").first().click()

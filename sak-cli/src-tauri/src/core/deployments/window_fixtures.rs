@@ -83,6 +83,18 @@ pub(super) fn spec() -> DeploymentSpec {
         .with_password_hash(&crate::core::keys::password_hash(NAME, PASSWORD).unwrap())
 }
 
+/// the configuration the running deployment of the spec answers: single user, in dns mode domain
+fn settings() -> Detected {
+    Detected {
+        source: Some(SettingsSource::Running),
+        dns_mode: Some(DnsMode::Domain),
+        root_domain: Some(ROOT_DOMAIN.to_string()),
+        acme_ca: Some(AcmeCa::Production),
+        user_mode: Some(UserMode::Single),
+        ..Detected::default()
+    }
+}
+
 /// the resources of the spec in the order the registry applies them: what they depend on first
 /// (a test compares it with the registry, `tests::the_window_fixtures_apply_in_the_order_of_the_registry`)
 pub(super) fn resources(spec: &DeploymentSpec) -> Vec<sak_cloud::api::ResourceRef> {
@@ -420,6 +432,7 @@ fn window_fixtures() {
             "locations": [crate::gui::deployments::locations()],
             "root_domains": [[root_domain_response(&root_domain, NAME)]],
             "plan_deployment": [plan(&spec, Intent::Create)],
+            "deployment_settings": [settings()],
             "check_deployment": [plan(&spec, Intent::Deploy)],
             "check_deployment_password": [null],
             "cancel_apply": [null],

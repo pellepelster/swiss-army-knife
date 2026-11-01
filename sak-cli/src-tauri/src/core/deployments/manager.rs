@@ -332,15 +332,14 @@ impl DeploymentManager {
         name: &str,
         password: &str,
         location: Location,
+        detected: &Detected,
         container: &ContainerRuntime,
     ) -> Result<(DeploymentRequest, PlanResponse), SakctlError> {
-        let deployment = self
-            .completed(
-                tokens.clone(),
-                DeploymentRequest::as_it_is(name, password, location),
-                "",
-            )
-            .await?;
+        let deployment = completed_with(
+            DeploymentRequest::as_it_is(name, password, location),
+            detected,
+            "",
+        )?;
         let plan = self.plan(tokens, &deployment, container).await?;
         Ok((deployment, plan))
     }
@@ -355,11 +354,7 @@ impl DeploymentManager {
         deployment: DeploymentRequest,
         smtp_password: &str,
     ) -> Result<DeploymentRequest, SakctlError> {
-        let incomplete = deployment.user_mode.is_none()
-            || deployment.acme_ca.is_none()
-            || (deployment.user_mode == Some(UserMode::Multi)
-                && (deployment.smtp.is_none() || deployment.admin_email.is_none()));
-        if !incomplete {
+        if !incomplete(&deployment) {
             return Ok(deployment);
         }
         let detected = self
@@ -1233,4 +1228,26 @@ fn check_records_in_the_way(
         ),
         EXIT_NOT_OWNED,
     ))
+}
+
+/// whether a deploy lacks what only the deployment tells: its user mode, its acme ca, and for
+/// multi user the admin and the mail server
+fn incomplete(deployment: &DeploymentRequest) -> bool {
+    deployment.user_mode.is_none()
+        || deployment.acme_ca.is_none()
+        || (deployment.user_mode == Some(UserMode::Multi)
+            && (deployment.smtp.is_none() || deployment.admin_email.is_none()))
+}
+
+/// `completed` with the settings of the deployment read before, e.g. once when the window opened
+/// its page: nothing is read again
+pub fn completed_with(
+    deployment: DeploymentRequest,
+    detected: &Detected,
+    smtp_password: &str,
+) -> Result<DeploymentRequest, SakctlError> {
+    if !incomplete(&deployment) {
+        return Ok(deployment);
+    }
+    completed_from(deployment, detected, smtp_password)
 }

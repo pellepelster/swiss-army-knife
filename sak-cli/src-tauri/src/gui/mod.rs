@@ -27,6 +27,7 @@ pub fn run() {
         .manage(deployments::FrontendUrls::default())
         .manage(state::RunningWork::default())
         .manage(state::CheckedDeployment::default())
+        .manage(state::LoadedSettings::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,

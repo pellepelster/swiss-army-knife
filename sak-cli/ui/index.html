@@ -136,11 +136,13 @@
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="reboot" data-text="ui.maintenance.reboot"></button></li>
             </ul>
           </div>
-          <button type="button" class="btn btn-outline-secondary" id="deployment-redeploy" data-text="ui.deployment.redeploy"></button>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-new-config" data-text="ui.deployment.new_config"></button>
           <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
         </div>
       </header>
-      <p class="hint" id="deployment-location"></p>
+      <!-- the configuration, read once when the page opened, and where it comes from -->
+      <p class="hint" id="deployment-config-source" aria-live="polite"></p>
+      <ul class="resources deployment-config" id="deployment-config"></ul>
       <!-- the resources as the list found them, then, after the check, as the plan of a deploy
            has them, the provisioning included -->
       <ul class="resources" id="deployment-resources"></ul>
@@ -196,7 +198,7 @@
         </div>
       </header>
       <form class="page-form" id="create-form">
-        <!-- a redeploy: where the settings of the form come from -->
+        <!-- a new config: where the settings of the form come from -->
         <p class="hint" id="create-source" aria-live="polite" hidden></p>
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>

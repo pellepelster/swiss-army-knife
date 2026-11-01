@@ -24,7 +24,8 @@ export function resource(state) {
   mark.setAttribute('aria-hidden', 'true');
   const kind = document.createElement('span');
   kind.className = 'resource-kind';
-  kind.textContent = text(`common.deployments.resource.${state.kind}`);
+  // a row of the configuration of a deployment has a label instead of a kind
+  kind.textContent = state.label ?? text(`common.deployments.resource.${state.kind}`);
   const name = document.createElement('span');
   name.className = 'resource-name';
   name.textContent = state.name;

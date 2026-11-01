@@ -265,16 +265,23 @@ ui:
     loading: "Looking for deployments at the providers…"
     address: "Address"
   deployment:
-    redeploy: "Redeploy…"
+    new_config: "New config"
     changed_since_check: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
     maintenance: "Maintenance"
     destroy: "Destroy"
-    location: "Location"
     check: "Check"
     checking: "Checking the deployment…"
     changes: "%{count} of its resources have changes."
     up_to_date: "Everything is up-to-date."
     not_checked: "Check the deployment first."
+    config:
+      loading: "Reading the configuration…"
+      source_running: "The configuration the running deployment answered."
+      source_local: "The configuration this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
+      source_none: "No configuration is known: the deployment did not answer (%{error}) and this machine kept none. Give one with New config."
+      not_read: "The configuration could not be read: %{error}"
+      admin: "Admin"
+      no_admin: "none, signs in with the password"
   maintenance:
     confirm_title: "Reboot %{name}?"
     confirm_text: "The deployment is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."
@@ -300,8 +307,8 @@ ui:
   run:
     done: "Done"
   create:
-    title_deploy: "Redeploy the deployment"
-    password_hint_deploy: "The password the deployment was created with. The settings below come from the deployment, change what is to change."
+    title_deploy: "New config"
+    password_hint_deploy: "The password the deployment was created with. Change the settings below, the plan shows what a deploy changes."
     source_running: "Filled in with the settings the running deployment answered."
     source_local: "Filled in with the settings this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
     source_records: "Only the root domain and the DNS mode are known, from the DNS records. The deployment did not answer: %{error}"

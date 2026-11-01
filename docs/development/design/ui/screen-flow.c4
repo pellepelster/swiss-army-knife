@@ -53,10 +53,10 @@ model {
     description 'Every deployment asks for its password. It is checked against the resources as it is typed; Next only with the right password, Cancel back to the deployments'
   }
   details = screen 'Deployment details' {
-    description 'One deployment: its state, location and resources. At the top right a toolbar with Destroy, the Maintenance menu (Status, Update, Reboot) and Check'
+    description 'One deployment: its state, its config (read once when the page opens, from the deployment, else from this machine) and its resources. At the top right a toolbar with Destroy, the Maintenance menu (Status, Update, Reboot), New config and Check; without a config Check and the deploys are disabled'
   }
   form = screen 'Deployment form' {
-    description 'New deployment: the name, the password, the location, the DNS. Destroy the deployment: whether to delete the data volume, the password is known'
+    description 'New deployment: the name, the password, the location, the DNS. New config: the same form, filled in with the config of the deployment, empty without one. Destroy the deployment: whether to delete the data volume, the password is known'
   }
   plan = screen 'Plan' {
     description 'What an apply would do to each resource and to the provisioning. Three buttons: Cancel; Deploy changes, only when a resource is not up to date; Force deploy, always, provisions the server again'
@@ -106,6 +106,7 @@ model {
 
   details -> plan 'Check deployment (top toolbar)'
   details -> form 'Destroy'
+  details -> form 'New config'
   details -> deployments 'Back'
   details -> maintenance 'Maintenance: Status / Update'
   details -> rebootConfirm 'Maintenance: Reboot'

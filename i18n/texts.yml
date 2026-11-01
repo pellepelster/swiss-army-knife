@@ -889,18 +889,31 @@ ctl:
       loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
       address: { en: "Address", de: "Adresse" }
     deployment:
-      redeploy: { en: "Redeploy…", de: "Erneut deployen…" }
+      new_config: { en: "New config", de: "Neue Konfiguration" }
       changed_since_check:
         en: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
         de: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."
       maintenance: { en: "Maintenance", de: "Wartung" }
       destroy: { en: "Destroy", de: "Zerstören" }
-      location: { en: "Location", de: "Standort" }
       check: { en: "Check", de: "Prüfen" }
       checking: { en: "Checking the deployment…", de: "Prüfe das Deployment…" }
       changes: { en: "%{count} of its resources have changes.", de: "%{count} seiner Ressourcen haben Änderungen." }
       up_to_date: { en: "Everything is up-to-date.", de: "Alles ist aktuell." }
       not_checked: { en: "Check the deployment first.", de: "Prüfe das Deployment zuerst." }
+      config:
+        loading: { en: "Reading the configuration…", de: "Lese die Konfiguration…" }
+        source_running:
+          en: "The configuration the running deployment answered."
+          de: "Die Konfiguration, die das laufende Deployment genannt hat."
+        source_local:
+          en: "The configuration this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
+          de: "Die Konfiguration, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
+        source_none:
+          en: "No configuration is known: the deployment did not answer (%{error}) and this machine kept none. Give one with New config."
+          de: "Keine Konfiguration bekannt: Das Deployment hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit Neue Konfiguration an."
+        not_read: { en: "The configuration could not be read: %{error}", de: "Die Konfiguration konnte nicht gelesen werden: %{error}" }
+        admin: { en: "Admin", de: "Admin" }
+        no_admin: { en: "none, signs in with the password", de: "keiner, meldet sich mit dem Passwort an" }
     maintenance:
       confirm_title: { en: "Reboot %{name}?", de: "%{name} neu starten?" }
       confirm_text:
@@ -932,10 +945,10 @@ ctl:
     run:
       done: { en: "Done", de: "Fertig" }
     create:
-      title_deploy: { en: "Redeploy the deployment", de: "Das Deployment erneut deployen" }
+      title_deploy: { en: "New config", de: "Neue Konfiguration" }
       password_hint_deploy:
-        en: "The password the deployment was created with. The settings below come from the deployment, change what is to change."
-        de: "Das Passwort, mit dem das Deployment erstellt wurde. Die Einstellungen darunter kommen vom Deployment, ändere, was sich ändern soll."
+        en: "The password the deployment was created with. Change the settings below, the plan shows what a deploy changes."
+        de: "Das Passwort, mit dem das Deployment erstellt wurde. Ändere die Einstellungen darunter, der Plan zeigt, was ein Deployment ändert."
       source_running:
         en: "Filled in with the settings the running deployment answered."
         de: "Ausgefüllt mit den Einstellungen, die das laufende Deployment genannt hat."

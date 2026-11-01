@@ -1,10 +1,14 @@
-// the page of one deployment, opened with its password: its state, location and resources. It
-// checks the deployment when it opens: a deploy of the deployment as it is, planned in rust, its
-// rows those of the plan, the provisioning included. The toolbar at the top right: destroy, which
-// opens the form of a destroy, maintenance, a menu of status, update and reboot that each open the
-// maintenance view (a reboot after a confirmation), and check, which checks again. At the bottom right, one group:
-// back to the list, force deploy (after a check, the playbook runs again) and deploy changes (only
-// when the check found changes). The one green button is check, or deploy changes when there are changes
+// the page of one deployment, opened with its password: its state, its configuration and its
+// resources. When it opens it reads the configuration once, from the running deployment, else from
+// this machine; the check, the form of a new config and the deploys use what it read. With a
+// configuration it checks the deployment: a deploy of the deployment as it is, planned in rust, its
+// rows those of the plan, the provisioning included. Without one there is nothing to deploy with:
+// check and the deploys stay disabled, new config gives one. The toolbar at the top right: destroy,
+// which opens the form of a destroy, maintenance, a menu of status, update and reboot that each
+// open the maintenance view (a reboot after a confirmation), new config, the form of a deploy with
+// the configuration filled in, and check, which checks again. At the bottom right, one group: back
+// to the list, force deploy (after a check, the playbook runs again) and deploy changes (only when
+// the check found changes). The one green button is check, or deploy changes when there are changes
 import { showCreate } from './create.js';
 import { STATES, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
@@ -17,6 +21,8 @@ const { invoke } = window.__TAURI__.core;
 const message = document.getElementById('deployment-message');
 const list = document.getElementById('deployment-resources');
 const badge = document.getElementById('deployment-status');
+const configSource = document.getElementById('deployment-config-source');
+const configList = document.getElementById('deployment-config');
 const checkButton = document.getElementById('deployment-check');
 const deployButton = document.getElementById('deployment-deploy');
 const forceButton = document.getElementById('deployment-force');
@@ -26,6 +32,9 @@ const rebootDialog = document.getElementById('reboot-confirm');
 let current = null;
 // the plan of the last check, its rows are those of the run
 let checked = null;
+// the configuration read when the page opened (`deployment_settings`), null while it is read or
+// when it could not be
+let settings = null;
 
 
 // the state the check found; none before it
@@ -50,12 +59,78 @@ export function showDeployment(deployment) {
   logo.alt = deployment.provider.name;
   document.getElementById('deployment-name').textContent = deployment.name;
   setState(null);
-  document.getElementById('deployment-location').textContent = deployment.location
-    ? `${text('ui.deployment.location')} ${deployment.location}`
-    : '';
   list.replaceChildren(...deployment.resources.map(resource));
   show('view-deployment');
-  check();
+  loadConfig();
+}
+
+// a configuration to deploy with: the running deployment answered it or this machine kept it
+function hasConfig() {
+  return settings?.source === 'running' || settings?.source === 'local';
+}
+
+// a row of the configuration, as a resource row: its label, its value and a detail
+function configRow(label, value, detail = '') {
+  return resource({ label, name: value, detail });
+}
+
+// what the configuration holds, as far as it is known
+function showConfig() {
+  const rows = [];
+  if (settings?.rootDomain) {
+    rows.push(configRow(text('ui.create.root_domain'), settings.rootDomain));
+  }
+  if (settings?.dnsMode) {
+    rows.push(configRow(text('ui.create.dns_mode'), text(`ui.create.dns_mode_${settings.dnsMode}`)));
+  }
+  if (hasConfig() && settings.userMode) {
+    rows.push(configRow(text('ui.create.user_mode'), text(`ui.create.user_mode_${settings.userMode}`)));
+  }
+  if (hasConfig() && settings.userMode === 'multi') {
+    rows.push(configRow(text('ui.deployment.config.admin'), settings.adminEmail || text('ui.deployment.config.no_admin')));
+    if (settings.smtp) {
+      const { host, port, username } = settings.smtp;
+      rows.push(configRow(text('ui.create.smtp'), `${host}:${port}`, username));
+    }
+  }
+  configList.replaceChildren(...rows);
+  const values = { when: settings?.deployedAt ?? '', error: settings?.unread ?? '' };
+  setStatus(configSource, text(`ui.deployment.config.source_${hasConfig() ? settings.source : 'none'}`, values));
+}
+
+// the configuration, read once when the page opens; then the check, when there is one to deploy with
+async function loadConfig() {
+  const shown = current;
+  const visit = currentVisit();
+  const { password } = openedDeployment();
+  settings = null;
+  configList.replaceChildren();
+  setStatus(configSource, text('ui.deployment.config.loading'));
+  setButtons(false);
+  setStatus(message, '');
+  try {
+    settings = await invoke('deployment_settings', { name: shown.name, password });
+  } catch (error) {
+    if (isCurrent(visit)) {
+      setFailure(configSource, text('ui.deployment.config.not_read', { error: String(error) }));
+    }
+    return;
+  }
+  if (!isCurrent(visit)) {
+    return;
+  }
+  showConfig();
+  if (hasConfig()) {
+    check();
+  }
+}
+
+// check, force deploy and deploy changes need a configuration; deploy changes also changes
+function setButtons(checkable) {
+  checkButton.disabled = !checkable;
+  deployButton.disabled = true;
+  forceButton.disabled = true;
+  setPrimary(checkButton);
 }
 
 // the check: the rows of the plan and the buttons it allows; a page left meanwhile stays as it is
@@ -64,10 +139,7 @@ async function check() {
   const visit = currentVisit();
   const { password } = openedDeployment();
   checked = null;
-  checkButton.disabled = true;
-  deployButton.disabled = true;
-  forceButton.disabled = true;
-  setPrimary(checkButton);
+  setButtons(false);
   for (const led of list.querySelectorAll('.resource-state')) {
     led.classList.add('sak-led');
     led.dataset.sakState = 'busy';
@@ -93,7 +165,7 @@ async function check() {
     }
   } finally {
     if (isCurrent(visit)) {
-      checkButton.disabled = false;
+      checkButton.disabled = !hasConfig();
     }
   }
 }
@@ -177,12 +249,14 @@ forceButton.addEventListener('click', () => deploy(true));
 document.getElementById('deployment-destroy').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'destroy' }),
 );
-// the form of a deploy with new settings, filled in from the deployment
-document.getElementById('deployment-redeploy').addEventListener('click', () =>
-  showCreate({ existing: current, intent: 'deploy' }),
+// the form of a deploy with a new config, filled in with the configuration read when the page
+// opened; empty without one
+document.getElementById('deployment-new-config').addEventListener('click', () =>
+  showCreate({ existing: current, intent: 'deploy', settings }),
 );
 document.getElementById('deployment-back').addEventListener('click', async () => {
   current = null;
+  settings = null;
   await navigate('deployments');
 });
 

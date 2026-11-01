@@ -5,7 +5,7 @@
 
 use super::*;
 
-/// where the settings of a redeploy came from
+/// where the settings of a deployment came from, for its page and the form of a new config
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsSource {

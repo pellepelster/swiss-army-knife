@@ -486,3 +486,8 @@ body {
 .maintenance-line[data-warn="true"] {
   color: var(--sak-warn);
 }
+
+/* the configuration of a deployment above its resources, in rows like theirs */
+.deployment-config {
+  margin-bottom: var(--sak-space-4);
+}
