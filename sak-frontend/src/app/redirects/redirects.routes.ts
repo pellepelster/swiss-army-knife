@@ -1,6 +1,7 @@
 import { Route } from '@angular/router';
 import { authGuard } from '../auth/auth.guard';
 import { Favicon } from '../favicon.service';
+import { pageTitle } from '../i18n/i18n';
 import { RedirectConfiguration } from './redirect-configuration';
 import { RedirectCreate } from './redirect-create';
 import { RedirectEdit } from './redirect-edit';
@@ -20,13 +21,13 @@ export const redirectsRoute: Route = {
   canActivate: [authGuard],
   data: { favicon: REDIRECTS_FAVICON },
   children: [
-    { path: '', component: RedirectList, title: 'Redirects' },
-    { path: 'create', component: RedirectCreate, title: 'Create redirect · Redirects' },
-    { path: ':source/edit', component: RedirectEdit, title: 'Edit redirect · Redirects' },
+    { path: '', component: RedirectList, title: pageTitle('redirects.title') },
+    { path: 'create', component: RedirectCreate, title: pageTitle('redirects.route.create') },
+    { path: ':source/edit', component: RedirectEdit, title: pageTitle('redirects.route.edit') },
     {
       path: ':source',
       component: RedirectView,
-      title: 'Redirect · Redirects',
+      title: pageTitle('redirects.route.redirect'),
       children: [
         { path: '', pathMatch: 'full', redirectTo: 'configuration' },
         { path: 'configuration', component: RedirectConfiguration },

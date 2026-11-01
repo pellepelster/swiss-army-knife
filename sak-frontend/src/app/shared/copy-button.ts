@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, timer } from 'rxjs';
+import { TranslatePipe } from '../i18n/i18n';
 
 // how long the button says it copied
 export const COPIED_MS = 2000;
@@ -10,6 +11,7 @@ export const COPIED_MS = 2000;
 // refuse the clipboard) the place using it tells, failed says whether the last copy did
 @Component({
   selector: 'app-copy-button',
+  imports: [TranslatePipe],
   template: `
     <button
       type="button"
@@ -27,7 +29,7 @@ export const COPIED_MS = 2000;
         aria-hidden="true"
       ></i>
       @if (look() === 'terminal') {
-        {{ copied() ? 'Copied' : 'Copy' }}
+        {{ (copied() ? 'shared.copied' : 'shared.copy') | t }}
       }
     </button>
   `,

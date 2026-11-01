@@ -1,8 +1,10 @@
+import { TextKey } from './i18n/i18n';
+
 // the apps of the frontend, the index page lists them
 interface AppEntry {
   readonly path: string;
-  readonly name: string;
-  readonly description: string;
+  readonly name: TextKey;
+  readonly description: TextKey;
   // the app icon, the one the app is installed with
   readonly icon: string;
   // only for the role admin; a user (the role user) has the apps of the lists
@@ -17,27 +19,27 @@ export function appPath(name: string | null): string | null {
 export const APPS: readonly AppEntry[] = [
   {
     path: '/notes',
-    name: 'Notes',
-    description: 'Post-Its from text, images or audio',
+    name: 'app.notes',
+    description: 'app.notes_description',
     icon: 'icons/notes.svg',
   },
   {
     path: '/grocery',
-    name: 'Grocery',
-    description: 'Shopping lists to share',
+    name: 'app.grocery',
+    description: 'app.grocery_description',
     icon: 'icons/grocery.svg',
   },
   {
     path: '/static-hosting',
-    name: 'Static hosting',
-    description: 'Websites from S3 buckets',
+    name: 'app.static_hosting',
+    description: 'app.static_hosting_description',
     icon: 'icons/hosting.svg',
     adminOnly: true,
   },
   {
     path: '/redirects',
-    name: 'Redirects',
-    description: 'Domains that lead elsewhere',
+    name: 'app.redirects',
+    description: 'app.redirects_description',
     icon: 'icons/redirects.svg',
     adminOnly: true,
   },

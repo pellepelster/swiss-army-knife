@@ -9,6 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
 import { SettingsStore } from '../settings/settings-store';
 import { NoteCard } from './note-card';
@@ -19,7 +20,7 @@ import { RecordingOverlay } from './recording-overlay';
 // the notes as a wall of post-its, a page at a time, filtered by one label at a time
 @Component({
   selector: 'app-notes-page',
-  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink, UndoToast],
+  imports: [NoteCard, PaginationControl, RecordingOverlay, RouterLink, TranslatePipe, UndoToast],
   styleUrl: './notes-page.scss',
   host: { class: 'd-block container-xl pb-md-5' },
   template: `
@@ -27,10 +28,10 @@ import { RecordingOverlay } from './recording-overlay';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'notes.page.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Notes</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'notes.page.title' | t }}</h1>
       <input
         #camera
         class="d-none"
@@ -42,12 +43,16 @@ import { RecordingOverlay } from './recording-overlay';
         (change)="addPhoto($any($event.target))"
       />
       <!-- the actions of the page, on a phone the floating buttons -->
-      <div class="btn-group d-none d-md-inline-flex" role="group" aria-label="New notes">
+      <div
+        class="btn-group d-none d-md-inline-flex"
+        role="group"
+        [attr.aria-label]="'notes.page.new_notes' | t"
+      >
         <button
           type="button"
           class="btn btn-outline-secondary"
-          aria-label="New note with a photo"
-          title="New note with a photo"
+          [attr.aria-label]="'notes.page.new_with_photo' | t"
+          [title]="'notes.page.new_with_photo' | t"
           [disabled]="addingPhoto()"
           (click)="camera.click()"
         >
@@ -60,8 +65,8 @@ import { RecordingOverlay } from './recording-overlay';
         <button
           type="button"
           class="btn btn-outline-secondary"
-          aria-label="New note with a recording"
-          title="New note with a recording"
+          [attr.aria-label]="'notes.page.new_with_recording' | t"
+          [title]="'notes.page.new_with_recording' | t"
           [disabled]="store.recordingFor() !== null"
           (click)="record()"
         >
@@ -70,8 +75,8 @@ import { RecordingOverlay } from './recording-overlay';
         <button
           type="button"
           class="btn btn-primary"
-          aria-label="New note"
-          title="New note"
+          [attr.aria-label]="'notes.page.new_note' | t"
+          [title]="'notes.page.new_note' | t"
           (click)="add()"
         >
           <i class="sak-icon-plus" aria-hidden="true"></i>
@@ -79,7 +84,7 @@ import { RecordingOverlay } from './recording-overlay';
       </div>
     </header>
 
-    <nav class="d-flex gap-2 pb-3 overflow-x-auto" aria-label="Filter by label">
+    <nav class="d-flex gap-2 pb-3 overflow-x-auto" [attr.aria-label]="'notes.page.filter' | t">
       <button
         type="button"
         class="btn btn-sm flex-shrink-0"
@@ -88,7 +93,7 @@ import { RecordingOverlay } from './recording-overlay';
         [attr.aria-pressed]="filter() === null"
         (click)="select(null)"
       >
-        All
+        {{ 'notes.page.all' | t }}
         @if (filter() === null && store.pagination(); as page) {
           <span class="opacity-75">{{ page.total }}</span>
         }
@@ -126,18 +131,18 @@ import { RecordingOverlay } from './recording-overlay';
         <!-- the whole width of the row, which gives each column half or a third of it -->
         <p class="col w-100 text-center text-body-secondary fs-4 py-5">
           @if (store.loading()) {
-            Loading…
+            {{ 'notes.page.loading' | t }}
           } @else if (filter(); as label) {
-            No note is labelled #{{ label }}.
+            {{ 'notes.page.none_labelled' | t: { label } }}
           } @else {
-            No notes yet, add one.
+            {{ 'notes.page.empty' | t }}
           }
         </p>
       }
     </main>
 
     <app-pagination
-      label="Pages of the notes"
+      [label]="'notes.page.pages' | t"
       [pagination]="store.pagination()"
       (offsetChange)="goTo($event)"
     />
@@ -148,8 +153,8 @@ import { RecordingOverlay } from './recording-overlay';
       <button
         type="button"
         class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        aria-label="New note with a photo"
-        title="New note with a photo"
+        [attr.aria-label]="'notes.page.new_with_photo' | t"
+        [title]="'notes.page.new_with_photo' | t"
         [disabled]="addingPhoto()"
         (click)="camera.click()"
       >
@@ -162,8 +167,8 @@ import { RecordingOverlay } from './recording-overlay';
       <button
         type="button"
         class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        aria-label="New note with a recording"
-        title="New note with a recording"
+        [attr.aria-label]="'notes.page.new_with_recording' | t"
+        [title]="'notes.page.new_with_recording' | t"
         [disabled]="store.recordingFor() !== null"
         (click)="record()"
       >
@@ -172,8 +177,8 @@ import { RecordingOverlay } from './recording-overlay';
       <button
         type="button"
         class="note-fab btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0 fs-4"
-        aria-label="New note"
-        title="New note"
+        [attr.aria-label]="'notes.page.new_note' | t"
+        [title]="'notes.page.new_note' | t"
         (click)="add()"
       >
         <i class="sak-icon-plus" aria-hidden="true"></i>
@@ -210,10 +215,12 @@ export class NotesPage {
     return removal ? [removal] : [];
   });
 
+  private readonly i18n = inject(I18n);
+
   protected readonly removedText: Record<Removal['kind'], string> = {
-    note: 'Note deleted',
-    photo: 'Photo removed',
-    recording: 'Recording removed',
+    note: this.i18n.t('notes.removed.note'),
+    photo: this.i18n.t('notes.removed.photo'),
+    recording: this.i18n.t('notes.removed.recording'),
   };
 
   protected readonly shown = computed(() => {

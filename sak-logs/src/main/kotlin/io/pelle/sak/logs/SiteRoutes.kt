@@ -1,5 +1,6 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.language
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
@@ -58,7 +59,7 @@ fun Route.accessLogs(
         call.respond(
             AccessLogsResponse(
                 site.response(),
-                MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label) },
+                MetricsRange.entries.map { MetricsRangeResponse(it.key, it.label.render(call.language())) },
                 MetricsRange.DEFAULT.key,
             ),
         )
@@ -192,4 +193,8 @@ object LogsTexts : Catalog("logs") {
     val EMPTY_SEARCH = text("empty_search")
     val LONG_SEARCH = text("long_search")
     val CONTROL_SEARCH = text("control_search")
+    val MINUTES = text("range.minutes")
+    val HOUR = text("range.hour")
+    val HOURS = text("range.hours")
+    val DAYS = text("range.days")
 }

@@ -7,6 +7,7 @@ import {
   RouterLinkActive,
   RouterOutlet,
 } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { SettingScope, SettingsService } from './settings.service';
 
@@ -20,7 +21,7 @@ export class SettingScopes {
 // url the first is opened
 @Component({
   selector: 'app-settings-page',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   providers: [SettingScopes],
   host: { class: 'd-block container pb-5' },
   template: `
@@ -28,10 +29,10 @@ export class SettingScopes {
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'settings.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Settings</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'settings.title' | t }}</h1>
     </header>
 
     @if (error(); as error) {
@@ -39,7 +40,7 @@ export class SettingScopes {
     }
 
     @if (store.scopes(); as scopes) {
-      <nav class="nav nav-underline mb-3" aria-label="Scopes">
+      <nav class="nav nav-underline mb-3" [attr.aria-label]="'settings.scopes' | t">
         @for (scope of scopes; track scope.name) {
           <a
             class="nav-link"
@@ -52,7 +53,7 @@ export class SettingScopes {
       </nav>
       <router-outlet />
     } @else if (!error()) {
-      <p class="text-body-secondary">Loading…</p>
+      <p class="text-body-secondary">{{ 'settings.loading' | t }}</p>
     }
   `,
 })
@@ -61,6 +62,7 @@ export class SettingsPage {
   private readonly service = inject(SettingsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly i18n = inject(I18n);
   protected readonly store = inject(SettingScopes);
 
   protected readonly error = signal<string | null>(null);
@@ -81,8 +83,8 @@ export class SettingsPage {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, 'The settings could not be loaded.', {
-              403: 'Your role does not allow to see the settings.',
+            apiErrorMessage(error, this.i18n.t('settings.not_loaded'), {
+              403: this.i18n.t('settings.forbidden_see'),
             }),
           ),
       });

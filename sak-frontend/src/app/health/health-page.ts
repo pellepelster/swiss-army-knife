@@ -3,35 +3,40 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { I18n, TextKey, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { HealthService, HealthState, HealthStatus } from './health.service';
 
-const STATES: Record<HealthState, { label: string; badge: string; icon: string }> = {
-  HEALTHY: { label: 'Healthy', badge: 'text-bg-success', icon: 'fa-circle-check' },
-  UNHEALTHY: { label: 'Unhealthy', badge: 'text-bg-danger', icon: 'fa-circle-xmark' },
-  UNKNOWN: { label: 'Unknown', badge: 'text-bg-secondary', icon: 'fa-circle-question' },
+const STATES: Record<HealthState, { label: TextKey; badge: string; icon: string }> = {
+  HEALTHY: { label: 'health.state.healthy', badge: 'text-bg-success', icon: 'fa-circle-check' },
+  UNHEALTHY: { label: 'health.state.unhealthy', badge: 'text-bg-danger', icon: 'fa-circle-xmark' },
+  UNKNOWN: {
+    label: 'health.state.unknown',
+    badge: 'text-bg-secondary',
+    icon: 'fa-circle-question',
+  },
 };
 
 // the status of every health check of the backend and of the parts each checked, e.g. every
 // domain; checked anew when the page opens and on demand
 @Component({
   selector: 'app-health-page',
-  imports: [NgTemplateOutlet, RouterLink],
+  imports: [NgTemplateOutlet, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'health.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Health</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'health.title' | t }}</h1>
       <button
         type="button"
         class="btn btn-outline-secondary"
-        aria-label="Check again"
-        title="Check again"
+        [attr.aria-label]="'health.check_again' | t"
+        [title]="'health.check_again' | t"
         [disabled]="checking()"
         (click)="check()"
       >
@@ -44,7 +49,7 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
     }
 
     @if (statuses(); as statuses) {
-      <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Health checks">
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'health.checks' | t">
         @for (status of statuses; track status.name) {
           <li class="card" [attr.data-testid]="'health-' + status.name">
             <div class="card-body d-flex align-items-center gap-3">
@@ -84,18 +89,18 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
             }
           </li>
         } @empty {
-          <li class="card card-body text-center py-4">There are no health checks.</li>
+          <li class="card card-body text-center py-4">{{ 'health.none' | t }}</li>
         }
       </ul>
     } @else if (!error()) {
-      <p class="text-body-secondary">Checking…</p>
+      <p class="text-body-secondary">{{ 'health.checking' | t }}</p>
     }
 
     <!-- the state as a pill, of a check or of one of its details -->
     <ng-template #pill let-look>
       <span [class]="'badge flex-shrink-0 ' + look.badge" data-testid="state">
         <i [class]="'fa-solid ' + look.icon" aria-hidden="true"></i>
-        {{ look.label }}
+        {{ look.label | t }}
       </span>
     </ng-template>
   `,
@@ -103,6 +108,7 @@ const STATES: Record<HealthState, { label: string; badge: string; icon: string }
 export class HealthPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(HealthService);
+  private readonly i18n = inject(I18n);
 
   protected readonly states = STATES;
 
@@ -132,8 +138,8 @@ export class HealthPage {
         error: (error: unknown) => {
           this.checking.set(false);
           this.error.set(
-            apiErrorMessage(error, 'The health could not be checked.', {
-              403: 'Your role does not allow to see the health.',
+            apiErrorMessage(error, this.i18n.t('health.not_checked'), {
+              403: this.i18n.t('health.forbidden_see'),
             }),
           );
         },

@@ -11,6 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { errorMessages } from '../shared/api';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { bucketErrorMessage } from './bucket-store';
 import { BucketsService } from './buckets.service';
@@ -20,17 +21,17 @@ import { DomainList } from './domain-list';
 // saving or cancelling goes back to the bucket
 @Component({
   selector: 'app-bucket-edit',
-  imports: [DomainList, RouterLink],
+  imports: [DomainList, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         [routerLink]="['/static-hosting', name()]"
-        aria-label="Back to the bucket"
+        [attr.aria-label]="'hosting.back_to_bucket' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Edit bucket</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'hosting.edit_page.title' | t }}</h1>
     </header>
 
     @if (error(); as error) {
@@ -40,14 +41,14 @@ import { DomainList } from './domain-list';
     @if (loaded()) {
       <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
         <div>
-          <label class="form-label" for="edit-bucket-name">Name</label>
+          <label class="form-label" for="edit-bucket-name">{{ 'hosting.name' | t }}</label>
           <input
             class="form-control-plaintext font-monospace text-break"
             id="edit-bucket-name"
             [value]="name()"
             readonly
           />
-          <span class="form-text">The name can not be changed.</span>
+          <span class="form-text">{{ 'hosting.edit_page.name_fixed' | t }}</span>
         </div>
 
         <app-domain-list [(domains)]="domains" />
@@ -61,17 +62,19 @@ import { DomainList } from './domain-list';
         }
 
         <div class="d-flex flex-wrap justify-content-end gap-2">
-          <a class="btn btn-outline-secondary" [routerLink]="['/static-hosting', name()]">Cancel</a>
+          <a class="btn btn-outline-secondary" [routerLink]="['/static-hosting', name()]">{{
+            'hosting.cancel' | t
+          }}</a>
           <button class="btn btn-primary" type="submit" [disabled]="!valid() || saving()">
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }
-            Save
+            {{ 'hosting.save' | t }}
           </button>
         </div>
       </form>
     } @else if (!error()) {
-      <p class="text-body-secondary">Loading…</p>
+      <p class="text-body-secondary">{{ 'hosting.loading' | t }}</p>
     }
   `,
 })
@@ -79,6 +82,7 @@ export class BucketEdit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route parameter
   readonly name = input.required<string>();
@@ -106,7 +110,7 @@ export class BucketEdit {
           this.loaded.set(true);
         },
         error: (error: unknown) =>
-          this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
+          this.error.set(bucketErrorMessage(this.i18n, error, this.i18n.t('hosting.load_failed'))),
       });
       onCleanup(() => subscription.unsubscribe());
     });
@@ -124,7 +128,9 @@ export class BucketEdit {
         error: (error: unknown) => {
           this.saving.set(false);
           const messages = errorMessages(error);
-          this.saveErrors.set(messages.length ? messages : ['The bucket could not be saved.']);
+          this.saveErrors.set(
+            messages.length ? messages : [this.i18n.t('hosting.edit_page.save_failed')],
+          );
         },
       });
   }

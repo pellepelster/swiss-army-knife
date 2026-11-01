@@ -1,5 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { SettingsStore } from '../settings/settings-store';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
@@ -12,7 +13,12 @@ const OPENED_URL_LIFETIME_MS = 60_000;
 interface Media {
   readonly id: number;
   readonly kind: 'photo' | 'recording';
-  readonly label: string;
+  // the texts naming it: a photo has no play and pause, a recording no alt
+  readonly alt: string;
+  readonly play: string;
+  readonly pause: string;
+  readonly discover: string;
+  readonly remove: string;
 }
 
 // one note as a post-it: the thumbnails of its photos and the waveforms of its recordings on top,
@@ -21,30 +27,26 @@ interface Media {
 // camera of a phone or chosen from the files elsewhere, a recording with the microphone
 @Component({
   selector: 'app-note-card',
-  imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe],
+  imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe, TranslatePipe],
   host: {
     '[class]': "'note note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
   },
   template: `
     @if (media().length) {
-      <ul class="note-photos" aria-label="Photos and recordings">
+      <ul class="note-photos" [attr.aria-label]="'notes.card.media' | t">
         @for (item of media(); track item.id) {
           <li class="photo">
             @if (item.kind === 'photo') {
               <!-- no link, the file is only served with the session; it is opened as an object url -->
               <button type="button" class="photo-open" (click)="open(item.id)">
-                <img
-                  [attr.src]="item.id | thumbnail | async"
-                  [alt]="item.label + ' of note ' + note().id"
-                  loading="lazy"
-                />
+                <img [attr.src]="item.id | thumbnail | async" [alt]="item.alt" loading="lazy" />
               </button>
             } @else {
               <button
                 type="button"
                 class="recording"
-                [attr.aria-label]="(playing() === item.id ? 'Pause ' : 'Play ') + item.label"
+                [attr.aria-label]="playing() === item.id ? item.pause : item.play"
                 [attr.aria-pressed]="playing() === item.id"
                 (click)="play(item.id)"
               >
@@ -63,8 +65,8 @@ interface Media {
               <button
                 type="button"
                 class="photo-discover"
-                [attr.aria-label]="'Discover the text in ' + item.label.toLowerCase()"
-                title="Discover the text"
+                [attr.aria-label]="item.discover"
+                [title]="'notes.card.discover' | t"
                 [disabled]="store.discovering().has(item.id)"
                 (click)="store.discoverText(note().id, item.id)"
               >
@@ -78,7 +80,7 @@ interface Media {
             <button
               type="button"
               class="photo-remove"
-              [attr.aria-label]="'Remove ' + item.label.toLowerCase() + ' from the note'"
+              [attr.aria-label]="item.remove"
               (click)="remove(item)"
             >
               <i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -90,19 +92,19 @@ interface Media {
 
     <textarea
       class="note-text"
-      placeholder="Write something…"
-      [attr.aria-label]="'Text of note ' + note().id"
+      [placeholder]="'notes.card.write' | t"
+      [attr.aria-label]="'notes.card.text_of' | t: { note: note().id }"
       [value]="note().text"
       (input)="store.setText(note().id, $any($event.target).value)"
     ></textarea>
 
-    <ul class="note-labels" aria-label="Labels">
+    <ul class="note-labels" [attr.aria-label]="'notes.card.labels' | t">
       @for (label of note().labels; track label) {
         <li class="note-label">
           <button
             type="button"
             class="label-name"
-            [attr.aria-label]="'Show the notes labelled ' + label"
+            [attr.aria-label]="'notes.card.show_labelled' | t: { label }"
             (click)="labelSelected.emit(label)"
           >
             #{{ label }}
@@ -110,7 +112,7 @@ interface Media {
           <button
             type="button"
             class="label-remove"
-            [attr.aria-label]="'Remove label ' + label + ' from the note'"
+            [attr.aria-label]="'notes.card.remove_label' | t: { label }"
             (click)="store.removeLabel(note().id, label)"
           >
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -123,20 +125,22 @@ interface Media {
       <form class="note-add-label" (submit)="$event.preventDefault(); addLabel()">
         <input
           class="note-label-input"
-          placeholder="+ label"
+          [placeholder]="'notes.card.add_label' | t"
           autocomplete="off"
           [attr.list]="labelsList()"
-          [attr.aria-label]="'Add a label to note ' + note().id"
+          [attr.aria-label]="'notes.card.add_label_to' | t: { note: note().id }"
           [value]="newLabel()"
           (input)="newLabel.set($any($event.target).value)"
         />
       </form>
     } @else {
-      <p class="note-labels-full">A note has at most {{ maxLabels }} labels.</p>
+      <p class="note-labels-full">
+        {{ 'notes.card.labels_full' | t: { max: maxLabels } }}
+      </p>
     }
 
     <footer class="note-footer">
-      <div class="note-colors" role="radiogroup" aria-label="Color">
+      <div class="note-colors" role="radiogroup" [attr.aria-label]="'notes.card.color' | t">
         @for (color of colors; track color) {
           <button
             type="button"
@@ -144,8 +148,8 @@ interface Media {
             class="color-swatch"
             [class]="'color-swatch note-' + color"
             [attr.aria-checked]="note().color === color"
-            [attr.aria-label]="color"
-            [title]="color"
+            [attr.aria-label]="colorNames[color]"
+            [title]="colorNames[color]"
             (click)="store.setColor(note().id, color)"
           ></button>
         }
@@ -170,8 +174,8 @@ interface Media {
         <button
           type="button"
           class="note-photo"
-          [attr.aria-label]="'Add a photo to note ' + note().id"
-          title="Add a photo"
+          [attr.aria-label]="'notes.card.add_photo_to' | t: { note: note().id }"
+          [title]="'notes.card.add_photo' | t"
           [disabled]="store.uploading().has(note().id)"
           (click)="camera.click()"
         >
@@ -184,8 +188,8 @@ interface Media {
         <button
           type="button"
           class="note-photo"
-          [attr.aria-label]="'Record for note ' + note().id"
-          title="Record"
+          [attr.aria-label]="'notes.card.record_for' | t: { note: note().id }"
+          [title]="'notes.card.record' | t"
           [disabled]="store.recordingFor() !== null"
           (click)="store.record(note().id)"
         >
@@ -194,8 +198,8 @@ interface Media {
         <button
           type="button"
           class="note-delete"
-          [attr.aria-label]="'Delete note ' + note().id"
-          title="Delete"
+          [attr.aria-label]="'notes.card.delete_note' | t: { note: note().id }"
+          [title]="'notes.card.delete' | t"
           (click)="store.delete(note().id)"
         >
           <i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -213,22 +217,46 @@ export class NoteCard {
   readonly labelsList = input<string | null>(null);
   readonly labelSelected = output<string>();
 
+  private readonly i18n = inject(I18n);
+
   protected readonly colors = NOTE_COLORS;
+  // the names of the colors shown, the colors themselves are sent to the backend
+  protected readonly colorNames: Record<(typeof NOTE_COLORS)[number], string> = {
+    yellow: this.i18n.t('notes.colors.yellow'),
+    pink: this.i18n.t('notes.colors.pink'),
+    blue: this.i18n.t('notes.colors.blue'),
+    green: this.i18n.t('notes.colors.green'),
+    orange: this.i18n.t('notes.colors.orange'),
+  };
   protected readonly maxLabels = MAX_LABELS;
   protected readonly newLabel = signal('');
 
   // the photos first, then the recordings, as the backend keeps them
   protected readonly media = computed<readonly Media[]>(() => [
-    ...this.note().photos.map((id, index) => ({
-      id,
-      kind: 'photo' as const,
-      label: `Photo ${index + 1}`,
-    })),
-    ...this.note().recordings.map((id, index) => ({
-      id,
-      kind: 'recording' as const,
-      label: `Recording ${index + 1}`,
-    })),
+    ...this.note().photos.map((id, index) => {
+      const params = { number: index + 1, note: this.note().id };
+      return {
+        id,
+        kind: 'photo' as const,
+        alt: this.i18n.t('notes.card.photo.alt', params),
+        play: '',
+        pause: '',
+        discover: this.i18n.t('notes.card.photo.discover', params),
+        remove: this.i18n.t('notes.card.photo.remove', params),
+      };
+    }),
+    ...this.note().recordings.map((id, index) => {
+      const params = { number: index + 1 };
+      return {
+        id,
+        kind: 'recording' as const,
+        alt: '',
+        play: this.i18n.t('notes.card.recording.play', params),
+        pause: this.i18n.t('notes.card.recording.pause', params),
+        discover: this.i18n.t('notes.card.recording.discover', params),
+        remove: this.i18n.t('notes.card.recording.remove', params),
+      };
+    }),
   ]);
 
   // the recording that plays, one at a time

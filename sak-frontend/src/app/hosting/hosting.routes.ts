@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '../auth/auth.guard';
 import { Favicon } from '../favicon.service';
+import { pageTitle } from '../i18n/i18n';
 import { BucketConfiguration } from './bucket-configuration';
 import { BucketCreate } from './bucket-create';
 import { BucketCredentials } from './bucket-credentials';
@@ -14,13 +15,13 @@ const HOSTING_FAVICON: Favicon = { svg: 'icons/hosting.svg', png: 'icons/hosting
 // the buckets of the s3 api: the list, a page to create one, a bucket's page with its tabs and a
 // page to edit it; create and edit come first, the bucket's page would take them as its name
 export const hostingRoutes: Routes = [
-  { path: '', component: BucketList, title: 'Static hosting' },
-  { path: 'create', component: BucketCreate, title: 'Create static hosting · Static hosting' },
-  { path: ':name/edit', component: BucketEdit, title: 'Edit bucket · Static hosting' },
+  { path: '', component: BucketList, title: pageTitle('hosting.title') },
+  { path: 'create', component: BucketCreate, title: pageTitle('hosting.route.create') },
+  { path: ':name/edit', component: BucketEdit, title: pageTitle('hosting.route.edit') },
   {
     path: ':name',
     component: BucketView,
-    title: 'Bucket · Static hosting',
+    title: pageTitle('hosting.route.bucket'),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'configuration' },
       { path: 'configuration', component: BucketConfiguration },

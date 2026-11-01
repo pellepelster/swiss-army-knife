@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { translate, TextKey } from './i18n/i18n';
 
 function templates(dir: string): string[] {
   return readdirSync(dir).flatMap((name: string) => {
@@ -23,11 +24,20 @@ const CREATES = /\b(Create|Add|New)\b/;
 const ADDS_A_THING = /fa-camera|fa-microphone|fa-cart-shopping/;
 const PLUS = 'sak-icon-plus';
 
+// a key of a text in a template, 'notes.page.new' | t, is its english text
+function english(element: string): string {
+  return element.replace(/'([a-z_]+(?:\.[a-z0-9_]+)+)'/g, (key, path: string) => {
+    const text = translate('en', path as TextKey);
+    return text === path ? key : text;
+  });
+}
+
 function shown(element: string): string {
+  const text = english(element);
   return (
-    element.replace(/<[^>]*>/g, ' ') +
+    text.replace(/<[^>]*>/g, ' ') +
     ' ' +
-    (element.match(/(aria-label|title)="[^"]*"/g) ?? []).join(' ')
+    (text.match(/(aria-label|title)\]?="[^"]*"/g) ?? []).join(' ')
   ).replace(/\s+/g, ' ');
 }
 

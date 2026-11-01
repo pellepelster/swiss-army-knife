@@ -1,23 +1,25 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.Text
 import java.time.Duration
 import java.time.Instant
 
 // the time ranges the access logs offer, the longest one has to fit into the logs retention
 enum class MetricsRange(
     val key: String,
-    val label: String,
+    // what the user reads, in their language
+    val label: Text,
     val step: Duration,
     val buckets: Int,
 ) {
-    LAST_15_MINUTES("15m", "15 minutes", Duration.ofSeconds(30), 30),
-    LAST_HOUR("1h", "1 hour", Duration.ofMinutes(2), 30),
-    LAST_4_HOURS("4h", "4 hours", Duration.ofMinutes(10), 24),
-    LAST_6_HOURS("6h", "6 hours", Duration.ofMinutes(15), 24),
-    LAST_12_HOURS("12h", "12 hours", Duration.ofMinutes(30), 24),
-    LAST_24_HOURS("24h", "24 hours", Duration.ofHours(1), 24),
-    LAST_7_DAYS("7d", "7 days", Duration.ofHours(6), 28),
-    LAST_30_DAYS("30d", "30 days", Duration.ofDays(1), 30),
+    LAST_15_MINUTES("15m", Text(LogsTexts.MINUTES, "count" to 15), Duration.ofSeconds(30), 30),
+    LAST_HOUR("1h", Text(LogsTexts.HOUR), Duration.ofMinutes(2), 30),
+    LAST_4_HOURS("4h", Text(LogsTexts.HOURS, "count" to 4), Duration.ofMinutes(10), 24),
+    LAST_6_HOURS("6h", Text(LogsTexts.HOURS, "count" to 6), Duration.ofMinutes(15), 24),
+    LAST_12_HOURS("12h", Text(LogsTexts.HOURS, "count" to 12), Duration.ofMinutes(30), 24),
+    LAST_24_HOURS("24h", Text(LogsTexts.HOURS, "count" to 24), Duration.ofHours(1), 24),
+    LAST_7_DAYS("7d", Text(LogsTexts.DAYS, "count" to 7), Duration.ofHours(6), 28),
+    LAST_30_DAYS("30d", Text(LogsTexts.DAYS, "count" to 30), Duration.ofDays(1), 30),
     ;
 
     companion object {

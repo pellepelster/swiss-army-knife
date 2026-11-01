@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { appPath } from '../apps';
 import { AuthService, UserMode } from '../auth/auth.service';
+import { TranslatePipe } from '../i18n/i18n';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 
@@ -13,29 +14,27 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
 // login, in the single user mode only with the admin password
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TranslatePipe],
   host: { class: 'd-block container' },
   template: `
     <div class="row min-vh-100 align-items-center justify-content-center py-3">
       <main class="col-12 col-sm-8 col-md-6 col-lg-4">
         <div class="card card-body">
-          <h1 class="h4 mb-3">Sign in</h1>
+          <h1 class="h4 mb-3">{{ 'login.title' | t }}</h1>
           @if (userMode() === null) {
             @if (state() === 'failed') {
-              <p class="alert alert-danger mb-0" role="alert">
-                The sign in could not be loaded, please try again.
-              </p>
+              <p class="alert alert-danger mb-0" role="alert">{{ 'login.not_loaded' | t }}</p>
             } @else {
-              <p class="text-body-secondary mb-0" role="status">Loading…</p>
+              <p class="text-body-secondary mb-0" role="status">{{ 'login.loading' | t }}</p>
             }
           } @else if (state() === 'sent') {
             <p class="mb-0" role="status" data-testid="login-sent">
-              If <strong>{{ email.value }}</strong> may sign in, a link is on its way. Open it in
-              this browser to continue.
+              {{ 'login.sent_before' | t }} <strong>{{ email.value }}</strong>
+              {{ 'login.sent_after' | t }}
             </p>
           } @else if (withPassword()) {
             <form [formGroup]="passwordForm" (ngSubmit)="signInWithPassword()">
-              <label class="form-label" for="password">Admin password</label>
+              <label class="form-label" for="password">{{ 'login.admin_password' | t }}</label>
               <input
                 class="form-control mb-3"
                 id="password"
@@ -49,7 +48,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                 type="submit"
                 [disabled]="password.invalid || state() === 'sending'"
               >
-                {{ state() === 'sending' ? 'Signing in…' : 'Sign in' }}
+                {{ (state() === 'sending' ? 'login.signing_in' : 'login.sign_in') | t }}
               </button>
             </form>
             @if (userMode() === 'multi') {
@@ -59,13 +58,13 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                   (click)="$event.preventDefault(); usePassword(false)"
                   data-testid="use-email"
                 >
-                  Sign in with an e-mail link
+                  {{ 'login.use_email' | t }}
                 </a>
               </p>
             }
           } @else {
             <form [formGroup]="emailForm" (ngSubmit)="requestLink()">
-              <label class="form-label" for="email">E-mail address</label>
+              <label class="form-label" for="email">{{ 'login.email' | t }}</label>
               <input
                 class="form-control mb-3"
                 id="email"
@@ -79,7 +78,7 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                 type="submit"
                 [disabled]="email.invalid || state() === 'sending'"
               >
-                {{ state() === 'sending' ? 'Sending…' : 'Send login link' }}
+                {{ (state() === 'sending' ? 'login.sending' : 'login.send_link') | t }}
               </button>
             </form>
             <p class="mt-3 mb-0 text-center">
@@ -88,22 +87,20 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
                 (click)="$event.preventDefault(); usePassword(true)"
                 data-testid="use-password"
               >
-                Sign in with password
+                {{ 'login.use_password' | t }}
               </a>
             </p>
           }
           @if (userMode() !== null && state() === 'wrong-password') {
-            <p class="alert alert-danger mt-3 mb-0" role="alert">The password is not right.</p>
+            <p class="alert alert-danger mt-3 mb-0" role="alert">
+              {{ 'login.wrong_password' | t }}
+            </p>
           }
           @if (state() === 'rate-limited') {
-            <p class="alert alert-danger mt-3 mb-0" role="alert">
-              Too many login attempts, please try again later.
-            </p>
+            <p class="alert alert-danger mt-3 mb-0" role="alert">{{ 'login.rate_limited' | t }}</p>
           }
           @if (userMode() !== null && state() === 'failed') {
-            <p class="alert alert-danger mt-3 mb-0" role="alert">
-              The sign in did not work, please try again.
-            </p>
+            <p class="alert alert-danger mt-3 mb-0" role="alert">{{ 'login.failed' | t }}</p>
           }
         </div>
       </main>

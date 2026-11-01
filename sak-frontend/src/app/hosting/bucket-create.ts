@@ -2,6 +2,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { apiErrorMessage, errorMessages } from '../shared/api';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { enteredDomains, validDomains } from '../shared/domains';
 import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
 import { DomainList } from './domain-list';
@@ -9,22 +10,22 @@ import { DomainList } from './domain-list';
 // creates a bucket with its domains on a page of its own, the new bucket opens afterwards
 @Component({
   selector: 'app-bucket-create',
-  imports: [DomainList, RouterLink],
+  imports: [DomainList, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/static-hosting"
-        aria-label="All buckets"
+        [attr.aria-label]="'hosting.all_buckets' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Create static hosting</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'hosting.create_page.title' | t }}</h1>
     </header>
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
       <div>
-        <label class="form-label" for="bucket-name">Name</label>
+        <label class="form-label" for="bucket-name">{{ 'hosting.name' | t }}</label>
         <input
           class="form-control font-monospace text-break"
           id="bucket-name"
@@ -38,8 +39,7 @@ import { DomainList } from './domain-list';
           (input)="name.set($any($event.target).value)"
         />
         <span class="form-text" id="bucket-name-hint">
-          3 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
-          The bucket is also served at its name as subdomain. The name can not be changed later.
+          {{ 'hosting.create_page.name_hint' | t }}
         </span>
       </div>
 
@@ -54,14 +54,16 @@ import { DomainList } from './domain-list';
       }
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/static-hosting">Cancel</a>
+        <a class="btn btn-outline-secondary" routerLink="/static-hosting">{{
+          'hosting.cancel' | t
+        }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!valid() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           } @else {
             <i class="sak-icon-plus" aria-hidden="true"></i>
           }
-          Create
+          {{ 'hosting.create' | t }}
         </button>
       </div>
     </form>
@@ -71,6 +73,7 @@ export class BucketCreate {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   protected readonly name = signal('');
   protected readonly domains = signal<string[]>([]);
@@ -97,8 +100,8 @@ export class BucketCreate {
             messages.length
               ? messages
               : [
-                  apiErrorMessage(error, `The bucket ${name} could not be created.`, {
-                    403: 'Your role does not allow to create buckets.',
+                  apiErrorMessage(error, this.i18n.t('hosting.create_page.failed', { name }), {
+                    403: this.i18n.t('hosting.create_page.forbidden'),
                   }),
                 ],
           );

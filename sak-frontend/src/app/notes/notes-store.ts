@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { I18n } from '../i18n/i18n';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
 import { UNDO_DELETE_MS } from '../shared/undo-toast';
@@ -72,6 +73,7 @@ export class NotesStore {
   private readonly auth = inject(AuthService);
   private readonly document = inject(DOCUMENT);
   private readonly recorder = inject(AudioRecorder);
+  private readonly i18n = inject(I18n);
 
   private readonly all = signal<readonly Note[]>([]);
   private readonly shared = signal<readonly string[]>([]);
@@ -186,7 +188,7 @@ export class NotesStore {
         error: () => {
           this.changedWhileLoading = null;
           this.loading.set(false);
-          this.error.set('The notes could not be loaded.');
+          this.error.set(this.i18n.t('notes.errors.not_loaded'));
         },
       });
     fetchAll<{ name: string }>(this.http, '/api/v1/labels').subscribe({
@@ -217,7 +219,7 @@ export class NotesStore {
       if (!known) this.countNotes(1);
       return note;
     } catch {
-      this.error.set('The note could not be created.');
+      this.error.set(this.i18n.t('notes.errors.not_created'));
       return null;
     }
   }
@@ -293,7 +295,7 @@ export class NotesStore {
     try {
       recording = await this.recorder.record();
     } catch {
-      this.error.set('The microphone could not be used.');
+      this.error.set(this.i18n.t('notes.errors.microphone'));
       return null;
     } finally {
       this.recordingFor.set(null);
@@ -304,7 +306,10 @@ export class NotesStore {
     const id = target === 'new' ? null : target;
     if (id !== null) this.uploading.update((ids) => new Set([...ids, id]));
     try {
-      const fileId = await this.uploadFile(recording, 'The recording could not be stored.');
+      const fileId = await this.uploadFile(
+        recording,
+        this.i18n.t('notes.errors.recording_not_stored'),
+      );
       if (fileId === null) return null;
       if (id === null) return await this.add('', 'yellow', labels, [], [fileId]);
       const changed = this.change(id, (current) =>
@@ -343,7 +348,9 @@ export class NotesStore {
       );
       if (!text) {
         this.error.set(
-          recording ? 'There is no text in the recording.' : 'There is no text in the photo.',
+          this.i18n.t(
+            recording ? 'notes.errors.no_text_in_recording' : 'notes.errors.no_text_in_photo',
+          ),
         );
         return;
       }
@@ -353,7 +360,7 @@ export class NotesStore {
       }));
       if (changed) this.save(id);
     } catch (error: unknown) {
-      this.error.set(errorMessages(error)[0] ?? 'The text could not be discovered.');
+      this.error.set(errorMessages(error)[0] ?? this.i18n.t('notes.errors.not_discovered'));
     } finally {
       this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== fileId)));
     }
@@ -390,7 +397,7 @@ export class NotesStore {
           error: () => {
             this.finishRequest(id);
             this.restore(note);
-            this.error.set('The note could not be deleted.');
+            this.error.set(this.i18n.t('notes.errors.not_deleted'));
           },
           complete: () => this.finishRequest(id),
         });
@@ -504,7 +511,7 @@ export class NotesStore {
         },
         error: () => {
           this.finishRequest(id);
-          this.error.set('The note could not be saved.');
+          this.error.set(this.i18n.t('notes.errors.not_saved'));
         },
         complete: () => this.finishRequest(id),
       });
@@ -576,10 +583,10 @@ export class NotesStore {
     try {
       scaled = await this.scaler.scale(photo);
     } catch {
-      this.error.set('The photo could not be stored.');
+      this.error.set(this.i18n.t('notes.errors.photo_not_stored'));
       return null;
     }
-    return this.uploadFile(scaled, 'The photo could not be stored.');
+    return this.uploadFile(scaled, this.i18n.t('notes.errors.photo_not_stored'));
   }
 
   // the id of the file in the file storage, null when it could not be stored

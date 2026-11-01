@@ -3,6 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
+import { TranslatePipe } from '../i18n/i18n';
 
 // the package of sak-grocery-android, also the scheme of its signin link
 export const GROCERY_ANDROID_APP = 'io.pelle.sak.grocery';
@@ -17,24 +18,25 @@ export function groceryAppLink(token: string): string {
 // android app asked for (client=android) is handed on to the app, the page does not use the token
 @Component({
   selector: 'app-signin',
-  imports: [RouterLink],
+  imports: [RouterLink, TranslatePipe],
   host: { class: 'd-block container' },
   template: `
     <div class="row min-vh-100 align-items-center justify-content-center py-3">
       <main class="col-12 col-sm-8 col-md-6 col-lg-4">
         <div class="card card-body">
           @if (appLink(); as link) {
-            <h1 class="h4 mb-3">Sign in to the grocery app</h1>
-            <p>This link signs you in to the SAK grocery app. Open it on the phone with the app.</p>
-            <a class="btn btn-primary" [href]="link">Open in the app</a>
+            <h1 class="h4 mb-3">{{ 'signin.grocery_title' | t }}</h1>
+            <p>{{ 'signin.grocery_text' | t }}</p>
+            <a class="btn btn-primary" [href]="link">{{ 'signin.open_in_app' | t }}</a>
           } @else if (failed()) {
-            <h1 class="h4 mb-3">Sign in failed</h1>
+            <h1 class="h4 mb-3">{{ 'signin.failed_title' | t }}</h1>
             <p class="alert alert-danger mb-0" role="alert">
-              The login link is invalid, expired or was already used.
-              <a routerLink="/login">Request a new one</a>.
+              {{ 'signin.failed_before' | t }}
+              <a routerLink="/login">{{ 'signin.request_new' | t }}</a
+              >{{ 'signin.failed_after' | t }}
             </p>
           } @else {
-            <p class="mb-0">Signing in…</p>
+            <p class="mb-0">{{ 'signin.signing_in' | t }}</p>
           }
         </div>
       </main>

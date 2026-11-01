@@ -1,5 +1,6 @@
 import { Route } from '@angular/router';
 import { authGuard } from '../auth/auth.guard';
+import { pageTitle } from '../i18n/i18n';
 import { GroceryListForm } from './grocery-list-form';
 import { GroceryListsPage } from './grocery-lists-page';
 import { GroceryPage } from './grocery-page';
@@ -14,9 +15,17 @@ export const groceryRoute: Route = {
     app: { manifest: 'grocery.webmanifest', appleTouchIcon: 'icons/grocery-apple-touch-180.png' },
   },
   children: [
-    { path: '', component: GroceryListsPage, title: 'Grocery' },
-    { path: 'lists/create', component: GroceryListForm, title: 'Create list · Grocery' },
-    { path: 'lists/:id', component: GroceryPage, title: 'List · Grocery' },
-    { path: 'lists/:id/edit', component: GroceryListForm, title: 'Settings · Grocery' },
+    { path: '', component: GroceryListsPage, title: pageTitle('grocery.title') },
+    {
+      path: 'lists/create',
+      component: GroceryListForm,
+      title: pageTitle('grocery.page_title.create'),
+    },
+    { path: 'lists/:id', component: GroceryPage, title: pageTitle('grocery.page_title.list') },
+    {
+      path: 'lists/:id/edit',
+      component: GroceryListForm,
+      title: pageTitle('grocery.page_title.settings'),
+    },
   ],
 };

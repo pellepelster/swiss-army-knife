@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, model, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Bucket, BucketsService, servedDomains } from '../hosting/buckets.service';
+import { TranslatePipe } from '../i18n/i18n';
 import { DOMAIN_PATTERN } from '../shared/domains';
 import { RedirectTarget } from './redirects.service';
 
@@ -24,10 +25,11 @@ export function redirectTarget(
 // pages creating and editing a redirect
 @Component({
   selector: 'app-redirect-target-fields',
+  imports: [TranslatePipe],
   host: { class: 'vstack gap-3' },
   template: `
     <fieldset>
-      <legend class="form-label fs-6">Redirect to</legend>
+      <legend class="form-label fs-6">{{ 'redirects.target.redirect_to' | t }}</legend>
       <div class="form-check form-check-inline">
         <input
           class="form-check-input"
@@ -38,7 +40,9 @@ export function redirectTarget(
           [checked]="type() === 'domain'"
           (change)="type.set('domain')"
         />
-        <label class="form-check-label" for="target-domain">An external domain</label>
+        <label class="form-check-label" for="target-domain">{{
+          'redirects.target.external_domain_choice' | t
+        }}</label>
       </div>
       <div class="form-check form-check-inline">
         <input
@@ -50,13 +54,17 @@ export function redirectTarget(
           [checked]="type() === 'bucket'"
           (change)="type.set('bucket')"
         />
-        <label class="form-check-label" for="target-bucket">A bucket</label>
+        <label class="form-check-label" for="target-bucket">{{
+          'redirects.target.bucket_choice' | t
+        }}</label>
       </div>
     </fieldset>
 
     @if (type() === 'domain') {
       <div>
-        <label class="form-label" for="target-domain-name">External domain</label>
+        <label class="form-label" for="target-domain-name">{{
+          'redirects.target.external_domain' | t
+        }}</label>
         <input
           class="form-control font-monospace text-break"
           id="target-domain-name"
@@ -71,23 +79,25 @@ export function redirectTarget(
       </div>
     } @else {
       <div>
-        <label class="form-label" for="target-bucket-name">Bucket</label>
+        <label class="form-label" for="target-bucket-name">{{
+          'redirects.target.bucket' | t
+        }}</label>
         <select
           class="form-select font-monospace text-break"
           id="target-bucket-name"
           [value]="bucket()"
           (change)="bucket.set($any($event.target).value)"
         >
-          <option value="" disabled [selected]="bucket() === ''">Choose a bucket</option>
+          <option value="" disabled [selected]="bucket() === ''">
+            {{ 'redirects.target.choose_bucket' | t }}
+          </option>
           @for (served of servedBuckets(); track served.name) {
             <option [value]="served.name" [selected]="served.name === bucket()">
               {{ served.name }} ({{ domains(served)[0] }})
             </option>
           }
         </select>
-        <span class="form-text"
-          >Only buckets served at a domain, the redirect leads to their first one.</span
-        >
+        <span class="form-text">{{ 'redirects.target.bucket_hint' | t }}</span>
       </div>
     }
   `,

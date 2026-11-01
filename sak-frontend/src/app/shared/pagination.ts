@@ -1,10 +1,12 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { Pagination } from './api';
 
 // the pages of a list: where the one shown is in the whole list, the one before and the one after;
 // nothing while the list fits on one page
 @Component({
   selector: 'app-pagination',
+  imports: [TranslatePipe],
   template: `
     @if (pagination(); as page) {
       @if (page.total > page.limit || page.offset > 0) {
@@ -15,21 +17,21 @@ import { Pagination } from './api';
           <button
             class="btn btn-outline-secondary btn-sm"
             type="button"
-            aria-label="Previous page"
+            [attr.aria-label]="'shared.previous_page' | t"
             [disabled]="page.offset === 0"
             (click)="offsetChange.emit(previous())"
           >
-            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Previous
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i> {{ 'shared.previous' | t }}
           </button>
           <span class="text-body-secondary" data-testid="range">{{ range() }}</span>
           <button
             class="btn btn-outline-secondary btn-sm"
             type="button"
-            aria-label="Next page"
+            [attr.aria-label]="'shared.next_page' | t"
             [disabled]="page.offset + page.limit >= page.total"
             (click)="offsetChange.emit(page.offset + page.limit)"
           >
-            Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            {{ 'shared.next' | t }} <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
           </button>
         </nav>
       }
@@ -37,10 +39,12 @@ import { Pagination } from './api';
   `,
 })
 export class PaginationControl {
+  private readonly i18n = inject(I18n);
+
   readonly pagination = input<Pagination | null>(null);
 
   // what is paged, e.g. "Pages of the buckets"
-  readonly label = input('Pages');
+  readonly label = input(this.i18n.t('shared.pages'));
 
   // where the page asked for starts
   readonly offsetChange = output<number>();
@@ -55,6 +59,6 @@ export class PaginationControl {
     const page = this.pagination();
     if (!page || page.total === 0) return '';
     const last = Math.min(page.offset + page.limit, page.total);
-    return `${page.offset + 1}–${last} of ${page.total}`;
+    return this.i18n.t('shared.range', { first: page.offset + 1, last, total: page.total });
   });
 }

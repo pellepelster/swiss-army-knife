@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { I18n } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { Redirect, RedirectsService } from './redirects.service';
 
@@ -8,6 +9,7 @@ import { Redirect, RedirectsService } from './redirects.service';
 export class RedirectStore {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
+  private readonly i18n = inject(I18n);
 
   readonly redirect = signal<Redirect | null>(null);
   readonly error = signal<string | null>(null);
@@ -19,14 +21,16 @@ export class RedirectStore {
       .subscribe({
         next: (redirect) => this.redirect.set(redirect),
         error: (error: unknown) =>
-          this.error.set(redirectErrorMessage(error, 'The redirect could not be loaded.')),
+          this.error.set(
+            redirectErrorMessage(this.i18n, error, this.i18n.t('redirects.load_failed')),
+          ),
       });
   }
 }
 
-export function redirectErrorMessage(error: unknown, fallback: string): string {
+export function redirectErrorMessage(i18n: I18n, error: unknown, fallback: string): string {
   return apiErrorMessage(error, fallback, {
-    403: 'Your role does not allow to see the redirects.',
-    404: 'There is no such redirect.',
+    403: i18n.t('redirects.forbidden'),
+    404: i18n.t('redirects.not_found'),
   });
 }

@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { TranslatePipe } from '../i18n/i18n';
 import { BucketStore } from './bucket-store';
 import { BucketSecret, s3Endpoint } from './buckets.service';
 import { CodeBlock } from './code-block';
@@ -11,46 +12,46 @@ const SECRET_MASK = '•••••••••••••••••••�
 // fetched when asked for, the secret stays masked until it is shown
 @Component({
   selector: 'app-bucket-publishing',
-  imports: [CodeBlock],
+  imports: [CodeBlock, TranslatePipe],
   template: `
     @if (store.secretError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (store.bucket(); as bucket) {
-      <section class="card card-body" aria-label="Publishing with Hugo">
+      <section class="card card-body" [attr.aria-label]="'hosting.publishing.label' | t">
         <ol class="list-unstyled vstack gap-4 mb-0">
           <li class="vstack gap-2">
             <p class="mb-0">
-              Add the bucket as deployment target to the configuration of the
+              {{ 'hosting.publishing.target_before' | t }}
               <a
                 href="https://gohugo.io/host-and-deploy/deploy-with-hugo-deploy/"
                 target="_blank"
                 rel="noopener"
                 >Hugo</a
               >
-              site, <code>hugo.toml</code>.
-              {{
-                bucket.domains.length
-                  ? 'The base URL is the first domain the bucket is served at.'
-                  : ''
-              }}
+              {{ 'hosting.publishing.target_after' | t }} <code>hugo.toml</code>.
+              @if (bucket.domains.length) {
+                {{ 'hosting.publishing.base_url' | t }}
+              }
             </p>
             <app-code-block
               name="hugo.toml"
               [code]="configuration()"
-              copyLabel="Copy the deployment target"
+              [copyLabel]="'hosting.publishing.copy_target' | t"
               testId="hugo-toml"
             />
           </li>
           <li class="vstack gap-2">
             <p class="mb-0">
-              Build the site and deploy it with the key pair of the bucket, which may access this
-              bucket only. <code>hugo deploy</code> is only part of the <em>withdeploy</em> builds
-              of Hugo, e.g. <code>mise use hugo-extended-withdeploy</code> or the withdeploy
-              archives of the
-              <a href="https://github.com/gohugoio/hugo/releases" target="_blank" rel="noopener"
-                >Hugo releases</a
+              {{ 'hosting.publishing.deploy_intro' | t }} <code>hugo deploy</code>
+              {{ 'hosting.publishing.deploy_only_before' | t }} <em>withdeploy</em>
+              {{ 'hosting.publishing.deploy_only_after' | t }}
+              <code>mise use hugo-extended-withdeploy</code>
+              {{ 'hosting.publishing.deploy_archives' | t }}
+              <a href="https://github.com/gohugoio/hugo/releases" target="_blank" rel="noopener">{{
+                'hosting.publishing.releases' | t
+              }}</a
               >.
             </p>
             @if (store.secret(); as secret) {
@@ -58,14 +59,19 @@ const SECRET_MASK = '•••••••••••••••••••�
                 name="hugo deploy"
                 [code]="command(secret, !shown())"
                 [copyText]="command(secret, false)"
-                copyLabel="Copy the deploy command"
+                [copyLabel]="'hosting.publishing.copy_command' | t"
                 testId="hugo-deploy"
                 [command]="true"
               >
                 <button
                   type="button"
                   class="btn btn-outline-light btn-sm"
-                  [attr.aria-label]="shown() ? 'Hide the secret key' : 'Show the secret key'"
+                  [attr.aria-label]="
+                    (shown()
+                      ? 'hosting.publishing.hide_secret_key'
+                      : 'hosting.publishing.show_secret_key'
+                    ) | t
+                  "
                   [attr.aria-pressed]="shown()"
                   (click)="shown.set(!shown())"
                 >
@@ -75,7 +81,7 @@ const SECRET_MASK = '•••••••••••••••••••�
                     [class.fa-eye]="!shown()"
                     aria-hidden="true"
                   ></i>
-                  {{ shown() ? 'Hide' : 'Show' }}
+                  {{ (shown() ? 'hosting.publishing.hide' : 'hosting.publishing.show') | t }}
                 </button>
               </app-code-block>
             } @else {
@@ -91,15 +97,14 @@ const SECRET_MASK = '•••••••••••••••••••�
                   } @else {
                     <i class="fa-solid fa-key" aria-hidden="true"></i>
                   }
-                  Show the deploy command with the key pair
+                  {{ 'hosting.publishing.show_command' | t }}
                 </button>
               </div>
             }
           </li>
           <li class="vstack gap-2">
             <p class="text-body-secondary">
-              It only uploads what changed and deletes what is gone. The site is served at the
-              domains of the bucket once their DNS records point at the server.
+              {{ 'hosting.publishing.uploads' | t }}
             </p>
           </li>
         </ol>

@@ -341,7 +341,7 @@ describe('Grocery', () => {
       .expectOne('/api/v1/grocery/lists?offset=0&limit=100')
       .flush(pageOf([defaultList, { ...party, mine: true }]));
     await harness.fixture.whenStable();
-    expect(page().querySelector('h1')?.textContent).toBe('Settings');
+    expect(page().querySelector('h1')?.textContent?.trim()).toBe('Settings');
     const icon = () => page().querySelector('[data-testid=list-icon]')!.textContent!.trim();
     expect(icon()).toBe('🎉');
 

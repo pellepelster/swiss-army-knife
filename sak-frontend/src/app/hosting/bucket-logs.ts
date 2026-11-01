@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { formatBytes, formatCount, formatPercent } from '../shared/format';
 import { AccessLogs, AccessLogsService, SiteMetrics } from './access-logs/access-logs.service';
 import { TimeSeries } from './access-logs/chart-config';
@@ -19,27 +20,27 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
 // named like the bucket; their totals and chart over a range
 @Component({
   selector: 'app-bucket-logs',
-  imports: [TimeSeriesChart],
+  imports: [TimeSeriesChart, TranslatePipe],
   template: `
-    <section class="card card-body gap-3" aria-label="Logs">
+    <section class="card card-body gap-3" [attr.aria-label]="'hosting.logs.label' | t">
       @if (failed() === 'unknown') {
         <p class="mb-0" data-testid="logs-state">
-          The bucket is not served at a domain, it has no access logs.
+          {{ 'hosting.logs.unknown' | t }}
         </p>
       } @else if (failed() === 'forbidden') {
         <p class="alert alert-danger mb-0" role="alert">
-          Your role does not allow to see the logs.
+          {{ 'hosting.logs.forbidden' | t }}
         </p>
       } @else {
         @if (domains().length) {
           <p class="text-body-secondary mb-0" data-testid="logs-domains">
-            The requests to
+            {{ 'hosting.logs.requests_to' | t }}
             <span class="font-monospace text-break">{{ domains().join(', ') }}</span>
           </p>
         }
 
         <div class="d-flex align-items-center gap-2">
-          <label class="form-label mb-0" for="logs-range">Range</label>
+          <label class="form-label mb-0" for="logs-range">{{ 'hosting.logs.range' | t }}</label>
           <select
             id="logs-range"
             class="form-select w-auto"
@@ -55,30 +56,36 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
 
         @if (failed()) {
           <p class="alert alert-danger mb-0" role="alert">
-            The logs could not be loaded, they may not be available right now.
+            {{ 'hosting.logs.failed' | t }}
           </p>
         } @else if (metrics(); as m) {
           <dl class="row mb-0">
-            <dt class="col-sm-3 fw-normal text-body-secondary">Requests</dt>
+            <dt class="col-sm-3 fw-normal text-body-secondary">
+              {{ 'hosting.logs.requests' | t }}
+            </dt>
             <dd class="col-sm-9 font-monospace text-break" data-testid="logs-requests">
               {{ formatCount(m.totalRequests) }}
             </dd>
-            <dt class="col-sm-3 fw-normal text-body-secondary">Error rate</dt>
+            <dt class="col-sm-3 fw-normal text-body-secondary">
+              {{ 'hosting.logs.error_rate' | t }}
+            </dt>
             <dd class="col-sm-9 font-monospace text-break" data-testid="logs-error-rate">
               {{ formatPercent(m.errorRate) }}
             </dd>
-            <dt class="col-sm-3 fw-normal text-body-secondary">Transferred</dt>
+            <dt class="col-sm-3 fw-normal text-body-secondary">
+              {{ 'hosting.logs.transferred' | t }}
+            </dt>
             <dd class="col-sm-9 font-monospace text-break" data-testid="logs-bytes">
               {{ formatBytes(m.totalBytes) }}
             </dd>
           </dl>
           @if (m.totalRequests === 0) {
             <p class="text-body-secondary mb-0" data-testid="logs-state">
-              No requests in this range.
+              {{ 'hosting.logs.no_requests' | t }}
             </p>
           } @else {
             <app-time-series-chart
-              title="Requests by status"
+              [title]="'hosting.logs.requests_by_status' | t"
               [buckets]="m.buckets"
               [stepSeconds]="m.stepSeconds"
               [series]="requestSeries()"
@@ -87,7 +94,7 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
             />
           }
         } @else {
-          <p class="text-body-secondary mb-0">Loading…</p>
+          <p class="text-body-secondary mb-0">{{ 'hosting.loading' | t }}</p>
         }
       }
     </section>
@@ -96,6 +103,7 @@ type Failure = 'unknown' | 'forbidden' | 'unavailable';
 export class BucketLogs {
   private readonly service = inject(AccessLogsService);
   private readonly store = inject(BucketStore);
+  private readonly i18n = inject(I18n);
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
@@ -116,7 +124,7 @@ export class BucketLogs {
   protected readonly requestSeries = computed<TimeSeries[]>(() =>
     (this.metrics()?.series ?? []).map((series) => ({
       key: series.statusClass,
-      label: STATUS_CLASS_LABELS[series.statusClass as StatusClassKey] ?? series.statusClass,
+      label: statusClassLabel(this.i18n, series.statusClass),
       color: STATUS_CLASS_COLORS[series.statusClass as StatusClassKey] ?? BYTES_COLOR,
       values: series.values,
     })),
@@ -155,6 +163,12 @@ export class BucketLogs {
       onCleanup(() => subscription.unsubscribe());
     });
   }
+}
+
+// the label of a status class, the status class itself for one without a label
+function statusClassLabel(i18n: I18n, statusClass: string): string {
+  const key = STATUS_CLASS_LABELS[statusClass as StatusClassKey];
+  return key ? i18n.t(key) : statusClass;
 }
 
 // why the logs are missing: a bucket served at no domain, a role without access or unavailable logs

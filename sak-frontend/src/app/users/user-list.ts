@@ -11,6 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { PaginationControl } from '../shared/pagination';
 import { User, UsersService } from './users.service';
@@ -20,26 +21,23 @@ import { User, UsersService } from './users.service';
 // and deleted after a confirmation in its place (UX-4.1); an admin of the configuration is not
 @Component({
   selector: 'app-user-list',
-  imports: [PaginationControl, RouterLink],
+  imports: [PaginationControl, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'users.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Users</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.title' | t }}</h1>
       <a class="btn btn-primary" routerLink="/users/create">
-        <i class="sak-icon-plus" aria-hidden="true"></i> Add user
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'users.add_user' | t }}
       </a>
     </header>
 
-    <p class="text-body-secondary">
-      The admins come from the configuration of the deployment. A user signs in with a link by
-      e-mail and uses the notes and the grocery lists.
-    </p>
+    <p class="text-body-secondary">{{ 'users.intro' | t }}</p>
 
     @if (error(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
@@ -47,13 +45,13 @@ import { User, UsersService } from './users.service';
 
     @if (loaded()) {
       <div class="card table-responsive">
-        <table class="table align-middle mb-0" aria-label="Users">
+        <table class="table align-middle mb-0" [attr.aria-label]="'users.title' | t">
           <thead>
             <tr>
-              <th scope="col">E-mail</th>
-              <th scope="col">Name</th>
-              <th scope="col">Role</th>
-              <th scope="col" class="text-end">Actions</th>
+              <th scope="col">{{ 'users.column.email' | t }}</th>
+              <th scope="col">{{ 'users.column.name' | t }}</th>
+              <th scope="col">{{ 'users.column.role' | t }}</th>
+              <th scope="col" class="text-end">{{ 'users.column.actions' | t }}</th>
             </tr>
           </thead>
           <tbody>
@@ -64,31 +62,36 @@ import { User, UsersService } from './users.service';
                   @if (user.name) {
                     {{ user.name }}
                   } @else {
-                    <span class="text-body-secondary" aria-label="No name">–</span>
+                    <span class="text-body-secondary" [attr.aria-label]="'users.no_name' | t"
+                      >–</span
+                    >
                   }
                 </td>
                 <td>
                   <span class="badge border text-body-secondary fw-normal" data-testid="role">{{
-                    user.configured ? 'admin' : 'user'
+                    (user.configured ? 'users.role.admin' : 'users.role.user') | t
                   }}</span>
                 </td>
                 <td class="text-end">
                   @if (confirming() === user.id && user.id !== null) {
                     <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
-                      <span class="small"
-                        >Delete {{ user.name ?? user.email }}? They can no longer sign in; their
-                        data stays.</span
+                      <span class="small">{{
+                        'users.confirm_delete' | t: { name: user.name ?? user.email }
+                      }}</span>
+                      <div
+                        class="btn-group"
+                        role="group"
+                        [attr.aria-label]="'users.delete_the_user' | t"
                       >
-                      <div class="btn-group" role="group" aria-label="Delete the user">
                         <button type="button" class="btn btn-danger" (click)="delete(user.id)">
-                          Delete
+                          {{ 'users.delete' | t }}
                         </button>
                         <button
                           type="button"
                           class="btn btn-outline-secondary"
                           (click)="confirming.set(null)"
                         >
-                          Keep
+                          {{ 'users.keep' | t }}
                         </button>
                       </div>
                     </div>
@@ -97,13 +100,11 @@ import { User, UsersService } from './users.service';
                       type="button"
                       class="btn btn-outline-danger"
                       [disabled]="user.configured"
-                      [attr.aria-label]="'Delete ' + user.email"
-                      [title]="
-                        user.configured ? 'Set by the configuration of the deployment' : 'Delete'
-                      "
+                      [attr.aria-label]="'users.delete_user' | t: { email: user.email }"
+                      [title]="(user.configured ? 'users.configured' : 'users.delete') | t"
                       (click)="confirming.set(user.id)"
                     >
-                      Delete
+                      {{ 'users.delete' | t }}
                     </button>
                   }
                 </td>
@@ -113,12 +114,12 @@ import { User, UsersService } from './users.service';
         </table>
       </div>
       <app-pagination
-        label="Pages of the users"
+        [label]="'users.pages' | t"
         [pagination]="pagination()"
         (offsetChange)="goTo($event)"
       />
     } @else if (!error()) {
-      <p class="text-body-secondary">Loading…</p>
+      <p class="text-body-secondary">{{ 'users.loading' | t }}</p>
     }
   `,
 })
@@ -126,6 +127,7 @@ export class UserList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(UsersService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route's offset query parameter, where the page shown starts
   readonly offset = input(0, {
@@ -161,7 +163,7 @@ export class UserList {
       .subscribe({
         next: () => this.load(this.offset()),
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, 'The user could not be deleted.')),
+          this.error.set(apiErrorMessage(error, this.i18n.t('users.not_deleted'))),
       });
   }
 
@@ -184,8 +186,8 @@ export class UserList {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, 'The users could not be loaded.', {
-              403: 'Only an admin sees the users.',
+            apiErrorMessage(error, this.i18n.t('users.not_loaded'), {
+              403: this.i18n.t('users.forbidden_see'),
             }),
           ),
       });

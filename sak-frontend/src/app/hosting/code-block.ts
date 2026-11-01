@@ -1,4 +1,5 @@
 import { Component, computed, input, signal } from '@angular/core';
+import { TranslatePipe } from '../i18n/i18n';
 import { CopyButton } from '../shared/copy-button';
 
 // a file or a command to take over as it is, as a terminal window: its name in the bar with a
@@ -6,7 +7,7 @@ import { CopyButton } from '../shared/copy-button';
 // is shown masked
 @Component({
   selector: 'app-code-block',
-  imports: [CopyButton],
+  imports: [CopyButton, TranslatePipe],
   styles: `
     // a terminal window, dark in light and dark mode alike
     :host {
@@ -94,7 +95,7 @@ import { CopyButton } from '../shared/copy-button';
     ><code>@for (line of lines(); track $index) {@if (line.prompt) {<span class="prompt">$ </span>}{{ line.text }}{{ '
 ' }}}</code></pre>
     @if (copyFailed()) {
-      <p role="alert">The browser did not allow to copy, please select the text instead.</p>
+      <p role="alert">{{ 'hosting.copy_failed' | t }}</p>
     }
   `,
 })

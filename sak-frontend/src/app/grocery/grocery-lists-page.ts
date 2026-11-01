@@ -2,6 +2,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
 import { GroceryList, GroceryService } from './grocery.service';
@@ -12,19 +13,19 @@ import { ListIcon } from './list-icon';
 // loads them again (LIST-4)
 @Component({
   selector: 'app-grocery-lists-page',
-  imports: [ListIcon, RouterLink],
+  imports: [ListIcon, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'grocery.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Grocery</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'grocery.title' | t }}</h1>
       <a class="btn btn-primary" routerLink="lists/create">
-        <i class="sak-icon-plus" aria-hidden="true"></i> Add list
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.lists.add' | t }}
       </a>
     </header>
 
@@ -33,7 +34,7 @@ import { ListIcon } from './list-icon';
     }
 
     @if (lists().length) {
-      <nav class="list-group" aria-label="Grocery lists">
+      <nav class="list-group" [attr.aria-label]="'grocery.lists.label' | t">
         @for (list of lists(); track list.id) {
           <!-- the row opens the list; its gear the settings, only of a list of the user's own (UX-8) -->
           <div class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
@@ -47,7 +48,9 @@ import { ListIcon } from './list-icon';
               <span class="d-block text-body-secondary">
                 {{ toBuy(list.items) }}
                 @if (list.shared) {
-                  <span class="badge border text-body-secondary fw-normal ms-1">shared</span>
+                  <span class="badge border text-body-secondary fw-normal ms-1">{{
+                    'grocery.shared_badge' | t
+                  }}</span>
                 }
               </span>
             </a>
@@ -56,8 +59,8 @@ import { ListIcon } from './list-icon';
                 class="btn btn-link link-body-emphasis position-relative z-1"
                 [routerLink]="['lists', list.id, 'edit']"
                 [queryParams]="{ from: 'lists' }"
-                [attr.aria-label]="'Settings of ' + list.name"
-                title="Settings"
+                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                [title]="'grocery.settings' | t"
                 ><i class="fa-solid fa-gear" aria-hidden="true"></i
               ></a>
             } @else {
@@ -65,8 +68,8 @@ import { ListIcon } from './list-icon';
                 type="button"
                 class="btn btn-link link-body-emphasis position-relative z-1"
                 disabled
-                [attr.aria-label]="'Settings of ' + list.name"
-                title="Only the owner of a list changes it"
+                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                [title]="'grocery.only_owner' | t"
               >
                 <i class="fa-solid fa-gear" aria-hidden="true"></i>
               </button>
@@ -75,13 +78,14 @@ import { ListIcon } from './list-icon';
         }
       </nav>
     } @else if (loaded()) {
-      <p class="text-center text-body-secondary fs-4 py-5">You have no list yet, add one first.</p>
+      <p class="text-center text-body-secondary fs-4 py-5">{{ 'grocery.lists.empty' | t }}</p>
     }
   `,
 })
 export class GroceryListsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
+  private readonly i18n = inject(I18n);
   private loading?: Subscription;
 
   protected readonly lists = signal<GroceryList[]>([]);
@@ -108,8 +112,8 @@ export class GroceryListsPage {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, 'The lists could not be loaded.', {
-              403: 'Your role does not allow to see the grocery lists.',
+            apiErrorMessage(error, this.i18n.t('grocery.lists_not_loaded'), {
+              403: this.i18n.t('grocery.lists_forbidden'),
             }),
           ),
       });
@@ -117,7 +121,8 @@ export class GroceryListsPage {
 
   // No items to buy, 1 item to buy, 3 items to buy
   protected toBuy(items: number): string {
-    if (items === 0) return 'No items to buy';
-    return items === 1 ? '1 item to buy' : `${items} items to buy`;
+    if (items === 0) return this.i18n.t('grocery.lists.to_buy_none');
+    if (items === 1) return this.i18n.t('grocery.lists.to_buy_one');
+    return this.i18n.t('grocery.lists.to_buy_other', { count: items });
   }
 }

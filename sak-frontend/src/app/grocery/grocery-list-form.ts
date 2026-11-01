@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
@@ -20,7 +21,7 @@ import { ListIcon } from './list-icon';
 // from the frontend itself (/emoji/data.json), not from a cdn
 @Component({
   selector: 'app-grocery-list-form',
-  imports: [ListIcon, RouterLink],
+  imports: [ListIcon, RouterLink, TranslatePipe],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'd-block container pb-5' },
   template: `
@@ -28,10 +29,12 @@ import { ListIcon } from './list-icon';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         [routerLink]="back()"
-        aria-label="Back"
+        [attr.aria-label]="'grocery.back' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ id() ? 'Settings' : 'Create list' }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">
+        {{ (id() ? 'grocery.settings' : 'grocery.form.create') | t }}
+      </h1>
     </header>
 
     @if (error(); as error) {
@@ -41,7 +44,7 @@ import { ListIcon } from './list-icon';
     @if (!id() || list()) {
       <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); save()">
         <div>
-          <label class="form-label" for="list-name">Name</label>
+          <label class="form-label" for="list-name">{{ 'grocery.form.name' | t }}</label>
           <input
             #nameField
             id="list-name"
@@ -53,7 +56,7 @@ import { ListIcon } from './list-icon';
           />
         </div>
         <div>
-          <span class="form-label d-block" id="list-icon-label">Icon</span>
+          <span class="form-label d-block" id="list-icon-label">{{ 'grocery.form.icon' | t }}</span>
           <div class="d-flex flex-wrap align-items-center gap-2">
             <app-list-icon [name]="name()" [icon]="icon()" [size]="48" data-testid="list-icon" />
             <div class="btn-group" role="group" aria-labelledby="list-icon-label">
@@ -63,7 +66,7 @@ import { ListIcon } from './list-icon';
                 [attr.aria-expanded]="picking()"
                 (click)="togglePicker()"
               >
-                Choose icon
+                {{ 'grocery.form.choose_icon' | t }}
               </button>
               <button
                 type="button"
@@ -71,7 +74,7 @@ import { ListIcon } from './list-icon';
                 [disabled]="!icon()"
                 (click)="icon.set(null)"
               >
-                No icon
+                {{ 'grocery.form.no_icon' | t }}
               </button>
             </div>
           </div>
@@ -93,26 +96,28 @@ import { ListIcon } from './list-icon';
             [checked]="shared()"
             (change)="shared.set(sharedInput.checked)"
           />
-          <label class="form-check-label" for="list-shared">Shared</label>
-          <div class="form-text">Every user sees a shared list and adds and deletes its items.</div>
+          <label class="form-check-label" for="list-shared">{{ 'grocery.form.shared' | t }}</label>
+          <div class="form-text">{{ 'grocery.form.shared_hint' | t }}</div>
         </div>
 
         <!-- one group of the actions; a delete asks inline in its place, Keep is the safe default -->
         <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
           @if (confirming()) {
-            <span class="small">Delete the list and its items?</span>
-            <div class="btn-group" role="group" aria-label="Delete the list">
-              <button type="button" class="btn btn-danger" (click)="delete()">Delete</button>
+            <span class="small">{{ 'grocery.form.delete_question' | t }}</span>
+            <div class="btn-group" role="group" [attr.aria-label]="'grocery.form.delete_label' | t">
+              <button type="button" class="btn btn-danger" (click)="delete()">
+                {{ 'grocery.form.delete' | t }}
+              </button>
               <button
                 type="button"
                 class="btn btn-outline-secondary"
                 (click)="confirming.set(false)"
               >
-                Keep
+                {{ 'grocery.form.keep' | t }}
               </button>
             </div>
           } @else {
-            <div class="btn-group" role="group" aria-label="List actions">
+            <div class="btn-group" role="group" [attr.aria-label]="'grocery.form.actions' | t">
               @if (list()) {
                 <button
                   type="button"
@@ -120,24 +125,26 @@ import { ListIcon } from './list-icon';
                   [disabled]="last()"
                   (click)="confirming.set(true)"
                 >
-                  Delete list
+                  {{ 'grocery.form.delete_list' | t }}
                 </button>
               }
-              <a class="btn btn-outline-secondary" [routerLink]="back()">Cancel</a>
+              <a class="btn btn-outline-secondary" [routerLink]="back()">{{
+                'grocery.form.cancel' | t
+              }}</a>
               <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
                 @if (saving()) {
                   <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
                 } @else if (!id()) {
                   <i class="sak-icon-plus" aria-hidden="true"></i>
                 }
-                {{ id() ? 'Save' : 'Create list' }}
+                {{ (id() ? 'grocery.form.save' : 'grocery.form.create') | t }}
               </button>
             </div>
           }
         </div>
         @if (last()) {
           <div class="form-text text-end" data-testid="last-list">
-            Your only list can not be deleted.
+            {{ 'grocery.form.last_list' | t }}
           </div>
         }
       </form>
@@ -148,6 +155,7 @@ export class GroceryListForm implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route parameter, missing for a new list
   readonly id = input<string | undefined>();
@@ -182,7 +190,7 @@ export class GroceryListForm implements OnInit {
         next: (lists) => {
           const list = lists.find((each) => String(each.id) === id && each.mine);
           if (!list) {
-            this.error.set('There is no such list of yours.');
+            this.error.set(this.i18n.t('grocery.form.no_such_list'));
             return;
           }
           this.list.set(list);
@@ -192,7 +200,7 @@ export class GroceryListForm implements OnInit {
           this.icon.set(list.icon);
         },
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, 'The list could not be loaded.')),
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_loaded'))),
       });
   }
 
@@ -210,7 +218,7 @@ export class GroceryListForm implements OnInit {
         void this.router.navigate(id === undefined ? ['/grocery/lists', list.id] : this.back()),
       error: (error: unknown) => {
         this.saving.set(false);
-        this.error.set(apiErrorMessage(error, 'The list could not be saved.'));
+        this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_saved')));
       },
     });
   }
@@ -237,7 +245,7 @@ export class GroceryListForm implements OnInit {
       .subscribe({
         next: () => void this.router.navigate(['/grocery']),
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, 'The list could not be deleted.')),
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_deleted'))),
       });
   }
 }

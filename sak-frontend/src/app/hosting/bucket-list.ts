@@ -13,6 +13,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { apiErrorMessage, lastPageOffset, Pagination } from '../shared/api';
 import { formatBytes, formatCount } from '../shared/format';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
 import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
 
@@ -20,22 +21,22 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
 // the background, the list asks again while a bucket of the page is still being counted
 @Component({
   selector: 'app-bucket-list',
-  imports: [PaginationControl, RouterLink],
+  imports: [PaginationControl, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/"
-        aria-label="All apps"
+        [attr.aria-label]="'hosting.all_apps' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Static hosting</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'hosting.title' | t }}</h1>
       <a
         class="btn btn-primary"
         routerLink="/static-hosting/create"
-        aria-label="Create static hosting"
-        title="Create static hosting"
+        [attr.aria-label]="'hosting.list.create' | t"
+        [title]="'hosting.list.create' | t"
       >
         <i class="sak-icon-plus" aria-hidden="true"></i>
       </a>
@@ -46,7 +47,7 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
     }
 
     @if (loaded()) {
-      <ul class="list-unstyled vstack gap-2 mb-0" aria-label="Buckets">
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'hosting.list.buckets' | t">
         @for (bucket of buckets(); track bucket.name) {
           <li>
             <a
@@ -57,17 +58,17 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
               <span class="vstack gap-1">
                 <span class="fw-semibold font-monospace text-break">{{ bucket.name }}</span>
                 <span class="small text-body-secondary font-monospace text-break">{{
-                  served(bucket).join(', ') || 'not served at a domain'
+                  served(bucket).join(', ') || ('hosting.list.not_served' | t)
                 }}</span>
               </span>
               <span class="text-end text-nowrap align-self-center">
                 @if (bucket.statistics.failed) {
-                  <span class="text-body-secondary">not counted</span>
+                  <span class="text-body-secondary">{{ 'hosting.not_counted' | t }}</span>
                 } @else if (bucket.statistics.computing) {
-                  <span class="text-body-secondary fst-italic">counting…</span>
+                  <span class="text-body-secondary fst-italic">{{ 'hosting.counting' | t }}</span>
                 } @else {
                   <span data-testid="objects">{{ formatCount(bucket.statistics.objects!) }}</span>
-                  <span class="text-body-secondary"> objects · </span>
+                  <span class="text-body-secondary"> {{ 'hosting.list.objects' | t }} · </span>
                   <span data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</span>
                 }
               </span>
@@ -75,17 +76,17 @@ import { Bucket, BucketsService, POLL_INTERVAL_MS, servedDomains } from './bucke
           </li>
         } @empty {
           <li class="card card-body text-center py-4">
-            No buckets yet. A bucket keeps the files of a website, served at its domains.
+            {{ 'hosting.list.empty' | t }}
           </li>
         }
       </ul>
       <app-pagination
-        label="Pages of the buckets"
+        [label]="'hosting.list.pages' | t"
         [pagination]="pagination()"
         (offsetChange)="goTo($event)"
       />
     } @else if (!error()) {
-      <p class="text-body-secondary">Loading…</p>
+      <p class="text-body-secondary">{{ 'hosting.loading' | t }}</p>
     }
   `,
 })
@@ -93,6 +94,7 @@ export class BucketList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route's offset query parameter, where the page shown starts
   readonly offset = input(0, {
@@ -147,8 +149,8 @@ export class BucketList {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, 'The buckets could not be loaded.', {
-              403: 'Your role does not allow to see the buckets.',
+            apiErrorMessage(error, this.i18n.t('hosting.list.load_failed'), {
+              403: this.i18n.t('hosting.forbidden'),
             }),
           ),
       });

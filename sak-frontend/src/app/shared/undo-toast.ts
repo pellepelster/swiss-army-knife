@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+import { TranslatePipe } from '../i18n/i18n';
 
 // how long what was removed can be brought back before the backend removes it
 export const UNDO_DELETE_MS = 5000;
@@ -8,6 +9,7 @@ export const UNDO_DELETE_MS = 5000;
 // bar starts again
 @Component({
   selector: 'app-undo-toast',
+  imports: [TranslatePipe],
   template: `
     <div
       class="undo-toast toast show position-fixed bottom-0 start-50 translate-middle-x mb-3"
@@ -16,7 +18,9 @@ export const UNDO_DELETE_MS = 5000;
     >
       <div class="d-flex align-items-center gap-2 p-2 ps-3">
         <span class="flex-grow-1">{{ text() }}</span>
-        <button type="button" class="btn btn-sm btn-primary" (click)="undo.emit()">Undo</button>
+        <button type="button" class="btn btn-sm btn-primary" (click)="undo.emit()">
+          {{ 'shared.undo' | t }}
+        </button>
       </div>
       <div class="progress rounded-0" aria-hidden="true">
         <div class="undo-toast-time progress-bar" [style.animation-duration.ms]="ms()"></div>

@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { I18n } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { Subscription, timer } from 'rxjs';
 import { Bucket, BucketSecret, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
@@ -9,6 +10,7 @@ import { Bucket, BucketSecret, BucketsService, POLL_INTERVAL_MS } from './bucket
 export class BucketStore {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(BucketsService);
+  private readonly i18n = inject(I18n);
 
   readonly name = signal('');
   readonly bucket = signal<Bucket | null>(null);
@@ -45,7 +47,9 @@ export class BucketStore {
         error: (error: unknown) => {
           if (name !== this.name()) return;
           this.retrievingSecret.set(false);
-          this.secretError.set(bucketErrorMessage(error, 'The key pair could not be fetched.'));
+          this.secretError.set(
+            bucketErrorMessage(this.i18n, error, this.i18n.t('hosting.credentials.keys_failed')),
+          );
         },
       });
   }
@@ -70,14 +74,14 @@ export class BucketStore {
         }
       },
       error: (error: unknown) =>
-        this.error.set(bucketErrorMessage(error, 'The bucket could not be loaded.')),
+        this.error.set(bucketErrorMessage(this.i18n, error, this.i18n.t('hosting.load_failed'))),
     });
   }
 }
 
-export function bucketErrorMessage(error: unknown, fallback: string): string {
+export function bucketErrorMessage(i18n: I18n, error: unknown, fallback: string): string {
   return apiErrorMessage(error, fallback, {
-    403: 'Your role does not allow to see the buckets.',
-    404: 'There is no such bucket.',
+    403: i18n.t('hosting.forbidden'),
+    404: i18n.t('hosting.not_found'),
   });
 }

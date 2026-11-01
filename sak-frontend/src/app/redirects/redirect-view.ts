@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { RedirectStore } from './redirect-store';
 import { RedirectsService } from './redirects.service';
@@ -9,7 +10,7 @@ import { RedirectsService } from './redirects.service';
 // configuration; it is edited on a page of its own and deleted after a second click
 @Component({
   selector: 'app-redirect-view',
-  imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [LocalDateTimePipe, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],
   providers: [RedirectStore],
   host: { class: 'd-block container pb-5' },
   template: `
@@ -17,27 +18,29 @@ import { RedirectsService } from './redirects.service';
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/redirects"
-        aria-label="All redirects"
+        [attr.aria-label]="'redirects.all_redirects' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       <h1 class="h3 mb-0 flex-grow-1 text-break font-monospace">{{ source() }}</h1>
       @if (store.redirect()) {
         @if (confirming()) {
-          <button class="btn btn-danger" type="button" (click)="delete()">Delete</button>
+          <button class="btn btn-danger" type="button" (click)="delete()">
+            {{ 'redirects.delete' | t }}
+          </button>
           <button class="btn btn-outline-secondary" type="button" (click)="confirming.set(false)">
-            Keep
+            {{ 'redirects.keep' | t }}
           </button>
         } @else {
           <a class="btn btn-primary" [routerLink]="['/redirects', source(), 'edit']">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit
+            <i class="fa-solid fa-pen" aria-hidden="true"></i> {{ 'redirects.edit' | t }}
           </a>
           <button
             class="btn btn-outline-danger"
             type="button"
-            [attr.aria-label]="'Delete the redirect of ' + source()"
+            [attr.aria-label]="'redirects.view.delete_redirect' | t: { domain: source() }"
             (click)="confirming.set(true)"
           >
-            <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete
+            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'redirects.delete' | t }}
           </button>
         }
       }
@@ -48,40 +51,49 @@ import { RedirectsService } from './redirects.service';
     }
 
     @if (store.redirect(); as redirect) {
-      <dl class="card card-body flex-row flex-wrap gap-4 mb-3" aria-label="Overview">
+      <dl
+        class="card card-body flex-row flex-wrap gap-4 mb-3"
+        [attr.aria-label]="'redirects.view.overview' | t"
+      >
         <div>
-          <dt class="small text-uppercase text-body-secondary fw-normal">Created</dt>
+          <dt class="small text-uppercase text-body-secondary fw-normal">
+            {{ 'redirects.view.created' | t }}
+          </dt>
           <dd class="mb-0 fw-semibold" data-testid="created">
             {{ redirect.createdAt | localDateTime: 'medium' : 'short' }}
           </dd>
         </div>
         @if (redirect.updatedAt; as updatedAt) {
           <div>
-            <dt class="small text-uppercase text-body-secondary fw-normal">Updated</dt>
+            <dt class="small text-uppercase text-body-secondary fw-normal">
+              {{ 'redirects.view.updated' | t }}
+            </dt>
             <dd class="mb-0 fw-semibold" data-testid="updated">
               {{ updatedAt | localDateTime: 'medium' : 'short' }}
             </dd>
           </div>
         }
         <div>
-          <dt class="small text-uppercase text-body-secondary fw-normal">Leads to</dt>
+          <dt class="small text-uppercase text-body-secondary fw-normal">
+            {{ 'redirects.view.leads_to' | t }}
+          </dt>
           <dd class="mb-0 fw-semibold font-monospace text-break" data-testid="location">
             @if (redirect.location) {
               https://{{ redirect.location }}
             } @else {
-              <span class="text-body-secondary">nowhere</span>
+              <span class="text-body-secondary">{{ 'redirects.view.nowhere' | t }}</span>
             }
           </dd>
         </div>
       </dl>
 
-      <nav class="nav nav-underline mb-3" aria-label="Details">
+      <nav class="nav nav-underline mb-3" [attr.aria-label]="'redirects.view.details' | t">
         <a
           class="nav-link"
           routerLink="configuration"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
-          >Configuration</a
+          >{{ 'redirects.view.configuration' | t }}</a
         >
       </nav>
       <router-outlet />
@@ -93,6 +105,7 @@ export class RedirectView implements OnInit {
   protected readonly store = inject(RedirectStore);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route parameter
   readonly source = input.required<string>();
@@ -110,7 +123,10 @@ export class RedirectView implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => void this.router.navigate(['/redirects']),
-        error: () => this.store.error.set(`The redirect of ${this.source()} could not be deleted.`),
+        error: () =>
+          this.store.error.set(
+            this.i18n.t('redirects.view.delete_failed', { domain: this.source() }),
+          ),
       });
   }
 }

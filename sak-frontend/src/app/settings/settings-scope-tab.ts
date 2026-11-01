@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { SettingScopes } from './settings-page';
 import { SettingsStore } from './settings-store';
@@ -12,7 +13,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
 // not saved is gone with another tab
 @Component({
   selector: 'app-settings-scope-tab',
-  imports: [RouterLink],
+  imports: [RouterLink, TranslatePipe],
   template: `
     @if (loadError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
@@ -47,9 +48,9 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
                   @if (setting.requires; as requires) {
                     @if (!met(requires)) {
                       <div class="form-text" data-testid="requires">
-                        Needs
+                        {{ 'settings.needs_before' | t }}
                         <a [routerLink]="['..', requires.scope]">{{ requiredLabel(requires) }}</a>
-                        turned on.
+                        {{ 'settings.needs_after' | t }}
                       </div>
                     }
                   }
@@ -79,7 +80,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
             }
           }
         } @else {
-          <p class="text-body-secondary mb-0">Loading…</p>
+          <p class="text-body-secondary mb-0">{{ 'settings.loading' | t }}</p>
         }
 
         @if (saveError(); as error) {
@@ -91,7 +92,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
             @if (saving()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             }
-            Save
+            {{ 'settings.save' | t }}
           </button>
         </div>
       </form>
@@ -101,6 +102,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
 export class SettingsScopeTab {
   private readonly scopes = inject(SettingScopes);
   private readonly store = inject(SettingsStore);
+  private readonly i18n = inject(I18n);
 
   // the route parameter, the name of the scope
   readonly name = input.required<string>({ alias: 'scope' });
@@ -112,13 +114,13 @@ export class SettingsScopeTab {
   protected readonly stored = computed(() => this.store.values()[this.name()] ?? null);
 
   protected readonly loadError = computed(() => {
-    if (this.scopes.scopes() && !this.scope()) return 'There is no such scope of settings.';
+    if (this.scopes.scopes() && !this.scope()) return this.i18n.t('settings.no_scope');
     const error = this.store.errors()[this.name()];
     return error === undefined
       ? null
-      : apiErrorMessage(error, 'The settings could not be loaded.', {
-          403: 'Your role does not allow to see the settings.',
-          404: 'There is no such scope of settings.',
+      : apiErrorMessage(error, this.i18n.t('settings.not_loaded'), {
+          403: this.i18n.t('settings.forbidden_see'),
+          404: this.i18n.t('settings.no_scope'),
         });
   });
 
@@ -195,7 +197,10 @@ export class SettingsScopeTab {
   protected requiredLabel(requires: Requirement): string {
     const scope = this.scopes.scopes()?.find((s) => s.name === requires.scope);
     const setting = scope?.settings.find((s) => s.name === requires.setting);
-    return `${setting?.label ?? requires.setting} of ${scope?.label ?? requires.scope}`;
+    return this.i18n.t('settings.required_label', {
+      setting: setting?.label ?? requires.setting,
+      scope: scope?.label ?? requires.scope,
+    });
   }
 
   protected edit(setting: SettingDefinition, value: SettingValue): void {
@@ -217,9 +222,9 @@ export class SettingsScopeTab {
       if (this.name() === name) this.edits.set({});
     } catch (error: unknown) {
       this.saveError.set(
-        apiErrorMessage(error, 'The settings could not be saved.', {
-          403: 'Your role does not allow to change the settings.',
-          404: 'There is no such scope of settings.',
+        apiErrorMessage(error, this.i18n.t('settings.not_saved'), {
+          403: this.i18n.t('settings.forbidden_change'),
+          404: this.i18n.t('settings.no_scope'),
         }),
       );
     } finally {

@@ -1,6 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import {
   RedirectTargetFields,
@@ -14,22 +15,22 @@ import { RedirectsService } from './redirects.service';
 // of its own; afterwards the redirect shows
 @Component({
   selector: 'app-redirect-create',
-  imports: [RedirectTargetFields, RouterLink],
+  imports: [RedirectTargetFields, RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/redirects"
-        aria-label="All redirects"
+        [attr.aria-label]="'redirects.all_redirects' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Create redirect</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'redirects.create' | t }}</h1>
     </header>
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); create()">
       <div>
-        <label class="form-label" for="source-domain">Domain</label>
+        <label class="form-label" for="source-domain">{{ 'redirects.domain' | t }}</label>
         <input
           class="form-control font-monospace text-break"
           id="source-domain"
@@ -41,9 +42,7 @@ import { RedirectsService } from './redirects.service';
           [value]="sourceDomain()"
           (input)="sourceDomain.set($any($event.target).value)"
         />
-        <span class="form-text"
-          >Every request for it is redirected. It needs a DNS record pointing at the server.</span
-        >
+        <span class="form-text">{{ 'redirects.create_page.domain_hint' | t }}</span>
       </div>
 
       <app-redirect-target-fields [(type)]="type" [(domain)]="domain" [(bucket)]="bucket" />
@@ -53,14 +52,16 @@ import { RedirectsService } from './redirects.service';
       }
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/redirects">Cancel</a>
+        <a class="btn btn-outline-secondary" routerLink="/redirects">{{
+          'redirects.cancel' | t
+        }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!complete() || creating()">
           @if (creating()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           } @else {
             <i class="sak-icon-plus" aria-hidden="true"></i>
           }
-          Create redirect
+          {{ 'redirects.create' | t }}
         </button>
       </div>
     </form>
@@ -70,6 +71,7 @@ export class RedirectCreate {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(RedirectsService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   protected readonly sourceDomain = signal('');
   protected readonly type = signal<TargetType>('domain');
@@ -100,17 +102,17 @@ export class RedirectCreate {
         next: () => void this.router.navigate(['/redirects', sourceDomain.toLowerCase()]),
         error: (error: unknown) => {
           this.creating.set(false);
-          this.createError.set(createErrorMessage(error, sourceDomain));
+          this.createError.set(createErrorMessage(this.i18n, error, sourceDomain));
         },
       });
   }
 }
 
 // what the api answered, or what its status tells
-function createErrorMessage(error: unknown, domain: string): string {
-  return apiErrorMessage(error, 'The redirect could not be created.', {
-    403: 'Your role does not allow to create redirects.',
-    409: `${domain} is redirected already.`,
-    422: 'The bucket is unknown or not served at a domain.',
+function createErrorMessage(i18n: I18n, error: unknown, domain: string): string {
+  return apiErrorMessage(error, i18n.t('redirects.create_page.failed'), {
+    403: i18n.t('redirects.create_page.forbidden'),
+    409: i18n.t('redirects.create_page.exists', { domain }),
+    422: i18n.t('redirects.bucket_unknown'),
   });
 }

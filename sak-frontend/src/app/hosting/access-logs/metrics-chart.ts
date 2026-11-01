@@ -1,3 +1,4 @@
+import { TextKey } from '../../i18n/i18n';
 import { CHART_ACCENT } from './chart-config';
 import { SiteMetrics } from './access-logs.service';
 
@@ -5,11 +6,11 @@ import { SiteMetrics } from './access-logs.service';
 
 export type StatusClassKey = '2xx' | '3xx' | '4xx' | '5xx';
 
-export const STATUS_CLASS_LABELS: Record<StatusClassKey, string> = {
-  '2xx': 'Success',
-  '3xx': 'Redirect',
-  '4xx': 'Client error',
-  '5xx': 'Server error',
+export const STATUS_CLASS_LABELS: Record<StatusClassKey, TextKey> = {
+  '2xx': 'hosting.logs.status.success',
+  '3xx': 'hosting.logs.status.redirect',
+  '4xx': 'hosting.logs.status.client_error',
+  '5xx': 'hosting.logs.status.server_error',
 };
 
 export const STATUS_CLASS_COLORS: Record<StatusClassKey, string> = {

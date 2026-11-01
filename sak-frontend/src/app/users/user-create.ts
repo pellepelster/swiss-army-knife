@@ -1,6 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { UsersService } from './users.service';
 
@@ -18,22 +19,22 @@ export function validEmail(email: string): boolean {
 // link on the login page
 @Component({
   selector: 'app-user-create',
-  imports: [RouterLink],
+  imports: [RouterLink, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header class="d-flex flex-wrap align-items-center gap-2 py-3">
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/users"
-        aria-label="All users"
+        [attr.aria-label]="'users.all_users' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
-      <h1 class="h3 mb-0 flex-grow-1 text-break">Add user</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.add_user' | t }}</h1>
     </header>
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); add()">
       <div>
-        <label class="form-label" for="user-email">E-mail address</label>
+        <label class="form-label" for="user-email">{{ 'users.email' | t }}</label>
         <input
           #emailField
           class="form-control"
@@ -51,15 +52,13 @@ export function validEmail(email: string): boolean {
         />
         @if (emailInvalid()) {
           <div class="invalid-feedback" id="user-email-error">
-            An e-mail address like name&#64;example.org is needed.
+            {{ 'users.email_invalid' | t }}
           </div>
         }
-        <span class="form-text" id="user-email-hint"
-          >The user signs in with a link sent to it. No mail goes out now.</span
-        >
+        <span class="form-text" id="user-email-hint">{{ 'users.email_hint' | t }}</span>
       </div>
       <div>
-        <label class="form-label" for="user-name">Name (optional)</label>
+        <label class="form-label" for="user-name">{{ 'users.name' | t }}</label>
         <input
           #nameField
           class="form-control"
@@ -69,7 +68,7 @@ export function validEmail(email: string): boolean {
           [value]="name()"
           (input)="name.set(nameField.value)"
         />
-        <span class="form-text">Shown instead of the address.</span>
+        <span class="form-text">{{ 'users.name_hint' | t }}</span>
       </div>
 
       @if (addError(); as error) {
@@ -77,14 +76,14 @@ export function validEmail(email: string): boolean {
       }
 
       <div class="d-flex flex-wrap justify-content-end gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/users">Cancel</a>
+        <a class="btn btn-outline-secondary" routerLink="/users">{{ 'users.cancel' | t }}</a>
         <button class="btn btn-primary" type="submit" [disabled]="!valid() || adding()">
           @if (adding()) {
             <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
           } @else {
             <i class="sak-icon-plus" aria-hidden="true"></i>
           }
-          Add user
+          {{ 'users.add_user' | t }}
         </button>
       </div>
     </form>
@@ -94,6 +93,7 @@ export class UserCreate {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(UsersService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   protected readonly maxNameLength = MAX_NAME_LENGTH;
   protected readonly email = signal('');
@@ -121,8 +121,8 @@ export class UserCreate {
         error: (error: unknown) => {
           this.adding.set(false);
           this.addError.set(
-            apiErrorMessage(error, 'The user could not be added.', {
-              403: 'Only an admin adds users.',
+            apiErrorMessage(error, this.i18n.t('users.not_added'), {
+              403: this.i18n.t('users.forbidden_add'),
             }),
           );
         },

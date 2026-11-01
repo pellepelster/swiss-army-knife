@@ -1,12 +1,14 @@
 import { Component, model } from '@angular/core';
+import { TranslatePipe } from '../i18n/i18n';
 import { DOMAIN_PATTERN } from '../shared/domains';
 
 // the domains a bucket is served at, one input each; blank inputs are left out by the caller
 @Component({
   selector: 'app-domain-list',
+  imports: [TranslatePipe],
   template: `
     <fieldset class="vstack gap-2">
-      <legend class="form-label fs-6 mb-0">Domains</legend>
+      <legend class="form-label fs-6 mb-0">{{ 'hosting.domains.legend' | t }}</legend>
       @for (domain of domains(); track $index; let index = $index) {
         <div class="input-group">
           <input
@@ -15,7 +17,7 @@ import { DOMAIN_PATTERN } from '../shared/domains';
             placeholder="www.example.org"
             autocomplete="off"
             autocapitalize="off"
-            [attr.aria-label]="'Domain ' + (index + 1)"
+            [attr.aria-label]="'hosting.domains.domain' | t: { number: index + 1 }"
             [attr.aria-invalid]="invalid(domain)"
             [class.is-invalid]="invalid(domain)"
             [value]="domain"
@@ -24,26 +26,25 @@ import { DOMAIN_PATTERN } from '../shared/domains';
           <button
             type="button"
             class="btn btn-outline-secondary"
-            [attr.aria-label]="'Delete domain ' + (index + 1)"
-            title="Delete domain"
+            [attr.aria-label]="'hosting.domains.delete_domain' | t: { number: index + 1 }"
+            [title]="'hosting.domains.delete' | t"
             (click)="delete(index)"
           >
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
       } @empty {
-        <p class="form-text mb-0">Not served at a domain yet.</p>
+        <p class="form-text mb-0">{{ 'hosting.domains.none' | t }}</p>
       }
       <button
         type="button"
         class="btn btn-outline-secondary btn-sm align-self-start"
         (click)="add()"
       >
-        <i class="sak-icon-plus" aria-hidden="true"></i> Add domain
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'hosting.domains.add' | t }}
       </button>
       <p class="form-text mb-0">
-        The objects of the bucket are served at every domain, redirects to the bucket lead to the
-        first one. Each domain needs a DNS record pointing at the server.
+        {{ 'hosting.domains.hint' | t }}
       </p>
     </fieldset>
   `,

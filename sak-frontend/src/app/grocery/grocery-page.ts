@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, filter, Observable, Subscription } from 'rxjs';
+import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { UndoToast } from '../shared/undo-toast';
 import { ListIcon } from './list-icon';
@@ -44,7 +45,7 @@ interface ItemGroup {
 // list shown, the suggestions are the items added before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
-  imports: [ListIcon, NgTemplateOutlet, RouterLink, UndoToast],
+  imports: [ListIcon, NgTemplateOutlet, RouterLink, TranslatePipe, UndoToast],
   host: {
     class: 'd-block container pb-5',
   },
@@ -53,7 +54,7 @@ interface ItemGroup {
       <a
         class="btn btn-link link-body-emphasis fs-4 px-2 py-0 text-decoration-none"
         routerLink="/grocery"
-        aria-label="All lists"
+        [attr.aria-label]="'grocery.all_lists' | t"
         ><i class="fa-solid fa-arrow-left" aria-hidden="true"></i
       ></a>
       @if (shown(); as list) {
@@ -62,22 +63,26 @@ interface ItemGroup {
       <h1 class="h3 mb-0 flex-grow-1 text-break" data-testid="list-name">
         {{ shown()?.name }}
         @if (shown()?.shared) {
-          <span class="badge border text-body-secondary fw-normal fs-6 align-middle">shared</span>
+          <span class="badge border text-body-secondary fw-normal fs-6 align-middle">{{
+            'grocery.shared_badge' | t
+          }}</span>
         }
       </h1>
       <!-- always in its place (UX-8): only the owner changes a list -->
       @if (shown()?.mine) {
-        <a class="btn btn-outline-secondary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
-          >Settings</a
+        <a
+          class="btn btn-outline-secondary"
+          [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+          >{{ 'grocery.settings' | t }}</a
         >
       } @else {
         <button
           type="button"
           class="btn btn-outline-secondary"
           disabled
-          title="Only the owner of a list changes it"
+          [title]="'grocery.only_owner' | t"
         >
-          Settings
+          {{ 'grocery.settings' | t }}
         </button>
       }
     </header>
@@ -88,7 +93,7 @@ interface ItemGroup {
 
     @if (shown()) {
       <form class="card card-body mb-4" (submit)="$event.preventDefault(); add()">
-        <label class="form-label" for="item-name">Item</label>
+        <label class="form-label" for="item-name">{{ 'grocery.list.item' | t }}</label>
         <div class="input-group">
           <input
             #name
@@ -106,7 +111,7 @@ interface ItemGroup {
             } @else {
               <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
             }
-            Add item
+            {{ 'grocery.list.add_item' | t }}
           </button>
         </div>
         <datalist id="grocery-suggestions">
@@ -126,7 +131,7 @@ interface ItemGroup {
       }
 
       @if (loaded() && !toBuy().length) {
-        <p class="text-center text-body-secondary fs-4 py-5">Nothing to buy yet, add something.</p>
+        <p class="text-center text-body-secondary fs-4 py-5">{{ 'grocery.list.empty' | t }}</p>
       }
     }
 
@@ -165,6 +170,7 @@ export class GroceryPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(I18n);
 
   // the route parameter, the id of the list shown
   readonly id = input.required<string>();
@@ -209,7 +215,8 @@ export class GroceryPage {
     const groups = new Map<string, ItemGroup>();
     for (const item of this.items()) {
       const label =
-        this.categories().find((each) => each.name === item.category)?.label ?? 'No category';
+        this.categories().find((each) => each.name === item.category)?.label ??
+        this.i18n.t('grocery.list.no_category');
       if (!groups.has(label)) groups.set(label, { label, items: [] });
       groups.get(label)!.items.push(item);
     }
@@ -301,7 +308,7 @@ export class GroceryPage {
         },
         error: (error: unknown) => {
           this.adding.set(false);
-          this.error.set(apiErrorMessage(error, 'The item could not be added.'));
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.not_added')));
         },
       });
   }
@@ -315,11 +322,11 @@ export class GroceryPage {
       return;
     }
     this.startPending(
-      `${item.name} bought`,
+      this.i18n.t('grocery.list.bought', { name: item.name }),
       () => {
         this.struck.update((ids) => without(ids, item.id));
         this.items.update((items) => items.filter((each) => each.id !== item.id));
-        this.send(this.service.deleteItem(item.id), 'The item could not be checked.');
+        this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_checked'));
       },
       () => this.struck.update((ids) => without(ids, item.id)),
     );
@@ -378,8 +385,8 @@ export class GroceryPage {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, 'The lists could not be loaded.', {
-              403: 'Your role does not allow to see the grocery lists.',
+            apiErrorMessage(error, this.i18n.t('grocery.lists_not_loaded'), {
+              403: this.i18n.t('grocery.lists_forbidden'),
             }),
           ),
       });
@@ -400,7 +407,7 @@ export class GroceryPage {
           this.loaded.set(true);
         },
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, 'The items could not be loaded.')),
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.items_not_loaded'))),
       });
   }
 }

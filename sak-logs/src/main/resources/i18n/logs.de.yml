@@ -3,3 +3,8 @@ invalid_range: "range muss einer von %{ranges} sein."
 empty_search: "q darf nicht leer sein."
 long_search: "q darf höchstens %{max} Zeichen haben."
 control_search: "q darf keine Steuerzeichen enthalten."
+range:
+  minutes: "%{count} Minuten"
+  hour: "1 Stunde"
+  hours: "%{count} Stunden"
+  days: "%{count} Tage"
