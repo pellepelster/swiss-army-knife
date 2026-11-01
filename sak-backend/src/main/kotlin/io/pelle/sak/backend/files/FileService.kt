@@ -58,7 +58,7 @@ class FileService(
         maxSize: Long = DEFAULT_MAX_SIZE,
     ) : this(FileRepository(database, clock), dir, maxSize)
 
-    // the content whose thumbnail is being made, by its sha-256
+    // the content and size whose thumbnail is being made, by its sha-256 and the size
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
 
     init {
@@ -87,22 +87,28 @@ class FileService(
     // where the content of a stored file is
     fun path(file: StoredFile): Path = dir.resolve(file.sha256.take(2)).resolve(file.sha256)
 
-    // a jpeg of at most THUMBNAIL_SIZE pixels on the longer side: of an image the image itself,
-    // scaled down when it is larger, of a recording its waveform; null when the file can not be
-    // read, which a marker next to it remembers, so it is not decoded again. One content is
-    // decoded once at a time, other contents meanwhile
-    fun thumbnail(file: StoredFile): Path? {
-        val thumbnail = path(file).resolveSibling("${file.sha256}$THUMBNAIL_SUFFIX")
+    // a jpeg of at most size pixels on the longer side, one of SCALED_SIZES: of an image the image
+    // itself, scaled down when it is larger, of a recording its waveform; null when the file can
+    // not be read, which a marker next to it remembers, so it is not decoded again. Each size is made
+    // once and kept next to the file; one content and size is decoded once at a time
+    fun thumbnail(
+        file: StoredFile,
+        size: Int = THUMBNAIL_SIZE,
+    ): Path? {
+        require(size in SCALED_SIZES) { "no scaled size $size" }
+        val suffix = if (size == THUMBNAIL_SIZE) THUMBNAIL_SUFFIX else ".thumbnail-$size.jpg"
+        val thumbnail = path(file).resolveSibling("${file.sha256}$suffix")
         val none = path(file).resolveSibling("${file.sha256}$NO_THUMBNAIL_SUFFIX")
         if (Files.exists(thumbnail)) return thumbnail
         if (Files.exists(none)) return null
-        val lock = thumbnailLocks.computeIfAbsent(file.sha256) { Any() }
+        val key = "${file.sha256}-$size"
+        val lock = thumbnailLocks.computeIfAbsent(key) { Any() }
         try {
             synchronized(lock) {
                 // made while waiting for the lock
                 if (Files.exists(thumbnail)) return thumbnail
                 if (Files.exists(none)) return null
-                val image = decodeThumbnail(file)
+                val image = decodeThumbnail(file, size)
                 if (image == null) {
                     write(none) {}
                     return null
@@ -113,16 +119,19 @@ class FileService(
         } finally {
             // the one waiting for the lock meanwhile finds the thumbnail made, as does one with a
             // lock of its own after this
-            thumbnailLocks.remove(file.sha256, lock)
+            thumbnailLocks.remove(key, lock)
         }
     }
 
-    private fun decodeThumbnail(file: StoredFile): BufferedImage? =
+    private fun decodeThumbnail(
+        file: StoredFile,
+        size: Int,
+    ): BufferedImage? =
         try {
             if (file.contentType.startsWith("audio/")) {
                 waveform(path(file))
             } else {
-                ImageIO.read(path(file).toFile())?.let { scaled(it, THUMBNAIL_SIZE) }
+                ImageIO.read(path(file).toFile())?.let { scaled(it, size) }
             }
         } catch (_: IOException) {
             null
@@ -230,6 +239,13 @@ class FileService(
         private const val HEAD_SIZE = 12
 
         const val THUMBNAIL_SIZE = 480
+
+        // the sizes a photo is scaled to, the apps take the smallest that fills the place it shows
+        // in on the screen; larger than the largest they take the file itself
+        val SCALED_SIZES = listOf(128, 256, THUMBNAIL_SIZE, 1024)
+
+        // the scaled size for one that was asked for, null for the file itself
+        fun scaledSize(asked: Int): Int? = SCALED_SIZES.firstOrNull { it >= asked }
 
         private const val THUMBNAIL_SUFFIX = ".thumbnail.jpg"
 

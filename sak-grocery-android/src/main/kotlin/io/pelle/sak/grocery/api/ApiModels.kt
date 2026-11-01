@@ -93,6 +93,20 @@ data class GroceryItemResponse(
     val unit: String? = null,
     // the name of a category, none when missing
     val category: String? = null,
+    // the file of its photo, none without one
+    val photoId: Int? = null,
+)
+
+// a file the file storage keeps, e.g. a photo
+@Serializable
+data class StoredFileResponse(
+    val id: Int,
+)
+
+// the photo of an item: a file the user uploaded that is an image
+@Serializable
+data class GroceryPhotoRequest(
+    val fileId: Int,
 )
 
 // a new item, always on a list; amount, unit and category are left out, the backend has none for them

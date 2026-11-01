@@ -66,16 +66,17 @@ class FileRepository(
             .fetchOne()!!
             .toFile()
     }
-
-    private fun FilesRecord.toFile() =
-        StoredFile(
-            id = id!!,
-            sha256 = sha256!!,
-            contentType = contentType!!,
-            size = size!!,
-            owner = owner!!,
-            createdAt = createdAt!!,
-            updatedAt = updatedAt,
-            discovered = discovered,
-        )
 }
+
+// a row of files as the file storage has it
+internal fun FilesRecord.toFile() =
+    StoredFile(
+        id = id!!,
+        sha256 = sha256!!,
+        contentType = contentType!!,
+        size = size!!,
+        owner = owner!!,
+        createdAt = createdAt!!,
+        updatedAt = updatedAt,
+        discovered = discovered,
+    )

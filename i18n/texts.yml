@@ -1177,6 +1177,15 @@ grocery:
       not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
       not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
       choose_icon: { en: "Choose icon", de: "Icon auswählen" }
+    photo:
+      attach: { en: "Attach photo", de: "Foto anhängen" }
+      replace: { en: "Replace photo", de: "Foto ersetzen" }
+      remove: { en: "Remove photo", de: "Foto entfernen" }
+      of: { en: "Photo of %{name}", de: "Foto von %{name}" }
+      close: { en: "Close the photo", de: "Foto schließen" }
+      not_attached: { en: "The photo could not be attached.", de: "Das Foto konnte nicht angehängt werden." }
+      not_removed: { en: "The photo could not be removed.", de: "Das Foto konnte nicht entfernt werden." }
+      not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
     list:
       item: { en: "Item", de: "Artikel" }
       no_category: { en: "No category", de: "Keine Kategorie" }
@@ -1211,6 +1220,7 @@ grocery:
     unknown_category: { en: "There is no category \"%{category}\".", de: "Es gibt keine Kategorie \"%{category}\"." }
     list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
     last_list: { en: "You can not delete your only list.", de: "Du kannst deine einzige Liste nicht löschen." }
+    not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
   web:
     page_title:
       create: { en: "Create list · Grocery", de: "Liste erstellen · Einkaufslisten" }
@@ -1253,6 +1263,9 @@ grocery:
       empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }
       bought: { en: "%{name} bought", de: "%{name} gekauft" }
   android:
+    photo_take: { en: "Take photo", de: "Foto aufnehmen" }
+    photo_choose: { en: "Choose photo", de: "Foto auswählen" }
+    photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
     no_lists:
       en: "You have no list yet, add one with the plus at the top."
       de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."

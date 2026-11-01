@@ -164,6 +164,44 @@ class GroceryApi(
             }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
+    // a photo into the file storage, a jpeg scaled down already; the id of its file
+    suspend fun uploadPhoto(jpeg: ByteArray): Int =
+        client
+            .post("$url/files") {
+                session()
+                contentType(ContentType.Image.JPEG)
+                setBody(jpeg)
+            }.answer<StoredFileResponse>(R.string.grocery_photo_not_attached)
+            .id
+
+    // the photo of the item, and of the user's next item of its name (GROCERY-11)
+    suspend fun attachPhoto(
+        id: Int,
+        fileId: Int,
+    ): GroceryItemResponse =
+        client
+            .put("$url/grocery/items/$id/photo") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(GroceryPhotoRequest(fileId))
+            }.answer(R.string.grocery_photo_not_attached)
+
+    suspend fun removePhoto(id: Int): GroceryItemResponse =
+        client.delete("$url/grocery/items/$id/photo") { session() }.answer(R.string.grocery_photo_not_removed)
+
+    // the photo of an item, scaled to the smallest size of at least size pixels, the photo itself
+    // without a size
+    suspend fun photo(
+        id: Int,
+        fileId: Int,
+        size: Int?,
+    ): ByteArray =
+        client
+            .get("$url/grocery/items/$id/photos/$fileId") {
+                session()
+                size?.let { parameter("size", it) }
+            }.answer(R.string.grocery_photo_not_loaded)
+
     // the ids of the lists the user sees as they change, server-sent events (LIST-4); opened calls
     // once the stream is open. It ends with an exception when the connection ends, an ApiException
     // with 401 when the session ended

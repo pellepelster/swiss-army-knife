@@ -1,10 +1,17 @@
 package io.pelle.sak.grocery.ui
 
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -54,26 +63,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.grocery.AppUpdate
@@ -86,7 +110,13 @@ import io.pelle.sak.grocery.UiText
 import io.pelle.sak.grocery.Undo
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
+import io.pelle.sak.grocery.scaledSize
+import io.pelle.sak.grocery.uiText
+import java.io.File
 import java.math.BigDecimal
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // the screens of the app, one at a time, as the model has it
 @Composable
@@ -462,6 +492,10 @@ private fun ListIcon(
     }
 }
 
+// how large the photo of an item shows in its row, and the space around it
+private val PHOTO_IN_ROW = 48.dp
+private val PHOTO_SPACE = 8.dp
+
 // No items to buy, 1 item to buy, 3 items to buy
 @Composable
 private fun toBuy(items: Int) =
@@ -575,6 +609,7 @@ private fun ListScreen(
     model: GroceryModel,
 ) {
     BackHandler(onBack = model::back)
+    screen.viewing?.let { PhotoDialog(it, model) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
         list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
@@ -612,7 +647,7 @@ private fun ListScreen(
                             )
                         }
                         itemsIndexed(group.items, key = { _, item -> item.id }) { index, item ->
-                            ItemRow(item, item.id in screen.struck, model::check)
+                            ItemRow(item, item.id in screen.struck, screen.photoBusy == item.id, model)
                             if (index < group.items.lastIndex) HorizontalDivider()
                         }
                     }
@@ -652,24 +687,166 @@ private fun NewItem(
     )
 }
 
-// a tap on the row checks the item, struck through while the check can be undone; no checkbox, the
-// row tells a screen reader it is one
+// the photo of the item, a tap shows it in full; the rest of the row checks the item, struck through
+// while the check can be undone, no checkbox, the row tells a screen reader it is one (GROCERY-3);
+// its menu attaches a photo, from the camera or the photos of the phone. The photo has the same
+// space to its left, above and below it
 @Composable
 private fun ItemRow(
     item: GroceryItemResponse,
     struck: Boolean,
-    check: (GroceryItemResponse) -> Unit,
+    busy: Boolean,
+    model: GroceryModel,
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val style = if (struck) TextStyle(textDecoration = TextDecoration.LineThrough, color = muted) else TextStyle.Default
-    ListItem(
-        headlineContent = { Text(item.name, style = style) },
-        trailingContent = quantity(item)?.let { { Text(it, style = style, color = muted) } },
-        modifier =
+    // the items are the main content, larger than the text around them
+    val text = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp)
+    val style = if (struck) text.copy(textDecoration = TextDecoration.LineThrough, color = muted) else text
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (item.photoId != null) {
+            val description = stringResource(R.string.grocery_photo_of, item.name)
+            Photo(
+                item,
+                model,
+                PHOTO_IN_ROW,
+                ContentScale.Crop,
+                Modifier
+                    .padding(start = PHOTO_SPACE, top = PHOTO_SPACE, bottom = PHOTO_SPACE)
+                    .size(PHOTO_IN_ROW)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClickLabel = description) { model.viewPhoto(item) }
+                    .semantics { contentDescription = description }
+                    .testTag("photo-${item.id}"),
+            )
+        }
+        Row(
             Modifier
-                .toggleable(value = struck, role = Role.Checkbox, onValueChange = { check(item) })
+                .weight(1f)
+                .heightIn(min = 56.dp)
+                .toggleable(value = struck, role = Role.Checkbox, onValueChange = { model.check(item) })
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .testTag("item-${item.id}"),
-    )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(item.name, style = style, modifier = Modifier.weight(1f))
+            quantity(item)?.let { Text(it, style = style, color = muted) }
+        }
+        ItemMenu(item, busy, model)
+    }
+}
+
+// the menu of an item: a photo from the camera or the photos of the phone, scaled down on the phone
+// before it is sent, or the photo removed; the camera only when the phone has one (UX-8)
+@Composable
+private fun ItemMenu(
+    item: GroceryItemResponse,
+    busy: Boolean,
+    model: GroceryModel,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var menu by rememberSaveable { mutableStateOf(false) }
+    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
+    val notRead = uiText(R.string.grocery_photo_not_read)
+    fun send(uri: Uri) =
+        scope.launch {
+            val jpeg = withContext(Dispatchers.IO) { runCatching { PhotoScaling.jpeg(context, uri) }.getOrNull() }
+            if (jpeg == null) model.photoFailed(notRead) else model.attachPhoto(item, jpeg)
+        }
+    // the camera writes into a file of the cache, shared with it by the file provider only
+    val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
+    val cameraUri =
+        remember {
+            cameraFile.parentFile?.mkdirs()
+            FileProvider.getUriForFile(context, "${context.packageName}.photos", cameraFile)
+        }
+    val camera =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+            if (taken) {
+                send(cameraUri).invokeOnCompletion { cameraFile.delete() }
+            }
+        }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { send(it) } }
+    Box {
+        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) {
+            if (busy) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Text("⋮", style = MaterialTheme.typography.titleLarge)
+            }
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_photo_take)) },
+                onClick = {
+                    menu = false
+                    camera.launch(cameraUri)
+                },
+                enabled = hasCamera && !busy,
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(if (item.photoId == null) R.string.grocery_photo_choose else R.string.grocery_photo_replace)) },
+                onClick = {
+                    menu = false
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                enabled = !busy,
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_photo_remove)) },
+                onClick = {
+                    menu = false
+                    model.removePhoto(item)
+                },
+                enabled = item.photoId != null && !busy,
+            )
+        }
+    }
+}
+
+// the photo of an item as large as it shows: fetched in the scaled size that fills that many pixels
+// of the screen (scaledSize), the photo itself when none is that large
+@Composable
+private fun Photo(
+    item: GroceryItemResponse,
+    model: GroceryModel,
+    showsAt: Dp,
+    scale: ContentScale,
+    modifier: Modifier = Modifier,
+    full: Boolean = false,
+) {
+    val pixels = with(LocalDensity.current) { showsAt.roundToPx() }
+    val bitmap by produceState<ImageBitmap?>(null, item.photoId, pixels) {
+        value =
+            model.photo(item, scaledSize(pixels), full)?.let { bytes ->
+                withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
+            }
+    }
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
+        bitmap?.let { Image(it, contentDescription = null, contentScale = scale, modifier = Modifier.fillMaxSize()) }
+    }
+}
+
+// the photo of an item in full over the list, as large as the screen; a tap or back closes it
+@Composable
+private fun PhotoDialog(
+    item: GroceryItemResponse,
+    model: GroceryModel,
+) {
+    val configuration = LocalConfiguration.current
+    val screen = maxOf(configuration.screenWidthDp, configuration.screenHeightDp).dp
+    Dialog(onDismissRequest = { model.viewPhoto(null) }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.9f))
+                .clickable(onClickLabel = stringResource(R.string.grocery_photo_close)) { model.viewPhoto(null) }
+                .testTag("photo-viewer"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Photo(item, model, screen, ContentScale.Fit, Modifier.fillMaxSize().padding(16.dp), full = true)
+        }
+    }
 }
 
 // what was checked last and the undo, while the bar of the time left shrinks; anew for every check

@@ -6,6 +6,7 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
+import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.grocery.GroceryList
@@ -134,7 +135,7 @@ class GroceryService(
     ): List<GroceryItem>? = repository.items(user, listId)?.sortedWith(compareBy({ categoryOrder(it.category) }, { it.id }))
 
     // on a list the user sees, an item names its list (LIST-1); the product of its name learns it
-    // (GROCERY-7)
+    // (GROCERY-11)
     fun addItem(
         user: String,
         listId: Int,
@@ -161,6 +162,24 @@ class GroceryService(
         val listId = repository.item(user, id)?.listId ?: return false
         return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
     }
+
+    // the photo of an item on a list the user sees: a file the user uploaded that is an image, or none
+    // to take it away; the product of its name of the user takes it too (GROCERY-11)
+    fun setPhoto(
+        user: String,
+        id: Int,
+        fileId: Int?,
+    ): GroceryPhotoResult {
+        if (repository.item(user, id) == null) return GroceryPhotoResult.NotFound
+        return repository.setPhoto(user, id, fileId)?.let { GroceryPhotoResult.Set(changed(it)) } ?: GroceryPhotoResult.NotAPhoto
+    }
+
+    // the file of the photo of an item the user sees, when it is that photo
+    fun photo(
+        user: String,
+        id: Int,
+        fileId: Int,
+    ): StoredFile? = repository.photo(user, id, fileId)
 
     // the products of the user whose name contains the text, the ones bought most and last first;
     // the ones to buy on the list are left out
@@ -278,7 +297,20 @@ class GroceryService(
 }
 
 // the texts of the grocery lists (grocery.backend in i18n/texts.yml)
+sealed interface GroceryPhotoResult {
+    data class Set(
+        val item: GroceryItem,
+    ) : GroceryPhotoResult
+
+    // the user sees no such item
+    data object NotFound : GroceryPhotoResult
+
+    // the file is no image the user uploaded
+    data object NotAPhoto : GroceryPhotoResult
+}
+
 object GroceryTexts : Catalog("grocery") {
+    val NOT_A_PHOTO = text("not_a_photo")
     val FRUIT_VEGETABLES = text("category.fruit_vegetables")
     val BAKERY = text("category.bakery")
     val DAIRY = text("category.dairy")

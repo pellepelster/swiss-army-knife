@@ -92,6 +92,13 @@ internal fun newer(
     return deployment.takeIf { compared < 0 }
 }
 
+// the sizes the backend scales a photo to, on its longer side (FileService.SCALED_SIZES)
+val SCALED_SIZES = listOf(128, 256, 480, 1024)
+
+// the size to ask for of a photo that shows at pixels on the screen: the smallest scaled size that
+// is at least as large, null when none is, the photo itself then
+fun scaledSize(pixels: Int): Int? = SCALED_SIZES.firstOrNull { it >= pixels }
+
 // a released version, 1.4.2, not latest
 internal fun isRelease(version: String?) = version != null && RELEASE.matches(version)
 
@@ -145,6 +152,10 @@ sealed interface Screen {
         // the answer of the check for updates of the menu while there is no update to offer, e.g. that
         // the app is up-to-date; on the home until the user dismisses it
         val updateNotice: UiText? = null,
+        // the item whose photo is being attached or removed
+        val photoBusy: Int? = null,
+        // the item whose photo shows in full, over the list
+        val viewing: GroceryItemResponse? = null,
     ) : Screen
 }
 
@@ -181,6 +192,12 @@ class GroceryModel(
 
     // the categories of the deployment, asked for once a session: they do not change
     private var categories: List<GroceryCategoryResponse>? = null
+
+    // the photos fetched, by their file and size, the ones used last kept; a file id names one photo
+    private val photos =
+        object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>) = size > MAX_PHOTOS
+        }
 
     // the app comes to the foreground: it hears the changes of the lists once the user is signed in,
     // a change of the list open, or of any list on the home, loads it again (LIST-4). A stream that
@@ -270,6 +287,7 @@ class GroceryModel(
         scope.launch {
             store.save(Stored())
             categories = null
+            photos.clear()
             restartListening()
             state.value = Screen.Deployment()
         }
@@ -469,6 +487,50 @@ class GroceryModel(
         }
     }
 
+    // the photo of an item, a jpeg the ui scaled down already (2048 pixels, no exif): stored, then
+    // attached; the list loads again, the photo shows then (GROCERY-11 teaches only this user)
+    fun attachPhoto(
+        item: GroceryItemResponse,
+        jpeg: ByteArray,
+    ) = photoRequest(item, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(item.id, api.uploadPhoto(jpeg)) }
+
+    fun removePhoto(item: GroceryItemResponse) = photoRequest(item, R.string.grocery_photo_not_removed) { api -> api.removePhoto(item.id) }
+
+    // what the ui could not make of a photo, e.g. one it can not read
+    fun photoFailed(error: UiText) = lists { it.copy(error = error) }
+
+    private fun photoRequest(
+        item: GroceryItemResponse,
+        @StringRes failure: Int,
+        call: suspend (GroceryApi) -> Unit,
+    ) {
+        val lists = state.value as? Screen.Lists ?: return
+        if (lists.photoBusy != null) return
+        state.value = lists.copy(photoBusy = item.id, error = null)
+        scope.launch {
+            val done = request(failure, { error -> lists { it.copy(photoBusy = null, error = error) } }, call)
+            lists { it.copy(photoBusy = null) }
+            if (done != null) load()
+        }
+    }
+
+    // the photo of an item in a size, fetched once; null without one, or when it can not be loaded,
+    // which the list says only for a photo shown in full
+    suspend fun photo(
+        item: GroceryItemResponse,
+        size: Int?,
+        full: Boolean = false,
+    ): ByteArray? {
+        val fileId = item.photoId ?: return null
+        val key = "$fileId-${size ?: "full"}"
+        photos[key]?.let { return it }
+        val failed: (UiText) -> Unit = { error -> if (full) lists { it.copy(viewing = null, error = error) } }
+        return request(R.string.grocery_photo_not_loaded, failed) { it.photo(item.id, fileId, size) }?.also { photos[key] = it }
+    }
+
+    // the photo in full over the list, or none
+    fun viewPhoto(item: GroceryItemResponse?) = lists { it.copy(viewing = item) }
+
     // a list of the user's own from the menu of its row on the home, after the user confirmed it
     // (UX-12); not the last one (LIST-1). A failure shows on the home
     fun deleteList(id: Int) {
@@ -541,6 +603,7 @@ class GroceryModel(
             loading?.cancel()
             store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, openList = null) }
             categories = null
+            photos.clear()
             restartListening()
             showSignIn(store.load())
         }
@@ -702,6 +765,7 @@ class GroceryModel(
     private suspend fun sessionEnded(e: ApiException) {
         dropPending()
         categories = null
+        photos.clear()
         store.update { it.copy(token = null, email = null, expiresAt = null, openList = null) }
         showSignIn(store.load(), error = e.text)
         restartListening()
@@ -738,6 +802,9 @@ class GroceryModel(
         // the waits before the stream of the changes is opened again
         const val RETRY_DELAY_MS = 1_000L
         const val MAX_RETRY_DELAY_MS = 30_000L
+
+        // how many photos are kept fetched
+        const val MAX_PHOTOS = 60
 
         val NOT_ASKED = uiText(R.string.error_not_asked)
     }

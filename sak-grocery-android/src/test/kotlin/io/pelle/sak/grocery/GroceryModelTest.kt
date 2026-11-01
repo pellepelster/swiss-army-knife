@@ -526,6 +526,61 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `a photo is fetched in the scaled size its place needs, once`() {
+        assertEquals(128, scaledSize(48))
+        assertEquals(256, scaledSize(132))
+        assertEquals(1024, scaledSize(1024))
+        assertNull(scaledSize(1025))
+    }
+
+    @Test
+    fun `the menu of an item attaches a photo, stored first, and removes it, a photo is fetched once a size`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9}"""
+            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
+            backend.answers["DELETE /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
+            backend.answers["GET /grocery/items/10/photos/9"] = HttpStatusCode.OK to "jpeg"
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.attachPhoto(model.item("Apples"), "jpeg".toByteArray())
+            assertEquals(10, (model.screen.value as Screen.Lists).photoBusy)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("POST /files jpeg"))
+            assertTrue(backend.requests.contains("""PUT /grocery/items/10/photo {"fileId":9}"""))
+            assertNull((model.screen.value as Screen.Lists).photoBusy)
+            // the list loaded again
+            assertEquals(2, backend.requests.count { it == "GET /grocery/lists/1/items" })
+
+            val apples = model.item("Apples").copy(photoId = 9)
+            assertEquals("jpeg", model.photo(apples, 128)?.decodeToString())
+            model.photo(apples, 128)
+            assertEquals(1, backend.requests.count { it.startsWith("GET /grocery/items/10/photos/9") })
+
+            model.removePhoto(apples)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/items/10/photo"))
+        }
+
+    @Test
+    fun `a photo that can not be attached says why, and one shown in full closes`() =
+        runTest {
+            backend.answers["POST /files"] =
+                HttpStatusCode.BadRequest to """{"errors":[{"code":"files.unsupported_type","message":"Only images."}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+            model.attachPhoto(model.item("Apples"), "nonsense".toByteArray())
+            advanceUntilIdle()
+            assertEquals("Only images.", (model.screen.value as Screen.Lists).error.english())
+            assertTrue(backend.requests.none { it.startsWith("PUT") })
+
+            val apples = model.item("Apples").copy(photoId = 9)
+            model.viewPhoto(apples)
+            assertNull(model.photo(apples, null, full = true))
+            assertNull((model.screen.value as Screen.Lists).viewing)
+        }
+
+    @Test
     fun `the categories are asked for once a session, not on every load`() =
         runTest {
             val model = signedIn()

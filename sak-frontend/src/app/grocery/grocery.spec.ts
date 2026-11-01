@@ -8,6 +8,7 @@ import { Subject } from 'rxjs';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import { GROCERY_UNDO_MS } from './grocery-page';
 import { groceryRoute } from './grocery.routes';
+import { PhotoScaler } from '../notes/photo-scaler';
 
 const categories = [
   { name: 'FRUIT_VEGETABLES', label: 'Fruit & vegetables' },
@@ -38,6 +39,7 @@ describe('Grocery', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: GroceryChanges, useValue: { changes: () => changes } },
+        { provide: PhotoScaler, useValue: { scale: async (photo: Blob) => photo } },
         provideHttpClient(),
         provideHttpClientTesting(),
         // the guard of the app is left out, the tests are signed in
@@ -46,6 +48,9 @@ describe('Grocery', () => {
     });
     http = TestBed.inject(HttpTestingController);
     harness = await RouterTestingHarness.create();
+    let objectUrls = 0;
+    URL.createObjectURL = vi.fn(() => `blob:photo-${++objectUrls}`);
+    URL.revokeObjectURL = vi.fn();
   });
 
   afterEach(() => http.verify());
@@ -167,6 +172,75 @@ describe('Grocery', () => {
     );
     expect(groups).toEqual(['Fruit & vegetables', 'Dairy & eggs', 'No category']);
     expect(button('Settings').getAttribute('href')).toBe('/grocery/lists/1/edit');
+  });
+
+  it('shows the photo of an item scaled to its place, a tap on it shows it in full and does not check the item', async () => {
+    await load(
+      [defaultList],
+      [{ ...item(2, 'Milk', 'DAIRY'), photoId: 9 }, item(3, 'Candles', null)],
+    );
+    // 48 css pixels at a pixel ratio of 1: the smallest scaled size, 128
+    http.expectOne('/api/v1/grocery/items/2/photos/9?size=128').flush(new Blob(['jpeg']));
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[data-testid=item-2] img')?.getAttribute('src')).toBe(
+        'blob:photo-1',
+      );
+    });
+    expect(page().querySelector('[data-testid=item-3] img')).toBeNull();
+
+    button('Photo of Milk').click();
+    await harness.fixture.whenStable();
+    // as large as the screen, 1024 by 768 in the tests
+    http.expectOne('/api/v1/grocery/items/2/photos/9?size=1024').flush(new Blob(['jpeg']));
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[data-testid=photo-viewer] img')).not.toBeNull();
+    });
+    const viewer = page().querySelector<HTMLElement>('[data-testid=photo-viewer]')!;
+    expect(viewer.querySelector('img')?.getAttribute('src')).toBe('blob:photo-2');
+    expect(page().querySelector('[role=status]')).toBeNull();
+    http.expectNone({ method: 'DELETE' });
+
+    viewer.click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=photo-viewer]')).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:photo-2');
+  });
+
+  it('attaches a photo from the menu of an item, scaled down and stored first, and removes it again', async () => {
+    await load([defaultList], [item(2, 'Milk', 'DAIRY')]);
+    const menu = await rowMenu('Milk');
+    expect(button('Remove photo', menu).disabled).toBe(true);
+    const chooser = page().querySelector<HTMLInputElement>('[data-testid=photo-input]')!;
+    const choose = vi.spyOn(chooser, 'click').mockImplementation(() => undefined);
+    button('Attach photo', menu).click();
+    expect(choose).toHaveBeenCalled();
+
+    const photo = new File(['jpeg'], 'milk.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(chooser, 'files', { value: [photo], configurable: true });
+    chooser.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      http.expectOne({ method: 'POST', url: '/api/v1/files' }).flush({ id: 9 }),
+    );
+    const attach = await vi.waitFor(() =>
+      http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2/photo' }),
+    );
+    expect(attach.request.body).toEqual({ fileId: 9 });
+    attach.flush({ ...item(2, 'Milk', 'DAIRY'), photoId: 9 });
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      http.expectOne('/api/v1/grocery/items/2/photos/9?size=128').flush(new Blob(['jpeg']));
+    });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-2] img')).not.toBeNull();
+
+    button('Remove photo', await rowMenu('Milk')).click();
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2/photo' })
+      .flush(item(2, 'Milk', 'DAIRY'));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-2] img')).toBeNull();
   });
 
   it('strikes a checked item through until the time is up, undoes it, the backend learns it afterwards', async () => {

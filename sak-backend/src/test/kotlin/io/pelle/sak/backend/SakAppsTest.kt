@@ -527,6 +527,65 @@ class SakAppsTest {
     }
 
     @Test
+    fun `a photo of an item shows to everyone who sees the list, scaled as asked, and comes back on the next item of its name, only for whoever attached it`() {
+        withServer { port ->
+            val admin = signIn(port)
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
+            val anna = signIn(port, email = "anna@example.org", mails = 2)
+            fun lists(session: String) = get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.map { it.jsonObject }
+            val shared = lists(admin).single().string("id")
+            put(port, "/api/v1/grocery/lists/$shared", """{"name":"Default","shared":true}""", admin).statusCode() shouldBe 200
+            fun add(
+                session: String,
+                list: String,
+                name: String,
+            ) = post(port, "/api/v1/grocery/items", """{"listId":$list,"name":"$name"}""", session).json()
+            fun upload(session: String) =
+                request(port, "POST", "/api/v1/files", session, Media.jpeg(600, 400), "application/octet-stream", HttpResponse.BodyHandlers.ofString())
+                    .json()
+                    .string("id")
+
+            val milk = add(admin, shared, "Milk").string("id")
+            val photo = upload(admin)
+            put(port, "/api/v1/grocery/items/$milk/photo", """{"fileId":$photo}""", admin).json().string("photoId") shouldBe photo
+
+            // scaled to the smallest size that is at least as large as asked, else the photo itself
+            fun image(
+                session: String,
+                query: String = "",
+            ) = request(port, "GET", "/api/v1/grocery/items/$milk/photos/$photo$query", session, answer = HttpResponse.BodyHandlers.ofByteArray())
+            image(admin, "?size=100").let {
+                it.statusCode() shouldBe 200
+                it.headers().firstValue("Cache-Control").get() shouldContain "immutable"
+                ImageIO.read(it.body().inputStream()).width shouldBe 128
+            }
+            ImageIO.read(image(admin, "?size=300").body().inputStream()).width shouldBe 480
+            ImageIO.read(image(admin, "?size=5000").body().inputStream()).width shouldBe 600
+            ImageIO.read(image(admin).body().inputStream()).width shouldBe 600
+            image(admin, "?size=0").statusCode() shouldBe 400
+            request(port, "GET", "/api/v1/grocery/items/$milk/photos/${photo.toInt() + 1}", admin, answer = HttpResponse.BodyHandlers.ofString())
+                .statusCode() shouldBe 404
+
+            // the other user sees it on the shared list, but attaches only a file of their own
+            image(anna, "?size=100").statusCode() shouldBe 200
+            put(port, "/api/v1/grocery/items/$milk/photo", """{"fileId":$photo}""", anna).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "grocery.not_a_photo"
+            }
+
+            // the next item of the name has the photo, of the one who attached it only (GROCERY-11)
+            add(admin, shared, " milk ").string("photoId") shouldBe photo
+            val own = lists(anna).single { it.string("mine") == "true" }.string("id")
+            add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
+
+            // taken away: from the item and from what the next item of the name takes
+            delete(port, "/api/v1/grocery/items/$milk/photo", admin).json().getValue("photoId") shouldBe JsonNull
+            image(admin, "?size=100").statusCode() shouldBe 404
+            add(admin, shared, "Milk").getValue("photoId") shouldBe JsonNull
+        }
+    }
+
+    @Test
     fun `streams the changes of the grocery lists as server-sent events, a change carries only the id of its list`() {
         withServer { port ->
             val session = signIn(port)
@@ -1081,6 +1140,8 @@ class SakAppsTest {
                         "/api/v1/grocery/lists/{id}/items",
                         "/api/v1/grocery/items",
                         "/api/v1/grocery/items/{id}",
+                        "/api/v1/grocery/items/{id}/photo",
+                        "/api/v1/grocery/items/{id}/photos/{fileId}",
                         "/api/v1/grocery/suggestions",
                         "/api/v1/grocery/suggestions/{id}",
                         "/api/v1/files",

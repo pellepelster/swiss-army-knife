@@ -1,22 +1,29 @@
-import { NgTemplateOutlet } from '@angular/common';
+import { AsyncPipe, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
   Component,
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
+  Injector,
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { debounceTime, filter, Observable, Subscription } from 'rxjs';
+import { debounceTime, filter, firstValueFrom, Observable, Subscription } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { PendingUndo } from '../shared/pending-undo';
 import { UndoToast } from '../shared/undo-toast';
 import { ListIcon } from './list-icon';
+import { GroceryPhotos, PHOTO_IN_ROW, PhotoInRowPipe } from './grocery-photos';
+import { PhotoScaler } from '../notes/photo-scaler';
+import { ActionMenu } from '../shared/action-menu';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import {
   GroceryCategory,
@@ -47,7 +54,17 @@ interface ItemGroup {
 // list shown, the suggestions are the items added before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
-  imports: [PageHeader, ListIcon, NgTemplateOutlet, RouterLink, TranslatePipe, UndoToast],
+  imports: [
+    ActionMenu,
+    AsyncPipe,
+    PageHeader,
+    ListIcon,
+    NgTemplateOutlet,
+    PhotoInRowPipe,
+    RouterLink,
+    TranslatePipe,
+    UndoToast,
+  ],
   host: {
     class: 'd-block container pb-5',
   },
@@ -125,11 +142,31 @@ interface ItemGroup {
     }
 
     <ng-template #row let-item>
-      <!-- a tap on the row checks the item (GROCERY-3), struck through while it can be undone -->
-      <li class="list-group-item p-0" [attr.data-testid]="'item-' + item.id">
+      <!-- the photo shows the photo in full, a tap on the rest of the row checks the item
+           (GROCERY-3), struck through while it can be undone; the menu attaches a photo -->
+      <li
+        class="list-group-item p-0 d-flex align-items-center"
+        [attr.data-testid]="'item-' + item.id"
+      >
+        @if (item.photoId) {
+          <button
+            type="button"
+            class="btn p-0 m-2 me-0 flex-shrink-0 border-0"
+            [attr.aria-label]="'grocery.photo.of' | t: { name: item.name }"
+            (click)="viewPhoto(item)"
+          >
+            <img
+              class="item-photo rounded object-fit-cover"
+              [src]="item | photoInRow | async"
+              alt=""
+              [width]="photoInRow"
+              [height]="photoInRow"
+            />
+          </button>
+        }
         <button
           type="button"
-          class="btn w-100 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
+          class="btn grocery-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
           [id]="'item-' + item.id"
           [attr.aria-pressed]="struck().has(item.id)"
           (click)="check(item)"
@@ -145,8 +182,69 @@ interface ItemGroup {
             }
           </span>
         </button>
+        <app-action-menu class="pe-1" [name]="item.name">
+          <button
+            type="button"
+            class="dropdown-item"
+            role="menuitem"
+            [disabled]="photoBusy() === item.id"
+            (click)="choosePhoto(item)"
+          >
+            <i class="fa-solid fa-camera me-2" aria-hidden="true"></i
+            >{{ (item.photoId ? 'grocery.photo.replace' : 'grocery.photo.attach') | t }}
+          </button>
+          <button
+            type="button"
+            class="dropdown-item"
+            role="menuitem"
+            [disabled]="!item.photoId || photoBusy() === item.id"
+            (click)="removePhoto(item)"
+          >
+            <i class="fa-solid fa-image me-2" aria-hidden="true"></i
+            >{{ 'grocery.photo.remove' | t }}
+          </button>
+        </app-action-menu>
       </li>
     </ng-template>
+
+    <!-- the photo chosen for the item of photoFor, from the camera or the files -->
+    <input
+      #photoInput
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+      data-testid="photo-input"
+      (change)="photoChosen($any($event.target))"
+    />
+
+    <!-- the photo in full, over the list; a tap or Escape closes it -->
+    @if (viewing(); as photo) {
+      <div
+        class="photo-viewer position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+        role="dialog"
+        [attr.aria-label]="'grocery.photo.of' | t: { name: photo.name }"
+        data-testid="photo-viewer"
+        (click)="closePhoto()"
+        (keydown.escape)="closePhoto()"
+        tabindex="-1"
+      >
+        @if (photo.url; as url) {
+          <img
+            class="mw-100 mh-100 rounded"
+            [src]="url"
+            [alt]="'grocery.photo.of' | t: { name: photo.name }"
+          />
+        } @else {
+          <i class="fa-solid fa-spinner fa-spin fs-1 text-white" aria-hidden="true"></i>
+        }
+        <button
+          type="button"
+          class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
+          [attr.aria-label]="'grocery.photo.close' | t"
+        ></button>
+      </div>
+    }
 
     @for (each of undoable(); track each) {
       <app-undo-toast [text]="each.text" [ms]="undoMs" (undo)="undo()" />
@@ -158,6 +256,10 @@ export class GroceryPage {
   private readonly service = inject(GroceryService);
   private readonly router = inject(Router);
   private readonly i18n = inject(I18n);
+  private readonly scaler = inject(PhotoScaler);
+  private readonly photos = inject(GroceryPhotos);
+  private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+  private readonly injector = inject(Injector);
 
   // the route parameter, the id of the list shown
   readonly id = input.required<string>();
@@ -319,6 +421,88 @@ export class GroceryPage {
 
   protected undo(): void {
     this.pending.undo();
+  }
+
+  // the item the photo input chooses a photo for, and the item whose photo is being sent
+  private photoFor: GroceryItem | null = null;
+  protected readonly photoBusy = signal<number | null>(null);
+  protected readonly photoInRow = PHOTO_IN_ROW;
+  private readonly photoInput = viewChild.required<ElementRef<HTMLInputElement>>('photoInput');
+
+  protected choosePhoto(item: GroceryItem): void {
+    this.photoFor = item;
+    this.photoInput().nativeElement.click();
+  }
+
+  // the photo scaled down and stored, then attached to the item; it shows once the item is loaded
+  // again, also on the other screens that show the list (LIST-4)
+  protected async photoChosen(input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    const item = this.photoFor;
+    input.value = '';
+    if (!file || !item) return;
+    this.photoBusy.set(item.id);
+    this.error.set(null);
+    try {
+      const scaled = await this.scaler.scale(file);
+      const stored = await firstValueFrom(this.service.uploadPhoto(scaled));
+      const changed = await firstValueFrom(this.service.attachPhoto(item.id, stored.id));
+      this.items.update((items) => items.map((each) => (each.id === changed.id ? changed : each)));
+    } catch (error: unknown) {
+      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_attached')));
+    } finally {
+      this.photoBusy.set(null);
+    }
+  }
+
+  protected removePhoto(item: GroceryItem): void {
+    this.photoBusy.set(item.id);
+    this.error.set(null);
+    this.service
+      .removePhoto(item.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (changed) => {
+          this.photoBusy.set(null);
+          this.items.update((items) =>
+            items.map((each) => (each.id === changed.id ? changed : each)),
+          );
+        },
+        error: (error: unknown) => {
+          this.photoBusy.set(null);
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_removed')));
+        },
+      });
+  }
+
+  // the photo in full: its name at once, the photo once it is fetched in the size of the screen
+  protected readonly viewing = signal<{ name: string; url: string | null } | null>(null);
+
+  protected async viewPhoto(item: GroceryItem): Promise<void> {
+    this.viewing.set({ name: item.name, url: null });
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLElement>('.photo-viewer')?.focus(),
+      {
+        injector: this.injector,
+      },
+    );
+    try {
+      const url = await this.photos.full(item);
+      if (this.viewing()?.name === item.name && this.viewing()?.url === null) {
+        this.viewing.set({ name: item.name, url });
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    } catch (error: unknown) {
+      this.viewing.set(null);
+      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_loaded')));
+    }
+  }
+
+  protected closePhoto(): void {
+    const url = this.viewing()?.url;
+    if (url) URL.revokeObjectURL(url);
+    this.viewing.set(null);
   }
 
   // not ended with the page: what was done is sent also when the page is left; a failure brings

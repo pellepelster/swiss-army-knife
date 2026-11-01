@@ -139,7 +139,7 @@ fun Route.files(
 }
 
 // only the browser of the signed in user keeps them, no shared cache
-private const val IMMUTABLE = "private, max-age=31536000, immutable"
+internal const val IMMUTABLE = "private, max-age=31536000, immutable"
 
 // the content of the stored files and of their thumbnails, which never change under the id, only
 // to the user that uploaded them; meant to be mounted behind the authentication like the uploads

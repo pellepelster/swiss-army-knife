@@ -211,7 +211,7 @@ fun Application.apps(
                         }
                         route("/grocery") {
                             requireRole(Role.ADMIN, Role.USER)
-                            grocery(groceryService)
+                            grocery(groceryService, fileService)
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)

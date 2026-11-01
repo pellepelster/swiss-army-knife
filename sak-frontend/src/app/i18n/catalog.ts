@@ -157,6 +157,16 @@ export const CATALOG = {
         no_such_list: 'There is no such list of yours.',
         not_loaded: 'The list could not be loaded.',
       },
+      photo: {
+        attach: 'Attach photo',
+        replace: 'Replace photo',
+        remove: 'Remove photo',
+        of: 'Photo of %{name}',
+        close: 'Close the photo',
+        not_attached: 'The photo could not be attached.',
+        not_removed: 'The photo could not be removed.',
+        not_loaded: 'The photo could not be loaded.',
+      },
       list: {
         item: 'Item',
         no_category: 'No category',
@@ -606,6 +616,16 @@ export const CATALOG = {
         shared_hint: 'Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie.',
         no_such_list: 'Du hast keine solche Liste.',
         not_loaded: 'Die Liste konnte nicht geladen werden.',
+      },
+      photo: {
+        attach: 'Foto anhängen',
+        replace: 'Foto ersetzen',
+        remove: 'Foto entfernen',
+        of: 'Foto von %{name}',
+        close: 'Foto schließen',
+        not_attached: 'Das Foto konnte nicht angehängt werden.',
+        not_removed: 'Das Foto konnte nicht entfernt werden.',
+        not_loaded: 'Das Foto konnte nicht geladen werden.',
       },
       list: {
         item: 'Artikel',

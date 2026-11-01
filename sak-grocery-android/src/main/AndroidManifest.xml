@@ -31,6 +31,16 @@
                 <data android:scheme="io.pelle.sak.grocery" android:host="signin" />
             </intent-filter>
         </activity>
+        <!-- the file the camera writes the photo of an item into, shared only with the camera app -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/photo_paths" />
+        </provider>
         <!-- what the installer of android answers to an update -->
         <receiver
             android:name=".update.UpdateReceiver"

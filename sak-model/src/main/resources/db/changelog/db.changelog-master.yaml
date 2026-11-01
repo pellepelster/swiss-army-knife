@@ -10,3 +10,6 @@ databaseChangeLog:
   - include:
       file: 0003-users.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0004-grocery-photos.yaml
+      relativeToChangelogFile: true

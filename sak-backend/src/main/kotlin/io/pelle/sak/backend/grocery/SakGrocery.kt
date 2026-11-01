@@ -32,6 +32,10 @@ import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.grocery.model.GroceryCategoryResponse
 import io.pelle.sak.backend.grocery.model.GroceryItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryNewItemRequest
+import io.pelle.sak.backend.grocery.model.GroceryPhotoRequest
+import io.pelle.sak.backend.files.FileService
+import io.pelle.sak.backend.files.IMMUTABLE
+import io.ktor.server.http.content.LocalPathContent
 import io.pelle.sak.backend.grocery.model.GroceryItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.GroceryListResponse
@@ -60,7 +64,7 @@ private fun GroceryList.response(user: String) =
     GroceryListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
-    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime())
+    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, category, createdAt.apiTime(), updatedAt?.apiTime(), photoFileId)
 
 private fun GroceryProduct.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, category)
 
@@ -85,10 +89,20 @@ private suspend fun ApplicationCall.respondItem(
     GroceryItemResult.NotFound -> respond(HttpStatusCode.NotFound)
 }
 
+private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoResult) =
+    when (result) {
+        is GroceryPhotoResult.Set -> respond(result.item.response())
+        GroceryPhotoResult.NotFound -> respond(HttpStatusCode.NotFound)
+        GroceryPhotoResult.NotAPhoto -> respondErrors(GroceryTexts.NOT_A_PHOTO)
+    }
+
 // the grocery lists of the signed in user and the shared ones of the others, their items and the
 // suggestions, meant to be mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
-fun Route.grocery(groceryService: GroceryService) {
+fun Route.grocery(
+    groceryService: GroceryService,
+    fileService: FileService,
+) {
     installApi()
 
     get("/categories") {
@@ -258,6 +272,99 @@ fun Route.grocery(groceryService: GroceryService) {
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request")
                 HttpStatusCode.NotFound { description = "The user sees no such item" }
+            }
+        }
+
+        put("/{id}/photo") {
+            val id = call.idParameter() ?: return@put
+            val request = call.receive<GroceryPhotoRequest>()
+            call.respondPhoto(withContext(Dispatchers.IO) { groceryService.setPhoto(call.owner, id, request.fileId) })
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Attach a photo to an item"
+            description =
+                "The photo is a file the user uploaded to the file storage (POST /files) that is an image. The user's " +
+                "suggestion of the item's name takes it too, so their next item of the name has it; no other user's (GROCERY-11)."
+            parameters { itemId() }
+            requestBody {
+                required = true
+                schema = jsonSchema<GroceryPhotoRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The item with its photo"
+                    schema = jsonSchema<GroceryItemResponse>()
+                }
+                errors(HttpStatusCode.BadRequest, "The file is no image the user uploaded, or a malformed request")
+                HttpStatusCode.NotFound { description = "The user sees no such item" }
+            }
+        }
+
+        delete("/{id}/photo") {
+            val id = call.idParameter() ?: return@delete
+            call.respondPhoto(withContext(Dispatchers.IO) { groceryService.setPhoto(call.owner, id, null) })
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Take the photo away from an item"
+            description = "From the item and from the user's suggestion of its name; the file stays in the file storage."
+            parameters { itemId() }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The item without a photo"
+                    schema = jsonSchema<GroceryItemResponse>()
+                }
+                HttpStatusCode.NotFound { description = "The user sees no such item" }
+            }
+        }
+
+        get("/{id}/photos/{fileId}") {
+            val id = call.idParameter() ?: return@get
+            val fileId = call.parameters["fileId"]?.toIntOrNull()
+            val size = call.request.queryParameters["size"]?.let { it.toIntOrNull()?.takeIf { size -> size > 0 } ?: -1 }
+            if (fileId == null || size == -1) {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+            val content =
+                withContext(Dispatchers.IO) {
+                    groceryService.photo(call.owner, id, fileId)?.let { file ->
+                        when (val scaled = size?.let(FileService::scaledSize)) {
+                            null -> LocalPathContent(fileService.path(file), ContentType.parse(file.contentType))
+                            else -> fileService.thumbnail(file, scaled)?.let { LocalPathContent(it, ContentType.Image.JPEG) }
+                        }
+                    }
+                }
+            if (content == null) {
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
+            // the file id names the photo, a new photo has another url
+            call.response.header(HttpHeaders.CacheControl, IMMUTABLE)
+            call.respond(content)
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "The photo of an item"
+            description =
+                "To every user who sees the list of the item. With size, the photo scaled to the smallest of " +
+                "${FileService.SCALED_SIZES.joinToString()} pixels on the longer side that is at least that large, a JPEG; " +
+                "larger, or without size, the photo itself. The apps ask for the size the photo shows at on the screen."
+            parameters {
+                itemId()
+                path("fileId") {
+                    description = "The file of the photo, photoId of the item"
+                    required = true
+                    schema = jsonSchema<Int>()
+                }
+                query("size") {
+                    description = "The pixels the photo is to have at least on its longer side"
+                    required = false
+                    schema = jsonSchema<Int>()
+                }
+            }
+            responses {
+                HttpStatusCode.OK { description = "The photo, scaled or itself" }
+                HttpStatusCode.BadRequest { description = "No file id or no positive size" }
+                HttpStatusCode.NotFound { description = "The user sees no such item, or the file is not its photo" }
             }
         }
 

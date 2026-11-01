@@ -13,4 +13,6 @@ data class GroceryItemResponse(
     val createdAt: String,
     // missing until it is changed
     val updatedAt: String?,
+    // the file of its photo, null without one; GET /grocery/items/{id}/photos/{photoId} shows it
+    val photoId: Int? = null,
 )

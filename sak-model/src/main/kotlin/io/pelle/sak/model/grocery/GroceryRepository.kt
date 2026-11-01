@@ -1,9 +1,12 @@
 package io.pelle.sak.model.grocery
 
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.files.StoredFile
+import io.pelle.sak.model.files.toFile
 import io.pelle.sak.model.jooq.tables.records.GroceryItemsRecord
 import io.pelle.sak.model.jooq.tables.records.GroceryListsRecord
 import io.pelle.sak.model.jooq.tables.records.GroceryProductsRecord
+import io.pelle.sak.model.jooq.tables.references.FILES
 import io.pelle.sak.model.jooq.tables.references.GROCERY_ITEMS
 import io.pelle.sak.model.jooq.tables.references.GROCERY_LISTS
 import io.pelle.sak.model.jooq.tables.references.GROCERY_PRODUCTS
@@ -53,9 +56,11 @@ data class GroceryItem(
     val category: String?,
     val createdAt: Instant,
     val updatedAt: Instant?,
+    // the file of its photo, null without one
+    val photoFileId: Int? = null,
 )
 
-// an item a user added before, what the suggestions are made of (GROCERY-7)
+// an item a user added before, what the suggestions are made of (GROCERY-11)
 data class GroceryProduct(
     val id: Int,
     val owner: String,
@@ -272,7 +277,7 @@ class GroceryRepository(
             ?.toItem()
 
     // the item on the list, null when the user does not see the list; the product of its name
-    // learns it, in the same transaction. The user is its owner (GROCERY-5)
+    // learns it, in the same transaction. The user is its owner (MODEL-5) and only their own product learns (GROCERY-11)
     fun insertItem(
         user: String,
         listId: Int,
@@ -282,6 +287,14 @@ class GroceryRepository(
             val dsl = DSL.using(configuration)
             if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult null
             val now = clock.instant()
+            // the photo the user attached to the product of the name before (GROCERY-11)
+            val photo =
+                dsl
+                    .select(GROCERY_PRODUCTS.PHOTO_FILE_ID)
+                    .from(GROCERY_PRODUCTS)
+                    .where(sameProduct(user, groceryNameKey(values.name)))
+                    .fetchOne()
+                    ?.value1()
             val item =
                 dsl
                     .insertInto(GROCERY_ITEMS)
@@ -293,6 +306,7 @@ class GroceryRepository(
                     .set(GROCERY_ITEMS.UNIT, values.unit)
                     .set(GROCERY_ITEMS.CATEGORY, values.category)
                     .set(GROCERY_ITEMS.CREATED_AT, now)
+                    .set(GROCERY_ITEMS.PHOTO_FILE_ID, photo)
                     .returning()
                     .fetchOne()!!
             learn(dsl, user, values, now)
@@ -317,6 +331,63 @@ class GroceryRepository(
             .returning()
             .fetchOne()
             ?.toItem()
+
+    // the photo of an item on a list the user sees, a file the user uploaded that is an image, or none;
+    // the product of its name of the user takes it too, so it comes back on the next item of the name,
+    // only theirs (GROCERY-11). Null when the user does not see the item or the file is no image of
+    // theirs; the file stays when the photo goes
+    fun setPhoto(
+        user: String,
+        id: Int,
+        fileId: Int?,
+    ): GroceryItem? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (fileId != null &&
+                !dsl.fetchExists(
+                    FILES,
+                    FILES.ID.eq(fileId),
+                    FILES.OWNER.eq(user),
+                    FILES.DELETED_AT.isNull,
+                    FILES.CONTENT_TYPE.startsWith("image/"),
+                )
+            ) {
+                return@transactionResult null
+            }
+            val now = clock.instant()
+            val item =
+                dsl
+                    .update(GROCERY_ITEMS)
+                    .set(GROCERY_ITEMS.PHOTO_FILE_ID, fileId)
+                    .set(GROCERY_ITEMS.UPDATED_AT, now)
+                    .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
+                    .returning()
+                    .fetchOne() ?: return@transactionResult null
+            dsl
+                .update(GROCERY_PRODUCTS)
+                .set(GROCERY_PRODUCTS.PHOTO_FILE_ID, fileId)
+                .set(GROCERY_PRODUCTS.UPDATED_AT, now)
+                .where(sameProduct(user, item.nameKey!!))
+                .execute()
+            item.toItem()
+        }
+
+    // the file of the photo of an item on a list the user sees, when it is that photo; whoever
+    // uploaded it, a shared list shows it to every user (LIST-2)
+    fun photo(
+        user: String,
+        id: Int,
+        fileId: Int,
+    ): StoredFile? =
+        database.dsl
+            .select(FILES.asterisk())
+            .from(GROCERY_ITEMS)
+            .join(FILES)
+            .on(FILES.ID.eq(GROCERY_ITEMS.PHOTO_FILE_ID))
+            .where(GROCERY_ITEMS.ID.eq(id), GROCERY_ITEMS.PHOTO_FILE_ID.eq(fileId), visibleItem(user), FILES.DELETED_AT.isNull)
+            .fetchOne()
+            ?.into(FILES)
+            ?.toFile()
 
     // bought (GROCERY-3); false when the user does not see its list. It stays as deleted
     fun deleteItem(
@@ -388,11 +459,7 @@ class GroceryRepository(
         now: Instant,
     ) {
         val key = groceryNameKey(values.name)
-        val same =
-            GROCERY_PRODUCTS.OWNER
-                .eq(owner)
-                .and(GROCERY_PRODUCTS.NAME_KEY.eq(key))
-                .and(GROCERY_PRODUCTS.DELETED_AT.isNull)
+        val same = sameProduct(owner, key)
         fun update() =
             dsl
                 .update(GROCERY_PRODUCTS)
@@ -425,13 +492,23 @@ class GroceryRepository(
         if (inserted == 0) update()
     }
 
+    // the live product of the owner of the normalized name (groceryNameKey)
+    private fun sameProduct(
+        owner: String,
+        key: String,
+    ): Condition =
+        GROCERY_PRODUCTS.OWNER
+            .eq(owner)
+            .and(GROCERY_PRODUCTS.NAME_KEY.eq(key))
+            .and(GROCERY_PRODUCTS.DELETED_AT.isNull)
+
     private fun itemsToBuy(listId: Int): Int =
         database.dsl.fetchCount(GROCERY_ITEMS, GROCERY_ITEMS.LIST_ID.eq(listId), GROCERY_ITEMS.DELETED_AT.isNull)
 
     private fun GroceryListsRecord.toList(items: Int) = GroceryList(id!!, owner!!, name!!, shared!!, createdAt!!, updatedAt, items, icon)
 
     private fun GroceryItemsRecord.toItem() =
-        GroceryItem(id!!, listId!!, owner!!, name!!, amount, unit, category, createdAt!!, updatedAt)
+        GroceryItem(id!!, listId!!, owner!!, name!!, amount, unit, category, createdAt!!, updatedAt, photoFileId)
 
     private fun GroceryProductsRecord.toProduct() = GroceryProduct(id!!, owner!!, name!!, amount, unit, category, timesUsed!!, lastUsedAt!!)
 }

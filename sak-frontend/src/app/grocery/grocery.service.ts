@@ -28,6 +28,8 @@ export interface GroceryItem {
   amount: number | null;
   unit: string | null;
   category: string | null;
+  // the file of its photo, null without one
+  photoId?: number | null;
 }
 
 // what is given of an item
@@ -93,6 +95,22 @@ export class GroceryService {
   // checks the item: it is bought and deleted
   deleteItem(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/grocery/items/${id}`);
+  }
+
+  // a photo into the file storage, scaled down already; the id of its file
+  uploadPhoto(photo: Blob): Observable<{ id: number }> {
+    return this.http.post<{ id: number }>('/api/v1/files', photo, {
+      headers: { 'Content-Type': photo.type || 'application/octet-stream' },
+    });
+  }
+
+  // the photo of the item, also of the user's next item of its name (GROCERY-11)
+  attachPhoto(id: number, fileId: number): Observable<GroceryItem> {
+    return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}/photo`, { fileId });
+  }
+
+  removePhoto(id: number): Observable<GroceryItem> {
+    return this.http.delete<GroceryItem>(`/api/v1/grocery/items/${id}/photo`);
   }
 
   // the items added before whose name contains the text, the ones to buy on the list left out

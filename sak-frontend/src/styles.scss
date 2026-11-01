@@ -361,3 +361,29 @@ a {
     height: 28px;
   }
 }
+
+// the photo of a grocery item in its row, square, cut to fit
+.item-photo {
+  width: 48px;
+  height: 48px;
+}
+
+// a flex child that may shrink below its content, e.g. a long name next to a photo and a menu
+.min-w-0 {
+  min-width: 0;
+}
+
+// a photo in full over the page, the page dimmed behind it
+.photo-viewer {
+  z-index: 1100;
+  background: rgb(0 0 0 / 85%);
+  cursor: zoom-out;
+}
+
+// an item of a grocery list, the main content of the app: as large as a lead text, not the small bold
+// text of a button it is
+.grocery-item {
+  --bs-btn-font-size: 1.25rem;
+  --bs-btn-font-weight: 400;
+  --bs-btn-line-height: 1.4;
+}
