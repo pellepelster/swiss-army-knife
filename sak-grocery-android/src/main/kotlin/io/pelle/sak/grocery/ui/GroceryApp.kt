@@ -3,6 +3,7 @@ package io.pelle.sak.grocery.ui
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -60,14 +61,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,22 +113,89 @@ import io.pelle.sak.grocery.Undo
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
 import io.pelle.sak.grocery.scaledSize
-import io.pelle.sak.grocery.uiText
 import java.io.File
 import java.math.BigDecimal
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // the screens of the app, one at a time, as the model has it
 @Composable
 fun GroceryApp(model: GroceryModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
-    when (val current = screen) {
-        Screen.Starting -> Busy()
-        is Screen.Deployment -> DeploymentScreen(current, model::connect)
-        is Screen.SignIn -> SignInScreen(current, model)
-        is Screen.Lists -> ListsScreen(current, model)
+    CompositionLocalProvider(LocalPhotoPicker provides rememberPhotoPicker(model)) {
+        when (val current = screen) {
+            Screen.Starting -> Busy()
+            is Screen.Deployment -> DeploymentScreen(current, model::connect)
+            is Screen.SignIn -> SignInScreen(current, model)
+            is Screen.Lists -> ListsScreen(current, model)
+        }
+    }
+}
+
+// takes a photo with the camera or chooses one of the phone for an item; whether the phone has a camera
+class PhotoPicker(
+    val hasCamera: Boolean,
+    val take: (itemId: Int) -> Unit,
+    val choose: (itemId: Int) -> Unit,
+)
+
+private val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
+
+// the camera and the photo picker of the app, at its root: always there, also while the app starts
+// anew after android ended it while the camera was open, so their answer is never lost. The item
+// they are for is kept with the saved state; the photo is read and sent by the model, which waits for
+// the lists
+@Composable
+private fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
+    val context = LocalContext.current
+    var pendingItem by rememberSaveable { mutableStateOf<Int?>(null) }
+    // the camera writes into a file of the cache, shared with it by the file provider only
+    val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
+    val cameraUri =
+        remember {
+            cameraFile.parentFile?.mkdirs()
+            FileProvider.getUriForFile(context, "${context.packageName}.photos", cameraFile)
+        }
+    fun send(
+        uri: Uri,
+        done: () -> Unit = {},
+    ) {
+        val itemId = pendingItem ?: return
+        pendingItem = null
+        model.attachPhoto(itemId) {
+            withContext(Dispatchers.IO) {
+                try {
+                    PhotoScaling.jpeg(context, uri)
+                } catch (e: Exception) {
+                    Log.w("sak-grocery", "the photo $uri could not be read", e)
+                    null
+                } finally {
+                    done()
+                }
+            }
+        }
+    }
+    val camera =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+            if (taken) send(cameraUri) { cameraFile.delete() } else pendingItem = null
+        }
+    val picker =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) send(uri) else pendingItem = null
+        }
+    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
+    return remember(camera, picker) {
+        PhotoPicker(
+            hasCamera,
+            take = { itemId ->
+                pendingItem = itemId
+                camera.launch(cameraUri)
+            },
+            choose = { itemId ->
+                pendingItem = itemId
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+        )
     }
 }
 
@@ -735,38 +804,16 @@ private fun ItemRow(
     }
 }
 
-// the menu of an item: a photo from the camera or the photos of the phone, scaled down on the phone
-// before it is sent, or the photo removed; the camera only when the phone has one (UX-8)
+// the menu of an item: a photo from the camera or the photos of the phone (PhotoPicker), scaled down
+// on the phone before it is sent, or the photo removed; the camera only when the phone has one (UX-8)
 @Composable
 private fun ItemMenu(
     item: GroceryItemResponse,
     busy: Boolean,
     model: GroceryModel,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val photos = LocalPhotoPicker.current
     var menu by rememberSaveable { mutableStateOf(false) }
-    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
-    val notRead = uiText(R.string.grocery_photo_not_read)
-    fun send(uri: Uri) =
-        scope.launch {
-            val jpeg = withContext(Dispatchers.IO) { runCatching { PhotoScaling.jpeg(context, uri) }.getOrNull() }
-            if (jpeg == null) model.photoFailed(notRead) else model.attachPhoto(item, jpeg)
-        }
-    // the camera writes into a file of the cache, shared with it by the file provider only
-    val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
-    val cameraUri =
-        remember {
-            cameraFile.parentFile?.mkdirs()
-            FileProvider.getUriForFile(context, "${context.packageName}.photos", cameraFile)
-        }
-    val camera =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-            if (taken) {
-                send(cameraUri).invokeOnCompletion { cameraFile.delete() }
-            }
-        }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { send(it) } }
     Box {
         IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) {
             if (busy) {
@@ -780,15 +827,15 @@ private fun ItemMenu(
                 text = { Text(stringResource(R.string.grocery_photo_take)) },
                 onClick = {
                     menu = false
-                    camera.launch(cameraUri)
+                    photos.take(item.id)
                 },
-                enabled = hasCamera && !busy,
+                enabled = photos.hasCamera && !busy,
             )
             DropdownMenuItem(
                 text = { Text(stringResource(if (item.photoId == null) R.string.grocery_photo_choose else R.string.grocery_photo_replace)) },
                 onClick = {
                     menu = false
-                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    photos.choose(item.id)
                 },
                 enabled = !busy,
             )

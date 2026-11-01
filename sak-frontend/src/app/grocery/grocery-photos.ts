@@ -44,12 +44,13 @@ export class GroceryPhotos {
   }
 }
 
-// the object url of the photo of an item in its row, for [src]; null until it is fetched
+// the object url of the photo of an item in its row, for [src]; null until it is fetched, and when
+// it can not be, e.g. another user took it away meanwhile: the row shows no photo then
 @Pipe({ name: 'photoInRow' })
 export class PhotoInRowPipe implements PipeTransform {
   private readonly photos = inject(GroceryPhotos);
 
-  transform(item: GroceryItem): Promise<string> {
-    return this.photos.inRow(item);
+  transform(item: GroceryItem): Promise<string | null> {
+    return this.photos.inRow(item).catch(() => null);
   }
 }

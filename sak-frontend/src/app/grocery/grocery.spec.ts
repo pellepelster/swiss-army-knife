@@ -208,6 +208,20 @@ describe('Grocery', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:photo-2');
   });
 
+  it('a photo that can not be loaded leaves the row without one, the phone offers its camera and its photos', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await load([defaultList], [{ ...item(2, 'Milk', 'DAIRY'), photoId: 9 }]);
+    http
+      .expectOne('/api/v1/grocery/items/2/photos/9?size=128')
+      .flush(null, { status: 404, statusText: 'Not Found' });
+    await harness.fixture.whenStable();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-2] img')?.getAttribute('src')).toBeFalsy();
+    expect(errors).not.toHaveBeenCalled();
+    // no capture: not the camera alone
+    expect(page().querySelector('[data-testid=photo-input]')?.hasAttribute('capture')).toBe(false);
+  });
+
   it('attaches a photo from the menu of an item, scaled down and stored first, and removes it again', async () => {
     await load([defaultList], [item(2, 'Milk', 'DAIRY')]);
     const menu = await rowMenu('Milk');

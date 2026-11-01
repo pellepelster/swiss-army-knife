@@ -207,12 +207,12 @@ interface ItemGroup {
       </li>
     </ng-template>
 
-    <!-- the photo chosen for the item of photoFor, from the camera or the files -->
+    <!-- the photo chosen for the item of photoFor; no capture, so a phone offers the camera and the
+         photos it has -->
     <input
       #photoInput
       type="file"
       accept="image/*"
-      capture="environment"
       hidden
       data-testid="photo-input"
       (change)="photoChosen($any($event.target))"
@@ -476,10 +476,12 @@ export class GroceryPage {
   }
 
   // the photo in full: its name at once, the photo once it is fetched in the size of the screen
-  protected readonly viewing = signal<{ name: string; url: string | null } | null>(null);
+  protected readonly viewing = signal<{ id: number; name: string; url: string | null } | null>(
+    null,
+  );
 
   protected async viewPhoto(item: GroceryItem): Promise<void> {
-    this.viewing.set({ name: item.name, url: null });
+    this.viewing.set({ id: item.id, name: item.name, url: null });
     afterNextRender(
       () => this.host.nativeElement.querySelector<HTMLElement>('.photo-viewer')?.focus(),
       {
@@ -488,12 +490,14 @@ export class GroceryPage {
     );
     try {
       const url = await this.photos.full(item);
-      if (this.viewing()?.name === item.name && this.viewing()?.url === null) {
-        this.viewing.set({ name: item.name, url });
+      // still the photo shown, not closed or another one meanwhile
+      if (this.viewing()?.id === item.id && this.viewing()?.url === null) {
+        this.viewing.set({ id: item.id, name: item.name, url });
       } else {
         URL.revokeObjectURL(url);
       }
     } catch (error: unknown) {
+      if (this.viewing()?.id !== item.id) return;
       this.viewing.set(null);
       this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_loaded')));
     }

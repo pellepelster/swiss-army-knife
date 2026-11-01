@@ -24,7 +24,10 @@ object PhotoScaling {
         uri: Uri,
     ): ByteArray {
         val resolver = context.contentResolver
-        fun <T> read(block: (java.io.InputStream) -> T): T = resolver.openInputStream(uri)?.use(block) ?: throw IOException("$uri can not be read")
+        // the stream opened anew for each read; what the block answers may be null, e.g. the bounds
+        // only decoding answers none and fills its options
+        fun <T> read(block: (java.io.InputStream) -> T): T =
+            (resolver.openInputStream(uri) ?: throw IOException("$uri can not be opened")).use(block)
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         read { BitmapFactory.decodeStream(it, null, bounds) }

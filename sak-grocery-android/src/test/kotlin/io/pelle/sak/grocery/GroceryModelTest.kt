@@ -543,8 +543,7 @@ class GroceryModelTest {
             val model = signedIn()
             advanceUntilIdle()
 
-            model.attachPhoto(model.item("Apples"), "jpeg".toByteArray())
-            assertEquals(10, (model.screen.value as Screen.Lists).photoBusy)
+            model.attachPhoto(10) { "jpeg".toByteArray() }
             advanceUntilIdle()
             assertTrue(backend.requests.contains("POST /files jpeg"))
             assertTrue(backend.requests.contains("""PUT /grocery/items/10/photo {"fileId":9}"""))
@@ -563,16 +562,40 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `a photo the camera took while android ended the app is attached once the lists are back`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9}"""
+            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", "FRUIT_VEGETABLES")
+            val store = signedInStore(openList = 1)
+            backend.dispatcher = StandardTestDispatcher(testScheduler)
+            val model = GroceryModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC))
+            // the answer of the camera comes before the app has started
+            model.attachPhoto(10) { "jpeg".toByteArray() }
+            runCurrent()
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+
+            model.start()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/10/photo {"fileId":9}"""))
+        }
+
+    @Test
     fun `a photo that can not be attached says why, and one shown in full closes`() =
         runTest {
             backend.answers["POST /files"] =
                 HttpStatusCode.BadRequest to """{"errors":[{"code":"files.unsupported_type","message":"Only images."}]}"""
             val model = signedIn()
             advanceUntilIdle()
-            model.attachPhoto(model.item("Apples"), "nonsense".toByteArray())
+            model.attachPhoto(10) { "nonsense".toByteArray() }
             advanceUntilIdle()
             assertEquals("Only images.", (model.screen.value as Screen.Lists).error.english())
             assertTrue(backend.requests.none { it.startsWith("PUT") })
+
+            // what the phone can not read is not sent
+            model.attachPhoto(10) { null }
+            advanceUntilIdle()
+            assertEquals("The photo could not be read.", (model.screen.value as Screen.Lists).error.english())
+            assertEquals(1, backend.requests.count { it.startsWith("POST /files") })
 
             val apples = model.item("Apples").copy(photoId = 9)
             model.viewPhoto(apples)

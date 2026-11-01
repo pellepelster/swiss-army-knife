@@ -487,26 +487,35 @@ class GroceryModel(
         }
     }
 
-    // the photo of an item, a jpeg the ui scaled down already (2048 pixels, no exif): stored, then
-    // attached; the list loads again, the photo shows then (GROCERY-11 teaches only this user)
+    // the photo of an item, a jpeg the ui scaled down (2048 pixels, no exif): stored, then attached;
+    // the list loads again, the photo shows then (GROCERY-11 teaches only this user).
+    // read makes the jpeg of what the user took or chose, null when it can not be read. It waits for
+    // the lists: the camera may come back to an app android ended meanwhile, which starts anew
     fun attachPhoto(
-        item: GroceryItemResponse,
-        jpeg: ByteArray,
-    ) = photoRequest(item, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(item.id, api.uploadPhoto(jpeg)) }
+        itemId: Int,
+        read: suspend () -> ByteArray?,
+    ) {
+        scope.launch {
+            state.first { it is Screen.Lists }
+            val jpeg = read()
+            if (jpeg == null) {
+                lists { it.copy(error = uiText(R.string.grocery_photo_not_read)) }
+                return@launch
+            }
+            photoRequest(itemId, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(itemId, api.uploadPhoto(jpeg)) }
+        }
+    }
 
-    fun removePhoto(item: GroceryItemResponse) = photoRequest(item, R.string.grocery_photo_not_removed) { api -> api.removePhoto(item.id) }
-
-    // what the ui could not make of a photo, e.g. one it can not read
-    fun photoFailed(error: UiText) = lists { it.copy(error = error) }
+    fun removePhoto(item: GroceryItemResponse) = photoRequest(item.id, R.string.grocery_photo_not_removed) { api -> api.removePhoto(item.id) }
 
     private fun photoRequest(
-        item: GroceryItemResponse,
+        itemId: Int,
         @StringRes failure: Int,
         call: suspend (GroceryApi) -> Unit,
     ) {
         val lists = state.value as? Screen.Lists ?: return
         if (lists.photoBusy != null) return
-        state.value = lists.copy(photoBusy = item.id, error = null)
+        state.value = lists.copy(photoBusy = itemId, error = null)
         scope.launch {
             val done = request(failure, { error -> lists { it.copy(photoBusy = null, error = error) } }, call)
             lists { it.copy(photoBusy = null) }
