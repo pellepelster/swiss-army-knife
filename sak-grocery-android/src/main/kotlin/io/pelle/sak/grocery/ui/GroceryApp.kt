@@ -250,16 +250,30 @@ private fun ListsScreen(
     }
 }
 
-// who is signed in and the sign-out, at the top right of every screen of the lists
+// who is signed in and the sign-out, at the top right of every screen of the lists; on the home also
+// the check for updates of the app
 @Composable
 private fun Menu(
     screen: Screen.Lists,
     model: GroceryModel,
+    home: Boolean = false,
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
-    IconButton(onClick = { menu = true }) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
+    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu")) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)
+        if (home) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.update_check)) },
+                onClick = {
+                    menu = false
+                    model.checkUpdate()
+                },
+                // an update offered already is in the banner at the top
+                enabled = screen.update == null,
+                modifier = Modifier.testTag("check-update"),
+            )
+        }
         DropdownMenuItem(text = { Text(stringResource(R.string.login_sign_out)) }, onClick = {
             menu = false
             model.signOut()
@@ -281,7 +295,7 @@ private fun HomeScreen(
             IconButton(onClick = model::newList, modifier = Modifier.testTag("new-list")) {
                 Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.grocery_lists_add))
             }
-            Menu(screen, model)
+            Menu(screen, model, home = true)
         },
     ) { padding ->
         PullToRefreshBox(
@@ -291,6 +305,7 @@ private fun HomeScreen(
         ) {
             LazyColumn(Modifier.fillMaxSize().testTag("lists")) {
                 screen.update?.let { item { UpdateBanner(it, model::update) } }
+                screen.updateNotice?.let { item { UpdateNotice(it, model::dismissUpdateNotice) } }
                 screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                 if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
                     item { Empty(stringResource(R.string.grocery_no_lists)) }
@@ -318,6 +333,20 @@ private fun UpdateBanner(
             Button(onClick = onUpdate, enabled = !update.busy) {
                 Text(stringResource(if (update.busy) R.string.downloading else R.string.update))
             }
+        }
+    }
+}
+
+// the answer of the check for updates when there is no update, e.g. that the app is up-to-date
+@Composable
+private fun UpdateNotice(
+    notice: UiText,
+    onDismiss: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth().testTag("update-notice")) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(notice.resolve(), modifier = Modifier.weight(1f))
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
         }
     }
 }

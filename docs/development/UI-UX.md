@@ -67,8 +67,8 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   takes the colors of the wallpaper where Android has them.
 - `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the overview of the lists, one list and a new
   list. The overview has the name of the deployment as its title; at the top right are the button that adds a list and
-  the menu with the sign-out. Every other screen of a signed in user has a back arrow at the top left with its own
-  title; the back of the system does the same.
+  the menu with the check for updates and the sign-out. Every other screen of a signed in user has a back arrow at the
+  top left with its own title; the back of the system does the same.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
   pulls it down.
 

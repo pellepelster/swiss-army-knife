@@ -26,6 +26,11 @@
     <string name="update_available">Version %1$s der App ist verfügbar, die Version deines Deployments.</string>
     <string name="downloading">Wird heruntergeladen…</string>
     <string name="update">Aktualisieren</string>
+    <string name="update_check">Nach Updates suchen</string>
+    <string name="update_checking">Suche nach Updates…</string>
+    <string name="update_current">Die App ist aktuell, Version %1$s.</string>
+    <string name="update_app_no_release">Dieser Build der App ist kein Release, er wird nicht aktualisiert.</string>
+    <string name="update_deployment_no_release">Dein Deployment läuft mit keinem Release, es gibt kein Update für die App.</string>
     <string name="error_base_domain">Gib die Basisdomain deines SAK-Deployments ein, z. B. example.org.</string>
     <string name="error_no_deployment">Unter dieser Domain antwortet kein SAK-Deployment.</string>
     <string name="error_no_sak">Das ist kein SAK-Deployment.</string>

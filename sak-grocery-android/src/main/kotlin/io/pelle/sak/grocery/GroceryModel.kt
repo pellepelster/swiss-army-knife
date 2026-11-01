@@ -89,6 +89,9 @@ internal fun newer(
     return deployment.takeIf { compared < 0 }
 }
 
+// a released version, 1.4.2, not latest
+internal fun isRelease(version: String?) = version != null && RELEASE.matches(version)
+
 private val RELEASE = Regex("""(\d+)\.(\d+)\.(\d+)""")
 
 // what the app shows
@@ -136,6 +139,9 @@ sealed interface Screen {
         val settings: ListSettings? = null,
         // the newer version of the app the deployment runs, offered on the home
         val update: AppUpdate? = null,
+        // the answer of the check for updates of the menu while there is no update to offer, e.g. that
+        // the app is up-to-date; on the home until the user dismisses it
+        val updateNotice: UiText? = null,
     ) : Screen
 }
 
@@ -588,6 +594,40 @@ class GroceryModel(
             val version = runCatching { newer(appVersion, apiOf(url, null).info().version) }.getOrNull() ?: return@launch
             (state.value as? Screen.Lists)?.let { state.value = it.copy(update = AppUpdate(version)) }
         }
+    }
+
+    // the check for updates of the menu: the version of the deployment asked for again; a newer one is
+    // offered as on the start, else the home says why there is none
+    fun checkUpdate() {
+        val lists = state.value as? Screen.Lists ?: return
+        if (lists.update != null) return
+        state.value = lists.copy(updateNotice = uiText(R.string.update_checking))
+        scope.launch {
+            val notice =
+                try {
+                    val url = store.load().apiUrl ?: return@launch
+                    val deployment = apiOf(url, null).info().version
+                    val version = newer(appVersion, deployment)
+                    when {
+                        version != null -> {
+                            (state.value as? Screen.Lists)?.let { state.value = it.copy(update = AppUpdate(version), updateNotice = null) }
+                            return@launch
+                        }
+                        !isRelease(appVersion) -> uiText(R.string.update_app_no_release)
+                        !isRelease(deployment) -> uiText(R.string.update_deployment_no_release)
+                        else -> uiText(R.string.update_current, appVersion)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failure(e, R.string.error_deployment_unreachable)
+                }
+            (state.value as? Screen.Lists)?.let { state.value = it.copy(updateNotice = notice) }
+        }
+    }
+
+    fun dismissUpdateNotice() {
+        (state.value as? Screen.Lists)?.let { state.value = it.copy(updateNotice = null) }
     }
 
     // the app of the version of the deployment is downloaded and handed to the installer of android,

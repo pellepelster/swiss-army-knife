@@ -28,6 +28,12 @@
     <string name="update_available">Version %1$s of the app is available, the version of your deployment.</string>
     <string name="downloading">Downloading…</string>
     <string name="update">Update</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_current">The app is up-to-date, version %1$s.</string>
+    <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
+    <string name="update_deployment_no_release">Your deployment runs no release, there is no update for the app.</string>
+    <string name="ok" translatable="false">OK</string>
     <string name="error_base_domain">Enter the base domain of your SAK deployment, e.g. example.org.</string>
     <string name="error_no_deployment">No SAK deployment answers at this domain.</string>
     <string name="error_no_sak">This is no SAK deployment.</string>

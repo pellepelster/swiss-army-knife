@@ -320,6 +320,16 @@ android:
     de: "Version %{version} der App ist verfügbar, die Version deines Deployments."
   downloading: { en: "Downloading…", de: "Wird heruntergeladen…" }
   update: { en: "Update", de: "Aktualisieren" }
+  update_check: { en: "Check for updates", de: "Nach Updates suchen" }
+  update_checking: { en: "Checking for updates…", de: "Suche nach Updates…" }
+  update_current: { en: "The app is up-to-date, version %{version}.", de: "Die App ist aktuell, Version %{version}." }
+  update_app_no_release:
+    en: "This build of the app is no release, it is not updated."
+    de: "Dieser Build der App ist kein Release, er wird nicht aktualisiert."
+  update_deployment_no_release:
+    en: "Your deployment runs no release, there is no update for the app."
+    de: "Dein Deployment läuft mit keinem Release, es gibt kein Update für die App."
+  ok: "OK"
   error:
     base_domain:
       en: "Enter the base domain of your SAK deployment, e.g. example.org."

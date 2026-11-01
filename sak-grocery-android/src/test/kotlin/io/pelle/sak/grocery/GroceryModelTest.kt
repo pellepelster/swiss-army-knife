@@ -598,6 +598,59 @@ class GroceryModelTest {
             assertEquals("The download of version 0.1.15 is damaged, please try again.", (model.screen.value as Screen.Lists).update?.error.english())
         }
 
+    private fun info(version: String?) =
+        HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"${version?.let { ",\"version\":\"$it\"" } ?: ""}}"""
+
+    private fun notice(model: GroceryModel) = (model.screen.value as Screen.Lists).updateNotice.english()
+
+    @Test
+    fun `the check for updates offers a newer version, else says why there is none`() =
+        runTest {
+            backend.answers["GET /info"] = info("0.1.15")
+            val model = model(signedInStore(openList = null), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+
+            model.checkUpdate()
+            assertEquals("Checking for updates…", notice(model))
+            advanceUntilIdle()
+            assertEquals("The app is up-to-date, version 0.1.15.", notice(model))
+            model.dismissUpdateNotice()
+            assertNull(notice(model))
+
+            // the deployment was updated since the start
+            backend.answers["GET /info"] = info("0.1.16")
+            model.checkUpdate()
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.16"), (model.screen.value as Screen.Lists).update)
+            assertNull(notice(model))
+
+            backend.answers["GET /info"] = info("latest")
+            val current = model(signedInStore(openList = null), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            current.checkUpdate()
+            advanceUntilIdle()
+            assertEquals("Your deployment runs no release, there is no update for the app.", notice(current))
+
+            val debug = model(signedInStore(openList = null), appVersion = "latest").also { it.start() }
+            advanceUntilIdle()
+            debug.checkUpdate()
+            advanceUntilIdle()
+            assertEquals("This build of the app is no release, it is not updated.", notice(debug))
+        }
+
+    @Test
+    fun `a check for updates that fails says why`() =
+        runTest {
+            backend.answers["GET /info"] = info("0.1.15")
+            val model = model(signedInStore(openList = null), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            backend.answers["GET /info"] =
+                HttpStatusCode.InternalServerError to """{"errors":[{"code":"api.unexpected_error","message":"Something went wrong."}]}"""
+            model.checkUpdate()
+            advanceUntilIdle()
+            assertEquals("Something went wrong.", notice(model))
+        }
+
     @Test
     fun `the api asks the backend for its texts in the languages of the phone`() =
         runTest {
