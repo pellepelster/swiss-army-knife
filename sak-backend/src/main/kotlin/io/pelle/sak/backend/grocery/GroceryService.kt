@@ -181,18 +181,20 @@ class GroceryService(
         fileId: Int,
     ): StoredFile? = repository.photo(user, id, fileId)
 
-    // the products of the user whose name contains the text, the ones bought most and last first;
-    // the ones to buy on the list are left out
+    // what the list learned whose name contains the text, the ones bought most and last first; the
+    // ones to buy on the list are left out. Null when the user does not see the list (GROCERY-11)
     fun suggestions(
         user: String,
+        listId: Int,
         text: String,
-        listId: Int?,
-    ): List<GroceryProduct> = repository.products(user, text.trim(), listId, MAX_SUGGESTIONS)
+    ): List<GroceryProduct>? = repository.products(user, listId, text.trim(), MAX_SUGGESTIONS)
 
+    // false when the user does not see the list or it learned no such suggestion
     fun forget(
         user: String,
+        listId: Int,
         id: Int,
-    ): Boolean = repository.deleteProduct(user, id)
+    ): Boolean = repository.deleteProduct(user, listId, id)
 
     private fun changed(list: GroceryList) = list.also { changes.changed(it.id) }
 

@@ -649,7 +649,11 @@ class SakAppsTest {
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
                 listOf("Apples")
             get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("items") shouldBe "1"
-            get(port, "/api/v1/grocery/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Milk"
+            get(port, "/api/v1/grocery/lists/$listId/suggestions?text=mil", session).json().getValue("items").jsonArray.single().jsonObject.let {
+                it.string("name") shouldBe "Milk"
+                delete(port, "/api/v1/grocery/lists/$listId/suggestions/${it.string("id")}", session).statusCode() shouldBe 204
+            }
+            get(port, "/api/v1/grocery/lists/0/suggestions", session).statusCode() shouldBe 404
             get(port, "/api/v1/grocery/categories", session).json().getValue("items").jsonArray.first().jsonObject.string("label") shouldBe
                 "Fruit & vegetables"
             // the only own list stays, with another one it goes
@@ -1140,12 +1144,12 @@ class SakAppsTest {
                         "/api/v1/grocery/lists",
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",
+                        "/api/v1/grocery/lists/{id}/suggestions",
+                        "/api/v1/grocery/lists/{id}/suggestions/{suggestionId}",
                         "/api/v1/grocery/items",
                         "/api/v1/grocery/items/{id}",
                         "/api/v1/grocery/items/{id}/photo",
                         "/api/v1/grocery/items/{id}/photos/{fileId}",
-                        "/api/v1/grocery/suggestions",
-                        "/api/v1/grocery/suggestions/{id}",
                         "/api/v1/files",
                         "/api/v1/files/{id}",
                         "/api/v1/files/{id}/thumbnail",

@@ -1,0 +1,20 @@
+# every product belongs to the list that learned it (GROCERY-11), a user learns nothing of their own
+# any more: the products without a list go. One product of a name among the live ones of a list; the
+# partial index is for sqlite only (0001-initial). list_id stays nullable in the schema, sqlite can not
+# change a column without rebuilding the table; the repository always sets it
+databaseChangeLog:
+  - changeSet:
+      id: 0006-grocery-products-per-list
+      author: sak
+      changes:
+        - sql:
+            sql: UPDATE grocery_products SET deleted_at = CURRENT_TIMESTAMP WHERE list_id IS NULL AND deleted_at IS NULL
+        - sql:
+            dbms: sqlite
+            sql: DROP INDEX grocery_products_owner_name_key
+        - sql:
+            dbms: sqlite
+            sql: DROP INDEX grocery_products_list_name_key
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX grocery_products_list_name_key ON grocery_products (list_id, name_key) WHERE deleted_at IS NULL

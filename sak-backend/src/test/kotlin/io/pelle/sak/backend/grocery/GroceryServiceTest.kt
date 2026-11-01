@@ -122,52 +122,26 @@ class GroceryServiceTest {
     }
 
     @Test
-    fun `suggests what the user added before, never what another user added`() {
-        val milk = add(PELLE, list(PELLE), input("Milk", "1", "l", GroceryCategory.DAIRY))
-        // bought, no longer to buy
-        service.deleteItem(PELLE, milk.id) shouldBe true
-        add(OTHER, list(OTHER), input("Mints"))
-
-        val suggestion = service.suggestions(PELLE, "mi", milk.listId).single()
-        suggestion.name shouldBe "Milk"
-        suggestion.category shouldBe GroceryCategory.DAIRY.name
-        service.forget(OTHER, suggestion.id) shouldBe false
-        service.forget(PELLE, suggestion.id) shouldBe true
-        service.suggestions(PELLE, "", null) shouldBe emptyList()
-    }
-
-    @Test
-    fun `a shared list learns from every user, it stays with the list when it is unshared (GROCERY-11)`() {
-        // the own lists first, the ones of the sign-in
+    fun `suggests what was added to the list before, by every user who sees it, on that list only (GROCERY-11)`() {
         val own = list(PELLE)
         val otherOwn = list(OTHER)
+        val milk = add(PELLE, own, input("Milk", "1", "l", GroceryCategory.DAIRY))
+        // bought, no longer to buy
+        service.deleteItem(PELLE, milk.id) shouldBe true
         val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
-        val chips = add(OTHER, party, input("Chips"))
-        service.deleteItem(OTHER, chips.id) shouldBe true
+        add(OTHER, party, input("Mints")).let { service.deleteItem(OTHER, it.id) }
 
-        // the list learned it, and the user who added it; not the other user personally
-        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
-        service.suggestions(PELLE, "ch", own) shouldBe emptyList()
-        service.suggestions(OTHER, "ch", otherOwn).map { it.name } shouldBe listOf("Chips")
+        val suggestion = service.suggestions(PELLE, own, "mi")!!.single()
+        suggestion.name shouldBe "Milk"
+        suggestion.category shouldBe GroceryCategory.DAIRY.name
+        service.suggestions(PELLE, party, "mi")!!.map { it.name } shouldBe listOf("Mints")
+        service.suggestions(OTHER, otherOwn, "mi") shouldBe emptyList()
+        service.suggestions(OTHER, own, "mi") shouldBe null
 
-        // one suggestion of a name, also when the user learned it too
-        add(PELLE, party, input("Chips")).let { service.deleteItem(PELLE, it.id) }
-        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
-
-        // unshared: the owner keeps what the list learned, the other user no longer sees the list
-        service.updateList(PELLE, party, "Party", shared = false, icon = null)
-        service.suggestions(OTHER, "ch", party).map { it.listId } shouldBe listOf(null)
-        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
-        // shared again: back for everyone
-        service.updateList(PELLE, party, "Party", shared = true, icon = null)
-        service.suggestions(OTHER, "ch", party).any { it.listId == party } shouldBe true
-
-        // every user of the list forgets what it learned; a deleted list takes it along
-        val learned = service.suggestions(OTHER, "ch", party).first { it.listId == party }
-        service.forget(OTHER, learned.id) shouldBe true
-        add(OTHER, party, input("Dip")).let { service.deleteItem(OTHER, it.id) }
-        service.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
-        service.suggestions(PELLE, "dip", null) shouldBe emptyList()
+        service.forget(OTHER, own, suggestion.id) shouldBe false
+        service.forget(PELLE, party, suggestion.id) shouldBe false
+        service.forget(PELLE, own, suggestion.id) shouldBe true
+        service.suggestions(PELLE, own, "") shouldBe emptyList()
     }
 
     @Test

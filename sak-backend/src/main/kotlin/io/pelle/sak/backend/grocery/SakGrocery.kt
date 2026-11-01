@@ -229,6 +229,62 @@ fun Route.grocery(
                 HttpStatusCode.NotFound { description = "The user sees no such list" }
             }
         }
+
+        get("/{id}/suggestions") {
+            val id = call.idParameter() ?: return@get
+            val page = call.pageRequest() ?: return@get
+            val text = call.request.queryParameters["text"].orEmpty()
+            when (val suggestions = withContext(Dispatchers.IO) { groceryService.suggestions(call.owner, id, text) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(page.of(page.of(suggestions.map { it.response() })))
+            }
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Suggestions for an item of a grocery list"
+            description =
+                "The items added to the list before whose name contains the text, the ones bought most and last first, " +
+                "at most ${GroceryService.MAX_SUGGESTIONS}; the ones to buy on the list are left out. Only this list " +
+                "learned them, every user who sees it sees them (GROCERY-11)."
+            parameters {
+                listId()
+                query("text") {
+                    description = "What the name contains, all when it is missing"
+                    schema = jsonSchema<String>()
+                }
+                pagination()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "A page of the suggestions"
+                    schema = jsonSchema<PageResponse<GrocerySuggestionResponse>>()
+                }
+                errors(HttpStatusCode.BadRequest, "An invalid page")
+                HttpStatusCode.NotFound { description = "The user sees no such list" }
+            }
+        }
+
+        delete("/{id}/suggestions/{suggestionId}") {
+            val id = call.idParameter() ?: return@delete
+            val suggestionId = call.parameters["suggestionId"]?.toIntOrNull()
+            val forgotten = suggestionId != null && withContext(Dispatchers.IO) { groceryService.forget(call.owner, id, suggestionId) }
+            call.respond(if (forgotten) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Forget a suggestion of a grocery list"
+            description = "For every user who sees the list; no item changes. Adding an item of the name teaches it again."
+            parameters {
+                listId()
+                path("suggestionId") {
+                    description = "The id of the suggestion"
+                    required = true
+                    schema = jsonSchema<Int>()
+                }
+            }
+            responses {
+                HttpStatusCode.NoContent { description = "The suggestion is gone" }
+                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such suggestion" }
+            }
+        }
     }
 
     route("/items") {
@@ -284,8 +340,7 @@ fun Route.grocery(
             summary = "Attach a photo to an item"
             description =
                 "The photo is a file the user uploaded to the file storage (POST /files) that is an image. The user's " +
-                "suggestion of the item's name takes it too, and on a shared list the list's, so the next item of the name " +
-                "has it (GROCERY-11)."
+                "list's suggestion of the item's name takes it too, so the next item of the name on the list has it (GROCERY-12)."
             parameters { itemId() }
             requestBody {
                 required = true
@@ -307,7 +362,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Take the photo away from an item"
-            description = "From the item and from the user's suggestion of its name; the file stays in the file storage."
+            description = "From the item and from the list's suggestion of its name; the file stays in the file storage."
             parameters { itemId() }
             responses {
                 HttpStatusCode.OK {
@@ -416,61 +471,6 @@ fun Route.grocery(
             "${KEEP_ALIVE.inWholeSeconds} seconds keeps the connection open."
         responses {
             HttpStatusCode.OK { description = "The stream of the changes" }
-        }
-    }
-
-    route("/suggestions") {
-        get {
-            val page = call.pageRequest() ?: return@get
-            val text = call.request.queryParameters["text"].orEmpty()
-            val listId = call.request.queryParameters["listId"]?.toIntOrNull()
-            val suggestions = withContext(Dispatchers.IO) { groceryService.suggestions(call.owner, text, listId) }
-            call.respond(page.of(page.of(suggestions.map { it.response() })))
-        }.describe {
-            tag(GROCERY_TAG)
-            summary = "Suggestions for an item"
-            description =
-                "The items the user added before whose name contains the text, the ones bought most and last first, " +
-                "at most ${GroceryService.MAX_SUGGESTIONS}; the ones to buy on the list are left out."
-            parameters {
-                query("text") {
-                    description = "What the name contains, all when it is missing"
-                    schema = jsonSchema<String>()
-                }
-                query("listId") {
-                    description = "The list whose items to buy are left out"
-                    schema = jsonSchema<Int>()
-                }
-                pagination()
-            }
-            responses {
-                HttpStatusCode.OK {
-                    description = "A page of the suggestions"
-                    schema = jsonSchema<PageResponse<GrocerySuggestionResponse>>()
-                }
-                errors(HttpStatusCode.BadRequest, "An invalid page")
-            }
-        }
-
-        delete("/{id}") {
-            val id = call.idParameter() ?: return@delete
-            val forgotten = withContext(Dispatchers.IO) { groceryService.forget(call.owner, id) }
-            call.respond(if (forgotten) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
-        }.describe {
-            tag(GROCERY_TAG)
-            summary = "Forget a suggestion"
-            description = "No list changes; adding an item of the name teaches it again."
-            parameters {
-                path("id") {
-                    description = "The id of the suggestion"
-                    required = true
-                    schema = jsonSchema<Int>()
-                }
-            }
-            responses {
-                HttpStatusCode.NoContent { description = "The suggestion is gone" }
-                HttpStatusCode.NotFound { description = "The user has no such suggestion" }
-            }
         }
     }
 }

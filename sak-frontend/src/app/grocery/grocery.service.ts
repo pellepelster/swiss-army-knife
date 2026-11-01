@@ -104,7 +104,7 @@ export class GroceryService {
     });
   }
 
-  // the photo of the item, also of the user's next item of its name (GROCERY-11)
+  // the photo of the item, also of the next item of its name on the list (GROCERY-12)
   attachPhoto(id: number, fileId: number): Observable<GroceryItem> {
     return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}/photo`, { fileId });
   }
@@ -113,11 +113,11 @@ export class GroceryService {
     return this.http.delete<GroceryItem>(`/api/v1/grocery/items/${id}/photo`);
   }
 
-  // the items added before whose name contains the text, the ones to buy on the list left out
-  suggestions(text: string, listId: number | null): Observable<GrocerySuggestion[]> {
-    return fetchAll<GrocerySuggestion>(this.http, '/api/v1/grocery/suggestions', {
+  // the items added to the list before whose name contains the text, the ones to buy on it left
+  // out; only the list learned them (GROCERY-11)
+  suggestions(listId: number, text: string): Observable<GrocerySuggestion[]> {
+    return fetchAll<GrocerySuggestion>(this.http, `/api/v1/grocery/lists/${listId}/suggestions`, {
       text,
-      ...(listId === null ? {} : { listId }),
     });
   }
 }

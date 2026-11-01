@@ -139,7 +139,9 @@ describe('Grocery', () => {
     expect(page().textContent).toContain('Nothing to buy yet, add something.');
 
     await type('item-name', 'Milk');
-    http.expectOne((request) => request.url === '/api/v1/grocery/suggestions').flush(pageOf([]));
+    http
+      .expectOne((request) => request.url === '/api/v1/grocery/lists/1/suggestions')
+      .flush(pageOf([]));
     // the name only, there is no field for a quantity or a category
     expect(page().querySelector('#item-amount, #item-unit, #item-category')).toBeNull();
     button('Add item').click();
@@ -310,10 +312,7 @@ describe('Grocery', () => {
     await load([defaultList], []);
     await type('item-name', 'mi');
     http
-      .expectOne(
-        (request) =>
-          request.url === '/api/v1/grocery/suggestions' && request.params.get('listId') === '1',
-      )
+      .expectOne((request) => request.url === '/api/v1/grocery/lists/1/suggestions')
       .flush(pageOf([{ id: 5, name: 'Milk', amount: 2, unit: 'l', category: 'DAIRY' }]));
     await harness.fixture.whenStable();
     expect(page().querySelector('#grocery-suggestions option')?.getAttribute('value')).toBe('Milk');

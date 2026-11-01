@@ -95,8 +95,9 @@ Every other resource has `GET /{id}` (buckets, redirects, labels, notes). Grocer
 
 ### `AR-7` The suggestions ignore a bad list and page at most ten items
 
-`GET /api/v1/grocery/suggestions?listId=abc` ignores the list without an error, unlike `offset` and `limit`,
-which answer 400. The service gives at most `MAX_SUGGESTIONS` (10) items, which the route then pages; `limit=50`
+~~`GET /api/v1/grocery/suggestions?listId=abc` ignores the list without an error, unlike `offset` and `limit`,
+which answer 400.~~ (fixed: the list is part of the path, `GET /api/v1/grocery/lists/{id}/suggestions`, an unknown
+list answers 404.) The service gives at most `MAX_SUGGESTIONS` (10) items, which the route then pages; `limit=50`
 gives 10, and an `offset` of 10 or more gives none. Either a 400 for a bad `listId` and no pages (a fixed short list
 with `limit` as its size), or the pages over all suggestions.
 

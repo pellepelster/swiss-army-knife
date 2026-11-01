@@ -4,7 +4,9 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.collections.shouldContain
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.jooq.tables.references.GROCERY_ITEMS
+import io.pelle.sak.model.jooq.tables.references.GROCERY_PRODUCTS
 import org.jooq.exception.DataAccessException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -96,10 +98,10 @@ class GroceryRepositoryTest {
         repository.insertItem(OTHER, secret.id, values("Beer")) shouldBe null
         repository.updateItem(OTHER, wine.id, values("Water")) shouldBe null
         repository.deleteItem(OTHER, wine.id) shouldBe false
-        // nothing was learned of an item that was not added
-        repository.products(OTHER, "", null, 10) shouldBe emptyList()
-        // the owner sees the items to buy of their list
-        repository.products(PELLE, "", secret.id, 10).map { it.name } shouldBe listOf("Chips")
+        // the other user does not see what the private list learned
+        repository.products(OTHER, secret.id, "", 10) shouldBe null
+        // wine is to buy, chips were added to another list
+        repository.products(PELLE, secret.id, "", 10) shouldBe emptyList()
         repository.updateList(OTHER, secret.id, "Mine", shared = true) shouldBe GroceryListUpdate.NotFound
         repository.deleteList(OTHER, secret.id) shouldBe GroceryListDelete.NotFound
         repository.items(PELLE, secret.id)!!.map { it.name } shouldBe listOf("Wine")
@@ -145,25 +147,85 @@ class GroceryRepositoryTest {
     }
 
     @Test
-    fun `every item teaches the product of its name, in any case, the suggestions leave out what is to buy`() {
+    fun `every item teaches the list's product of its name, in any case, the suggestions leave out what is to buy`() {
+        val own = list(PELLE)
         // bought, no longer to buy
-        val milk = repository.insertItem(PELLE, list(PELLE), values("Milk", "1", "l", "DAIRY"))!!
+        val milk = repository.insertItem(PELLE, own, values("Milk", "1", "l", "DAIRY"))!!
         repository.deleteItem(PELLE, milk.id)
-        repository.insertItem(PELLE, list(PELLE), values("milk", "2", "l", "DAIRY"))
-        val bread = repository.insertItem(PELLE, list(PELLE), values("Bread", category = "BAKERY"))!!
+        val again = repository.insertItem(PELLE, own, values("milk", "2", "l", "DAIRY"))!!
+        val bread = repository.insertItem(PELLE, own, values("Bread", category = "BAKERY"))!!
         repository.deleteItem(PELLE, bread.id)
-        repository.insertItem(OTHER, list(OTHER), values("Oat milk"))
+        repository.deleteItem(PELLE, again.id)
 
-        val products = repository.products(PELLE, "", null, 10)
+        val products = repository.products(PELLE, own, "", 10)!!
         products.map { it.name to it.timesUsed } shouldBe listOf("milk" to 2, "Bread" to 1)
+        products.forEach { it.listId shouldBe own }
         products.first().amount!!.compareTo(BigDecimal("2")) shouldBe 0
-        repository.products(PELLE, "MIL", null, 10).map { it.name } shouldBe listOf("milk")
-        // milk is to buy on the list already
-        repository.products(PELLE, "", milk.listId, 10).map { it.name } shouldBe listOf("Bread")
+        repository.products(PELLE, own, "MIL", 10)!!.map { it.name } shouldBe listOf("milk")
+        // milk is to buy on the list
+        repository.insertItem(PELLE, own, values("Milk"))
+        repository.products(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
 
-        repository.deleteProduct(OTHER, products.first().id) shouldBe false
-        repository.deleteProduct(PELLE, products.first().id) shouldBe true
-        repository.products(PELLE, "", null, 10).map { it.name } shouldBe listOf("Bread")
+        repository.deleteProduct(PELLE, own, products.first().id) shouldBe true
+        repository.deleteProduct(PELLE, own, products.first().id) shouldBe false
+        repository.products(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
+    }
+
+    @Test
+    fun `a list learns alone, what one list learned is never suggested on another, not of the same user`() {
+        val own = list(PELLE)
+        val party = repository.insertList(PELLE, "Party", shared = false)!!.id
+        repository.insertItem(PELLE, own, values("Milk", category = "DAIRY")).let { repository.deleteItem(PELLE, it!!.id) }
+        repository.insertItem(PELLE, party, values("Chips")).let { repository.deleteItem(PELLE, it!!.id) }
+        repository.insertItem(PELLE, party, values("Milk", "2", "l")).let { repository.deleteItem(PELLE, it!!.id) }
+
+        repository.products(PELLE, own, "", 10)!!.map { it.name to it.category } shouldBe listOf("Milk" to "DAIRY")
+        repository.products(PELLE, party, "", 10)!!.map { it.name to it.timesUsed } shouldBe listOf("Chips" to 1, "Milk" to 1)
+        val chips = repository.products(PELLE, party, "chips", 10)!!.single()
+        // forgotten on its own list only
+        repository.deleteProduct(PELLE, own, chips.id) shouldBe false
+        repository.deleteProduct(PELLE, party, chips.id) shouldBe true
+    }
+
+    @Test
+    fun `a photo goes onto the list's product of the name, the next item of the name on that list only gets it`() {
+        val own = list(PELLE)
+        val party = repository.insertList(PELLE, "Party", shared = false)!!.id
+        val photo = FileRepository(database).insert("a".repeat(64), "image/jpeg", 1, PELLE).id
+        val milk = repository.insertItem(PELLE, own, values("Milk"))!!
+        repository.setPhoto(PELLE, milk.id, photo)!!.photoFileId shouldBe photo
+        repository.deleteItem(PELLE, milk.id)
+        repository.insertItem(PELLE, party, values("Milk")).let { repository.deleteItem(PELLE, it!!.id) }
+
+        repository.insertItem(PELLE, own, values("milk"))!!.photoFileId shouldBe photo
+        repository.insertItem(PELLE, party, values("milk"))!!.photoFileId shouldBe null
+    }
+
+    @Test
+    fun `what a shared list learned is seen and forgotten by everyone who sees it, it stays with the list, a deleted list takes it`() {
+        // not the last list of its owner, it can be deleted
+        list(PELLE)
+        val party = repository.insertList(PELLE, "Party", shared = true)!!.id
+        repository.insertItem(OTHER, party, values("Chips")).let { repository.deleteItem(OTHER, it!!.id) }
+        repository.insertItem(PELLE, party, values("Dip")).let { repository.deleteItem(PELLE, it!!.id) }
+
+        repository.products(PELLE, party, "", 10)!!.map { it.name to it.owner } shouldBe listOf("Chips" to OTHER, "Dip" to PELLE)
+        repository.products(OTHER, party, "", 10)!!.map { it.name } shouldBe listOf("Chips", "Dip")
+        // the other user learned nothing on their own list
+        repository.products(OTHER, list(OTHER), "", 10) shouldBe emptyList()
+
+        // unshared: the owner keeps it, the other user no longer sees it; shared again it is back
+        repository.updateList(PELLE, party, "Party", shared = false)
+        repository.products(OTHER, party, "", 10) shouldBe null
+        val dip = repository.products(PELLE, party, "dip", 10)!!.single()
+        repository.deleteProduct(OTHER, party, dip.id) shouldBe false
+        repository.updateList(PELLE, party, "Party", shared = true)
+        repository.deleteProduct(OTHER, party, dip.id) shouldBe true
+        repository.products(PELLE, party, "", 10)!!.map { it.name } shouldBe listOf("Chips")
+
+        repository.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
+        repository.products(PELLE, party, "", 10) shouldBe null
+        database.dsl.fetchCount(GROCERY_PRODUCTS, GROCERY_PRODUCTS.LIST_ID.eq(party), GROCERY_PRODUCTS.DELETED_AT.isNull) shouldBe 0
     }
 
     @Test
@@ -177,10 +239,12 @@ class GroceryRepositoryTest {
         repository.insertItem(PELLE, list(PELLE), values("Milk  bread"))
         repository.insertItem(PELLE, list(PELLE), values("milk bread"))
 
-        repository.products(PELLE, "", null, 10).map { it.name to it.timesUsed } shouldBe
+        // all of them bought
+        repository.items(PELLE, list(PELLE))!!.forEach { repository.deleteItem(PELLE, it.id) }
+        repository.products(PELLE, list(PELLE), "", 10)!!.map { it.name to it.timesUsed } shouldBe
             listOf("a\u0308pfel" to 3, "milk bread" to 2, "Müsli" to 1, "Musli" to 1)
-        repository.products(PELLE, "ÄP", null, 10).map { it.timesUsed } shouldBe listOf(3)
-        repository.products(PELLE, "MÜS", null, 10).map { it.name } shouldBe listOf("Müsli")
+        repository.products(PELLE, list(PELLE), "ÄP", 10)!!.map { it.timesUsed } shouldBe listOf(3)
+        repository.products(PELLE, list(PELLE), "MÜS", 10)!!.map { it.name } shouldBe listOf("Müsli")
     }
 
     @Test
@@ -188,10 +252,10 @@ class GroceryRepositoryTest {
         val apples = repository.insertItem(PELLE, list(PELLE), values("Äpfel"))!!
         repository.deleteItem(PELLE, apples.id)
         repository.insertItem(PELLE, list(PELLE), values("Bread"))
-        repository.products(PELLE, "", apples.listId, 10).map { it.name } shouldBe listOf("Äpfel")
+        repository.products(PELLE, apples.listId, "Ä", 10)!!.map { it.name } shouldBe listOf("Äpfel")
 
         repository.insertItem(PELLE, apples.listId, values("ÄPFEL"))
-        repository.products(PELLE, "", apples.listId, 10) shouldBe emptyList()
+        repository.products(PELLE, apples.listId, "Ä", 10) shouldBe emptyList()
     }
 
     @Test

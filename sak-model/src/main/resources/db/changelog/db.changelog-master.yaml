@@ -16,3 +16,6 @@ databaseChangeLog:
   - include:
       file: 0005-grocery-list-products.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0006-grocery-products-per-list.yaml
+      relativeToChangelogFile: true

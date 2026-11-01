@@ -51,7 +51,7 @@ interface ItemGroup {
 
 // one grocery list, opened from all lists (LIST-3), with its items to buy by category; a bought item
 // is struck through while it can be undone and goes afterwards (GROCERY-3). A new item goes to the
-// list shown, the suggestions are the items added before. A list that is gone leads to all lists
+// list shown, the suggestions are the items added to it before. A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
   imports: [
@@ -358,8 +358,13 @@ export class GroceryPage {
     this.itemUnit.set('');
     this.itemCategory.set(null);
     this.loadingSuggestions?.unsubscribe();
+    const shown = this.shown();
+    if (!shown) {
+      this.suggestions.set([]);
+      return;
+    }
     this.loadingSuggestions = this.service
-      .suggestions(name, this.shown()?.id ?? null)
+      .suggestions(shown.id, name)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: (suggestions) => this.suggestions.set(suggestions) });
   }
