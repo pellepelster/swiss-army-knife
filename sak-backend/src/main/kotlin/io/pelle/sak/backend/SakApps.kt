@@ -167,7 +167,7 @@ fun Application.apps(
                     // the only routes without a session, the info and the login; the rest of
                     // the api needs one
                     route("/info") {
-                        info(config.name, config.dnsMode, mailServer = mailSender != null)
+                        info(config.name, config.dnsMode, mailServer = mailSender != null, version = config.version)
                     }
                     route("/auth") {
                         route("/login") {

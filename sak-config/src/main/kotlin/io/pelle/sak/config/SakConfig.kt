@@ -46,6 +46,9 @@ data class SakConfig(
     // encrypt for tests; caddy's default issuers without
     @SerialName("acme_ca")
     val acmeCa: String? = null,
+    // the version of sak the deployment runs, e.g. 0.1.15, written by the provisioning of the
+    // server; the grocery app updates itself to it. None e.g. locally
+    val version: String? = null,
 ) {
     init {
         require(apiPublicKey == null || runCatching { java.util.Base64.getDecoder().decode(apiPublicKey) }.getOrNull()?.size == 32) {

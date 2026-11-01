@@ -9,6 +9,10 @@ import androidx.activity.viewModels
 import io.pelle.sak.grocery.ui.GroceryApp
 import io.pelle.sak.grocery.ui.GroceryTheme
 
+// the scheme of the login link, the package of the release; the debug build has a package of its
+// own (.debug) and the same scheme
+private const val SIGNIN_SCHEME = "io.pelle.sak.grocery"
+
 // the one activity; it takes the login links the signin page of the web app hands on
 // (io.pelle.sak.grocery://signin?token=…)
 class MainActivity : ComponentActivity() {
@@ -44,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
     private fun signIn(intent: Intent?) {
         val link = intent?.data ?: return
-        if (link.scheme != packageName || link.host != "signin") return
+        if (link.scheme != SIGNIN_SCHEME || link.host != "signin") return
         link.getQueryParameter("token")?.takeIf { it.isNotEmpty() }?.let { viewModel.model.signInWithLink(it) }
         // the token is used once, a recreated activity must not find it again
         setIntent(Intent(intent).setData(null))

@@ -11,6 +11,8 @@ data class InfoResponse(
     val name: String,
     // multi: the users sign in by e-mail and the admin by password; single: only the admin, by password
     val userMode: String,
+    // the version of sak it runs, 1.4.2; the app updates itself to it. None without one
+    val version: String? = null,
 )
 
 @Serializable

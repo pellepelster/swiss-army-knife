@@ -1137,14 +1137,19 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the info answers the name, the dns mode and the user mode of the deployment without a session`() {
-        withServer { port ->
+    fun `the info answers the name, the dns mode, the user mode and the version of the deployment without a session`() {
+        withServer(config().copy(version = "1.2.3")) { port ->
             val info = get(port, "/api/v1/info")
             info.statusCode() shouldBe 200
             info.headers().firstValue("Content-Type").get() shouldContain "application/json"
             info.json() shouldBe
                 JsonObject(
-                    mapOf("name" to JsonPrimitive("alpha"), "dnsMode" to JsonPrimitive("domain"), "userMode" to JsonPrimitive("multi")),
+                    mapOf(
+                        "name" to JsonPrimitive("alpha"),
+                        "dnsMode" to JsonPrimitive("domain"),
+                        "userMode" to JsonPrimitive("multi"),
+                        "version" to JsonPrimitive("1.2.3"),
+                    ),
                 )
         }
         // without a mail server only the admin signs in

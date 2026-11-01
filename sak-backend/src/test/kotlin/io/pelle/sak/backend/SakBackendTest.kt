@@ -124,6 +124,7 @@ class SakBackendTest {
                 .replace("{{ backend_data_path }}", "/storage/data/alpha/backend/data")
                 .replace("{{ sak_dns_mode }}", "domain")
                 .replace("{{ sak_root_domain }}", "pelle.io")
+                .replace("{{ sak_version | to_json }}", "\"0.1.15\"")
                 .replace("{{ sak_api_public_key | to_json }}", "\"zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ=\"")
                 .replace("{{ sak_admin_email }}", "admin@example.org")
                 .replace("{{ sak_smtp_tls | bool | lower }}", "true")
@@ -169,6 +170,7 @@ class SakBackendTest {
         config.name shouldBe "alpha"
         config.dataDir shouldBe Path.of("/storage/data/alpha/backend/data")
         config.dnsMode shouldBe DnsMode.DOMAIN
+        config.version shouldBe "0.1.15"
         // the staging ca of the integration tests, caddy takes it as its issuer
         config.acmeCa shouldBe "https://acme-staging-v02.api.letsencrypt.org/directory"
         caddyConfig(config, emptyMap(), emptyMap(), 8080).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe

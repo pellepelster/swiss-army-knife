@@ -44,6 +44,11 @@ android {
     }
 
     buildTypes {
+        // a package of its own, signed with the debug key: it is installed next to the release,
+        // which android does not update with an app of another key
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release")

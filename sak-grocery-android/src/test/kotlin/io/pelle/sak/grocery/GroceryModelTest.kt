@@ -62,9 +62,11 @@ class GroceryModelTest {
     private fun TestScope.model(
         store: MemorySessionStore,
         at: Instant = now,
+        appVersion: String = "latest",
+        updater: Updater = Updater { error("no update expected") },
     ): GroceryModel {
         backend.dispatcher = StandardTestDispatcher(testScheduler)
-        return GroceryModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(at, ZoneOffset.UTC))
+        return GroceryModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(at, ZoneOffset.UTC), appVersion, updater)
     }
 
     @Test
@@ -537,5 +539,62 @@ class GroceryModelTest {
             val unnamed = model(signedInStore(openList = null).also { it.save(it.load().copy(email = "anna@example.org")) }).also { it.start() }
             advanceUntilIdle()
             assertEquals("anna@example.org", (unnamed.screen.value as Screen.Lists).user)
+        }
+
+    @Test
+    fun `only a newer released version of the deployment is an update`() {
+        assertEquals("1.4.3", newer("1.4.2", "1.4.3"))
+        assertEquals("1.10.0", newer("1.9.9", "1.10.0"))
+        assertEquals("2.0.0", newer("1.4.2", "2.0.0"))
+        assertNull(newer("1.4.2", "1.4.2"))
+        // an older deployment: android does not install an older version over a newer one
+        assertNull(newer("1.4.2", "1.4.1"))
+        // a build of no release, a deployment of no release or of no version
+        assertNull(newer("latest", "1.4.3"))
+        assertNull(newer("1.4.2", "latest"))
+        assertNull(newer("1.4.2", "1.4.3-rc"))
+        assertNull(newer("1.4.2", null))
+    }
+
+    @Test
+    fun `the home offers the version of the deployment when it is newer, the update hands it to the installer`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi","version":"0.1.15"}"""
+            val installed = mutableListOf<String>()
+            val model = model(signedInStore(openList = null), appVersion = "0.1.14", updater = { installed += it }).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), (model.screen.value as Screen.Lists).update)
+
+            model.update()
+            assertEquals(AppUpdate("0.1.15", busy = true), (model.screen.value as Screen.Lists).update)
+            advanceUntilIdle()
+            assertEquals(listOf("0.1.15"), installed)
+            assertEquals(AppUpdate("0.1.15"), (model.screen.value as Screen.Lists).update)
+
+            // the same version offers nothing
+            val current = model(signedInStore(openList = null), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            assertNull((current.screen.value as Screen.Lists).update)
+        }
+
+    @Test
+    fun `an update that fails says why and can be tried again`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi","version":"0.1.15"}"""
+            var failure: Exception = java.io.IOException("offline")
+            val model = model(signedInStore(openList = null), appVersion = "0.1.14", updater = { throw failure }).also { it.start() }
+            advanceUntilIdle()
+
+            model.update()
+            advanceUntilIdle()
+            assertEquals(
+                AppUpdate("0.1.15", error = "The update could not be downloaded, check the connection."),
+                (model.screen.value as Screen.Lists).update,
+            )
+
+            failure = IllegalStateException("The download of version 0.1.15 is damaged, please try again.")
+            model.update()
+            advanceUntilIdle()
+            assertEquals("The download of version 0.1.15 is damaged, please try again.", (model.screen.value as Screen.Lists).update?.error)
         }
 }

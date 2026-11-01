@@ -76,6 +76,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.pelle.sak.grocery.AppUpdate
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
@@ -150,7 +151,7 @@ private fun DeploymentScreen(
     connect: (String) -> Unit,
 ) {
     var input by rememberSaveable { mutableStateOf(screen.input) }
-    Page("SAK Grocery") { padding ->
+    Page("SAK Grocery List") { padding ->
         Form(padding) {
             Text("Enter the base domain of your SAK deployment, the one the web app is at as sak.<base domain>.")
             OutlinedTextField(
@@ -287,6 +288,7 @@ private fun HomeScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             LazyColumn(Modifier.fillMaxSize().testTag("lists")) {
+                screen.update?.let { item { UpdateBanner(it, model::update) } }
                 screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                 if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
                     item { Empty("You have no list yet, add one with the plus at the top.") }
@@ -295,6 +297,24 @@ private fun HomeScreen(
                     ListRow(list, open = { model.open(list.id) }, settings = { model.openSettings(list.id) })
                     if (index < screen.lists.lastIndex) HorizontalDivider()
                 }
+            }
+        }
+    }
+}
+
+// the newer version of the app the deployment runs, at the top of the home; the update downloads it
+// and hands it to the installer of android, which asks the user
+@Composable
+private fun UpdateBanner(
+    update: AppUpdate,
+    onUpdate: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth().testTag("update")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Version ${update.version} of the app is available, the version of your deployment.")
+            Error(update.error)
+            Button(onClick = onUpdate, enabled = !update.busy) {
+                Text(if (update.busy) "Downloading…" else "Update")
             }
         }
     }

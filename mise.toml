@@ -842,7 +842,7 @@ if ! "$adb" devices | grep -q '^emulator-'; then
   until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
 fi
 ./gradlew installDebug
-"$adb" shell am start -n io.pelle.sak.grocery/.MainActivity
+"$adb" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
 '''
 
 # the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
@@ -877,5 +877,5 @@ else
 fi
 ./gradlew assembleDebug
 "$adb" -s "$serial" install -r build/outputs/apk/debug/sak-grocery-android-debug.apk
-"$adb" -s "$serial" shell am start -n io.pelle.sak.grocery/.MainActivity
+"$adb" -s "$serial" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
 '''

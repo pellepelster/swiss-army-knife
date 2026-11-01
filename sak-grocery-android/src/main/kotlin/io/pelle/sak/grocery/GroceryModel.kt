@@ -55,6 +55,35 @@ data class ListSettings(
     val error: String? = null,
 )
 
+// the version of the app the deployment runs, newer than the app; busy while it is downloaded and
+// handed to the installer of android
+data class AppUpdate(
+    val version: String,
+    val busy: Boolean = false,
+    val error: String? = null,
+)
+
+// the update of the app to a version of sak: the apk of its release downloaded, checked and handed
+// to the installer of android, which asks the user; a failure is an exception with the reason
+fun interface Updater {
+    suspend fun install(version: String)
+}
+
+// the version of the deployment when it is newer than the one of the app, both released versions
+// (1.4.2); a build of no release (latest) is never updated, nor is a deployment without a version
+internal fun newer(
+    app: String,
+    deployment: String?,
+): String? {
+    fun parts(version: String?) = version?.let { RELEASE.matchEntire(it) }?.groupValues?.drop(1)?.map { it.toInt() }
+    val current = parts(app) ?: return null
+    val offered = parts(deployment) ?: return null
+    val compared = current.zip(offered).map { (a, b) -> a.compareTo(b) }.firstOrNull { it != 0 } ?: 0
+    return deployment.takeIf { compared < 0 }
+}
+
+private val RELEASE = Regex("""(\d+)\.(\d+)\.(\d+)""")
+
 // what the app shows
 sealed interface Screen {
     data object Starting : Screen
@@ -98,6 +127,8 @@ sealed interface Screen {
         val undo: Undo? = null,
         // the screen of the settings of a list, a new one or one of the user's own, over the home
         val settings: ListSettings? = null,
+        // the newer version of the app the deployment runs, offered on the home
+        val update: AppUpdate? = null,
     ) : Screen
 }
 
@@ -111,6 +142,9 @@ class GroceryModel(
     // the debug build takes a whole url of the api, e.g. of the backend of local:run
     private val allowUrl: Boolean,
     private val clock: Clock = Clock.systemUTC(),
+    // the version of the app, 1.4.2 of a release, latest of every other build
+    private val appVersion: String = "latest",
+    private val updater: Updater = Updater { error("no updater") },
 ) {
     private val state = MutableStateFlow<Screen>(Screen.Starting)
     val screen: StateFlow<Screen> = state.asStateFlow()
@@ -540,6 +574,35 @@ class GroceryModel(
             val url = stored.apiUrl ?: return@launch
             val name = runCatching { apiOf(url, stored.token).whoAmI().name }.getOrNull() ?: return@launch
             (state.value as? Screen.Lists)?.let { state.value = it.copy(user = name) }
+        }
+        // the app of the version of the deployment, when it is newer
+        scope.launch {
+            val url = stored.apiUrl ?: return@launch
+            val version = runCatching { newer(appVersion, apiOf(url, null).info().version) }.getOrNull() ?: return@launch
+            (state.value as? Screen.Lists)?.let { state.value = it.copy(update = AppUpdate(version)) }
+        }
+    }
+
+    // the app of the version of the deployment is downloaded and handed to the installer of android,
+    // which asks the user; the app ends when it is installed
+    fun update() {
+        val lists = state.value as? Screen.Lists ?: return
+        val update = lists.update ?: return
+        if (update.busy) return
+        state.value = lists.copy(update = update.copy(busy = true, error = null))
+        scope.launch {
+            val error =
+                try {
+                    updater.install(update.version)
+                    null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: IOException) {
+                    "The update could not be downloaded, check the connection."
+                } catch (e: Exception) {
+                    e.message ?: "The update could not be installed."
+                }
+            (state.value as? Screen.Lists)?.let { state.value = it.copy(update = update.copy(busy = false, error = error)) }
         }
     }
 

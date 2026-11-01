@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- the update to the version of the deployment, the apk of its release (AndroidUpdater) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- no backup: the session token is bound to a key of this phone's keystore -->
     <application
@@ -29,5 +31,9 @@
                 <data android:scheme="io.pelle.sak.grocery" android:host="signin" />
             </intent-filter>
         </activity>
+        <!-- what the installer of android answers to an update -->
+        <receiver
+            android:name=".update.UpdateReceiver"
+            android:exported="false" />
     </application>
 </manifest>
