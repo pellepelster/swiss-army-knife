@@ -1,5 +1,12 @@
 package io.pelle.sak.grocery.api
 
+import io.ktor.http.HttpHeaders
+import io.ktor.client.request.header
+import io.ktor.client.plugins.defaultRequest
+import io.pelle.sak.grocery.uiText
+import io.pelle.sak.grocery.UiText
+import io.pelle.sak.grocery.R
+import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
@@ -34,27 +41,30 @@ import java.io.IOException
 val ApiJson = Json { ignoreUnknownKeys = true }
 
 // a request the backend refused or could not answer: its status, and the messages of its error body
-// joined, or a text of the app when it has none
+// joined, in the language the app asked for, or a text of the app when it has none
 class ApiException(
     val status: Int,
-    message: String,
-) : Exception(message)
+    val text: UiText,
+) : Exception(text.toString())
 
 // the api of one deployment, below its url, e.g. https://api.example.org/v1; token is the session,
-// null before signing in. Every call is suspending, the engine does the io
+// null before signing in. Every call is suspending, the engine does the io. The backend answers its
+// texts in the languages of the phone (Accept-Language, e.g. de-DE,en-US)
 class GroceryApi(
     engine: HttpClientEngine,
     private val url: String,
     private val token: String? = null,
+    private val languages: String? = null,
 ) {
     private val client =
         HttpClient(engine) {
             expectSuccess = false
             install(ContentNegotiation) { json(ApiJson) }
             install(HttpTimeout)
+            defaultRequest { languages?.let { header(HttpHeaders.AcceptLanguage, it) } }
         }
 
-    suspend fun info(): InfoResponse = client.get("$url/info").answer("This is no SAK deployment.")
+    suspend fun info(): InfoResponse = client.get("$url/info").answer(R.string.error_no_sak)
 
 
     // the link goes out by mail if the address may sign in, the answer is the same for every address
@@ -63,7 +73,7 @@ class GroceryApi(
             .post("$url/auth/login/link") {
                 contentType(ContentType.Application.Json)
                 setBody(LoginRequest(email, client = "android"))
-            }.answer<Unit>("The login link could not be requested.")
+            }.answer<Unit>(R.string.error_link_not_requested)
     }
 
     suspend fun exchange(loginToken: String): ExchangeResponse =
@@ -71,24 +81,24 @@ class GroceryApi(
             .post("$url/auth/login/exchange") {
                 contentType(ContentType.Application.Json)
                 setBody(ExchangeRequest(loginToken))
-            }.answer("The login link is invalid, expired or was already used.", unauthorized = "The login link is invalid, expired or was already used.")
+            }.answer(R.string.error_link_invalid, unauthorized = R.string.error_link_invalid)
 
     suspend fun passwordLogin(password: String): ExchangeResponse =
         client
             .post("$url/auth/login/password") {
                 contentType(ContentType.Application.Json)
                 setBody(PasswordLoginRequest(password))
-            }.answer("The password could not be checked.", unauthorized = "The password is wrong.")
+            }.answer(R.string.error_password_not_checked, unauthorized = R.string.error_password_wrong)
 
     // the signed in user, with their name if they have one
     suspend fun whoAmI(): WhoAmIResponse =
         client
             .get("$url/auth/who-am-i") {
                 token?.let { bearerAuth(it) }
-            }.answer("The user could not be read.")
+            }.answer(R.string.error_user_not_read)
 
     // in the order the backend gives them: by name
-    suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", "The lists could not be loaded.")
+    suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.error_lists_not_loaded)
 
     // the new list of the signed in user
     suspend fun createList(
@@ -101,7 +111,7 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer("The list could not be created.")
+            }.answer(R.string.error_list_not_created)
 
     // the settings of a list of the user's own
     suspend fun updateList(
@@ -115,18 +125,18 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer("The list could not be saved.")
+            }.answer(R.string.error_list_not_saved)
 
     // a list of the user's own with its items, not their last one (LIST-1)
     suspend fun deleteList(id: Int) {
         client
             .delete("$url/grocery/lists/$id") {
                 token?.let { bearerAuth(it) }
-            }.answer<Unit>("The list could not be deleted.")
+            }.answer<Unit>(R.string.error_list_not_deleted)
     }
 
     // the items to buy, by the order of their category, the ones without one last
-    suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", "The items could not be loaded.")
+    suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", R.string.error_items_not_loaded)
 
     // the new item, on the list it names (GROCERY-2)
     suspend fun addItem(
@@ -138,14 +148,14 @@ class GroceryApi(
                 token?.let { bearerAuth(it) }
                 contentType(ContentType.Application.Json)
                 setBody(GroceryNewItemRequest(listId, name))
-            }.answer("The item could not be added.")
+            }.answer(R.string.error_item_not_added)
 
     // the item is bought: the backend deletes it (DELETE answers 204, no body)
     suspend fun checkItem(id: Int) {
         client
             .delete("$url/grocery/items/$id") {
                 token?.let { bearerAuth(it) }
-            }.answer<Unit>("The item could not be checked.")
+            }.answer<Unit>(R.string.error_item_not_checked)
     }
 
     // the ids of the lists the user sees as they change, server-sent events (LIST-4); opened calls
@@ -159,7 +169,7 @@ class GroceryApi(
                     // the backend keeps the stream open with a comment every 25 seconds
                     timeout { socketTimeoutMillis = CHANGES_TIMEOUT_MS }
                 }.execute { response ->
-                    if (!response.status.isSuccess()) response.answer<Unit>("The changes could not be read.")
+                    if (!response.status.isSuccess()) response.answer<Unit>(R.string.error_changes_not_read)
                     opened()
                     val channel = response.bodyAsChannel()
                     var event: String? = null
@@ -176,12 +186,12 @@ class GroceryApi(
         }
 
     // in the order a list shows them
-    suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", "The categories could not be loaded.")
+    suspend fun categories(): List<GroceryCategoryResponse> = all("$url/grocery/categories", R.string.error_categories_not_loaded)
 
     // every page of a list
     private suspend inline fun <reified T> all(
         path: String,
-        failure: String,
+        @StringRes failure: Int,
     ): List<T> {
         val all = mutableListOf<T>()
         while (true) {
@@ -200,26 +210,24 @@ class GroceryApi(
     // unauthorized is the text of a 401 without an error body: the session ended, or the
     // credentials of a sign-in were refused
     private suspend inline fun <reified T> HttpResponse.answer(
-        failure: String,
-        unauthorized: String = SESSION_ENDED,
+        @StringRes failure: Int,
+        @StringRes unauthorized: Int = R.string.error_session_ended,
     ): T {
         if (status.isSuccess()) return if (T::class == Unit::class) Unit as T else body()
         val messages = runCatching { ApiJson.decodeFromString<ApiErrorResponse>(bodyAsText()).errors.map { it.message } }.getOrNull()
-        val message =
+        val text =
             when {
-                !messages.isNullOrEmpty() -> messages.joinToString(" ")
-                status == HttpStatusCode.Unauthorized -> unauthorized
-                status == HttpStatusCode.TooManyRequests -> "Too many attempts, please try again later."
-                else -> failure
+                !messages.isNullOrEmpty() -> UiText.Plain(messages.joinToString(" "))
+                status == HttpStatusCode.Unauthorized -> uiText(unauthorized)
+                status == HttpStatusCode.TooManyRequests -> uiText(R.string.error_too_many_attempts)
+                else -> uiText(failure)
             }
-        throw ApiException(status.value, message)
+        throw ApiException(status.value, text)
     }
 
     companion object {
         // the largest page of the api (MAX_LIMIT)
         const val PAGE_LIMIT = 100
-
-        const val SESSION_ENDED = "Your session ended, please sign in again."
 
         // longer than the 25 seconds between the comments of the changes
         const val CHANGES_TIMEOUT_MS = 60_000L

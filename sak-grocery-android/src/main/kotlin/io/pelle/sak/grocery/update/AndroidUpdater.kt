@@ -1,5 +1,8 @@
 package io.pelle.sak.grocery.update
 
+import io.pelle.sak.grocery.uiText
+import io.pelle.sak.grocery.UpdateException
+import io.pelle.sak.grocery.R
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -61,7 +64,7 @@ class AndroidUpdater(
                 withContext(Dispatchers.IO) { apk.outputStream().use { response.bodyAsChannel().copyTo(it) } }
             }
         val actual = withContext(Dispatchers.IO) { sha256(apk) }
-        check(actual == expected) { "The download of version $version is damaged, please try again." }
+        if (actual != expected) throw UpdateException(uiText(R.string.error_update_damaged, version))
     }
 
     private fun commit(apk: File) {
@@ -133,7 +136,8 @@ class UpdateReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
             else -> {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                Toast.makeText(context, "The update was not installed${message?.let { ": $it" }.orEmpty()}", Toast.LENGTH_LONG).show()
+                val text = message?.let { context.getString(R.string.update_not_installed_because, it) } ?: context.getString(R.string.update_not_installed)
+                Toast.makeText(context, text, Toast.LENGTH_LONG).show()
             }
         }
     }

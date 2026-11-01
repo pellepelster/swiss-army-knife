@@ -1,4 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in english, the source and the fallback; values-de has the german ones -->
 <resources>
-    <string name="app_name">SAK Grocery List</string>
+    <string name="app_name" translatable="false">SAK Grocery List</string>
+    <string name="deployment_title" translatable="false">SAK Grocery List</string>
+    <string name="deployment_hint">Enter the base domain of your SAK deployment, the one the web app is at as sak.&lt;base domain>.</string>
+    <string name="base_domain">Base domain</string>
+    <string name="connecting">Connecting…</string>
+    <string name="connect">Connect</string>
+    <string name="other_deployment">Other deployment</string>
+    <string name="sign_in">Sign in</string>
+    <string name="link_sent">A login link is on its way to %1$s if the address may sign in. Open it on this phone and tap \"Open in the app\".</string>
+    <string name="email">E-mail address</string>
+    <string name="send_link">Send login link</string>
+    <string name="sign_in_with_password">Sign in with password</string>
+    <string name="admin_password">Admin password</string>
+    <string name="sign_in_with_email">Sign in with an e-mail link</string>
+    <string name="signed_in_as">Signed in as %1$s</string>
+    <string name="sign_out">Sign out</string>
+    <string name="add_list">Add list</string>
+    <string name="no_lists">You have no list yet, add one with the plus at the top.</string>
+    <string name="update_available">Version %1$s of the app is available, the version of your deployment.</string>
+    <string name="downloading">Downloading…</string>
+    <string name="update">Update</string>
+    <string name="shared">Shared with all users</string>
+    <string name="settings_of">Settings of %1$s</string>
+    <string name="no_items_to_buy">No items to buy</string>
+    <string name="new_list">New list</string>
+    <string name="settings">Settings</string>
+    <string name="all_lists">All lists</string>
+    <string name="name">Name</string>
+    <string name="choose_icon">Choose icon</string>
+    <string name="no_icon">No icon</string>
+    <string name="delete_list">Delete list</string>
+    <string name="saving">Saving…</string>
+    <string name="create_list">Create list</string>
+    <string name="save">Save</string>
+    <string name="only_list">Your only list can not be deleted.</string>
+    <string name="delete_list_title">Delete the list?</string>
+    <string name="delete_list_text">%1$s and its items go.</string>
+    <string name="delete">Delete</string>
+    <string name="keep">Keep</string>
+    <string name="nothing_to_buy">Nothing to buy.</string>
+    <string name="item">Item</string>
+    <string name="undo">Undo</string>
+    <string name="bought">%1$s bought</string>
+    <string name="no_category">No category</string>
+    <string name="error_base_domain">Enter the base domain of your SAK deployment, e.g. example.org.</string>
+    <string name="error_no_deployment">No SAK deployment answers at this domain.</string>
+    <string name="error_no_sak">This is no SAK deployment.</string>
+    <string name="error_link_not_requested">The login link could not be requested.</string>
+    <string name="error_link_invalid">The login link is invalid, expired or was already used.</string>
+    <string name="error_link_not_used">The login link could not be used.</string>
+    <string name="error_not_asked">This login link was not requested in this app, or it is older than 15 minutes. Request a new one.</string>
+    <string name="error_password_not_checked">The password could not be checked.</string>
+    <string name="error_password_wrong">The password is wrong.</string>
+    <string name="error_user_not_read">The user could not be read.</string>
+    <string name="error_lists_not_loaded">The lists could not be loaded.</string>
+    <string name="error_items_not_loaded">The items could not be loaded.</string>
+    <string name="error_categories_not_loaded">The categories could not be loaded.</string>
+    <string name="error_changes_not_read">The changes could not be read.</string>
+    <string name="error_list_not_created">The list could not be created.</string>
+    <string name="error_list_not_saved">The list could not be saved.</string>
+    <string name="error_list_not_deleted">The list could not be deleted.</string>
+    <string name="error_item_not_added">The item could not be added.</string>
+    <string name="error_item_not_checked">The item could not be checked.</string>
+    <string name="error_deployment_unreachable">The deployment could not be reached.</string>
+    <string name="error_connection">The deployment could not be reached, check the connection.</string>
+    <string name="error_session_ended">Your session ended, please sign in again.</string>
+    <string name="error_too_many_attempts">Too many attempts, please try again later.</string>
+    <string name="error_update_not_downloaded">The update could not be downloaded, check the connection.</string>
+    <string name="error_update_not_installed">The update could not be installed.</string>
+    <string name="error_update_damaged">The download of version %1$s is damaged, please try again.</string>
+    <string name="update_not_installed">The update was not installed</string>
+    <string name="update_not_installed_because">The update was not installed: %1$s</string>
+    <plurals name="to_buy">
+        <item quantity="one">%1$d item to buy</item>
+        <item quantity="other">%1$d items to buy</item>
+    </plurals>
 </resources>

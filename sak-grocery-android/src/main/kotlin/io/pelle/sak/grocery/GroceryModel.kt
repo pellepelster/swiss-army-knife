@@ -1,5 +1,6 @@
 package io.pelle.sak.grocery
 
+import androidx.annotation.StringRes
 import io.pelle.sak.grocery.api.ApiException
 import io.pelle.sak.grocery.api.GroceryApi
 import io.pelle.sak.grocery.api.GroceryItemResponse
@@ -32,13 +33,14 @@ val PENDING_FOR: Duration = Duration.ofMinutes(15)
 
 // the items of a category, in the order of the categories of the backend, the ones without one last
 data class ItemGroup(
-    val label: String,
+    // the label of the category the backend sent, or no category
+    val label: UiText,
     val items: List<GroceryItemResponse>,
 )
 
 // the check that can still be undone; serial starts the bar of the time left anew for every check
 data class Undo(
-    val text: String,
+    val text: UiText,
     val serial: Int,
 )
 
@@ -52,7 +54,7 @@ data class ListSettings(
     // the only list of the user's own, which can not be deleted (LIST-1)
     val last: Boolean = false,
     val busy: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 // the version of the app the deployment runs, newer than the app; busy while it is downloaded and
@@ -60,14 +62,19 @@ data class ListSettings(
 data class AppUpdate(
     val version: String,
     val busy: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 // the update of the app to a version of sak: the apk of its release downloaded, checked and handed
-// to the installer of android, which asks the user; a failure is an exception with the reason
+// to the installer of android, which asks the user; a failure is an exception, an UpdateException
+// with the reason the user reads
 fun interface Updater {
     suspend fun install(version: String)
 }
+
+class UpdateException(
+    val text: UiText,
+) : Exception(text.toString())
 
 // the version of the deployment when it is newer than the one of the app, both released versions
 // (1.4.2); a build of no release (latest) is never updated, nor is a deployment without a version
@@ -92,7 +99,7 @@ sealed interface Screen {
     data class Deployment(
         val input: String = "",
         val busy: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
     ) : Screen
 
     // the sign-in follows the user mode (UX-7): in the multi user mode the e-mail login with a link to
@@ -104,7 +111,7 @@ sealed interface Screen {
         // the password login is shown: chosen, or the only one in the single user mode
         val withPassword: Boolean = multiUser == false,
         val busy: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
         // the address a link went to, the app waits for it
         val linkSentTo: String? = null,
     ) : Screen
@@ -118,7 +125,7 @@ sealed interface Screen {
         val open: Int? = null,
         val groups: List<ItemGroup> = emptyList(),
         val loading: Boolean = true,
-        val error: String? = null,
+        val error: UiText? = null,
         // the name typed into the field at the top, kept while it is sent (GROCERY-2)
         val itemName: String = "",
         val adding: Boolean = false,
@@ -221,7 +228,7 @@ class GroceryModel(
     fun connect(input: String) {
         val url = apiUrl(input, allowUrl)
         if (url == null) {
-            state.value = Screen.Deployment(input, error = "Enter the base domain of your SAK deployment, e.g. example.org.")
+            state.value = Screen.Deployment(input, error = uiText(R.string.error_base_domain))
             return
         }
         state.value = Screen.Deployment(input, busy = true)
@@ -232,7 +239,7 @@ class GroceryModel(
                 store.save(stored)
                 showSignIn(stored)
             } catch (e: Exception) {
-                state.value = Screen.Deployment(input, error = failure(e, "No SAK deployment answers at this domain."))
+                state.value = Screen.Deployment(input, error = failure(e, R.string.error_no_deployment))
             }
         }
     }
@@ -257,7 +264,7 @@ class GroceryModel(
                 store.save(stored.copy(pending = PendingLogin(url, clock.instant())))
                 state.value = signIn.copy(busy = false, linkSentTo = address)
             } catch (e: Exception) {
-                state.value = signIn.copy(busy = false, error = failure(e, "The login link could not be requested."))
+                state.value = signIn.copy(busy = false, error = failure(e, R.string.error_link_not_requested))
             }
         }
     }
@@ -279,7 +286,7 @@ class GroceryModel(
                 val session = apiOf(url, null).passwordLogin(password)
                 signedIn(stored, session.sessionToken, session.email, session.expiresAt)
             } catch (e: Exception) {
-                state.value = signIn.copy(busy = false, error = failure(e, "The password could not be checked."))
+                state.value = signIn.copy(busy = false, error = failure(e, R.string.error_password_not_checked))
             }
         }
     }
@@ -306,7 +313,7 @@ class GroceryModel(
                 val session = apiOf(url, null).exchange(token)
                 signedIn(stored.copy(pending = null), session.sessionToken, session.email, session.expiresAt)
             } catch (e: Exception) {
-                showSignIn(stored, error = failure(e, "The login link could not be used."))
+                showSignIn(stored, error = failure(e, R.string.error_link_not_used))
             }
         }
 
@@ -327,7 +334,7 @@ class GroceryModel(
             }
         pending = item to timer
         (state.value as? Screen.Lists)?.let {
-            state.value = it.copy(struck = it.struck + item.id, undo = Undo("${item.name} bought", ++serial), error = null)
+            state.value = it.copy(struck = it.struck + item.id, undo = Undo(uiText(R.string.bought, item.name), ++serial), error = null)
         }
     }
 
@@ -357,17 +364,17 @@ class GroceryModel(
                 if (e.status == 401) {
                     sessionEnded(stored, e)
                 } else {
-                    failed(e.message)
+                    failed(e.text)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failed(failure(e, "The item could not be checked."))
+                failed(failure(e, R.string.error_item_not_checked))
             }
         }
     }
 
-    private fun failed(error: String?) {
+    private fun failed(error: UiText?) {
         val lists = state.value as? Screen.Lists ?: return
         state.value = lists.copy(error = error)
         load()
@@ -422,7 +429,7 @@ class GroceryModel(
         val name = settings.name.trim()
         if (name.isEmpty() || settings.busy) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
-        settingsRequest(settings, if (settings.id == null) "The list could not be created." else "The list could not be saved.") { api ->
+        settingsRequest(settings, if (settings.id == null) R.string.error_list_not_created else R.string.error_list_not_saved) { api ->
             if (settings.id == null) {
                 val created = api.createList(name, settings.shared, settings.icon)
                 (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists + created, settings = null) }
@@ -442,7 +449,7 @@ class GroceryModel(
         val id = settings.id ?: return
         if (settings.busy || settings.last) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
-        settingsRequest(settings, "The list could not be deleted.") { api ->
+        settingsRequest(settings, R.string.error_list_not_deleted) { api ->
             api.deleteList(id)
             (state.value as? Screen.Lists)?.let { state.value = it.copy(lists = it.lists.filter { list -> list.id != id }, settings = null) }
             load()
@@ -451,7 +458,7 @@ class GroceryModel(
 
     private fun settingsRequest(
         settings: ListSettings,
-        failure: String,
+        @StringRes failure: Int,
         request: suspend (GroceryApi) -> Unit,
     ) {
         scope.launch {
@@ -460,7 +467,7 @@ class GroceryModel(
             try {
                 request(apiOf(url, stored.token))
             } catch (e: ApiException) {
-                if (e.status == 401) sessionEnded(stored, e) else settingsFailed(settings, e.message)
+                if (e.status == 401) sessionEnded(stored, e) else settingsFailed(settings, e.text)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -471,7 +478,7 @@ class GroceryModel(
 
     private fun settingsFailed(
         settings: ListSettings,
-        error: String?,
+        error: UiText?,
     ) {
         val lists = state.value as? Screen.Lists ?: return
         val current = lists.settings ?: settings
@@ -517,13 +524,13 @@ class GroceryModel(
                 if (e.status == 401) {
                     sessionEnded(stored, e)
                 } else {
-                    (state.value as? Screen.Lists)?.let { state.value = it.copy(adding = false, error = e.message) }
+                    (state.value as? Screen.Lists)?.let { state.value = it.copy(adding = false, error = e.text) }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 (state.value as? Screen.Lists)?.let {
-                    state.value = it.copy(adding = false, error = failure(e, "The item could not be added."))
+                    state.value = it.copy(adding = false, error = failure(e, R.string.error_item_not_added))
                 }
             }
         }
@@ -553,7 +560,7 @@ class GroceryModel(
 
     private suspend fun showSignIn(
         stored: Stored,
-        error: String? = null,
+        error: UiText? = null,
     ) {
         val url = stored.apiUrl ?: return
         val deployment = stored.deployment ?: url
@@ -562,7 +569,7 @@ class GroceryModel(
             try {
                 Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode == "multi", error = error)
             } catch (e: Exception) {
-                Screen.SignIn(deployment, multiUser = null, error = failure(e, "The deployment could not be reached."))
+                Screen.SignIn(deployment, multiUser = null, error = failure(e, R.string.error_deployment_unreachable))
             }
     }
 
@@ -598,9 +605,11 @@ class GroceryModel(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: IOException) {
-                    "The update could not be downloaded, check the connection."
+                    uiText(R.string.error_update_not_downloaded)
+                } catch (e: UpdateException) {
+                    e.text
                 } catch (e: Exception) {
-                    e.message ?: "The update could not be installed."
+                    uiText(R.string.error_update_not_installed)
                 }
             (state.value as? Screen.Lists)?.let { state.value = it.copy(update = update.copy(busy = false, error = error)) }
         }
@@ -626,13 +635,13 @@ class GroceryModel(
                     if (e.status == 401) {
                         sessionEnded(stored, e)
                     } else {
-                        (state.value as? Screen.Lists)?.let { state.value = it.copy(loading = false, error = e.message) }
+                        (state.value as? Screen.Lists)?.let { state.value = it.copy(loading = false, error = e.text) }
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     (state.value as? Screen.Lists)?.let {
-                        state.value = it.copy(loading = false, error = failure(e, "The lists could not be loaded."))
+                        state.value = it.copy(loading = false, error = failure(e, R.string.error_lists_not_loaded))
                     }
                 }
             }
@@ -644,7 +653,7 @@ class GroceryModel(
     ) {
         val ended = stored.copy(token = null, email = null, expiresAt = null, openList = null)
         store.save(ended)
-        showSignIn(ended, error = e.message)
+        showSignIn(ended, error = e.text)
     }
 
     private suspend fun groups(
@@ -659,25 +668,26 @@ class GroceryModel(
             .groupBy { it.category?.takeIf { category -> category in order } }
             .entries
             .sortedBy { (category, _) -> category?.let { order.getValue(it) } ?: Int.MAX_VALUE }
-            .map { (category, grouped) -> ItemGroup(category?.let { labels.getValue(it) } ?: NO_CATEGORY, grouped.sortedBy { it.id }) }
+            .map { (category, grouped) -> ItemGroup(category?.let { UiText.Plain(labels.getValue(it)) } ?: NO_CATEGORY, grouped.sortedBy { it.id }) }
     }
 
     private fun failure(
         e: Exception,
-        fallback: String,
-    ) = when (e) {
-        is ApiException -> e.message ?: fallback
-        is IOException -> "The deployment could not be reached, check the connection."
-        else -> fallback
-    }
+        @StringRes fallback: Int,
+    ): UiText =
+        when (e) {
+            is ApiException -> e.text
+            is IOException -> uiText(R.string.error_connection)
+            else -> uiText(fallback)
+        }
 
     companion object {
-        const val NO_CATEGORY = "No category"
+        val NO_CATEGORY = uiText(R.string.no_category)
 
         // the waits before the stream of the changes is opened again
         const val RETRY_DELAY_MS = 1_000L
         const val MAX_RETRY_DELAY_MS = 30_000L
 
-        const val NOT_ASKED = "This login link was not requested in this app, or it is older than 15 minutes. Request a new one."
+        val NOT_ASKED = uiText(R.string.error_not_asked)
     }
 }

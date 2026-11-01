@@ -78,7 +78,7 @@ class GroceryModelTest {
             assertEquals(Screen.Deployment(), model.screen.value)
 
             model.connect("nonsense")
-            assertTrue((model.screen.value as Screen.Deployment).error!!.contains("base domain"))
+            assertTrue((model.screen.value as Screen.Deployment).error.english()!!.contains("base domain"))
 
             model.connect("example.org")
             advanceUntilIdle()
@@ -108,7 +108,7 @@ class GroceryModelTest {
             advanceUntilIdle()
             val lists = model.screen.value as Screen.Lists
             assertEquals(1, lists.open)
-            assertEquals(listOf("Fruit & vegetables", "Dairy & eggs", GroceryModel.NO_CATEGORY), lists.groups.map { it.label })
+            assertEquals(listOf("Fruit & vegetables", "Dairy & eggs", GroceryModel.NO_CATEGORY.english()), lists.groups.map { it.label.english() })
             assertEquals(listOf("Apples", "Milk", "Candles"), lists.groups.flatMap { group -> group.items.map { it.name } })
             assertEquals("password-session", backend.tokens["/grocery/lists/1/items"])
             assertEquals(1, store.load().openList)
@@ -170,7 +170,7 @@ class GroceryModelTest {
             advanceUntilIdle()
 
             val signIn = model.screen.value as Screen.SignIn
-            assertEquals("Your session ended, please sign in again.", signIn.error)
+            assertEquals("Your session ended, please sign in again.", signIn.error.english())
             assertNull(store.load().token)
             assertEquals(URL, store.load().apiUrl)
         }
@@ -204,13 +204,13 @@ class GroceryModelTest {
             advanceUntilIdle()
             model.signInWithPassword("wrong")
             advanceUntilIdle()
-            assertEquals("The password is wrong.", (model.screen.value as Screen.SignIn).error)
+            assertEquals("The password is wrong.", (model.screen.value as Screen.SignIn).error.english())
 
             backend.answers["POST /auth/login/password"] =
                 HttpStatusCode.TooManyRequests to """{"errors":[{"message":"Slow down."}]}"""
             model.signInWithPassword("again")
             advanceUntilIdle()
-            assertEquals("Slow down.", (model.screen.value as Screen.SignIn).error)
+            assertEquals("Slow down.", (model.screen.value as Screen.SignIn).error.english())
         }
 
     private fun signedInStore(openList: Int? = 1) =
@@ -279,14 +279,14 @@ class GroceryModelTest {
             model.addItem()
             advanceUntilIdle()
             val lists = model.screen.value as Screen.Lists
-            assertEquals("The name is too long.", lists.error)
+            assertEquals("The name is too long.", lists.error.english())
             assertEquals("Bread", lists.itemName)
             assertEquals(false, lists.adding)
 
             backend.answers["POST /grocery/items"] = HttpStatusCode.Unauthorized to ""
             model.addItem()
             advanceUntilIdle()
-            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error)
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error.english())
         }
 
     private fun GroceryModel.item(name: String) =
@@ -306,7 +306,7 @@ class GroceryModelTest {
             runCurrent()
             val struck = model.screen.value as Screen.Lists
             assertEquals(setOf(10), struck.struck)
-            assertEquals("Apples bought", struck.undo?.text)
+            assertEquals("Apples bought", struck.undo?.text.english())
             assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
             assertTrue(backend.requests.none { it.startsWith("DELETE") })
 
@@ -314,7 +314,7 @@ class GroceryModelTest {
             val lists = model.screen.value as Screen.Lists
             assertEquals(emptySet<Int>(), lists.struck)
             assertNull(lists.undo)
-            assertEquals(listOf("Dairy & eggs", GroceryModel.NO_CATEGORY), lists.groups.map { it.label })
+            assertEquals(listOf("Dairy & eggs", GroceryModel.NO_CATEGORY.english()), lists.groups.map { it.label.english() })
             assertEquals(listOf("DELETE /grocery/items/10"), backend.requests.filter { it.startsWith("DELETE") })
             assertEquals("t", backend.tokens["/grocery/items/10"])
         }
@@ -355,7 +355,7 @@ class GroceryModelTest {
 
             model.check(model.item("Apples"))
             advanceUntilIdle()
-            assertEquals("The item could not be checked.", (model.screen.value as Screen.Lists).error)
+            assertEquals("The item could not be checked.", (model.screen.value as Screen.Lists).error.english())
             assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
         }
 
@@ -372,7 +372,7 @@ class GroceryModelTest {
             model.saveSettings()
             advanceUntilIdle()
             assertTrue(backend.requests.contains("""POST /grocery/lists {"name":"Party","shared":true,"icon":"🎉"}"""))
-            assertEquals(ListSettings(name = " Party ", shared = true, icon = "🎉", error = "A list of the name exists."), (model.screen.value as Screen.Lists).settings)
+            assertEquals(ListSettings(name = " Party ", shared = true, icon = "🎉", error = UiText.Plain("A list of the name exists.")), (model.screen.value as Screen.Lists).settings)
 
             model.back()
             assertNull((model.screen.value as Screen.Lists).settings)
@@ -457,7 +457,7 @@ class GroceryModelTest {
             backend.answers["GET /grocery/changes"] = HttpStatusCode.Unauthorized to ""
             advanceTimeBy(GroceryModel.RETRY_DELAY_MS)
             runCurrent()
-            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error)
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error.english())
             model.stopListening()
         }
 
@@ -588,13 +588,22 @@ class GroceryModelTest {
             model.update()
             advanceUntilIdle()
             assertEquals(
-                AppUpdate("0.1.15", error = "The update could not be downloaded, check the connection."),
+                AppUpdate("0.1.15", error = uiText(R.string.error_update_not_downloaded)),
                 (model.screen.value as Screen.Lists).update,
             )
 
-            failure = IllegalStateException("The download of version 0.1.15 is damaged, please try again.")
+            failure = UpdateException(uiText(R.string.error_update_damaged, "0.1.15"))
             model.update()
             advanceUntilIdle()
-            assertEquals("The download of version 0.1.15 is damaged, please try again.", (model.screen.value as Screen.Lists).update?.error)
+            assertEquals("The download of version 0.1.15 is damaged, please try again.", (model.screen.value as Screen.Lists).update?.error.english())
+        }
+
+    @Test
+    fun `the api asks the backend for its texts in the languages of the phone`() =
+        runTest {
+            backend.dispatcher = StandardTestDispatcher(testScheduler)
+            backend.api(URL, null, "de-DE,en-US").info()
+            backend.api(URL, null).info()
+            assertEquals(listOf("de-DE,en-US", null), backend.languages)
         }
 }

@@ -18,3 +18,8 @@ Every change here keeps to them; a change that breaks a rule of the app changes 
 - The response classes in `api/ApiModels.kt` are copies of the ones of `sak-backend`, with the fields the app uses
   only; change them with the api.
 - The logic is in `GroceryModel`, without android, tested on the jvm against a fake backend (`FakeBackend`).
+- Every text the user reads is in `res/values/strings.xml` (english) and `res/values-de/strings.xml` (german); lint
+  refuses a text without its german one. The model has no android: it holds a `UiText`, a string resource with its
+  arguments or a text the backend sent, and the ui reads it. The api sends the languages of the phone
+  (`Accept-Language`), so the backend answers its texts in the same language. The tests read the english texts
+  (`english()`).

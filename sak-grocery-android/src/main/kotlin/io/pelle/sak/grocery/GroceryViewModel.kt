@@ -1,6 +1,7 @@
 package io.pelle.sak.grocery
 
 import android.app.Application
+import android.os.LocaleList
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.engine.okhttp.OkHttp
@@ -17,7 +18,7 @@ class GroceryViewModel(
     val model =
         GroceryModel(
             store = DataStoreSessionStore(application),
-            apiOf = { url, token -> GroceryApi(engine, url, token) },
+            apiOf = { url, token -> GroceryApi(engine, url, token, LocaleList.getDefault().toLanguageTags()) },
             scope = viewModelScope,
             allowUrl = BuildConfig.DEBUG,
             appVersion = BuildConfig.VERSION_NAME,
