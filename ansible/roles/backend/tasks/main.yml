@@ -179,13 +179,6 @@
     mode: "0600"
   notify: Restart sak-backend
 
-# sak-backend was called sak-controller, its container would keep the port taken
-- name: Stop the sak-controller container
-  ansible.builtin.systemd_service:
-    name: sak-controller
-    state: stopped
-  failed_when: false
-
 - name: Install the quadlets
   ansible.builtin.template:
     src: "{{ item }}.container.j2"
