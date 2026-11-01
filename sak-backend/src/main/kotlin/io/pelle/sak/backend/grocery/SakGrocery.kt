@@ -284,7 +284,8 @@ fun Route.grocery(
             summary = "Attach a photo to an item"
             description =
                 "The photo is a file the user uploaded to the file storage (POST /files) that is an image. The user's " +
-                "suggestion of the item's name takes it too, so their next item of the name has it; no other user's (GROCERY-11)."
+                "suggestion of the item's name takes it too, and on a shared list the list's, so the next item of the name " +
+                "has it (GROCERY-11)."
             parameters { itemId() }
             requestBody {
                 required = true

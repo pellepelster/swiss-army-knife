@@ -527,7 +527,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a photo of an item shows to everyone who sees the list, scaled as asked, and comes back on the next item of its name, only for whoever attached it`() {
+    fun `a photo of an item shows to everyone who sees the list, scaled as asked, and comes back on the next item of its name`() {
         withServer { port ->
             val admin = signIn(port)
             post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
@@ -573,8 +573,10 @@ class SakAppsTest {
                 it.body() shouldContain "grocery.not_a_photo"
             }
 
-            // the next item of the name has the photo, of the one who attached it only (GROCERY-11)
+            // the next item of the name has the photo: of the one who attached it, and on the shared list
+            // for everyone, the list learned it; not on another user's own list (GROCERY-11)
             add(admin, shared, " milk ").string("photoId") shouldBe photo
+            add(anna, shared, "Milk").string("photoId") shouldBe photo
             val own = lists(anna).single { it.string("mine") == "true" }.string("id")
             add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
 

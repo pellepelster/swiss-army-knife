@@ -137,6 +137,40 @@ class GroceryServiceTest {
     }
 
     @Test
+    fun `a shared list learns from every user, it stays with the list when it is unshared (GROCERY-11)`() {
+        // the own lists first, the ones of the sign-in
+        val own = list(PELLE)
+        val otherOwn = list(OTHER)
+        val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+        val chips = add(OTHER, party, input("Chips"))
+        service.deleteItem(OTHER, chips.id) shouldBe true
+
+        // the list learned it, and the user who added it; not the other user personally
+        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
+        service.suggestions(PELLE, "ch", own) shouldBe emptyList()
+        service.suggestions(OTHER, "ch", otherOwn).map { it.name } shouldBe listOf("Chips")
+
+        // one suggestion of a name, also when the user learned it too
+        add(PELLE, party, input("Chips")).let { service.deleteItem(PELLE, it.id) }
+        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
+
+        // unshared: the owner keeps what the list learned, the other user no longer sees the list
+        service.updateList(PELLE, party, "Party", shared = false, icon = null)
+        service.suggestions(OTHER, "ch", party).map { it.listId } shouldBe listOf(null)
+        service.suggestions(PELLE, "ch", party).map { it.name } shouldBe listOf("Chips")
+        // shared again: back for everyone
+        service.updateList(PELLE, party, "Party", shared = true, icon = null)
+        service.suggestions(OTHER, "ch", party).any { it.listId == party } shouldBe true
+
+        // every user of the list forgets what it learned; a deleted list takes it along
+        val learned = service.suggestions(OTHER, "ch", party).first { it.listId == party }
+        service.forget(OTHER, learned.id) shouldBe true
+        add(OTHER, party, input("Dip")).let { service.deleteItem(OTHER, it.id) }
+        service.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
+        service.suggestions(PELLE, "dip", null) shouldBe emptyList()
+    }
+
+    @Test
     fun `a change of a list reaches the users who see it, a private list of another user not (LIST-4)`() =
         runBlocking {
             val own = list(PELLE)
