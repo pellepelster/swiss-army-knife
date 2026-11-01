@@ -1050,7 +1050,6 @@ class SakAppsTest {
                         "/api/v1/auth/login/password",
                         "/api/v1/info",
                         "/api/v1/auth/who-am-i",
-                        "/api/v1/config",
                         "/api/v1/deployment",
                         "/api/v1/settings",
                         "/api/v1/settings/{scope}",
@@ -1151,27 +1150,6 @@ class SakAppsTest {
         // without a mail server only the admin signs in
         withServer(config(smtp = false, admins = false)) { port ->
             get(port, "/api/v1/info").json().getValue("userMode") shouldBe JsonPrimitive("single")
-        }
-    }
-
-    @Test
-    fun `sakctl reads the running configuration, no session does`() {
-        withServer { port ->
-            get(port, "/api/v1/config").statusCode() shouldBe 401
-            // not even the one of an admin, the password of the mail server is in it
-            get(port, "/api/v1/config", signIn(port)).statusCode() shouldBe 401
-            val config = signed(port, "/api/v1/config")
-            config.statusCode() shouldBe 200
-            config.headers().firstValue("Cache-Control").get() shouldBe "no-store"
-            val smtp = config.json().getValue("smtp").jsonObject
-            smtp.string("host") shouldBe "localhost"
-            smtp.getValue("port").jsonPrimitive.content shouldBe greenMail.smtp.port.toString()
-            smtp.string("from") shouldBe "login@example.org"
-            smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "false"
-            smtp["password"] shouldBe JsonNull
-            // the addresses of the e-mail login as configured, the first the admin
-            config.json().getValue("admins").jsonArray.map { it.jsonPrimitive.content } shouldBe
-                listOf("Admin@example.org", "second@example.org")
         }
     }
 
@@ -1304,15 +1282,15 @@ class SakAppsTest {
     }
 
     @Test
-    fun `the running configuration answers the password of the mail server, for a redeploy to take over`() {
+    fun `the settings of the deployment answer the password of the mail server, for a redeploy to take over`() {
         withServer(config(smtpPassword = "the-smtp-password")) { port ->
-            val answer = signed(port, "/api/v1/config")
+            val answer = signed(port, "/api/v1/deployment")
             answer.statusCode() shouldBe 200
             val smtp = answer.json().getValue("smtp").jsonObject
             smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
             smtp.string("password") shouldBe "the-smtp-password"
             // only for admins
-            get(port, "/api/v1/config").statusCode() shouldBe 401
+            get(port, "/api/v1/deployment").statusCode() shouldBe 401
         }
     }
 
@@ -1320,7 +1298,7 @@ class SakAppsTest {
     fun `a signed request works without any admin address`() {
         // single user: no list of allowed addresses, sakctl is let in all the same
         withServer(config(smtp = false, admins = false)) { port ->
-            signed(port, "/api/v1/config").statusCode() shouldBe 200
+            signed(port, "/api/v1/deployment").statusCode() shouldBe 200
         }
     }
 
@@ -1373,30 +1351,30 @@ class SakAppsTest {
     @Test
     fun `a signed request of sakctl reaches the api like an admin session, once, for its host and path`() {
         withServer { port ->
-            signed(port, "/api/v1/config").statusCode() shouldBe 200
+            signed(port, "/api/v1/deployment").statusCode() shouldBe 200
             signed(port, "/api/v1/notes").statusCode() shouldBe 200
             signed(port, "/api/v1/auth/who-am-i").statusCode() shouldBe 200
 
             // the same request again, a replay
-            val once = signature("GET", "/v1/config")
-            signed(port, "/api/v1/config", authorization = once).statusCode() shouldBe 200
-            signed(port, "/api/v1/config", authorization = once).statusCode() shouldBe 401
+            val once = signature("GET", "/v1/deployment")
+            signed(port, "/api/v1/deployment", authorization = once).statusCode() shouldBe 200
+            signed(port, "/api/v1/deployment", authorization = once).statusCode() shouldBe 401
             // signed for another host (where forged labels sent it), path or method
-            signed(port, "/api/v1/config", authorization = signature("GET", "/v1/config", host = "api.evil.example")).statusCode() shouldBe 401
-            signed(port, "/api/v1/config", authorization = signature("GET", "/v1/notes")).statusCode() shouldBe 401
-            signed(port, "/api/v1/config", authorization = signature("DELETE", "/v1/config")).statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", host = "api.evil.example")).statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/notes")).statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment", authorization = signature("DELETE", "/v1/deployment")).statusCode() shouldBe 401
             // too old, or by another key
             val old = Instant.now().epochSecond - 600
-            signed(port, "/api/v1/config", authorization = signature("GET", "/v1/config", timestamp = old)).statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", timestamp = old)).statusCode() shouldBe 401
             val other = KeyPairGenerator.getInstance("Ed25519").generateKeyPair().private
-            signed(port, "/api/v1/config", authorization = signature("GET", "/v1/config", key = other)).statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", key = other)).statusCode() shouldBe 401
             // a signed request carries no body, sakctl only reads
             signed(port, "/api/v1/notes", method = "POST", json = """{"text":"x","color":"yellow","labels":[]}""")
                 .statusCode() shouldBe 401
         }
         // without a public key in the configuration, no signature is taken
         withServer(config(apiKey = false)) { port ->
-            signed(port, "/api/v1/config").statusCode() shouldBe 401
+            signed(port, "/api/v1/deployment").statusCode() shouldBe 401
         }
     }
 

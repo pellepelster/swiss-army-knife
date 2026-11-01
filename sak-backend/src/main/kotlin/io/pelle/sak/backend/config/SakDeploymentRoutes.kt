@@ -11,9 +11,13 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.config.model.DeploymentResponse
+import io.pelle.sak.backend.config.model.SmtpConfigResponse
 import io.pelle.sak.config.SakConfig
 
 private const val DEPLOYMENT_TAG = "config"
+
+fun SakConfig.SmtpConfig.response() =
+    SmtpConfigResponse(host, port, username, !password.isNullOrEmpty(), password?.takeIf { it.isNotEmpty() }, from, tls, starttls)
 
 // the settings of the deployment, meant to be mounted behind the signature of sakctl only and the
 // admin role: a redeploy reads them again, the password of the mail server included

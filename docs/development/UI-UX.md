@@ -82,9 +82,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   the deployment is, never at a default location.
 - `WINDOW-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
   ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
-- `WINDOW-11` **A redeploy takes over what runs.** With the password at hand, a redeploy fills the empty fields of the
-  users the same way in the window and on the command line: the user mode from the labels of the deployment, the admin
-  and the whole mail server from its running configuration. What is given wins.
 
 ## sakctl command line
 
@@ -96,8 +93,6 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `CLI-2` **Test deployments.** `--acme-ca staging` gets the certificates of a deployment from the staging ca of Let's
   Encrypt, which has none of the limits of the production one; the deployment keeps it, sakctl trusts its roots. The
   integration tests use it.
-- `CLI-3` **The same as the window.** The command line does what the window does (list, create, deploy, destroy, show
-  the running configuration) with the same rules and texts. Without a command, the window opens.
 - `CLI-4` **An ssh session, on the command line only.** `sakctl ssh <name>` opens a session as root on the server, `--
   <command>` runs a command there. It runs in the image of the tools like the provisioning: the key derived from the
   password goes to an ssh-agent in the container and is never written, the server is checked against its derived host

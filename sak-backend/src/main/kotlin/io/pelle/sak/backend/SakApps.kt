@@ -40,7 +40,6 @@ import io.pelle.sak.auth.session
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
-import io.pelle.sak.backend.config.config
 import io.pelle.sak.backend.info.info
 import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
@@ -232,13 +231,9 @@ fun Application.apps(
                             servedFiles(fileService)
                         }
                     }
-                    // what only sakctl reads, with a signed request: the running configuration holds the
-                    // password of the mail server, no browser session gets it
+                    // what only sakctl reads, with a signed request: the settings of the deployment hold
+                    // the password of the mail server, no browser session gets it
                     authenticate(API_SIGNATURE_AUTH) {
-                        route("/config") {
-                            requireRole(Role.ADMIN)
-                            config(config)
-                        }
                         route("/deployment") {
                             requireRole(Role.ADMIN)
                             deployment(config)
