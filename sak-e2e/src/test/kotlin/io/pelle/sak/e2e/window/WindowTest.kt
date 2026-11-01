@@ -200,7 +200,7 @@ class WindowScreenshotTest {
     }
 }
 
-// the video of the window in build/videos/window.webm: the tour at the pace of the app, typed
+// the video of the window in build/videos/sakctl-ui.webm: the tour at the pace of the app, typed
 // like a person types
 @Tag("video")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -239,7 +239,7 @@ class WindowVideoTest {
         page.waitForTimeout(2_000.0)
         val video = checkNotNull(page.video()) { "the context records no video" }
         context.close()
-        video.saveAs(VIDEOS.resolve("window.webm"))
+        video.saveAs(VIDEOS.resolve("sakctl-ui.webm"))
         video.delete()
     }
 }

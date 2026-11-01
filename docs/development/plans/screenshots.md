@@ -89,7 +89,7 @@ fails the run.
 6. a deploy of a deployment with changes, and a destroy with the danger zone of "delete the data volume".
 
 Screenshots go to `docs/screenshots/sakctl-ui-<step>[-dark].png`. The video (steps 1 to 5) goes to
-`build/videos/window.mp4` and `window.gif`.
+`build/videos/sakctl-ui.mp4` and `sakctl-ui.gif`.
 
 ### Not done: the real app
 
