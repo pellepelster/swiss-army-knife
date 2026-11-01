@@ -55,9 +55,10 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-12` **A menu on each row.** Each row of a list has a menu behind a ⋮ button at its right end. Its last entry is
   Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
   is disabled, its tooltip says why (`UX-8`).
-- `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Check for
-  updates" and "Sign out". The check loads a new version at once when there is one; otherwise a line under the header
-  says what it found.
+- `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out".
+  An app that can update itself (e.g. the Android app, not the web ui, which a browser updates) has "Check for updates"
+  in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
+  found.
 
 ## Web ui
 

@@ -144,7 +144,7 @@ private object EnabledTimeout {
             .setTimeout(180_000.0)
 }
 
-// the screenshots of the window in docs/development/screenshots/window-<view>[-dark].png, light and dark
+// the screenshots of the window in docs/screenshots/sakctl-ui-<view>[-dark].png, light and dark
 @Tag("screenshots")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WindowScreenshotTest {
@@ -172,7 +172,7 @@ class WindowScreenshotTest {
                 page.screenshot(
                     Page
                         .ScreenshotOptions()
-                        .setPath(SCREENSHOTS.resolve("window-$name$suffix.png"))
+                        .setPath(SCREENSHOTS.resolve("sakctl-ui-$name$suffix.png"))
                         .setAnimations(ScreenshotAnimations.DISABLED)
                         .setCaret(ScreenshotCaret.HIDE),
                 )

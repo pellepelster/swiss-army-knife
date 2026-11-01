@@ -62,7 +62,6 @@ const TASKS: &[&str] = &[
     "Write the backend configuration",
     "Upload the backend environment",
     "Stop the sak-controller container",
-    "Remove the sak-controller quadlet and the image archives",
     "Install the quadlets",
     "Start the containers",
     "Create the directory of the role markers",
@@ -83,14 +82,25 @@ pub(super) fn spec() -> DeploymentSpec {
         .with_password_hash(&crate::core::keys::password_hash(NAME, PASSWORD).unwrap())
 }
 
-/// the configuration the running deployment of the spec answers: single user, in dns mode domain
+/// the configuration the running deployment of the spec answers: multiple users with an admin
+/// and a mail server that sends as sak@<root domain>, in dns mode domain
 fn settings() -> Detected {
     Detected {
         source: Some(SettingsSource::Running),
         dns_mode: Some(DnsMode::Domain),
         root_domain: Some(ROOT_DOMAIN.to_string()),
         acme_ca: Some(AcmeCa::Production),
-        user_mode: Some(UserMode::Single),
+        user_mode: Some(UserMode::Multi),
+        admin_email: Some("admin@example.org".to_string()),
+        smtp: Some(DetectedSmtp {
+            host: "smtp.example.org".to_string(),
+            port: 587,
+            username: "sak@example.org".to_string(),
+            password: None,
+            password_set: true,
+            starttls: true,
+            from: format!("sak@{ROOT_DOMAIN}"),
+        }),
         ..Detected::default()
     }
 }

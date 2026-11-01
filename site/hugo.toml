@@ -20,7 +20,7 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! development/screenshots/**', '! development/design/**']
+files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! screenshots/**', '! development/design/**']
 
 # the index of the feature decision records is the page of its section
 [[module.mounts]]
@@ -33,8 +33,8 @@ source = '../docs/development/architecture/apps/INDEX.md'
 target = 'content/development/architecture/apps/_index.md'
 
 [[module.mounts]]
-source = '../docs/development/screenshots'
-target = 'static/development/screenshots'
+source = '../docs/screenshots'
+target = 'static/screenshots'
 
 # the tokens and the fonts of sak-theme, linked by layouts/partials/custom-header.html
 [[module.mounts]]

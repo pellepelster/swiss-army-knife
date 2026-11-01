@@ -71,29 +71,6 @@ describe('ServiceWorkerUpdates', () => {
     Reflect.deleteProperty(document, 'visibilityState');
   });
 
-  it('checks for a new version when asked and loads it at once', async () => {
-    start();
-    const router = TestBed.inject(Router);
-    await router.navigateByUrl('/notes');
-    const service = TestBed.inject(ServiceWorkerUpdates);
-    expect(await service.check()).toBe('current');
-    expect(page.load).not.toHaveBeenCalled();
-
-    updates.checkForUpdate.mockResolvedValue(true);
-    expect(await service.check()).toBe('updating');
-    expect(updates.activateUpdate).toHaveBeenCalled();
-    expect(page.load).toHaveBeenCalledWith('/notes');
-
-    updates.checkForUpdate.mockRejectedValue(new Error('offline'));
-    expect(await service.check()).toBe('failed');
-  });
-
-  it('a check without a service worker finds nothing', async () => {
-    start(false);
-    expect(await TestBed.inject(ServiceWorkerUpdates).check()).toBe('unavailable');
-    expect(updates.checkForUpdate).not.toHaveBeenCalled();
-  });
-
   it('does nothing without a service worker', () => {
     start(false);
     unrecoverable.next({ type: 'UNRECOVERABLE_STATE', reason: 'files evicted' });

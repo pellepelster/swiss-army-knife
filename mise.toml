@@ -481,7 +481,7 @@ depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
-# the screenshots of docs/development/screenshots/, taken in chromium: the apps against the
+# the screenshots of docs/screenshots/, taken in chromium: the apps against the
 # environment of `mise run local:run` (every page on a desktop and on a phone), the window of sakctl
 # in light and dark
 [tasks."docs:screenshots"]

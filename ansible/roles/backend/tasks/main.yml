@@ -186,17 +186,6 @@
     state: stopped
   failed_when: false
 
-# the images were uploaded as archives before they were pulled
-- name: Remove the sak-controller quadlet and the image archives
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - /etc/containers/systemd/sak-controller.container
-    - "{{ backend_base_path }}/sak-controller-image.tar.gz"
-    - "{{ backend_base_path }}/sak-backend-image.tar.gz"
-    - "{{ backend_base_path }}/sak-ingress-image.tar.gz"
-
 - name: Install the quadlets
   ansible.builtin.template:
     src: "{{ item }}.container.j2"

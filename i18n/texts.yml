@@ -231,16 +231,6 @@ web:
       en: "The full api of the backend, to try out"
       de: "Die ganze API des Backends, zum Ausprobieren"
     users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
-    check_updates: { en: "Check for updates", de: "Nach Updates suchen" }
-    checking: { en: "Checking for updates…", de: "Suche nach Updates…" }
-    up_to_date: { en: "The app is up-to-date.", de: "Die App ist aktuell." }
-    updating: { en: "Loading the new version…", de: "Die neue Version wird geladen…" }
-    update_failed:
-      en: "Could not check for updates, try again later."
-      de: "Die Suche nach Updates ist fehlgeschlagen, versuche es später noch einmal."
-    no_updates:
-      en: "Updates need the service worker, it does not run here."
-      de: "Updates brauchen den Service Worker, er läuft hier nicht."
   signin:
     page_title: { en: "Signing in", de: "Anmeldung läuft" }
     grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }

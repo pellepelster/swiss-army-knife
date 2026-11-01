@@ -32,7 +32,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 
-// where the screenshots go, docs/development/screenshots/ by e2eScreenshots
+// where the screenshots go, docs/screenshots/ by e2eScreenshots
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 
 // the sizes a page is shown at, each screenshot is taken in both
@@ -103,7 +103,7 @@ class ScreenshotTest {
         screenshot(
             Page
                 .ScreenshotOptions()
-                .setPath(SCREENSHOTS.resolve("$name-${device.name.lowercase()}.png"))
+                .setPath(SCREENSHOTS.resolve("web-$name-${device.name.lowercase()}.png"))
                 .setAnimations(ScreenshotAnimations.DISABLED)
                 .setCaret(com.microsoft.playwright.options.ScreenshotCaret.HIDE),
         )
