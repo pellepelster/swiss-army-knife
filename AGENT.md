@@ -16,8 +16,9 @@ Read this file first. It contains rules for the complete repository.
 - Never change [UI-UX.md](docs/development/UI-UX.md) on your own. Ask the user first and change it only after the
   user explicitly agrees.
 - Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
-  finding has an id that is unique in the repository, the prefix of its review and a number; never use an id again,
-  also not when its finding is fixed or removed. A fixed finding stays in its review, struck through (`~~…~~`).
+  finding has an id that is unique among the reviews in the repository, the prefix of its review and a number. A fixed
+  finding stays in its review, struck through (`~~…~~`), until every finding of the review is fixed; then the review is
+  deleted, and its prefix may be used again.
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
   more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
