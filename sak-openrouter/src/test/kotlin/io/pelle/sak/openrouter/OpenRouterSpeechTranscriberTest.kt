@@ -9,9 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64
@@ -20,10 +18,7 @@ import io.pelle.sak.api.testing.string
 
 // against a fake of openrouter's transcriptions on localhost
 class OpenRouterSpeechTranscriberTest {
-    @TempDir
-    lateinit var tempDir: Path
-
-    private fun file(content: ByteArray): Path = Files.write(Files.createTempFile(tempDir, "file-", ".bin"), content)
+    private fun file(content: ByteArray) = BlobContent(content.size.toLong()) { content.inputStream() }
 
     private val requests = mutableListOf<JsonObject>()
 

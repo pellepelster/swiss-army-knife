@@ -1,12 +1,12 @@
 package io.pelle.sak.openrouter
 
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 
 // reads the text in an image, e.g. a vision model
 interface TextRecognizer {
     // the text in the image file, empty when there is none; throws TextRecognitionException
     fun recognize(
-        image: Path,
+        image: BlobContent,
         contentType: String,
     ): String
 }
@@ -16,7 +16,7 @@ interface TextRecognizer {
 interface SpeechTranscriber {
     // the text of the recording file, empty when nothing is said; throws TextRecognitionException
     fun transcribe(
-        audio: Path,
+        audio: BlobContent,
         contentType: String,
     ): String
 }

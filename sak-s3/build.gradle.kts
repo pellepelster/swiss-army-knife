@@ -6,6 +6,8 @@ plugins {
 dependencies {
     api(platform(libs.ktor.bom))
     api(libs.ktor.server.core)
+    // the objects of the buckets are blobs of the binary storage (MODEL-7)
+    api(project(":sak-storage"))
 
     implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.dataformat.xml)

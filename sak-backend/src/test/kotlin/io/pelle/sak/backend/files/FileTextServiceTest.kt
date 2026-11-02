@@ -7,6 +7,7 @@ import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
+import io.pelle.sak.storage.BlobContent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -33,10 +34,10 @@ class FileTextServiceTest {
             val images = mutableListOf<ByteArray>()
 
             override fun recognize(
-                image: Path,
+                image: BlobContent,
                 contentType: String,
             ): String {
-                val bytes = Files.readAllBytes(image)
+                val bytes = image.open().use { it.readAllBytes() }
                 images.add(bytes)
                 val text = String(bytes.drop(Media.JPEG.size).toByteArray())
                 if (text == "fail") throw TextRecognitionException("the model failed")
@@ -50,7 +51,7 @@ class FileTextServiceTest {
             val recordings = mutableListOf<String>()
 
             override fun transcribe(
-                audio: Path,
+                audio: BlobContent,
                 contentType: String,
             ): String {
                 recordings.add(contentType)
@@ -167,7 +168,7 @@ class FileTextServiceTest {
     @Test
     fun `tells when the content of a file can not be read`() {
         val lost = photo("lost")
-        Files.delete(files.path(files.byId(PELLE, lost)!!))
+        files.byId(PELLE, lost)!!.sha256.let { Files.delete(tempDir.resolve("files").resolve(it.take(2)).resolve(it)) }
 
         service.discover(PELLE, lost).shouldBeInstanceOf<DiscoverTextResult.Failed>().cause.shouldBeInstanceOf<IOException>()
         recognizer.images shouldBe emptyList()

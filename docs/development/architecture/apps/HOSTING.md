@@ -17,7 +17,6 @@ domains of the bucket.
 
 - `HOSTING-1` **A bucket** has a name, a key pair of its own and the domains it is served at. Every bucket is also
   served at `<name>.<base domain>`.
-- `HOSTING-2` **The objects** of a bucket are files on the data volume, below a directory of the bucket.
 - `HOSTING-3` **The statistics** of a bucket (number of objects, bytes) are counted in the background and kept; a
   write through the S3 api drops them, so they are counted again.
 

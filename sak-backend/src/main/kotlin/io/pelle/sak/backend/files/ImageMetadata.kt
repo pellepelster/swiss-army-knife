@@ -1,17 +1,18 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.storage.BlobContent
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.file.Files
-import java.nio.file.Path
 import javax.imageio.ImageIO
+import javax.imageio.stream.ImageInputStream
+import javax.imageio.stream.MemoryCacheImageInputStream
 
 // what the headers of the images the file storage takes tell, read without decoding the image
 internal object ImageMetadata {
     // width and height, null when the image can not be read
     fun size(
-        image: Path,
+        image: BlobContent,
         contentType: String,
     ): Pair<Int, Int>? =
         try {
@@ -20,20 +21,25 @@ internal object ImageMetadata {
             null
         }
 
-    private fun imageIoSize(image: Path): Pair<Int, Int>? =
-        ImageIO.createImageInputStream(image.toFile())?.use { input ->
-            val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
-            try {
-                reader.input = input
-                reader.getWidth(0) to reader.getHeight(0)
-            } finally {
-                reader.dispose()
-            }
+    // in memory, ImageIO would cache in files of its own
+    private fun imageIoSize(image: BlobContent): Pair<Int, Int>? =
+        image.open().use { stream ->
+            MemoryCacheImageInputStream(stream).use { input -> imageIoSize(input) }
         }
 
+    private fun imageIoSize(input: ImageInputStream): Pair<Int, Int>? {
+        val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
+        try {
+            reader.input = input
+            return reader.getWidth(0) to reader.getHeight(0)
+        } finally {
+            reader.dispose()
+        }
+    }
+
     // the canvas of an extended webp, or the frame of a lossy or lossless one
-    private fun webpSize(image: Path): Pair<Int, Int>? {
-        val head = Files.newInputStream(image).use { it.readNBytes(30) }
+    private fun webpSize(image: BlobContent): Pair<Int, Int>? {
+        val head = image.open().use { it.readNBytes(30) }
         if (head.size < 30) return null
         val bytes = ByteBuffer.wrap(head).order(ByteOrder.LITTLE_ENDIAN)
         fun uint24(offset: Int) = (head[offset].toInt() and 0xFF) or ((head[offset + 1].toInt() and 0xFF) shl 8) or ((head[offset + 2].toInt() and 0xFF) shl 16)

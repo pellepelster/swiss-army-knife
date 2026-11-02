@@ -30,8 +30,7 @@ in [HEALTH.md](HEALTH.md).
 - `SHARED-2` **Labels.** The labels of a user are shared by all apps and seen by nobody else. An app that links labels
   drops its links when a label is deleted.
 - `SHARED-3` **The file storage.** Every app keeps its files in one storage: each upload is a file with an id and its
-  owner, the same content is stored once, the type is told by the first bytes and never taken from the uploader.
-  Thumbnails are made when they are first asked for.
+  owner, the type is told by the first bytes and never taken from the uploader.
 
 ## List-based apps
 

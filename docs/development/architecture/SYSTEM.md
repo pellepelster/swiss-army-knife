@@ -52,7 +52,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-api` | What every part of the api shares: the error answer, pagination, health. |
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakctl, the roles. |
 | `sak-config` | The configuration of the backend and how it is read. |
-| `sak-s3` | The S3 api of the buckets and their storage on the data volume. |
+| `sak-storage` | The binary data on the data volume (`MODEL-7`): the files of the file storage, their thumbnails, the objects of the buckets. |
+| `sak-s3` | The S3 api of the buckets, their objects kept in `sak-storage`. |
 | `sak-ingress` | The configuration model of caddy and the client of its admin api. |
 | `sak-logs` | The access logs and metrics of the sites, read from victorialogs. |
 | `sak-dns` | The check that the domains point to the server, asking name servers directly. |
@@ -92,8 +93,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 ## Model
 
-- `MODEL-1` **One database.** The backend keeps its data in one SQLite database on the data volume, next to the files
-  of the file storage and the objects of the buckets.
+- `MODEL-1` **One database.** The backend keeps its data in one SQLite database on the data volume.
 - `MODEL-2` **The database is only in `sak-model`.** Only the repository of an entity touches the database.
 - `MODEL-3` **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips
   such rows. A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken
@@ -109,6 +109,9 @@ The backend serves apps to its users, for example static hosting and notes. How 
   between the check and the read or the change. The service checks the values, never the access. The exceptions are
   the data of the whole deployment, which only the role `admin` reaches (the buckets, the redirects, the settings),
   and the work the backend does on its own (e.g. the text found in a file).
+- `MODEL-7` **Binary data only through `FilesystemBinaryStorage`.** All binary data the backend stores (the files of the
+  file storage, their thumbnails, the objects of the buckets) is written and read through `FilesystemBinaryStorage`
+  (`sak-storage`); no other code writes binary data to disk.
 
 ## External systems
 

@@ -1,27 +1,11 @@
-package io.pelle.sak.s3.storage
+package io.pelle.sak.storage
 
+import io.pelle.sak.storage.model.BlobInfo
+import io.pelle.sak.storage.model.BlobListEntry
+import io.pelle.sak.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.OutputStream
-import java.time.Instant
-
-data class BlobInfo(
-    val size: Long,
-    val lastModified: Instant,
-)
-
-data class BlobListEntry(
-    val segments: List<String>,
-    val size: Long,
-    val lastModified: Instant,
-) {
-    val path get() = segments.joinToString("/")
-}
-
-// how many blobs are below a path and how large they are altogether
-data class BlobUsage(
-    val blobs: Long,
-    val bytes: Long,
-)
+import java.nio.file.NoSuchFileException
 
 // a blob can not be written where a parent of its path is a blob or where it has children
 class BlobPathConflictException(
@@ -49,6 +33,12 @@ interface BinaryStorage {
 
     fun stat(path: BlobPath): BlobInfo?
 
+    // moves the blob at from to to at once, replacing a blob there; null when there is no blob at from
+    fun move(
+        from: BlobPath,
+        to: BlobPath,
+    ): BlobInfo?
+
     fun delete(path: BlobPath)
 
     fun deleteTree(path: BlobPath)
@@ -58,3 +48,16 @@ interface BinaryStorage {
     // counted without listing every blob, blobs that disappear while counting are left out
     fun usage(prefix: BlobPath): BlobUsage
 }
+
+// a blob to read: its size, and its content, opened anew for every read
+class BlobContent(
+    val size: Long,
+    private val opener: () -> InputStream,
+) {
+    fun open(): InputStream = opener()
+}
+
+// the content of the blob at the path, null when there is none; a blob deleted after this fails
+// open() with a NoSuchFileException
+fun BinaryStorage.content(path: BlobPath): BlobContent? =
+    stat(path)?.let { info -> BlobContent(info.size) { open(path) ?: throw NoSuchFileException(path.toString()) } }

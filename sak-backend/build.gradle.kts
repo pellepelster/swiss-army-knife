@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":sak-api"))
     implementation(project(":sak-model"))
     implementation(project(":sak-s3"))
+    implementation(project(":sak-storage"))
     implementation(project(":sak-ingress"))
     implementation(project(":sak-auth"))
     implementation(project(":sak-logs"))

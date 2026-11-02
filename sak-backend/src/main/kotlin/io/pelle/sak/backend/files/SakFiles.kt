@@ -9,7 +9,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
-import io.ktor.server.http.content.LocalPathContent
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.header
@@ -147,13 +146,16 @@ internal const val IMMUTABLE = "private, max-age=31536000, immutable"
 fun Route.servedFiles(fileService: FileService) {
     get("/{id}") {
         val id = call.idParameter() ?: return@get
-        val file = withContext(Dispatchers.IO) { fileService.byId(call.owner, id) }
-        if (file == null) {
+        val content =
+            withContext(Dispatchers.IO) {
+                fileService.byId(call.owner, id)?.let { file -> fileService.content(file)?.let { BlobResponse(it, ContentType.parse(file.contentType)) } }
+            }
+        if (content == null) {
             call.respond(HttpStatusCode.NotFound)
             return@get
         }
         call.response.header(HttpHeaders.CacheControl, IMMUTABLE)
-        call.respond(LocalPathContent(fileService.path(file), ContentType.parse(file.contentType)))
+        call.respond(content)
     }.describe {
         tag(FILES_TAG)
         summary = "The content of a stored file"
@@ -175,7 +177,7 @@ fun Route.servedFiles(fileService: FileService) {
             return@get
         }
         call.response.header(HttpHeaders.CacheControl, IMMUTABLE)
-        call.respond(LocalPathContent(thumbnail, ContentType.Image.JPEG))
+        call.respond(BlobResponse(thumbnail, ContentType.Image.JPEG))
     }.describe {
         tag(FILES_TAG)
         summary = "The thumbnail of a stored image or recording"

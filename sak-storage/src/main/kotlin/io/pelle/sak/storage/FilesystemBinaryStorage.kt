@@ -1,5 +1,8 @@
-package io.pelle.sak.s3.storage
+package io.pelle.sak.storage
 
+import io.pelle.sak.storage.model.BlobInfo
+import io.pelle.sak.storage.model.BlobListEntry
+import io.pelle.sak.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.Channels
@@ -63,6 +66,9 @@ private class LimitedInputStream(
     override fun close() = delegate.close()
 }
 
+// the blobs as files below the root, a segment of the path for each directory: the only code that
+// writes binary data to disk (MODEL-7). A write is staged in STAGING_DIRECTORY and moved into place
+// at once, a reader never sees half a blob
 class FilesystemBinaryStorage(
     private val rootPath: Path,
 ) : BinaryStorage {
@@ -144,6 +150,26 @@ class FilesystemBinaryStorage(
         } catch (_: NoSuchFileException) {
             null
         }
+    }
+
+    override fun move(
+        from: BlobPath,
+        to: BlobPath,
+    ): BlobInfo? {
+        val source = resolve(from)
+        if (!source.isRegularFile()) return null
+        val target = resolve(to)
+        if (Files.isDirectory(target)) throw BlobPathConflictException(to)
+        createParent(target, to)
+        try {
+            moveIntoPlace(source, target, to)
+        } catch (_: NoSuchFileException) {
+            // moved or deleted by another meanwhile
+            return null
+        }
+        fsyncDirectory(target.parent)
+        pruneEmptyParents(source.parent)
+        return info(target)
     }
 
     override fun delete(path: BlobPath) {

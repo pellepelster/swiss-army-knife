@@ -16,10 +16,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 
 // writes down what is said in a recording with a speech to text model through openrouter's
-// transcriptions; the recording goes along as base64, streamed from its file (base64Body), the language is detected. Only providers
+// transcriptions; the recording goes along as base64, streamed from the storage (base64Body), the language is detected. Only providers
 // that do not collect the data are asked.
 class OpenRouterSpeechTranscriber(
     url: String,
@@ -31,7 +31,7 @@ class OpenRouterSpeechTranscriber(
     private val url = url.trimEnd('/')
 
     override fun transcribe(
-        audio: Path,
+        audio: BlobContent,
         contentType: String,
     ): String {
         val format = FORMATS[contentType] ?: throw TextRecognitionException("recordings of type $contentType can not be transcribed")

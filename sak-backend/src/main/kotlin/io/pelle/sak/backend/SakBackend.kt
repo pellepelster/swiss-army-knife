@@ -33,7 +33,7 @@ import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.AccessLogsManager
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
-import io.pelle.sak.s3.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import kotlin.system.exitProcess
 import io.pelle.sak.api.installUnexpectedErrors

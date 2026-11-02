@@ -2,29 +2,28 @@ package io.pelle.sak.openrouter
 
 import java.io.InputStream
 import java.net.http.HttpRequest
-import java.nio.file.Files
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 import java.util.Base64
 
 // in the json of a request, where the base64 of the file goes; no other value of a request holds it
 internal const val BASE64_DATA = "SAK_BASE64_DATA_PLACEHOLDER"
 
-// the json with the base64 of the file in place of BASE64_DATA, read from the file while it is
-// sent: the memory is a block, not the file (a recording of five minutes is 9.6 MB, its base64
+// the json with the base64 of the content in place of BASE64_DATA, read from the storage while it is
+// sent: the memory is a block, not the content (a recording of five minutes is 9.6 MB, its base64
 // 12.8 MB). Base64 needs no escaping in json
 internal fun base64Body(
     json: String,
-    file: Path,
+    content: BlobContent,
 ): HttpRequest.BodyPublisher {
     val parts = json.split(BASE64_DATA)
     require(parts.size == 2) { "the json has no place for the data" }
-    val encodedSize = (Files.size(file) + 2) / 3 * 4
+    val encodedSize = (content.size + 2) / 3 * 4
     val data =
         if (encodedSize == 0L) {
             HttpRequest.BodyPublishers.noBody()
         } else {
             HttpRequest.BodyPublishers.fromPublisher(
-                HttpRequest.BodyPublishers.ofInputStream { Base64InputStream(Files.newInputStream(file)) },
+                HttpRequest.BodyPublishers.ofInputStream { Base64InputStream(content.open()) },
                 encodedSize,
             )
         }

@@ -4,7 +4,7 @@ import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 import java.io.IOException
 
 sealed interface DiscoverTextResult {
@@ -65,16 +65,17 @@ class FileTextService(
             }
         file.discovered?.let { return DiscoverTextResult.Discovered(it) }
         if (!aiEnabled()) return DiscoverTextResult.Disabled
-        val read: (Path) -> String =
+        val read: (BlobContent) -> String =
             if (image) {
-                recognizer()?.let { { path -> it.recognize(path, file.contentType) } }
+                recognizer()?.let { { content -> it.recognize(content, file.contentType) } }
             } else {
-                transcriber()?.let { { path -> it.transcribe(path, file.contentType) } }
+                transcriber()?.let { { content -> it.transcribe(content, file.contentType) } }
             } ?: return DiscoverTextResult.NotConfigured
+        val content = files.content(file) ?: return DiscoverTextResult.Failed(IOException("the content of file ${file.id} is not in the storage"))
         if (!mayAsk()) return DiscoverTextResult.Limited
         val text =
             try {
-                read(files.path(file)).trim()
+                read(content).trim()
             } catch (e: TextRecognitionException) {
                 return DiscoverTextResult.Failed(e)
             } catch (e: IOException) {

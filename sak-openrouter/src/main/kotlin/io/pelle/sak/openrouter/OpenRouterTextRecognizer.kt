@@ -19,10 +19,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.nio.file.Path
+import io.pelle.sak.storage.BlobContent
 
 // reads the text in an image with a vision model through openrouter's chat completions; the image
-// goes along as data url, streamed from its file (base64Body), openrouter could not fetch it from the controller. Only providers that
+// goes along as data url, streamed from the storage (base64Body), openrouter could not fetch it from the controller. Only providers that
 // do not collect the data are asked.
 class OpenRouterTextRecognizer(
     url: String,
@@ -34,7 +34,7 @@ class OpenRouterTextRecognizer(
     private val url = url.trimEnd('/')
 
     override fun recognize(
-        image: Path,
+        image: BlobContent,
         contentType: String,
     ): String {
         val response =

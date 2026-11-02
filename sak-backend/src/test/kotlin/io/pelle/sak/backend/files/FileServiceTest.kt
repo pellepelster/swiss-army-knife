@@ -6,6 +6,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
+import io.pelle.sak.storage.BlobPath
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
@@ -28,6 +29,11 @@ class FileServiceTest {
 
     private val service by lazy { FileService(database, dir, clock, maxSize = 1024) }
 
+    // where the storage keeps a content on disk, the layout of the deployments that are there
+    private fun stored(sha256: String, suffix: String = "") = dir.resolve(sha256.take(2)).resolve(sha256 + suffix)
+
+    private fun stored(file: StoredFile) = stored(file.sha256)
+
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     @Test
@@ -36,8 +42,8 @@ class FileServiceTest {
 
         val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>().file
         file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
-        service.path(file) shouldBe dir.resolve(file.sha256.take(2)).resolve(file.sha256)
-        Files.readAllBytes(service.path(file)) shouldBe content
+        Files.readAllBytes(stored(file)) shouldBe content
+        service.content(file)!!.let { it.size shouldBe content.size.toLong(); it.open().use { stream -> stream.readAllBytes() } shouldBe content }
         service.byId("pelle@pelle.io", file.id) shouldBe file
         service.byIds("pelle@pelle.io", listOf(file.id, 4711)) shouldBe mapOf(file.id to file)
         // only to the address that uploaded it
@@ -55,8 +61,10 @@ class FileServiceTest {
 
         second.id shouldNotBe first.id
         second.owner shouldBe "other@example.org"
-        service.path(second) shouldBe service.path(first)
-        Files.list(dir).use { it.toList() }.map { it.fileName.toString() } shouldBe listOf(first.sha256.take(2))
+        second.sha256 shouldBe first.sha256
+        // the upload of the second went, nothing but the content and the empty staging directory stay
+        Files.list(dir).use { it.toList() }.map { it.fileName.toString() }.toSet() shouldBe setOf(first.sha256.take(2), BlobPath.STAGING_DIRECTORY)
+        Files.list(dir.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
     }
 
     @Test
@@ -83,22 +91,21 @@ class FileServiceTest {
     fun `makes a thumbnail of an image when it is first asked for and keeps it`() {
         val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
 
-        val thumbnail = service(maxSize = 10_000_000).thumbnail(file)!!
-        thumbnail.parent shouldBe service.path(file).parent
-        ImageIO.read(thumbnail.toFile()).let {
+        val thumbnail = stored(file.sha256, ".thumbnail.jpg")
+        service(maxSize = 10_000_000).thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 480
             it.height shouldBe 319
             Color(it.getRGB(240, 160)).let { pixel -> (pixel.red > 200 && pixel.blue < 80) shouldBe true }
         }
         val modified = Files.getLastModifiedTime(thumbnail)
-        service.thumbnail(file) shouldBe thumbnail
+        service.thumbnail(file)!!.size shouldBe Files.size(thumbnail)
         Files.getLastModifiedTime(thumbnail) shouldBe modified
     }
 
     @Test
     fun `small images keep their size, transparent ones get a white background`() {
         val file = (service(maxSize = 10_000_000).store(Media.image(200, 100, "png").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
-        ImageIO.read(service.thumbnail(file)!!.toFile()).let {
+        service.thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 200
             it.height shouldBe 100
         }
@@ -107,12 +114,12 @@ class FileServiceTest {
     @Test
     fun `an image that can not be read has no thumbnail, it is not read again`() {
         val file = (service.store(Media.JPEG.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
-        val content = Files.readAllBytes(service.path(file))
-        Files.write(service.path(file), Media.JPEG.copyOf(4))
+        val content = Files.readAllBytes(stored(file))
+        Files.write(stored(file), Media.JPEG.copyOf(4))
         service.thumbnail(file) shouldBe null
 
         // readable again, the marker keeps it from being decoded
-        Files.write(service.path(file), content)
+        Files.write(stored(file), content)
         service.thumbnail(file) shouldBe null
     }
 
@@ -122,14 +129,14 @@ class FileServiceTest {
         val start = java.util.concurrent.CountDownLatch(1)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(16)
         try {
-            val thumbnails = (1..16).map { pool.submit<java.nio.file.Path?> { start.await(); service.thumbnail(file) } }
+            val thumbnails = (1..16).map { pool.submit<Long?> { start.await(); service.thumbnail(file)?.size } }
             start.countDown()
-            thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(service.thumbnail(file))
+            thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(Files.size(stored(file.sha256, ".thumbnail.jpg")))
         } finally {
             pool.shutdownNow()
         }
-        // the temporary files are made in the storage dir
-        Files.list(service.path(file).parent.parent).use { files -> files.filter { it.toString().endsWith(".tmp") }.count() } shouldBe 0
+        // nothing is left staged
+        Files.list(dir.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
     }
 
     @Test
@@ -168,7 +175,7 @@ class FileServiceTest {
             (service(maxSize = 10_000_000).store(Media.wav(seconds = 2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
         file.contentType shouldBe "audio/wav"
 
-        ImageIO.read(service.thumbnail(file)!!.toFile()).let {
+        service.thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 480
             it.height shouldBe 360
             // the loud second half has higher bars than the quiet first half
@@ -185,8 +192,8 @@ class FileServiceTest {
         FileService.subsampling(100, 128) shouldBe 1
 
         val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
-        FileService.decode(service.path(file), 128)!!.width shouldBe 512
-        ImageIO.read(service.thumbnail(file, 128)!!.toFile()).let {
+        FileService.decode(service.content(file)!!, 128)!!.width shouldBe 512
+        service.thumbnail(file, 128)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 128
             it.height shouldBe 85
             Color(it.getRGB(64, 42)).let { pixel -> (pixel.red > 200 && pixel.blue < 80) shouldBe true }

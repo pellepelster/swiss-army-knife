@@ -12,6 +12,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
 - **The database is not encrypted at rest.** The SQLite file on the data volume, secrets included, is plain.
   Accepted until [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file.
 
+- **The files are not encrypted at rest.** The files of the file storage, their thumbnails and the objects of the
+  buckets are plain on the data volume. Accepted until
+  [issue #134](https://github.com/pellepelster/swiss-army-knife/issues/134) encrypts them in `sak-storage`
+  (`MODEL-7`).
+
 - **A provisioning run writes the mail server password to disk.** The environment of the backend and the token of the
   events endpoint are plain files on the user's machine while the run lasts. Accepted: only the user can read the
   directory, it has a random name, lives for minutes, and a killed run's leftovers go on the next run.

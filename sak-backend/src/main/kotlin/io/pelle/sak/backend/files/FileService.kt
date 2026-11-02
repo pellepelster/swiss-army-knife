@@ -3,20 +3,28 @@ package io.pelle.sak.backend.files
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
+import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.content
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
+import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Clock
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import javax.imageio.ImageIO
+import javax.imageio.stream.ImageInputStream
+import javax.imageio.stream.MemoryCacheImageInputStream
+import javax.imageio.stream.MemoryCacheImageOutputStream
 import javax.sound.sampled.AudioFileFormat
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
@@ -43,8 +51,8 @@ sealed interface StoreFileResult {
 }
 
 // the generic file storage every application keeps its files in, the only way to them; every
-// upload is a file of its own with an id, its content lives in dir below the first two characters
-// of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
+// upload is a file of its own with an id, its content is a blob of the binary storage (MODEL-7) in
+// dir below the first two characters of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
 // from the uploader. The thumbnails of the images are made when they are first asked for and kept
 // next to them; at most one decode for each processor runs at a time, a decoded photo takes up to
 // 17 MB of the heap.
@@ -66,9 +74,7 @@ class FileService(
     // the decodes that may run at the same time, of different contents or sizes
     private val decodes = Semaphore(Runtime.getRuntime().availableProcessors())
 
-    init {
-        Files.createDirectories(dir)
-    }
+    private val storage: BinaryStorage = FilesystemBinaryStorage(dir)
 
     // a file of the owner, the address that uploaded it; another one's file is none
     fun byId(
@@ -89,8 +95,8 @@ class FileService(
         return repository.updateDiscovered(file.id, text) ?: file.copy(discovered = text)
     }
 
-    // where the content of a stored file is
-    fun path(file: StoredFile): Path = dir.resolve(file.sha256.take(2)).resolve(file.sha256)
+    // the content of a stored file, null when it is not in the storage
+    fun content(file: StoredFile): BlobContent? = storage.content(blob(file.sha256))
 
     // a jpeg of at most size pixels on the longer side, one of SCALED_SIZES: of an image the image
     // itself, scaled down when it is larger, of a recording its waveform; null when the file can
@@ -99,33 +105,34 @@ class FileService(
     fun thumbnail(
         file: StoredFile,
         size: Int = THUMBNAIL_SIZE,
-    ): Path? {
+    ): BlobContent? {
         require(size in SCALED_SIZES) { "no scaled size $size" }
         val suffix = if (size == THUMBNAIL_SIZE) THUMBNAIL_SUFFIX else ".thumbnail-$size.jpg"
-        val thumbnail = path(file).resolveSibling("${file.sha256}$suffix")
-        val none = path(file).resolveSibling("${file.sha256}$NO_THUMBNAIL_SUFFIX")
-        if (Files.exists(thumbnail)) return thumbnail
-        if (Files.exists(none)) return null
+        val thumbnail = blob(file.sha256, suffix)
+        val none = blob(file.sha256, NO_THUMBNAIL_SUFFIX)
+        storage.content(thumbnail)?.let { return it }
+        if (storage.stat(none) != null) return null
         val key = "${file.sha256}-$size"
         val lock = thumbnailLocks.computeIfAbsent(key) { Any() }
         try {
             synchronized(lock) {
                 // made while waiting for the lock
-                if (Files.exists(thumbnail)) return thumbnail
-                if (Files.exists(none)) return null
+                storage.content(thumbnail)?.let { return it }
+                if (storage.stat(none) != null) return null
                 decodes.acquire()
                 val image =
                     try {
-                        decodeThumbnail(file, size)
+                        content(file)?.let { decodeThumbnail(it, file.contentType, size) }
                     } finally {
                         decodes.release()
                     }
                 if (image == null) {
-                    write(none) {}
+                    storage.write(none) {}
                     return null
                 }
-                write(thumbnail) { ImageIO.write(image, "jpg", it.toFile()) }
-                return thumbnail
+                // in memory, ImageIO would cache in files of its own
+                storage.write(thumbnail) { out -> MemoryCacheImageOutputStream(out).use { ImageIO.write(image, "jpg", it) } }
+                return storage.content(thumbnail)
             }
         } finally {
             // the one waiting for the lock meanwhile finds the thumbnail made, as does one with a
@@ -135,14 +142,15 @@ class FileService(
     }
 
     private fun decodeThumbnail(
-        file: StoredFile,
+        content: BlobContent,
+        contentType: String,
         size: Int,
     ): BufferedImage? =
         try {
-            if (file.contentType.startsWith("audio/")) {
-                waveform(path(file))
+            if (contentType.startsWith("audio/")) {
+                waveform(content)
             } else {
-                decode(path(file), size)?.let { scaled(it, size) }
+                decode(content, size)?.let { scaled(it, size) }
             }
         } catch (_: IOException) {
             null
@@ -150,62 +158,52 @@ class FileService(
             null
         }
 
-    // written to a temporary file first, a reader never sees half of it
-    private fun write(
-        target: Path,
-        content: (Path) -> Unit,
-    ) {
-        val temp = Files.createTempFile(dir, "thumbnail-", ".tmp")
-        try {
-            content(temp)
-            Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
-        } finally {
-            Files.deleteIfExists(temp)
-        }
-    }
-
-    // reads the content to its end, at most maxSize bytes are taken
+    // reads the content to its end, at most maxSize bytes are taken. It is written to a blob of its
+    // own while its sha-256 is computed, then moved to the path of the sha-256
     fun store(
         content: InputStream,
         owner: String,
     ): StoreFileResult {
-        val temp = Files.createTempFile(dir, "upload-", ".tmp")
+        val upload = BlobPath(listOf(UPLOADS, UUID.randomUUID().toString()))
         try {
             val digest = MessageDigest.getInstance("SHA-256")
             val head = ByteArray(HEAD_SIZE)
             var headLength = 0
             var size = 0L
-            Files.newOutputStream(temp).use { out ->
-                val buffer = ByteArray(BUFFER_SIZE)
-                while (true) {
-                    val read = content.read(buffer)
-                    if (read < 0) break
-                    size += read
-                    if (size > maxSize) return StoreFileResult.TooLarge
-                    if (headLength < HEAD_SIZE) {
-                        val take = minOf(read, HEAD_SIZE - headLength)
-                        System.arraycopy(buffer, 0, head, headLength, take)
-                        headLength += take
+            try {
+                storage.write(upload) { out ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        val read = content.read(buffer)
+                        if (read < 0) break
+                        size += read
+                        if (size > maxSize) throw TooLargeException()
+                        if (headLength < HEAD_SIZE) {
+                            val take = minOf(read, HEAD_SIZE - headLength)
+                            System.arraycopy(buffer, 0, head, headLength, take)
+                            headLength += take
+                        }
+                        digest.update(buffer, 0, read)
+                        out.write(buffer, 0, read)
                     }
-                    digest.update(buffer, 0, read)
-                    out.write(buffer, 0, read)
                 }
+            } catch (_: TooLargeException) {
+                return StoreFileResult.TooLarge
             }
             val contentType = contentType(head.copyOf(headLength)) ?: return StoreFileResult.UnsupportedType
-            check(temp, contentType)?.let { return it }
+            check(storage.content(upload)!!, contentType)?.let { return it }
 
             val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
             // the content is in place before the file refers to it
-            val target = dir.resolve(sha256.take(2)).resolve(sha256)
-            if (!Files.exists(target)) {
-                Files.createDirectories(target.parent)
-                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
-            }
+            val target = blob(sha256)
+            if (storage.stat(target) == null) storage.move(upload, target)
             return StoreFileResult.Stored(repository.insert(sha256, contentType, size, owner))
         } finally {
-            Files.deleteIfExists(temp)
+            storage.delete(upload)
         }
     }
+
+    private class TooLargeException : RuntimeException(null, null, false, false)
 
     companion object {
         // the most a stored file has, for every app (the request body of the apps and the limit of
@@ -226,13 +224,14 @@ class FileService(
 
         // why the content can not be stored, null when it can
         internal fun check(
-            content: Path,
+            content: BlobContent,
             contentType: String,
         ): StoreFileResult? =
             if (contentType.startsWith("audio/")) {
                 val seconds =
                     try {
-                        recordingSeconds(AudioSystem.getAudioFileFormat(content.toFile()))
+                        // the reader marks and resets the stream
+                        recordingSeconds(content.open().use { AudioSystem.getAudioFileFormat(BufferedInputStream(it)) })
                     } catch (_: UnsupportedAudioFileException) {
                         return StoreFileResult.UnsupportedType
                     } catch (_: IOException) {
@@ -249,6 +248,15 @@ class FileService(
             }
 
         private const val BUFFER_SIZE = 64 * 1024
+
+        // where an upload is written before its sha-256 is known
+        private const val UPLOADS = "uploads"
+
+        // the path of a content and of what is kept next to it (e.g. its thumbnails)
+        private fun blob(
+            sha256: String,
+            suffix: String = "",
+        ) = BlobPath(listOf(sha256.take(2), sha256 + suffix))
 
         private const val HEAD_SIZE = 12
 
@@ -274,22 +282,30 @@ class FileService(
         // aliases, the halving steps of scaled() from SUBSAMPLED_SIZE times the size smooth it;
         // null when no reader knows the image
         internal fun decode(
-            image: Path,
+            image: BlobContent,
             size: Int,
         ): BufferedImage? =
-            ImageIO.createImageInputStream(image.toFile())?.use { input ->
-                val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
-                try {
-                    // as ImageIO.read
-                    reader.setInput(input, true, true)
-                    val param = reader.defaultReadParam
-                    val subsampling = subsampling(maxOf(reader.getWidth(0), reader.getHeight(0)), size)
-                    if (subsampling > 1) param.setSourceSubsampling(subsampling, subsampling, 0, 0)
-                    reader.read(0, param)
-                } finally {
-                    reader.dispose()
-                }
+            image.open().use { stream ->
+                MemoryCacheImageInputStream(stream).use { input -> read(input, size) }
             }
+
+        // the image of the stream, see decode
+        private fun read(
+            input: ImageInputStream,
+            size: Int,
+        ): BufferedImage? {
+            val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
+            try {
+                // as ImageIO.read
+                reader.setInput(input, true, true)
+                val param = reader.defaultReadParam
+                val subsampling = subsampling(maxOf(reader.getWidth(0), reader.getHeight(0)), size)
+                if (subsampling > 1) param.setSourceSubsampling(subsampling, subsampling, 0, 0)
+                return reader.read(0, param)
+            } finally {
+                reader.dispose()
+            }
+        }
 
         // the largest power of 2 that keeps the longer side at least SUBSAMPLED_SIZE times size
         internal fun subsampling(
@@ -305,8 +321,9 @@ class FileService(
 
         // the loudness of the recording in bars from its start to its end, on the 4:3 of the
         // photos; the loudest part reaches the full height, silence keeps a dot
-        internal fun waveform(recording: Path): BufferedImage {
-            val peaks = AudioSystem.getAudioInputStream(recording.toFile()).use { peaks(it) }
+        internal fun waveform(recording: BlobContent): BufferedImage {
+            // the reader marks and resets the stream
+            val peaks = AudioSystem.getAudioInputStream(BufferedInputStream(recording.open())).use { peaks(it) }
             val loudest = peaks.max().takeIf { it > 0f } ?: 1f
             val width = THUMBNAIL_SIZE
             val height = THUMBNAIL_SIZE * 3 / 4

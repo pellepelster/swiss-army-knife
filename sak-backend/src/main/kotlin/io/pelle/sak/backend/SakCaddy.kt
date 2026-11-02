@@ -7,7 +7,7 @@ import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
-import io.pelle.sak.s3.storage.BlobPath
+import io.pelle.sak.storage.BlobPath
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService

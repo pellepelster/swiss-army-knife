@@ -36,9 +36,9 @@ import io.pelle.sak.backend.grocery.model.GroceryItemCategoryRequest
 import io.pelle.sak.backend.grocery.model.GroceryItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryNewItemRequest
 import io.pelle.sak.backend.grocery.model.GroceryPhotoRequest
+import io.pelle.sak.backend.files.BlobResponse
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.IMMUTABLE
-import io.ktor.server.http.content.LocalPathContent
 import io.pelle.sak.backend.grocery.model.GroceryItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.GroceryListResponse
@@ -559,8 +559,8 @@ fun Route.grocery(
                 withContext(Dispatchers.IO) {
                     groceryService.photo(call.owner, id, fileId)?.let { file ->
                         when (val scaled = size?.let(FileService::scaledSize)) {
-                            null -> LocalPathContent(fileService.path(file), ContentType.parse(file.contentType))
-                            else -> fileService.thumbnail(file, scaled)?.let { LocalPathContent(it, ContentType.Image.JPEG) }
+                            null -> fileService.content(file)?.let { BlobResponse(it, ContentType.parse(file.contentType)) }
+                            else -> fileService.thumbnail(file, scaled)?.let { BlobResponse(it, ContentType.Image.JPEG) }
                         }
                     }
                 }

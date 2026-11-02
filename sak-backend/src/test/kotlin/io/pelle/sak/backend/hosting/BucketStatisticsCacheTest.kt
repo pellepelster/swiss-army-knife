@@ -3,8 +3,8 @@ package io.pelle.sak.backend.hosting
 import com.github.benmanes.caffeine.cache.Ticker
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
-import io.pelle.sak.s3.storage.BlobPath
-import io.pelle.sak.s3.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.FilesystemBinaryStorage
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef
 import io.pelle.sak.s3.storage.S3StorageBackend
