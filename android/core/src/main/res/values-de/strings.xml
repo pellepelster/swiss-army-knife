@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="login_sign_in">Anmelden</string>
+    <string name="login_admin_password">Admin-Passwort</string>
+    <string name="login_use_email">Mit einem E-Mail-Link anmelden</string>
+    <string name="login_send_link">Login-Link senden</string>
+    <string name="login_use_password">Mit Passwort anmelden</string>
+    <string name="login_sign_out">Abmelden</string>
+    <string name="login_link_invalid">Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt.</string>
+    <string name="shared_undo">Rückgängig</string>
+    <string name="shared_delete">Löschen</string>
+    <string name="shared_keep">Behalten</string>
+    <string name="shared_confirm_delete">%1$s löschen?</string>
+    <string name="shared_save">Speichern</string>
+    <string name="shared_name">Name</string>
+    <string name="shared_settings">Einstellungen</string>
+    <string name="shared_email">E-Mail-Adresse</string>
+    <string name="users_invalid_email">Eine E-Mail-Adresse wie name@example.org ist nötig.</string>
+    <string name="deployment_hint">Gib die Basisdomain deines SAK-Deployments ein, unter der die Web-App als sak.&lt;Basisdomain&gt; erreichbar ist.</string>
+    <string name="base_domain">Basisdomain</string>
+    <string name="connecting">Verbinde…</string>
+    <string name="connect">Verbinden</string>
+    <string name="other_deployment">Anderes Deployment</string>
+    <string name="link_sent">Ein Login-Link ist an %1$s unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\".</string>
+    <string name="signed_in_as">Angemeldet als %1$s</string>
+    <string name="update_available">Version %1$s der App ist verfügbar, die Version deines Deployments.</string>
+    <string name="downloading">Wird heruntergeladen…</string>
+    <string name="update">Aktualisieren</string>
+    <string name="update_check">Nach Updates suchen</string>
+    <string name="update_checking">Suche nach Updates…</string>
+    <string name="update_current">Die App ist aktuell, Version %1$s.</string>
+    <string name="update_app_no_release">Dieser Build der App ist kein Release, er wird nicht aktualisiert.</string>
+    <string name="update_deployment_no_release">Dein Deployment läuft mit keinem Release, es gibt kein Update für die App.</string>
+    <string name="error_base_domain">Gib die Basisdomain deines SAK-Deployments ein, z. B. example.org.</string>
+    <string name="error_no_deployment">Unter dieser Domain antwortet kein SAK-Deployment.</string>
+    <string name="error_no_sak">Das ist kein SAK-Deployment.</string>
+    <string name="error_link_not_requested">Der Login-Link konnte nicht angefordert werden.</string>
+    <string name="error_link_not_used">Der Login-Link konnte nicht benutzt werden.</string>
+    <string name="error_not_asked">Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als 15 Minuten. Fordere einen neuen an.</string>
+    <string name="error_password_not_checked">Das Passwort konnte nicht geprüft werden.</string>
+    <string name="error_password_wrong">Das Passwort ist falsch.</string>
+    <string name="error_user_not_read">Der Benutzer konnte nicht gelesen werden.</string>
+    <string name="error_deployment_unreachable">Das Deployment war nicht erreichbar.</string>
+    <string name="error_connection">Das Deployment war nicht erreichbar, prüfe die Verbindung.</string>
+    <string name="error_session_ended">Deine Sitzung ist abgelaufen, bitte melde dich erneut an.</string>
+    <string name="error_too_many_attempts">Zu viele Versuche, bitte versuche es später erneut.</string>
+    <string name="error_update_not_downloaded">Das Update konnte nicht heruntergeladen werden, prüfe die Verbindung.</string>
+    <string name="error_update_not_installed">Das Update konnte nicht installiert werden.</string>
+    <string name="error_update_damaged">Der Download der Version %1$s ist beschädigt, bitte versuche es erneut.</string>
+    <string name="update_not_installed">Das Update wurde nicht installiert</string>
+    <string name="update_not_installed_because">Das Update wurde nicht installiert: %1$s</string>
+</resources>

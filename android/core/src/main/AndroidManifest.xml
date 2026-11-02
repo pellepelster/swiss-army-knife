@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- what every app needs, merged into its manifest -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- the update to the version of the deployment, the apk of its release (AndroidUpdater) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <!-- what the installer of android answers to an update -->
+        <receiver
+            android:name="io.pelle.sak.core.update.UpdateReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

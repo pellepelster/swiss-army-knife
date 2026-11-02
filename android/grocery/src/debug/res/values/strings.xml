@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the debug build is installed next to the release, the name tells them apart -->
+    <string name="grocery_app_name" translatable="false">SAK Grocery List (debug)</string>
+</resources>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="grocery_all_lists">Alle Listen</string>
+    <string name="grocery_lists_not_loaded">Die Listen konnten nicht geladen werden.</string>
+    <string name="grocery_lists_to_buy_none">Keine Artikel zu kaufen</string>
+    <string name="grocery_form_create">Liste erstellen</string>
+    <string name="grocery_form_no_icon">Kein Icon</string>
+    <string name="grocery_form_delete_list">Liste löschen</string>
+    <string name="grocery_form_last_list">Deine einzige Liste kann nicht gelöscht werden.</string>
+    <string name="grocery_form_not_saved">Die Liste konnte nicht gespeichert werden.</string>
+    <string name="grocery_form_not_deleted">Die Liste konnte nicht gelöscht werden.</string>
+    <string name="grocery_form_choose_icon">Icon auswählen</string>
+    <string name="grocery_photo_attach">Foto anhängen</string>
+    <string name="grocery_photo_replace">Foto ersetzen</string>
+    <string name="grocery_photo_remove">Foto entfernen</string>
+    <string name="grocery_photo_of">Foto von %1$s</string>
+    <string name="grocery_photo_close">Foto schließen</string>
+    <string name="grocery_photo_not_attached">Das Foto konnte nicht angehängt werden.</string>
+    <string name="grocery_photo_not_removed">Das Foto konnte nicht entfernt werden.</string>
+    <string name="grocery_photo_not_loaded">Das Foto konnte nicht geladen werden.</string>
+    <string name="grocery_list_item">Artikel</string>
+    <string name="grocery_list_no_category">Keine Kategorie</string>
+    <string name="grocery_list_not_added">Der Artikel konnte nicht hinzugefügt werden.</string>
+    <string name="grocery_list_not_checked">Der Artikel konnte nicht abgehakt werden.</string>
+    <string name="grocery_list_items_not_loaded">Die Artikel konnten nicht geladen werden.</string>
+    <string name="grocery_photo_take">Foto aufnehmen</string>
+    <string name="grocery_photo_choose">Foto auswählen</string>
+    <string name="grocery_photo_not_read">Das Foto konnte nicht gelesen werden.</string>
+    <string name="grocery_item_not_deleted">Der Artikel konnte nicht gelöscht werden.</string>
+    <string name="grocery_item_rename">Umbenennen</string>
+    <string name="grocery_item_name_invalid">Ein Artikelname muss 1 bis 128 Zeichen haben.</string>
+    <string name="grocery_item_not_renamed">Der Artikel konnte nicht umbenannt werden.</string>
+    <string name="grocery_cancel">Abbrechen</string>
+    <string name="grocery_show_bought">Gekaufte Artikel zeigen</string>
+    <string name="grocery_no_lists">Du hast noch keine Liste, füge oben mit dem Plus eine hinzu.</string>
+    <string name="grocery_shared">Mit allen Benutzern geteilt</string>
+    <string name="grocery_shared_badge">Geteilt</string>
+    <string name="grocery_settings_of">Einstellungen von %1$s</string>
+    <string name="grocery_saving">Wird gespeichert…</string>
+    <string name="grocery_nothing_to_buy">Nichts zu kaufen.</string>
+    <string name="grocery_bought">%1$s gekauft</string>
+    <string name="grocery_item_category">Kategorie</string>
+    <string name="grocery_category_of">Kategorie von %1$s</string>
+    <string name="grocery_categories">Kategorien</string>
+    <string name="grocery_no_categories">Die Liste hat noch keine Kategorien.</string>
+    <string name="grocery_category_name">Neue Kategorie</string>
+    <string name="grocery_category_add">Kategorie hinzufügen</string>
+    <string name="grocery_category_up">Nach oben</string>
+    <string name="grocery_category_down">Nach unten</string>
+    <string name="grocery_category_icon">Icon von %1$s</string>
+    <string name="grocery_category_name_invalid">Ein Kategoriename muss 1 bis 32 Zeichen haben.</string>
+    <string name="grocery_category_not_saved">Die Kategorie konnte nicht gespeichert werden.</string>
+    <string name="grocery_category_not_deleted">Die Kategorie konnte nicht gelöscht werden.</string>
+    <string name="grocery_category_not_set">Die Kategorie des Artikels konnte nicht gesetzt werden.</string>
+    <string name="grocery_category_menu">Menü von %1$s</string>
+    <string name="grocery_category_drag">Ziehen, um %1$s zu verschieben</string>
+    <string name="grocery_categories_retry">Erneut laden</string>
+    <string name="grocery_back_to_list">Zurück zur Liste</string>
+    <plurals name="grocery_to_buy">
+        <item quantity="one">%1$d Artikel zu kaufen</item>
+        <item quantity="other">%1$d Artikel zu kaufen</item>
+    </plurals>
+    <string name="grocery_error_categories_not_loaded">Die Kategorien konnten nicht geladen werden.</string>
+    <string name="grocery_error_changes_not_read">Die Änderungen konnten nicht gelesen werden.</string>
+    <string name="grocery_error_list_not_created">Die Liste konnte nicht erstellt werden.</string>
+</resources>

@@ -150,23 +150,28 @@ class AuthRoutesTest {
         }
 
     @Test
-    fun `a link of the android app tells the signin page to hand the token on`() =
+    fun `a link of an android app tells the signin page to hand the token on to that app`() =
         authTest {
-            client
-                .post("/api/v1/auth/login/link") {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"email":"admin@example.org","client":"android"}""")
-                }.status shouldBe HttpStatusCode.Accepted
-            val link = receiveLink()
-            link.parameters.names() shouldBe setOf("token", "client")
-            link.parameters["client"] shouldBe "android"
-            client.exchange(link.parameters["token"]!!).status shouldBe HttpStatusCode.OK
+            listOf("grocery-android", "notes-android").forEach { app ->
+                client
+                    .post("/api/v1/auth/login/link") {
+                        contentType(ContentType.Application.Json)
+                        setBody("""{"email":"admin@example.org","client":"$app"}""")
+                    }.status shouldBe HttpStatusCode.Accepted
+                val link = receiveLink()
+                link.parameters.names() shouldBe setOf("token", "client")
+                link.parameters["client"] shouldBe app
+                client.exchange(link.parameters["token"]!!).status shouldBe HttpStatusCode.OK
+            }
 
-            client
-                .post("/api/v1/auth/login/link") {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"email":"admin@example.org","client":"ios"}""")
-                }.status shouldBe HttpStatusCode.BadRequest
+            // no client the list does not name, also not the one before the apps were told apart
+            listOf("ios", "android").forEach { unknown ->
+                client
+                    .post("/api/v1/auth/login/link") {
+                        contentType(ContentType.Application.Json)
+                        setBody("""{"email":"admin@example.org","client":"$unknown"}""")
+                    }.status shouldBe HttpStatusCode.BadRequest
+            }
         }
 
     @Test

@@ -9,7 +9,7 @@ disable-model-invocation: true
 Stop and tell the user at the first step that can not be finished.
 
 1. **Test.** Run all of `mise run backend:test:unit`, `frontend:test:unit`, `cli:test:unit`, and
-   `grocery:android:test` when an Android SDK is there (else say it was skipped).
+   `android:test` when an Android SDK is there (else say it was skipped).
 2. **Fix.** Fix the cause of each failure; change a test only when its behavior changed on purpose,
    never skip or loosen one. Regenerate generated files (`mise run i18n:generate`), never edit them.
    Ask when a fix needs a decision. Repeat 1 until all pass.

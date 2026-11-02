@@ -1587,7 +1587,7 @@ class SakAppsTest {
             body.getValue("roles").jsonArray.map { it.jsonPrimitive.content } shouldBe listOf("admin")
             get(port, "/api/v1/auth/who-am-i", body.string("sessionToken")).json().string("username") shouldBe "admin"
             post(port, "/api/v1/auth/login/link", """{"email":"admin"}""").statusCode() shouldBe 404
-            // no mail server, no link of the grocery app
+            // no mail server, no links of the android apps
             post(port, "/api/v1/users/app-link", """{"email":"admin"}""", body.string("sessionToken")).let {
                 it.statusCode() shouldBe 409
                 it.body() shouldContain "users.no_mail_server"
@@ -1596,7 +1596,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `an admin sends a user or an admin the link of the grocery app by e-mail`() {
+    fun `an admin sends a user or an admin the links of the android apps by e-mail`() {
         withServer { port ->
             val admin = signIn(port)
             post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
@@ -1613,9 +1613,13 @@ class SakAppsTest {
             }
 
             greenMail.waitForIncomingEmail(5_000, 4) shouldBe true
-            val links = greenMail.receivedMessages.filter { it.subject == "The grocery app of example.org" }
+            val links = greenMail.receivedMessages.filter { it.subject == "The Android apps of example.org" }
             links.map { it.allRecipients.single().toString() }.sorted() shouldBe listOf("anna@example.org", "second@example.org")
-            links.forEach { GreenMailUtil.getBody(it).lines().map { line -> line.trim() } shouldContain "$FRONTEND_URL/grocery/download/app" }
+            links.forEach {
+                val lines = GreenMailUtil.getBody(it).lines().map { line -> line.trim() }
+                lines shouldContain "Grocery lists: $FRONTEND_URL/grocery/download/app"
+                lines shouldContain "Notes: $FRONTEND_URL/notes/download/app"
+            }
         }
     }
 

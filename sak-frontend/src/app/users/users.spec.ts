@@ -81,19 +81,19 @@ describe('Users', () => {
     expect(page().querySelector('[data-testid="user-anna@example.org"]')).toBeNull();
   });
 
-  it('sends a user or an admin the link of the grocery app from the menu of its row', async () => {
+  it('sends a user or an admin the links of the android apps from the menu of its row', async () => {
     await list([admin, anna]);
-    button('Send grocery app link', await rowMenu('anna@example.org')).click();
+    button('Send links to the Android apps', await rowMenu('anna@example.org')).click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/users/app-link' });
     expect(request.request.body).toEqual({ email: 'anna@example.org' });
     request.flush(null, { status: 204, statusText: 'No Content' });
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=app-link-sent]')?.textContent?.trim()).toBe(
-      'The link to the grocery app was sent to anna@example.org.',
+      'The links to the Android apps were sent to anna@example.org.',
     );
 
     // what the api tells when it fails, e.g. the mail server did not take it
-    button('Send grocery app link', await rowMenu('admin@example.org')).click();
+    button('Send links to the Android apps', await rowMenu('admin@example.org')).click();
     http
       .expectOne({ method: 'POST', url: '/api/v1/users/app-link' })
       .flush(

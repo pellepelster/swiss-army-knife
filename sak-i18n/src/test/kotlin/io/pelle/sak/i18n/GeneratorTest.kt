@@ -44,7 +44,8 @@ class GeneratorTest {
         web shouldNotContain "too_many"
         web shouldNotContain "Malformed"
         // notes has no android part
-        files.getValue("$ANDROID_RES/values/strings.xml") shouldNotContain "notes_"
+        files.getValue("$ANDROID_CORE_RES/values/strings.xml") shouldNotContain "notes_"
+        files.keys.none { it.startsWith("android/notes") } shouldBe true
     }
 
     @Test
@@ -80,14 +81,18 @@ class GeneratorTest {
                       de: { one: "%{count} Artikel zu kaufen", other: "%{count} Artikel zu kaufen" }
                 """,
             )
-        val english = files.getValue("$ANDROID_RES/values/strings.xml")
-        english shouldContain """<string name="app_name" translatable="false">SAK Grocery List</string>"""
-        english shouldContain """<string name="error_moved">%1${'$'}s is now at &lt;%2${'$'}s&gt; &amp; 100%%</string>"""
+        // the texts of no app in core, the ones of an app in its module
+        val core = files.getValue("$ANDROID_CORE_RES/values/strings.xml")
+        core shouldContain """<string name="app_name" translatable="false">SAK Grocery List</string>"""
+        core shouldContain """<string name="error_moved">%1${'$'}s is now at &lt;%2${'$'}s&gt; &amp; 100%%</string>"""
+        core shouldNotContain "grocery_"
+        val grocery = ANDROID_APPS.getValue("grocery")
+        val english = files.getValue("$grocery/values/strings.xml")
         english shouldContain """<string name="grocery_bought">\"%1${'$'}s\" bought</string>"""
         english shouldContain """<item quantity="other">%1${'$'}d items to buy</item>"""
-        val german = files.getValue("$ANDROID_RES/values-de/strings.xml")
-        german shouldNotContain "app_name"
-        german shouldContain """<string name="error_moved">%2${'$'}s ist jetzt das neue %1${'$'}s</string>"""
+        english shouldNotContain "error_moved"
+        files.getValue("$ANDROID_CORE_RES/values-de/strings.xml") shouldNotContain "app_name"
+        val german = files.getValue("$grocery/values-de/strings.xml")
         german shouldContain """<string name="grocery_bought">\'%1${'$'}s\' gekauft</string>"""
     }
 

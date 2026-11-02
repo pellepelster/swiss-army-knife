@@ -5,13 +5,14 @@ exists: "A user of the address exists."
 not_a_user: "The address is no user of the deployment."
 no_mail_server: "The deployment has no mail server, it sends no e-mail."
 app_link_not_sent: "The e-mail could not be sent, check the mail server."
-app_link_subject: "The grocery app of %{app}"
+app_link_subject: "The Android apps of %{app}"
 app_link_body: |
   Hello,
 
-  install the grocery app of %{app} on your Android phone with the following link:
+  install the apps of %{app} on your Android phone with the following links:
 
-  %{link}
+  Grocery lists: %{grocery}
+  Notes: %{notes}
 
-  Then sign in to it with this e-mail address.
+  Then sign in to them with this e-mail address.
 is_admin: "The address is an admin of the deployment, it is no user to add."

@@ -24,8 +24,10 @@ tasks.test {
     inputs.files(
         rootDir.resolve("sak-api/src/main/resources/i18n"),
         rootDir.resolve("sak-frontend/src/app/i18n/catalog.ts"),
-        rootDir.resolve("sak-grocery-android/src/main/res/values/strings.xml"),
-        rootDir.resolve("sak-grocery-android/src/main/res/values-de/strings.xml"),
+        rootDir.resolve("android/core/src/main/res/values"),
+        rootDir.resolve("android/core/src/main/res/values-de"),
+        rootDir.resolve("android/grocery/src/main/res/values"),
+        rootDir.resolve("android/grocery/src/main/res/values-de"),
         rootDir.resolve("sak-cli/src-tauri/locales"),
     )
 }

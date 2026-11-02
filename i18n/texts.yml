@@ -152,22 +152,24 @@ backend:
     app_link_not_sent:
       en: "The e-mail could not be sent, check the mail server."
       de: "Die E-Mail konnte nicht verschickt werden, prüfe den Mailserver."
-    app_link_subject: { en: "The grocery app of %{app}", de: "Die Einkaufslisten-App von %{app}" }
+    app_link_subject: { en: "The Android apps of %{app}", de: "Die Android-Apps von %{app}" }
     app_link_body:
       en: |
         Hello,
 
-        install the grocery app of %{app} on your Android phone with the following link:
+        install the apps of %{app} on your Android phone with the following links:
 
-        %{link}
+        Grocery lists: %{grocery}
+        Notes: %{notes}
 
-        Then sign in to it with this e-mail address.
+        Then sign in to them with this e-mail address.
       de: |
         Hallo,
 
-        installiere die Einkaufslisten-App von %{app} mit dem folgenden Link auf deinem Android-Handy:
+        installiere die Apps von %{app} mit den folgenden Links auf deinem Android-Handy:
 
-        %{link}
+        Einkaufslisten: %{grocery}
+        Notizen: %{notes}
 
         Melde dich dann mit dieser E-Mail-Adresse darin an.
     is_admin:
@@ -208,6 +210,16 @@ backend:
       days: { en: "%{count} days", de: "%{count} Tage" }
 
 web:
+  app_download:
+    started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
+    again: { en: "Download again", de: "Erneut herunterladen" }
+    no_release:
+      en: "This deployment runs no release, there is no app to download."
+      de: "Dieses Deployment läuft mit keinem Release, es gibt keine App zum Herunterladen."
+    failed:
+      en: "The version of the deployment could not be loaded."
+      de: "Die Version des Deployments konnte nicht geladen werden."
+    releases: { en: "All releases on GitHub", de: "Alle Releases auf GitHub" }
   app:
     notes: { en: "Notes", de: "Notizen" }
     notes_description: { en: "Post-Its from text, images or audio", de: "Post-its aus Text, Bildern oder Audio" }
@@ -237,6 +249,10 @@ web:
     grocery_text:
       en: "This link signs you in to the SAK grocery app. Open it on the phone with the app."
       de: "Dieser Link meldet dich in der SAK-Einkaufslisten-App an. Öffne ihn auf dem Handy mit der App."
+    notes_title: { en: "Sign in to the notes app", de: "In der Notizen-App anmelden" }
+    notes_text:
+      en: "This link signs you in to the SAK notes app. Open it on the phone with the app."
+      de: "Dieser Link meldet dich in der SAK-Notizen-App an. Öffne ihn auf dem Handy mit der App."
     open_in_app: { en: "Open in the app", de: "In der App öffnen" }
     failed_title: { en: "Sign in failed", de: "Anmelden fehlgeschlagen" }
     request_new: { en: "Request a new one", de: "Fordere einen neuen an" }
@@ -303,13 +319,13 @@ web:
     pages: { en: "Pages of the users", de: "Seiten der Benutzer" }
     not_loaded: { en: "The users could not be loaded.", de: "Die Benutzer konnten nicht geladen werden." }
     forbidden_see: { en: "Only an admin sees the users.", de: "Nur ein Admin sieht die Benutzer." }
-    send_app_link: { en: "Send grocery app link", de: "Link zur Einkaufslisten-App senden" }
+    send_app_link: { en: "Send links to the Android apps", de: "Links zu den Android-Apps senden" }
     app_link_sent:
-      en: "The link to the grocery app was sent to %{email}."
-      de: "Der Link zur Einkaufslisten-App wurde an %{email} gesendet."
+      en: "The links to the Android apps were sent to %{email}."
+      de: "Die Links zu den Android-Apps wurden an %{email} gesendet."
     app_link_not_sent:
-      en: "The link to the grocery app could not be sent."
-      de: "Der Link zur Einkaufslisten-App konnte nicht gesendet werden."
+      en: "The links to the Android apps could not be sent."
+      de: "Die Links zu den Android-Apps konnten nicht gesendet werden."
     not_deleted: { en: "The user could not be deleted.", de: "Der Benutzer konnte nicht gelöscht werden." }
     email_hint:
       en: "The user signs in with a link sent to it. No mail goes out now."
@@ -337,8 +353,6 @@ web:
       de: "Die Anmeldung hat nicht funktioniert, bitte versuche es erneut."
 
 android:
-  app_name: "SAK Grocery List"
-  deployment_title: "SAK Grocery List"
   deployment_hint:
     en: "Enter the base domain of your SAK deployment, the one the web app is at as sak.<base domain>."
     de: "Gib die Basisdomain deines SAK-Deployments ein, unter der die Web-App als sak.<Basisdomain> erreichbar ist."
@@ -1256,15 +1270,6 @@ grocery:
     download:
       page_title: { en: "Download the app · Grocery", de: "App herunterladen · Einkaufslisten" }
       title: { en: "The grocery app for Android", de: "Die Einkaufslisten-App für Android" }
-      started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
-      again: { en: "Download again", de: "Erneut herunterladen" }
-      no_release:
-        en: "This deployment runs no release, there is no app to download."
-        de: "Dieses Deployment läuft mit keinem Release, es gibt keine App zum Herunterladen."
-      failed:
-        en: "The version of the deployment could not be loaded."
-        de: "Die Version des Deployments konnte nicht geladen werden."
-      releases: { en: "All releases on GitHub", de: "Alle Releases auf GitHub" }
     list:
       add_item: { en: "Add item", de: "Artikel hinzufügen" }
       empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }
@@ -1306,6 +1311,8 @@ grocery:
         en: "The order of the categories could not be saved."
         de: "Die Reihenfolge der Kategorien konnte nicht gespeichert werden."
   android:
+    # the name of the app, also the title of the deployment screen
+    app_name: "SAK Grocery List"
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }
     photo_choose: { en: "Choose photo", de: "Foto auswählen" }
     photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
@@ -1566,6 +1573,9 @@ notes:
       label: { en: "Notes", de: "Notizen" }
       description: { en: "The settings of the notes.", de: "Die Einstellungen der Notizen." }
   web:
+    download:
+      page_title: { en: "Download the app · Notes", de: "App herunterladen · Notizen" }
+      title: { en: "The notes app for Android", de: "Die Notizen-App für Android" }
     page:
       create_notes: { en: "Create notes", de: "Notizen erstellen" }
       create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }

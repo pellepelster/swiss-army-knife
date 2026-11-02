@@ -1,7 +1,7 @@
 import { Route } from '@angular/router';
 import { authGuard } from '../auth/auth.guard';
 import { pageTitle } from '../i18n/i18n';
-import { GroceryDownload } from './grocery-download';
+import { AppDownload } from '../shared/app-download';
 import { GroceryListForm } from './grocery-list-form';
 import { GroceryListsPage } from './grocery-lists-page';
 import { GroceryPage } from './grocery-page';
@@ -10,9 +10,9 @@ import { GroceryPage } from './grocery-page';
 // login guard would take it otherwise
 export const groceryDownloadRoute: Route = {
   path: 'grocery/download/app',
-  component: GroceryDownload,
+  component: AppDownload,
   title: pageTitle('grocery.download.page_title'),
-  data: { favicon: { svg: 'icons/grocery.svg', png: 'icons/grocery-192.png' } },
+  data: { app: 'grocery', favicon: { svg: 'icons/grocery.svg', png: 'icons/grocery-192.png' } },
 };
 
 // the grocery app below /grocery, behind the login: all lists first (LIST-3), then one list, a page

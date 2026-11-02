@@ -710,12 +710,12 @@ ADDRESSES
 wait
 '''
 
-# sak-grocery-android, the android app of the grocery lists: a gradle build of its own with its own
-# wrapper. The sdk is in $ANDROID_HOME, ~/Android/Sdk when unset; grocery:android:sdk installs the
-# command-line tools of google there, accepts their licenses and installs what the build and the
-# emulator need
-[tasks."grocery:android:sdk"]
-description = "Install the Android SDK of sak-grocery-android"
+# android/, the android apps of SAK: one gradle build of its own with its own wrapper, a module for
+# each app (grocery) on top of core. The sdk is in $ANDROID_HOME, ~/Android/Sdk when unset;
+# android:sdk installs the command-line tools of google there, accepts their licenses and installs what
+# the build and the emulator need
+[tasks."android:sdk"]
+description = "Install the Android SDK of the android apps"
 # apksigner of the build tools checks the signature of the release apk
 env = { ANDROID_BUILD_TOOLS = "36.0.0" }
 run = '''
@@ -734,28 +734,29 @@ if [ ! -x "$sdkmanager" ]; then
 fi
 yes | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null || true
 "$sdkmanager" --sdk_root="$sdk" platform-tools "platforms;android-37.2" "build-tools;${ANDROID_BUILD_TOOLS}"
-# the emulator only on a machine, not for a build in the workflow (grocery:android:sdk:build)
+# the emulator only on a machine, not for a build in the workflow (android:sdk:build)
 [ "${ANDROID_SDK_BUILD_ONLY:-}" = true ] || "$sdkmanager" --sdk_root="$sdk" emulator "system-images;android-36;google_apis;x86_64"
 echo "the android sdk is in $sdk"
 '''
 
-# what a build of sak-grocery-android needs and no emulator, for the workflow
-[tasks."grocery:android:sdk:build"]
-description = "Install the Android SDK to build sak-grocery-android, without the emulator"
+# what a build of the android apps needs and no emulator, for the workflow
+[tasks."android:sdk:build"]
+description = "Install the Android SDK to build the android apps, without the emulator"
 env = { ANDROID_SDK_BUILD_ONLY = "true" }
-run = "mise run grocery:android:sdk"
+run = "mise run android:sdk"
 
-[tasks."grocery:android:build"]
-description = "Build sak-grocery-android"
-dir = "{{config_root}}/sak-grocery-android"
+[tasks."android:build"]
+description = "Build the android apps"
+dir = "{{config_root}}/android"
 run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew assembleDebug'
 
-# the release apk sak-grocery-android/build/sak-grocery-<VERSION>.apk and its checksum. Signed with the
+# the release apk of every app, android/build/sak-<app>-<VERSION>.apk, and its checksum. Signed with the
 # keystore of ANDROID_KEYSTORE (base64, from the secrets of the workflow, github:secrets:update),
 # decoded into a directory removed afterwards; without it unsigned, which a release refuses
-[tasks."grocery:android:release:build"]
-description = "Build the release apk of sak-grocery-android"
-dir = "{{config_root}}/sak-grocery-android"
+[tasks."android:release:build"]
+description = "Build the release apks of the android apps"
+dir = "{{config_root}}/android"
+env = { ANDROID_APPS = "grocery" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -773,28 +774,34 @@ if [ "$VERSION" != latest ] && [ "$signed" != true ]; then
   exit 1
 fi
 ./gradlew assembleRelease
-apk="build/sak-grocery-${VERSION}.apk"
-cp "$(ls build/outputs/apk/release/*.apk | head -n1)" "$apk"
-if [ "$signed" = true ]; then
-  "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)/apksigner" verify --print-certs "$apk"
-fi
-(cd build && sha256sum "sak-grocery-${VERSION}.apk" > "sak-grocery-${VERSION}.apk.sha256")
-echo "the release apk is $apk, signed: $signed"
+mkdir -p build
+for app in $ANDROID_APPS; do
+  apk="build/sak-${app}-${VERSION}.apk"
+  cp "$(ls "$app"/build/outputs/apk/release/*.apk | head -n1)" "$apk"
+  if [ "$signed" = true ]; then
+    "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)/apksigner" verify --print-certs "$apk"
+  fi
+  (cd build && sha256sum "sak-${app}-${VERSION}.apk" > "sak-${app}-${VERSION}.apk.sha256")
+  echo "the release apk is $apk, signed: $signed"
+done
 '''
 
-# the release apk and its checksum into the github release of the tag v<VERSION>, which
+# the release apks and their checksums into the github release of the tag v<VERSION>, which
 # cli:release created
-[tasks."grocery:android:release"]
-description = "Add the release apk of sak-grocery-android to the GitHub release"
-dir = "{{config_root}}/sak-grocery-android"
+[tasks."android:release"]
+description = "Add the release apks of the android apps to the GitHub release"
+dir = "{{config_root}}/android"
+env = { ANDROID_APPS = "grocery" }
 run = """
 set -eu
-apk="build/sak-grocery-${VERSION}.apk"
-[ -f "$apk" ] && [ -f "$apk.sha256" ] || { echo "$apk or its checksum is missing" >&2; exit 1; }
-gh release upload "v${VERSION}" "$apk" "$apk.sha256"
+for app in $ANDROID_APPS; do
+  apk="build/sak-${app}-${VERSION}.apk"
+  [ -f "$apk" ] && [ -f "$apk.sha256" ] || { echo "$apk or its checksum is missing" >&2; exit 1; }
+  gh release upload "v${VERSION}" "$apk" "$apk.sha256"
+done
 """
 
-# the secrets of the workflow that signs the release apk of sak-grocery-android, from pass: the
+# the secrets of the workflow that signs the release apks of the android apps, from pass: the
 # keystore as base64 (sak/android/signing-key) and its password (sak/android/signing-key-password),
 # which is also the one of the key in a pkcs12 keystore. The values go to gh through pipes only,
 # never as an argument or into the environment
@@ -810,18 +817,18 @@ pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KE
 printf sak-grocery | gh secret set ANDROID_KEY_ALIAS --repo "$repo"
 """
 
-[tasks."grocery:android:test"]
-description = "Run the tests of sak-grocery-android"
-dir = "{{config_root}}/sak-grocery-android"
+[tasks."android:test"]
+description = "Run the tests of the android apps"
+dir = "{{config_root}}/android"
 run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnitTest'
 
 # the debug build in the emulator: the avd sak-grocery is made once, the emulator started when none
 # runs and left running; the debug build takes a server url like http://10.0.2.2:8080/api/v1, the
 # backend of local:run on the host
 [tasks."grocery:android:run"]
-description = "Run sak-grocery-android in the emulator"
-depends = ["grocery:android:sdk"]
-dir = "{{config_root}}/sak-grocery-android"
+description = "Run the grocery app in the emulator"
+depends = ["android:sdk"]
+dir = "{{config_root}}/android"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -838,16 +845,16 @@ if ! "$adb" devices | grep -q '^emulator-'; then
   "$adb" wait-for-device
   until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
 fi
-./gradlew installDebug
+./gradlew :grocery:installDebug
 "$adb" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
 '''
 
 # the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
 # than one phone attached, ANDROID_SERIAL names the one (adb devices lists them)
 [tasks."grocery:android:install"]
-description = "Install sak-grocery-android on the attached phone"
-depends = ["grocery:android:sdk"]
-dir = "{{config_root}}/sak-grocery-android"
+description = "Install the grocery app on the attached phone"
+depends = ["android:sdk"]
+dir = "{{config_root}}/android"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -872,7 +879,7 @@ else
   echo "more than one phone attached ($(echo $phones)), name one with ANDROID_SERIAL=<serial>" >&2
   exit 1
 fi
-./gradlew assembleDebug
-"$adb" -s "$serial" install -r build/outputs/apk/debug/sak-grocery-android-debug.apk
+./gradlew :grocery:assembleDebug
+"$adb" -s "$serial" install -r grocery/build/outputs/apk/debug/grocery-debug.apk
 "$adb" -s "$serial" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
 '''

@@ -13,7 +13,10 @@ const val SOURCE = "i18n/texts.yml"
 // the catalogs of the backend, i18n/<catalog>.<language>.yml on the class path of every module
 const val BACKEND_DIR = "sak-api/src/main/resources/i18n"
 const val WEB_FILE = "sak-frontend/src/app/i18n/catalog.ts"
-const val ANDROID_RES = "sak-grocery-android/src/main/res"
+// the android apps (android/): the texts of no app go to core, the ones of an app to its module; an
+// app gets its texts once its module is listed here
+const val ANDROID_CORE_RES = "android/core/src/main/res"
+val ANDROID_APPS = mapOf("grocery" to "android/grocery/src/main/res")
 const val CTL_DIR = "sak-cli/src-tauri/locales"
 
 private const val GENERATED = "generated from $SOURCE by sak-i18n (mise run i18n:generate), do not edit"
@@ -37,6 +40,24 @@ class Generator(
         return merge(parts, problems)
     }
 
+    // the texts of android by the resources they go to: common and android into core, the common
+    // and android part of each app with an android module into its module, below the name of the app
+    fun android(): Map<String, Group> {
+        val all = platform("android")
+        if (all.children.isEmpty() && problems.isNotEmpty()) return emptyMap()
+        val res = linkedMapOf(ANDROID_CORE_RES to merge(listOf("common" to texts.platform("common"), "android" to texts.platform("android")), problems))
+        for ((app, dir) in ANDROID_APPS) {
+            val section = texts.apps[app] ?: continue
+            val parts = mutableListOf<Pair<String, Group>>()
+            section.group("common")?.let { parts += "$app.common" to Group(mapOf(app to it)) }
+            section.group("android")?.let { parts += "$app.android" to Group(mapOf(app to it)) }
+            res[dir] = merge(parts, problems)
+        }
+        val unknown = texts.apps.filter { (app, section) -> section.group("android") != null && app !in ANDROID_APPS }.keys
+        unknown.forEach { problems += "$it has texts of android, but no module of android (ANDROID_APPS)" }
+        return res
+    }
+
     // the texts of sakctl, a program of its own: the three parts of ctl, each below its name, as the
     // command line and the window are one program
     fun ctl(): Group = Group(CTL_PARTS.associateWith { part -> texts.ctl.group(part) ?: Group.EMPTY })
@@ -44,7 +65,7 @@ class Generator(
     fun files(): Map<String, String> {
         val backend = platform("backend")
         val web = platform("web")
-        val android = platform("android")
+        val android = android()
         val ctl = ctl()
         noPlurals("backend", backend)
         noPlurals("web", web)
@@ -66,9 +87,11 @@ class Generator(
             }
         }
         files[WEB_FILE] = TypeScript.write(web)
-        files["$ANDROID_RES/values/strings.xml"] = AndroidXml.write(android, LANGUAGES.first(), problems)
-        for (language in LANGUAGES.drop(1)) {
-            files["$ANDROID_RES/values-$language/strings.xml"] = AndroidXml.write(android, language, problems)
+        for ((res, group) in android) {
+            files["$res/values/strings.xml"] = AndroidXml.write(group, LANGUAGES.first(), problems)
+            for (language in LANGUAGES.drop(1)) {
+                files["$res/values-$language/strings.xml"] = AndroidXml.write(group, language, problems)
+            }
         }
         for (language in LANGUAGES) {
             files["$CTL_DIR/$language.yml"] = Yaml.write(ctl, language, "# the texts of sakctl in $language, $GENERATED")

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="login_sign_in">Sign in</string>
+    <string name="login_admin_password">Admin password</string>
+    <string name="login_use_email">Sign in with an e-mail link</string>
+    <string name="login_send_link">Send login link</string>
+    <string name="login_use_password">Sign in with password</string>
+    <string name="login_sign_out">Sign out</string>
+    <string name="login_link_invalid">The login link is invalid, expired or was already used.</string>
+    <string name="shared_undo">Undo</string>
+    <string name="shared_delete">Delete</string>
+    <string name="shared_keep">Keep</string>
+    <string name="shared_confirm_delete">Delete %1$s?</string>
+    <string name="shared_save">Save</string>
+    <string name="shared_name">Name</string>
+    <string name="shared_settings">Settings</string>
+    <string name="shared_email">E-mail address</string>
+    <string name="users_invalid_email">An e-mail address like name@example.org is needed.</string>
+    <string name="deployment_hint">Enter the base domain of your SAK deployment, the one the web app is at as sak.&lt;base domain&gt;.</string>
+    <string name="base_domain">Base domain</string>
+    <string name="connecting">Connecting…</string>
+    <string name="connect">Connect</string>
+    <string name="other_deployment">Other deployment</string>
+    <string name="link_sent">A login link is on its way to %1$s if the address may sign in. Open it on this phone and tap \"Open in the app\".</string>
+    <string name="signed_in_as">Signed in as %1$s</string>
+    <string name="update_available">Version %1$s of the app is available, the version of your deployment.</string>
+    <string name="downloading">Downloading…</string>
+    <string name="update">Update</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_current">The app is up-to-date, version %1$s.</string>
+    <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
+    <string name="update_deployment_no_release">Your deployment runs no release, there is no update for the app.</string>
+    <string name="ok" translatable="false">OK</string>
+    <string name="error_base_domain">Enter the base domain of your SAK deployment, e.g. example.org.</string>
+    <string name="error_no_deployment">No SAK deployment answers at this domain.</string>
+    <string name="error_no_sak">This is no SAK deployment.</string>
+    <string name="error_link_not_requested">The login link could not be requested.</string>
+    <string name="error_link_not_used">The login link could not be used.</string>
+    <string name="error_not_asked">This login link was not requested in this app, or it is older than 15 minutes. Request a new one.</string>
+    <string name="error_password_not_checked">The password could not be checked.</string>
+    <string name="error_password_wrong">The password is wrong.</string>
+    <string name="error_user_not_read">The user could not be read.</string>
+    <string name="error_deployment_unreachable">The deployment could not be reached.</string>
+    <string name="error_connection">The deployment could not be reached, check the connection.</string>
+    <string name="error_session_ended">Your session ended, please sign in again.</string>
+    <string name="error_too_many_attempts">Too many attempts, please try again later.</string>
+    <string name="error_update_not_downloaded">The update could not be downloaded, check the connection.</string>
+    <string name="error_update_not_installed">The update could not be installed.</string>
+    <string name="error_update_damaged">The download of version %1$s is damaged, please try again.</string>
+    <string name="update_not_installed">The update was not installed</string>
+    <string name="update_not_installed_because">The update was not installed: %1$s</string>
+</resources>

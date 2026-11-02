@@ -5,17 +5,33 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
 import { TranslatePipe } from '../i18n/i18n';
 
-// the package of sak-grocery-android, also the scheme of its signin link
-export const GROCERY_ANDROID_APP = 'io.pelle.sak.grocery';
+// the android apps by the client of their login link (LoginClient of sak-auth): the package, also the
+// scheme of the signin link, and the texts of the page that hands the link on
+export const ANDROID_APPS = {
+  'grocery-android': {
+    pkg: 'io.pelle.sak.grocery',
+    title: 'signin.grocery_title',
+    text: 'signin.grocery_text',
+  },
+  'notes-android': {
+    pkg: 'io.pelle.sak.notes',
+    title: 'signin.notes_title',
+    text: 'signin.notes_text',
+  },
+} as const;
 
-// the link that opens sak-grocery-android with the login token; an intent of android that names the
-// package, so no other app gets the token
-export function groceryAppLink(token: string): string {
-  return `intent://signin?token=${encodeURIComponent(token)}#Intent;scheme=${GROCERY_ANDROID_APP};package=${GROCERY_ANDROID_APP};end`;
+export type AndroidClient = keyof typeof ANDROID_APPS;
+
+// the link that opens the android app of the client with the login token; an intent of android that
+// names the package, so no other app gets the token
+export function androidAppLink(client: AndroidClient, token: string): string {
+  const pkg = ANDROID_APPS[client].pkg;
+  return `intent://signin?token=${encodeURIComponent(token)}#Intent;scheme=${pkg};package=${pkg};end`;
 }
 
-// the target of the e-mailed link, exchanges its login token for a session; the link of a login the
-// android app asked for (client=android) is handed on to the app, the page does not use the token
+// the target of the e-mailed link, exchanges its login token for a session; the link of a login an
+// android app asked for (client=grocery-android, notes-android) is handed on to that app, the page
+// does not use the token
 @Component({
   selector: 'app-signin',
   imports: [RouterLink, TranslatePipe],
@@ -25,8 +41,8 @@ export function groceryAppLink(token: string): string {
       <main class="col-12 col-sm-8 col-md-6 col-lg-4">
         <div class="card card-body">
           @if (appLink(); as link) {
-            <h1 class="h4 mb-3">{{ 'signin.grocery_title' | t }}</h1>
-            <p>{{ 'signin.grocery_text' | t }}</p>
+            <h1 class="h4 mb-3">{{ app()!.title | t }}</h1>
+            <p>{{ app()!.text | t }}</p>
             <a class="btn btn-primary" [href]="link">{{ 'signin.open_in_app' | t }}</a>
           } @else if (failed()) {
             <h1 class="h4 mb-3">{{ 'signin.failed_title' | t }}</h1>
@@ -52,7 +68,8 @@ export class Signin implements OnInit {
   private readonly token = this.params.get('token');
 
   protected readonly failed = signal(false);
-  // the link that opens the android app, for a login it asked for
+  // the android app that asked for the login, and the link that opens it
+  protected readonly app = signal<(typeof ANDROID_APPS)[AndroidClient] | null>(null);
   protected readonly appLink = signal<SafeUrl | null>(null);
 
   ngOnInit(): void {
@@ -63,9 +80,13 @@ export class Signin implements OnInit {
       this.failed.set(true);
       return;
     }
-    if (this.params.get('client') === 'android') {
+    const client = this.params.get('client');
+    if (client !== null && Object.hasOwn(ANDROID_APPS, client)) {
       // a fixed scheme and package, the token encoded: the only url angular must not sanitize
-      this.appLink.set(this.sanitizer.bypassSecurityTrustUrl(groceryAppLink(this.token)));
+      this.app.set(ANDROID_APPS[client as AndroidClient]);
+      this.appLink.set(
+        this.sanitizer.bypassSecurityTrustUrl(androidAppLink(client as AndroidClient, this.token)),
+      );
       return;
     }
 

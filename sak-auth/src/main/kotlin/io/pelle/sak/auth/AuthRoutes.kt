@@ -150,8 +150,8 @@ fun Route.login(
                 return@launch
             }
             // the redirect travels in the token, the signin page takes it from the exchange; a link
-            // of the android app tells the signin page to hand the token on to the app
-            val client = if (request.client == LoginClient.ANDROID) "&client=android" else ""
+            // of an android app tells the signin page to hand the token on to that app
+            val client = request.client.linkName?.let { "&client=$it" }.orEmpty()
             val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}$client"
             try {
                 mailSender.send(
