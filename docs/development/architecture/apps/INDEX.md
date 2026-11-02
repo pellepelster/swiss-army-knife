@@ -25,7 +25,7 @@ The login, the settings, the labels and the file storage are no apps; all apps s
 
 ## Shared parts
 
-- `SHARED-1` **Login and roles.** The login gives a session; every
+- `SHARED-1` **Login and roles.** The login gives a session; 
   app needs one and the role `admin`. Only `GET /api/v1/info` and the login answer without a session.
 - `SHARED-2` **Labels.** The labels of a user are shared by all apps and seen by nobody else. An app that links labels
   drops its links when a label is deleted.
