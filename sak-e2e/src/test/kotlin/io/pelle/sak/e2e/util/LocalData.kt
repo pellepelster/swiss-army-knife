@@ -41,6 +41,9 @@ const val PHOTO_NOTE = "The view from the hill last night"
 const val RECORDING_NOTE = "Voice memo: what to say in the talk on Monday"
 
 // a bucket and two redirects, kept from run to run: the name of a deleted bucket stays taken
+// the users the users page shows next to the admin, by their e-mail address and name
+val USERS = listOf("anna@example.org" to "Anna", "ben@example.org" to "Ben", "clara@example.org" to "Clara")
+
 const val BUCKET = "docs-site"
 const val BUCKET_DOMAIN = "docs.example.org"
 val REDIRECTS = listOf("old.example.org" to "example.org", "www.example.org" to "example.org")
@@ -89,9 +92,14 @@ class LocalData(
 
     private fun json(response: com.microsoft.playwright.APIResponse) = Json.parseToJsonElement(response.text())
 
-    // the notes, the bucket and the redirects the pages show
+    // the notes, the bucket, the redirects and the users the pages show
     fun seed() {
         seedNotes()
+        USERS.forEach { (email, name) ->
+            if (api.get("/api/v1/users").text().contains("\"$email\"").not()) {
+                api.post("/api/v1/users", RequestOptions.create().setData(mapOf("email" to email, "name" to name)))
+            }
+        }
         if (api.get("/api/v1/static-hosting/$BUCKET").status() == 404) {
             api.post("/api/v1/static-hosting", RequestOptions.create().setData(mapOf("name" to BUCKET, "domains" to listOf(BUCKET_DOMAIN))))
         }

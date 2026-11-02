@@ -49,6 +49,7 @@
   (slice "redirects-redirect" "sak.example.org/redirects/example.org")
   (slice "redirects" "sak.example.org/redirects")
   (slice "settings-ai" "sak.example.org/settings/ai")
+  (slice "users" "sak.example.org/users")
 }}
   {{- if and (eq $address "sak.example.org") (strings.HasPrefix $page (index . 0)) }}
     {{- $address = index . 1 }}

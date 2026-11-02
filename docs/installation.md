@@ -6,9 +6,8 @@ weight: 5
 
 # Installation
 
-sakctl is the program on your computer that creates your Swiss Army Knife, keeps it up to date, makes backups and
-destroys it again. It has a ui, the sakctl ui, and on Linux and macOS also a cli, the sakctl cli. There is no installer: sakctl is one
-program.
+sakctl is the program on your computer that creates your Swiss Army Knife, keeps it up to date, backs it up and
+removes it. It has a UI and, on Linux and macOS, a command line. There is no installer: sakctl is a single program.
 
 ## What you need
 
@@ -22,25 +21,20 @@ program.
 
 ## Download
 
-sakctl is built for each release, and published on the
-[release page](https://github.com/pellepelster/swiss-army-knife/releases) of the repository. The commands below
-download the program of your system, check its SHA-256 checksum and extract it. When the checksum does not match,
-the commands stop: do not use the file.
+Each release is on the [release page](https://github.com/pellepelster/swiss-army-knife/releases). The commands below
+download sakctl for your system, check its SHA-256 checksum and extract it; if the checksum does not match, they stop.
 
-The program is not signed. Started without a command, sakctl opens the sakctl ui; `sakctl --help` shows the commands of
-the sakctl cli.
+The program is not signed. Without a command, sakctl opens the UI; `sakctl --help` lists the commands.
 
 ## Linux
 
-The sakctl ui needs WebKitGTK 4.1. Most desktops have it already; else install it, e.g. `sudo apt install
+The UI needs WebKitGTK 4.1, which most desktops have. If not, install it, e.g. `sudo apt install
 libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedora). Then, in a terminal:
 
 {{< install platform="linux" >}}
 
-Start `sakctl`. When the shell does not find it, add `~/.local/bin` to your `PATH`.
-
-When the sakctl ui opens, it adds **Swiss Army Knife** with its icon to the applications of your desktop
-(`~/.local/share/applications/sakctl.desktop`), so the taskbar shows its icon and you can start it from the menu.
+Start `sakctl`. If the shell does not find it, add `~/.local/bin` to your `PATH`. On its first start the UI adds
+**Swiss Army Knife** to the applications of your desktop, so you can start it from the menu.
 
 ## macOS
 
@@ -48,12 +42,10 @@ The program works on Apple silicon and on Intel. In the Terminal:
 
 {{< install platform="macos" >}}
 
-Start `~/.local/bin/sakctl`. A program that `curl` downloads starts without the warning of macOS about an unknown
-developer.
+Start `~/.local/bin/sakctl`. Downloaded with `curl`, it starts without a warning.
 
-When you download the zip file in a browser instead, macOS refuses the first start. Open **System Settings**,
-**Privacy & Security**. Below **Security**, click **Open Anyway** next to sakctl, and confirm. macOS asks this only
-once.
+If you download the zip file in a browser instead, macOS refuses the first start. Open **System Settings**, **Privacy &
+Security**, click **Open Anyway** next to sakctl below **Security**, and confirm. macOS asks only once.
 
 ## Windows
 
@@ -61,24 +53,21 @@ In PowerShell:
 
 {{< install platform="windows" >}}
 
-Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. Windows SmartScreen can warn that the program is not known.
-Click **More info**, then **Run anyway**.
+Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. If Windows SmartScreen warns about it, click **More info**,
+then **Run anyway**.
 
-On Windows, use the sakctl ui: the sakctl cli of `sakctl.exe` does not show its output. The sakctl ui needs the Microsoft
-Edge WebView2 runtime, which Windows 10 and 11 have.
+On Windows, use the UI: the command line of `sakctl.exe` shows no output. The UI needs the Microsoft Edge WebView2
+runtime, which Windows 10 and 11 have.
 
 ## Update
 
-sakctl does not look for updates on its own. To update it, use the button in the footer of the sakctl ui: **Check for
-updates**, then **Update to** the new version, then **Restart**. The line next to the button says what happens. In
-the sakctl cli, `sakctl update` does the same, and `sakctl update --check` only shows if a new version is
-available; start sakctl again to use the new version. sakctl asks GitHub for the newest release, checks the SHA-256
-checksum of the download and replaces itself.
+sakctl only updates when you ask. In the UI, click **Check for updates** in the footer, then **Update to** the new
+version, then **Restart**. On the command line, `sakctl update` updates and `sakctl update --check` only checks. sakctl
+downloads the newest release from GitHub, verifies its SHA-256 checksum and replaces itself.
 
-A deploy with the new version also updates the server of the deployment to it.
+The next deploy updates the server of the deployment to the same version.
 
 ## The first start
 
-sakctl first checks that it can work: it looks for Docker or Podman, and it gets the latest image of its tools. The
-first start takes some minutes for this download. Then sakctl asks for the API token of your Hetzner Cloud project
-and shows your deployments.
+sakctl first looks for Docker or Podman and downloads the image of its tools, which takes a few minutes the first
+time. Then it asks for the API token of your Hetzner Cloud project and shows your deployments.

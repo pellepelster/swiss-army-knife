@@ -499,8 +499,8 @@ run = [
 ]
 
 # the videos of build/videos/: the tour of the apps against the environment of `mise run local:run`
-# and the tour of the sakctl ui, each as .webm, .mp4 and .gif; the .mp4 of the sakctl ui goes to
-# docs/screenshots/ too, the docs show it
+# and the tour of the sakctl ui, each as .webm, .mp4 and .gif; the .mp4 of the sakctl ui and a
+# small .gif of it go to docs/screenshots/ too, the docs and the README show them
 [tasks."docs:video"]
 description = "Record the videos"
 depends = ["docs:window"]
@@ -513,8 +513,10 @@ for video in build/videos/*.webm; do
   ffmpeg -v error -y -i "$video" -vf "fps=10,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$name.gif"
 done
 ls -lh build/videos/*.mp4 build/videos/*.gif
-# the tour of the sakctl ui is in the docs (features.md), next to the screenshots
+# the tour of the sakctl ui is in the docs (features.md), next to the screenshots; the README on
+# github, which plays no video, shows it as a small gif (6 frames a second, 560 pixels wide)
 cp build/videos/sakctl-ui.mp4 docs/screenshots/sakctl-ui.mp4
+ffmpeg -v error -y -i build/videos/sakctl-ui.mp4 -vf "fps=6,scale=560:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" docs/screenshots/sakctl-ui.gif
 '''
 
 # the tests, <part>:test:<kind> (docs/development/architecture/SYSTEM.md, "Tests"): unit tests need nothing but the tools

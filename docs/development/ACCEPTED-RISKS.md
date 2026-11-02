@@ -6,97 +6,62 @@ weight: 15
 
 # Accepted Risks
 
-Known weaknesses that are kept on purpose. A change that touches one keeps the trade-off or revisits it here. How SAK
-is built is in [SYSTEM.md](architecture/SYSTEM.md).
+Known weaknesses kept on purpose. A change that touches one keeps the trade-off or revisits it here. How SAK is built
+is in [SYSTEM.md](architecture/SYSTEM.md).
 
-- **The database is not encrypted at rest.** All data in it, the secrets included, is plain in the SQLite file on
-  the data volume, against the rule to encrypt all data at rest. Accepted until
-  [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file; a separate encryption of the secrets
-  alone was removed in favor of it.
+- **The database is not encrypted at rest.** The SQLite file on the data volume, secrets included, is plain.
+  Accepted until [FDR-002](fdr/FDR-002-sqlite-encryption.md) encrypts the whole file.
 
-- **The files of a provisioning run hold the password of the mail server.** The environment of the backend, the
-  password of the mail server in it, and the token of the events endpoint are plain files on the user's machine
-  while the run lasts, against the rule to encrypt all data at rest. Accepted: only the user reads them, they live
-  for the minutes of the run in a directory with a random name, and a killed sakctl leaves them only until its next
-  run; whoever reads the user's files can read the user's terminal too.
+- **A provisioning run writes the mail server password to disk.** The environment of the backend and the token of the
+  events endpoint are plain files on the user's machine while the run lasts. Accepted: only the user can read the
+  directory, it has a random name, lives for minutes, and a killed run's leftovers go on the next run.
 
-- **The password can be guessed offline.** Whoever reads the cloud project, a read-only token included, sees the
-  password hash label and the public keys of a deployment, and can check guesses of the password against them
-  without asking anybody; whoever reads the server can do the same with the admin password hash. Accepted: every
-  guess costs the strong argon2id of the master key (or of the admin password hash), and a new password that is easy
-  to guess is refused (a strength estimate, not only its length), which leaves too many guesses to try. The salt is
-  the name of the deployment, not unique across users of the same name: a salt the user would have to keep would
-  break "no local state", and the cost of every guess keeps a table for a common name out of reach.
+- **The password can be guessed offline.** Whoever reads the cloud project (the password hash label, the public keys)
+  or the server (the admin password hash) can test guesses without asking anybody. Accepted: every guess costs a
+  strong argon2id, and weak passwords are refused by a strength estimate. The salt is the deployment name, not unique
+  across users, because a salt to keep would break "no local state"; the cost per guess keeps tables out of reach.
 
-- **The hashes in labels are shortened.** A label value holds at most 63 characters, so the hashes a server keeps in
-  its labels (of its user data and of its ssh keys) are cut to 240 of their 256 bits to fit one label each. Two
-  different values with the same shortened hash would hide a change, and a server would not be created anew when
-  it should. Accepted: the chance stays far beyond reach (about one in 2^120 for a collision anyone could search
-  for), and one label per hash is simpler than splitting it across several. The password hash label is 240 bits
-  as well.
+- **Label hashes are shortened.** A label value holds 63 characters, so hashes in labels keep 240 of their 256 bits;
+  a collision would hide a change. Accepted: about one in 2^120, and one label per hash stays simple.
 
-- **The ssh host key is in the user data of the server.** cloud-init installs the host key derived from the password,
-  so the first connection is verified; the cloud provider keeps the user data, and the metadata service of the server
-  hands it out for as long as the server lives. A process that reads it could act as the server towards sakctl.
-  Accepted: the server reaches the metadata service only as root, every other process, the containers included (they
-  run as the user of SAK, on the network of the server), is refused by the firewall of the server; and root on the
-  server, or someone with the cloud project, has everything the host key would give anyway.
+- **The ssh host key is in the user data of the server.** The cloud provider keeps it, and the metadata service hands
+  it out; whoever reads it could impersonate the server towards sakctl. Accepted: the firewall lets only root reach
+  the metadata service, and root or the cloud project already have more than the host key gives.
 
-- **The settings of a deployment hold the password of the mail server.** sakctl reads them from the backend
-  (`GET /api/v1/deployment`) with a signed request, and keeps them when a create or deploy starts in
-  `~/.sak/<name>/config.json`, encrypted with a key derived from the password of the deployment, so a redeploy takes
-  over the whole mail server and nobody types its password again; a session, also one of an admin, gets 401. A comfort
-  feature: whoever holds the password of the deployment can read the password of the mail server, and send mail with
-  it from elsewhere. Accepted: the same people can already read it on the server, and the account at the mail server
-  is meant for the login mails of this deployment alone.
+- **sakctl can read the mail server password.** It fetches the settings of a deployment with a signed request
+  (`GET /api/v1/deployment`, sessions get 401) and keeps them encrypted in `~/.sak/<name>/config.json`, so a redeploy
+  needs no retyping. Whoever has the deployment password can read the mail password. Accepted: the same people can
+  read it on the server, and the mail account is meant for this deployment's login mails only.
 
-- **A signed request can be relayed while it is fresh.** Whoever controls the DNS zone of the deployment (it is in
-  the cloud project) and gets a certificate for `api.<base domain>` can take a request of sakctl and hand it on to the
-  backend within its two minutes, once. Accepted: that is one request, the one sakctl meant to make, and nothing that
-  lasts; the signature holds for the backend's own host, so forged labels that send sakctl elsewhere get nothing
-  usable at all.
+- **A signed request can be relayed while fresh.** Whoever controls the DNS zone (it is in the cloud project) and
+  gets a certificate for `api.<base domain>` can pass one request of sakctl on to the backend within its two minutes,
+  once. Accepted: it is the request sakctl meant to make, and the signature holds only for the backend's own host.
 
-- **The login link budget can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). The
-  login sends at most 60 links an hour altogether, and at most 5 an hour to an address from one client (keyed by
-  address and client IP). Someone who knows an allowed address and has 12 client IPs can use up the links of an
-  hour, and no allowed address gets a link until the hour is over. Accepted: the global limit keeps the server from
-  being used to send mail, a login outage of an hour is the price, and the apps have few allowed addresses whose
-  sessions last 30 days.
+- **The login links can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). At most 60
+  links an hour go out, and 5 an hour per address and client IP; 12 client IPs can block logins for an hour.
+  Accepted: the global limit keeps the server from sending spam, and sessions last 30 days.
 
-- **The sakctl ui gets the passwords of the environment.** When `SAK_PASSWORD` or `SAK_SMTP_PASSWORD` is set, sakctl
-  sends them to the page of the sakctl ui, which fills its password fields with them, so a user who keeps them in the
-  environment does not type them again. The secrets cross the ipc into the web view. Accepted: the web view shows
-  only the pages of sakctl, its content security policy loads nothing from elsewhere, the page writes every value
-  with `textContent`, and the same process holds the secrets anyway; whoever can read the web view can read sakctl.
+- **The sakctl UI gets passwords from the environment.** `SAK_PASSWORD` and `SAK_SMTP_PASSWORD` fill its password
+  fields, so they cross into the web view. Accepted: the web view loads only sakctl's pages under a strict content
+  security policy and writes values as text; the same process holds the secrets anyway.
 
-- **Two runs on one deployment at the same time.** Nothing stops two sakctl, on two machines or the sakctl cli
-  next to the sakctl ui, from deploying or destroying the same deployment at once; the two applies can destroy and
-  create the server at the same time. On the server, `sak-backend` lets only one backup, restore, update or reboot
-  run at a time; the cloud resources have no such lock. Accepted: a deployment has one user, who starts its runs by
-  hand; each run plans first and stops at what it does not expect, and the next deploy repairs what two runs left
-  half done. A lock label on the resources would stay behind after a run that was killed.
+- **Two runs can hit one deployment at once.** Two sakctl, on two machines or UI and command line, can deploy or
+  destroy at the same time; only the server's own commands (backup, restore, update, reboot) take a lock. Accepted:
+  a deployment has one user who starts runs by hand, every run plans first, and the next deploy repairs a half-done
+  run. A lock label would stay behind after a killed run.
 
-- **The client key goes to the container engine.** sakctl hands the private client key of a deployment to an
-  ssh-agent in a container (`docker exec -i … ssh-add -`) and to the container of a provisioning. It is never
-  written to disk, but it passes the engine: with `DOCKER_HOST=tcp://…` and no TLS it would cross the network in
-  clear, and the agent that holds it would run on that other host. Accepted for now: sakctl runs against the
-  engine of the user's own machine, a local socket; whoever points `DOCKER_HOST` at another host trusts that
-  host with the same containers anyway. To revisit: refuse a plain tcp engine for ssh and provisioning.
+- **The client key passes the container engine.** sakctl hands the private ssh key to an agent in a container and
+  to the provisioning container; it never touches disk, but with a remote, unencrypted `DOCKER_HOST` it would cross
+  the network. Accepted for now: sakctl expects the local engine. To revisit: refuse a plain tcp engine.
 
-- **An update is not signed.** sakctl checks the zip of an update against the checksum of the same release, which
-  proves that the download is complete, not who made it. Whoever can change a release on GitHub can change both.
-  Accepted until the releases are signed: the installation of sakctl trusts the same release in the same way.
+- **Updates are not signed.** sakctl checks an update against the checksum of the same release, which proves it is
+  complete, not who made it. Accepted until releases are signed: the installation trusts the release the same way.
 
-- **A label deleted while a note is saved.** A note that is saved with a new label creates the label first. When
-  the user deletes that label at the same time, for example on another device, the note is saved without it and
-  without an error. When the note is deleted at the same time, the new labels stay without a note. Accepted: it
-  takes two devices of the same user acting within milliseconds, nothing is lost but the label on the note, and
-  the user sees the result at once and can add the label again; a lock across both for every save costs more
-  than it gives.
+- **A label can be lost while a note is saved.** If the user deletes a new label on another device in the same
+  moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes
+  two devices within milliseconds, and the user sees and fixes it at once.
 
-- **A session ends only when its token expires.** Signing out, in the web ui and in the Android apps, forgets the
-  session token on the device only; the backend keeps no list of sessions and can not revoke one, so a token that was
-  copied stays valid until it expires (its lifetime is the session TTL of the backend). Accepted: the token never
-  leaves the device in plain text (on Android it is encrypted with a key of the keystore), it travels only in a
-  header over https, and a list of revoked tokens would be the first state the backend keeps for a session. Revisit
-  when a stolen token becomes likely, e.g. with shared devices.
+- **A session ends only when its token expires.** Signing out forgets the token on the device; the backend keeps no
+  session list, so a copied token stays valid for the session TTL. Accepted: the token stays on the device (encrypted
+  with the keystore on Android) and travels only over https; revoking would be the first session state in the
+  backend. Revisit when shared devices make theft likely.

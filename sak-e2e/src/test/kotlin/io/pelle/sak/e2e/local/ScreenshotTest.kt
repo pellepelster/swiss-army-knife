@@ -21,6 +21,7 @@ import io.pelle.sak.e2e.util.NOTES
 import io.pelle.sak.e2e.util.PHOTO_NOTE
 import io.pelle.sak.e2e.util.RECORDING_NOTE
 import io.pelle.sak.e2e.util.REDIRECTS
+import io.pelle.sak.e2e.util.USERS
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
@@ -227,6 +228,18 @@ class ScreenshotTest {
         page.navigate("/static-hosting/$BUCKET")
         assertThat(page.getByRole(AriaRole.HEADING, Page.GetByRoleOptions().setName(BUCKET))).isVisible()
         page.shot("hosting-bucket", device)
+        context.close()
+    }
+
+    // the users an admin added, who sign in by e-mail
+    @ParameterizedTest
+    @EnumSource(Device::class)
+    fun `the users`(device: Device) {
+        val context = context(device, signedIn = true)
+        val page = context.newPage()
+        page.navigate("/users")
+        assertThat(page.getByTestId("user-${USERS.last().first}")).isVisible()
+        page.shot("users", device)
         context.close()
     }
 

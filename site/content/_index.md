@@ -5,6 +5,8 @@ description: "The documentation of Swiss Army Knife (SAK): how it is built, how 
 
 {{< readme >}}
 
+{{% button href="features.md" style="primary" icon="arrow-right" iconposition="right" %}}See all features{{% /button %}}
+
 ## Documentation
 
 How Swiss Army Knife is built and why.
