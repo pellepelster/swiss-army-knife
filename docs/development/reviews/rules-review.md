@@ -82,7 +82,10 @@ there.
 
 Fix: "API-1 to API-4 and API-6".
 
-### `RR-7` GROCERY.md is not like the other apps
+### ~~`RR-7` GROCERY.md is not like the other apps~~
+
+**Fixed:** `GROCERY-2` is written again, `GROCERY-11` is a rule of its own like the others, and GROCERY.md has the
+sections Data, API, Settings and External systems.
 
 `GROCERY-2` is a short note ("an input field ad the top", no full stop), not a rule in the words of the glossary.
 GROCERY.md has no sections Data, API, Settings and External systems like HOSTING.md and REDIRECTS.md; `GROCERY-11` is
