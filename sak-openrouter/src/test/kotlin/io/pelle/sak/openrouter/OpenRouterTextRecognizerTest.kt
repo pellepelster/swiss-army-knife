@@ -11,6 +11,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64
@@ -19,6 +22,11 @@ import io.pelle.sak.api.testing.string
 
 // against a fake of openrouter's chat completions on localhost
 class OpenRouterTextRecognizerTest {
+    @TempDir
+    lateinit var tempDir: Path
+
+    private fun file(content: ByteArray): Path = Files.write(Files.createTempFile(tempDir, "file-", ".bin"), content)
+
     private val requests = mutableListOf<Pair<Map<String, String>, JsonObject>>()
 
     private var status = 200
@@ -53,7 +61,7 @@ class OpenRouterTextRecognizerTest {
         answer = completion("  Total 12.50\nThank you  ")
         val image = byteArrayOf(1, 2, 3)
 
-        recognizer.recognize(image, "image/jpeg") shouldBe "Total 12.50\nThank you"
+        recognizer.recognize(file(image), "image/jpeg") shouldBe "Total 12.50\nThank you"
 
         val (headers, body) = requests.single()
         headers["Authorization"] shouldBe "Bearer token"
@@ -68,23 +76,23 @@ class OpenRouterTextRecognizerTest {
     @Test
     fun `an image without text has the empty text`() {
         answer = completion(OpenRouterTextRecognizer.NO_TEXT)
-        recognizer.recognize(byteArrayOf(1), "image/png") shouldBe ""
+        recognizer.recognize(file(byteArrayOf(1)), "image/png") shouldBe ""
     }
 
     @Test
     fun `errors of openrouter and unreachable ones fail the recognition`() {
         status = 402
         answer = """{"error":{"code":402,"message":"Insufficient credits"}}"""
-        shouldThrow<TextRecognitionException> { recognizer.recognize(byteArrayOf(1), "image/png") }.message shouldContain "Insufficient credits"
+        shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }.message shouldContain "Insufficient credits"
 
         status = 200
         answer = """{"choices":[]}"""
-        shouldThrow<TextRecognitionException> { recognizer.recognize(byteArrayOf(1), "image/png") }
+        shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }
 
         answer = "<html>"
-        shouldThrow<TextRecognitionException> { recognizer.recognize(byteArrayOf(1), "image/png") }
+        shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }
 
         server.stop(0)
-        shouldThrow<TextRecognitionException> { recognizer.recognize(byteArrayOf(1), "image/png") }.message shouldContain "not reachable"
+        shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }.message shouldContain "not reachable"
     }
 }

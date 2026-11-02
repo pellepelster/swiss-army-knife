@@ -9,6 +9,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64
@@ -17,6 +20,11 @@ import io.pelle.sak.api.testing.string
 
 // against a fake of openrouter's transcriptions on localhost
 class OpenRouterSpeechTranscriberTest {
+    @TempDir
+    lateinit var tempDir: Path
+
+    private fun file(content: ByteArray): Path = Files.write(Files.createTempFile(tempDir, "file-", ".bin"), content)
+
     private val requests = mutableListOf<JsonObject>()
 
     private var status = 200
@@ -45,7 +53,7 @@ class OpenRouterSpeechTranscriberTest {
         answer = """{"text":" Buy milk on the way home. ","usage":{"seconds":2.1}}"""
         val audio = byteArrayOf(1, 2, 3)
 
-        transcriber.transcribe(audio, "audio/wav") shouldBe "Buy milk on the way home."
+        transcriber.transcribe(file(audio), "audio/wav") shouldBe "Buy milk on the way home."
 
         val request = requests.single()
         request.string("model") shouldBe "vendor/speech-model"
@@ -58,9 +66,20 @@ class OpenRouterSpeechTranscriberTest {
     fun `errors of openrouter and unknown types fail the transcription`() {
         status = 400
         answer = """{"error":{"code":400,"message":"No endpoints found"}}"""
-        shouldThrow<TextRecognitionException> { transcriber.transcribe(byteArrayOf(1), "audio/wav") }.message shouldContain "No endpoints found"
+        shouldThrow<TextRecognitionException> { transcriber.transcribe(file(byteArrayOf(1)), "audio/wav") }.message shouldContain "No endpoints found"
 
-        shouldThrow<TextRecognitionException> { transcriber.transcribe(byteArrayOf(1), "audio/flac") }
+        shouldThrow<TextRecognitionException> { transcriber.transcribe(file(byteArrayOf(1)), "audio/flac") }
         requests.size shouldBe 1
+    }
+
+    @Test
+    fun `streams a large recording as its exact base64`() {
+        answer = """{"text":"long"}"""
+        // not a multiple of 3 and of the blocks of the encoding
+        val audio = ByteArray(9_600_044) { (it * 31 + it / 7).toByte() }
+
+        transcriber.transcribe(file(audio), "audio/wav") shouldBe "long"
+
+        requests.single()["input_audio"]!!.jsonObject.string("data") shouldBe Base64.getEncoder().encodeToString(audio)
     }
 }

@@ -177,6 +177,22 @@ class FileServiceTest {
         }
     }
 
+    @Test
+    fun `reads large images with fewer pixels, at least four times the size`() {
+        FileService.subsampling(2048, 128) shouldBe 4
+        FileService.subsampling(2048, 256) shouldBe 2
+        FileService.subsampling(2048, 480) shouldBe 1
+        FileService.subsampling(100, 128) shouldBe 1
+
+        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        FileService.decode(service.path(file), 128)!!.width shouldBe 512
+        ImageIO.read(service.thumbnail(file, 128)!!.toFile()).let {
+            it.width shouldBe 128
+            it.height shouldBe 85
+            Color(it.getRGB(64, 42)).let { pixel -> (pixel.red > 200 && pixel.blue < 80) shouldBe true }
+        }
+    }
+
     private fun service(maxSize: Long) = FileService(database, dir, clock, maxSize)
 
 }

@@ -15,6 +15,7 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
 import javax.imageio.ImageIO
 import javax.sound.sampled.AudioFileFormat
 import javax.sound.sampled.AudioFormat
@@ -45,7 +46,8 @@ sealed interface StoreFileResult {
 // upload is a file of its own with an id, its content lives in dir below the first two characters
 // of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
 // from the uploader. The thumbnails of the images are made when they are first asked for and kept
-// next to them.
+// next to them; at most one decode for each processor runs at a time, a decoded photo takes up to
+// 17 MB of the heap.
 class FileService(
     private val repository: FileRepository,
     private val dir: Path,
@@ -60,6 +62,9 @@ class FileService(
 
     // the content and size whose thumbnail is being made, by its sha-256 and the size
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
+
+    // the decodes that may run at the same time, of different contents or sizes
+    private val decodes = Semaphore(Runtime.getRuntime().availableProcessors())
 
     init {
         Files.createDirectories(dir)
@@ -108,7 +113,13 @@ class FileService(
                 // made while waiting for the lock
                 if (Files.exists(thumbnail)) return thumbnail
                 if (Files.exists(none)) return null
-                val image = decodeThumbnail(file, size)
+                decodes.acquire()
+                val image =
+                    try {
+                        decodeThumbnail(file, size)
+                    } finally {
+                        decodes.release()
+                    }
                 if (image == null) {
                     write(none) {}
                     return null
@@ -131,7 +142,7 @@ class FileService(
             if (file.contentType.startsWith("audio/")) {
                 waveform(path(file))
             } else {
-                ImageIO.read(path(file).toFile())?.let { scaled(it, size) }
+                decode(path(file), size)?.let { scaled(it, size) }
             }
         } catch (_: IOException) {
             null
@@ -198,8 +209,9 @@ class FileService(
 
     companion object {
         // the most a stored file has, for every app (the request body of the apps and the limit of
-        // caddy follow it, APPS_MAX_BODY_SIZE)
-        const val DEFAULT_MAX_SIZE = 64L * 1024 * 1024
+        // caddy follow it, APPS_MAX_BODY_SIZE): a recording of the apps of MAX_RECORDING_SECONDS
+        // (16 kHz mono 16 bit, 9.6 MB); the photos of the apps are jpegs of at most 2 MB
+        const val DEFAULT_MAX_SIZE = 10L * 1024 * 1024
 
         // the apps scale the photos down to this many pixels on the longer side, they record at
         // most this long; the storage takes no more
@@ -256,16 +268,45 @@ class FileService(
 
         private const val WAVEFORM_BARS = 48
 
+        // the image, read with every subsampling-th pixel of each row and column when it is at
+        // least SUBSAMPLED_SIZE times the size: a fraction of its memory (a photo of 2048 pixels
+        // for 128 pixels is read with 512 pixels, 1 MB instead of 17 MB). Taking single pixels
+        // aliases, the halving steps of scaled() from SUBSAMPLED_SIZE times the size smooth it;
+        // null when no reader knows the image
+        internal fun decode(
+            image: Path,
+            size: Int,
+        ): BufferedImage? =
+            ImageIO.createImageInputStream(image.toFile())?.use { input ->
+                val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
+                try {
+                    // as ImageIO.read
+                    reader.setInput(input, true, true)
+                    val param = reader.defaultReadParam
+                    val subsampling = subsampling(maxOf(reader.getWidth(0), reader.getHeight(0)), size)
+                    if (subsampling > 1) param.setSourceSubsampling(subsampling, subsampling, 0, 0)
+                    reader.read(0, param)
+                } finally {
+                    reader.dispose()
+                }
+            }
+
+        // the largest power of 2 that keeps the longer side at least SUBSAMPLED_SIZE times size
+        internal fun subsampling(
+            longer: Int,
+            size: Int,
+        ): Int {
+            var subsampling = 1
+            while (longer / (subsampling * 2) >= size * SUBSAMPLED_SIZE) subsampling *= 2
+            return subsampling
+        }
+
+        private const val SUBSAMPLED_SIZE = 4
+
         // the loudness of the recording in bars from its start to its end, on the 4:3 of the
         // photos; the loudest part reaches the full height, silence keeps a dot
         internal fun waveform(recording: Path): BufferedImage {
-            val samples = AudioSystem.getAudioInputStream(recording.toFile()).use { samples(it) }
-            val peaks =
-                (0 until WAVEFORM_BARS).map { bar ->
-                    val from = samples.size * bar / WAVEFORM_BARS
-                    val to = maxOf(from + 1, samples.size * (bar + 1) / WAVEFORM_BARS)
-                    (from until minOf(to, samples.size)).maxOfOrNull { abs(samples[it]) } ?: 0f
-                }
+            val peaks = AudioSystem.getAudioInputStream(recording.toFile()).use { peaks(it) }
             val loudest = peaks.max().takeIf { it > 0f } ?: 1f
             val width = THUMBNAIL_SIZE
             val height = THUMBNAIL_SIZE * 3 / 4
@@ -287,28 +328,53 @@ class FileService(
             return image
         }
 
-        // the samples of the first channel from -1 to 1, of 8 or 16 bit pcm
-        private fun samples(input: AudioInputStream): FloatArray {
+        // the largest absolute sample of the first channel (from 0 to 1, of 8 or 16 bit pcm) in
+        // each of the WAVEFORM_BARS bars, read block by block; a bar is at least one frame, a
+        // recording of fewer frames than bars has bars that share a frame
+        private fun peaks(input: AudioInputStream): List<Float> {
             val format = input.format
-            val bytes = input.readAllBytes()
             val frameSize = format.frameSize
             val bits = format.sampleSizeInBits
             if (format.encoding !in setOf(AudioFormat.Encoding.PCM_SIGNED, AudioFormat.Encoding.PCM_UNSIGNED) || bits !in setOf(8, 16)) {
                 throw UnsupportedAudioFileException("only 8 and 16 bit pcm is drawn, not $format")
             }
-            return FloatArray(bytes.size / frameSize) { frame ->
-                val offset = frame * frameSize
-                if (bits == 16) {
-                    val low = bytes[offset + if (format.isBigEndian) 1 else 0].toInt() and 0xFF
-                    val high = bytes[offset + if (format.isBigEndian) 0 else 1].toInt()
-                    ((high shl 8) or low) / 32768f
-                } else if (format.encoding == AudioFormat.Encoding.PCM_UNSIGNED) {
-                    ((bytes[offset].toInt() and 0xFF) - 128) / 128f
-                } else {
-                    bytes[offset] / 128f
+            val frames = input.frameLength
+            if (frames < 0) throw UnsupportedAudioFileException("the number of frames is not known")
+            val from = LongArray(WAVEFORM_BARS) { frames * it / WAVEFORM_BARS }
+            val to = LongArray(WAVEFORM_BARS) { maxOf(from[it] + 1, frames * (it + 1) / WAVEFORM_BARS) }
+            val peaks = FloatArray(WAVEFORM_BARS)
+            // the first bar that has not ended before the frame
+            var first = 0
+            var frame = 0L
+            val block = ByteArray(frameSize * WAVEFORM_BLOCK_FRAMES)
+            while (true) {
+                val read = input.readNBytes(block, 0, block.size)
+                if (read < frameSize) break
+                for (offset in 0..read - frameSize step frameSize) {
+                    val sample =
+                        if (bits == 16) {
+                            val low = block[offset + if (format.isBigEndian) 1 else 0].toInt() and 0xFF
+                            val high = block[offset + if (format.isBigEndian) 0 else 1].toInt()
+                            ((high shl 8) or low) / 32768f
+                        } else if (format.encoding == AudioFormat.Encoding.PCM_UNSIGNED) {
+                            ((block[offset].toInt() and 0xFF) - 128) / 128f
+                        } else {
+                            block[offset] / 128f
+                        }
+                    while (first < WAVEFORM_BARS && to[first] <= frame) first++
+                    var bar = first
+                    while (bar < WAVEFORM_BARS && from[bar] <= frame) {
+                        if (frame < to[bar]) peaks[bar] = maxOf(peaks[bar], abs(sample))
+                        bar++
+                    }
+                    frame++
                 }
+                if (read < block.size) break
             }
+            return peaks.toList()
         }
+
+        private const val WAVEFORM_BLOCK_FRAMES = 16 * 1024
 
         private val WAVEFORM_BACKGROUND = Color(0xF7, 0xF5, 0xEF)
 

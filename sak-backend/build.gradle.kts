@@ -38,7 +38,17 @@ dependencies {
 
 application {
     mainClass = "io.pelle.sak.backend.SakBackendKt"
-    applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
+    // measured under load (docs/development/reviews/memory-review.md, MR-4): about 100 MB of live heap at the
+    // peak, the serial gc fits one household; an OutOfMemoryError ends the backend, systemd starts it again
+    applicationDefaultJvmArgs =
+        listOf(
+            "--enable-native-access=ALL-UNNAMED",
+            "-XX:+UseSerialGC",
+            "-XX:+UseCompactObjectHeaders",
+            "-Xmx192m",
+            "-XX:MaxDirectMemorySize=64m",
+            "-XX:+ExitOnOutOfMemoryError",
+        )
 }
 
 // the controller is shipped as docker image, built from the installDist output

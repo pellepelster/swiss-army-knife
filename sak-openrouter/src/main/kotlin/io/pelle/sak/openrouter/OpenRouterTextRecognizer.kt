@@ -19,10 +19,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.util.Base64
+import java.nio.file.Path
 
 // reads the text in an image with a vision model through openrouter's chat completions; the image
-// goes along as data url, openrouter could not fetch it from the controller. Only providers that
+// goes along as data url, streamed from its file (base64Body), openrouter could not fetch it from the controller. Only providers that
 // do not collect the data are asked.
 class OpenRouterTextRecognizer(
     url: String,
@@ -34,7 +34,7 @@ class OpenRouterTextRecognizer(
     private val url = url.trimEnd('/')
 
     override fun recognize(
-        image: ByteArray,
+        image: Path,
         contentType: String,
     ): String {
         val response =
@@ -45,7 +45,7 @@ class OpenRouterTextRecognizer(
                         .timeout(timeout)
                         .header("Authorization", "Bearer $apiToken")
                         .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(request(image, contentType).toString()))
+                        .POST(base64Body(request(contentType).toString(), image))
                         .build(),
                     HttpResponse.BodyHandlers.ofString(),
                 )
@@ -65,10 +65,7 @@ class OpenRouterTextRecognizer(
         return text(body)
     }
 
-    private fun request(
-        image: ByteArray,
-        contentType: String,
-    ): JsonObject =
+    private fun request(contentType: String): JsonObject =
         buildJsonObject {
             put("model", model)
             put("temperature", 0)
@@ -88,7 +85,7 @@ class OpenRouterTextRecognizer(
                                 buildJsonObject {
                                     put("type", "image_url")
                                     putJsonObject("image_url") {
-                                        put("url", "data:$contentType;base64,${Base64.getEncoder().encodeToString(image)}")
+                                        put("url", "data:$contentType;base64,$BASE64_DATA")
                                     }
                                 },
                             )

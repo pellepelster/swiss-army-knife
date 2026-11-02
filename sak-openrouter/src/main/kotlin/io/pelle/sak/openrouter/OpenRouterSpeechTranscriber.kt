@@ -16,10 +16,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.util.Base64
+import java.nio.file.Path
 
 // writes down what is said in a recording with a speech to text model through openrouter's
-// transcriptions; the recording goes along as base64, the language is detected. Only providers
+// transcriptions; the recording goes along as base64, streamed from its file (base64Body), the language is detected. Only providers
 // that do not collect the data are asked.
 class OpenRouterSpeechTranscriber(
     url: String,
@@ -31,7 +31,7 @@ class OpenRouterSpeechTranscriber(
     private val url = url.trimEnd('/')
 
     override fun transcribe(
-        audio: ByteArray,
+        audio: Path,
         contentType: String,
     ): String {
         val format = FORMATS[contentType] ?: throw TextRecognitionException("recordings of type $contentType can not be transcribed")
@@ -43,7 +43,7 @@ class OpenRouterSpeechTranscriber(
                         .timeout(timeout)
                         .header("Authorization", "Bearer $apiToken")
                         .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(request(audio, format).toString()))
+                        .POST(base64Body(request(format).toString(), audio))
                         .build(),
                     HttpResponse.BodyHandlers.ofString(),
                 )
@@ -63,14 +63,11 @@ class OpenRouterSpeechTranscriber(
         return body["text"]?.jsonPrimitive?.contentOrNull?.trim() ?: throw TextRecognitionException("openrouter answered without a text")
     }
 
-    private fun request(
-        audio: ByteArray,
-        format: String,
-    ): JsonObject =
+    private fun request(format: String): JsonObject =
         buildJsonObject {
             put("model", model)
             putJsonObject("input_audio") {
-                put("data", Base64.getEncoder().encodeToString(audio))
+                put("data", BASE64_DATA)
                 put("format", format)
             }
             putJsonObject("provider") { put("data_collection", "deny") }

@@ -33,11 +33,12 @@ class FileTextServiceTest {
             val images = mutableListOf<ByteArray>()
 
             override fun recognize(
-                image: ByteArray,
+                image: Path,
                 contentType: String,
             ): String {
-                images.add(image)
-                val text = String(image.drop(Media.JPEG.size).toByteArray())
+                val bytes = Files.readAllBytes(image)
+                images.add(bytes)
+                val text = String(bytes.drop(Media.JPEG.size).toByteArray())
                 if (text == "fail") throw TextRecognitionException("the model failed")
                 return " $text\n"
             }
@@ -49,7 +50,7 @@ class FileTextServiceTest {
             val recordings = mutableListOf<String>()
 
             override fun transcribe(
-                audio: ByteArray,
+                audio: Path,
                 contentType: String,
             ): String {
                 recordings.add(contentType)

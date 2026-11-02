@@ -808,9 +808,10 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"files.unsupported_type","message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
-            // a file of at most 64 MB is stored (FileServiceTest refuses a larger one), more than the 10 MB before
-            FileService.DEFAULT_MAX_SIZE shouldBe 64L * 1024 * 1024
-            upload(jpeg + ByteArray(20 * 1024 * 1024)).statusCode() shouldBe 201
+            // a file of at most 10 MiB is stored, a recording of five minutes of the apps (9.6 MB) fits
+            FileService.DEFAULT_MAX_SIZE shouldBe 10L * 1024 * 1024
+            upload(jpeg + ByteArray(9_600_044)).statusCode() shouldBe 201
+            upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
             // the apps scale photos down, the storage takes nothing larger
             upload(Media.jpeg(2049, 1)).let {
                 it.statusCode() shouldBe 400
