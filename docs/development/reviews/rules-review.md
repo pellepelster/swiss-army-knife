@@ -53,7 +53,9 @@ domains. The shared parts (`SHARED-1` to `SHARED-3`) say nothing of domains; the
 Fix: a shared rule of the domains (one domain belongs to the apps, one bucket or one redirect, `DomainRegistry`), and
 the reference of the health to `HEALTH-1`.
 
-### `RR-4` `sak-openrouter` reads more than images
+### ~~`RR-4` `sak-openrouter` reads more than images~~
+
+**Fixed:** the table of the parts says that `sak-openrouter` reads the text in images and writes down recordings.
 
 The table of the parts in SYSTEM.md: "The client that reads the text in images (text discovery)". It also writes down
 recordings (`OpenRouterSpeechTranscriber`, `NOTES-5`).

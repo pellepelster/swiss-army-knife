@@ -56,7 +56,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-ingress` | The configuration model of caddy and the client of its admin api. |
 | `sak-logs` | The access logs and metrics of the sites, read from victorialogs. |
 | `sak-dns` | The check that the domains point to the server, asking name servers directly. |
-| `sak-openrouter` | The client that reads the text in images (text discovery). |
+| `sak-openrouter` | The client of the AI provider (OpenRouter): it reads the text in images and writes down recordings (text discovery). |
 | `sak-theme` | The look: design tokens and Bootstrap mapped onto them, used by all uis. |
 | `sak-cli` | sakctl: the sakctl ui (Tauri) and the sakctl cli in one binary, and `sak-cloud`, the library that declares the cloud resources. |
 | `ansible` | The collection `pelle_io.sak` that provisions the server. |
