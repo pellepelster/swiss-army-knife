@@ -53,9 +53,25 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 compose = true
                 buildConfig = true
             }
-            // the tests read the texts of the app by its R class (testing, english())
+            // the tests read the texts of the app by its R class (testing, english()). The screenshots
+            // (the classes *Screenshots, robolectric) run only with -Psak.screenshots=<dir>, which they
+            // are written to (mise run android:screenshots), and then alone
             testOptions {
-                unitTests.all { it.systemProperty("sak.app.package", namespace ?: "") }
+                unitTests.isIncludeAndroidResources = true
+                val screenshots = target.findProperty("sak.screenshots") as String?
+                unitTests.all {
+                    it.systemProperty("sak.app.package", namespace ?: "")
+                    if (screenshots == null) {
+                        it.exclude("**/*Screenshots*")
+                    } else {
+                        it.filter.includeTestsMatching("*Screenshots")
+                        it.systemProperty("sak.screenshots", screenshots)
+                        it.systemProperty("roborazzi.test.record", "true")
+                        it.outputs.upToDateWhen { false }
+                        // robolectric reaches into the file descriptors of the jdk
+                        it.jvmArgs("--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED")
+                    }
+                }
             }
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_17

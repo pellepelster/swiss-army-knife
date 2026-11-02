@@ -487,10 +487,10 @@ run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
 # the screenshots of docs/screenshots/, taken in chromium: the apps against the
 # environment of `mise run local:run` (every page on a desktop and on a phone), the window of sakctl
-# in light and dark
+# in light and dark; and the android apps (android:screenshots)
 [tasks."docs:screenshots"]
 description = "Take the screenshots"
-depends = ["docs:window"]
+depends = ["docs:window", "android:screenshots"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eScreenshots"
 
@@ -854,6 +854,14 @@ printf sak-grocery | gh secret set ANDROID_KEY_ALIAS --repo "$repo"
 description = "Run the tests of the android apps"
 dir = "{{config_root}}/android"
 run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnitTest'
+
+# the screenshots of the android apps in docs/screenshots/ (android-<app>-<screen>[-dark].png): each
+# app rendered on the jvm by robolectric against the fake backend of its tests, in the light and the
+# dark mode of the phone (the classes *Screenshots, android/testing/.../Screenshots.kt)
+[tasks."android:screenshots"]
+description = "Take the screenshots of the android apps"
+dir = "{{config_root}}/android"
+run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnitTest -Psak.screenshots="{{config_root}}/docs/screenshots"'
 
 # the debug build of an app of android/apps.txt in the emulator, e.g. mise run android:run notes: the
 # avd sak is made once, the emulator started when none runs and left running; the debug build is

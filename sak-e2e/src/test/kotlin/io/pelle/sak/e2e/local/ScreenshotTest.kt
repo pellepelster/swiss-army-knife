@@ -176,6 +176,18 @@ class ScreenshotTest {
         )
         page.shot("notes", device)
 
+        // the same notes in the dark theme
+        val dark = context(device, signedIn = true, scheme = ColorScheme.DARK)
+        dark.newPage().apply {
+            navigate("/notes")
+            waitForFunction(
+                "text => [...document.querySelectorAll('textarea')].some(area => area.value === text)",
+                NOTES.first().first,
+            )
+            shot("notes-dark", device)
+        }
+        dark.close()
+
         // a text note, written right on the page; the newest note is the first
         val newest = page.locator("[data-testid^='note-'] textarea").first()
         page.button("Create note").click()
@@ -215,6 +227,19 @@ class ScreenshotTest {
         page.navigate("/static-hosting/$BUCKET")
         assertThat(page.getByRole(AriaRole.HEADING, Page.GetByRoleOptions().setName(BUCKET))).isVisible()
         page.shot("hosting-bucket", device)
+        context.close()
+    }
+
+    // where the AI features are turned on, off until then: what the apps would send and to whom, and
+    // the key of the OpenRouter account
+    @ParameterizedTest
+    @EnumSource(Device::class)
+    fun `the settings of the AI`(device: Device) {
+        val context = context(device, signedIn = true)
+        val page = context.newPage()
+        page.navigate("/settings/ai")
+        assertThat(page.getByTestId("scope-ai").getByRole(AriaRole.SWITCH)).isVisible()
+        page.shot("settings-ai", device)
         context.close()
     }
 

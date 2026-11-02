@@ -9,6 +9,21 @@
     text-decoration-color: var(--sak-accent);
     text-underline-offset: 0.2em;
   }
+
+  /* an image of a page, e.g. a screenshot, at three quarters of the width of the text, the files
+     keep their size; a click shows it in full (the lightbox of relearn). On a phone as wide as the
+     text */
+  #R-body-inner img.figure-image {
+    max-width: 75%;
+    height: auto;
+    cursor: zoom-in;
+  }
+
+  @media (max-width: 47.999rem) {
+    #R-body-inner img.figure-image {
+      max-width: 100%;
+    }
+  }
 </style>
 {{- /* the terminal blocks of the commands, the look of the apps */ -}}
 {{- with resources.Get "css/sak-code-block.css" | fingerprint }}

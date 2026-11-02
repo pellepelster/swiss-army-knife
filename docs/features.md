@@ -16,6 +16,38 @@ looked after by one program, sakctl.
 Nothing sends data to a third party unless you turn it on and agree to it first. The apps load nothing from outside,
 and all data stays on your own server.
 
+The AI features, which discover the text in a photo or a recording of a note, are off until an admin turns them on in
+the settings. The settings say what the apps would send and to whom, and they need the API key of your own OpenRouter
+account; providers that collect the data are not asked.
+
+![The settings of the AI features, turned off](screenshots/web-settings-ai-desktop.png)
+
+## Across all devices
+
+Every app works in the browser of a desktop and of a phone; on a phone you can install it on the home screen. The
+notes and the grocery lists also have a native Android app.
+
+On a desktop, the notes are a wall of post-its:
+
+![The notes in the browser of a desktop](screenshots/web-notes-desktop.png)
+
+On a phone, the same app in its browser:
+
+![The notes in the browser of a phone](screenshots/web-notes-mobile.png)
+
+And the notes as a native Android app:
+
+![The notes in the Android app](screenshots/android-notes.png)
+
+## Light and dark
+
+Every app follows the light or the dark mode of the device, in the browser as well as in the Android apps; the
+post-its keep their colors in both.
+
+![The notes in the light mode](screenshots/web-notes-desktop.png)
+
+![The notes in the dark mode](screenshots/web-notes-dark-desktop.png)
+
 ## The apps
 
 ### Notes
@@ -24,7 +56,7 @@ Post-its from text, photos and voice recordings, sorted with labels and in color
 photo or a recording is written into the note on request. The notes also have an Android app, which downloads from
 `sak.<your domain>/notes/download/app`.
 
-![Notes](screenshots/web-notes-desktop.png)
+![A note with a photo](screenshots/web-notes-photo-desktop.png)
 
 ### Grocery lists
 
@@ -46,13 +78,6 @@ its traffic.
 Domains that lead to another address: an external domain, or the site of a bucket.
 
 ![Redirects](screenshots/web-redirects-desktop.png)
-
-## On every device
-
-All apps work on a phone as well as on a desktop, in the light and the dark mode of the device. On a phone you can
-install them on the home screen.
-
-![The apps in the dark mode on a phone](screenshots/web-apps-dark-mobile.png)
 
 ## Users
 

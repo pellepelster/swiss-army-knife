@@ -11,6 +11,9 @@ kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.11.0"
 junit = "4.13.2"
 emoji2 = "1.6.0"
+# the screenshots of the apps (docs/screenshots/android-*.png), rendered on the jvm
+robolectric = "4.17"
+roborazzi = "1.76.0"
 # the newest release that is two weeks old at least
 openapi-generator = "7.26.0"
 
@@ -36,6 +39,12 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
+roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

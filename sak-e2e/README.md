@@ -25,7 +25,7 @@ do not run with the local tests. The videos are not committed.
 
 ```sh
 mise run local:run              # in one terminal
-mise run docs:screenshots       # in another one: the apps and the sakctl ui
+mise run docs:screenshots       # in another one: the apps, the sakctl ui and the android apps (android:screenshots, no local:run needed)
 mise run docs:video             # the tours of the apps and of the sakctl ui, as .webm, .mp4 and .gif
 ```
 

@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.emoji2.emojipicker)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+    // the activity the screenshots show the app in (testing, Screenshots.kt), in the debug build only
+    debugImplementation(libs.compose.ui.test.manifest)
 
     // the fake backend and the english texts of the tests (testing)
     testImplementation(project(":testing"))
