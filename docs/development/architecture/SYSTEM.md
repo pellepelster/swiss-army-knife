@@ -253,12 +253,12 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
-- `SECURITY-2` **The ssh client key is never written.** The provisioning hands the private key to an ssh agent inside
-  the container through its standard input; ansible connects through the agent. What the run needs as files (the
-  inventory, the ssh configuration, the public keys, the environment of the backend) sits in a directory of the run
-  with a random name that only the user can read, below the user's runtime directory where there is one. It goes when
-  the run ends, is interrupted (Ctrl+C, a termination) or the sakctl ui closes; one that a killed sakctl left behind goes
-  with the next run.
+- `SECURITY-2` **The ssh key must never be written to disk.** The private ssh client key exists only in memory: sakctl
+  hands it to an ssh agent inside the container through its standard input; ansible connects through the agent. What the
+  run needs as files (the inventory, the ssh configuration, the public keys, the environment of the backend) sits in a
+  directory of the run with a random name that only the user can read, below the user's runtime directory where there is
+  one. It goes when the run ends, is interrupted (Ctrl+C, a termination) or the sakctl ui closes; one that a killed
+  sakctl left behind goes with the next run.
 - `SECURITY-3` **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its
   database: the signing key of the login (a setting) and the secret key of each bucket. They are not derived from the
   password, so changing the password does not change them. The user also supplies some credentials: the token of the
