@@ -20,7 +20,9 @@ changes none.
 
 ## Must fix
 
-### `RR-1` `SHARED-1` says every app needs the role `admin`
+### ~~`RR-1` `SHARED-1` says every app needs the role `admin`~~
+
+**Fixed:** `SHARED-1` says that every session has a role; which role an app needs is no longer in it.
 
 `SHARED-1`: "every app needs one [a session] and the role `admin`". The notes, the grocery lists, the labels and the
 file storage take the role `user` too (`requireRole(Role.ADMIN, Role.USER)` in `SakApps.kt`); only the static hosting,
