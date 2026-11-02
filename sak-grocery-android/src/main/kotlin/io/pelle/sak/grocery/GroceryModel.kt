@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import io.pelle.sak.grocery.api.ApiException
 import io.pelle.sak.grocery.api.GroceryApi
 import io.pelle.sak.grocery.api.GroceryCategoryResponse
+import io.pelle.sak.grocery.api.GroceryItemRequest
 import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.api.GroceryListResponse
 import io.pelle.sak.grocery.session.PendingLogin
@@ -55,6 +56,14 @@ data class Undo(
 // the settings of a list the user creates (no id) or changes, one of their own: its name, whether
 // all users see it and its icon, one emoji; of a list that exists also its categories, each change
 // of them saved at once (GROCERY-13)
+// the item renamed in a dialog over the list (GROCERY-14), with the name typed; its error shows once
+// the field was left or the name was to be saved (UX-6)
+data class Renaming(
+    val item: GroceryItemResponse,
+    val name: String,
+    val left: Boolean = false,
+)
+
 data class ListSettings(
     val id: Int? = null,
     val name: String = "",
@@ -166,6 +175,10 @@ sealed interface Screen {
         val categories: List<GroceryCategoryResponse> = emptyList(),
         // the item whose category is chosen, on a screen over the list; null for the list
         val choosing: GroceryItemResponse? = null,
+        // the item renamed in a dialog over the list, kept when its row goes, e.g. after a change event
+        val renaming: Renaming? = null,
+        // the item whose Delete asks for a confirmation in a dialog over the list (UX-4.1)
+        val deleting: GroceryItemResponse? = null,
         val loading: Boolean = true,
         val error: UiText? = null,
         // the name typed into the field at the top, kept while it is sent (GROCERY-2)
@@ -442,7 +455,16 @@ class GroceryModel(
                 }
             state.value = lists.copy(groups = groups, struck = lists.struck - item.id, undo = null)
         }
-        return scope.launch { request(R.string.grocery_list_not_checked, ::failed) { it.checkItem(item.id) } }
+        return scope.launch {
+            request(R.string.grocery_list_not_checked, ::failed) { api ->
+                // bought already, e.g. by another device in the undo window, or deleted: done, no error
+                try {
+                    api.checkItem(item.id)
+                } catch (e: ApiException) {
+                    if (e.status != 404) throw e
+                }
+            }
+        }
     }
 
     // the check that can be undone goes without being sent, e.g. the session ended
@@ -457,12 +479,57 @@ class GroceryModel(
         load()
     }
 
+    // the Delete of the menu of an item asks for a confirmation first (UX-12, UX-4.1)
+    fun askDelete(item: GroceryItemResponse) = lists { it.copy(deleting = item) }
+
+    fun dismissDelete() = lists { it.copy(deleting = null) }
+
     // an item from the menu of its row, after the user confirmed it (UX-12): it goes for good, no
-    // suggestion comes from it. A failure shows on the list, which loads as the backend has it
+    // suggestion comes from it; a check of it that can still be undone goes without being sent. A
+    // failure shows on the list, which loads as the backend has it
     fun deleteItem(item: GroceryItemResponse) {
         if (state.value !is Screen.Lists) return
+        if (pending?.first?.id == item.id) {
+            dropPending()
+            lists { it.copy(struck = it.struck - item.id, undo = null) }
+        }
+        lists { it.copy(deleting = null) }
         scope.launch {
             request(R.string.grocery_item_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
+            load()
+        }
+    }
+
+    // the Rename of the menu of an item opens its dialog with the name as it is
+    fun askRename(item: GroceryItemResponse) = lists { it.copy(renaming = Renaming(item, item.name)) }
+
+    fun editRename(name: String) = lists { lists -> lists.copy(renaming = lists.renaming?.copy(name = name)) }
+
+    // the field of the name was left: its error shows from now on (UX-6)
+    fun leaveRename() = lists { lists -> lists.copy(renaming = lists.renaming?.copy(left = true)) }
+
+    fun dismissRename() = lists { it.copy(renaming = null) }
+
+    // the item of the dialog, to buy or bought, under the name typed, e.g. with a spelling error
+    // fixed; its quantity and category stay. An invalid name stays in the dialog with its error, an
+    // unchanged one is not sent (validItemName)
+    fun renameItem() {
+        val lists = state.value as? Screen.Lists ?: return
+        val renaming = lists.renaming ?: return
+        val trimmed = renaming.name.trim()
+        if (!validItemName(trimmed)) {
+            state.value = lists.copy(renaming = renaming.copy(left = true))
+            return
+        }
+        state.value = lists.copy(renaming = null)
+        val item = renaming.item
+        if (trimmed == item.name) return
+        // a check that can still be undone puts the item back under its new name
+        pending?.let { (waiting, timer) -> if (waiting.id == item.id) pending = waiting.copy(name = trimmed) to timer }
+        scope.launch {
+            request(R.string.grocery_item_not_renamed, ::failed) {
+                it.updateItem(item.id, GroceryItemRequest(trimmed, item.amount, item.unit, item.categoryId))
+            } ?: return@launch
             load()
         }
     }
@@ -479,6 +546,8 @@ class GroceryModel(
     fun back() {
         val lists = state.value as? Screen.Lists ?: return
         when {
+            lists.renaming != null -> state.value = lists.copy(renaming = null)
+            lists.deleting != null -> state.value = lists.copy(deleting = null)
             lists.settings != null -> {
                 saveDrafts()
                 this.lists { it.copy(settings = null) }
@@ -820,20 +889,33 @@ class GroceryModel(
 
     // what was checked goes to the backend, the field is empty, the list or the home loads
     private fun show(open: Int?) {
-        commitPending()
+        val check = commitPending()
         val lists = state.value as? Screen.Lists ?: return
-        state.value = lists.copy(open = open, groups = emptyList(), categories = emptyList(), choosing = null, loading = true, error = null, itemName = "", showBought = false)
+        state.value =
+            lists.copy(
+                open = open,
+                groups = emptyList(),
+                categories = emptyList(),
+                choosing = null,
+                renaming = null,
+                deleting = null,
+                loading = true,
+                error = null,
+                itemName = "",
+                showBought = false,
+            )
         scope.launch { store.update { it.copy(openList = open) } }
-        load()
+        load(after = check)
     }
 
     // the bought items of the list open shown too, or hidden again (GROCERY-14); the list loads
     fun toggleBought() {
-        commitPending()
         val lists = state.value as? Screen.Lists ?: return
         if (lists.open == null) return
-        state.value = lists.copy(showBought = !lists.showBought, loading = true, error = null)
-        load()
+        val check = commitPending()
+        lists { it.copy(showBought = !it.showBought, loading = true, error = null) }
+        // after the check, so the item it checked shows as the backend has it
+        load(after = check)
     }
 
     fun refresh() {
@@ -980,12 +1062,13 @@ class GroceryModel(
         }
     }
 
-    // the lists, then the items of the one open; a list that is gone leads to the home. A session that
-    // ended leads to the sign-in
-    private fun load() {
+    // the lists, then the items of the one open, after the request it waits for; a list that is gone
+    // leads to the home. A session that ended leads to the sign-in
+    private fun load(after: Job? = null) {
         loading?.cancel()
         loading =
             scope.launch {
+                after?.join()
                 request(R.string.grocery_lists_not_loaded, { error -> lists { it.copy(loading = false, error = error) } }) { api ->
                     val lists = api.lists()
                     val current = state.value as? Screen.Lists ?: return@request
@@ -997,7 +1080,19 @@ class GroceryModel(
                     lists { current ->
                         // the item whose category is chosen as it is now; gone, e.g. bought by another user, the list shows
                         val choosing = current.choosing?.let { chosen -> items.firstOrNull { it.id == chosen.id } }
-                        current.copy(lists = lists, open = open, groups = groups(items, categories), categories = categories, choosing = choosing, loading = false)
+                        // the dialogs stay with the item as it is now, also when the list no longer shows it
+                        val renaming = current.renaming?.let { renaming -> items.firstOrNull { it.id == renaming.item.id }?.let { renaming.copy(item = it) } ?: renaming }
+                        val deleting = current.deleting?.let { deleting -> items.firstOrNull { it.id == deleting.id } ?: deleting }
+                        current.copy(
+                            lists = lists,
+                            open = open,
+                            groups = groups(items, categories),
+                            categories = categories,
+                            choosing = choosing,
+                            renaming = renaming,
+                            deleting = deleting,
+                            loading = false,
+                        )
                     }
                 }
             }
@@ -1055,7 +1150,10 @@ class GroceryModel(
             .sortedBy { (id, _) -> id?.let { order.getValue(it) } ?: Int.MAX_VALUE }
             .map { (id, grouped) ->
                 val category = id?.let { categories[order.getValue(it)] }
-                ItemGroup(id, category?.let { UiText.Plain(it.name) } ?: NO_CATEGORY, category?.icon, grouped.sortedBy { it.id })
+                // in a category the items to buy first in the order they were added, then the bought ones, the
+                // last bought first (GROCERY-14)
+                val ordered = grouped.sortedWith(compareBy<GroceryItemResponse> { it.checkedAt != null }.thenByDescending { it.checkedAt }.thenBy { it.id })
+                ItemGroup(id, category?.let { UiText.Plain(it.name) } ?: NO_CATEGORY, category?.icon, ordered)
             }
     }
 
@@ -1077,6 +1175,12 @@ class GroceryModel(
 
         // the most characters of the name of a category (GroceryService.MAX_CATEGORY_NAME_LENGTH)
         const val MAX_CATEGORY_NAME = 32
+
+        // the longest name of an item the backend takes (GroceryService.MAX_ITEM_NAME_LENGTH)
+        const val MAX_ITEM_NAME = 128
+
+        // a name of an item the backend takes, trimmed
+        fun validItemName(name: String) = name.trim().let { it.isNotEmpty() && it.length <= MAX_ITEM_NAME }
 
         // the waits before the stream of the changes is opened again
         const val RETRY_DELAY_MS = 1_000L

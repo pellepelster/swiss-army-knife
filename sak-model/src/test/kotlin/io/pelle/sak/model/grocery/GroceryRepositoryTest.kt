@@ -119,22 +119,28 @@ class GroceryRepositoryTest {
     }
 
     @Test
-    fun `a bought item is checked, it leaves the list and stays as its history, it changes no more`() {
+    fun `a bought item is checked, it leaves the list and stays as its history, it still changes`() {
         val milk = repository.insertItem(PELLE, list(PELLE), values("Milk"))!!
         val bread = repository.insertItem(PELLE, list(PELLE), values("Bread"))!!
-        repository.updateItem(PELLE, milk.id, values("Oat milk"))!!.name shouldBe "Oat milk"
 
         repository.checkItem(OTHER, milk.id) shouldBe false
         repository.checkItem(PELLE, milk.id) shouldBe true
         repository.checkItem(PELLE, milk.id) shouldBe false
-        repository.item(PELLE, milk.id) shouldBe null
-        repository.updateItem(PELLE, milk.id, values("Milk")) shouldBe null
-        repository.deleteItem(PELLE, milk.id) shouldBe false
         repository.items(PELLE, milk.listId)!!.map { it.id } shouldBe listOf(bread.id)
+        repository.items(PELLE, milk.listId, checked = true)!!.map { it.id } shouldBe listOf(milk.id, bread.id)
         database.dsl.fetchOne(GROCERY_ITEMS, GROCERY_ITEMS.ID.eq(milk.id))!!.let {
             it.checkedAt shouldBe now
             it.deletedAt shouldBe null
         }
+
+        // a spelling fixed, it stays bought
+        repository.updateItem(PELLE, milk.id, values("Oat milk"))!!.let {
+            it.name shouldBe "Oat milk"
+            it.checkedAt shouldBe now
+        }
+        repository.item(PELLE, milk.id)!!.name shouldBe "Oat milk"
+        repository.deleteItem(PELLE, milk.id) shouldBe true
+        repository.items(PELLE, milk.listId, checked = true)!!.map { it.id } shouldBe listOf(bread.id)
     }
 
     @Test
@@ -209,17 +215,17 @@ class GroceryRepositoryTest {
         repository.checkItem(PELLE, bread.id)
         repository.checkItem(PELLE, again.id)
 
-        val products = repository.suggestions(PELLE, own, "", 10)!!
-        products.map { it.name to it.timesUsed } shouldBe listOf("milk" to 2, "Bread" to 1)
-        products.forEach { it.listId shouldBe own }
-        products.first().amount!!.compareTo(BigDecimal("2")) shouldBe 0
+        val suggestions = repository.suggestions(PELLE, own, "", 10)!!
+        suggestions.map { it.name to it.timesUsed } shouldBe listOf("milk" to 2, "Bread" to 1)
+        suggestions.forEach { it.listId shouldBe own }
+        suggestions.first().amount!!.compareTo(BigDecimal("2")) shouldBe 0
         repository.suggestions(PELLE, own, "MIL", 10)!!.map { it.name } shouldBe listOf("milk")
         // milk is to buy on the list
         repository.insertItem(PELLE, own, values("Milk"))
         repository.suggestions(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
 
-        repository.forget(PELLE, own, products.first().id) shouldBe true
-        repository.forget(PELLE, own, products.first().id) shouldBe false
+        repository.forget(PELLE, own, suggestions.first().id) shouldBe true
+        repository.forget(PELLE, own, suggestions.first().id) shouldBe false
         repository.suggestions(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
     }
 

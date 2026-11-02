@@ -1,6 +1,7 @@
 package io.pelle.sak.grocery
 
 import io.ktor.http.HttpStatusCode
+import io.pelle.sak.grocery.api.GroceryItemResponse
 import io.pelle.sak.grocery.session.MemorySessionStore
 import io.pelle.sak.grocery.session.PendingLogin
 import io.pelle.sak.grocery.session.Stored
@@ -303,6 +304,18 @@ class GroceryModelTest {
 
     private fun GroceryModel.names() = (screen.value as Screen.Lists).groups.flatMap { group -> group.items.map { it.name } }
 
+    private fun GroceryModel.lists() = screen.value as Screen.Lists
+
+    // the Rename of the menu of the item, the name typed, then saved
+    private fun GroceryModel.rename(
+        item: GroceryItemResponse,
+        name: String,
+    ) {
+        askRename(item)
+        editRename(name)
+        renameItem()
+    }
+
     @Test
     fun `a checked item is struck through and goes when its undo ran out, the backend keeps it as bought`() =
         runTest {
@@ -364,6 +377,90 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `an item is renamed with its quantity and category kept, an invalid or unchanged name is not sent, a refused one shows why`() =
+        runTest {
+            backend.answers["PUT /grocery/items/11"] = HttpStatusCode.OK to item(11, 1, "Oat milk", 2, 1.5, "l")
+            backend.answers["PUT /grocery/items/12"] = HttpStatusCode.BadRequest to """{"errors":[{"message":"no"}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.rename(model.item("Milk"), "  Oat milk ")
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/11 {"name":"Oat milk","amount":1.5,"unit":"l","categoryId":2}"""))
+            assertNull((model.screen.value as Screen.Lists).error)
+
+            // the category sent as null: missing would take it away all the same, null says so
+            model.rename(model.item("Candles"), "Candle")
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/12 {"name":"Candle","amount":null,"unit":null,"categoryId":null}"""))
+            assertEquals("no", (model.screen.value as Screen.Lists).error.english())
+
+            val sent = backend.requests.count { it.startsWith("PUT /grocery/items/") }
+            // an invalid name stays in the dialog, its error shows (UX-6)
+            model.askRename(model.item("Apples"))
+            model.editRename(" ")
+            assertFalse(model.lists().renaming!!.left)
+            model.renameItem()
+            assertTrue(model.lists().renaming!!.left)
+            model.editRename("x".repeat(129))
+            model.renameItem()
+            assertNotNull(model.lists().renaming)
+            model.dismissRename()
+            assertNull(model.lists().renaming)
+            // the field left shows the error too
+            model.askRename(model.item("Apples"))
+            model.leaveRename()
+            assertTrue(model.lists().renaming!!.left)
+            // unchanged, the dialog closes and nothing is sent
+            model.editRename(" Apples ")
+            model.renameItem()
+            assertNull(model.lists().renaming)
+            advanceUntilIdle()
+            assertEquals(sent, backend.requests.count { it.startsWith("PUT /grocery/items/") })
+            assertTrue(GroceryModel.validItemName("x".repeat(128)))
+            assertFalse(GroceryModel.validItemName("x".repeat(129)))
+        }
+
+    @Test
+    fun `a bought item is renamed, gets a category, loses its photo and is deleted from its menu as one to buy (GROCERY-14)`() =
+        runTest {
+            val bought = """{"id":13,"listId":1,"name":"Bred","categoryId":null,"photoId":7,"checkedAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["GET /grocery/lists/1/items"] =
+                HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(11, 1, "Milk", 2, 1.5, "l"), item(12, 1, "Candles", null), bought)
+            backend.answers["PUT /grocery/items/13"] = HttpStatusCode.OK to bought.replace("Bred", "Bread")
+            backend.answers["PUT /grocery/items/13/category"] = HttpStatusCode.OK to bought.replace("\"categoryId\":null", "\"categoryId\":1")
+            backend.answers["DELETE /grocery/items/13/photo"] = HttpStatusCode.OK to bought.replace("\"photoId\":7", "\"photoId\":null")
+            backend.answers["DELETE /grocery/items/13"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+            model.toggleBought()
+            advanceUntilIdle()
+
+            model.rename(model.item("Bred"), "Bread")
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/13 {"name":"Bread","amount":null,"unit":null,"categoryId":null}"""))
+
+            model.chooseCategory(model.item("Bred"))
+            model.setCategory(1)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/13/category {"categoryId":1}"""))
+
+            model.removePhoto(model.item("Bred"))
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/items/13/photo"))
+
+            model.deleteItem(model.item("Bred"))
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/items/13"))
+            assertNull((model.screen.value as Screen.Lists).error)
+            // it stays in its category group, after the ones to buy: the one without a category, last
+            assertEquals(listOf("Candles", "Bred"), (model.screen.value as Screen.Lists).groups.last().items.map { it.name })
+            // and a tap still does not check it
+            model.check(model.item("Bred"))
+            assertEquals(emptySet<Int>(), (model.screen.value as Screen.Lists).struck)
+        }
+
+    @Test
     fun `an undo or a second tap keeps the item, a check before goes to the backend at once`() =
         runTest {
             backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
@@ -412,8 +509,112 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `a check of an item bought or deleted meanwhile, e g by another device, is done without an error (GB-6)`() =
+        runTest {
+            // no answer: 404, the item is no longer to buy
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            advanceUntilIdle()
+            assertEquals(listOf("POST /grocery/items/10/check"), backend.requests.filter { it.endsWith("/check") })
+            assertNull(model.lists().error)
+        }
+
+    @Test
+    fun `a Delete in the undo window drops the check, a Rename in it puts the item back under its new name (GB-1)`() =
+        runTest {
+            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
+            backend.answers["POST /grocery/items/11/check"] = HttpStatusCode.NoContent to ""
+            backend.answers["PUT /grocery/items/11"] = HttpStatusCode.OK to item(11, 1, "Oat milk", 2, 1.5, "l")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            model.askDelete(model.item("Apples"))
+            assertEquals(10, model.lists().deleting?.id)
+            model.deleteItem(model.item("Apples"))
+            assertNull(model.lists().deleting)
+            assertEquals(emptySet<Int>(), model.lists().struck)
+            assertNull(model.lists().undo)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/items/10"))
+            assertTrue(backend.requests.none { it.endsWith("/check") })
+            assertNull(model.lists().error)
+
+            // with the bought items shown, the item checked stays under the name it got in the undo window
+            model.toggleBought()
+            advanceUntilIdle()
+            model.check(model.item("Milk"))
+            model.rename(model.item("Milk"), "Oat milk")
+            runCurrent()
+            advanceTimeBy(UNDO_MS + 1)
+            runCurrent()
+            assertNotNull(model.item("Oat milk").checkedAt)
+            assertEquals(listOf("POST /grocery/items/11/check"), backend.requests.filter { it.endsWith("/check") })
+        }
+
+    @Test
+    fun `the eye toggled in the undo window loads after the check, another list opens with the eye-slash, a failed load shows why`() =
+        runTest {
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.check(model.item("Apples"))
+            model.toggleBought()
+            advanceUntilIdle()
+            val check = backend.requests.indexOf("POST /grocery/items/10/check")
+            val load = backend.queries.indexOfLast { it.startsWith("GET /grocery/lists/1/items") && "checked=true" in it }
+            assertTrue(check >= 0 && load >= 0)
+            assertTrue(check < backend.requests.lastIndexOf("GET /grocery/lists/1/items"))
+            assertTrue(model.lists().showBought)
+
+            // the eye is the one of the list open: another list opens with the bought items hidden
+            model.back()
+            model.open(2)
+            advanceUntilIdle()
+            assertFalse(model.lists().showBought)
+            assertFalse("checked=true" in backend.queries.last { it.startsWith("GET /grocery/lists/2/items") })
+
+            backend.answers["GET /grocery/lists/2/items"] = HttpStatusCode.InternalServerError to ""
+            model.toggleBought()
+            advanceUntilIdle()
+            assertFalse(model.lists().loading)
+            assertNotNull(model.lists().error)
+        }
+
+    @Test
+    fun `the dialogs of the menu of an item stay when its row goes, back closes them (GB-19)`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.askRename(model.item("Milk"))
+            model.editRename("Oat mi")
+            // another user checked it: the list no longer shows it, the dialog keeps the name typed
+            backend.answers["GET /grocery/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(12, 1, "Candles", null))
+            model.refresh()
+            advanceUntilIdle()
+            assertEquals(listOf("Apples", "Candles"), model.names())
+            assertEquals("Oat mi", model.lists().renaming?.name)
+            model.back()
+            assertNull(model.lists().renaming)
+            assertEquals(1, model.lists().open)
+
+            model.askDelete(model.item("Apples"))
+            model.back()
+            assertNull(model.lists().deleting)
+            model.askDelete(model.item("Apples"))
+            model.dismissDelete()
+            assertNull(model.lists().deleting)
+            assertEquals(1, model.lists().open)
+        }
+
+    @Test
     fun `a check the backend refuses shows why and the list as the backend has it`() =
         runTest {
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.InternalServerError to ""
             val model = signedIn()
             advanceUntilIdle()
 

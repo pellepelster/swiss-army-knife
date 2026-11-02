@@ -141,6 +141,16 @@ data class GroceryCategoryOrderRequest(
     val ids: List<Int>,
 )
 
+// the values of an item that is changed, to buy or bought; no defaults, null is sent: a missing
+// category takes the category away from the item
+@Serializable
+data class GroceryItemRequest(
+    val name: String,
+    val amount: Double?,
+    val unit: String?,
+    val categoryId: Int?,
+)
+
 // the category of an item, one of its list, null for none; no default, null is sent
 @Serializable
 data class GroceryItemCategoryRequest(

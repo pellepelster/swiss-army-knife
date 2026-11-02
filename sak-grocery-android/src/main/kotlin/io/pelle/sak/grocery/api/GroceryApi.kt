@@ -170,6 +170,18 @@ class GroceryApi(
             }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
+    // the values of an item, to buy or bought, e.g. its name with a spelling error fixed
+    suspend fun updateItem(
+        id: Int,
+        request: GroceryItemRequest,
+    ): GroceryItemResponse =
+        client
+            .put("$url/grocery/items/$id") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }.answer(R.string.grocery_item_not_renamed)
+
     // the item goes for good, it is no history and no suggestion (DELETE answers 204, no body)
     suspend fun deleteItem(id: Int) {
         client

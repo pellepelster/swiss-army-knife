@@ -12,6 +12,6 @@ data class GroceryNewItemRequest(
     // free text, only with an amount
     val unit: String? = null,
     // one of the categories of the list, none when missing (GROCERY-13); a new item without one gets
-    // the one the list learned of its name
+    // the one of the latest item of its name on the list
     val categoryId: Int? = null,
 )

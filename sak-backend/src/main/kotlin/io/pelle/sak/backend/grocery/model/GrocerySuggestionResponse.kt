@@ -2,7 +2,7 @@ package io.pelle.sak.backend.grocery.model
 
 import kotlinx.serialization.Serializable
 
-// an item added to the list before, with the quantity and the category used last
+// a name of the items of the list, with the quantity and the category of its latest item; the id is that item (GROCERY-11)
 @Serializable
 data class GrocerySuggestionResponse(
     val id: Int,

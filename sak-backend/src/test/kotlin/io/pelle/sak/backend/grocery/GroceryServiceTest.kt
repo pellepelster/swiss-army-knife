@@ -87,6 +87,12 @@ class GroceryServiceTest {
         service.items(PELLE, own, checked = true)!!.map { it.name to (it.checkedAt != null) } shouldBe
             listOf("Bread" to false, "Cake" to false, "Rolls" to true, "Soap" to true)
         service.items(OTHER, own, checked = true) shouldBe null
+
+        // each name once, the latest bought item; none of a name to buy
+        add(PELLE, own, input("rolls", categoryId = bakery)).let { service.checkItem(PELLE, it.id) }
+        add(PELLE, own, input("Soap"))
+        service.items(PELLE, own, checked = true)!!.map { it.name to (it.checkedAt != null) } shouldBe
+            listOf("Bread" to false, "Cake" to false, "rolls" to true, "Soap" to false)
     }
 
     @Test
@@ -158,7 +164,7 @@ class GroceryServiceTest {
             val own = list(PELLE)
             val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
             val chips = add(PELLE, party, input("Chips"))
-            val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(5).toList() } }
+            val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(7).toList() } }
 
             // the own list of pelle is private, the other user hears none of its changes
             service.createCategory(PELLE, own, "Private", null)
@@ -167,8 +173,11 @@ class GroceryServiceTest {
             service.orderCategories(PELLE, party, service.categories(PELLE, party)!!.map { it.id }.reversed())
             service.setCategory(OTHER, chips.id, snacks.id)
             service.deleteCategory(PELLE, party, snacks.id) shouldBe true
+            // forgetting deletes bought items, which the eye shows (GROCERY-14)
+            service.checkItem(OTHER, chips.id) shouldBe true
+            service.forget(PELLE, party, chips.id) shouldBe true
 
-            heard.await() shouldBe List(5) { party }
+            heard.await() shouldBe List(7) { party }
         }
 
     @Test

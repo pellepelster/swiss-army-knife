@@ -176,7 +176,8 @@ class GroceryService(
         id: Int,
     ): GroceryListDelete = repository.deleteList(user, id).also { if (it == GroceryListDelete.Deleted) changes.changed(id) }
 
-    // the items to buy of a list the user sees, with checked also the bought ones (GROCERY-14); null
+    // the items to buy of a list the user sees, with checked also the latest bought item of each name
+    // that is not to buy (GROCERY-14); null
     // for another list. By the order of their category (GROCERY-13), the ones without a category
     // last; in a category the ones to buy first in the order they were added, then the bought ones,
     // the last bought first
@@ -194,8 +195,8 @@ class GroceryService(
         )
     }
 
-    // on a list the user sees, an item names its list (LIST-1); the product of its name learns it
-    // (GROCERY-11). Its category is one of the list (GROCERY-13)
+    // on a list the user sees, an item names its list (LIST-1); it takes the photo and, without one
+    // given, the category of the latest item of its name (GROCERY-11). Its category is one of the list (GROCERY-13)
     fun addItem(
         user: String,
         listId: Int,
@@ -218,8 +219,8 @@ class GroceryService(
         return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.NotFound
     }
 
-    // the category of an item on a list the user sees: one of its list, or none; the list's
-    // suggestion of its name takes it too (GROCERY-13)
+    // the category of an item on a list the user sees: one of its list, or none; the next item of its
+    // name on the list takes it (GROCERY-13)
     fun setCategory(
         user: String,
         id: Int,
@@ -286,11 +287,11 @@ class GroceryService(
         user: String,
         id: Int,
     ): Boolean {
-        val listId = repository.item(user, id)?.listId ?: return false
+        val listId = repository.item(user, id)?.takeIf { it.checkedAt == null }?.listId ?: return false
         return repository.checkItem(user, id).also { if (it) changes.changed(listId) }
     }
 
-    // an item to buy gone for good, by any user who sees its list; false when the user sees no such item
+    // an item, to buy or bought, gone for good, by any user who sees its list; false when the user sees no such item
     fun deleteItem(
         user: String,
         id: Int,
@@ -299,7 +300,7 @@ class GroceryService(
         return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
     }
 
-    // the photo of an item to buy on a list the user sees: a file the user uploaded that is an image, or
+    // the photo of an item, to buy or bought, on a list the user sees: a file the user uploaded that is an image, or
     // none to take it away; the next item of its name on the list takes it (GROCERY-12)
     fun setPhoto(
         user: String,
@@ -326,13 +327,13 @@ class GroceryService(
         text: String,
     ): List<GrocerySuggestion>? = repository.suggestions(user, listId, text.trim(), MAX_SUGGESTIONS)
 
-    // the checked items of the name of the suggestion go for good; false when the user does not see
-    // the list or it has no such suggestion
+    // the checked items of the name of the suggestion go for good, the list changes (LIST-4); false
+    // when the user does not see the list or it has no such suggestion
     fun forget(
         user: String,
         listId: Int,
         id: Int,
-    ): Boolean = repository.forget(user, listId, id)
+    ): Boolean = repository.forget(user, listId, id).also { if (it) changes.changed(listId) }
 
     private fun categoryResult(
         listId: Int,

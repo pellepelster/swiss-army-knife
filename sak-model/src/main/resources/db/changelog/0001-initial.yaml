@@ -566,6 +566,10 @@ databaseChangeLog:
         # the items of a list by name, what the suggestions group
         - sql:
             sql: CREATE INDEX grocery_items_list_name_idx ON grocery_items (list_id, name_key)
+        # the items to buy of a list, what a list counts and the suggestions leave out, without its history
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX grocery_items_to_buy_idx ON grocery_items (list_id) WHERE deleted_at IS NULL AND checked_at IS NULL
 
         # the users an admin adds by e-mail address, with an optional name; they sign in with a link by
         # e-mail and use the apps of the role user. The admins of the configuration are no rows. The

@@ -61,7 +61,6 @@ const TASKS: &[&str] = &[
     "Upload the vector configuration",
     "Write the backend configuration",
     "Upload the backend environment",
-    "Stop the sak-controller container",
     "Install the quadlets",
     "Start the containers",
     "Create the directory of the role markers",

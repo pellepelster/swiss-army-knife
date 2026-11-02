@@ -661,8 +661,11 @@ class SakAppsTest {
                 items.single { it.string("id") == milkId }.containsKey("checkedAt") shouldBe true
                 items.single { it.string("id") == milkId }["checkedAt"].toString() shouldNotBe "null"
             }
-            // a checked item can not be deleted, one to buy goes for good
-            delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 404
+            // a bought item still changes and stays bought; an item deleted goes for good
+            put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session).json().let {
+                it.containsKey("checkedAt") shouldBe true
+                it["checkedAt"].toString() shouldNotBe "null"
+            }
             val typo = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Mlik"}""", session).json().string("id")
             delete(port, "/api/v1/grocery/items/$typo", session).statusCode() shouldBe 204
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe

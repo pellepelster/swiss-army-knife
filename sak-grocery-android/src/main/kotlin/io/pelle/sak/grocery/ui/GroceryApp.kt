@@ -33,6 +33,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import io.pelle.sak.grocery.Renaming
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -880,6 +883,9 @@ private fun ListScreen(
 ) {
     BackHandler(onBack = model::back)
     screen.viewing?.let { PhotoDialog(it, model) }
+    // the dialogs of the menu of an item live in the model, they stay when the row goes (GROCERY-14)
+    screen.renaming?.let { RenameItem(it, model) }
+    screen.deleting?.let { item -> ConfirmDelete(item.name, onDelete = { model.deleteItem(item) }, onDismiss = model::dismissDelete) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
         list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared_badge).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
@@ -889,11 +895,12 @@ private fun ListScreen(
             }
         },
         actions = {
-            // the bought items hidden (eye-slash) or shown (eye) too (GROCERY-14)
-            IconButton(onClick = model::toggleBought, modifier = Modifier.testTag("toggle-bought")) {
+            // the bought items hidden (eye-slash) or shown (eye) too (GROCERY-14); a toggle, a screen
+            // reader says whether it is on
+            IconToggleButton(checked = screen.showBought, onCheckedChange = { model.toggleBought() }, modifier = Modifier.testTag("toggle-bought")) {
                 Icon(
                     painterResource(if (screen.showBought) R.drawable.ic_eye else R.drawable.ic_eye_slash),
-                    contentDescription = stringResource(if (screen.showBought) R.string.grocery_hide_bought else R.string.grocery_show_bought),
+                    contentDescription = stringResource(R.string.grocery_show_bought),
                 )
             }
             // the settings of the list, of a list of another user disabled in their place (UX-8)
@@ -913,7 +920,9 @@ private fun ListScreen(
             PullToRefreshBox(isRefreshing = screen.loading, onRefresh = model::refresh, modifier = Modifier.fillMaxSize()) {
                 LazyColumn(Modifier.fillMaxSize().testTag("items")) {
                     screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
-                    if (!screen.loading && screen.error == null && screen.groups.isEmpty()) item { Empty(stringResource(R.string.grocery_nothing_to_buy)) }
+                    // nothing to buy, also while the bought items show
+                    val toBuy = screen.groups.any { group -> group.items.any { it.checkedAt == null } }
+                    if (!screen.loading && screen.error == null && !toBuy) item { Empty(stringResource(R.string.grocery_nothing_to_buy)) }
                     screen.groups.forEach { group ->
                         item(key = "group-${group.categoryId ?: ""}") {
                             Text(
@@ -1022,8 +1031,8 @@ private fun NewItem(
 // the photo of the item, a tap shows it in full; the rest of the row checks the item, struck through
 // while the check can be undone, no checkbox, the row tells a screen reader it is one (GROCERY-3);
 // its menu attaches a photo, from the camera or the photos of the phone. A bought item (GROCERY-14)
-// is struck through, a tap does nothing and its menu is disabled. The photo has the same space to its
-// left, above and below it
+// is struck through and a tap does nothing; its menu changes it as one to buy. The photo has the
+// same space to its left, above and below it
 @Composable
 private fun ItemRow(
     item: GroceryItemResponse,
@@ -1037,7 +1046,6 @@ private fun ItemRow(
     // the items are the main content, larger than the text around them
     val text = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp)
     val style = if (crossed) text.copy(color = muted) else text
-    val line = Modifier.redStrikeThrough(crossed, MaterialTheme.colorScheme.error)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         if (item.photoId != null) {
             val description = stringResource(R.string.grocery_photo_of, item.name)
@@ -1064,31 +1072,48 @@ private fun ItemRow(
                 .testTag("item-${item.id}"),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.weight(1f)) { Text(item.name, style = style, modifier = line) }
-            quantity(item)?.let { Text(it, style = style, color = muted, modifier = line) }
+            Box(Modifier.weight(1f)) { StruckText(item.name, style, crossed) }
+            quantity(item)?.let { StruckText(it, style.copy(color = muted), crossed) }
         }
         ItemMenu(item, busy, model)
     }
 }
 
-// a red line through the middle of a struck text, more visible than the line of the font (GROCERY-3)
-private fun Modifier.redStrikeThrough(
+// a text, struck through with a red line through the middle of each of its lines, more visible than
+// the line of the font (GROCERY-3); a name that wraps gets one line for each, right to left too
+@Composable
+private fun StruckText(
+    text: String,
+    style: TextStyle,
     struck: Boolean,
-    color: Color,
-): Modifier =
-    if (!struck) {
-        this
-    } else {
-        drawWithContent {
-            drawContent()
-            val middle = size.height / 2
-            drawLine(color, Offset(0f, middle), Offset(size.width, middle), strokeWidth = 2.dp.toPx())
+) {
+    val color = MaterialTheme.colorScheme.error
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val line =
+        if (!struck) {
+            Modifier
+        } else {
+            Modifier.drawWithContent {
+                drawContent()
+                val lines = layout ?: return@drawWithContent
+                for (index in 0 until lines.lineCount) {
+                    val middle = (lines.getLineTop(index) + lines.getLineBottom(index)) / 2
+                    drawLine(
+                        color,
+                        Offset(lines.getLineLeft(index), middle),
+                        Offset(lines.getLineRight(index), middle),
+                        strokeWidth = 2.dp.toPx(),
+                    )
+                }
+            }
         }
-    }
+    Text(text, style = style, modifier = line, onTextLayout = { layout = it })
+}
 
-// the menu of an item: its category, chosen on a screen of its own (CategoryScreen); a photo from the camera or the photos of the phone (PhotoPicker), scaled down
-// on the phone before it is sent, or the photo removed; the camera only when the phone has one (UX-8). Its last entry deletes the
-// item for good after a confirmation (UX-12, UX-4.1)
+// the menu of an item, to buy or bought (GROCERY-14): its name in a dialog (RenameItem); its category, chosen on a screen of
+// its own (CategoryScreen); a photo from the camera or the photos of the phone (PhotoPicker), scaled down on the phone before it
+// is sent, or the photo removed; the camera only when the phone has one (UX-8). Its last entry deletes the item for good after
+// a confirmation (UX-12, UX-4.1)
 @Composable
 private fun ItemMenu(
     item: GroceryItemResponse,
@@ -1097,10 +1122,8 @@ private fun ItemMenu(
 ) {
     val photos = LocalPhotoPicker.current
     var menu by rememberSaveable { mutableStateOf(false) }
-    var confirming by rememberSaveable { mutableStateOf(false) }
     Box {
-        // a bought item changes no more, its menu stays in its place disabled (UX-8)
-        IconButton(onClick = { menu = true }, enabled = item.checkedAt == null, modifier = Modifier.testTag("menu-item-${item.id}")) {
+        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) {
             if (busy) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
@@ -1108,6 +1131,14 @@ private fun ItemMenu(
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_item_rename)) },
+                onClick = {
+                    menu = false
+                    model.askRename(item)
+                },
+                modifier = Modifier.testTag("rename-item-${item.id}"),
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.grocery_item_category)) },
                 onClick = {
@@ -1144,7 +1175,7 @@ private fun ItemMenu(
                 text = { Text(stringResource(R.string.shared_delete)) },
                 onClick = {
                     menu = false
-                    confirming = true
+                    model.askDelete(item)
                 },
                 enabled = !busy,
                 colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
@@ -1152,7 +1183,47 @@ private fun ItemMenu(
             )
         }
     }
-    if (confirming) ConfirmDelete(item.name, onDelete = { model.deleteItem(item) }, onDismiss = { confirming = false })
+}
+
+// the name of an item in a dialog, e.g. to fix a spelling error; an empty or too long name shows its
+// error under the field once the field was left or Done was pressed, and can not be saved (UX-6).
+// Cancel is the safe default
+@Composable
+private fun RenameItem(
+    renaming: Renaming,
+    model: GroceryModel,
+) {
+    val valid = GroceryModel.validItemName(renaming.name)
+    val error = renaming.left && !valid
+    var focused by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = model::dismissRename,
+        title = { Text(stringResource(R.string.grocery_item_rename)) },
+        text = {
+            OutlinedTextField(
+                value = renaming.name,
+                onValueChange = model::editRename,
+                label = { Text(stringResource(R.string.shared_name)) },
+                singleLine = true,
+                isError = error,
+                supportingText = { if (error) Text(stringResource(R.string.grocery_item_name_invalid)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { model.renameItem() }),
+                modifier =
+                    Modifier
+                        .onFocusChanged {
+                            if (focused && !it.isFocused) model.leaveRename()
+                            focused = it.isFocused
+                        }.testTag("rename-item-name"),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = model::renameItem, enabled = valid, modifier = Modifier.testTag("rename-item-save")) {
+                Text(stringResource(R.string.shared_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = model::dismissRename) { Text(stringResource(R.string.grocery_cancel)) } },
+    )
 }
 
 // the photo of an item as large as it shows: fetched in the scaled size that fills that many pixels

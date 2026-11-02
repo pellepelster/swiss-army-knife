@@ -1274,8 +1274,12 @@ grocery:
       category_not_set: { en: "The category could not be set.", de: "Die Kategorie konnte nicht gesetzt werden." }
       not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
       show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
-      hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel verbergen" }
-      bought_unchanged: { en: "A bought item does not change.", de: "Ein gekaufter Artikel ändert sich nicht." }
+      hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel ausblenden" }
+      renaming: { en: "The name is changed in its row.", de: "Der Name wird in seiner Zeile geändert." }
+      rename: { en: "Rename", de: "Umbenennen" }
+      name_of: { en: "Name of %{name}", de: "Name von %{name}" }
+      name_required: { en: "An item needs a name.", de: "Ein Artikel braucht einen Namen." }
+      not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
     categories:
       title: { en: "Categories", de: "Kategorien" }
       hint:
@@ -1304,8 +1308,11 @@ grocery:
     photo_choose: { en: "Choose photo", de: "Foto auswählen" }
     photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
     item_not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
+    item_rename: { en: "Rename", de: "Umbenennen" }
+    item_name_invalid: { en: "An item name must have 1 to 128 characters.", de: "Ein Artikelname muss 1 bis 128 Zeichen haben." }
+    item_not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
+    cancel: { en: "Cancel", de: "Abbrechen" }
     show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
-    hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel ausblenden" }
     no_lists:
       en: "You have no list yet, add one with the plus at the top."
       de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."

@@ -21,8 +21,8 @@ for real.
 ## Behavior
 
 - The maintenance task runs in the backend at a fixed interval. An admin can also start it through the api.
-- It soft-deletes files that no live note refers to and that are older than a grace period, so an upload in progress
-  is not deleted.
+- It soft-deletes files that no live note and no live grocery item (its photo) refers to and that are older than a
+  grace period, so an upload in progress is not deleted.
 - It purges rows whose `deleted_at` is older than the retention period: it deletes them for real, and with a file
   row the content of the file, when no other row has the same sha256.
 - A purged bucket name can be taken again.

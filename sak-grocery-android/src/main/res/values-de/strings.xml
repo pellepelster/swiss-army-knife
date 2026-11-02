@@ -78,8 +78,11 @@
     <string name="grocery_photo_choose">Foto auswählen</string>
     <string name="grocery_photo_not_read">Das Foto konnte nicht gelesen werden.</string>
     <string name="grocery_item_not_deleted">Der Artikel konnte nicht gelöscht werden.</string>
+    <string name="grocery_item_rename">Umbenennen</string>
+    <string name="grocery_item_name_invalid">Ein Artikelname muss 1 bis 128 Zeichen haben.</string>
+    <string name="grocery_item_not_renamed">Der Artikel konnte nicht umbenannt werden.</string>
+    <string name="grocery_cancel">Abbrechen</string>
     <string name="grocery_show_bought">Gekaufte Artikel zeigen</string>
-    <string name="grocery_hide_bought">Gekaufte Artikel ausblenden</string>
     <string name="grocery_no_lists">Du hast noch keine Liste, füge oben mit dem Plus eine hinzu.</string>
     <string name="grocery_shared">Mit allen Benutzern geteilt</string>
     <string name="grocery_shared_badge">Geteilt</string>

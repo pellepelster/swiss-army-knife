@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -24,6 +25,7 @@ import {
   Observable,
   of,
   Subscription,
+  throwError,
 } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
@@ -50,6 +52,15 @@ export const GROCERY_UNDO_MS = 1500;
 // the ids but the one
 function without(ids: ReadonlySet<number>, id: number): ReadonlySet<number> {
   return new Set([...ids].filter((each) => each !== id));
+}
+
+// the items to buy first in the order they were added, then the bought ones, the last bought first
+function byToBuyThenBought(a: GroceryItem, b: GroceryItem): number {
+  if (!a.checkedAt !== !b.checkedAt) return a.checkedAt ? 1 : -1;
+  if (a.checkedAt && b.checkedAt && a.checkedAt !== b.checkedAt) {
+    return a.checkedAt < b.checkedAt ? 1 : -1;
+  }
+  return a.id - b.id;
 }
 
 // one group of the items to buy, of a category or of none
@@ -102,9 +113,7 @@ interface ItemGroup {
           class="btn btn-outline-secondary"
           data-testid="toggle-bought"
           [attr.aria-pressed]="showBought()"
-          [attr.aria-label]="
-            (showBought() ? 'grocery.list.hide_bought' : 'grocery.list.show_bought') | t
-          "
+          [attr.aria-label]="'grocery.list.show_bought' | t"
           [title]="(showBought() ? 'grocery.list.hide_bought' : 'grocery.list.show_bought') | t"
           (click)="toggleBought()"
         >
@@ -116,11 +125,18 @@ interface ItemGroup {
           ></i>
         </button>
         @if (shown()?.mine) {
-          <a class="btn btn-primary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+          <a
+            class="btn btn-outline-secondary"
+            [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
             ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
           >
         } @else {
-          <button type="button" class="btn btn-primary" disabled [title]="'grocery.only_owner' | t">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            disabled
+            [title]="'grocery.only_owner' | t"
+          >
             <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}
           </button>
         }
@@ -185,9 +201,10 @@ interface ItemGroup {
 
     <ng-template #row let-item>
       <!-- the photo shows the photo in full, a tap on the rest of the row checks the item
-           (GROCERY-3), struck through while it can be undone; the menu attaches a photo and sets
-           the category, one of the list or none (GROCERY-13). A bought item, shown with the bought
-           ones (GROCERY-14), is struck through and does not change -->
+           (GROCERY-3), struck through while it can be undone; the menu renames the item in its row,
+           attaches a photo and sets the category, one of the list or none (GROCERY-13). A bought
+           item, shown with the bought ones (GROCERY-14), is struck through, a tap does not check it
+           again; its menu changes it as the one of an item to buy -->
       <li
         class="list-group-item p-0 d-flex align-items-center"
         [attr.data-testid]="'item-' + item.id"
@@ -208,33 +225,63 @@ interface ItemGroup {
             />
           </button>
         }
-        <button
-          type="button"
-          class="btn grocery-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
-          [id]="'item-' + item.id"
-          [attr.aria-pressed]="struck().has(item.id) || !!item.checkedAt"
-          [attr.aria-disabled]="!!item.checkedAt"
-          [attr.data-bought]="item.checkedAt ? '' : null"
-          (click)="item.checkedAt ? null : check(item)"
-        >
-          <span
-            class="item-name flex-grow-1 text-break"
-            [class.item-struck]="struck().has(item.id) || !!item.checkedAt"
-            [class.text-body-secondary]="struck().has(item.id) || !!item.checkedAt"
-          >
-            {{ item.name }}
-            @if (item.amount !== null) {
-              <span class="text-body-secondary">· {{ item.amount }} {{ item.unit ?? '' }}</span>
+        @if (renaming() === item.id) {
+          <!-- the name in a field: Enter or leaving it saves, Escape keeps the name (UX-6) -->
+          <div class="flex-grow-1 min-w-0 px-3 py-2">
+            <input
+              #renameField
+              [id]="'rename-' + item.id"
+              class="form-control"
+              maxlength="128"
+              autocomplete="off"
+              [class.is-invalid]="renameEmpty()"
+              [attr.aria-label]="'grocery.list.name_of' | t: { name: item.name }"
+              [attr.aria-describedby]="renameEmpty() ? 'rename-error-' + item.id : null"
+              [value]="item.name"
+              (input)="renameEmpty.set(false)"
+              (keydown.enter)="$event.preventDefault(); rename(item, renameField, true)"
+              (keydown.escape)="$event.preventDefault(); cancelRename(item)"
+              (blur)="rename(item, renameField)"
+            />
+            @if (renameEmpty()) {
+              <div class="invalid-feedback d-block" [id]="'rename-error-' + item.id">
+                {{ 'grocery.list.name_required' | t }}
+              </div>
             }
-          </span>
-        </button>
-        <app-action-menu
-          class="pe-1"
-          [name]="item.name"
-          deletes
-          [disabled]="item.checkedAt ? ('grocery.list.bought_unchanged' | t) : null"
-          (deleted)="deleteItem(item)"
-        >
+          </div>
+        } @else {
+          <button
+            type="button"
+            class="btn grocery-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
+            [id]="'item-' + item.id"
+            [attr.aria-pressed]="struck().has(item.id) || !!item.checkedAt"
+            [attr.aria-disabled]="!!item.checkedAt"
+            [attr.data-bought]="item.checkedAt ? '' : null"
+            (click)="item.checkedAt && !struck().has(item.id) ? null : check(item)"
+          >
+            <span
+              class="item-name flex-grow-1 text-break"
+              [class.item-struck]="struck().has(item.id) || !!item.checkedAt"
+              [class.text-body-secondary]="struck().has(item.id) || !!item.checkedAt"
+            >
+              {{ item.name }}
+              @if (item.amount !== null) {
+                <span class="text-body-secondary">· {{ item.amount }} {{ item.unit ?? '' }}</span>
+              }
+            </span>
+          </button>
+        }
+        <app-action-menu class="pe-1" [name]="item.name" deletes (deleted)="deleteItem(item)">
+          <button
+            type="button"
+            class="dropdown-item"
+            role="menuitem"
+            [disabled]="renaming() === item.id"
+            [title]="renaming() === item.id ? ('grocery.list.renaming' | t) : ''"
+            (click)="startRename(item)"
+          >
+            <i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'grocery.list.rename' | t }}
+          </button>
           <button
             type="button"
             class="dropdown-item"
@@ -411,9 +458,14 @@ export class GroceryPage {
       const index = categories.findIndex((each) => each.id === item.categoryId);
       (index < 0 ? none : groups[index]).items.push(item);
     }
+    // in a group the items to buy first in the order they were added, then the bought ones, the
+    // last bought first, as the backend answers them; a category set keeps that order (GROCERY-14)
+    for (const group of [...groups, none]) group.items.sort(byToBuyThenBought);
     return [...groups, none].filter((group) => group.items.length);
   });
 
+  // the page is gone: what is sent then loads nothing again
+  private destroyed = false;
   private loadingItems?: Subscription;
   private loadingLists?: Subscription;
   private loadingSuggestions?: Subscription;
@@ -429,7 +481,10 @@ export class GroceryPage {
         this.loadItems(list);
       });
     });
-    this.destroyRef.onDestroy(() => this.pending.commit());
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      this.pending.commit();
+    });
     // a change of the list shown, or of everything after the stream was away, loads it again; a list
     // that is gone leads to all lists (LIST-4)
     inject(GroceryChanges)
@@ -518,11 +573,32 @@ export class GroceryPage {
       { text: this.i18n.t('grocery.list.bought', { name: item.name }) },
       () => {
         this.struck.update((ids) => without(ids, item.id));
+        this.closeRename(item.id);
+        // bought on another device meanwhile: done already, nothing to send
+        const bought = !!this.items().find((each) => each.id === item.id)?.checkedAt;
         this.items.update((items) => items.filter((each) => each.id !== item.id));
-        // shown with the bought ones, it comes back in its place among them
-        this.send(this.service.checkItem(item.id), this.i18n.t('grocery.list.not_checked'), () => {
+        // shown with the bought ones, it comes back in its place among them; one bought on another
+        // device meanwhile (404) is done too
+        const done = () => {
           if (this.showBought()) this.loadItems(this.shown());
-        });
+        };
+        if (bought) {
+          done();
+          return;
+        }
+        this.send(
+          this.service
+            .checkItem(item.id)
+            .pipe(
+              catchError((error: unknown) =>
+                error instanceof HttpErrorResponse && error.status === 404
+                  ? of(null)
+                  : throwError(() => error),
+              ),
+            ),
+          this.i18n.t('grocery.list.not_checked'),
+          done,
+        );
       },
       () => this.struck.update((ids) => without(ids, item.id)),
     );
@@ -537,6 +613,12 @@ export class GroceryPage {
 
   // removed for good, not bought: it goes from the list and from the suggestions
   protected deleteItem(item: GroceryItem): void {
+    // its check waits for the end of the bar: it goes with its toast, nothing is checked
+    if (this.struck().has(item.id)) {
+      this.pending.dispose();
+      this.struck.update((ids) => without(ids, item.id));
+    }
+    this.closeRename(item.id);
     this.error.set(null);
     this.items.update((items) => items.filter((each) => each.id !== item.id));
     this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_deleted'));
@@ -544,6 +626,78 @@ export class GroceryPage {
 
   protected undo(): void {
     this.pending.undo();
+  }
+
+  // the item whose name is in a field, to fix it, to buy or bought; an empty name is not saved
+  protected readonly renaming = signal<number | null>(null);
+  protected readonly renameEmpty = signal(false);
+
+  protected startRename(item: GroceryItem): void {
+    this.renameEmpty.set(false);
+    this.renaming.set(item.id);
+    afterNextRender(
+      () => {
+        const field = this.host.nativeElement.querySelector<HTMLInputElement>(`#rename-${item.id}`);
+        field?.focus();
+        field?.select();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  // Escape keeps the name, the focus goes back to the row
+  protected cancelRename(item: GroceryItem): void {
+    this.closeRename(item.id);
+    this.focusRow(item.id);
+  }
+
+  // the field of the item closed, e.g. when the item leaves the list
+  private closeRename(id: number): void {
+    if (this.renaming() !== id) return;
+    this.renameEmpty.set(false);
+    this.renaming.set(null);
+  }
+
+  // the focus on the row of the item once it shows again, not lost to the page
+  private focusRow(id: number): void {
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLElement>(`#item-${id}`)?.focus(),
+      { injector: this.injector },
+    );
+  }
+
+  // the name once Enter is pressed or the field is left, with the quantity and the category the
+  // item has; the field goes first, so leaving it after Enter or Escape saves nothing. Enter brings
+  // the focus back to the row, leaving the field keeps it where it went
+  protected rename(item: GroceryItem, field: HTMLInputElement, enter = false): void {
+    if (this.renaming() !== item.id) return;
+    const name = field.value.trim();
+    if (!name) {
+      this.renameEmpty.set(true);
+      return;
+    }
+    this.renaming.set(null);
+    if (enter) this.focusRow(item.id);
+    if (name === item.name) return;
+    this.error.set(null);
+    this.service
+      .updateItem(item.id, {
+        name,
+        amount: item.amount,
+        unit: item.unit,
+        categoryId: item.categoryId,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (changed) =>
+          this.items.update((items) =>
+            items.map((each) => (each.id === changed.id ? changed : each)),
+          ),
+        error: (error: unknown) => {
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.not_renamed')));
+          this.loadItems(this.shown());
+        },
+      });
   }
 
   // the category of the item, one of the list or none; the backend learns it for the next item of
@@ -660,8 +814,11 @@ export class GroceryPage {
   // the list back as the backend has it
   private send(request: Observable<unknown>, failure: string, done?: () => void): void {
     request.subscribe({
-      next: () => done?.(),
+      next: () => {
+        if (!this.destroyed) done?.();
+      },
       error: (error: unknown) => {
+        if (this.destroyed) return;
         this.error.set(apiErrorMessage(error, failure));
         this.loadItems(this.shown());
       },
@@ -692,6 +849,7 @@ export class GroceryPage {
   // the items with the categories of the list, together, so the groups fit the items; categories
   // that could not be loaded show the items without them, with the error
   private loadItems(list: GroceryList | null): void {
+    if (this.destroyed) return;
     this.loadingItems?.unsubscribe();
     if (!list) {
       this.items.set([]);
@@ -708,6 +866,11 @@ export class GroceryPage {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ([items, categories]) => {
+          // a field of an item that is gone closes (GROCERY-14)
+          const renaming = this.renaming();
+          if (renaming !== null && !items.some((each) => each.id === renaming)) {
+            this.closeRename(renaming);
+          }
           this.items.set(items);
           this.categories.set(categories);
           this.loaded.set(true);

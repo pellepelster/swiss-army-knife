@@ -553,7 +553,7 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=item-2] img')).toBeNull();
   });
 
-  it('shows the bought items with the eye, struck through, not checked by a tap and without a menu (GROCERY-14)', async () => {
+  it('shows the bought items with the eye, in their category, struck through, not checked by a tap, changed from their menu (GROCERY-14)', async () => {
     await load([defaultList], [item(2, 'Milk', 12)]);
     const toggle = page().querySelector<HTMLButtonElement>('[data-testid=toggle-bought]')!;
     expect(toggle.querySelector('i')!.classList.contains('fa-eye-slash')).toBe(true);
@@ -562,24 +562,31 @@ describe('Grocery', () => {
 
     toggle.click();
     await harness.fixture.whenStable();
-    http
-      .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
-      .flush(
-        pageOf([
-          item(2, 'Milk', 12),
-          { ...item(4, 'Milk', 12), checkedAt: '2026-11-01T10:00:00Z' },
-        ]),
-      );
+    http.expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100').flush(
+      // the bought one first: the group puts the items to buy first all the same
+      pageOf([
+        { ...item(4, 'Cheese', 12), checkedAt: '2026-11-01T10:00:00Z' },
+        item(2, 'Milk', 12),
+      ]),
+    );
     http
       .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
       .flush(pageOf(categories));
     await harness.fixture.whenStable();
     expect(toggle.querySelector('i')!.classList.contains('fa-eye')).toBe(true);
+    // one label, the state is aria-pressed; the tooltip says what a click does
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(toggle.getAttribute('aria-label')).toBe('Hide bought items');
+    expect(toggle.getAttribute('aria-label')).toBe('Show bought items');
+    expect(toggle.title).toBe('Hide bought items');
 
-    // the bought one is struck through, a tap does nothing, its menu does not open
-    const bought = page().querySelector('[data-testid=item-4]')!;
+    // the bought one is in its category, struck through, a tap does not check it
+    const bought = page().querySelector('ul[aria-label="Dairy & eggs"] [data-testid=item-4]')!;
+    expect(bought).not.toBeNull();
+    expect(
+      [...page().querySelectorAll('ul[aria-label="Dairy & eggs"] li')].map((row) =>
+        row.getAttribute('data-testid'),
+      ),
+    ).toEqual(['item-2', 'item-4']);
     expect(bought.querySelector('.item-name')!.classList.contains('item-struck')).toBe(true);
     expect(
       page().querySelector('[data-testid=item-2] .item-name')!.classList.contains('item-struck'),
@@ -587,16 +594,131 @@ describe('Grocery', () => {
     input('item-4').click();
     await harness.fixture.whenStable();
     expect(page().querySelector('[role=status]')).toBeNull();
-    const menu = bought.querySelector<HTMLButtonElement>('app-action-menu button')!;
-    expect(menu.disabled).toBe(true);
-    expect(menu.title).toBe('A bought item does not change.');
     http.expectNone({ method: 'POST' });
+
+    // its menu changes it as the one of an item to buy
+    const choices = [
+      ...(await rowMenu('Cheese')).querySelectorAll<HTMLButtonElement>('[role=menuitemradio]'),
+    ];
+    expect(choices.every((choice) => !choice.disabled)).toBe(true);
+    choices[2].click();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/grocery/items/4/category' })
+      .flush({ ...item(4, 'Cheese', null), checkedAt: '2026-11-01T10:00:00Z' });
+    await harness.fixture.whenStable();
+    const none = page().querySelector('ul[aria-label="No category"] [data-testid=item-4]')!;
+    expect(none.querySelector('.item-name')!.classList.contains('item-struck')).toBe(true);
+    await deleteFromRow('Cheese');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/4' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-4]')).toBeNull();
 
     // hidden again: the items to buy only
     toggle.click();
     await harness.fixture.whenStable();
     await flushItems(1, [item(2, 'Milk', 12)]);
     expect(page().querySelector('[data-testid=item-4]')).toBeNull();
+  });
+
+  it('renames an item in its row from its menu, to buy or bought; Escape keeps the name, an empty one is not saved', async () => {
+    await load([defaultList], [item(2, 'Mlik', 12)]);
+    const rename = async (name: string) => {
+      button('Rename', await rowMenu(name)).click();
+      await harness.fixture.whenStable();
+    };
+    const field = (id: number) => page().querySelector<HTMLInputElement>(`#rename-${id}`)!;
+
+    // Escape keeps the name, leaving the field afterwards saves nothing
+    await rename('Mlik');
+    expect(field(2).value).toBe('Mlik');
+    // the Rename of the item renamed is disabled and says why (UX-12)
+    const renameEntry = button('Rename', page().querySelector('[data-testid=item-2]')!);
+    expect(renameEntry.disabled).toBe(true);
+    expect(renameEntry.title).toBe('The name is changed in its row.');
+    field(2).value = 'Milch';
+    field(2).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await harness.fixture.whenStable();
+    expect(field(2)).toBeNull();
+    http.expectNone({ method: 'PUT' });
+    // the focus is back on the row, not lost to the page
+    expect(document.activeElement?.id).toBe('item-2');
+
+    // an empty name says so under the field when it is left, typing takes the error away
+    await rename('Mlik');
+    field(2).value = '  ';
+    field(2).dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    expect(field(2).classList.contains('is-invalid')).toBe(true);
+    expect(page().querySelector('#rename-error-2')?.textContent).toContain('An item needs a name.');
+    http.expectNone({ method: 'PUT' });
+    field(2).value = ' Milk ';
+    field(2).dispatchEvent(new Event('input'));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#rename-error-2')).toBeNull();
+
+    // Enter saves the name trimmed, with the quantity and the category the item has; the field
+    // left afterwards saves it no second time
+    const open = field(2);
+    open.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await harness.fixture.whenStable();
+    open.dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2' });
+    expect(request.request.body).toEqual({
+      name: 'Milk',
+      amount: null,
+      unit: null,
+      categoryId: 12,
+    });
+    request.flush(item(2, 'Milk', 12));
+    await harness.fixture.whenStable();
+    expect(field(2)).toBeNull();
+    expect(document.activeElement?.id).toBe('item-2');
+    expect(page().querySelector('[data-testid=item-2] .item-name')?.textContent).toContain('Milk');
+    // a tap on the row while the field is open does not check it: the row is the field
+    http.expectNone({ method: 'POST' });
+
+    // a bought item is renamed the same way; a refused name says why and loads the list again
+    page().querySelector<HTMLButtonElement>('[data-testid=toggle-bought]')!.click();
+    await harness.fixture.whenStable();
+    http
+      .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
+      .flush(
+        pageOf([
+          item(2, 'Milk', 12),
+          { ...item(4, 'Bred', null), checkedAt: '2026-11-01T10:00:00Z' },
+        ]),
+      );
+    http
+      .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
+      .flush(pageOf(categories));
+    await harness.fixture.whenStable();
+    await rename('Bred');
+    field(4).value = 'Bread';
+    field(4).dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/grocery/items/4' })
+      .flush(
+        { errors: [{ code: 'grocery.invalid_item_name', message: 'An item name is too long.' }] },
+        { status: 400, statusText: 'Bad Request' },
+      );
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'An item name is too long.',
+    );
+    http
+      .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
+      .flush(
+        pageOf([
+          item(2, 'Milk', 12),
+          { ...item(4, 'Bred', null), checkedAt: '2026-11-01T10:00:00Z' },
+        ]),
+      );
+    http
+      .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
+      .flush(pageOf(categories));
+    await harness.fixture.whenStable();
   });
 
   it('strikes a checked item through until the time is up, undoes it, the backend learns it afterwards', async () => {
@@ -643,6 +765,127 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(page().textContent).toContain('Nothing to buy yet, add something.');
     expect(page().querySelector('[role=status]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('a delete or a rename in the time of the undo takes the check along; with the eye a check, a change and one bought elsewhere load the bought items too', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await load([defaultList], [item(2, 'Milk', 12), item(3, 'Bread', null), item(5, 'Eggs', 12)]);
+    const field = (id: number) => page().querySelector<HTMLInputElement>(`#rename-${id}`);
+    const flushBought = async (items: object[]) => {
+      http
+        .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
+        .flush(pageOf(items));
+      http
+        .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
+        .flush(pageOf(categories));
+      await harness.fixture.whenStable();
+    };
+
+    // deleted while it waits to be checked: its check and its toast go with it (GB-1)
+    input('item-2').click();
+    await harness.fixture.whenStable();
+    await deleteFromRow('Milk');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=status]')).toBeNull();
+    vi.advanceTimersByTime(GROCERY_UNDO_MS);
+    http.expectNone({ method: 'POST' });
+
+    // renamed while it waits: the field closes once it is checked (GB-14)
+    input('item-3').click();
+    await harness.fixture.whenStable();
+    button('Rename', await rowMenu('Bread')).click();
+    await harness.fixture.whenStable();
+    expect(field(3)).not.toBeNull();
+    vi.advanceTimersByTime(GROCERY_UNDO_MS);
+    http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/3/check' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(field(3)).toBeNull();
+
+    // with the eye a check loads the list again, the item comes back bought in its place
+    page().querySelector<HTMLButtonElement>('[data-testid=toggle-bought]')!.click();
+    await harness.fixture.whenStable();
+    const bread = { ...item(3, 'Bread', null), checkedAt: '2026-11-01T10:00:00Z' };
+    await flushBought([item(5, 'Eggs', 12), bread]);
+    input('item-5').click();
+    await harness.fixture.whenStable();
+    vi.advanceTimersByTime(GROCERY_UNDO_MS);
+    http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/5/check' }).flush(null);
+    await harness.fixture.whenStable();
+    const eggs = { ...item(5, 'Eggs', 12), checkedAt: '2026-11-01T11:00:00Z' };
+    await flushBought([item(6, 'Butter', 12), eggs, bread]);
+
+    // a change from elsewhere keeps the bought items (LIST-4)
+    changes.next(1);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    await flushBought([item(6, 'Butter', 12), eggs, bread]);
+
+    // bought on another device while it waits: a second tap still undoes it (GB-6)
+    input('item-6').click();
+    await harness.fixture.whenStable();
+    const butter = { ...item(6, 'Butter', 12), checkedAt: '2026-11-01T12:00:00Z' };
+    const changed = async (items: object[]) => {
+      changes.next(1);
+      vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+      http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+      await flushBought(items);
+    };
+    await changed([item(7, 'Flour', null), butter, eggs, bread]);
+    input('item-6').click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=status]')).toBeNull();
+
+    // its check is done already once the time is up: nothing is sent, no error
+    input('item-7').click();
+    await harness.fixture.whenStable();
+    const flour = { ...item(7, 'Flour', null), checkedAt: '2026-11-01T13:00:00Z' };
+    await changed([flour, butter, eggs, bread]);
+    vi.advanceTimersByTime(GROCERY_UNDO_MS);
+    http.expectNone({ method: 'POST' });
+    await flushBought([flour, butter, eggs, bread]);
+    expect(page().querySelector('[role=alert]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('a check of an item the backend has bought already (404) is done, a page left while a check waits loads nothing again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await load([defaultList], [item(2, 'Milk', 12), item(3, 'Bread', null)]);
+    const flushBought = async (items: object[]) => {
+      http
+        .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
+        .flush(pageOf(items));
+      http
+        .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
+        .flush(pageOf(categories));
+      await harness.fixture.whenStable();
+    };
+    page().querySelector<HTMLButtonElement>('[data-testid=toggle-bought]')!.click();
+    await harness.fixture.whenStable();
+    await flushBought([item(2, 'Milk', 12), item(3, 'Bread', null)]);
+
+    // checked on another device before the change came: no error, the list as the backend has it
+    input('item-2').click();
+    await harness.fixture.whenStable();
+    vi.advanceTimersByTime(GROCERY_UNDO_MS);
+    http
+      .expectOne({ method: 'POST', url: '/api/v1/grocery/items/2/check' })
+      .flush(null, { status: 404, statusText: 'Not Found' });
+    await harness.fixture.whenStable();
+    await flushBought([
+      item(3, 'Bread', null),
+      { ...item(2, 'Milk', 12), checkedAt: '2026-11-01T10:00:00Z' },
+    ]);
+    expect(page().querySelector('[role=alert]')).toBeNull();
+
+    // the page left while Bread waits: its check goes out, nothing is loaded again (GB-5)
+    input('item-3').click();
+    await harness.fixture.whenStable();
+    await open('/grocery');
+    http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/3/check' }).flush(null);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    await harness.fixture.whenStable();
     vi.useRealTimers();
   });
 

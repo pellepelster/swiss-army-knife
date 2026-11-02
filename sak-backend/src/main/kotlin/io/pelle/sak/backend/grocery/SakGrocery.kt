@@ -226,11 +226,12 @@ fun Route.grocery(
             summary = "The items to buy of a grocery list"
             description =
                 "By their category, the ones without one last; in a category the ones to buy in the order they were added, " +
-                "with checked=true the bought ones after them, the last bought first (GROCERY-14)."
+                "with checked=true the latest bought item of each name that is not to buy after them, the last bought first " +
+                "(GROCERY-14)."
             parameters {
                 listId()
                 query("checked") {
-                    description = "true answers the bought items too, each with its checkedAt"
+                    description = "true answers the latest bought item of each name too, each with its checkedAt"
                     schema = jsonSchema<Boolean>()
                 }
                 pagination()
@@ -257,9 +258,9 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Suggestions for an item of a grocery list"
             description =
-                "The items added to the list before whose name contains the text, the ones bought most and last first, " +
-                "at most ${GroceryService.MAX_SUGGESTIONS}; the ones to buy on the list are left out. Only this list " +
-                "learned them, every user who sees it sees them (GROCERY-11)."
+                "The names of the items of the list that contain the text, one for each name with the values of its latest " +
+                "item, the names of the most items and the latest first, at most ${GroceryService.MAX_SUGGESTIONS}; the names " +
+                "to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11)."
             parameters {
                 listId()
                 query("text") {
@@ -419,7 +420,7 @@ fun Route.grocery(
             parameters {
                 listId()
                 path("suggestionId") {
-                    description = "The id of the suggestion, the latest item of its name"
+                    description = "The id of the suggestion (the latest item of its name), or of any live item of the list with the name"
                     required = true
                     schema = jsonSchema<Int>()
                 }
@@ -483,7 +484,7 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Set the category of an item"
             description =
-                "Of an item to buy: one of the categories of its list, or none; the next item of the name on the list takes it " +
+                "Of an item, to buy or bought: one of the categories of its list, or none; the next item of the name on the list takes it " +
                 "(GROCERY-13)."
             parameters { itemId() }
             requestBody {
@@ -508,7 +509,7 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Attach a photo to an item"
             description =
-                "Of an item to buy: a file the user uploaded to the file storage (POST /files) that is an image. The next item " +
+                "Of an item, to buy or bought: a file the user uploaded to the file storage (POST /files) that is an image. The next item " +
                 "of the name on the list takes it (GROCERY-12)."
             parameters { itemId() }
             requestBody {
@@ -531,7 +532,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Take the photo away from an item"
-            description = "From an item to buy, the next item of the name on the list has none; the file stays in the file storage."
+            description = "From an item, to buy or bought; the next item of the name on the list has none; the file stays in the file storage."
             parameters { itemId() }
             responses {
                 HttpStatusCode.OK {
@@ -617,11 +618,11 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete an item"
-            description = "An item to buy goes for good, e.g. one added by mistake: no list shows it, no suggestion counts it."
+            description = "An item, to buy or bought, goes for good, e.g. one added by mistake: no list shows it, no suggestion counts it."
             parameters { itemId() }
             responses {
                 HttpStatusCode.NoContent { description = "The item is gone" }
-                HttpStatusCode.NotFound { description = "The user sees no such item to buy" }
+                HttpStatusCode.NotFound { description = "The user sees no such item" }
             }
         }
     }
