@@ -141,8 +141,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 - `SAKCTL-1` **One core, two faces.** The core (the checks on start, the deployments and their plans, the
   provisioning, the keys, the providers) knows neither the sakctl ui nor the sakctl cli; both are thin layers on it.
-- `SAKCTL-2` **No local state.** Everything sakctl needs is derived from the name and password of a deployment, or
-  read back from the labels of its resources. Two machines with the same password manage the same deployment.
+- `SAKCTL-2` **Local state is encrypted.** All that sakctl keeps of a deployment on the user's machine is encrypted,
+  so only the password of the deployment reads it. It is below `~/.sak/<name>/`, only for the user: the settings of the
+  last create or deploy (`config.json`, encrypted with age to a key derived from the password) and the backups
+  (`backups/`, encrypted to the backup key, `SAKCTL-8`). The directory of a run (`SECURITY-2`) is no state: it goes
+  when the run ends. Everything else sakctl needs is derived from the name and password of a deployment, or read back
+  from the deployment: a deploy takes its settings from the running deployment, else from `config.json`, else from the
+  DNS records. Two machines with the same password manage the same deployment.
 - `SAKCTL-3` **Derived keys.** The keys of a deployment are derived from its password (refer to
   [Security](#security)).
 - `SAKCTL-4` **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies

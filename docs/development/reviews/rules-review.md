@@ -30,7 +30,9 @@ the redirects, the users, the settings and the health need `admin`.
 
 Fix: `SHARED-1` names the apps of the users and the ones of the admins.
 
-### `RR-2` `SAKCTL-2` says sakctl keeps no local state
+### ~~`RR-2` `SAKCTL-2` says sakctl keeps no local state~~
+
+**Fixed:** `SAKCTL-2` says that all local state of sakctl is encrypted, and names the settings and the backups.
 
 `SAKCTL-2`: "Everything sakctl needs is derived from the name and password of a deployment, or read back from the labels
 of its resources". sakctl keeps the settings of the last create or deploy of a deployment in
