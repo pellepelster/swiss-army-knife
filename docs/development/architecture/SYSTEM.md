@@ -111,7 +111,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   and the work the backend does on its own (e.g. the text found in a file).
 - `MODEL-7` **Binary data only through `FilesystemBinaryStorage`.** All binary data the backend stores (the files of the
   file storage, their thumbnails, the objects of the buckets) is written and read through `FilesystemBinaryStorage`
-  (`sak-storage`); no other code writes binary data to disk.
+  (`sak-storage`); no other code writes binary data to disk. The one exception: caddy serves the objects of a bucket
+  read only from their directory on disk, which only `FilesystemBinaryStorage` knows and hands out.
 
 ## External systems
 

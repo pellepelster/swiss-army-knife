@@ -7,6 +7,7 @@ import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.storage.FilesystemBinaryStorage
 import io.pelle.sak.storage.BlobPath
 import java.nio.file.Path
 import java.util.concurrent.Executors
@@ -17,10 +18,18 @@ const val S3_PATH_PREFIX = "/s3"
 
 fun bucketPath(bucket: String) = BlobPath(listOf("buckets", bucket))
 
-fun bucketObjectsDir(
+// the objects of the buckets: the S3 api on the binary storage of s3DataDir, and the directory of
+// the objects of a bucket, which caddy serves (the exception of MODEL-7); the layout is the
+// storage's, nothing here knows it
+class BucketStorage(
     config: SakConfig,
-    bucket: String,
-): Path = bucketPath(bucket).segments.fold(config.s3DataDir) { dir, segment -> dir.resolve(segment) }.resolve(BinaryStorageS3Backend.DATA)
+) {
+    private val files = FilesystemBinaryStorage(config.s3DataDir)
+
+    val s3 = BinaryStorageS3Backend(files) { bucket -> bucketPath(bucket) }
+
+    fun objectsDir(bucket: String): Path = files.directory(s3.objectsPath(bucket))
+}
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
@@ -38,12 +47,13 @@ fun redirectsRootDomain(
         config.baseDomain !in redirectedDomains
 
 // bucketDomains are the domains each bucket is served at, redirects maps every redirected domain
-// to the domain it leads to
+// to the domain it leads to, objectsDir is where caddy finds the objects of a bucket
 fun caddyConfig(
     config: SakConfig,
     bucketDomains: Map<String, List<String>>,
     redirects: Map<String, String>,
     port: Int,
+    objectsDir: (bucket: String) -> Path,
 ): CaddyConfig =
     caddyConfig {
         config.acmeCa?.let { acmeCa(it) }
@@ -110,7 +120,7 @@ fun caddyConfig(
                     route {
                         host(*domains.toTypedArray())
                         logField(SITE_LOG_FIELD, bucket)
-                        fileServer(root = bucketObjectsDir(config, bucket).toString(), indexNames = listOf("index.html"))
+                        fileServer(root = objectsDir(bucket).toString(), indexNames = listOf("index.html"))
                         terminal()
                     }
                 }

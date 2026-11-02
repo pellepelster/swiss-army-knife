@@ -32,8 +32,6 @@ import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.AccessLogsManager
 import io.pelle.sak.s3.api.s3
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
-import io.pelle.sak.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import kotlin.system.exitProcess
 import io.pelle.sak.api.installUnexpectedErrors
@@ -63,7 +61,7 @@ fun Application.module() {
 
     val reconciler =
         CaddyReconciler(CaddyManager(config.caddyAdminUrl), config = {
-            caddyConfig(config, services.bucketService.domains(), services.redirectService.locations(), port)
+            caddyConfig(config, services.bucketService.domains(), services.redirectService.locations(), port, services.buckets::objectsDir)
         })
     services.bucketService.onChange(reconciler::reconcileNow)
     services.redirectService.onChange(reconciler::reconcileNow)
@@ -92,6 +90,8 @@ class SakServices(
     val userService: UserService,
     // victorialogs, the access logs of the buckets (EXT-1)
     val accessLogsManager: AccessLogsManager,
+    // the objects of the buckets, and where caddy serves them from
+    val buckets: BucketStorage,
 ) {
     // the apps that prepare the data of a user who signs in, e.g. the list of their notes (NOTES-1)
     val loginListeners: List<LoginListener> get() = listOf(noteService)
@@ -110,7 +110,8 @@ fun Application.sak(config: SakConfig): SakServices {
     Files.createDirectories(config.dataDir)
     Files.createDirectories(config.s3DataDir)
 
-    val storage = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir)) { bucket -> bucketPath(bucket) }
+    val buckets = BucketStorage(config)
+    val storage = buckets.s3
     val database = SakDatabase.open(databaseFile(config))
     // the settings, the signing key of the login among them, plain in the database until the
     // whole database is encrypted (FDR-002)
@@ -153,6 +154,7 @@ fun Application.sak(config: SakConfig): SakServices {
             RedirectsHealth(redirectService, domainCheck, config.addresses),
             UserService(database, config.auth?.admins.orEmpty()),
             AccessLogsManager(config.logs.victorialogsUrl),
+            buckets,
         )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them

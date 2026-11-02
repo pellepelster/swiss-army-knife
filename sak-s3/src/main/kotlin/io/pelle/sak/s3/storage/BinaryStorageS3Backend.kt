@@ -292,7 +292,10 @@ class BinaryStorageS3Backend(
 
     // the objects of the bucket and their size; staged writes and multipart parts are not in
     // its data yet
-    fun usage(bucket: String): BlobUsage = storage.usage(requireBucket(bucket).resolve(DATA))
+    fun usage(bucket: String): BlobUsage = storage.usage(objectsPath(bucket))
+
+    // where the objects of the bucket are in the binary storage, each at its key
+    fun objectsPath(bucket: String): BlobPath = requireBucket(bucket).resolve(DATA)
 
     private fun requireBucket(bucket: String): BlobPath {
         if (!bucket.matches(BUCKET_NAME_REGEX)) throw NoSuchBucketException(bucket)
@@ -361,7 +364,7 @@ class BinaryStorageS3Backend(
     private fun String.hexToBytes() = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
     companion object {
-        const val DATA = "data"
+        private const val DATA = "data"
         private const val META = "meta"
         private const val UPLOADS = "uploads"
         private const val UPLOAD_META = "meta.json"

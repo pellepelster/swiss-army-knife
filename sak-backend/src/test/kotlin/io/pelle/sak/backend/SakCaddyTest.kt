@@ -108,7 +108,7 @@ class SakCaddyTest {
             }
             """.trimIndent()
 
-        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, mapOf("example.com" to "example.org"), 8080))) shouldBe Json.parseToJsonElement(expected)
+        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, mapOf("example.com" to "example.org"), 8080, BucketStorage(config)::objectsDir))) shouldBe Json.parseToJsonElement(expected)
     }
 
     @Test
@@ -116,7 +116,7 @@ class SakCaddyTest {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(admins = listOf("admin@example.org"), smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
-        val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080))).json()["apps"]!!
+        val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080, BucketStorage(withAuth)::objectsDir))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -187,7 +187,7 @@ class SakCaddyTest {
             bucketDomains: Map<String, List<String>>,
             redirects: Map<String, String> = emptyMap(),
             config: SakConfig = withAuth,
-        ) = (CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080))).json()["apps"]!!
+        ) = (CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080, BucketStorage(config)::objectsDir))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -239,7 +239,7 @@ class SakCaddyTest {
         val port = admin.address.port
 
         var redirects = emptyMap<String, String>()
-        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, redirects, 8080) })
+        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, redirects, 8080, BucketStorage(config)::objectsDir) })
         reconciler.reconcile()
         requests shouldBe listOf("POST" to "/config/apps")
         bodies.last() shouldNotContain "example.com"
@@ -261,7 +261,7 @@ class SakCaddyTest {
         try {
             // a free port nothing listens at yet
             val port = ServerSocket(0).use { it.localPort }
-            val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, emptyMap(), 8080) })
+            val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, emptyMap(), 8080, BucketStorage(config)::objectsDir) })
 
             reconciler.reconcile()
             reconciler.reconcile()

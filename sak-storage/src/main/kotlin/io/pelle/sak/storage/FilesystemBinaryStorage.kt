@@ -281,6 +281,10 @@ class FilesystemBinaryStorage(
         }
     }
 
+    // the directory of a path on disk, only for caddy, which serves the objects of a bucket from it
+    // read only (the exception of MODEL-7); nothing else reads or writes there
+    fun directory(path: BlobPath): Path = resolve(path)
+
     private fun resolve(path: BlobPath): Path = path.segments.fold(rootPath) { current, component -> current.resolve(component) }
 
     // a blob on the way to the target (e.g. the blob 'a' for the path 'a/b') makes the

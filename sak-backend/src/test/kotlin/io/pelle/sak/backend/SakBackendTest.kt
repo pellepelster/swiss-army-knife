@@ -174,7 +174,7 @@ class SakBackendTest {
         config.version shouldBe "0.1.15"
         // the staging ca of the integration tests, caddy takes it as its issuer
         config.acmeCa shouldBe "https://acme-staging-v02.api.letsencrypt.org/directory"
-        caddyConfig(config, emptyMap(), emptyMap(), 8080).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe
+        caddyConfig(config, emptyMap(), emptyMap(), 8080, BucketStorage(config)::objectsDir).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe
             "https://acme-staging-v02.api.letsencrypt.org/directory"
         config.frontendUrl shouldBe "https://sak.pelle.io"
         config.auth!!.admins shouldBe listOf("admin@example.org")
