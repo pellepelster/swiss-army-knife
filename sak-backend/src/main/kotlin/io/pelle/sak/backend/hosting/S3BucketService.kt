@@ -35,7 +35,7 @@ sealed interface DeleteBucketResult {
 
     data object NotFound : DeleteBucketResult
 
-    // redirects lead to it, their source domains (HOSTING-11)
+    // redirects lead to it, their source domains
     data class Redirected(
         val sources: List<String>,
     ) : DeleteBucketResult
@@ -169,7 +169,7 @@ class S3BucketService(
 
     // the bucket stays as deleted and is served nowhere any more, its key pair is refused; its name
     // stays taken and its objects stay in the storage until it is purged
-    // not while a redirect leads to it (HOSTING-11)
+    // not while a redirect leads to it
     fun delete(name: String): DeleteBucketResult {
         domains.redirectsTo(name).takeIf { it.isNotEmpty() }?.let { return DeleteBucketResult.Redirected(it) }
         if (!repository.delete(name)) return DeleteBucketResult.NotFound
