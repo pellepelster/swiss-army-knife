@@ -35,23 +35,9 @@ class CaddyManager(
 ) {
     val adminUrl: String = adminUrl.trimEnd('/')
 
-    fun config(): CaddyConfig? {
-        val body = execute(get("/config/"))
-        return CaddyJson.decodeFromString<CaddyConfig?>(body)
-    }
-
-    fun load(config: CaddyConfig) {
-        post("/load", CaddyJson.encodeToString(config))
-    }
-
     fun updateApps(config: CaddyConfig) {
         val apps = requireNotNull(config.apps) { "config has no apps to update" }
         post("/config/apps", CaddyJson.encodeToString(apps))
-    }
-
-    fun updateLogging(config: CaddyConfig) {
-        val logging = requireNotNull(config.logging) { "config has no logging to update" }
-        post("/config/logging", CaddyJson.encodeToString(logging))
     }
 
     private fun post(
@@ -67,13 +53,6 @@ class CaddyManager(
                 .build(),
         )
     }
-
-    private fun get(path: String): HttpRequest =
-        HttpRequest
-            .newBuilder(URI.create("$adminUrl$path"))
-            .timeout(requestTimeout)
-            .GET()
-            .build()
 
     private fun execute(request: HttpRequest): String {
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())

@@ -5,7 +5,6 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.string.shouldNotContain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
@@ -46,31 +45,12 @@ class CaddyManagerTest {
     }
 
     @Test
-    fun `load posts the serialized config to the load endpoint`() {
-        val config =
-            caddyConfig {
-                server("pages") {
-                    listen(":80")
-                    route { respond(200, "ok") }
-                }
-            }
-
-        manager.load(config)
-
-        lastMethod shouldBe "POST"
-        lastPath shouldBe "/load"
-        lastContentType shouldBe "application/json"
-        lastBody.shouldNotBeNull() shouldContain "\"static_response\""
-        lastBody.shouldNotBeNull() shouldContain "\":80\""
-    }
-
-    @Test
     fun `updateApps posts only the apps subtree to the config endpoint`() {
         val config =
             caddyConfig {
                 server("pages") {
                     listen(":80")
-                    route { respond(200, "ok") }
+                    route { respond(200) }
                 }
             }
 
@@ -80,65 +60,7 @@ class CaddyManagerTest {
         lastPath shouldBe "/config/apps"
         lastBody.shouldNotBeNull() shouldContain "\"http\""
         lastBody.shouldNotBeNull() shouldContain "\"pages\""
-    }
-
-    @Test
-    fun `updateLogging posts only the logging subtree to the config endpoint`() {
-        val config =
-            caddyConfig {
-                accessLog {
-                    file("/var/log/caddy/access.log")
-                }
-                server("pages") {
-                    listen(":80")
-                    enableAccessLog()
-                    route { respond(200, "ok") }
-                }
-            }
-
-        manager.updateLogging(config)
-
-        lastMethod shouldBe "POST"
-        lastPath shouldBe "/config/logging"
         lastContentType shouldBe "application/json"
-        lastBody.shouldNotBeNull() shouldContain "\"logs\""
-        lastBody.shouldNotBeNull() shouldNotContain "\"static_response\""
-    }
-
-    @Test
-    fun `updateLogging rejects a config that has no logging`() {
-        val config =
-            caddyConfig {
-                server("pages") {
-                    listen(":80")
-                    route { respond(200, "ok") }
-                }
-            }
-
-        shouldThrow<IllegalArgumentException> { manager.updateLogging(config) }
-    }
-
-    @Test
-    fun `config reads and parses the active config`() {
-        responseBody = """{"apps":{"http":{"servers":{"pages":{"listen":[":80"],"routes":[]}}}}}"""
-
-        val config = manager.config()
-
-        lastMethod shouldBe "GET"
-        lastPath shouldBe "/config/"
-        config
-            .shouldNotBeNull()
-            .apps
-            ?.http
-            ?.servers
-            ?.keys shouldBe setOf("pages")
-    }
-
-    @Test
-    fun `config returns null when no config is loaded`() {
-        responseBody = "null"
-
-        manager.config() shouldBe null
     }
 
     @Test
@@ -148,7 +70,7 @@ class CaddyManagerTest {
 
         val exception =
             shouldThrow<CaddyException> {
-                manager.load(
+                manager.updateApps(
                     caddyConfig {
                         server("pages") {
                             listen(":80")
@@ -168,7 +90,16 @@ class CaddyManagerTest {
         ServerSocket(0).use { silent ->
             val hanging = CaddyManager("http://localhost:${silent.localPort}", requestTimeout = Duration.ofMillis(200))
             val started = System.nanoTime()
-            shouldThrow<HttpTimeoutException> { hanging.config() }
+            shouldThrow<HttpTimeoutException> {
+                hanging.updateApps(
+                    caddyConfig {
+                        server("pages") {
+                            listen(":80")
+                            route { respond(200) }
+                        }
+                    },
+                )
+            }
             (Duration.ofNanos(System.nanoTime() - started) < Duration.ofSeconds(5)) shouldBe true
         }
     }

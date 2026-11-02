@@ -24,7 +24,7 @@ class CaddyConfigBuilderTest {
                     }
                     route {
                         path("/health")
-                        respond(200, "ok")
+                        respond(200)
                     }
                     route {
                         reverseProxy("backend:8080")
@@ -54,7 +54,7 @@ class CaddyConfigBuilderTest {
                         },
                         {
                           "match": [{ "path": ["/health"] }],
-                          "handle": [{ "handler": "static_response", "status_code": 200, "body": "ok" }]
+                          "handle": [{ "handler": "static_response", "status_code": 200 }]
                         },
                         {
                           "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "backend:8080" }] }]
@@ -80,7 +80,7 @@ class CaddyConfigBuilderTest {
                         host("a.example.org", "b.example.org")
                         fileServer(root = "/srv/pages/a")
                     }
-                    route { respond(404, "not found") }
+                    route { respond(404) }
                 }
             }
 
@@ -90,64 +90,13 @@ class CaddyConfigBuilderTest {
     }
 
     @Test
-    fun `builds the access log with a rolling file and the filtering encoder`() {
-        val config =
-            caddyConfig {
-                accessLog {
-                    file("/var/log/caddy/access.log", rollSizeMb = 100, rollKeep = 10, rollKeepDays = 7)
-                    maskIpAddresses(ipv4Cidr = 24, ipv6Cidr = 56)
-                    deleteQueryParameters("X-Amz-Signature")
-                }
-                server("pages") {
-                    listen(":80")
-                    enableAccessLog()
-                    route { respond(200, "ok") }
-                }
-            }
-
-        val expected =
-            """
-            {
-              "logs": {
-                "access": {
-                  "writer": {
-                    "output": "file",
-                    "filename": "/var/log/caddy/access.log",
-                    "roll": true,
-                    "roll_size_mb": 100,
-                    "roll_keep": 10,
-                    "roll_keep_days": 7
-                  },
-                  "encoder": {
-                    "format": "filter",
-                    "wrap": { "format": "json" },
-                    "fields": {
-                      "request>remote_ip": { "filter": "ip_mask", "ipv4_cidr": 24, "ipv6_cidr": 56 },
-                      "request>client_ip": { "filter": "ip_mask", "ipv4_cidr": 24, "ipv6_cidr": 56 },
-                      "request>uri": {
-                        "filter": "query",
-                        "actions": [{ "type": "delete", "parameter": "X-Amz-Signature" }]
-                      }
-                    }
-                  },
-                  "include": ["http.log.access"]
-                },
-                "default": { "exclude": ["http.log.access"] }
-              }
-            }
-            """.trimIndent()
-
-        Json.parseToJsonElement(CaddyJson.encodeToString(config.logging)) shouldBe Json.parseToJsonElement(expected)
-    }
-
-    @Test
     fun `enabling the access log emits the server log settings caddy keys access logging off`() {
         val config =
             caddyConfig {
                 server("pages") {
                     listen(":80")
                     enableAccessLog()
-                    route { respond(200, "ok") }
+                    route { respond(200) }
                 }
             }
 
@@ -160,7 +109,7 @@ class CaddyConfigBuilderTest {
             caddyConfig {
                 server("pages") {
                     listen(":80")
-                    route { respond(200, "ok") }
+                    route { respond(200) }
                 }
             }
 
@@ -199,28 +148,20 @@ class CaddyConfigBuilderTest {
     }
 
     @Test
-    fun `a config with an access log round-trips through deserialization`() {
-        val config =
-            caddyConfig {
-                accessLog {
-                    file("/var/log/caddy/access.log", rollSizeMb = 100, rollKeep = 10, rollKeepDays = 7)
-                    maskIpAddresses(ipv4Cidr = 24, ipv6Cidr = 56)
-                    deleteQueryParameters("token")
-                }
-                server("pages") {
-                    listen(":80")
-                    enableAccessLog()
-                    route {
-                        host("a.example.org")
-                        logField("tenant_resource_id", "tenant-1")
-                        fileServer(root = "/srv/pages/a")
-                    }
-                }
+    fun `an acme ca is the issuer of the tls app, without one there is none`() {
+        val server: CaddyConfigBuilder.() -> Unit = {
+            server("pages") {
+                listen(":443")
+                route { respond(200) }
             }
+        }
 
-        val json = CaddyJson.encodeToString(config)
-
-        CaddyJson.decodeFromString<CaddyConfig>(json) shouldBe config
+        caddyConfig(server).apps!!.tls shouldBe null
+        val tls = caddyConfig { acmeCa("https://acme-staging.example.org/directory"); server() }.apps!!.tls
+        Json.parseToJsonElement(CaddyJson.encodeToString(tls)) shouldBe
+            Json.parseToJsonElement(
+                """{"automation":{"policies":[{"issuers":[{"module":"acme","ca":"https://acme-staging.example.org/directory"}]}]}}""",
+            )
     }
 
     @Test
