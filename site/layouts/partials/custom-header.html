@@ -29,6 +29,10 @@
 {{- with resources.Get "css/sak-code-block.css" | fingerprint }}
 <link href="{{ .RelPermalink }}" rel="stylesheet" integrity="{{ .Data.Integrity }}">
 {{- end }}
+{{- /* the frames around the screenshots, a browser, a phone or a window (_markup/render-image.html) */ -}}
+{{- with resources.Get "css/sak-frames.css" | fingerprint }}
+<link href="{{ .RelPermalink }}" rel="stylesheet" integrity="{{ .Data.Integrity }}">
+{{- end }}
 {{- with resources.Get "js/sak-code-block.js" | fingerprint }}
 <script src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" defer></script>
 {{- end }}

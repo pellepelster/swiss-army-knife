@@ -53,6 +53,9 @@ fun Test.window() {
 
 e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the window of sakctl") {
     systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
+    // the help of the command line (CliScreenshotTest): the binary of `cargo build`, the fonts of the theme
+    systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)
+    systemProperty("sak.e2e.theme", rootDir.resolve("sak-theme").path)
     window()
 }
 

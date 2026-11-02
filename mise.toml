@@ -487,15 +487,20 @@ run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
 # the screenshots of docs/screenshots/, taken in chromium: the apps against the
 # environment of `mise run local:run` (every page on a desktop and on a phone), the window of sakctl
-# in light and dark; and the android apps (android:screenshots)
+# in light and dark, the help of its command line (the binary of cargo build); and the android apps
+# (android:screenshots)
 [tasks."docs:screenshots"]
 description = "Take the screenshots"
 depends = ["docs:window", "android:screenshots"]
 dir = "{{config_root}}"
-run = "./gradlew :sak-e2e:e2eScreenshots"
+run = [
+  "cd sak-cli/src-tauri && cargo build",
+  "./gradlew :sak-e2e:e2eScreenshots",
+]
 
-# the videos of build/videos/, never committed: the tour of the apps against the environment of
-# `mise run local:run` and the tour of the window of sakctl, each as .webm, .mp4 and .gif
+# the videos of build/videos/: the tour of the apps against the environment of `mise run local:run`
+# and the tour of the sakctl ui, each as .webm, .mp4 and .gif; the .mp4 of the sakctl ui goes to
+# docs/screenshots/ too, the docs show it
 [tasks."docs:video"]
 description = "Record the videos"
 depends = ["docs:window"]
@@ -508,6 +513,8 @@ for video in build/videos/*.webm; do
   ffmpeg -v error -y -i "$video" -vf "fps=10,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$name.gif"
 done
 ls -lh build/videos/*.mp4 build/videos/*.gif
+# the tour of the sakctl ui is in the docs (features.md), next to the screenshots
+cp build/videos/sakctl-ui.mp4 docs/screenshots/sakctl-ui.mp4
 '''
 
 # the tests, <part>:test:<kind> (docs/development/architecture/SYSTEM.md, "Tests"): unit tests need nothing but the tools

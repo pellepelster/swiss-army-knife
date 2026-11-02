@@ -1,0 +1,178 @@
+/* the frames around the screenshots (layouts/_default/_markup/render-image.html): a browser, a
+   phone and a window of sakctl, drawn here so the files keep their pixels. A frame has the colors of
+   its screenshot, light or dark (.sak-frame-dark), whatever mode the page is in; it never clips or
+   transforms, so the enlarged image of relearn (position: fixed) still covers the page */
+.sak-frame {
+  --frame: #e7e4dc;
+  --frame-line: #d3cfc4;
+  --frame-ink: #5f5b52;
+  --frame-field: #f8f6f1;
+  --screen: #f3f1ec;
+
+  display: block;
+  margin: 1.5rem auto;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  line-height: 1;
+}
+
+.sak-frame-dark {
+  --frame: #2b2e2c;
+  --frame-line: #3a3e3b;
+  --frame-ink: #b3b8b4;
+  --frame-field: #1d2220;
+  --screen: #0b0c0c;
+}
+
+/* the screenshot fills the frame, the frame is sized instead of it */
+#R-body-inner .sak-frame img.figure-image,
+.sak-frame-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sak-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--frame);
+  border-bottom: 1px solid var(--frame-line);
+  color: var(--frame-ink);
+  font-size: 0.8rem;
+}
+
+.sak-frame-dots {
+  display: flex;
+  gap: 0.4rem;
+  flex: none;
+}
+
+.sak-frame-dots i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #ec6a5e;
+}
+
+.sak-frame-dots i:nth-child(2) {
+  background: #f4bf4f;
+}
+
+.sak-frame-dots i:nth-child(3) {
+  background: #61c554;
+}
+
+.sak-frame-address {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--frame-field);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sak-frame-address::before {
+  content: "🔒 ";
+  font-size: 0.7em;
+}
+
+/* a browser of a desktop: the bar with the address on top */
+.sak-frame-browser {
+  max-width: 75%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--frame-line);
+  background: var(--screen);
+}
+
+.sak-frame-browser > .sak-frame-bar {
+  border-radius: 0.6rem 0.6rem 0 0;
+}
+
+#R-body-inner .sak-frame-browser img.figure-image {
+  border-radius: 0 0 0.6rem 0.6rem;
+}
+
+/* a window of the sakctl ui, or a terminal of the sakctl cli: its title in the middle of the bar */
+.sak-frame-window,
+.sak-frame-terminal {
+  max-width: 75%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--frame-line);
+  background: var(--screen);
+}
+
+.sak-frame-window > .sak-frame-bar,
+.sak-frame-terminal > .sak-frame-bar {
+  border-radius: 0.6rem 0.6rem 0 0;
+}
+
+.sak-frame-title {
+  flex: 1;
+  margin-right: 2.9rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+#R-body-inner .sak-frame-window img.figure-image,
+#R-body-inner .sak-frame-terminal img.figure-image,
+.sak-frame-window > .sak-frame-video {
+  border-radius: 0 0 0.6rem 0.6rem;
+}
+
+/* a phone: the body around the screen, the camera above it; of a browser the address under the
+   camera. The phone is dark, light screenshots or dark alike */
+.sak-frame-phone,
+.sak-frame-phone-browser {
+  position: relative;
+  max-width: 36%;
+  padding: 2rem 0.6rem 1.4rem;
+  border-radius: 2.4rem;
+  background: #1b1c1e;
+  border: 1px solid #3a3b3e;
+}
+
+.sak-frame-camera {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-left: -0.3rem;
+  border-radius: 50%;
+  background: #3a3b3e;
+}
+
+#R-body-inner .sak-frame-phone img.figure-image {
+  border-radius: 0.9rem;
+}
+
+.sak-frame-phone-browser > .sak-frame-bar {
+  padding: 0.45rem;
+  border-radius: 0.9rem 0.9rem 0 0;
+  font-size: 0.7rem;
+}
+
+#R-body-inner .sak-frame-phone-browser img.figure-image {
+  border-radius: 0 0 0.9rem 0.9rem;
+}
+
+/* on a phone as wide as the text, a phone a little narrower */
+@media (max-width: 47.999rem) {
+  .sak-frame-browser,
+  .sak-frame-window,
+  .sak-frame-terminal {
+    max-width: 100%;
+  }
+
+  .sak-frame-phone,
+  .sak-frame-phone-browser {
+    max-width: 75%;
+  }
+}

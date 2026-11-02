@@ -21,11 +21,12 @@ its chromium on the first run.
 ## Screenshots
 
 The screenshots of `docs/screenshots/` and the videos of `build/videos/`, taken in chromium. They
-do not run with the local tests. The videos are not committed.
+do not run with the local tests. The videos are not committed, but for the tour of the sakctl ui,
+which the docs show (`docs/screenshots/sakctl-ui.mp4`).
 
 ```sh
 mise run local:run              # in one terminal
-mise run docs:screenshots       # in another one: the apps, the sakctl ui and the android apps (android:screenshots, no local:run needed)
+mise run docs:screenshots       # in another one: the apps, the sakctl ui and cli, the android apps
 mise run docs:video             # the tours of the apps and of the sakctl ui, as .webm, .mp4 and .gif
 ```
 

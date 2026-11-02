@@ -9,7 +9,7 @@ weight: 2
 Swiss Army Knife is your own micro-cloud for a family or a small group: a few apps on a server of yours, set up and
 looked after by one program, sakctl.
 
-![The apps of a deployment](screenshots/web-apps-desktop.png)
+![The apps of a SAK instance](screenshots/web-apps-desktop.png)
 
 ## Privacy first
 
@@ -21,6 +21,28 @@ the settings. The settings say what the apps would send and to whom, and they ne
 account; providers that collect the data are not asked.
 
 ![The settings of the AI features, turned off](screenshots/web-settings-ai-desktop.png)
+
+## sakctl
+
+One program on your computer sets up and looks after your SAK instance, in the way that suits you.
+
+**The UI, for beginners:** sakctl guides you from the token of your Hetzner Cloud project to a running SAK instance.
+Before anything changes, it shows a plan of what it will create, change or delete.
+
+![Installing a SAK instance with the sakctl UI](screenshots/sakctl-ui.mp4)
+
+**The command line, for advanced users:** the same as commands in a terminal, for scripts and automation.
+
+![The help of the sakctl command line](screenshots/sakctl-cli-help.png)
+
+Both do the same:
+
+- **Install, update and remove** a SAK instance; a deploy brings it to the version of sakctl.
+- **Backup and restore** all data of a SAK instance as one encrypted file on your computer.
+- **Server maintenance:** upgrade the packages of the server and reboot it, without interrupting a backup.
+- **Self-update:** sakctl replaces itself with its newest release when you ask for it.
+
+![A SAK instance in the sakctl UI](screenshots/sakctl-ui-deployment.png)
 
 ## Across all devices
 
@@ -60,7 +82,7 @@ photo or a recording is written into the note on request. The notes also have an
 
 ### Grocery lists
 
-Shopping lists, private or shared with everyone of the deployment. A checked item goes after a moment, unless you undo
+Shopping lists, private or shared with everyone of the SAK instance. A checked item goes after a moment, unless you undo
 it, and stays as bought: the eye in the toolbar shows the bought items too. What you added to a list before comes back
 as a suggestion on that list. Each list groups its items by its own categories, with a name and an icon, which its
 owner changes in the settings of the list. Every change shows at once on every device that has the list open, also in
@@ -68,7 +90,7 @@ the Android app, which downloads from `sak.<your domain>/grocery/download/app`.
 
 ### Static hosting
 
-Websites from S3 buckets, at their own domain or at a subdomain of the deployment. Each site shows its requests and
+Websites from S3 buckets, at their own domain or at a subdomain of the SAK instance. Each site shows its requests and
 its traffic.
 
 ![A bucket of static hosting](screenshots/web-hosting-bucket-desktop.png)
@@ -81,24 +103,10 @@ Domains that lead to another address: an external domain, or the site of a bucke
 
 ## Users
 
-- **Single user:** you sign in with the password of the deployment; no mail server is needed.
+- **Single user:** you sign in with the password of the SAK instance; no mail server is needed.
 - **Multiple users:** your users sign in with a link by e-mail, you add them by their address. Data is either private
-  to the one who made it or shared with everyone of the deployment, no roles per item, no groups.
+  to the one who made it or shared with everyone of the SAK instance, no roles per item, no groups.
 
 ![The login by e-mail](screenshots/web-login-email-desktop.png)
 
-## sakctl
-
-One program on your computer, as a window or on the command line, sets up and looks after your deployment. Before
-anything changes it shows a plan of what it will create, change or delete.
-
-![The plan of a new deployment](screenshots/sakctl-ui-plan.png)
-
-- **Install, update and remove** a deployment; a deploy brings it to the version of sakctl.
-- **Backup and restore** all data of a deployment as one encrypted file on your computer.
-- **Server maintenance:** upgrade the packages of the server and reboot it, without interrupting a backup.
-- **Self-update:** sakctl replaces itself with its newest release when you ask for it.
-
-![A deployment in sakctl](screenshots/sakctl-ui-deployment.png)
-
-Next: how [sakctl and your deployment](overview.md) belong together, or [install sakctl](installation.md).
+Next: how [sakctl and your SAK instance](overview.md) belong together, or [install sakctl](installation.md).

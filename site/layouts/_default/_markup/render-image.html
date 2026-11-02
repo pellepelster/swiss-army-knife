@@ -1,0 +1,74 @@
+{{- /* the image hook of relearn, its image and its lightbox as they are, in a frame drawn by CSS
+   (assets/css/sak-frames.css) that the name of a screenshot asks for, the file keeps its pixels:
+   web-*-desktop.png in a browser with the address of its page, web-*-mobile.png in a phone with
+   that address, android-*.png in a phone, sakctl-ui-* in a window of the sakctl ui, sakctl-cli-*
+   in a dark terminal; a name with -dark in a dark frame. A video (.mp4) plays muted in a loop, in
+   its frame too. Every other image as relearn shows it */}}
+{{- $video := strings.HasSuffix .Destination ".mp4" }}
+{{- $image := "" }}
+{{- if $video }}
+  {{- $src := .Destination }}
+  {{- with resources.Get .Destination }}{{ $src = .RelPermalink }}{{ end }}
+  {{- $image = printf `<video class="sak-frame-video" src="%s" autoplay muted loop playsinline controls aria-label="%s"></video>` $src .Text | safeHTML }}
+{{- else }}
+{{- $image = partial "shortcodes/image.html" (dict
+  "page" .Page
+  "url" .Destination
+  "title" .Title
+  "alt" .Text
+  "id" ""
+  "ordinal" .Ordinal
+  "attributes" .Attributes
+) }}
+{{- end }}
+{{- $name := path.Base .Destination | replaceRE `\.(png|mp4)$` "" }}
+{{- $dark := strings.Contains $name "-dark" }}
+{{- $kind := "" }}
+{{- if and (strings.HasPrefix $name "web-") (strings.HasSuffix $name "-desktop") }}
+  {{- $kind = "browser" }}
+{{- else if and (strings.HasPrefix $name "web-") (strings.HasSuffix $name "-mobile") }}
+  {{- $kind = "phone-browser" }}
+{{- else if strings.HasPrefix $name "android-" }}
+  {{- $kind = "phone" }}
+{{- else if strings.HasPrefix $name "sakctl-ui" }}
+  {{- $kind = "window" }}
+{{- else if strings.HasPrefix $name "sakctl-cli-" }}
+  {{- $kind = "terminal" }}
+  {{- $dark = true }}
+{{- end }}
+{{- /* the page of a screenshot of the web: its name without web-, the device and -dark, the
+   address by the first of these its name starts with */}}
+{{- $page := $name | strings.TrimPrefix "web-" | replaceRE `-(desktop|mobile)$` "" | replaceRE `-dark` "" }}
+{{- $address := "sak.example.org" }}
+{{- range slice
+  (slice "login-email-mail" "mail.example.org")
+  (slice "login" "sak.example.org/login")
+  (slice "notes" "sak.example.org/notes")
+  (slice "hosting-bucket" "sak.example.org/static-hosting/docs-site")
+  (slice "hosting" "sak.example.org/static-hosting")
+  (slice "redirects-redirect" "sak.example.org/redirects/example.org")
+  (slice "redirects" "sak.example.org/redirects")
+  (slice "settings-ai" "sak.example.org/settings/ai")
+}}
+  {{- if and (eq $address "sak.example.org") (strings.HasPrefix $page (index . 0)) }}
+    {{- $address = index . 1 }}
+  {{- end }}
+{{- end }}
+{{- if $kind -}}
+<span class="sak-frame sak-frame-{{ $kind }}{{ if $dark }} sak-frame-dark{{ end }}">
+  {{- if eq $kind "browser" -}}
+  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-address">{{ $address }}</span></span>
+  {{- else if eq $kind "window" -}}
+  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-title">sakctl</span></span>
+  {{- else if eq $kind "terminal" -}}
+  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-title">Terminal</span></span>
+  {{- else -}}
+  <span class="sak-frame-camera" aria-hidden="true"></span>
+  {{- if eq $kind "phone-browser" -}}
+  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-address">{{ $address }}</span></span>
+  {{- end -}}
+  {{- end -}}
+  {{ $image }}</span>
+{{- else -}}
+{{ $image }}
+{{- end }}
