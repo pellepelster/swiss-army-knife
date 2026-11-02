@@ -68,8 +68,7 @@ private class LimitedInputStream(
     override fun close() = delegate.close()
 }
 
-// the blobs as files below the root, a segment of the path for each directory: the only code that
-// writes binary data to disk (MODEL-7). A write is staged in STAGING_DIRECTORY and moved into place
+// the blobs as files below the root, a segment of the path for each directory (MODEL-7). A write is staged in STAGING_DIRECTORY and moved into place
 // at once, a reader never sees half a blob
 class FilesystemBinaryStorage(
     private val rootPath: Path,
@@ -281,9 +280,7 @@ class FilesystemBinaryStorage(
         }
     }
 
-    // the directory of a path on disk, only for caddy, which serves the objects of a bucket from it
-    // read only (the exception of MODEL-7); nothing else reads or writes there
-    fun directory(path: BlobPath): Path = resolve(path)
+    override fun directory(path: BlobPath): Path = resolve(path)
 
     private fun resolve(path: BlobPath): Path = path.segments.fold(rootPath) { current, component -> current.resolve(component) }
 

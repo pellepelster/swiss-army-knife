@@ -2,10 +2,11 @@ package io.pelle.sak.s3.storage
 
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobPath
-import io.pelle.sak.storage.model.BlobUsage
 import io.pelle.sak.storage.BlobPathConflictException
+import io.pelle.sak.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.SequenceInputStream
+import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.Base64
@@ -15,9 +16,11 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 
+// the buckets in the binary storage, each below its path (by default buckets/<name>): an object is
+// the blob of its key below data/ of the bucket, with its metadata next to it
 class BinaryStorageS3Backend(
     private val storage: BinaryStorage,
-    private val resolver: S3BucketPathResolver,
+    private val resolver: S3BucketPathResolver = S3BucketPathResolver { bucket -> BlobPath(listOf(BUCKETS, bucket)) },
 ) : S3StorageBackend {
     private val mapper: ObjectMapper = jacksonObjectMapper()
 
@@ -294,8 +297,11 @@ class BinaryStorageS3Backend(
     // its data yet
     fun usage(bucket: String): BlobUsage = storage.usage(objectsPath(bucket))
 
-    // where the objects of the bucket are in the binary storage, each at its key
-    fun objectsPath(bucket: String): BlobPath = requireBucket(bucket).resolve(DATA)
+    // the directory on disk the objects of the bucket are in, each at its key, for a reader that
+    // serves them from there (caddy, the exception of MODEL-7)
+    fun objectsDirectory(bucket: String): Path = storage.directory(objectsPath(bucket))
+
+    private fun objectsPath(bucket: String): BlobPath = requireBucket(bucket).resolve(DATA)
 
     private fun requireBucket(bucket: String): BlobPath {
         if (!bucket.matches(BUCKET_NAME_REGEX)) throw NoSuchBucketException(bucket)
@@ -365,6 +371,9 @@ class BinaryStorageS3Backend(
 
     companion object {
         private const val DATA = "data"
+
+        // where the buckets are, unless a resolver says otherwise
+        private const val BUCKETS = "buckets"
         private const val META = "meta"
         private const val UPLOADS = "uploads"
         private const val UPLOAD_META = "meta.json"

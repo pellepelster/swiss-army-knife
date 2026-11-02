@@ -52,8 +52,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-api` | What every part of the api shares: the error answer, pagination, health. |
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakctl, the roles. |
 | `sak-config` | The configuration of the backend and how it is read. |
-| `sak-storage` | The binary data on the data volume (`MODEL-7`): the files of the file storage, their thumbnails, the objects of the buckets. |
-| `sak-s3` | The S3 api of the buckets, their objects kept in `sak-storage`. |
+| `sak-storage` | Binary data on disk (`MODEL-7`): blobs at paths, each written at once; it knows nothing of what it keeps. |
+| `sak-s3` | The S3 api of the buckets: where a bucket is on disk, its objects kept as blobs in `sak-storage`. |
 | `sak-ingress` | The configuration model of caddy and the client of its admin api. |
 | `sak-logs` | The access logs and metrics of the sites, read from victorialogs. |
 | `sak-dns` | The check that the domains point to the server, asking name servers directly. |
@@ -112,7 +112,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `MODEL-7` **Binary data only through `FilesystemBinaryStorage`.** All binary data the backend stores (the files of the
   file storage, their thumbnails, the objects of the buckets) is written and read through `FilesystemBinaryStorage`
   (`sak-storage`); no other code writes binary data to disk. The one exception: caddy serves the objects of a bucket
-  read only from their directory on disk, which only `FilesystemBinaryStorage` knows and hands out.
+  read only from their directory on disk, which `sak-s3` hands out (`objectsDirectory`).
 
 ## External systems
 

@@ -8,7 +8,6 @@ import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.storage.FilesystemBinaryStorage
-import io.pelle.sak.storage.BlobPath
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -16,20 +15,8 @@ import java.util.concurrent.TimeUnit
 
 const val S3_PATH_PREFIX = "/s3"
 
-fun bucketPath(bucket: String) = BlobPath(listOf("buckets", bucket))
-
-// the objects of the buckets: the S3 api on the binary storage of s3DataDir, and the directory of
-// the objects of a bucket, which caddy serves (the exception of MODEL-7); the layout is the
-// storage's, nothing here knows it
-class BucketStorage(
-    config: SakConfig,
-) {
-    private val files = FilesystemBinaryStorage(config.s3DataDir)
-
-    val s3 = BinaryStorageS3Backend(files) { bucket -> bucketPath(bucket) }
-
-    fun objectsDir(bucket: String): Path = files.directory(s3.objectsPath(bucket))
-}
+// the buckets on the binary storage of s3DataDir; where a bucket is on disk only sak-s3 knows
+fun bucketStorage(config: SakConfig) = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir))
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)

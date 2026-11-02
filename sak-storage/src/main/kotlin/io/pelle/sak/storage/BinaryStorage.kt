@@ -6,6 +6,7 @@ import io.pelle.sak.storage.model.BlobUsage
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.file.Path
 
 // a blob can not be written where a parent of its path is a blob or where it has children
 class BlobPathConflictException(
@@ -56,6 +57,10 @@ interface BinaryStorage {
     // NoSuchFileException when the blob went since, with a BlobChangedException when another
     // replaced it
     fun content(path: BlobPath): BlobContent?
+
+    // the directory on disk the blobs below the path are in, for a reader that reads them there
+    // itself; it must not write there
+    fun directory(path: BlobPath): Path
 }
 
 // the blob was replaced since its size was taken
