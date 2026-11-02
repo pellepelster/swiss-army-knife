@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { pageHelpers, pageOf } from '../testing/page';
@@ -58,6 +59,8 @@ describe('Grocery', () => {
 
   const { page, button, open, url, rowMenu, deleteFromRow } = pageHelpers(() => harness);
   const input = (id: string) => page().querySelector<HTMLInputElement>(`#${id}`)!;
+  // the entry of the menu of the row of the category, e.g. Move down
+  const menuEntry = async (name: string, entry: string) => button(entry, await rowMenu(name));
   const type = async (id: string, value: string) => {
     input(id).value = value;
     input(id).dispatchEvent(new Event('input'));
@@ -276,10 +279,23 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     const field = (name: string) =>
       page().querySelector<HTMLInputElement>(`input[aria-label="Name of ${name}"]`)!;
-    // the first can not go up, the last not down (UX-8)
-    expect(button('Move Fruit & vegetables up').disabled).toBe(true);
-    expect(button('Move Fruit & vegetables down').disabled).toBe(false);
-    expect(button('Move Dairy & eggs down').disabled).toBe(true);
+    // the first can not go up, the last not down, each says why (UX-8, UX-12)
+    expect((await menuEntry('Fruit & vegetables', 'Move up')).disabled).toBe(true);
+    expect((await menuEntry('Fruit & vegetables', 'Move up')).title).toBe(
+      'The category is the first.',
+    );
+    expect((await menuEntry('Fruit & vegetables', 'Move down')).disabled).toBe(false);
+    expect((await menuEntry('Dairy & eggs', 'Move down')).disabled).toBe(true);
+    expect((await menuEntry('Dairy & eggs', 'Move down')).title).toBe('The category is the last.');
+    // each row has a grip to drag it by, named for a screen reader; no arrows in the row
+    expect(
+      page().querySelector(
+        '[data-testid=category-11] [cdkDragHandle], [data-testid=category-11] .category-handle',
+      )?.textContent,
+    ).toContain('Drag to move Fruit & vegetables');
+    expect(
+      page().querySelector('[data-testid=category-11] .input-group .fa-arrow-down'),
+    ).toBeNull();
 
     // a name left empty is not saved and says why (UX-6), a new one is saved when it is left
     field('Dairy & eggs').value = ' ';
@@ -297,7 +313,7 @@ describe('Grocery', () => {
     rename.flush({ ...categories[1], name: 'Dairy' });
     await harness.fixture.whenStable();
 
-    button('Move Fruit & vegetables down').click();
+    (await menuEntry('Fruit & vegetables', 'Move down')).click();
     const order = http.expectOne({
       method: 'PUT',
       url: '/api/v1/grocery/lists/1/categories/order',
@@ -305,9 +321,9 @@ describe('Grocery', () => {
     expect(order.request.body).toEqual({ ids: [12, 11] });
     order.flush(pageOf([{ ...categories[1], name: 'Dairy' }, categories[0]]));
     await harness.fixture.whenStable();
-    expect(button('Move Dairy up').disabled).toBe(true);
-    // the focus stays on the arrow, at the end on the other one, so a keyboard moves on
-    expect(document.activeElement).toBe(button('Move Fruit & vegetables up'));
+    // the focus goes back to the menu of the moved row, so a keyboard moves it on
+    expect(document.activeElement).toBe(button('Actions of Fruit & vegetables'));
+    expect((await menuEntry('Dairy', 'Move up')).disabled).toBe(true);
 
     // the icon goes from the menu of its row
     button('No icon', await rowMenu('Fruit & vegetables')).click();
@@ -384,7 +400,7 @@ describe('Grocery', () => {
   it('an order or a delete the backend refuses says why and loads the categories again', async () => {
     const frozen = { id: 13, name: 'Frozen', icon: null };
     await settings();
-    button('Move Fruit & vegetables down').click();
+    (await menuEntry('Fruit & vegetables', 'Move down')).click();
     http
       .expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/order' })
       .flush(
@@ -420,8 +436,9 @@ describe('Grocery', () => {
     field.value = 'Dairy';
     field.dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
-    expect(button('Move Fruit & vegetables down').disabled).toBe(false);
-    button('Move Fruit & vegetables down').click();
+    const down = await menuEntry('Fruit & vegetables', 'Move down');
+    expect(down.disabled).toBe(false);
+    down.click();
     http.expectNone({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/order' });
     // the delete of a row waits until the changes are saved (UX-8)
     const menu = await rowMenu('Dairy & eggs');
@@ -450,6 +467,54 @@ describe('Grocery', () => {
     http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/lists/1/categories/12' }).flush(null);
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=category-12]')).toBeNull();
+  });
+
+  it('a category dropped at another place shows there at once and sends the new order', async () => {
+    const frozen = { id: 13, name: 'Frozen', icon: '🧊' };
+    await settings([...categories, frozen]);
+    const list = harness.routeDebugElement!.query(By.css('ul[cdkDropList], ul.cdk-drop-list'));
+    const ids = () =>
+      [...page().querySelectorAll('[data-testid^=category-]')].map((row) =>
+        row.getAttribute('data-testid'),
+      );
+
+    // dropped where it was: nothing
+    list.triggerEventHandler('cdkDropListDropped', { previousIndex: 1, currentIndex: 1 });
+    http.expectNone({ method: 'PUT' });
+
+    // Frozen from the end to the top
+    list.triggerEventHandler('cdkDropListDropped', { previousIndex: 2, currentIndex: 0 });
+    await harness.fixture.whenStable();
+    expect(ids()).toEqual(['category-13', 'category-11', 'category-12']);
+    const order = http.expectOne({
+      method: 'PUT',
+      url: '/api/v1/grocery/lists/1/categories/order',
+    });
+    expect(order.request.body).toEqual({ ids: [13, 11, 12] });
+    order.flush(pageOf([frozen, ...categories]));
+    await harness.fixture.whenStable();
+    expect(ids()).toEqual(['category-13', 'category-11', 'category-12']);
+
+    // a drop while a rename waits: the drop waits too, the rename is kept
+    const field = page().querySelector<HTMLInputElement>('input[aria-label="Name of Frozen"]')!;
+    field.value = 'Ice';
+    field.dispatchEvent(new Event('blur'));
+    list.triggerEventHandler('cdkDropListDropped', { previousIndex: 0, currentIndex: 2 });
+    http.expectNone({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/order' });
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/13' })
+      .flush({ ...frozen, name: 'Ice' });
+    const again = http.expectOne({
+      method: 'PUT',
+      url: '/api/v1/grocery/lists/1/categories/order',
+    });
+    expect(again.request.body).toEqual({ ids: [11, 12, 13] });
+    again.flush(pageOf([...categories, frozen]));
+    await harness.fixture.whenStable();
+    expect(ids()).toEqual(['category-11', 'category-12', 'category-13']);
+    expect(
+      page().querySelector<HTMLInputElement>('input[aria-label="Name of Ice"]'),
+    ).not.toBeNull();
   });
 
   it('a change of the list from elsewhere loads its categories in the settings again (LIST-4)', async () => {

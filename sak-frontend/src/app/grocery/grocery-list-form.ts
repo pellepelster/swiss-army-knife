@@ -12,6 +12,13 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDropList,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { Router, RouterLink } from '@angular/router';
 import {
   catchError,
@@ -40,10 +47,21 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
 // from the frontend itself (/emoji/data.json), not from a cdn. The settings of a list also hold its
 // categories (GROCERY-13): each change of them is saved at once, not with the form, one after the
 // other in the order they were made; a change of the list from elsewhere, or a change refused, loads
-// them again
+// them again. A category is moved by dragging its grip (@angular/cdk/drag-drop), or one place up or
+// down from the menu of its row, which a keyboard reaches
 @Component({
   selector: 'app-grocery-list-form',
-  imports: [ActionMenu, PageHeader, ConfirmDelete, ListIcon, RouterLink, TranslatePipe],
+  imports: [
+    ActionMenu,
+    CdkDrag,
+    CdkDragHandle,
+    CdkDropList,
+    PageHeader,
+    ConfirmDelete,
+    ListIcon,
+    RouterLink,
+    TranslatePipe,
+  ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'd-block container pb-5' },
   template: `
@@ -166,11 +184,31 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
           <p class="alert alert-danger" role="alert">{{ error }}</p>
         }
         @if (categories().length) {
-          <ul class="list-group mb-3" [attr.aria-label]="'grocery.categories.title' | t">
+          <ul
+            class="list-group mb-3"
+            cdkDropList
+            cdkDropListLockAxis="y"
+            [attr.aria-label]="'grocery.categories.title' | t"
+            (cdkDropListDropped)="dropped($event)"
+          >
             @for (category of categories(); track category.id; let first = $first, last = $last) {
-              <li class="list-group-item" [attr.data-testid]="'category-' + category.id">
-                <!-- one group, so the icon, the name and the order have one height -->
+              <li
+                class="list-group-item category-row"
+                cdkDrag
+                [attr.data-testid]="'category-' + category.id"
+              >
+                <!-- one group, so the icon and the name have one height -->
                 <div class="d-flex align-items-start gap-2">
+                  <span
+                    class="category-handle align-self-center text-body-secondary"
+                    cdkDragHandle
+                    [title]="'grocery.categories.drag' | t: { name: category.name }"
+                  >
+                    <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+                    <span class="visually-hidden">{{
+                      'grocery.categories.drag' | t: { name: category.name }
+                    }}</span>
+                  </span>
                   <div class="input-group has-validation flex-grow-1 min-w-0">
                     <button
                       type="button"
@@ -197,28 +235,6 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                       (blur)="rename(category, categoryName)"
                       (keydown.enter)="$event.preventDefault(); categoryName.blur()"
                     />
-                    <button
-                      type="button"
-                      class="btn btn-outline-secondary"
-                      [attr.aria-label]="'grocery.categories.up' | t: { name: category.name }"
-                      [title]="'grocery.categories.up' | t: { name: category.name }"
-                      [attr.data-move]="'up-' + category.id"
-                      [disabled]="first"
-                      (click)="move(category.id, -1)"
-                    >
-                      <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-outline-secondary"
-                      [attr.aria-label]="'grocery.categories.down' | t: { name: category.name }"
-                      [title]="'grocery.categories.down' | t: { name: category.name }"
-                      [attr.data-move]="'down-' + category.id"
-                      [disabled]="last"
-                      (click)="move(category.id, 1)"
-                    >
-                      <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
-                    </button>
                     @if (unnamed().has(category.id)) {
                       <div class="invalid-feedback">
                         {{ 'grocery.categories.name_required' | t }}
@@ -231,6 +247,28 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                     [deleteDisabled]="busy() ? ('grocery.categories.saving' | t) : null"
                     (deleted)="deleteCategory(category)"
                   >
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      role="menuitem"
+                      [disabled]="first"
+                      [title]="first ? ('grocery.categories.first' | t) : ''"
+                      (click)="move(category.id, -1)"
+                    >
+                      <i class="fa-solid fa-arrow-up me-2" aria-hidden="true"></i
+                      >{{ 'grocery.categories.move_up' | t }}
+                    </button>
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      role="menuitem"
+                      [disabled]="last"
+                      [title]="last ? ('grocery.categories.last' | t) : ''"
+                      (click)="move(category.id, 1)"
+                    >
+                      <i class="fa-solid fa-arrow-down me-2" aria-hidden="true"></i
+                      >{{ 'grocery.categories.move_down' | t }}
+                    </button>
                     <button
                       type="button"
                       class="dropdown-item"
@@ -445,8 +483,8 @@ export class GroceryListForm implements OnInit {
     this.saveCategory(category.id, { icon });
   }
 
-  // the category one place up (-1) or down (1) of where it is when its turn comes; the focus stays
-  // on the arrow clicked, or goes to the other one at an end (keyboard users move it on)
+  // the category one place up (-1) or down (1) of where it is when its turn comes, from the menu of
+  // its row; the focus goes back to that menu, so a keyboard moves it on
   protected move(id: number, by: -1 | 1): void {
     this.change(
       (listId) => {
@@ -459,8 +497,31 @@ export class GroceryListForm implements OnInit {
       },
       (ordered) => {
         this.categories.set(this.inOrderOf(ordered));
-        this.focusArrow(id, by);
+        this.focusMenu(id);
       },
+      'grocery.categories.not_ordered',
+    );
+  }
+
+  // a category dropped at another place: the page shows it there at once; when its turn comes, it
+  // goes to that place among the categories as they are then, so a change before it is kept
+  protected dropped(event: Pick<CdkDragDrop<unknown>, 'previousIndex' | 'currentIndex'>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const id = this.categories()[event.previousIndex]?.id;
+    if (id === undefined) return;
+    const moved = [...this.categories()];
+    moveItemInArray(moved, event.previousIndex, event.currentIndex);
+    this.categories.set(moved);
+    this.change(
+      (listId) => {
+        const ids = this.categories()
+          .map((category) => category.id)
+          .filter((each) => each !== id);
+        if (ids.length === this.categories().length) return EMPTY;
+        ids.splice(Math.min(event.currentIndex, ids.length), 0, id);
+        return this.service.orderCategories(listId, ids);
+      },
+      (ordered) => this.categories.set(this.inOrderOf(ordered)),
       'grocery.categories.not_ordered',
     );
   }
@@ -579,18 +640,15 @@ export class GroceryListForm implements OnInit {
     return this.categories().find((category) => category.id === id);
   }
 
-  private focusArrow(id: number, by: -1 | 1): void {
+  // the ⋮ of the row of the category
+  private focusMenu(id: number): void {
     afterNextRender(
-      () => {
-        const element = this.host.nativeElement as HTMLElement;
-        const same = element.querySelector<HTMLButtonElement>(
-          `[data-move="${by < 0 ? 'up' : 'down'}-${id}"]`,
-        );
-        const other = element.querySelector<HTMLButtonElement>(
-          `[data-move="${by < 0 ? 'down' : 'up'}-${id}"]`,
-        );
-        (same && !same.disabled ? same : other)?.focus();
-      },
+      () =>
+        (this.host.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>(
+            `[data-testid="category-${id}"] app-action-menu button[aria-haspopup]`,
+          )
+          ?.focus(),
       { injector: this.injector },
     );
   }

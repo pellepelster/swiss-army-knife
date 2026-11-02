@@ -108,6 +108,7 @@
     <string name="grocery_category_not_deleted">The category could not be deleted.</string>
     <string name="grocery_category_not_set">The category of the item could not be set.</string>
     <string name="grocery_category_menu">Menu of %1$s</string>
+    <string name="grocery_category_drag">Drag to move %1$s</string>
     <string name="grocery_categories_retry">Load again</string>
     <string name="grocery_back_to_list">Back to the list</string>
     <plurals name="grocery_to_buy">

@@ -693,18 +693,34 @@ class GroceryModel(
         settings(id) { it.copy(categories = it.categories.map { each -> if (each.id == categoryId) updated else each }) }
     }
 
-    // a category one place up or down from where it is when the change is sent, the ends stay
+    // a category one place up or down, from the menu of its row or an action of a screen reader; the
+    // ends stay
     fun moveCategory(
         categoryId: Int,
         up: Boolean,
-    ) = categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
-        val ids = (state.value as? Screen.Lists)?.settings?.takeIf { it.id == id }?.categories?.map { it.id }?.toMutableList() ?: return@categoriesRequest
-        val from = ids.indexOf(categoryId)
-        val to = if (up) from - 1 else from + 1
-        if (from < 0 || to !in ids.indices) return@categoriesRequest
-        ids[from] = ids[to].also { ids[to] = ids[from] }
-        val ordered = api.orderCategories(id, ids)
-        settings(id) { it.copy(categories = ordered) }
+    ) {
+        val categories = (state.value as? Screen.Lists)?.settings?.categories ?: return
+        val from = categories.indexOfFirst { it.id == categoryId }
+        moveCategory(categoryId, if (up) from - 1 else from + 1)
+    }
+
+    // a category dragged to the place to (GROCERY-13): the settings show the new order at once, the
+    // order of all categories goes after the changes made before it (GC-4); a refused one loads them
+    // again. Nothing for a place out of the list or the one it has
+    fun moveCategory(
+        categoryId: Int,
+        to: Int,
+    ) {
+        val id = (state.value as? Screen.Lists)?.settings?.id ?: return
+        val categories = (state.value as? Screen.Lists)?.settings?.categories ?: return
+        val from = categories.indexOfFirst { it.id == categoryId }
+        if (from < 0 || to !in categories.indices || to == from) return
+        settings(id) { it.copy(categories = it.categories.toMutableList().apply { add(to, removeAt(from)) }) }
+        categoriesRequest(R.string.grocery_category_not_saved) { api, listId ->
+            // the order as it is when its turn comes, later moves are in it
+            val ids = (state.value as? Screen.Lists)?.settings?.takeIf { it.id == listId }?.categories?.map { it.id } ?: return@categoriesRequest
+            api.orderCategories(listId, ids)
+        }
     }
 
     // a category of the list of the settings, after the user confirmed it (UX-4.1); its items lose it

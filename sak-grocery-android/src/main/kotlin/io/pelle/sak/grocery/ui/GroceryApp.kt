@@ -15,6 +15,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,9 +34,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import io.pelle.sak.grocery.Renaming
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -51,6 +49,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +70,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -81,22 +82,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -108,6 +117,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import androidx.core.content.FileProvider
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,6 +125,7 @@ import io.pelle.sak.grocery.AppUpdate
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
+import io.pelle.sak.grocery.Renaming
 import io.pelle.sak.grocery.Screen
 import io.pelle.sak.grocery.UNDO_MS
 import io.pelle.sak.grocery.UiText
@@ -704,8 +715,9 @@ private fun SettingsForm(
 
 // the categories of a list of the user's own in the order of the groups of its items (GROCERY-13),
 // each change saved at once, one after the other: the icon, the name when its field is left or done,
-// one place up or down (the ends disabled, UX-8), a delete from the menu of its row after a
-// confirmation (UX-12); a name typed below adds one as the last. Their errors show here; categories
+// the place by dragging a row at its handle (or one place up or down from its menu, the ends
+// disabled, UX-8), a delete from the menu of its row after a confirmation (UX-12); a name typed below
+// adds one as the last. Their errors show here; categories
 // that could not be loaded show no rows, but why and a way to load them again
 @Composable
 private fun Categories(
@@ -729,7 +741,20 @@ private fun Categories(
         return
     }
     if (settings.categories.isEmpty()) Text(stringResource(R.string.grocery_no_categories))
-    settings.categories.forEachIndexed { index, category ->
+    val drag = remember { CategoryDrag() }
+    val categories = settings.categories
+    val target = drag.target(categories)
+    val from = categories.indexOfFirst { it.id == drag.id }
+    categories.forEachIndexed { index, category ->
+        // the rows the dragged one passed make room for it, the dragged one follows the finger
+        val shift =
+            when {
+                category.id == drag.id -> drag.offset
+                from < 0 -> 0f
+                index in (from + 1)..target -> -(drag.heights[drag.id] ?: 0).toFloat()
+                index in target until from -> (drag.heights[drag.id] ?: 0).toFloat()
+                else -> 0f
+            }
         // the state of a row stays with its category when the rows move (GC-1)
         key(category.id) {
             CategoryRow(
@@ -737,7 +762,14 @@ private fun Categories(
                 name = settings.drafts[category.id] ?: category.name,
                 invalid = category.id in settings.invalidNames,
                 first = index == 0,
-                last = index == settings.categories.lastIndex,
+                last = index == categories.lastIndex,
+                dragged = category.id == drag.id,
+                shift = shift,
+                onDragStart = { drag.start(category.id) },
+                onDrag = { drag.offset += it },
+                onDragEnd = { drag.end(categories)?.let { to -> model.moveCategory(category.id, to) } },
+                onDragCancel = drag::cancel,
+                onSize = { drag.heights[category.id] = it },
                 model = model,
             )
         }
@@ -762,9 +794,60 @@ private fun Categories(
     }
 }
 
-// a category in the settings: its icon, a tap chooses another; its name, kept by the model while it is
-// typed, checked and saved when its field is left or done (UX-6); up, down and its menu with the
-// delete. A change made while another one is sent waits for it
+// the drag of a category by its handle: which one, how far from its place, and the heights of the
+// rows, which tell where it passed the middle of another one
+private class CategoryDrag {
+    var id by mutableStateOf<Int?>(null)
+    var offset by mutableFloatStateOf(0f)
+    val heights = mutableStateMapOf<Int, Int>()
+
+    fun start(categoryId: Int) {
+        id = categoryId
+        offset = 0f
+    }
+
+    // the place the dragged category goes to: past every row whose middle it passed
+    fun target(categories: List<GroceryCategoryResponse>): Int {
+        val from = categories.indexOfFirst { it.id == id }
+        if (from < 0) return -1
+        var to = from
+        var passed = 0f
+        if (offset > 0) {
+            while (to < categories.lastIndex) {
+                val next = (heights[categories[to + 1].id] ?: 0).toFloat()
+                if (offset < passed + next / 2) break
+                passed += next
+                to++
+            }
+        } else {
+            while (to > 0) {
+                val previous = (heights[categories[to - 1].id] ?: 0).toFloat()
+                if (-offset < passed + previous / 2) break
+                passed += previous
+                to--
+            }
+        }
+        return to
+    }
+
+    // the place it was dropped at, null when it stays
+    fun end(categories: List<GroceryCategoryResponse>): Int? {
+        val from = categories.indexOfFirst { it.id == id }
+        val to = target(categories)
+        cancel()
+        return to.takeIf { from >= 0 && it != from }
+    }
+
+    fun cancel() {
+        id = null
+        offset = 0f
+    }
+}
+
+// a category in the settings: the handle it is dragged by after a long press, which a scroll does not
+// start; its icon, a tap chooses another; its name, kept by the model while it is typed, checked and
+// saved when its field is left or done (UX-6); its menu with up, down and the delete. A screen reader
+// moves it with the actions up and down. A change made while another one is sent waits for it
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryRow(
@@ -773,13 +856,63 @@ private fun CategoryRow(
     invalid: Boolean,
     first: Boolean,
     last: Boolean,
+    dragged: Boolean,
+    shift: Float,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onSize: (Int) -> Unit,
     model: GroceryModel,
 ) {
     var focused by remember { mutableStateOf(false) }
     var picking by rememberSaveable { mutableStateOf(false) }
     var menu by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("category-${category.id}")) {
+    val up = stringResource(R.string.grocery_category_up)
+    val down = stringResource(R.string.grocery_category_down)
+    val haptics = LocalHapticFeedback.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .onSizeChanged { onSize(it.height) }
+                .zIndex(if (dragged) 1f else 0f)
+                .graphicsLayer {
+                    translationY = shift
+                    shadowElevation = if (dragged) 8.dp.toPx() else 0f
+                }.background(if (dragged) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent)
+                .semantics {
+                    customActions =
+                        listOfNotNull(
+                            CustomAccessibilityAction(up) { model.moveCategory(category.id, up = true).let { true } }.takeIf { !first },
+                            CustomAccessibilityAction(down) { model.moveCategory(category.id, up = false).let { true } }.takeIf { !last },
+                        )
+                }.testTag("category-${category.id}"),
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_grip_vertical),
+            contentDescription = stringResource(R.string.grocery_category_drag, category.name),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .padding(12.dp)
+                    .pointerInput(category.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onDragStart()
+                            },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                onDrag(amount.y)
+                            },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                        )
+                    }.testTag("category-handle-${category.id}"),
+        )
         val iconLabel = stringResource(R.string.grocery_category_icon, category.name)
         Box(
             Modifier
@@ -807,18 +940,6 @@ private fun CategoryRow(
                         focused = it.isFocused
                     }.testTag("category-name-${category.id}"),
         )
-        val up = stringResource(R.string.grocery_category_up)
-        val down = stringResource(R.string.grocery_category_down)
-        IconButton(
-            onClick = { model.moveCategory(category.id, up = true) },
-            enabled = !first,
-            modifier = Modifier.semantics { contentDescription = up }.testTag("category-up-${category.id}"),
-        ) { Text("↑", style = MaterialTheme.typography.titleLarge) }
-        IconButton(
-            onClick = { model.moveCategory(category.id, up = false) },
-            enabled = !last,
-            modifier = Modifier.semantics { contentDescription = down }.testTag("category-down-${category.id}"),
-        ) { Text("↓", style = MaterialTheme.typography.titleLarge) }
         Box {
             val menuLabel = stringResource(R.string.grocery_category_menu, category.name)
             IconButton(
@@ -842,6 +963,24 @@ private fun CategoryRow(
                         model.setCategoryIcon(category.id, null)
                     },
                     enabled = category.icon != null,
+                )
+                DropdownMenuItem(
+                    text = { Text(up) },
+                    onClick = {
+                        menu = false
+                        model.moveCategory(category.id, up = true)
+                    },
+                    enabled = !first,
+                    modifier = Modifier.testTag("category-up-${category.id}"),
+                )
+                DropdownMenuItem(
+                    text = { Text(down) },
+                    onClick = {
+                        menu = false
+                        model.moveCategory(category.id, up = false)
+                    },
+                    enabled = !last,
+                    modifier = Modifier.testTag("category-down-${category.id}"),
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.shared_delete)) },

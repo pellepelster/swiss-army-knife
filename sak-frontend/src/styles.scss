@@ -379,6 +379,34 @@ a {
   width: 3rem;
 }
 
+// the grip a category of a list is dragged by (grocery-list-form.ts, @angular/cdk/drag-drop)
+.category-handle {
+  cursor: grab;
+  padding: 0 0.25rem;
+  touch-action: none;
+}
+
+// the row while it is dragged: it follows the pointer above the page, like the row it is
+.category-row.cdk-drag-preview {
+  box-sizing: border-box;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: var(--bs-box-shadow);
+  list-style: none;
+  cursor: grabbing;
+}
+
+// where the dragged row goes: its place, its height kept
+.category-row.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drop-list-dragging .category-row:not(.cdk-drag-placeholder) {
+  transition: transform 150ms ease;
+}
+
 // a flex child that may shrink below its content, e.g. a long name next to a photo and a menu
 .min-w-0 {
   min-width: 0;

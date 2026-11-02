@@ -1000,6 +1000,49 @@ class GroceryModelTest {
         }
 
     @Test
+    fun `a category dragged to another place shows there at once and the order of all of them is sent once (GROCERY-13)`() =
+        runTest {
+            backend.answers["GET /grocery/lists/1/categories"] =
+                HttpStatusCode.OK to page(category(1, "Fruit", null), category(2, "Bakery", null), category(3, "Dairy", null), category(4, "Drinks", null))
+            backend.answers["PUT /grocery/lists/1/categories/order"] =
+                HttpStatusCode.OK to page(category(2, "Bakery", null), category(3, "Dairy", null), category(1, "Fruit", null), category(4, "Drinks", null))
+            val model = signedIn()
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as Screen.Lists).settings!!
+            model.openSettings(1)
+            advanceUntilIdle()
+
+            // dropped two places further down: shown before the answer, one request with every id
+            model.moveCategory(1, to = 2)
+            assertEquals(listOf(2, 3, 1, 4), settings().categories.map { it.id })
+            assertEquals(1, settings().categoriesPending)
+            advanceUntilIdle()
+            assertEquals(
+                listOf("""PUT /grocery/lists/1/categories/order {"ids":[2,3,1,4]}"""),
+                backend.requests.filter { it.startsWith("PUT") },
+            )
+            assertEquals(listOf(2, 3, 1, 4), settings().categories.map { it.id })
+
+            // dropped where it is, or past the ends: nothing; up and down from the menu stop at the ends
+            model.moveCategory(1, to = 2)
+            model.moveCategory(1, to = 7)
+            model.moveCategory(2, up = true)
+            model.moveCategory(4, up = false)
+            advanceUntilIdle()
+            assertEquals(1, backend.requests.count { it.startsWith("PUT") })
+
+            // two drops before the first answer: the second request has both
+            model.moveCategory(4, to = 0)
+            model.moveCategory(3, up = false)
+            assertEquals(listOf(4, 2, 1, 3), settings().categories.map { it.id })
+            advanceUntilIdle()
+            assertEquals(
+                """PUT /grocery/lists/1/categories/order {"ids":[4,2,1,3]}""",
+                backend.requests.filter { it.startsWith("PUT") }.last(),
+            )
+        }
+
+    @Test
     fun `changes of the categories made while one is sent wait for it and are all sent, in their order`() =
         runTest {
             backend.answers["PUT /grocery/lists/1/categories/order"] =
