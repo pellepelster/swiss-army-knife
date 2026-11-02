@@ -74,7 +74,7 @@ class BinaryStorageS3Backend(
         val info = headObject(bucket, key) ?: return null
         val dataPath = dataPath(requireBucket(bucket), key)
         return StoredObject(info) { offset, length ->
-            storage.openRange(dataPath, offset, length) ?: throw NoSuchElementException("object '$key' vanished")
+            storage.openRange(dataPath, offset, length, info.size) ?: throw NoSuchElementException("object '$key' vanished")
         }
     }
 

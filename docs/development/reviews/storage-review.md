@@ -19,7 +19,9 @@ goes while it is read is "none", not an error, in `open`, `stat` and `usage`.
 
 ## Must fix
 
-### `SR-1` Deletes in one directory at the same time fail
+### ~~`SR-1` Deletes in one directory at the same time fail~~
+
+**Fixed:** `pruneEmptyParents` stops when another prune removed the directory first; a test deletes the last blobs of a directory on 8 threads at once.
 
 Reproduced: 8 threads that delete the 8 blobs of one directory at the same time; 40 of 2400 deletes threw, although
 their blob was gone. `pruneEmptyParents` checks that the directory exists and then lists it; when another delete
@@ -32,7 +34,9 @@ delete of an object the same way when a client deletes objects in parallel (e.g.
 Fix: in `pruneEmptyParents`, a `NoSuchFileException` of `Files.list` or of the delete means the directory went; stop
 there. A test with concurrent deletes in one directory.
 
-### `SR-2` A listing fails while blobs are deleted
+### ~~`SR-2` A listing fails while blobs are deleted~~
+
+**Fixed:** `list`, `usage` and `deleteTree` walk with one `walk` that leaves out what goes while it is walked; a test lists and counts while the blobs and their directories go.
 
 Reproduced: `list` while another thread deletes the blobs below the prefix; 39 listings failed. `Files.walk` throws
 an `UncheckedIOException` (`NoSuchFileException`) for a directory that goes while it is walked. `deleteTree` walks the
@@ -42,7 +46,9 @@ Fix: walk with `Files.walkFileTree` and a `visitFileFailed` that skips a `NoSuch
 
 ## Should fix
 
-### `SR-3` The size of a content can differ from what it reads
+### ~~`SR-3` The size of a content can differ from what it reads~~
+
+**Fixed:** `openRange` takes the size the reader expects and throws `BlobChangedException` when the file opened has another; `content()` (now part of `BinaryStorage`) and the reads of the S3 api pass it.
 
 Reproduced: `content(path)` of a blob of 3 bytes, the blob replaced by one of 6 bytes, then `open()` reads 6 bytes
 while `size` says 3. `stat` and `open` are two steps. A response sends `size` as its `Content-Length`
@@ -52,7 +58,9 @@ path, but the objects of a bucket do on every put, and the S3 api also reads wit
 Fix: open first and take the size from the open file (`FileChannel.size()`), so size and content are of the same
 file; `BlobContent` keeps that or opens and checks again.
 
-### `SR-4` A failed write leaves its parent directory, which blocks a blob of that name
+### ~~`SR-4` A failed write leaves its parent directory, which blocks a blob of that name~~
+
+**Fixed:** `write` creates the parent only after the content is staged.
 
 Reproduced: a write of `a/b` that fails while it writes leaves the empty directory `a`; a later write of the blob `a`
 fails with `BlobPathConflictException`, although there is no blob. `write` creates the parent before it stages the
@@ -61,7 +69,9 @@ content and does not remove it on a failure.
 Fix: create the parent only after the content is staged, right before the move, or prune the parent when the write
 fails.
 
-### `SR-5` What a crash leaves staged is never removed
+### ~~`SR-5` What a crash leaves staged is never removed~~
+
+**Fixed:** a new `FilesystemBinaryStorage` removes the staged files older than `staleAfter` (1 hour).
 
 Reproduced: a file in `.tmp` stays after a new `FilesystemBinaryStorage` on the same root. A backend that stops while
 it writes (an upload, a put of S3, a restart during a deploy) leaves the staged file for good; the disk fills slowly
@@ -69,7 +79,9 @@ and nothing counts it.
 
 Fix: on construction, delete the staged files older than some minutes (a write that runs is younger).
 
-### `SR-6` The tests of the module are few
+### ~~`SR-6` The tests of the module are few~~
+
+**Fixed:** `FilesystemBinaryStorageTest` (16 tests) and `BlobPathTest` (3 tests) test every case listed, the concurrent ones included.
 
 `FilesystemBinaryStorageTest` has 4 tests (write, move, a conflict of move, content). The S3 tests cover some more
 through `BinaryStorageS3Backend` (overwrite, nested keys, conflicts of keys, traversal, listing). Not tested

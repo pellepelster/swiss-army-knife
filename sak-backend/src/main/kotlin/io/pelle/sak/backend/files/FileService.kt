@@ -7,7 +7,6 @@ import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobContent
 import io.pelle.sak.storage.BlobPath
 import io.pelle.sak.storage.FilesystemBinaryStorage
-import io.pelle.sak.storage.content
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.RoundRectangle2D
