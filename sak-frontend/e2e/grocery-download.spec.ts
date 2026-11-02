@@ -7,6 +7,6 @@ test('the download of the grocery app needs no sign-in', async ({ page }) => {
   await expect(page).toHaveURL('/grocery/download/app');
   await expect(page.getByRole('heading', { name: 'The grocery app for Android' })).toBeVisible();
   await expect(
-    page.getByText('This deployment runs no release, there is no app to download.'),
+    page.getByText('This SAK instance runs no release, there is no app to download.'),
   ).toBeVisible();
 });

@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   afterNextRender,
   Component,
@@ -41,8 +42,10 @@ import { PageHeader } from '../shared/page-header';
 import { ActionMenu } from '../shared/action-menu';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 
-// creates a grocery list, or changes the settings of one of the user (its name, whether it is
-// shared, its icon) and deletes it, on a page of its own. Afterwards the list shows. The icon is one
+// creates a grocery list, or changes the settings of a list the user sees (its name, whether it is
+// shared, its icon) and deletes it, on a page of its own; on a shared list of another user every
+// user changes the name, the icon and the categories, only the owner shares, unshares and deletes it
+// (LIST-2). Afterwards the list shows. The icon is one
 // emoji, chosen in the picker of emoji-picker-element, loaded when it is opened; its data comes
 // from the frontend itself (/emoji/data.json), not from a cdn. The settings of a list also hold its
 // categories (GROCERY-13): each change of them is saved at once, not with the form, one after the
@@ -128,10 +131,18 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
             type="checkbox"
             role="switch"
             [checked]="shared()"
+            [disabled]="!owner()"
+            [title]="owner() ? '' : ('grocery.only_owner_shares' | t)"
             (change)="shared.set(sharedInput.checked)"
           />
           <label class="form-check-label" for="list-shared">{{ 'grocery.form.shared' | t }}</label>
-          <div class="form-text">{{ 'grocery.form.shared_hint' | t }}</div>
+          <div class="form-text" data-testid="shared-hint">
+            @if (owner()) {
+              {{ 'grocery.form.shared_hint' | t }}
+            } @else {
+              {{ 'grocery.only_owner_shares' | t }} {{ 'grocery.only_owner_deletes' | t }}
+            }
+          </div>
         </div>
 
         <!-- one group of the actions; a delete asks inline in its place (UX-9) -->
@@ -148,7 +159,8 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                 <button
                   type="button"
                   class="btn btn-outline-danger"
-                  [disabled]="last()"
+                  [disabled]="last() || !owner()"
+                  [title]="owner() ? '' : ('grocery.only_owner_deletes' | t)"
                   (click)="confirming.set(true)"
                 >
                   {{ 'grocery.form.delete_list' | t }}
@@ -351,6 +363,8 @@ export class GroceryListForm implements OnInit {
   protected readonly confirming = signal(false);
   // the only list of the user's own, which can not be deleted (LIST-1)
   protected readonly last = signal(false);
+  // the user owns the list, or creates one: only then they share, unshare and delete it (LIST-2)
+  protected readonly owner = computed(() => this.list()?.mine ?? true);
   protected readonly error = signal<string | null>(null);
 
   // the categories of the list, in their order (GROCERY-13)
@@ -399,13 +413,13 @@ export class GroceryListForm implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (lists) => {
-          const list = lists.find((each) => String(each.id) === id && each.mine);
+          const list = lists.find((each) => String(each.id) === id);
           if (!list) {
             this.error.set(this.i18n.t('grocery.form.no_such_list'));
             return;
           }
           this.list.set(list);
-          this.last.set(lists.filter((each) => each.mine).length === 1);
+          this.last.set(list.mine && lists.filter((each) => each.mine).length === 1);
           this.name.set(list.name);
           this.shared.set(list.shared);
           this.icon.set(list.icon ?? null);
@@ -430,7 +444,12 @@ export class GroceryListForm implements OnInit {
         void this.router.navigate(id === undefined ? ['/grocery/lists', list.id] : this.back()),
       error: (error: unknown) => {
         this.saving.set(false);
-        this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_saved')));
+        // the owner unshared or deleted it while the settings were open
+        this.error.set(
+          error instanceof HttpErrorResponse && error.status === 404
+            ? this.i18n.t('grocery.list_gone')
+            : apiErrorMessage(error, this.i18n.t('grocery.form.not_saved')),
+        );
       },
     });
   }

@@ -101,6 +101,8 @@ private suspend fun ApplicationCall.respondList(result: GroceryListResult) =
         is GroceryListResult.Invalid -> respondErrors(result.errors)
         GroceryListResult.NotFound -> respond(HttpStatusCode.NotFound)
         GroceryListResult.Exists -> respondErrors(GroceryTexts.LIST_EXISTS, status = HttpStatusCode.Conflict)
+        GroceryListResult.NotOwner -> respondErrors(GroceryTexts.ONLY_OWNER_SHARES, status = HttpStatusCode.Forbidden)
+        GroceryListResult.OwnerExists -> respondErrors(GroceryTexts.OWNER_LIST_EXISTS, status = HttpStatusCode.Conflict)
     }
 
 private suspend fun ApplicationCall.respondItem(
@@ -177,7 +179,9 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Rename or share a grocery list"
-            description = "Only its owner changes a list."
+            description =
+                "Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its " +
+                "owner shares or unshares it."
             parameters { listId() }
             requestBody {
                 required = true
@@ -189,8 +193,9 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryListResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or a malformed request")
-                HttpStatusCode.NotFound { description = "The user has no such list" }
-                errors(HttpStatusCode.Conflict, "Another list of the user has the name")
+                errors(HttpStatusCode.Forbidden, "The user is not the owner and would share or unshare the list")
+                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.Conflict, "Another list of the owner has the name, also when another user renames a shared list")
             }
         }
 
@@ -311,7 +316,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Add a category to a grocery list"
-            description = "The last one; only the owner of the list (GROCERY-13), at most ${GroceryService.MAX_CATEGORIES}."
+            description = "The last one; every user who sees the list (GROCERY-13), at most ${GroceryService.MAX_CATEGORIES}."
             parameters { listId() }
             requestBody {
                 required = true
@@ -324,7 +329,7 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or icon, too many categories, or a malformed request")
                 errors(HttpStatusCode.Conflict, "The list has a category of the name")
-                HttpStatusCode.NotFound { description = "The user owns no such list" }
+                HttpStatusCode.NotFound { description = "The user sees no such list" }
             }
         }
 
@@ -343,7 +348,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Order the categories of a grocery list"
-            description = "The ids of all categories of the list, each once, in their new order; only the owner of the list (GROCERY-13)."
+            description = "The ids of all categories of the list, each once, in their new order; every user who sees the list (GROCERY-13)."
             parameters { listId() }
             requestBody {
                 required = true
@@ -355,7 +360,7 @@ fun Route.grocery(
                     schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "Ids that are not the categories of the list, each once, or a malformed request")
-                HttpStatusCode.NotFound { description = "The user owns no such list" }
+                HttpStatusCode.NotFound { description = "The user sees no such list" }
             }
         }
 
@@ -367,7 +372,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Change a category of a grocery list"
-            description = "Its name and its icon; only the owner of the list (GROCERY-13)."
+            description = "Its name and its icon; every user who sees the list (GROCERY-13)."
             parameters {
                 listId()
                 categoryId()
@@ -383,7 +388,7 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or icon, or a malformed request")
                 errors(HttpStatusCode.Conflict, "The list has another category of the name")
-                HttpStatusCode.NotFound { description = "The user owns no such list, or it has no such category" }
+                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such category" }
             }
         }
 
@@ -395,14 +400,14 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a category of a grocery list"
-            description = "Its items and the suggestions of the list lose it; only the owner of the list (GROCERY-13)."
+            description = "Its items and the suggestions of the list lose it; every user who sees the list (GROCERY-13)."
             parameters {
                 listId()
                 categoryId()
             }
             responses {
                 HttpStatusCode.NoContent { description = "The category is gone" }
-                HttpStatusCode.NotFound { description = "The user owns no such list, or it has no such category" }
+                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such category" }
             }
         }
 

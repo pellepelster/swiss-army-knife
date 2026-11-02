@@ -68,7 +68,7 @@ sealed interface GroceryCategoryResult {
         val errors: List<ErrorMessage>,
     ) : GroceryCategoryResult
 
-    // the user owns no such list, or it has no such category
+    // the user sees no such list, or it has no such category
     data object NotFound : GroceryCategoryResult
 
     // the list has a category of the name
@@ -84,7 +84,7 @@ sealed interface GroceryCategoriesResult {
         val errors: List<ErrorMessage>,
     ) : GroceryCategoriesResult
 
-    // the user owns no such list
+    // the user sees no such list
     data object NotFound : GroceryCategoriesResult
 }
 
@@ -100,6 +100,12 @@ sealed interface GroceryListResult {
     data object NotFound : GroceryListResult
 
     data object Exists : GroceryListResult
+
+    // only the owner shares or unshares a list (LIST-2)
+    data object NotOwner : GroceryListResult
+
+    // another user renames a shared list to a name the owner has for another list
+    data object OwnerExists : GroceryListResult
 }
 
 sealed interface GroceryItemResult {
@@ -167,6 +173,8 @@ class GroceryService(
             is GroceryListUpdate.Updated -> GroceryListResult.Saved(changed(update.list))
             GroceryListUpdate.NotFound -> GroceryListResult.NotFound
             GroceryListUpdate.NameTaken -> GroceryListResult.Exists
+            GroceryListUpdate.NotOwner -> GroceryListResult.NotOwner
+            GroceryListUpdate.OwnerNameTaken -> GroceryListResult.OwnerExists
         }
     }
 
@@ -239,7 +247,7 @@ class GroceryService(
         listId: Int,
     ): List<GroceryCategory>? = repository.categories(user, listId)
 
-    // the last category of a list of the user's own
+    // the last category of a list the user sees (LIST-2)
     fun createCategory(
         user: String,
         listId: Int,
@@ -261,7 +269,7 @@ class GroceryService(
         return categoryResult(listId, repository.updateCategory(user, listId, id, values))
     }
 
-    // its items and the suggestions of the list lose it; false when the user owns no such list or it
+    // its items and the suggestions of the list lose it; false when the user sees no such list or it
     // has no such category
     fun deleteCategory(
         user: String,
@@ -269,7 +277,7 @@ class GroceryService(
         id: Int,
     ): Boolean = repository.deleteCategory(user, listId, id).also { if (it) changes.changed(listId) }
 
-    // the ids are all categories of a list of the user's own, each once, in their new order
+    // the ids are all categories of a list the user sees, each once, in their new order
     fun orderCategories(
         user: String,
         listId: Int,
@@ -506,5 +514,7 @@ object GroceryTexts : Catalog("grocery") {
     val TOO_MANY_CATEGORIES = text("too_many_categories")
     val INVALID_CATEGORY_ORDER = text("invalid_category_order")
     val LIST_EXISTS = text("list_exists")
+    val ONLY_OWNER_SHARES = text("only_owner_shares")
+    val OWNER_LIST_EXISTS = text("owner_list_exists")
     val LAST_LIST = text("last_list")
 }

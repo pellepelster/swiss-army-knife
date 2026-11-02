@@ -57,6 +57,7 @@ describe('Home', () => {
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', '/users'],
+      ['Android apps', '/downloads'],
     ]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();
@@ -133,7 +134,14 @@ describe('Home', () => {
       ['Static hosting', null],
       ['Redirects', null],
     ]);
-    expect(tiles(page, 'Maintenance').map(([, href]) => href)).toEqual([null, null, null, null]);
+    // the android apps are for every user
+    expect(tiles(page, 'Maintenance').map(([, href]) => href)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      '/downloads',
+    ]);
     expect(
       page.querySelector('nav[aria-label="Maintenance"] [aria-disabled]')?.getAttribute('title'),
     ).toBe('Only for an admin');
@@ -159,6 +167,7 @@ describe('Home', () => {
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', null],
+      ['Android apps', '/downloads'],
     ]);
   });
 });

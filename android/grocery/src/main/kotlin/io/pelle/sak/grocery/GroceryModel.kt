@@ -324,13 +324,14 @@ class GroceryModel(
         if (lists.open == null) state.value = lists.copy(settings = ListSettings())
     }
 
-    // the settings of a list of the user's own, from its menu on the home or from the list itself;
-    // back and save return there, a deleted list leads to the home
+    // the settings of a list the user sees, their own or a shared one of another user (LIST-2), from
+    // its menu on the home or from the list itself; back and save return there, a deleted list leads
+    // to the home
     fun openSettings(id: Int) {
         val lists = state.value as? ListsScreen ?: return
-        val list = lists.lists.firstOrNull { it.id == id && it.mine } ?: return
-        val last = lists.lists.count { it.mine } == 1
-        state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, last))
+        val list = lists.lists.firstOrNull { it.id == id } ?: return
+        val last = list.mine && lists.lists.count { it.mine } == 1
+        state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, last, mine = list.mine))
         loadCategories(id)
     }
 
@@ -528,7 +529,8 @@ class GroceryModel(
     ) {
         val lists = state.value as? ListsScreen ?: return
         val settings = lists.settings ?: return
-        state.value = lists.copy(settings = settings.copy(name = name, shared = shared, icon = icon))
+        // only the owner shares or unshares a list
+        state.value = lists.copy(settings = settings.copy(name = name, shared = if (settings.mine) shared else settings.shared, icon = icon))
     }
 
     // a new list is created and opens, a changed one shows on the home; a failure, e.g. a list of the
@@ -546,7 +548,15 @@ class GroceryModel(
                 (state.value as? ListsScreen)?.let { state.value = it.copy(lists = it.lists + created, settings = null) }
                 show(created.id)
             } else {
-                api.updateList(settings.id, name, settings.shared, settings.icon)
+                try {
+                    api.updateList(settings.id, name, settings.shared, settings.icon)
+                } catch (e: ApiException) {
+                    // the owner unshared or deleted it while the settings were open: they close
+                    if (e.status != 404) throw e
+                    (state.value as? ListsScreen)?.let { state.value = it.copy(settings = null) }
+                    failed(uiText(R.string.grocery_list_gone))
+                    return@settingsRequest
+                }
                 (state.value as? ListsScreen)?.let { state.value = it.copy(settings = null) }
                 load()
             }
@@ -558,7 +568,7 @@ class GroceryModel(
         val lists = state.value as? ListsScreen ?: return
         val settings = lists.settings ?: return
         val id = settings.id ?: return
-        if (settings.busy || settings.last) return
+        if (settings.busy || settings.last || !settings.mine) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
         settingsRequest(settings, R.string.grocery_form_not_deleted) { api ->
             api.deleteList(id)

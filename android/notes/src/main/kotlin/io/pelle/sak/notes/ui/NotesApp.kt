@@ -49,6 +49,9 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import io.pelle.sak.core.ui.SakTheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -136,6 +139,24 @@ private val NOTE_BACKGROUNDS =
         NoteResponse.Color.ORANGE to Color(0xFFFFCC80),
     )
 private val NOTE_INK = Color(0xFF2B2A27)
+
+// a field on a note: its text, label and outline in the ink of the note, black enough to read on
+// every color of a note
+@Composable
+private fun noteFieldColors() =
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = NOTE_INK,
+        unfocusedTextColor = NOTE_INK,
+        focusedLabelColor = NOTE_INK,
+        unfocusedLabelColor = NOTE_INK.copy(alpha = 0.75f),
+        focusedPlaceholderColor = NOTE_INK.copy(alpha = 0.6f),
+        unfocusedPlaceholderColor = NOTE_INK.copy(alpha = 0.6f),
+        focusedBorderColor = NOTE_INK,
+        unfocusedBorderColor = NOTE_INK.copy(alpha = 0.6f),
+        cursorColor = NOTE_INK,
+        focusedSupportingTextColor = NOTE_INK.copy(alpha = 0.75f),
+        unfocusedSupportingTextColor = NOTE_INK.copy(alpha = 0.75f),
+    )
 
 private fun noteColor(color: NoteResponse.Color) = NOTE_BACKGROUNDS.getValue(color)
 
@@ -416,13 +437,14 @@ private fun NoteCard(
         modifier = Modifier.fillMaxWidth().clickable { model.open(note.id) }.testTag("note-${note.id}"),
     ) {
         Column(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // the menu at the top right of the card, also next to a long text
+            Row(verticalAlignment = Alignment.Top) {
                 Text(
                     note.text.ifBlank { stringResource(R.string.notes_card_write) },
                     maxLines = 8,
                     overflow = TextOverflow.Ellipsis,
                     color = if (note.text.isBlank()) NOTE_INK.copy(alpha = 0.6f) else NOTE_INK,
-                    modifier = Modifier.weight(1f).padding(top = 8.dp),
+                    modifier = Modifier.weight(1f).padding(top = 12.dp),
                 )
                 Box {
                     if (deleting) {
@@ -543,20 +565,26 @@ private fun NoteScreen(
             onRefresh = model::refresh,
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .background(noteColor(note.color))
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                screen.error?.let { Message(it, model::dismissError) }
-                screen.notice?.let { Message(it, model::dismissNotice, error = false) }
-                NoteText(note, model)
-                ColorChoice(note, model)
-                Labels(screen, note, model)
-                Media(screen, note, model, picker, microphone) { viewing = it }
+            // a note is light in every theme: its fields, labels and buttons take the light colors and
+            // the dark ink of the note, so they read on it also while the phone is dark
+            SakTheme(light = true) {
+                CompositionLocalProvider(LocalContentColor provides NOTE_INK) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .background(noteColor(note.color))
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        screen.error?.let { Message(it, model::dismissError) }
+                        screen.notice?.let { Message(it, model::dismissNotice, error = false) }
+                        NoteText(note, model)
+                        ColorChoice(note, model)
+                        Labels(screen, note, model)
+                        Media(screen, note, model, picker, microphone) { viewing = it }
+                    }
+                }
             }
         }
     }
@@ -584,6 +612,7 @@ private fun NoteText(
         placeholder = { Text(stringResource(R.string.notes_card_write)) },
         supportingText = if (text.length >= MAX_TEXT_LENGTH) ({ Text(stringResource(R.string.notes_text_full, MAX_TEXT_LENGTH)) }) else null,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        colors = noteFieldColors(),
         minLines = 4,
         modifier = Modifier.fillMaxWidth().testTag("text"),
     )
@@ -664,6 +693,7 @@ private fun Labels(
                 supportingText = if (full) ({ Text(stringResource(R.string.notes_card_labels_full, MAX_LABELS)) }) else null,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (label.isNotBlank()) add() }),
+                colors = noteFieldColors(),
                 modifier = Modifier.weight(1f).testTag("label"),
             )
             OutlinedButton(onClick = ::add, enabled = !full && label.isNotBlank(), modifier = Modifier.testTag("add-label")) {

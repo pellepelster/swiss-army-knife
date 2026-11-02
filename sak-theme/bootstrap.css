@@ -138,20 +138,25 @@ code {
 }
 
 .form-control {
-  background-color: var(--sak-raised);
-  border-color: var(--sak-line);
+  background-color: var(--sak-field);
+  border-color: var(--sak-field-line);
   color: var(--sak-ink);
 }
 
 .form-select {
-  background-color: var(--sak-raised);
-  border-color: var(--sak-line);
+  background-color: var(--sak-field);
+  border-color: var(--sak-field-line);
   color: var(--sak-ink);
+}
+
+.form-check-input {
+  background-color: var(--sak-field);
+  border-color: var(--sak-field-line);
 }
 
 .form-select:focus,
 .form-control:focus {
-  background-color: var(--sak-raised);
+  background-color: var(--sak-field);
   border-color: var(--sak-accent);
   color: var(--sak-ink);
   box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);

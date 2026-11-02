@@ -111,9 +111,24 @@ class GroceryRepositoryTest {
         repository.updateItem(OTHER, chips.id, values("Crisps"))!!.name shouldBe "Crisps"
         repository.insertItem(OTHER, party.id, values("Beer"))!!.owner shouldBe OTHER
         repository.checkItem(OTHER, chips.id) shouldBe true
-        repository.updateList(OTHER, party.id, "Mine", shared = true) shouldBe GroceryListUpdate.NotFound
-        repository.deleteList(OTHER, party.id) shouldBe GroceryListDelete.NotFound
+        // every user renames a shared list, only its owner unshares and deletes it (LIST-2)
+        (repository.updateList(OTHER, party.id, "Ours", shared = true) as GroceryListUpdate.Updated).list.let {
+            it.name shouldBe "Ours"
+            it.owner shouldBe PELLE
+        }
+        repository.updateList(OTHER, party.id, "Ours", shared = false) shouldBe GroceryListUpdate.NotOwner
+        // the names are unique among the lists of the owner, also when another user renames
+        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe GroceryListUpdate.OwnerNameTaken
         repository.updateList(PELLE, party.id, "Secret", shared = true) shouldBe GroceryListUpdate.NameTaken
+        repository.updateList(OTHER, secret.id, "Mine", shared = false) shouldBe GroceryListUpdate.NotFound
+        repository.deleteList(OTHER, party.id) shouldBe GroceryListDelete.NotFound
+        // unshared by its owner, the list is none of the other user's to change, also with the flag they had
+        repository.updateList(PELLE, party.id, "Ours", shared = false)
+        repository.updateList(OTHER, party.id, "Theirs", shared = false) shouldBe GroceryListUpdate.NotFound
+        repository.list(PELLE, party.id)!!.let {
+            it.name shouldBe "Ours"
+            it.shared shouldBe false
+        }
         repository.deleteList(PELLE, party.id) shouldBe GroceryListDelete.Deleted
         repository.items(OTHER, party.id) shouldBe null
     }
@@ -318,7 +333,7 @@ class GroceryRepositoryTest {
     }
 
     @Test
-    fun `a list has its categories in their order, only its owner changes them, an item takes one of its list only`() {
+    fun `a list has its categories in their order, every user who sees it changes them, an item takes one of its list only`() {
         val own = list(PELLE)
         val party = repository.insertList(PELLE, "Party", shared = true, categories = listOf(GroceryCategoryValues("Snacks", "🍿"), GroceryCategoryValues("Drinks", null)))!!.id
         val (snacks, drinks) = repository.categories(OTHER, party)!!
@@ -327,18 +342,20 @@ class GroceryRepositoryTest {
         repository.categories(OTHER, own) shouldBe null
         repository.categories(PELLE, own) shouldBe emptyList()
 
-        repository.insertCategory(OTHER, party, GroceryCategoryValues("Mine", null), 30) shouldBe GroceryCategoryChange.NotFound
+        // a private list of another user is none of theirs
+        repository.insertCategory(OTHER, own, GroceryCategoryValues("Mine", null), 30) shouldBe GroceryCategoryChange.NotFound
         repository.insertCategory(PELLE, party, GroceryCategoryValues("Snacks", null), 30) shouldBe GroceryCategoryChange.NameTaken
         repository.insertCategory(PELLE, party, GroceryCategoryValues("Fruit", null), 2) shouldBe GroceryCategoryChange.TooMany
         val fruit = (repository.insertCategory(PELLE, party, GroceryCategoryValues("Fruit", "🍎"), 30) as GroceryCategoryChange.Saved).category
         fruit.position shouldBe 2
         repository.updateCategory(PELLE, party, fruit.id, GroceryCategoryValues("Drinks", null)) shouldBe GroceryCategoryChange.NameTaken
-        repository.updateCategory(OTHER, party, fruit.id, GroceryCategoryValues("Obst", null)) shouldBe GroceryCategoryChange.NotFound
+        // every user who sees the shared list changes its categories
+        (repository.updateCategory(OTHER, party, fruit.id, GroceryCategoryValues("Obst", "🍎")) as GroceryCategoryChange.Saved).category.name shouldBe "Obst"
         repository.updateCategory(PELLE, own, fruit.id, GroceryCategoryValues("Obst", null)) shouldBe GroceryCategoryChange.NotFound
 
         repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id)) shouldBe GroceryCategoryOrder.Mismatch
         repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id, snacks.id)) shouldBe GroceryCategoryOrder.Mismatch
-        repository.orderCategories(OTHER, party, listOf(fruit.id, snacks.id, drinks.id)) shouldBe GroceryCategoryOrder.NotFound
+        repository.orderCategories(OTHER, own, emptyList()) shouldBe GroceryCategoryOrder.NotFound
         (repository.orderCategories(PELLE, party, listOf(fruit.id, snacks.id, drinks.id)) as GroceryCategoryOrder.Ordered).categories.map { it.id } shouldBe
             listOf(fruit.id, snacks.id, drinks.id)
 
@@ -351,14 +368,13 @@ class GroceryRepositoryTest {
         repository.updateItem(OTHER, chips.id, values("Crisps", categoryId = snacks.id))!!.categoryId shouldBe snacks.id
 
         // deleted, it goes from its items and the suggestions of the list
-        repository.deleteCategory(OTHER, party, snacks.id) shouldBe false
-        repository.deleteCategory(PELLE, party, snacks.id) shouldBe true
+        repository.deleteCategory(OTHER, party, snacks.id) shouldBe true
         repository.deleteCategory(PELLE, party, snacks.id) shouldBe false
         repository.item(PELLE, chips.id)!!.let {
             it.categoryId shouldBe null
             it.updatedAt shouldBe now
         }
-        repository.categories(PELLE, party)!!.map { it.name } shouldBe listOf("Fruit", "Drinks")
+        repository.categories(PELLE, party)!!.map { it.name } shouldBe listOf("Obst", "Drinks")
 
         // a deleted list takes them along
         repository.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted

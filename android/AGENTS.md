@@ -44,7 +44,7 @@ its own architecture document.
   version without the keystore fails. A signed apk must carry the certificate `ANDROID_CERT_SHA256` of
   `android:release:build`, the key every installed app was signed with; another key fails the release, an update with
   it would install over no app. The release apks are shrunk by r8: try a release build on a phone after a change of
-  a dependency or of `proguard-rules.pro`. The job `android` builds them on every build, signed for a tag only, as the
+  a dependency or of `proguard-rules.pro`. The job `sak-android-apps` builds them on every build, signed for a tag only, as the
   artifact `android-apks`; the job `release` adds them to the github release of the tag (`android:release`, a file
   already there is replaced, so the job runs again after a failure).
 - **Debug builds** are the package `<app>.debug`, installed next to the release. A login link never opens them: the

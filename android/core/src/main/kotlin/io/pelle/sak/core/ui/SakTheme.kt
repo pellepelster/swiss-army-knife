@@ -12,8 +12,13 @@ import androidx.compose.ui.platform.LocalContext
 
 // material 3 in the light or dark mode of the system, the colors of the wallpaper where android has them
 @Composable
-fun SakTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+fun SakTheme(
+    // always the light colors, for content on a light color of its own (e.g. a note), also while the
+    // phone is dark
+    light: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val dark = !light && isSystemInDarkTheme()
     val colors =
         when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {

@@ -9,7 +9,7 @@ import { ActionMenu } from '../shared/action-menu';
 import { PageHeader } from '../shared/page-header';
 
 // a card of the maintenance of the backend: a page of the app (path), or a page of its own (href,
-// swagger ui); only for an admin, the users only in the multi user mode
+// swagger ui); only for an admin unless it is for everyone, the users only in the multi user mode
 interface MaintenanceEntry {
   readonly name: TextKey;
   readonly description: TextKey;
@@ -18,6 +18,8 @@ interface MaintenanceEntry {
   readonly path?: string;
   readonly href?: string;
   readonly multiUserOnly?: boolean;
+  // for every signed in user, not only an admin
+  readonly everyone?: boolean;
 }
 
 const MAINTENANCE: readonly MaintenanceEntry[] = [
@@ -45,6 +47,13 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
     icon: 'fa-users',
     path: '/users',
     multiUserOnly: true,
+  },
+  {
+    name: 'home.downloads',
+    description: 'home.downloads_description',
+    icon: 'fa-mobile-screen-button',
+    path: '/downloads',
+    everyone: true,
   },
 ];
 
@@ -187,7 +196,7 @@ export class Home {
 
   // why the user can not open the entry, null when they can
   protected unavailable(entry: MaintenanceEntry): TextKey | null {
-    if (!this.admin()) return 'home.only_admin';
+    if (!entry.everyone && !this.admin()) return 'home.only_admin';
     if (entry.multiUserOnly && this.userMode() === 'single') return 'home.needs_multi_user';
     return null;
   }

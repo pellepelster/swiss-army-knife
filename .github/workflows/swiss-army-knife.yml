@@ -211,7 +211,7 @@ jobs:
   # the android apps (android/): their tests and their release apks on every build, so a broken
   # release build shows before a tag; signed only for a tag, with the key of the secrets
   # (mise run github:secrets:update), unsigned otherwise. The apks and their checksums are one artifact
-  android:
+  sak-android-apps:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -269,7 +269,7 @@ jobs:
   # the signed apks of the android apps with their checksums (mise run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl, android]
+    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

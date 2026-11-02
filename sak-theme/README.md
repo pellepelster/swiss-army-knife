@@ -7,7 +7,8 @@ surface by default, the dark "terminal" surface when the system prefers dark, th
 of the rack-led icon, IBM Plex Sans and Mono.
 
 - `tokens.css` - the custom properties: `--sak-bg`, `--sak-surface`, `--sak-raised`, `--sak-line`,
-  `--sak-ink`, `--sak-muted`; `--sak-accent` and `--sak-accent-ink`; the states `--sak-ok`,
+  `--sak-ink`, `--sak-muted`; `--sak-field` and `--sak-field-line`, the fill and the outline of a field to type in,
+  3:1 against the page, the card, the raised fill and the field; `--sak-accent` and `--sak-accent-ink`; the states `--sak-ok`,
   `--sak-info`, `--sak-warn`, `--sak-danger`, `--sak-neutral`; `--sak-danger-text`, danger as
   text on the raised fill (darker in light mode, to be readable); fonts and text sizes
   (`--sak-font-sans`, `--sak-font-mono`, `--sak-text*`); `--sak-radius*`; `--sak-space-1..5`.

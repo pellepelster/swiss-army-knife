@@ -164,18 +164,25 @@ private fun SettingsForm(
         Row(
             Modifier
                 .fillMaxWidth()
-                .toggleable(value = settings.shared, role = Role.Switch, onValueChange = { edit(settings.name, it, settings.icon) }),
+                .toggleable(
+                    value = settings.shared,
+                    enabled = settings.mine,
+                    role = Role.Switch,
+                    onValueChange = { edit(settings.name, it, settings.icon) },
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.grocery_shared), modifier = Modifier.weight(1f))
-            Switch(checked = settings.shared, onCheckedChange = null)
+            Switch(checked = settings.shared, onCheckedChange = null, enabled = settings.mine, modifier = Modifier.testTag("list-shared"))
         }
+        // a shared list of another user: the switch and the delete stay in their place, disabled (UX-8)
+        if (!settings.mine) Text(stringResource(R.string.grocery_only_owner_share_delete), style = MaterialTheme.typography.bodySmall)
         Error(settings.error)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (settings.id != null) {
                 // the button that leads to a delete (UX-3): filled like the other buttons, not
                 // the color of the screen, the line and the text in the color of danger
-                val enabled = !settings.last && !settings.busy
+                val enabled = settings.mine && !settings.last && !settings.busy
                 OutlinedButton(
                     onClick = confirm,
                     enabled = enabled,

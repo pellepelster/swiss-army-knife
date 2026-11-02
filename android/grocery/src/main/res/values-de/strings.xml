@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
+    <string name="grocery_only_owner_shares">Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.</string>
+    <string name="grocery_list_gone">Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.</string>
     <string name="grocery_all_lists">Alle Listen</string>
     <string name="grocery_lists_not_loaded">Die Listen konnten nicht geladen werden.</string>
     <string name="grocery_lists_to_buy_none">Keine Artikel zu kaufen</string>
@@ -24,6 +26,7 @@
     <string name="grocery_list_not_added">Der Artikel konnte nicht hinzugefügt werden.</string>
     <string name="grocery_list_not_checked">Der Artikel konnte nicht abgehakt werden.</string>
     <string name="grocery_list_items_not_loaded">Die Artikel konnten nicht geladen werden.</string>
+    <string name="grocery_only_owner_share_delete">Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie.</string>
     <string name="grocery_photo_take">Foto aufnehmen</string>
     <string name="grocery_photo_choose">Foto auswählen</string>
     <string name="grocery_photo_not_read">Das Foto konnte nicht gelesen werden.</string>

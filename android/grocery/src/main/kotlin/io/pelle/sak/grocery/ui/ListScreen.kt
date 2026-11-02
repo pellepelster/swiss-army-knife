@@ -112,10 +112,10 @@ internal fun ListScreen(
                     contentDescription = stringResource(R.string.grocery_show_bought),
                 )
             }
-            // the settings of the list, of a list of another user disabled in their place (UX-8)
+            // the settings of the list, of a shared list of another user too (LIST-2)
             IconButton(
                 onClick = { model.openSettings(open) },
-                enabled = list?.mine == true,
+                enabled = list != null,
                 modifier = Modifier.testTag("list-settings"),
             ) {
                 Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(CoreR.string.shared_settings))

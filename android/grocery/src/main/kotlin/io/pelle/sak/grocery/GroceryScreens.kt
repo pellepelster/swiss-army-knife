@@ -46,6 +46,9 @@ data class ListSettings(
     val icon: String? = null,
     // the only list of the user's own, which can not be deleted (LIST-1)
     val last: Boolean = false,
+    // a list of the user's own; a shared list of another user changes its name, icon and categories,
+    // only its owner shares, unshares and deletes it (LIST-2)
+    val mine: Boolean = true,
     val busy: Boolean = false,
     val error: UiText? = null,
     // the categories of the list in their order, none for a new list

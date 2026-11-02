@@ -127,7 +127,6 @@ private fun ListRow(
                             menu = false
                             settings()
                         },
-                        enabled = list.mine,
                         modifier = Modifier.testTag("settings-${list.id}"),
                     )
                     DropdownMenuItem(

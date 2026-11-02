@@ -1572,7 +1572,7 @@ export interface paths {
     get?: never;
     /**
      * Rename or share a grocery list
-     * @description Only its owner changes a list.
+     * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
      */
     put: {
       parameters: {
@@ -1608,14 +1608,23 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user has no such list */
+        /** @description The user is not the owner and would share or unshare the list */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such list */
         404: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
         };
-        /** @description Another list of the user has the name */
+        /** @description Another list of the owner has the name, also when another user renames a shared list */
         409: {
           headers: {
             [name: string]: unknown;
@@ -1919,7 +1928,7 @@ export interface paths {
     put?: never;
     /**
      * Add a category to a grocery list
-     * @description The last one; only the owner of the list (GROCERY-13), at most 30.
+     * @description The last one; every user who sees the list (GROCERY-13), at most 30.
      */
     post: {
       parameters: {
@@ -1955,7 +1964,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user owns no such list */
+        /** @description The user sees no such list */
         404: {
           headers: {
             [name: string]: unknown;
@@ -1989,7 +1998,7 @@ export interface paths {
     get?: never;
     /**
      * Order the categories of a grocery list
-     * @description The ids of all categories of the list, each once, in their new order; only the owner of the list (GROCERY-13).
+     * @description The ids of all categories of the list, each once, in their new order; every user who sees the list (GROCERY-13).
      */
     put: {
       parameters: {
@@ -2028,7 +2037,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user owns no such list */
+        /** @description The user sees no such list */
         404: {
           headers: {
             [name: string]: unknown;
@@ -2054,7 +2063,7 @@ export interface paths {
     get?: never;
     /**
      * Change a category of a grocery list
-     * @description Its name and its icon; only the owner of the list (GROCERY-13).
+     * @description Its name and its icon; every user who sees the list (GROCERY-13).
      */
     put: {
       parameters: {
@@ -2092,7 +2101,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user owns no such list, or it has no such category */
+        /** @description The user sees no such list, or it has no such category */
         404: {
           headers: {
             [name: string]: unknown;
@@ -2113,7 +2122,7 @@ export interface paths {
     post?: never;
     /**
      * Delete a category of a grocery list
-     * @description Its items and the suggestions of the list lose it; only the owner of the list (GROCERY-13).
+     * @description Its items and the suggestions of the list lose it; every user who sees the list (GROCERY-13).
      */
     delete: {
       parameters: {
@@ -2136,7 +2145,7 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description The user owns no such list, or it has no such category */
+        /** @description The user sees no such list, or it has no such category */
         404: {
           headers: {
             [name: string]: unknown;

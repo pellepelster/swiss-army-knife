@@ -30,8 +30,8 @@ An app to manage grocery lists.
   at least the pixels of the screen there, the photo itself when none has.
 - `GROCERY-13` **Categories.** Every list has its own categories (a name unique on the list, an icon, an order) and
   shows its items in groups in that order, the ones without a category last. A new list gets the default categories
-  in the language of the request. Only the owner of the list changes them, in its settings; every user who sees the
-  list sets the category of an item, from the menu of its row.
+  in the language of the request. Every user who sees the list changes them, in its settings (`LIST-2`), and sets the
+  category of an item, from the menu of its row.
 - `GROCERY-14` **Bought items.** An eye in the toolbar of a list shows the bought items too: `eye-slash` while
   hidden, `eye` while shown. The latest bought item of each name that is not to buy shows in its category after the
   items to buy, struck through with a red line; a tap does not check it again, the menu of its row changes it like

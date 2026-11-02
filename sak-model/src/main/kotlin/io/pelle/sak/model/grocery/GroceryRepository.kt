@@ -68,7 +68,7 @@ sealed interface GroceryCategoryChange {
         val category: GroceryCategory,
     ) : GroceryCategoryChange
 
-    // the user owns no such list, or it has no such category
+    // the user sees no such list, or it has no such category
     data object NotFound : GroceryCategoryChange
 
     // the list has another category of the name
@@ -84,7 +84,7 @@ sealed interface GroceryCategoryOrder {
         val categories: List<GroceryCategory>,
     ) : GroceryCategoryOrder
 
-    // the user owns no such list
+    // the user sees no such list
     data object NotFound : GroceryCategoryOrder
 
     // the ids are not the ones of the categories of the list, each once
@@ -152,18 +152,24 @@ sealed interface GroceryListUpdate {
         val list: GroceryList,
     ) : GroceryListUpdate
 
-    // the user has no such list of their own
+    // the user sees no such list
     data object NotFound : GroceryListUpdate
 
     // the owner has another list of the name
     data object NameTaken : GroceryListUpdate
+
+    // the user is not the owner and would share or unshare it
+    data object NotOwner : GroceryListUpdate
+
+    // another user renames a shared list to a name the owner has for another list
+    data object OwnerNameTaken : GroceryListUpdate
 }
 
 // the database access of the grocery app: its lists, their categories, their items and the
 // suggestions made of them; only GroceryService (sak-backend) uses it. It reads the rows that are not deleted only, and
 // checks who sees and changes them in the sql of each method (MODEL-6): a user sees and changes
-// their own lists and the shared ones of the others with their items (LIST-2), only the owner
-// changes or deletes a list and its categories (GROCERY-1, GROCERY-13)
+// their own lists and the shared ones of the others, their names, icons, categories and items
+// (LIST-2); only the owner shares, unshares and deletes a list
 class GroceryRepository(
     private val database: SakDatabase,
     private val clock: Clock = Clock.systemUTC(),
@@ -254,7 +260,8 @@ class GroceryRepository(
             null
         }
 
-    // a list of the user's own
+    // a list the user sees: their own, or a shared one of another user, whose name and icon every user
+    // changes (LIST-2); only the owner shares or unshares a list
     fun updateList(
         user: String,
         id: Int,
@@ -263,17 +270,30 @@ class GroceryRepository(
         icon: String? = null,
     ): GroceryListUpdate =
         try {
-            database.dsl
-                .update(GROCERY_LISTS)
-                .set(GROCERY_LISTS.NAME, name)
-                .set(GROCERY_LISTS.SHARED, shared)
-                .set(GROCERY_LISTS.ICON, icon)
-                .set(GROCERY_LISTS.UPDATED_AT, clock.instant())
-                .where(GROCERY_LISTS.ID.eq(id), ownList(user))
-                .returning()
-                .fetchOne()
-                ?.let { GroceryListUpdate.Updated(it.toList(itemsToBuy(it.id!!))) }
-                ?: GroceryListUpdate.NotFound
+            database.dsl.transactionResult { configuration ->
+                val dsl = DSL.using(configuration)
+                val current = dsl.selectFrom(GROCERY_LISTS).where(GROCERY_LISTS.ID.eq(id), visibleList(user)).fetchOne() ?: return@transactionResult GroceryListUpdate.NotFound
+                val owner = current.owner == user
+                if (!owner && shared != current.shared) return@transactionResult GroceryListUpdate.NotOwner
+                try {
+                    // another user never writes the shared flag, and changes only a list they still see:
+                    // one the owner unshared or deleted meanwhile stays as it is
+                    dsl
+                        .update(GROCERY_LISTS)
+                        .set(GROCERY_LISTS.NAME, name)
+                        .apply { if (owner) set(GROCERY_LISTS.SHARED, shared) }
+                        .set(GROCERY_LISTS.ICON, icon)
+                        .set(GROCERY_LISTS.UPDATED_AT, clock.instant())
+                        .where(GROCERY_LISTS.ID.eq(id), if (owner) ownList(user) else visibleList(user))
+                        .returning()
+                        .fetchOne()
+                        ?.let { GroceryListUpdate.Updated(it.toList(itemsToBuy(it.id!!))) }
+                        ?: GroceryListUpdate.NotFound
+                } catch (_: IntegrityConstraintViolationException) {
+                    // the names are unique among the lists of the owner, also for another user who renames
+                    if (owner) GroceryListUpdate.NameTaken else GroceryListUpdate.OwnerNameTaken
+                }
+            }
         } catch (_: IntegrityConstraintViolationException) {
             GroceryListUpdate.NameTaken
         }
@@ -473,7 +493,7 @@ class GroceryRepository(
             .fetch { it.toCategory() }
     }
 
-    // a category of a list of the user's own, the last one; at most max of them
+    // a category of a list the user sees (LIST-2), the last one; at most max of them
     fun insertCategory(
         user: String,
         listId: Int,
@@ -483,7 +503,7 @@ class GroceryRepository(
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
-                if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), ownList(user))) {
+                if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) {
                     return@transactionResult GroceryCategoryChange.NotFound
                 }
                 // one statement: the count and the place are checked where the row goes in, two
@@ -522,7 +542,7 @@ class GroceryRepository(
             GroceryCategoryChange.NameTaken
         }
 
-    // the name and the icon of a category of a list of the user's own; TooMany never
+    // the name and the icon of a category of a list the user sees; TooMany never
     fun updateCategory(
         user: String,
         listId: Int,
@@ -536,7 +556,7 @@ class GroceryRepository(
                 .set(GROCERY_CATEGORIES.NAME_KEY, groceryNameKey(values.name))
                 .set(GROCERY_CATEGORIES.ICON, values.icon)
                 .set(GROCERY_CATEGORIES.UPDATED_AT, clock.instant())
-                .where(ownCategory(user, listId, id))
+                .where(visibleCategory(user, listId, id))
                 .returning()
                 .fetchOne()
                 ?.let { GroceryCategoryChange.Saved(it.toCategory()) } ?: GroceryCategoryChange.NotFound
@@ -544,8 +564,8 @@ class GroceryRepository(
             GroceryCategoryChange.NameTaken
         }
 
-    // a category of a list of the user's own; the items of the list lose it, the checked ones too, so
-    // its suggestions do (GROCERY-13). It stays as deleted. False when the user owns no such list or it has no such category
+    // a category of a list the user sees; the items of the list lose it, the checked ones too, so
+    // its suggestions do (GROCERY-13). It stays as deleted. False when the user sees no such list or it has no such category
     fun deleteCategory(
         user: String,
         listId: Int,
@@ -558,7 +578,7 @@ class GroceryRepository(
                 dsl
                     .update(GROCERY_CATEGORIES)
                     .set(GROCERY_CATEGORIES.DELETED_AT, now)
-                    .where(ownCategory(user, listId, id))
+                    .where(visibleCategory(user, listId, id))
                     .execute() > 0
             if (deleted) {
                 dsl
@@ -571,7 +591,7 @@ class GroceryRepository(
             deleted
         }
 
-    // the categories of a list of the user's own in the order of the ids, which are all of its live
+    // the categories of a list the user sees in the order of the ids, which are all of its live
     // categories, each once
     fun orderCategories(
         user: String,
@@ -580,7 +600,7 @@ class GroceryRepository(
     ): GroceryCategoryOrder =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), ownList(user))) return@transactionResult GroceryCategoryOrder.NotFound
+            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryCategoryOrder.NotFound
             val live =
                 dsl
                     .select(GROCERY_CATEGORIES.ID)
@@ -774,8 +794,8 @@ class GroceryRepository(
     // the items to buy on the lists the user sees, the only ones that are checked
     private fun itemToBuy(user: String): Condition = visibleItem(user).and(GROCERY_ITEMS.CHECKED_AT.isNull)
 
-    // the live category of the list user owns
-    private fun ownCategory(
+    // the live category of a list the user sees, which they change (LIST-2)
+    private fun visibleCategory(
         user: String,
         listId: Int,
         id: Int,
@@ -784,7 +804,7 @@ class GroceryRepository(
             .eq(id)
             .and(GROCERY_CATEGORIES.LIST_ID.eq(listId))
             .and(GROCERY_CATEGORIES.DELETED_AT.isNull)
-            .and(GROCERY_CATEGORIES.LIST_ID.`in`(DSL.select(GROCERY_LISTS.ID).from(GROCERY_LISTS).where(ownList(user))))
+            .and(GROCERY_CATEGORIES.LIST_ID.`in`(DSL.select(GROCERY_LISTS.ID).from(GROCERY_LISTS).where(visibleList(user))))
 
     // the id when it is a live category of the list, else null
     private fun categoryOf(

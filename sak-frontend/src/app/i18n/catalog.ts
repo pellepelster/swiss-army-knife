@@ -89,6 +89,13 @@ export const CATALOG = {
       not_added: 'The user could not be added.',
       forbidden_add: 'Only an admin adds users.',
     },
+    downloads: {
+      page_title: 'Android apps',
+      title: 'Android apps',
+      intro: 'Install the apps on an Android phone, then sign in to them with your e-mail address.',
+      download: 'Download %{app}',
+      version: 'Version %{version}',
+    },
     app_download: {
       started: 'The download of the app has started.',
       again: 'Download again',
@@ -118,6 +125,8 @@ export const CATALOG = {
       api: 'API',
       api_description: 'The full api of the backend, to try out',
       users_description: 'Who may sign in besides the admins',
+      downloads: 'Android apps',
+      downloads_description: 'The apps for Android phones to download',
     },
     signin: {
       page_title: 'Signing in',
@@ -142,6 +151,8 @@ export const CATALOG = {
       forbidden_change: 'Your role does not allow to change the settings.',
     },
     grocery: {
+      only_owner_shares: 'Only the owner of a list shares or unshares it.',
+      list_gone: 'The list is gone, or its owner no longer shares it.',
       all_lists: 'All lists',
       lists_not_loaded: 'The lists could not be loaded.',
       lists: {
@@ -162,7 +173,7 @@ export const CATALOG = {
         icon: 'Icon',
         shared: 'Shared',
         shared_hint: 'Every user sees a shared list and adds and deletes its items.',
-        no_such_list: 'There is no such list of yours.',
+        no_such_list: 'There is no such list.',
         not_loaded: 'The list could not be loaded.',
       },
       photo: {
@@ -202,7 +213,7 @@ export const CATALOG = {
       },
       back: 'Back',
       settings_of: 'Settings of %{name}',
-      only_owner: 'Only the owner of a list changes it',
+      only_owner_deletes: 'Only the owner of a list deletes it.',
       shared_badge: 'shared',
       lists_forbidden: 'Your role does not allow to see the grocery lists.',
       download: {
@@ -587,6 +598,13 @@ export const CATALOG = {
       not_added: 'Der Benutzer konnte nicht hinzugefügt werden.',
       forbidden_add: 'Nur ein Admin fügt Benutzer hinzu.',
     },
+    downloads: {
+      page_title: 'Android-Apps',
+      title: 'Android-Apps',
+      intro: 'Installiere die Apps auf einem Android-Handy und melde dich dann mit deiner E-Mail-Adresse darin an.',
+      download: '%{app} herunterladen',
+      version: 'Version %{version}',
+    },
     app_download: {
       started: 'Der Download der App hat begonnen.',
       again: 'Erneut herunterladen',
@@ -616,6 +634,8 @@ export const CATALOG = {
       api: 'API',
       api_description: 'Die ganze API des Backends, zum Ausprobieren',
       users_description: 'Wer sich außer den Admins anmelden darf',
+      downloads: 'Android-Apps',
+      downloads_description: 'Die Apps für Android-Handys zum Herunterladen',
     },
     signin: {
       page_title: 'Anmeldung läuft',
@@ -640,6 +660,8 @@ export const CATALOG = {
       forbidden_change: 'Deine Rolle erlaubt nicht, die Einstellungen zu ändern.',
     },
     grocery: {
+      only_owner_shares: 'Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.',
+      list_gone: 'Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.',
       all_lists: 'Alle Listen',
       lists_not_loaded: 'Die Listen konnten nicht geladen werden.',
       lists: {
@@ -660,7 +682,7 @@ export const CATALOG = {
         icon: 'Icon',
         shared: 'Geteilt',
         shared_hint: 'Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie.',
-        no_such_list: 'Du hast keine solche Liste.',
+        no_such_list: 'Es gibt keine solche Liste.',
         not_loaded: 'Die Liste konnte nicht geladen werden.',
       },
       photo: {
@@ -700,7 +722,7 @@ export const CATALOG = {
       },
       back: 'Zurück',
       settings_of: 'Einstellungen von %{name}',
-      only_owner: 'Nur der Besitzer einer Liste kann sie ändern',
+      only_owner_deletes: 'Nur der Besitzer einer Liste löscht sie.',
       shared_badge: 'geteilt',
       lists_forbidden: 'Deine Rolle erlaubt es nicht, die Einkaufslisten zu sehen.',
       download: {

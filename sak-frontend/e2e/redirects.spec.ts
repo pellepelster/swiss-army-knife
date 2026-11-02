@@ -13,12 +13,12 @@ test('redirects a domain from its own page and stops redirecting it', async ({ p
   await page.getByRole('link', { name: /Redirects/ }).click();
   await expect(page).toHaveURL('/redirects');
 
-  await page.getByRole('link', { name: 'Create', exact: true }).click();
+  await page.getByRole('link', { name: 'Create redirect', exact: true }).click();
   await expect(page).toHaveURL('/redirects/create');
   await page.getByLabel('Domain', { exact: true }).fill('redirected.example.com');
   await page.getByLabel('An external domain').check();
   await page.getByLabel('External domain', { exact: true }).fill('example.org');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.getByRole('button', { name: 'Create redirect', exact: true }).click();
   // a created redirect opens on its own page
   await expect(page).toHaveURL('/redirects/redirected.example.com/configuration');
   await expect(page.getByTestId('location')).toHaveText('https://example.org');

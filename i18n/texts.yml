@@ -213,6 +213,14 @@ backend:
       days: { en: "%{count} days", de: "%{count} Tage" }
 
 web:
+  downloads:
+    page_title: { en: "Android apps", de: "Android-Apps" }
+    title: { en: "Android apps", de: "Android-Apps" }
+    intro:
+      en: "Install the apps on an Android phone, then sign in to them with your e-mail address."
+      de: "Installiere die Apps auf einem Android-Handy und melde dich dann mit deiner E-Mail-Adresse darin an."
+    download: { en: "Download %{app}", de: "%{app} herunterladen" }
+    version: { en: "Version %{version}", de: "Version %{version}" }
   app_download:
     started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
     again: { en: "Download again", de: "Erneut herunterladen" }
@@ -246,6 +254,8 @@ web:
       en: "The full api of the backend, to try out"
       de: "Die ganze API des Backends, zum Ausprobieren"
     users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
+    downloads: { en: "Android apps", de: "Android-Apps" }
+    downloads_description: { en: "The apps for Android phones to download", de: "Die Apps für Android-Handys zum Herunterladen" }
   signin:
     page_title: { en: "Signing in", de: "Anmeldung läuft" }
     grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }
@@ -1185,6 +1195,12 @@ ctl:
 
 grocery:
   common:
+    only_owner_shares:
+      en: "Only the owner of a list shares or unshares it."
+      de: "Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf."
+    list_gone:
+      en: "The list is gone, or its owner no longer shares it."
+      de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
     all_lists: { en: "All lists", de: "Alle Listen" }
     lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
     lists:
@@ -1247,6 +1263,9 @@ grocery:
       en: "The order must name every category of the list once."
       de: "Die Reihenfolge muss jede Kategorie der Liste einmal nennen."
     list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    owner_list_exists:
+      en: "The owner of the list has another list of the name."
+      de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."
     last_list: { en: "You can not delete your only list.", de: "Du kannst deine einzige Liste nicht löschen." }
     not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
   web:
@@ -1256,7 +1275,7 @@ grocery:
       settings: { en: "Settings · Grocery", de: "Einstellungen · Einkaufslisten" }
     back: { en: "Back", de: "Zurück" }
     settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
-    only_owner: { en: "Only the owner of a list changes it", de: "Nur der Besitzer einer Liste kann sie ändern" }
+    only_owner_deletes: { en: "Only the owner of a list deletes it.", de: "Nur der Besitzer einer Liste löscht sie." }
     shared_badge: { en: "shared", de: "geteilt" }
     lists_forbidden:
       en: "Your role does not allow to see the grocery lists."
@@ -1272,7 +1291,7 @@ grocery:
       shared_hint:
         en: "Every user sees a shared list and adds and deletes its items."
         de: "Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie."
-      no_such_list: { en: "There is no such list of yours.", de: "Du hast keine solche Liste." }
+      no_such_list: { en: "There is no such list.", de: "Es gibt keine solche Liste." }
       not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
     download:
       page_title: { en: "Download the app · Grocery", de: "App herunterladen · Einkaufslisten" }
@@ -1318,6 +1337,9 @@ grocery:
         en: "The order of the categories could not be saved."
         de: "Die Reihenfolge der Kategorien konnte nicht gespeichert werden."
   android:
+    only_owner_share_delete:
+      en: "Only the owner shares or unshares a list, or deletes it."
+      de: "Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie."
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Grocery List"
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }

@@ -178,13 +178,13 @@ class ScreenshotTest {
 
         // a text note, written right on the page; the newest note is the first
         val newest = page.locator("[data-testid^='note-'] textarea").first()
-        page.button("New note").click()
+        page.button("Create note").click()
         newest.fill(NEW_NOTE)
         page.waitForTimeout(1_000.0)
         page.shot("notes-new-text", device)
 
         // a note with a photo, from the camera on a phone
-        val chooser = page.waitForFileChooser { page.button("New note with a photo").click() }
+        val chooser = page.waitForFileChooser { page.button("Create note with a photo").click() }
         chooser.setFiles(data.photo())
         assertThat(page.locator(".note-photos img").first()).isVisible()
         newest.fill(PHOTO_NOTE)
@@ -192,7 +192,7 @@ class ScreenshotTest {
         page.shot("notes-photo", device)
 
         // a note with a recording: the overlay while it records, then the note
-        page.button("New note with a recording").click()
+        page.button("Create note with a recording").click()
         assertThat(page.locator("[aria-label^='Stop the recording']")).isVisible()
         page.waitForTimeout(2_000.0)
         page.shot("notes-recording", device)

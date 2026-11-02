@@ -63,7 +63,7 @@ object NotesPage {
     fun open(page: Page) {
         step("opening the notes, waiting until they are loaded")
         page.navigate("/notes")
-        assertThat(page.locator("button[aria-label='New note']:visible").first()).isVisible()
+        assertThat(page.locator("button[aria-label='Create note']:visible").first()).isVisible()
         page.waitForFunction(
             "() => document.querySelector(\"[data-testid^='note-']\") !== null || document.body.innerText.includes('No notes yet')",
         )
@@ -93,7 +93,7 @@ object NotesPage {
     ) {
         step("creating the note '$text', waiting until it is saved")
         val newest = page.locator("[data-testid^='note-'] textarea").first()
-        page.locator("button[aria-label='New note']:visible").first().click()
+        page.locator("button[aria-label='Create note']:visible").first().click()
         newest.fill(text)
         page.waitForTimeout(SAVED_AFTER_MS)
         open(page)

@@ -124,21 +124,11 @@ interface ItemGroup {
             aria-hidden="true"
           ></i>
         </button>
-        @if (shown()?.mine) {
-          <a
-            class="btn btn-outline-secondary"
-            [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+        <!-- every user who sees a list changes its settings (LIST-2) -->
+        @if (shown(); as list) {
+          <a class="btn btn-outline-secondary" [routerLink]="['/grocery/lists', list.id, 'edit']"
             ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
           >
-        } @else {
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            disabled
-            [title]="'grocery.only_owner' | t"
-          >
-            <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}
-          </button>
         }
       </div>
     </header>

@@ -756,10 +756,6 @@ class GroceryModelTest {
             val model = signedIn(openList = null)
             advanceUntilIdle()
 
-            // not the user's own: no settings
-            model.openSettings(3)
-            assertNull((model.screen.value as ListsScreen).settings)
-
             model.openSettings(2)
             // its categories loading
             assertEquals(ListSettings(2, "Party", shared = true, categoriesLoading = true), (model.screen.value as ListsScreen).settings)
@@ -784,6 +780,67 @@ class GroceryModelTest {
             model.deleteList()
             advanceUntilIdle()
             assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
+        }
+
+    @Test
+    fun `every user who sees a shared list changes its name, icon and categories, only its owner shares and deletes it`() =
+        runTest {
+            backend.answers["GET /grocery/lists"] =
+                HttpStatusCode.OK to page(list(1, "Default"), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-10-30T08:00:00.000Z"}""")
+            backend.answers["GET /grocery/lists/3/categories"] = HttpStatusCode.OK to page(category(5, "Snacks", null))
+            backend.answers["PUT /grocery/lists/3"] =
+                HttpStatusCode.OK to """{"id":3,"name":"Ours","shared":true,"mine":false,"items":0,"icon":"🎉","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /grocery/lists/3/categories"] = HttpStatusCode.Created to category(6, "Drinks", null)
+            backend.answers["DELETE /grocery/lists/3"] = HttpStatusCode.NoContent to ""
+            val model = signedIn(openList = null)
+            advanceUntilIdle()
+            fun settings() = (model.screen.value as ListsScreen).settings!!
+
+            model.openSettings(3)
+            advanceUntilIdle()
+            assertEquals(false, settings().mine)
+            assertEquals(false, settings().last)
+            assertEquals(listOf("Snacks"), settings().categories.map { it.name })
+
+            // the categories as for the owner
+            model.editNewCategory("Drinks")
+            model.addCategory()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /grocery/lists/3/categories {"name":"Drinks"}"""))
+
+            // it stays shared: the switch changes nothing, the unchanged flag is sent
+            model.editSettings("Ours", shared = false, icon = "🎉")
+            assertEquals(true, settings().shared)
+            model.saveSettings()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/3 {"name":"Ours","shared":true,"icon":"🎉"}"""))
+
+            // only the owner deletes it
+            model.openSettings(3)
+            advanceUntilIdle()
+            model.deleteList()
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it == "DELETE /grocery/lists/3" })
+        }
+
+    @Test
+    fun `a save of a list its owner unshared or deleted meanwhile closes the settings and says so`() =
+        runTest {
+            backend.answers["GET /grocery/lists"] =
+                HttpStatusCode.OK to page(list(1, "Default"), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-10-30T08:00:00.000Z"}""")
+            backend.answers["GET /grocery/lists/3/categories"] = HttpStatusCode.OK to page()
+            backend.answers["PUT /grocery/lists/3"] = HttpStatusCode.NotFound to ""
+            val model = signedIn(openList = null)
+            advanceUntilIdle()
+
+            model.openSettings(3)
+            advanceUntilIdle()
+            model.editSettings("Ours", shared = true, icon = null)
+            model.saveSettings()
+            advanceUntilIdle()
+            val screen = model.screen.value as ListsScreen
+            assertEquals(null, screen.settings)
+            assertEquals("The list is gone, or its owner no longer shares it.", screen.error.english())
         }
 
     @Test

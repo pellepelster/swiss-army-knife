@@ -43,7 +43,8 @@ An app whose items belong to lists of the user keeps to these rules; the notes a
   not count, their owners can take them away. A new item always names its list; no request makes a list on the
   side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
-  to it and delete items from it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of
+  to it and delete items from it, and change its settings (its name, its icon, its categories). Only its owner shares
+  or unshares it and deletes it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of
   a shared list, also one another user created.
 - `LIST-3` **The lists first.** A list-based app, in the web ui and on Android, opens on the overview of all lists of
   the user: their own lists and the shared lists of the others. From there the user opens a list; a list has a back

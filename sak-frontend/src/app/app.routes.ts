@@ -7,6 +7,7 @@ import { hostingRoute } from './hosting/hosting.routes';
 import { redirectsRoute } from './redirects/redirects.routes';
 import { groceryDownloadRoute, groceryRoute } from './grocery/grocery.routes';
 import { AppDownload } from './shared/app-download';
+import { DownloadsPage } from './downloads/downloads-page';
 import { Login } from './login/login';
 import { NotesPage } from './notes/notes-page';
 import { SettingsPage } from './settings/settings-page';
@@ -37,6 +38,8 @@ export const routes: Routes = [
     data: { app: 'notes', favicon: { svg: 'icons/notes.svg', png: 'icons/notes-192.png' } },
   },
   groceryRoute,
+  // the download links of the android apps, without a session so the link opens on a phone
+  { path: 'downloads', component: DownloadsPage, title: pageTitle('downloads.page_title') },
   {
     path: 'health',
     component: HealthPage,

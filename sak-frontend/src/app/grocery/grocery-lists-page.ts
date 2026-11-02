@@ -58,29 +58,15 @@ import { PageHeader } from '../shared/page-header';
               [deleteDisabled]="undeletable(list)"
               (deleted)="delete(list)"
             >
-              @if (list.mine) {
-                <a
-                  class="dropdown-item"
-                  role="menuitem"
-                  [routerLink]="['lists', list.id, 'edit']"
-                  [queryParams]="{ from: 'lists' }"
-                  [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
-                  ><i class="fa-solid fa-gear me-2" aria-hidden="true"></i
-                  >{{ 'shared.settings' | t }}</a
-                >
-              } @else {
-                <button
-                  type="button"
-                  class="dropdown-item"
-                  role="menuitem"
-                  disabled
-                  [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
-                  [title]="'grocery.only_owner' | t"
-                >
-                  <i class="fa-solid fa-gear me-2" aria-hidden="true"></i
-                  >{{ 'shared.settings' | t }}
-                </button>
-              }
+              <a
+                class="dropdown-item"
+                role="menuitem"
+                [routerLink]="['lists', list.id, 'edit']"
+                [queryParams]="{ from: 'lists' }"
+                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                ><i class="fa-solid fa-gear me-2" aria-hidden="true"></i
+                >{{ 'shared.settings' | t }}</a
+              >
             </app-action-menu>
           </li>
         }
@@ -130,7 +116,7 @@ export class GroceryListsPage {
 
   // why a list can not be deleted: of another user, or the last list of the user's own (LIST-1)
   protected undeletable(list: GroceryList): string | null {
-    if (!list.mine) return this.i18n.t('grocery.only_owner');
+    if (!list.mine) return this.i18n.t('grocery.only_owner_deletes');
     if (this.lists().filter((each) => each.mine).length === 1)
       return this.i18n.t('grocery.form.last_list');
     return null;

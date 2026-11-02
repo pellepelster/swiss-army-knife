@@ -106,11 +106,13 @@ describe('Grocery', () => {
     expect(
       [...page().querySelectorAll('app-list-icon')].map((icon) => icon.textContent!.trim()),
     ).toEqual(['D', '🎉', '🎉']);
-    // the menu of a row leads to the settings, of a list of another user they are disabled (UX-8)
+    // the menu of a row leads to the settings, of a shared list of another user too (LIST-2)
     expect(button('Settings of Default').getAttribute('href')).toBe(
       '/grocery/lists/1/edit?from=lists',
     );
-    expect(button('Settings of Party').disabled).toBe(true);
+    expect(button('Settings of Party').getAttribute('href')).toBe(
+      '/grocery/lists/2/edit?from=lists',
+    );
 
     page().querySelector<HTMLAnchorElement>('[data-testid=list-2]')!.click();
     await harness.fixture.whenStable();
@@ -120,10 +122,8 @@ describe('Grocery', () => {
     await flushItems(2, []);
     expect(page().querySelector('[data-testid=list-name]')?.textContent).toContain('Party');
     expect(button('All lists').getAttribute('href')).toBe('/grocery');
-    // not the owner's: the edit stays in its place, disabled (UX-8)
-    expect(button('Settings').tagName).toBe('BUTTON');
-    expect(button('Settings').disabled).toBe(true);
-    expect(button('Settings').title).toBe('Only the owner of a list changes it');
+    // not the owner's: every user who sees it changes its settings (LIST-2)
+    expect(button('Settings').getAttribute('href')).toBe('/grocery/lists/2/edit');
     // one list at a time, no way to the next one but the overview
     expect(button('Next list')).toBeUndefined();
   });
@@ -1036,7 +1036,7 @@ describe('Grocery', () => {
     await overview([defaultList, party, weekly]);
     const menu = await rowMenu('Party');
     expect(button('Delete', menu).disabled).toBe(true);
-    expect(button('Delete', menu).title).toBe('Only the owner of a list changes it');
+    expect(button('Delete', menu).title).toBe('Only the owner of a list deletes it.');
     expect(button('Delete', await rowMenu('Weekly')).disabled).toBe(false);
 
     await deleteFromRow('Weekly');
@@ -1121,6 +1121,60 @@ describe('Grocery', () => {
       shared: true,
       icon: null,
     });
+  });
+
+  it("a shared list of another user: its name, icon and categories change, sharing and deleting are the owner's", async () => {
+    await open('/grocery/lists/2/edit');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    http
+      .expectOne('/api/v1/grocery/lists/2/categories?offset=0&limit=100')
+      .flush(pageOf(categories));
+    await harness.fixture.whenStable();
+
+    // the switch and the delete stay in their place, disabled, and say why (UX-8)
+    const shared = page().querySelector<HTMLInputElement>('#list-shared')!;
+    expect(shared.checked).toBe(true);
+    expect(shared.disabled).toBe(true);
+    expect(shared.title).toBe('Only the owner of a list shares or unshares it.');
+    expect(page().querySelector('[data-testid=shared-hint]')?.textContent?.trim()).toBe(
+      'Only the owner of a list shares or unshares it. Only the owner of a list deletes it.',
+    );
+    expect(button('Delete list').disabled).toBe(true);
+    expect(button('Delete list').title).toBe('Only the owner of a list deletes it.');
+    expect(page().querySelector('[data-testid=last-list]')).toBeNull();
+
+    // a category of the list changes as on an own list
+    expect(page().querySelector('input[aria-label="Name of Fruit & vegetables"]')).not.toBeNull();
+    await type('list-name', 'Garden party');
+    button('No icon').click();
+    await harness.fixture.whenStable();
+    button('Save').click();
+    // the shared flag goes back unchanged
+    expect(http.expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/2' }).request.body).toEqual({
+      name: 'Garden party',
+      shared: true,
+      icon: null,
+    });
+    http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
+  });
+
+  it('a list its owner unshared or deleted while its settings were open says so on save', async () => {
+    await open('/grocery/lists/2/edit');
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
+    http
+      .expectOne('/api/v1/grocery/lists/2/categories?offset=0&limit=100')
+      .flush(pageOf(categories));
+    await harness.fixture.whenStable();
+
+    button('Save').click();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/2' })
+      .flush(null, { status: 404, statusText: 'Not Found' });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'The list is gone, or its owner no longer shares it.',
+    );
+    http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 
   it('the settings lead back where they were opened, all lists or the list', async () => {

@@ -114,7 +114,7 @@ class GroceryServiceTest {
     }
 
     @Test
-    fun `only the owner changes the categories of a list, every user who sees it sees them, an item takes one of its list only`() {
+    fun `every user who sees a list changes its categories, an item takes one of its list only`() {
         val own = list(PELLE)
         val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
         val secret = (service.createList(PELLE, "Secret", shared = false) as GroceryListResult.Saved).list.id
@@ -123,10 +123,12 @@ class GroceryServiceTest {
         snacks.name shouldBe "Snacks"
         service.categories(OTHER, party)!!.last() shouldBe snacks
         service.categories(OTHER, secret) shouldBe null
-        service.createCategory(OTHER, party, "Mine", null) shouldBe GroceryCategoryResult.NotFound
-        service.updateCategory(OTHER, party, snacks.id, "Mine", null) shouldBe GroceryCategoryResult.NotFound
-        service.deleteCategory(OTHER, party, snacks.id) shouldBe false
-        service.orderCategories(OTHER, party, emptyList()) shouldBe GroceryCategoriesResult.NotFound
+        // a private list of another user is none of theirs, a shared one they change
+        service.createCategory(OTHER, secret, "Mine", null) shouldBe GroceryCategoryResult.NotFound
+        service.orderCategories(OTHER, secret, emptyList()) shouldBe GroceryCategoriesResult.NotFound
+        val dips = (service.createCategory(OTHER, party, "Dips", null) as GroceryCategoryResult.Saved).category
+        service.updateCategory(OTHER, party, dips.id, "Sauces", "🥫").shouldBeInstanceOf<GroceryCategoryResult.Saved>()
+        service.deleteCategory(OTHER, party, dips.id) shouldBe true
         // one name in any case and whitespace
         service.createCategory(PELLE, party, "snacks", null) shouldBe GroceryCategoryResult.Exists
         service.createCategory(PELLE, party, "SNACKS ", null) shouldBe GroceryCategoryResult.Exists
@@ -226,7 +228,10 @@ class GroceryServiceTest {
         service.addItem(OTHER, private.id, input("Wine")) shouldBe GroceryItemResult.NotFound
         service.items(OTHER, private.id) shouldBe null
 
-        service.updateList(OTHER, shared.id, "Mine now", shared = true) shouldBe GroceryListResult.NotFound
+        // every user renames a shared list, only its owner unshares and deletes it (LIST-2)
+        (service.updateList(OTHER, shared.id, "Ours", shared = true, icon = "🎉") as GroceryListResult.Saved).list.name shouldBe "Ours"
+        service.updateList(OTHER, shared.id, "Ours", shared = false) shouldBe GroceryListResult.NotOwner
+        service.updateList(OTHER, private.id, "Mine now", shared = false) shouldBe GroceryListResult.NotFound
         service.deleteList(OTHER, shared.id) shouldBe GroceryListDelete.NotFound
         service.deleteList(PELLE, shared.id) shouldBe GroceryListDelete.Deleted
         service.lists(OTHER) shouldBe emptyList()

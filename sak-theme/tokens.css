@@ -14,6 +14,11 @@
   --sak-line: #ddd5c3;
   --sak-ink: #1a1710;
   --sak-muted: #6a6351;
+  /* a field to type in: a brighter fill and an outline of at least 3:1 against the page, the card,
+     the raised fill and the field itself (WCAG 1.4.11), so it stands out; the other lines stay the
+     quiet --sak-line */
+  --sak-field: #ffffff;
+  --sak-field-line: #8c826b;
 
   /* the accent, primary and success alike, with the ink that reads on it */
   --sak-accent: #30c070;
@@ -61,6 +66,8 @@
     --sak-line: #222826;
     --sak-ink: #e3e8e4;
     --sak-muted: #8a938d;
+    --sak-field: #1d2220;
+    --sak-field-line: #67726c;
     --sak-danger-text: #e0604f;
   }
 }
