@@ -202,10 +202,15 @@ The backend serves apps to its users, for example static hosting and notes. How 
   checks them: a resource of the declared name without them belongs to someone else, and nothing changes or deletes
   it. A destroy deletes only resources with both labels; a resource without the password hash label is never deleted.
 - `CLOUD-6` **Kinds of labels.** The plan compares the identity labels. It never compares the labels that sakctl
-  keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
-- `CLOUD-7` **Own prefix.** Labels of SAK are under `sak.pelle.io/`, labels of the user never are.
+  keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version). A label that
+  sakctl did not declare is a change (`CLOUD-9`).
+- `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
 - `CLOUD-8` **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the
   data volume unless the user asks to delete it.
+- `CLOUD-9` **SAK owns all labels.** sakctl owns every label of a resource of a deployment, not only the ones under its
+  prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the
+  provider replaces the labels of a resource as a whole. A label added by hand, in the console or by another tool,
+  does not survive a deploy.
 
 ## Texts
 
