@@ -69,6 +69,9 @@ private fun NoteProblem.message() =
         NoteProblem.TOO_MANY_RECORDINGS -> Text(NotesTexts.TOO_MANY_RECORDINGS, "max" to NoteService.MAX_RECORDINGS)
     }
 
+// the problems of a note that name a file the user does not have
+private val UNKNOWN_FILES = setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING)
+
 private suspend fun RoutingCall.respondSaved(
     result: SaveNoteResult,
     created: Boolean = false,
@@ -76,8 +79,13 @@ private suspend fun RoutingCall.respondSaved(
     when (result) {
         is SaveNoteResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
         SaveNoteResult.NotFound -> respond(HttpStatusCode.NotFound)
-        SaveNoteResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.Conflict)
-        is SaveNoteResult.Invalid -> respondErrors(result.problems.sorted().map { it.message() })
+        SaveNoteResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.UnprocessableEntity)
+        // only photos or recordings that are not there: a 422 (API-6); any other problem a 400
+        is SaveNoteResult.Invalid ->
+            respondErrors(
+                result.problems.sorted().map { it.message() },
+                status = if (result.problems.all { it in UNKNOWN_FILES }) HttpStatusCode.UnprocessableEntity else HttpStatusCode.BadRequest,
+            )
     }
 
 // the address of the signed in user, the owner of the notes
@@ -148,8 +156,15 @@ fun Route.notes(
                 description = "The new note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
-            errors(HttpStatusCode.Conflict, "The user has no list of notes, they get one when they sign in")
+            errors(
+                HttpStatusCode.BadRequest,
+                "A too long text, an unknown color, an invalid label name, too many labels, too many photos, too many recordings " +
+                    "or a malformed request, also with an unknown photo or recording",
+            )
+            errors(
+                HttpStatusCode.UnprocessableEntity,
+                "Only photos or recordings the user has not stored, or the user has no list of notes (they get one when they sign in)",
+            )
         }
     }
 
@@ -184,7 +199,7 @@ fun Route.notes(
                 description = "The note"
                 schema = jsonSchema<NoteResponse>()
             }
-            HttpStatusCode.NotFound { description = "The signed in user has no such note" }
+            errors(HttpStatusCode.NotFound, "The signed in user has no such note")
         }
     }
 
@@ -195,7 +210,7 @@ fun Route.notes(
     }.describe {
         tag(NOTES_TAG)
         summary = "Change a note"
-        description = "Replaces the text, the color, the labels and the photos; the labels that do not exist yet are created."
+        description = "Replaces the text, the color, the labels, the photos and the recordings; the labels that do not exist yet are created."
         parameters { noteId() }
         requestBody {
             required = true
@@ -206,8 +221,13 @@ fun Route.notes(
                 description = "The changed note"
                 schema = jsonSchema<NoteResponse>()
             }
-            errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
-            HttpStatusCode.NotFound { description = "The signed in user has no such note" }
+            errors(
+                HttpStatusCode.BadRequest,
+                "A too long text, an unknown color, an invalid label name, too many labels, too many photos, too many recordings " +
+                    "or a malformed request, also with an unknown photo or recording",
+            )
+            errors(HttpStatusCode.UnprocessableEntity, "Only photos or recordings the user has not stored")
+            errors(HttpStatusCode.NotFound, "The signed in user has no such note")
         }
     }
 
@@ -223,7 +243,7 @@ fun Route.notes(
         parameters { noteId() }
         responses {
             HttpStatusCode.NoContent { description = "The note is gone" }
-            HttpStatusCode.NotFound { description = "The signed in user has no such note" }
+            errors(HttpStatusCode.NotFound, "The signed in user has no such note")
         }
     }
 }

@@ -131,7 +131,7 @@ fun Route.redirects(redirectService: RedirectService) {
                 description = "The redirect with its target and the domain it leads to"
                 schema = jsonSchema<RedirectResponse>()
             }
-            HttpStatusCode.NotFound { description = "The domain is not redirected" }
+            errors(HttpStatusCode.NotFound, "The domain is not redirected")
         }
     }
 
@@ -169,7 +169,7 @@ fun Route.redirects(redirectService: RedirectService) {
                 schema = jsonSchema<RedirectResponse>()
             }
             errors(HttpStatusCode.BadRequest, "No valid domain, the redirected domain itself, or a malformed request")
-            HttpStatusCode.NotFound { description = "The domain is not redirected" }
+            errors(HttpStatusCode.NotFound, "The domain is not redirected")
             errors(HttpStatusCode.UnprocessableEntity, "The bucket is unknown or not served at a domain")
         }
     }
@@ -191,7 +191,7 @@ fun Route.redirects(redirectService: RedirectService) {
         }
         responses {
             HttpStatusCode.NoContent { description = "The redirect is gone" }
-            HttpStatusCode.NotFound { description = "The domain is not redirected" }
+            errors(HttpStatusCode.NotFound, "The domain is not redirected")
         }
     }
 }

@@ -42,6 +42,7 @@ import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
 import io.pelle.sak.backend.info.info
+import io.pelle.sak.backend.info.wellKnown
 import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
@@ -244,6 +245,9 @@ fun Application.apps(
             }
 
             apiDoc()
+
+            // where the api of the SAK address is, before the pages of the apps
+            wellKnown(config)
 
             // caddy only lets sak.<base_domain> through, its swagger ui is part of sak-frontend.
             // Unknown api paths and versions are no pages of the apps: there routing answers 404,

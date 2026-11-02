@@ -874,8 +874,8 @@ run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnit
 
 # the debug build of an app of android/apps.txt in the emulator, e.g. mise run android:run notes: the
 # avd sak is made once, the emulator started when none runs and left running; the debug build is
-# installed on the emulator only (ANDROID_SERIAL), also when a phone is attached. It takes a server url
-# like http://10.0.2.2:8080/api/v1, the backend of local:run on the host
+# installed on the emulator only (ANDROID_SERIAL), also when a phone is attached. Its SAK address is
+# http://10.0.2.2:4200, the dev server of local:run on the host, which hands on .well-known/sak.json
 [tasks."android:run"]
 description = "Run an android app in the emulator"
 usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes)"'

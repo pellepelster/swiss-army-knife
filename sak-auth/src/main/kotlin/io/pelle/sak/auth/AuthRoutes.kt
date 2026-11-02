@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.respondStatusError
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
@@ -101,7 +102,7 @@ fun AuthenticationConfig.session(
         // a 401 says how to authenticate, one bearer challenge for the session and a signed request alike
         challenge { _, _ ->
             call.response.header(HttpHeaders.WWWAuthenticate, "Bearer")
-            call.respond(HttpStatusCode.Unauthorized)
+            call.respondStatusError(HttpStatusCode.Unauthorized)
         }
     }
 }
@@ -137,7 +138,7 @@ fun Route.login(
         // an android app always sends its nonce, of 16 to 128 characters (AN-8)
         val nonce = request.nonce
         if ((request.client != LoginClient.WEB && nonce == null) || (nonce != null && nonce.length !in 16..128)) {
-            call.respond(HttpStatusCode.BadRequest)
+            call.respondErrors(AuthTexts.INVALID_NONCE)
             return@post
         }
         val client = call.clientAddress()
@@ -187,7 +188,7 @@ fun Route.login(
         responses {
             HttpStatusCode.Accepted { description = "The link is on its way if the address may sign in" }
             errors(HttpStatusCode.BadRequest, "No valid e-mail address or a malformed request")
-            HttpStatusCode.TooManyRequests { description = "Too many login requests from this client" }
+            errors(HttpStatusCode.TooManyRequests, "Too many login requests from this client")
         }
     }
 
@@ -198,7 +199,7 @@ fun Route.login(
         val roles = claims?.let { rolesOf(it.email) }.orEmpty()
         if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of '${claims.email}': the address has no role" }
         if (claims == null || roles.isEmpty()) {
-            call.respond(HttpStatusCode.Unauthorized)
+            call.respondErrors(AuthTexts.LINK_INVALID, status = HttpStatusCode.Unauthorized)
             return@post
         }
 
@@ -223,7 +224,7 @@ fun Route.login(
                 description = "The session token and where the login started"
                 schema = jsonSchema<ExchangeResponse>()
             }
-            HttpStatusCode.Unauthorized { description = "The login token is invalid, expired or was already used" }
+            errors(HttpStatusCode.Unauthorized, "The login token is invalid, expired or was already used")
         }
     }
 
@@ -262,7 +263,7 @@ fun Route.passwordLogin(
             if (!matches || roles.isEmpty()) {
                 // neither the password nor the address of the client
                 logger.info { "rejected a password login" }
-                call.respond(HttpStatusCode.Unauthorized)
+                call.respondErrors(AuthTexts.WRONG_PASSWORD, status = HttpStatusCode.Unauthorized)
                 return@post
             }
             val session = tokens.issueSessionToken(admin, roles, withPassword = true)
@@ -286,8 +287,8 @@ fun Route.passwordLogin(
                     description = "The session token of the admin and where the login started"
                     schema = jsonSchema<ExchangeResponse>()
                 }
-                HttpStatusCode.Unauthorized { description = "The password is not the admin password" }
-                HttpStatusCode.TooManyRequests { description = "Too many attempts from this client or altogether" }
+                errors(HttpStatusCode.Unauthorized, "The password is not the admin password")
+                errors(HttpStatusCode.TooManyRequests, "Too many attempts from this client or altogether")
             }
         }
     }
@@ -317,7 +318,7 @@ fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
                 description = "The address, its name if it has one, its roles and when the session expires"
                 schema = jsonSchema<WhoAmIResponse>()
             }
-            HttpStatusCode.Unauthorized { description = "No valid session token" }
+            errors(HttpStatusCode.Unauthorized, "No valid session token")
         }
     }
 }
@@ -375,6 +376,9 @@ internal fun ApplicationCall.clientAddress(): String =
 // the texts of the sign-in (backend.auth in i18n/texts.yml)
 object AuthTexts : Catalog("auth") {
     val INVALID_EMAIL = text("invalid_email")
+    val INVALID_NONCE = text("invalid_nonce")
+    val LINK_INVALID = text("link_invalid")
+    val WRONG_PASSWORD = text("wrong_password")
     val MAIL_SUBJECT = text("mail_subject")
     val MAIL_BODY = text("mail_body")
 }

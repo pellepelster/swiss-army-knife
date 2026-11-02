@@ -101,18 +101,37 @@ class GroceryModelTest {
             assertEquals(Screen.Deployment(), model.screen.value)
 
             model.connect("nonsense")
-            assertTrue((model.screen.value as Screen.Deployment).error.english()!!.contains("base domain"))
+            assertTrue((model.screen.value as Screen.Deployment).error.english()!!.contains("SAK address"))
 
-            model.connect("example.org")
+            model.connect("sak.example.org")
             advanceUntilIdle()
-            assertEquals(Screen.SignIn("family", multiUser = true), model.screen.value)
-            assertEquals(Stored(apiUrl = URL, deployment = "family"), store.load())
+            assertEquals(Screen.SignIn("https://sak.example.org", multiUser = true), model.screen.value)
+            assertEquals(Stored(apiUrl = URL, address = "https://sak.example.org"), store.load())
+        }
+
+    @Test
+    fun `an address that names no api, or one without https, is no SAK address`() =
+        runTest {
+            val store = MemorySessionStore()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+
+            backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.NotFound to ""
+            model.connect("www.example.org")
+            advanceUntilIdle()
+            assertEquals("This is no SAK address.", (model.screen.value as Screen.Deployment).error.english())
+
+            backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.OK to """{"api":"http://api.example.org/v1"}"""
+            model.connect("sak.example.org")
+            advanceUntilIdle()
+            assertEquals("This is no SAK address.", (model.screen.value as Screen.Deployment).error.english())
+            assertEquals(Stored(), store.load())
         }
 
     @Test
     fun `the password signs in to the home with all lists, a list opens with its items by category, back leads home`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
 
@@ -147,7 +166,7 @@ class GroceryModelTest {
     @Test
     fun `a login link is taken only for a login this app asked for, within 15 minutes`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
 
@@ -181,7 +200,7 @@ class GroceryModelTest {
     fun `a pending login older than 15 minutes is no longer taken`() =
         runTest {
             val store =
-                MemorySessionStore(Stored(apiUrl = URL, deployment = "family", pending = PendingLogin(URL, now.minusSeconds(16 * 60), "a nonce of sixteen")))
+                MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", pending = PendingLogin(URL, now.minusSeconds(16 * 60), "a nonce of sixteen")))
             val model = model(store).also { it.start() }
             model.signInWithLink("login-token")
             advanceUntilIdle()
@@ -193,7 +212,7 @@ class GroceryModelTest {
         runTest {
             val store =
                 MemorySessionStore(
-                    Stored(apiUrl = URL, deployment = "family", token = "old", email = "admin", expiresAt = now.plusSeconds(60)),
+                    Stored(apiUrl = URL, address = "https://sak.example.org", token = "old", email = "admin", expiresAt = now.plusSeconds(60)),
                 )
             backend.answers["GET /grocery/lists"] = HttpStatusCode.Unauthorized to ""
             val model = model(store).also { it.start() }
@@ -209,27 +228,27 @@ class GroceryModelTest {
     fun `an expired session is not used, signing out keeps the deployment`() =
         runTest {
             val expired =
-                MemorySessionStore(Stored(apiUrl = URL, deployment = "family", token = "old", email = "admin", expiresAt = now.minusSeconds(1)))
+                MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = "old", email = "admin", expiresAt = now.minusSeconds(1)))
             model(expired).also { it.start() }.let {
                 advanceUntilIdle()
                 assertTrue(it.screen.value is Screen.SignIn)
             }
 
             val store =
-                MemorySessionStore(Stored(apiUrl = URL, deployment = "family", token = "t", email = "admin", expiresAt = now.plusSeconds(60)))
+                MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "admin", expiresAt = now.plusSeconds(60)))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.signOut()
             advanceUntilIdle()
             assertTrue(model.screen.value is Screen.SignIn)
-            assertEquals(Stored(apiUrl = URL, deployment = "family"), store.load())
+            assertEquals(Stored(apiUrl = URL, address = "https://sak.example.org"), store.load())
         }
 
     @Test
     fun `an error of the backend is shown with its message`() =
         runTest {
             backend.answers["POST /auth/login/password"] = HttpStatusCode.Unauthorized to ""
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("wrong")
@@ -245,7 +264,7 @@ class GroceryModelTest {
 
     private fun signedInStore(openList: Int? = 1) =
         MemorySessionStore(
-            Stored(apiUrl = URL, deployment = "family", token = "t", email = "admin", expiresAt = now.plusSeconds(60)).withOpenList(openList),
+            Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "admin", expiresAt = now.plusSeconds(60)).withOpenList(openList),
         )
 
     // signed in, the list open last open again
@@ -679,7 +698,7 @@ class GroceryModelTest {
     @Test
     fun `the sign-in follows the user mode, the multi user mode offers the password login after the e-mail login`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val multi = model(store).also { it.start() }
             advanceUntilIdle()
             val signIn = multi.screen.value as Screen.SignIn
@@ -691,9 +710,9 @@ class GroceryModelTest {
             assertEquals(false, (multi.screen.value as Screen.SignIn).withPassword)
 
             backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"single"}"""
-            val single = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
+            val single = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
             advanceUntilIdle()
-            assertEquals(Screen.SignIn("family", multiUser = false, withPassword = true), single.screen.value)
+            assertEquals(Screen.SignIn("https://sak.example.org", multiUser = false, withPassword = true), single.screen.value)
             // no e-mail login to go to
             single.usePassword(false)
             assertEquals(true, (single.screen.value as Screen.SignIn).withPassword)
@@ -1524,7 +1543,7 @@ class GroceryModelTest {
     fun `a photo the camera took after the session ended is dropped, not kept for a later sign-in (AN-52)`() =
         runTest {
             backend.dispatcher = StandardTestDispatcher(testScheduler)
-            val model = GroceryModel(MemorySessionStore(Stored(apiUrl = URL, deployment = "family")), backend::api, this, allowUrl = false)
+            val model = GroceryModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false)
             var discarded = false
             model.attachPhoto(10, discard = { discarded = true }) { "jpeg".toByteArray() }
             model.start()

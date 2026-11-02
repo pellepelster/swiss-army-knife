@@ -141,4 +141,9 @@ object ApiTexts : Catalog("api") {
     val UNEXPECTED_ERROR = text("unexpected_error")
     val INVALID_OFFSET = text("invalid_offset")
     val INVALID_LIMIT = text("invalid_limit")
+    val UNAUTHORIZED = text("unauthorized")
+    val FORBIDDEN = text("forbidden")
+    val NOT_FOUND = text("not_found")
+    val TOO_MANY_REQUESTS = text("too_many_requests")
+    val UNAVAILABLE = text("unavailable")
 }

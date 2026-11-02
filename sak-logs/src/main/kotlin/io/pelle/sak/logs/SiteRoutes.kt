@@ -70,7 +70,7 @@ fun Route.accessLogs(
                 description = "The site with its domains, the ranges and the default range"
                 schema = jsonSchema<AccessLogsResponse>()
             }
-            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
+            errors(HttpStatusCode.NotFound, "No such site, or it is not served at a domain")
         }
     }
 
@@ -103,8 +103,8 @@ fun Route.accessLogs(
                 schema = jsonSchema<SiteMetricsResponse>()
             }
             errors(HttpStatusCode.BadRequest, "Unknown range")
-            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
-            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
+            errors(HttpStatusCode.NotFound, "No such site, or it is not served at a domain")
+            errors(HttpStatusCode.ServiceUnavailable, "The logs are not available")
         }
     }
 
@@ -154,8 +154,8 @@ fun Route.accessLogs(
                 schema = jsonSchema<PageResponse<LogEntryResponse>>()
             }
             errors(HttpStatusCode.BadRequest, "No, too long or control characters in the search text, or an invalid page")
-            HttpStatusCode.NotFound { description = "No such site, or it is not served at a domain" }
-            HttpStatusCode.ServiceUnavailable { description = "The logs are not available" }
+            errors(HttpStatusCode.NotFound, "No such site, or it is not served at a domain")
+            errors(HttpStatusCode.ServiceUnavailable, "The logs are not available")
         }
     }
 }

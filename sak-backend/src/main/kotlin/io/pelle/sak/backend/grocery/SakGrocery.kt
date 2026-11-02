@@ -112,6 +112,7 @@ private suspend fun ApplicationCall.respondItem(
     is GroceryItemResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.item.response())
     is GroceryItemResult.Invalid -> respondErrors(result.errors)
     GroceryItemResult.NotFound -> respond(HttpStatusCode.NotFound)
+    GroceryItemResult.UnknownList -> respondErrors(GroceryTexts.UNKNOWN_LIST, status = HttpStatusCode.UnprocessableEntity)
 }
 
 private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoResult) =
@@ -194,7 +195,7 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or a malformed request")
                 errors(HttpStatusCode.Forbidden, "The user is not the owner and would share or unshare the list")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
                 errors(HttpStatusCode.Conflict, "Another list of the owner has the name, also when another user renames a shared list")
             }
         }
@@ -212,7 +213,7 @@ fun Route.grocery(
             parameters { listId() }
             responses {
                 HttpStatusCode.NoContent { description = "The list is gone" }
-                HttpStatusCode.NotFound { description = "The user has no such list" }
+                errors(HttpStatusCode.NotFound, "The user has no such list")
             }
         }
 
@@ -245,7 +246,7 @@ fun Route.grocery(
                     schema = jsonSchema<PageResponse<GroceryItemResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid page")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
             }
         }
 
@@ -278,7 +279,7 @@ fun Route.grocery(
                     schema = jsonSchema<PageResponse<GrocerySuggestionResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid page")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
             }
         }
 
@@ -303,7 +304,7 @@ fun Route.grocery(
                     schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid page")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
             }
         }
 
@@ -327,7 +328,7 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or icon, too many categories, or a malformed request")
                 errors(HttpStatusCode.Conflict, "The list has a category of the name")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
             }
         }
 
@@ -358,7 +359,7 @@ fun Route.grocery(
                     schema = jsonSchema<PageResponse<GroceryCategoryResponse>>()
                 }
                 errors(HttpStatusCode.BadRequest, "Ids that are not the categories of the list, each once, or a malformed request")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
             }
         }
 
@@ -386,7 +387,7 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or icon, or a malformed request")
                 errors(HttpStatusCode.Conflict, "The list has another category of the name")
-                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such category" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list, or it has no such category")
             }
         }
 
@@ -405,7 +406,7 @@ fun Route.grocery(
             }
             responses {
                 HttpStatusCode.NoContent { description = "The category is gone" }
-                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such category" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list, or it has no such category")
             }
         }
 
@@ -430,7 +431,7 @@ fun Route.grocery(
             }
             responses {
                 HttpStatusCode.NoContent { description = "The suggestion is gone" }
-                HttpStatusCode.NotFound { description = "The user sees no such list, or it has no such suggestion" }
+                errors(HttpStatusCode.NotFound, "The user sees no such list, or it has no such suggestion")
             }
         }
     }
@@ -453,7 +454,7 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryItemResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request, e.g. without a list")
-                HttpStatusCode.NotFound { description = "The user sees no such list" }
+                errors(HttpStatusCode.UnprocessableEntity, "The user sees no such list")
             }
         }
 
@@ -475,7 +476,7 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryItemResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request")
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 
@@ -500,7 +501,7 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryItemResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "No category of the list, or a malformed request")
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 
@@ -525,7 +526,7 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryItemResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "The file is no image the user uploaded, or a malformed request")
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 
@@ -542,7 +543,7 @@ fun Route.grocery(
                     description = "The item without a photo"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 
@@ -593,7 +594,7 @@ fun Route.grocery(
             responses {
                 HttpStatusCode.OK { description = "The photo, scaled or itself" }
                 HttpStatusCode.BadRequest { description = "No file id or no positive size" }
-                HttpStatusCode.NotFound { description = "The user sees no such item, or the file is not its photo" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item, or the file is not its photo")
             }
         }
 
@@ -610,7 +611,7 @@ fun Route.grocery(
             parameters { itemId() }
             responses {
                 HttpStatusCode.NoContent { description = "The item is checked" }
-                HttpStatusCode.NotFound { description = "The user sees no such item to buy" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item to buy")
             }
         }
 
@@ -625,7 +626,7 @@ fun Route.grocery(
             parameters { itemId() }
             responses {
                 HttpStatusCode.NoContent { description = "The item is gone" }
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
     }

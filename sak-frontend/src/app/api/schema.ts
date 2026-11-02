@@ -86,7 +86,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -136,7 +138,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -186,14 +190,18 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description Too many attempts from this client or altogether */
         429: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -234,7 +242,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -381,7 +391,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -415,7 +427,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description Redirects lead to the bucket, named in the message */
         409: {
@@ -484,7 +498,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description Another bucket is served at one of the domains */
         409: {
@@ -538,7 +554,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -583,7 +601,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -643,14 +663,18 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The logs are not available */
         503: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -717,14 +741,18 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The logs are not available */
         503: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -877,7 +905,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -924,7 +954,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The bucket is unknown or not served at a domain */
         422: {
@@ -963,7 +995,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1104,7 +1138,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1151,7 +1187,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description Another label has the name */
         409: {
@@ -1193,7 +1231,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1315,7 +1355,7 @@ export interface paths {
             'application/json': components['schemas']['NoteResponse'];
           };
         };
-        /** @description A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request */
+        /** @description A too long text, an unknown color, an invalid label name, too many labels, too many photos, too many recordings or a malformed request, also with an unknown photo or recording */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1324,8 +1364,8 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user has no list of notes, they get one when they sign in */
-        409: {
+        /** @description Only photos or recordings the user has not stored, or the user has no list of notes (they get one when they sign in) */
+        422: {
           headers: {
             [name: string]: unknown;
           };
@@ -1431,13 +1471,15 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
     /**
      * Change a note
-     * @description Replaces the text, the color, the labels and the photos; the labels that do not exist yet are created.
+     * @description Replaces the text, the color, the labels, the photos and the recordings; the labels that do not exist yet are created.
      */
     put: {
       parameters: {
@@ -1464,7 +1506,7 @@ export interface paths {
             'application/json': components['schemas']['NoteResponse'];
           };
         };
-        /** @description A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request */
+        /** @description A too long text, an unknown color, an invalid label name, too many labels, too many photos, too many recordings or a malformed request, also with an unknown photo or recording */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1478,7 +1520,18 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description Only photos or recordings the user has not stored */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1508,7 +1561,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1678,7 +1733,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description Another list of the owner has the name, also when another user renames a shared list */
         409: {
@@ -1720,7 +1777,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1785,7 +1844,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1853,7 +1914,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1905,7 +1968,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -1968,7 +2033,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2016,7 +2083,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The list has a category of the name */
         409: {
@@ -2089,7 +2158,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2153,7 +2224,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The list has another category of the name */
         409: {
@@ -2197,7 +2270,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2251,11 +2326,13 @@ export interface paths {
           };
         };
         /** @description The user sees no such list */
-        404: {
+        422: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2313,7 +2390,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2346,7 +2425,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2406,7 +2487,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2468,7 +2551,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2503,7 +2588,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2559,7 +2646,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2608,7 +2697,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2862,7 +2953,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -2969,7 +3062,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -3020,7 +3115,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -3175,7 +3272,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The AI features are turned off in the settings */
         409: {
@@ -3253,7 +3352,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };
@@ -3300,7 +3401,9 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
       };
     };

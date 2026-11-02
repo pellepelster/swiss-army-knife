@@ -101,7 +101,7 @@ fun Route.labels(labelService: LabelService) {
                 description = "The label"
                 schema = jsonSchema<LabelResponse>()
             }
-            HttpStatusCode.NotFound { description = "There is no such label of the signed in user" }
+            errors(HttpStatusCode.NotFound, "There is no such label of the signed in user")
         }
     }
 
@@ -129,7 +129,7 @@ fun Route.labels(labelService: LabelService) {
                 schema = jsonSchema<LabelResponse>()
             }
             errors(HttpStatusCode.BadRequest, "An invalid name or a malformed request")
-            HttpStatusCode.NotFound { description = "There is no such label" }
+            errors(HttpStatusCode.NotFound, "There is no such label")
             errors(HttpStatusCode.Conflict, "Another label has the name")
         }
     }
@@ -147,7 +147,7 @@ fun Route.labels(labelService: LabelService) {
         parameters { labelId() }
         responses {
             HttpStatusCode.NoContent { description = "The label is gone" }
-            HttpStatusCode.NotFound { description = "There is no such label" }
+            errors(HttpStatusCode.NotFound, "There is no such label")
         }
     }
 }

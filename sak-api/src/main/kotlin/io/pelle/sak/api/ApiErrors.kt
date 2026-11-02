@@ -13,10 +13,14 @@ import io.ktor.server.application.isHandled
 import io.ktor.server.application.log
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.request.uri
 import io.ktor.server.response.respondText
 import kotlinx.coroutines.CancellationException
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.createRouteScopedPlugin
+import io.ktor.http.content.TextContent
+import io.ktor.server.http.content.HttpStatusCodeContent
 import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.PayloadTooLargeException
@@ -67,11 +71,45 @@ fun Route.installApi() {
     install(ApiErrors)
 }
 
+// the path the api is below, of the backend (/api/v1) and of api.<base domain> after caddy rewrote it
+private const val API_ERRORS_PREFIX = "/api"
+
+// the errors a route answers with its status alone, below /api/, and the message each gets (API-1);
+// a route that has a better message answers it itself
+private val STATUS_TEXTS =
+    mapOf(
+        HttpStatusCode.Unauthorized to ApiTexts.UNAUTHORIZED,
+        HttpStatusCode.Forbidden to ApiTexts.FORBIDDEN,
+        HttpStatusCode.NotFound to ApiTexts.NOT_FOUND,
+        HttpStatusCode.TooManyRequests to ApiTexts.TOO_MANY_REQUESTS,
+        HttpStatusCode.ServiceUnavailable to ApiTexts.UNAVAILABLE,
+    )
+
+// an answer of the api with its status alone, of a route or of routing for an unknown path, gets
+// the error body of its status (STATUS_TEXTS); an answer with a body keeps it
+private val BareApiErrors =
+    createApplicationPlugin("BareApiErrors") {
+        onCallRespond { call, body ->
+            val status =
+                when (body) {
+                    is HttpStatusCode -> body
+                    is HttpStatusCodeContent -> body.status
+                    else -> null
+                } ?: return@onCallRespond
+            val text = STATUS_TEXTS[status] ?: return@onCallRespond
+            if (!call.request.path().startsWith("$API_ERRORS_PREFIX/")) return@onCallRespond
+            transformBody { TextContent(errorBody(call, text), ContentType.Application.Json, status) }
+        }
+    }
+
 // every failure no route answered, installed once for the whole application: a malformed request
 // is a 400, a too large body a 413, everything else is logged and answered with a 500 that tells nothing of it; no
-// exception, message or stack trace ever reaches the client. The body is written as it is, the
-// routes it covers may have no content negotiation
+// exception, message or stack trace ever reaches the client. An error of the api answered with its
+// status alone (a 401, 403, 404, 429 or 503, also one of routing for an unknown path) gets the
+// error body with its message (API-1); the pages, the s3 api and the rest keep it empty. The body is
+// written as it is, the routes it covers may have no content negotiation
 fun Application.installUnexpectedErrors() {
+    install(BareApiErrors)
     install(StatusPages) {
         exception<Throwable> { call, cause ->
             when {
@@ -91,6 +129,11 @@ fun Application.installUnexpectedErrors() {
         }
     }
 }
+
+// the error of a status alone (401, 403, 404, 429, 503) with its message, written without content
+// negotiation, for what answers before a route, e.g. the challenge of the authentication
+suspend fun ApplicationCall.respondStatusError(status: HttpStatusCode) =
+    respondText(errorBody(this, STATUS_TEXTS.getValue(status)), ContentType.Application.Json, status)
 
 // the error body of one text in the language of the user, written without content negotiation
 private fun errorBody(

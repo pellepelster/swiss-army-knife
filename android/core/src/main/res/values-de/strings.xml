@@ -17,8 +17,8 @@
     <string name="shared_settings">Einstellungen</string>
     <string name="shared_email">E-Mail-Adresse</string>
     <string name="users_invalid_email">Eine E-Mail-Adresse wie name@example.org ist nötig.</string>
-    <string name="deployment_hint">Gib die Basisdomain deiner SAK-Instanz ein, unter der die Web-App als sak.&lt;Basisdomain&gt; erreichbar ist.</string>
-    <string name="base_domain">Basisdomain</string>
+    <string name="deployment_hint">Gib die SAK-Adresse deiner SAK-Instanz ein, die Adresse ihrer Web-App, z. B. sak.example.org.</string>
+    <string name="sak_address">SAK-Adresse</string>
     <string name="connecting">Verbinde…</string>
     <string name="connect">Verbinden</string>
     <string name="other_deployment">Andere SAK-Instanz</string>
@@ -36,8 +36,9 @@
     <string name="update_current">Die App ist aktuell, Version %1$s.</string>
     <string name="update_app_no_release">Dieser Build der App ist kein Release, er wird nicht aktualisiert.</string>
     <string name="update_deployment_no_release">Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App.</string>
-    <string name="error_base_domain">Gib die Basisdomain deiner SAK-Instanz ein, z. B. example.org.</string>
-    <string name="error_no_deployment">Unter dieser Domain antwortet keine SAK-Instanz.</string>
+    <string name="error_sak_address">Gib die SAK-Adresse deiner SAK-Instanz ein, z. B. sak.example.org.</string>
+    <string name="error_no_deployment">Unter dieser Adresse antwortet keine SAK-Instanz.</string>
+    <string name="error_no_sak_address">Das ist keine SAK-Adresse.</string>
     <string name="error_no_sak">Das ist keine SAK-Instanz.</string>
     <string name="error_link_not_requested">Der Login-Link konnte nicht angefordert werden.</string>
     <string name="error_link_not_used">Der Login-Link konnte nicht benutzt werden.</string>

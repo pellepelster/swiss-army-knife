@@ -6,6 +6,13 @@ import kotlinx.serialization.Serializable
 // the bodies of the api are generated from openapi.json at the root of the repository (:api,
 // io.pelle.sak.api.model); a page is the one body written here, its schema is inline for each list
 
+// what /.well-known/sak.json at a SAK address answers: where its api is (SERVER-6); not part of
+// the api, so not in openapi.json
+@Serializable
+data class WellKnownResponse(
+    val api: String,
+)
+
 // a page of a list of the api, what all() reads page by page
 @Serializable
 data class PageResponse<T>(

@@ -37,22 +37,23 @@ export function resource(state) {
   return item;
 }
 
-// the frontend of a deployment as `Address: <link>` at the bottom of its card. Rust opens the link
-// in the browser of the system, the window never leaves its pages
-function frontendLink(url) {
+// the SAK address of a deployment as `SAK address: <link>`, at the bottom of its card and on its
+// page; a failure to open it shows in failed. Rust opens the link in the browser of the system, the
+// window never leaves its pages
+export function frontendLink(url, failed = status) {
   const line = document.createElement('li');
   line.className = 'deployment-link';
   line.hidden = !url;
   const label = document.createElement('span');
   label.className = 'deployment-address';
-  label.textContent = `${text('ui.deployments.address')}: `;
+  label.textContent = `${text('common.deployments.address')}: `;
   const link = document.createElement('a');
   link.className = 'deployment-url sak-mono';
   link.href = url ?? '';
   link.textContent = url ?? '';
   link.addEventListener('click', (event) => {
     event.preventDefault();
-    invoke('open_url', { url }).catch((error) => setFailure(status, String(error)));
+    invoke('open_url', { url }).catch((error) => setFailure(failed, String(error)));
   });
   line.append(label, link);
   return line;

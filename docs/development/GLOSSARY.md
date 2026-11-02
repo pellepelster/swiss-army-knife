@@ -31,6 +31,11 @@ user interface. Use the same term for the same thing every time.
 - **base domain**: The domain the hosts of a deployment are below: the root domain in dns mode
   `domain`, `<name>.<root domain>` in dns mode `subdomain`. The frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>`.
+- **SAK address**: The address where the index page of the apps is served, the one users open and sign in at:
+  `https://sak.<base domain>`, for example `https://sak.pelle.io`; locally `http://localhost:4200`. Login links
+  and the download links of the Android apps lead there. Use **SAK address** for it every time, not "frontend URL",
+  "app URL" or "the address of the deployment"; the api at `api.<base domain>` is not the SAK address, it is found
+  at `<SAK address>/.well-known/sak.json` (refer to `SERVER-6` in [SYSTEM.md](architecture/SYSTEM.md)).
 - **root domain** (`root_domain`): The domain under which a deployment serves its apps. The
   production deployment uses `pelle.io`. A local deployment uses `localhost`.
 - **delete**: The verb for taking away something a user made or added: a note, a list, an item, a label, a

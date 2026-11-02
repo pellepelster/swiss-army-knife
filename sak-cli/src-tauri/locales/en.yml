@@ -57,6 +57,7 @@ common:
     stopped: "The run was stopped, its container deleted."
     resource: "provisioning '%{name}'"
   deployments:
+    address: "SAK address"
     invalid_name: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
     short_password: "The password needs at least %{min} characters."
     weak_password: "The password is too easy to guess, choose a longer one of unrelated words or random characters. %{hint}"
@@ -285,7 +286,6 @@ ui:
     title: "Deployments"
     create: "Create deployment"
     loading: "Looking for deployments at the providers…"
-    address: "Address"
   deployment:
     edit_config: "Config…"
     changed_since_check: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."

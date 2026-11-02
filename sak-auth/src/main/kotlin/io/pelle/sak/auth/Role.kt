@@ -8,6 +8,7 @@ import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
+import io.pelle.sak.api.respondStatusError
 
 // what a signed in address may do, the session token names its roles: admin everything, user the
 // apps of the lists (the notes, the grocery lists) with their labels and files
@@ -38,8 +39,8 @@ val RequireRole =
             if (call.isHandled) return@on
             val principal = call.principal<SessionPrincipal>()
             when {
-                principal == null -> call.respond(HttpStatusCode.Unauthorized)
-                principal.roles.none { it in roles } -> call.respond(HttpStatusCode.Forbidden)
+                principal == null -> call.respondStatusError(HttpStatusCode.Unauthorized)
+                principal.roles.none { it in roles } -> call.respondStatusError(HttpStatusCode.Forbidden)
             }
         }
     }

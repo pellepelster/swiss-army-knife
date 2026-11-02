@@ -51,7 +51,6 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
-    installUnexpectedErrors()
     val config = SakConfigLoader.load(environment.config)
     val port = environment.config.property("ktor.deployment.port").getString().toInt()
     logger.info { "starting sak-backend on port $port with data dir ${config.dataDir}" }
@@ -100,6 +99,8 @@ fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 fun filesDir(config: SakConfig) = config.dataDir.resolve("files")
 
 fun Application.sak(config: SakConfig): SakServices {
+    // every failure and every bare error of the api, for the s3 api and the apps alike
+    installUnexpectedErrors()
     Files.createDirectories(config.dataDir)
     Files.createDirectories(config.s3DataDir)
 

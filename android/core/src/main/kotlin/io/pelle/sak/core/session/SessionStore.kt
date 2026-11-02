@@ -17,8 +17,8 @@ data class PendingLogin(
 // what the app keeps: the deployment, the session, a pending login and the values of the app
 data class Stored(
     val apiUrl: String? = null,
-    // the name of the deployment, shown on the sign-in
-    val deployment: String? = null,
+    // the SAK address the user typed, shown on the sign-in
+    val address: String? = null,
     val token: String? = null,
     // the e-mail address, or admin for the password login
     val email: String? = null,

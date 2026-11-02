@@ -1,5 +1,8 @@
 # the texts of the catalog auth in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 invalid_email: "Keine gültige E-Mail-Adresse."
+invalid_nonce: "Eine App sendet eine Nonce mit 16 bis 128 Zeichen."
+link_invalid: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
+wrong_password: "Das Passwort ist falsch."
 mail_subject: "Anmelden bei %{app}"
 mail_body: |
   Hallo,

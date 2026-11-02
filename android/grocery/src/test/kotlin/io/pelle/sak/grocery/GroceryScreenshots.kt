@@ -106,7 +106,7 @@ class GroceryScreenshots {
     }
 
     private fun TestScope.signedIn() =
-        model(Stored(apiUrl = URL, deployment = "family", token = "t", email = "anna@example.org", expiresAt = now.plusSeconds(3600)))
+        model(Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "anna@example.org", expiresAt = now.plusSeconds(3600)))
 
     // what the app and compose started is done
     private fun TestScope.settle() {
@@ -119,7 +119,7 @@ class GroceryScreenshots {
     @Test
     fun signIn() =
         runTest {
-            val model = model(Stored(apiUrl = URL, deployment = "family"))
+            val model = model(Stored(apiUrl = URL, address = "https://sak.example.org"))
             screenshots.show { GroceryApp(model) }
             screenshots.shoot("grocery-sign-in") { settle() }
         }

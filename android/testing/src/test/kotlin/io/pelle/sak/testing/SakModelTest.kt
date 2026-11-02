@@ -112,7 +112,7 @@ class SakModelTest {
     }
 
     private fun signedIn(token: String = "session") =
-        MemorySessionStore(Stored(apiUrl = URL, deployment = "family", token = token, email = "admin", expiresAt = now.plusSeconds(3600)))
+        MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = token, email = "admin", expiresAt = now.plusSeconds(3600)))
 
     @Test
     fun `every page of a list is asked for, a short page or the total ends it`() =
@@ -157,7 +157,7 @@ class SakModelTest {
     @Test
     fun `a link is exchanged with the nonce of its request, once, a link while signed in changes nothing`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.requestLink("pelle@pelle.io")
@@ -188,7 +188,7 @@ class SakModelTest {
     fun `a refused link keeps the login pending, the right link still signs in`() =
         runTest {
             val pending = PendingLogin(URL, now, "the nonce of the test")
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family", pending = pending))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", pending = pending))
             backend.answers["POST /auth/login/exchange"] = HttpStatusCode.Unauthorized to ""
             val model = model(store).also { it.start() }
             model.signInWithLink("someone-elses-token")
@@ -206,7 +206,7 @@ class SakModelTest {
     @Test
     fun `a sign-in that answers after another deployment was chosen changes nothing`() =
         runTest {
-            val memory = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val memory = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             var model: ThingsModel? = null
             // another deployment is chosen right after the sign-in read the deployment
             var switch = false
@@ -267,7 +267,7 @@ class SakModelTest {
     @Test
     fun `a sign-in is asked for once while it runs, the screen after a link offers it again or another address`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))
+            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("a password of sixteen")
@@ -288,7 +288,7 @@ class SakModelTest {
     fun `a deployment that did not answer on the sign-in is asked again`() =
         runTest {
             backend.answers["GET /info"] = HttpStatusCode.BadGateway to ""
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
+            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
             advanceUntilIdle()
             assertNull((model.screen.value as Screen.SignIn).multiUser)
 

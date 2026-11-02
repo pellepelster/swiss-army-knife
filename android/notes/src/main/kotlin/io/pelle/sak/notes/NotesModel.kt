@@ -753,7 +753,7 @@ class NotesModel(
                 try {
                     api.updateNote(id, note.request())
                 } catch (e: ApiException) {
-                    refused = e.status == 400
+                    refused = e.status == 400 || e.status == 422
                     throw e
                 }
             }

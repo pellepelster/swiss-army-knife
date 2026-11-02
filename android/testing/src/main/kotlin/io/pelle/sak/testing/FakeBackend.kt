@@ -20,8 +20,9 @@ const val URL = "https://api.example.org/v1"
 class FakeBackend {
     val requests = mutableListOf<String>()
 
-    // "GET /grocery/lists" to the status and the body
-    val answers = mutableMapOf<String, Pair<HttpStatusCode, String>>()
+    // "GET /grocery/lists" to the status and the body; the SAK address of every test names the api
+    // at URL (SERVER-6), whatever host it has
+    val answers = mutableMapOf<String, Pair<HttpStatusCode, String>>("GET /.well-known/sak.json" to (HttpStatusCode.OK to """{"api":"$URL"}"""))
 
     // the answers to a request with its query, which come before the ones of answers, e.g. the pages
     // of a list: "GET /grocery/lists?offset=100&limit=100"

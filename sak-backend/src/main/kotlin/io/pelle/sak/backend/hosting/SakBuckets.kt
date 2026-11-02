@@ -151,7 +151,7 @@ fun Route.buckets(
         }
         responses {
             HttpStatusCode.NoContent { description = "The bucket is deleted" }
-            HttpStatusCode.NotFound { description = "Unknown bucket" }
+            errors(HttpStatusCode.NotFound, "Unknown bucket")
             errors(HttpStatusCode.Conflict, "Redirects lead to the bucket, named in the message")
         }
     }
@@ -186,7 +186,7 @@ fun Route.buckets(
                 schema = jsonSchema<BucketResponse>()
             }
             errors(HttpStatusCode.BadRequest, "A domain that is not valid or one the controller serves or redirects, or a malformed request")
-            HttpStatusCode.NotFound { description = "Unknown bucket" }
+            errors(HttpStatusCode.NotFound, "Unknown bucket")
             errors(HttpStatusCode.Conflict, "Another bucket is served at one of the domains")
         }
     }
@@ -213,7 +213,7 @@ fun Route.buckets(
                 description = "The bucket, the domains it is served at and its statistics"
                 schema = jsonSchema<BucketResponse>()
             }
-            HttpStatusCode.NotFound { description = "Unknown bucket" }
+            errors(HttpStatusCode.NotFound, "Unknown bucket")
         }
     }
 
@@ -240,7 +240,7 @@ fun Route.buckets(
                 description = "The access key and the secret that may access the bucket"
                 schema = jsonSchema<BucketSecretResponse>()
             }
-            HttpStatusCode.NotFound { description = "Unknown bucket" }
+            errors(HttpStatusCode.NotFound, "Unknown bucket")
         }
     }
 }

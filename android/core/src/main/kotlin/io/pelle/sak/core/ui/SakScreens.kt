@@ -123,7 +123,7 @@ fun Error(text: UiText?) {
     }
 }
 
-// the deployment, its base domain typed in; title is the name of the app
+// the deployment, its SAK address typed in; title is the name of the app
 @Composable
 fun DeploymentScreen(
     title: String,
@@ -137,7 +137,7 @@ fun DeploymentScreen(
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
-                label = { Text(stringResource(R.string.base_domain)) },
+                label = { Text(stringResource(R.string.sak_address)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { if (!screen.busy) connect(input) }),
@@ -160,7 +160,7 @@ fun SignInScreen(
     var email by rememberSaveable { mutableStateOf("") }
     // not in the saved state of the activity, which android writes to the disk (AN-9)
     var password by remember { mutableStateOf("") }
-    Page(screen.deployment, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
+    Page(screen.address, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
         Form(padding) {
             Text(stringResource(R.string.login_sign_in), style = MaterialTheme.typography.headlineSmall)
             Error(screen.error)

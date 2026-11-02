@@ -116,6 +116,9 @@ sealed interface GroceryItemResult {
     ) : GroceryItemResult
 
     data object NotFound : GroceryItemResult
+
+    // the list the new item names is none the user sees (API-6)
+    data object UnknownList : GroceryItemResult
 }
 
 // the grocery lists, their items and the suggestions, the only way to them; it checks the values,
@@ -202,9 +205,9 @@ class GroceryService(
         input: GroceryItemInput,
     ): GroceryItemResult {
         val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        val categories = repository.categories(user, listId) ?: return GroceryItemResult.NotFound
+        val categories = repository.categories(user, listId) ?: return GroceryItemResult.UnknownList
         categoryError(values.categoryId, categories)?.let { return GroceryItemResult.Invalid(listOf(it)) }
-        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.NotFound
+        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.UnknownList
     }
 
     fun updateItem(
@@ -505,6 +508,7 @@ object GroceryTexts : Catalog("grocery") {
     val TOO_MANY_CATEGORIES = text("too_many_categories")
     val INVALID_CATEGORY_ORDER = text("invalid_category_order")
     val LIST_EXISTS = text("list_exists")
+    val UNKNOWN_LIST = text("unknown_list")
     val ONLY_OWNER_SHARES = text("only_owner_shares")
     val OWNER_LIST_EXISTS = text("owner_list_exists")
 }

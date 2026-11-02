@@ -223,7 +223,7 @@ class GroceryServiceTest {
         val wine = add(PELLE, private.id, input("Wine"))
         service.checkItem(OTHER, wine.id) shouldBe false
         service.updateItem(OTHER, wine.id, input("Water")) shouldBe GroceryItemResult.NotFound
-        service.addItem(OTHER, private.id, input("Wine")) shouldBe GroceryItemResult.NotFound
+        service.addItem(OTHER, private.id, input("Wine")) shouldBe GroceryItemResult.UnknownList
         service.items(OTHER, private.id) shouldBe null
 
         // every user renames a shared list, only its owner unshares and deletes it (LIST-2)

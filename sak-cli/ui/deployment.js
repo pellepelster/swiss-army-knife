@@ -10,7 +10,7 @@
 // to the list, force deploy (after a check, the playbook runs again) and deploy changes (only when
 // the check found changes). The one green button is check, or deploy changes when there are changes
 import { showCreate } from './create.js';
-import { STATES, resource } from './deployments.js';
+import { STATES, frontendLink, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
@@ -76,7 +76,8 @@ function configRow(label, value, detail = '') {
 
 // what the configuration holds, as far as it is known
 function showConfig() {
-  const rows = [];
+  // the SAK address first, the address its users open (the list knows it from the resources)
+  const rows = current?.frontendUrl ? [frontendLink(current.frontendUrl, configSource)] : [];
   if (settings?.rootDomain) {
     rows.push(configRow(text('ui.create.root_domain'), settings.rootDomain));
   }

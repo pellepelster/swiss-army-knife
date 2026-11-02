@@ -129,7 +129,7 @@ fun Route.files(
                 schema = jsonSchema<DiscoverTextResponse>()
             }
             errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
-            HttpStatusCode.NotFound { description = "The signed in user has no such file" }
+            errors(HttpStatusCode.NotFound, "The signed in user has no such file")
             errors(HttpStatusCode.Conflict, "The AI features are turned off in the settings")
             errors(HttpStatusCode.TooManyRequests, "The user had too many texts discovered at OpenRouter lately; a known text does not count")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
@@ -160,7 +160,7 @@ fun Route.servedFiles(fileService: FileService) {
         parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The content with its type" }
-            HttpStatusCode.NotFound { description = "The signed in user has no such file" }
+            errors(HttpStatusCode.NotFound, "The signed in user has no such file")
         }
     }
 
@@ -185,9 +185,10 @@ fun Route.servedFiles(fileService: FileService) {
         parameters { fileId() }
         responses {
             HttpStatusCode.OK { description = "The thumbnail" }
-            HttpStatusCode.NotFound {
-                description = "The signed in user has no such file, or it is neither an image nor a recording that can be read"
-            }
+            errors(
+                HttpStatusCode.NotFound,
+                "The signed in user has no such file, or it is neither an image nor a recording that can be read",
+            )
         }
     }
 }

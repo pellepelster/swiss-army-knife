@@ -101,7 +101,7 @@ fun Route.settings(registry: SettingsRegistry) {
                 description = "The settings of the scope, by their names"
                 schema = jsonSchema<SettingsResponse>()
             }
-            HttpStatusCode.NotFound { description = "There is no such scope" }
+            errors(HttpStatusCode.NotFound, "There is no such scope")
         }
     }
 
@@ -129,7 +129,7 @@ fun Route.settings(registry: SettingsRegistry) {
                 schema = jsonSchema<SettingsResponse>()
             }
             errors(HttpStatusCode.BadRequest, "An unknown setting, a value of the wrong type or not valid, or a malformed request")
-            HttpStatusCode.NotFound { description = "There is no such scope" }
+            errors(HttpStatusCode.NotFound, "There is no such scope")
         }
     }
 }

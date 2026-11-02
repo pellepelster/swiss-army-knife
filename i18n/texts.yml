@@ -50,8 +50,26 @@ backend:
       de: "Etwas ist schiefgegangen, die Anfrage konnte nicht beantwortet werden."
     invalid_offset: { en: "offset must be a number of at least 0.", de: "offset muss eine Zahl von mindestens 0 sein." }
     invalid_limit: { en: "limit must be a number from 1 to %{max}.", de: "limit muss eine Zahl von 1 bis %{max} sein." }
+    unauthorized: { en: "Please sign in.", de: "Bitte melde dich an." }
+    forbidden: { en: "Your role does not allow this.", de: "Deine Rolle erlaubt das nicht." }
+    not_found:
+      en: "This does not exist, or you can not see it."
+      de: "Das gibt es nicht, oder du kannst es nicht sehen."
+    too_many_requests:
+      en: "Too many requests, please try again later."
+      de: "Zu viele Anfragen, bitte versuche es später erneut."
+    unavailable:
+      en: "This is not available right now, please try again later."
+      de: "Das ist gerade nicht verfügbar, bitte versuche es später erneut."
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
+    invalid_nonce:
+      en: "An app sends a nonce of 16 to 128 characters."
+      de: "Eine App sendet eine Nonce mit 16 bis 128 Zeichen."
+    link_invalid:
+      en: "The login link is not valid, or it was used or expired."
+      de: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
+    wrong_password: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     mail_subject: { en: "Sign in to %{app}", de: "Anmelden bei %{app}" }
     mail_body:
       en: |
@@ -367,9 +385,9 @@ web:
 
 android:
   deployment_hint:
-    en: "Enter the base domain of your SAK instance, the one the web app is at as sak.<base domain>."
-    de: "Gib die Basisdomain deiner SAK-Instanz ein, unter der die Web-App als sak.<Basisdomain> erreichbar ist."
-  base_domain: { en: "Base domain", de: "Basisdomain" }
+    en: "Enter the SAK address of your SAK instance, the address its web app is at, e.g. sak.example.org."
+    de: "Gib die SAK-Adresse deiner SAK-Instanz ein, die Adresse ihrer Web-App, z. B. sak.example.org."
+  sak_address: { en: "SAK address", de: "SAK-Adresse" }
   connecting: { en: "Connecting…", de: "Verbinde…" }
   connect: { en: "Connect", de: "Verbinden" }
   other_deployment: { en: "Other SAK instance", de: "Andere SAK-Instanz" }
@@ -397,12 +415,13 @@ android:
     de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
   error:
-    base_domain:
-      en: "Enter the base domain of your SAK instance, e.g. example.org."
-      de: "Gib die Basisdomain deiner SAK-Instanz ein, z. B. example.org."
+    sak_address:
+      en: "Enter the SAK address of your SAK instance, e.g. sak.example.org."
+      de: "Gib die SAK-Adresse deiner SAK-Instanz ein, z. B. sak.example.org."
     no_deployment:
-      en: "No SAK instance answers at this domain."
-      de: "Unter dieser Domain antwortet keine SAK-Instanz."
+      en: "No SAK instance answers at this address."
+      de: "Unter dieser Adresse antwortet keine SAK-Instanz."
+    no_sak_address: { en: "This is no SAK address.", de: "Das ist keine SAK-Adresse." }
     no_sak: { en: "This is no SAK instance.", de: "Das ist keine SAK-Instanz." }
     link_not_requested:
       en: "The login link could not be requested."
@@ -551,6 +570,7 @@ ctl:
         de: "Der Lauf wurde gestoppt, sein Container gelöscht."
       resource: { en: "provisioning '%{name}'", de: "Einrichtung '%{name}'" }
     deployments:
+      address: { en: "SAK address", de: "SAK-Adresse" }
       invalid_name:
         en: "A name is 1 to %{max} lower case letters, digits and dashes, starting and ending with a letter or digit."
         de: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
@@ -1001,7 +1021,6 @@ ctl:
       title: { en: "Deployments", de: "Deployments" }
       create: { en: "Create deployment", de: "Deployment erstellen" }
       loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
-      address: { en: "Address", de: "Adresse" }
     deployment:
       edit_config: { en: "Config…", de: "Konfiguration…" }
       changed_since_check:
@@ -1262,6 +1281,9 @@ grocery:
       en: "The order must name every category of the list once."
       de: "Die Reihenfolge muss jede Kategorie der Liste einmal nennen."
     list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    unknown_list:
+      en: "There is no such list, or you can not see it."
+      de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
     owner_list_exists:
       en: "The owner of the list has another list of the name."
       de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."

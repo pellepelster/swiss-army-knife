@@ -95,6 +95,10 @@ open class SakApi(
 
     suspend fun info(): InfoResponse = client.get("$url/info") { session() }.answer(R.string.error_no_sak)
 
+    // where the api is, asked of the api of a SAK address: url is the SAK address then, not an api
+    // (SERVER-6)
+    suspend fun wellKnown(): WellKnownResponse = client.get("$url/.well-known/sak.json").answer(R.string.error_no_sak_address)
+
     // the link goes out by mail if the address may sign in, the answer is the same for every address;
     // the link signs in only with the nonce (AN-8)
     suspend fun requestLink(

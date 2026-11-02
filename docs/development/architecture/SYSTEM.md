@@ -87,6 +87,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   times of the logs and the metrics). Something that never ends has no time rather than one far away.
 - `API-4` **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
   response class.
+- `API-6` **Missing entities.** A 404 is only for the resource of the path. An entity the request refers to that is
+  not there, e.g. the list of a new item, a photo of a note or the bucket of a redirect, is a 422 with its message.
 
 ## Model
 
@@ -130,6 +132,10 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `SERVER-5` The hosts depend on the **dns mode** (refer to [FDR-001](../fdr/FDR-001-dns-mode.md)): the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
   base domain is the root domain (`domain`) or `<name>.<root domain>` (`subdomain`).
+- `SERVER-6` The **SAK address** tells where its api is: `GET <SAK address>/.well-known/sak.json` answers
+  `{"api": "https://api.<base domain>/v1"}`, without a session. A client that knows only the SAK address, the Android
+  apps, finds the api there. At any other address than `sak.<base domain>` (the dev server of `local:run`, the
+  backend itself) the api is `/api/v1` of the same origin.
 
 ## sakctl
 

@@ -17,8 +17,8 @@
     <string name="shared_settings">Settings</string>
     <string name="shared_email">E-mail address</string>
     <string name="users_invalid_email">An e-mail address like name@example.org is needed.</string>
-    <string name="deployment_hint">Enter the base domain of your SAK instance, the one the web app is at as sak.&lt;base domain&gt;.</string>
-    <string name="base_domain">Base domain</string>
+    <string name="deployment_hint">Enter the SAK address of your SAK instance, the address its web app is at, e.g. sak.example.org.</string>
+    <string name="sak_address">SAK address</string>
     <string name="connecting">Connecting…</string>
     <string name="connect">Connect</string>
     <string name="other_deployment">Other SAK instance</string>
@@ -37,8 +37,9 @@
     <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
     <string name="update_deployment_no_release">Your SAK instance runs no release, there is no update for the app.</string>
     <string name="ok" translatable="false">OK</string>
-    <string name="error_base_domain">Enter the base domain of your SAK instance, e.g. example.org.</string>
-    <string name="error_no_deployment">No SAK instance answers at this domain.</string>
+    <string name="error_sak_address">Enter the SAK address of your SAK instance, e.g. sak.example.org.</string>
+    <string name="error_no_deployment">No SAK instance answers at this address.</string>
+    <string name="error_no_sak_address">This is no SAK address.</string>
     <string name="error_no_sak">This is no SAK instance.</string>
     <string name="error_link_not_requested">The login link could not be requested.</string>
     <string name="error_link_not_used">The login link could not be used.</string>

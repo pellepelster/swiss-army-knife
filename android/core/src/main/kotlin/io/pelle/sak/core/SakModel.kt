@@ -41,7 +41,7 @@ fun randomNonce(): String = ByteArray(32).also(SecureRandom()::nextBytes).let { 
 interface Screen {
     data object Starting : Screen
 
-    // the deployment, its base domain typed in
+    // the deployment, its SAK address typed in
     data class Deployment(
         val input: String = "",
         val busy: Boolean = false,
@@ -51,7 +51,8 @@ interface Screen {
     // the sign-in follows the user mode (UX-7): in the multi user mode the e-mail login with a link to
     // the password login, in the single user mode only the password login
     data class SignIn(
-        val deployment: String,
+        // the SAK address, else the url of the api
+        val address: String,
         // the multi user mode, null until the deployment answered
         val multiUser: Boolean?,
         // the password login is shown: chosen, or the only one in the single user mode
@@ -154,9 +155,9 @@ abstract class SakModel<A : SakApi>(
 
     fun connect(input: String) {
         if ((state.value as? Screen.Deployment)?.busy == true) return
-        val url = apiUrl(input, allowUrl)
-        if (url == null) {
-            state.value = Screen.Deployment(input, error = uiText(R.string.error_base_domain))
+        val address = sakAddress(input, allowUrl)
+        if (address == null) {
+            state.value = Screen.Deployment(input, error = uiText(R.string.error_sak_address))
             return
         }
         val connecting = Screen.Deployment(input, busy = true)
@@ -164,9 +165,13 @@ abstract class SakModel<A : SakApi>(
         val since = epoch
         scope.launch {
             try {
-                val info = apiOf(url, null).info()
+                // the SAK address names its api (SERVER-6), which must answer as a SAK instance
+                val url =
+                    announcedApi(apiOf(address, null).wellKnown().api, allowUrl)
+                        ?: throw ApiException(0, uiText(R.string.error_no_sak_address))
+                apiOf(url, null).info()
                 if (since != epoch || state.value !== connecting) return@launch
-                val stored = Stored(apiUrl = url, deployment = info.name)
+                val stored = Stored(apiUrl = url, address = address)
                 store.save(stored)
                 showSignIn(stored)
             } catch (e: CancellationException) {
@@ -495,16 +500,16 @@ abstract class SakModel<A : SakApi>(
         error: UiText? = null,
     ) {
         val url = stored.apiUrl ?: return
-        val deployment = stored.deployment ?: url
-        val asking = Screen.SignIn(deployment, multiUser = null, busy = true, error = error)
+        val address = stored.address ?: url
+        val asking = Screen.SignIn(address, multiUser = null, busy = true, error = error)
         state.value = asking
         val shown =
             try {
-                Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode.multiUser(), error = error)
+                Screen.SignIn(address, multiUser = apiOf(url, null).info().userMode.multiUser(), error = error)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Screen.SignIn(deployment, multiUser = null, error = failure(e, R.string.error_deployment_unreachable))
+                Screen.SignIn(address, multiUser = null, error = failure(e, R.string.error_deployment_unreachable))
             }
         // only while nothing else came meanwhile, e.g. the app of a sign-in
         if (state.value === asking) state.value = shown

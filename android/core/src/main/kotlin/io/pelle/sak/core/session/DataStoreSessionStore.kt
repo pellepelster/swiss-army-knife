@@ -31,7 +31,7 @@ private val Context.dataStore by preferencesDataStore(
 )
 
 private val API_URL = stringPreferencesKey("api_url")
-private val DEPLOYMENT = stringPreferencesKey("deployment")
+private val ADDRESS = stringPreferencesKey("address")
 private val TOKEN = stringPreferencesKey("token")
 private val EMAIL = stringPreferencesKey("email")
 private val EXPIRES_AT = longPreferencesKey("expires_at")
@@ -66,7 +66,7 @@ class DataStoreSessionStore(
     private fun read(preferences: Preferences) =
         Stored(
             apiUrl = preferences[API_URL],
-            deployment = preferences[DEPLOYMENT],
+            address = preferences[ADDRESS],
             // a token the key can not open any more (e.g. the app was restored elsewhere) is none
             token = preferences[TOKEN]?.let(cipher::decryptOrNull),
             email = preferences[EMAIL],
@@ -91,7 +91,7 @@ class DataStoreSessionStore(
     ) {
         preferences.clear()
         stored.apiUrl?.let { preferences[API_URL] = it }
-        stored.deployment?.let { preferences[DEPLOYMENT] = it }
+        stored.address?.let { preferences[ADDRESS] = it }
         stored.token?.let { preferences[TOKEN] = cipher.encrypt(it) }
         stored.email?.let { preferences[EMAIL] = it }
         stored.expiresAt?.let { preferences[EXPIRES_AT] = it.toEpochMilli() }

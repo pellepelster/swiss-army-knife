@@ -57,6 +57,7 @@ common:
     stopped: "Der Lauf wurde gestoppt, sein Container gelöscht."
     resource: "Einrichtung '%{name}'"
   deployments:
+    address: "SAK-Adresse"
     invalid_name: "Ein Name besteht aus 1 bis %{max} Kleinbuchstaben, Ziffern und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer."
     short_password: "Das Passwort braucht mindestens %{min} Zeichen."
     weak_password: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen. %{hint}"
@@ -285,7 +286,6 @@ ui:
     title: "Deployments"
     create: "Deployment erstellen"
     loading: "Suche Deployments bei den Providern…"
-    address: "Adresse"
   deployment:
     edit_config: "Konfiguration…"
     changed_since_check: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."

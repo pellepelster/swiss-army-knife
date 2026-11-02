@@ -86,7 +86,7 @@ class NotesModelTest {
     }
 
     private fun signedIn() =
-        MemorySessionStore(Stored(apiUrl = URL, deployment = "family", token = "session", email = "pelle@pelle.io", expiresAt = Instant.parse("2026-12-02T08:00:00Z")))
+        MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = "session", email = "pelle@pelle.io", expiresAt = Instant.parse("2026-12-02T08:00:00Z")))
 
     private fun NotesModel.notes() = screen.value as NotesScreen
 
@@ -122,7 +122,7 @@ class NotesModelTest {
     @Test
     fun `the login link it asks for names the notes app`() =
         runTest {
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
+            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
             advanceUntilIdle()
             model.requestLink("pelle@pelle.io")
             advanceUntilIdle()
@@ -138,7 +138,7 @@ class NotesModelTest {
                 HttpStatusCode.OK to """{"items":[${first.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":101}}"""
             backend.answersByQuery["GET /notes?offset=100&limit=100"] =
                 HttpStatusCode.OK to """{"items":[${note(3, "Last page")}],"pagination":{"offset":100,"limit":100,"total":101}}"""
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
+            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("a password of sixteen")
             advanceUntilIdle()

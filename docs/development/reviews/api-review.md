@@ -48,7 +48,11 @@ or answers a result that tells the route to take from it first.
 
 ## Contract
 
-### `AR-3` Errors without the error body
+### ~~`AR-3` Errors without the error body~~
+
+**Fixed:** every 401, 403, 404, 429 and 503 of the api that a route answers with its status alone, routing's 404
+of an unknown path included, gets the error body with a message of its status (`BareApiErrors` in `sak-api`); the
+login answers its own messages (a wrong password, an invalid link, an invalid nonce).
 
 `API-1` says that errors answer `{"errors": [...]}`. Many answers have no body:
 
@@ -72,7 +76,11 @@ small and complete, are paged with `page.of(all)`.
 
 Fix: answer `page.of(page.of(statuses))` with the page parameters, or write the exception into `API-2`.
 
-### `AR-5` A missing entity that a request refers to has four different statuses
+### ~~`AR-5` A missing entity that a request refers to has four different statuses~~
+
+**Fixed:** `API-6`: a 404 only for the resource of the path, a missing entity of the request is a 422 with its
+message; a new grocery item for a list that is not there, a note with photos or recordings that are not there (with
+another problem it stays a 400) and a note without a list of the user answer 422.
 
 | Request | Refers to | Status when it is missing |
 |---|---|---|
@@ -106,5 +114,5 @@ with `limit` as its size), or the pages over all suggestions.
 - `AR-8` `BucketResponse.subdomain` is missing "for a name with dots, which were allowed before";
   `S3BucketService.subdomain` checks the name only for these old names. No bucket of today has a dot. Remove the
   check and the comment; `subdomain` is then missing only without a base domain.
-- `AR-9` The OpenAPI text of `POST /notes` and `PUT /notes/{id}` names the photos but not the recordings, in the
-  description and in the 400.
+- ~~`AR-9` The OpenAPI text of `POST /notes` and `PUT /notes/{id}` names the photos but not the recordings, in the
+  description and in the 400.~~ **Fixed.**

@@ -851,14 +851,19 @@ class SakAppsTest {
                 it.statusCode() shouldBe 201
                 it.json().getValue("photos").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$id"
             }
-            post(port, "/api/v1/notes", """{"text":"x","photos":[4711]}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/notes", """{"text":"x","photos":[4711]}""", session).let {
+                it.statusCode() shouldBe 422
+                it.body() shouldContain "notes.unknown_photo"
+            }
+            // with another problem it is a bad request
+            post(port, "/api/v1/notes", """{"text":"x","labels":[""],"photos":[4711]}""", session).statusCode() shouldBe 400
 
             // another user neither sees the files nor attaches them to a note
             val other = signIn(port, "second@example.org", mails = 2)
             download("/api/v1/files/$id", other).statusCode() shouldBe 404
             download("/api/v1/files/$image/thumbnail", other).statusCode() shouldBe 404
             post(port, "/api/v1/files/$image/discover/text", "", other).statusCode() shouldBe 404
-            post(port, "/api/v1/notes", """{"text":"mine now","photos":[$id]}""", other).statusCode() shouldBe 400
+            post(port, "/api/v1/notes", """{"text":"mine now","photos":[$id]}""", other).statusCode() shouldBe 422
             download("/api/v1/files/$id").statusCode() shouldBe 200
         }
     }
@@ -946,7 +951,8 @@ class SakAppsTest {
                     it.getValue("recordings").jsonArray.single().jsonObject.string("url") shouldBe "/api/v1/files/$memo"
                     it.getValue("photos").jsonArray.size shouldBe 0
                 }
-                post(port, "/api/v1/notes", """{"text":"memo","photos":["$memo"]}""", session).statusCode() shouldBe 400
+                // a recording is no photo, a photo that is not there is a 422 (API-6)
+                post(port, "/api/v1/notes", """{"text":"memo","photos":["$memo"]}""", session).statusCode() shouldBe 422
             }
         } finally {
             openrouter.stop(0)
@@ -1338,6 +1344,52 @@ class SakAppsTest {
         // without a mail server only the admin signs in
         withServer(config(smtp = false, admins = false)) { port ->
             get(port, "/api/v1/info").json().getValue("userMode") shouldBe JsonPrimitive("single")
+        }
+    }
+
+    @Test
+    fun `every error of the api has the error body with its message, a missing entity of the body is a 422`() {
+        withServer { port ->
+            // no session, an unknown path, an id that is no number: the status alone gets its message (API-1)
+            get(port, "/api/v1/notes").let {
+                it.statusCode() shouldBe 401
+                it.body() shouldContain "api.unauthorized"
+            }
+            val session = signIn(port)
+            get(port, "/api/v1/nothing-here", session).let {
+                it.statusCode() shouldBe 404
+                it.body() shouldBe """{"errors":[{"code":"api.not_found","message":"This does not exist, or you can not see it."}]}"""
+            }
+            get(port, "/api/v1/notes/abc", session).body() shouldContain "api.not_found"
+            // a list the body names that is not there (API-6)
+            post(port, "/api/v1/grocery/items", """{"listId":4711,"name":"Milk"}""", session).let {
+                it.statusCode() shouldBe 422
+                it.body() shouldContain "grocery.unknown_list"
+            }
+            // the login says what was wrong
+            passwordLogin(port, password = "not the password of the admin").let {
+                it.statusCode() shouldBe 401
+                it.body() shouldContain "auth.wrong_password"
+            }
+            post(port, "/api/v1/auth/login/exchange", """{"token":"nothing"}""").let {
+                it.statusCode() shouldBe 401
+                it.body() shouldContain "auth.link_invalid"
+            }
+            // the pages of the apps are no api, they keep their answer
+            get(port, "/notes").statusCode() shouldBe 200
+        }
+    }
+
+    @Test
+    fun `the SAK address tells where its api is, without a session`() {
+        withServer { port ->
+            get(port, "/.well-known/sak.json").let {
+                it.statusCode() shouldBe 200
+                it.headers().firstValue("Content-Type").get() shouldContain "application/json"
+                it.headers().firstValue("Cache-Control").get() shouldContain "max-age=3600"
+                // not sak.<base domain>: the api of the same origin
+                it.json() shouldBe JsonObject(mapOf("api" to JsonPrimitive("http://localhost:$port/api/v1")))
+            }
         }
     }
 

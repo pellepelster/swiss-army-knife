@@ -141,7 +141,7 @@ fun Route.users(
         }
         responses {
             HttpStatusCode.NoContent { description = "The user is deleted" }
-            HttpStatusCode.NotFound { description = "No such added user; an admin of the configuration is not deleted here" }
+            errors(HttpStatusCode.NotFound, "No such added user; an admin of the configuration is not deleted here")
         }
     }
 }

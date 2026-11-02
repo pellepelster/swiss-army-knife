@@ -19,18 +19,24 @@ pub(super) async fn list(
         log(
             Level::Info,
             format!(
-                "{} {} {} {} {}",
+                "{} {} {} {}",
                 deployment.name,
                 t!(format!(
                     "common.deployments.status.{}",
                     key(&deployment.status)
                 )),
                 location,
-                deployment.provider.name,
-                deployment.frontend_url.as_deref().unwrap_or_default()
+                deployment.provider.name
             )
             .trim_end(),
         );
+        // where its users open the apps, known from the root domain of its resources
+        if let Some(url) = &deployment.frontend_url {
+            log(
+                Level::Info,
+                format!("{}: {url}", t!("common.deployments.address")),
+            );
+        }
         if let Some(error) = &deployment.error {
             log(
                 Level::Warn,

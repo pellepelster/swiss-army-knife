@@ -2,6 +2,8 @@
 
 <!-- docs-link: the docs home leaves it out, it is the docs -->
 <h2 align="center">
+  <a href="https://pellepelster.github.io/swiss-army-knife/features/">✨ See all features</a>
+  &nbsp;·&nbsp;
   <a href="https://pellepelster.github.io/swiss-army-knife/">📖 Read the documentation</a>
 </h2>
 <!-- /docs-link -->
