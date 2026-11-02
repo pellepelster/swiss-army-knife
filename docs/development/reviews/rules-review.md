@@ -93,7 +93,9 @@ indented below `GROCERY-3` like a part of it, but has an id of its own, not `GRO
 
 Fix: write `GROCERY-2` again and give GROCERY.md the sections of the other apps.
 
-### `RR-8` Health is an app and a maintenance page
+### ~~`RR-8` Health is an app and a maintenance page~~
+
+**Fixed:** the health is no app: it left the table of the apps, a maintenance page as `FRONTEND-1` says.
 
 [apps/INDEX.md](../architecture/apps/INDEX.md) lists Health in the table of the apps, `FRONTEND-1` lists it with the
 settings as a maintenance page below the apps, and the text below the table names the settings as "no app" but not

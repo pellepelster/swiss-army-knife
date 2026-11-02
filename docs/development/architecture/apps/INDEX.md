@@ -18,10 +18,10 @@ document in its own one.
 | Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                                | none     |
 | Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                       | `notes`  |
 | Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                     | none     |
-| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`            | `health/`    | none                                                                       | none     |
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
-[Shared parts](#shared-parts)).
+[Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`), whose rules are
+in [HEALTH.md](HEALTH.md).
 
 ## Shared parts
 
