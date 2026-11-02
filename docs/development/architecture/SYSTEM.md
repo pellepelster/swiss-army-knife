@@ -141,13 +141,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 - `SAKCTL-1` **One core, two faces.** The core (the checks on start, the deployments and their plans, the
   provisioning, the keys, the providers) knows neither the sakctl ui nor the sakctl cli; both are thin layers on it.
-- `SAKCTL-2` **Local state is encrypted.** All that sakctl keeps of a deployment on the user's machine is encrypted,
-  so only the password of the deployment reads it. It is below `~/.sak/<name>/`, only for the user: the settings of the
+- `SAKCTL-2` **Local state is encrypted.** All that sakctl keeps of a deployment on the user's machine is encrypted, so
+  only the password of the deployment reads it. It is below `~/.sak/<name>/`, only for the user: the settings of the
   last create or deploy (`config.json`, encrypted with age to a key derived from the password) and the backups
-  (`backups/`, encrypted to the backup key, `SAKCTL-8`). The directory of a run (`SECURITY-2`) is no state: it goes
-  when the run ends. Everything else sakctl needs is derived from the name and password of a deployment, or read back
-  from the deployment: a deploy takes its settings from the running deployment, else from `config.json`, else from the
-  DNS records. Two machines with the same password manage the same deployment.
+  (`backups/`, encrypted to the backup key, `SAKCTL-8`). The files of a run are no state: they go when the run ends.
+  Everything else sakctl needs is derived from the name and password of a deployment, or read back from the deployment:
+  a deploy takes its settings from the running deployment, else from `config.json`, else from the DNS records. Two
+  machines with the same password manage the same deployment.
 - `SAKCTL-3` **Derived keys.** The keys of a deployment are derived from its password (refer to
   [Security](#security)).
 - `SAKCTL-4` **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies
@@ -253,12 +253,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
-- `SECURITY-2` **The ssh key must never be written to disk.** The private ssh client key exists only in memory: sakctl
-  hands it to an ssh agent inside the container through its standard input; ansible connects through the agent. What the
-  run needs as files (the inventory, the ssh configuration, the public keys, the environment of the backend) sits in a
-  directory of the run with a random name that only the user can read, below the user's runtime directory where there is
-  one. It goes when the run ends, is interrupted (Ctrl+C, a termination) or the sakctl ui closes; one that a killed
-  sakctl left behind goes with the next run.
+- `SECURITY-2` **The ssh key must never be written to disk.**
 - `SECURITY-3` **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its
   database: the signing key of the login (a setting) and the secret key of each bucket. They are not derived from the
   password, so changing the password does not change them. The user also supplies some credentials: the token of the
