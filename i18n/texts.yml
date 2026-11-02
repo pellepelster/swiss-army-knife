@@ -1644,6 +1644,76 @@ notes:
       not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
       not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
       photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
+  android:
+    # the name of the app, also the title of the deployment screen
+    app_name: "SAK Notes"
+    create_note: { en: "Create note", de: "Notiz erstellen" }
+    create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }
+    create_with_recording: { en: "Create note with a recording", de: "Notiz mit einer Aufnahme erstellen" }
+    photo_take: { en: "Take photo", de: "Foto aufnehmen" }
+    photo_choose: { en: "Choose photo", de: "Foto auswählen" }
+    empty: { en: "No notes yet, create one with the plus at the top.", de: "Noch keine Notizen, erstelle eine mit dem Plus oben." }
+    none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }
+    all: { en: "All", de: "Alle" }
+    filter: { en: "Filter by label", de: "Nach Label filtern" }
+    note: { en: "Note", de: "Notiz" }
+    back_to_notes: { en: "Back to the notes", de: "Zurück zu den Notizen" }
+    write: { en: "Write something…", de: "Schreib etwas…" }
+    text: { en: "Text", de: "Text" }
+    color: { en: "Color", de: "Farbe" }
+    color_of: { en: "Color %{color}", de: "Farbe %{color}" }
+    colors:
+      yellow: { en: "yellow", de: "gelb" }
+      pink: { en: "pink", de: "rosa" }
+      blue: { en: "blue", de: "blau" }
+      green: { en: "green", de: "grün" }
+      orange: { en: "orange", de: "orange" }
+    labels: { en: "Labels", de: "Labels" }
+    label_new: { en: "New label", de: "Neues Label" }
+    label_add: { en: "Add label", de: "Label hinzufügen" }
+    label_remove: { en: "Remove label %{label}", de: "Label %{label} entfernen" }
+    labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
+    photos: { en: "Photos", de: "Fotos" }
+    photo_of: { en: "Photo %{number}", de: "Foto %{number}" }
+    photo_add: { en: "Add photo", de: "Foto hinzufügen" }
+    photo_remove: { en: "Remove photo %{number}", de: "Foto %{number} entfernen" }
+    recordings: { en: "Recordings", de: "Aufnahmen" }
+    recording_of: { en: "Recording %{number}", de: "Aufnahme %{number}" }
+    recording_add: { en: "Add recording", de: "Aufnahme hinzufügen" }
+    recording_play: { en: "Play recording %{number}", de: "Aufnahme %{number} abspielen" }
+    recording_pause: { en: "Pause recording %{number}", de: "Aufnahme %{number} pausieren" }
+    recording_remove: { en: "Remove recording %{number}", de: "Aufnahme %{number} entfernen" }
+    recording: { en: "Recording… %{time}", de: "Aufnahme läuft… %{time}" }
+    recording_stop: { en: "Stop recording", de: "Aufnahme beenden" }
+    uploading: { en: "Storing…", de: "Wird gespeichert…" }
+    discover: { en: "Discover the text", de: "Text erkennen" }
+    discover_photo: { en: "Discover the text in photo %{number}", de: "Den Text in Foto %{number} erkennen" }
+    discover_recording: { en: "Discover the text in recording %{number}", de: "Den Text in Aufnahme %{number} erkennen" }
+    discover_off:
+      en: "The AI is turned off in the settings of the notes, an admin turns it on."
+      de: "Die KI ist in den Einstellungen der Notizen ausgeschaltet, ein Admin schaltet sie ein."
+    discovering: { en: "Discovering the text…", de: "Der Text wird erkannt…" }
+    delete_note: { en: "Delete note", de: "Notiz löschen" }
+    note_menu: { en: "Menu of the note", de: "Menü der Notiz" }
+    this_note: { en: "this note", de: "diese Notiz" }
+    error:
+      not_loaded: { en: "The notes could not be loaded.", de: "Die Notizen konnten nicht geladen werden." }
+      not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht erstellt werden." }
+      not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
+      not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
+      photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
+      photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
+      photo_not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
+      microphone: { en: "The microphone could not be used.", de: "Das Mikrofon konnte nicht verwendet werden." }
+      microphone_denied:
+        en: "The app may not use the microphone, allow it in the settings of the phone."
+        de: "Die App darf das Mikrofon nicht verwenden, erlaube es in den Einstellungen des Handys."
+      recording_not_stored: { en: "The recording could not be stored.", de: "Die Aufnahme konnte nicht gespeichert werden." }
+      recording_not_loaded: { en: "The recording could not be loaded.", de: "Die Aufnahme konnte nicht geladen werden." }
+      recording_not_played: { en: "The recording could not be played.", de: "Die Aufnahme konnte nicht abgespielt werden." }
+      no_text_in_photo: { en: "There is no text in the photo.", de: "Im Foto ist kein Text." }
+      no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
+      not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
 
 redirects:
   backend:

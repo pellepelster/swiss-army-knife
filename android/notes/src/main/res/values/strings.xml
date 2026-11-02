@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="notes_app_name" translatable="false">SAK Notes</string>
+    <string name="notes_create_note">Create note</string>
+    <string name="notes_create_with_photo">Create note with a photo</string>
+    <string name="notes_create_with_recording">Create note with a recording</string>
+    <string name="notes_photo_take">Take photo</string>
+    <string name="notes_photo_choose">Choose photo</string>
+    <string name="notes_empty">No notes yet, create one with the plus at the top.</string>
+    <string name="notes_none_labelled">No note is labelled #%1$s.</string>
+    <string name="notes_all">All</string>
+    <string name="notes_filter">Filter by label</string>
+    <string name="notes_note">Note</string>
+    <string name="notes_back_to_notes">Back to the notes</string>
+    <string name="notes_write">Write something…</string>
+    <string name="notes_text">Text</string>
+    <string name="notes_color">Color</string>
+    <string name="notes_color_of">Color %1$s</string>
+    <string name="notes_colors_yellow">yellow</string>
+    <string name="notes_colors_pink">pink</string>
+    <string name="notes_colors_blue">blue</string>
+    <string name="notes_colors_green">green</string>
+    <string name="notes_colors_orange">orange</string>
+    <string name="notes_labels">Labels</string>
+    <string name="notes_label_new">New label</string>
+    <string name="notes_label_add">Add label</string>
+    <string name="notes_label_remove">Remove label %1$s</string>
+    <string name="notes_labels_full">A note has at most %1$s labels.</string>
+    <string name="notes_photos">Photos</string>
+    <string name="notes_photo_of">Photo %1$s</string>
+    <string name="notes_photo_add">Add photo</string>
+    <string name="notes_photo_remove">Remove photo %1$s</string>
+    <string name="notes_recordings">Recordings</string>
+    <string name="notes_recording_of">Recording %1$s</string>
+    <string name="notes_recording_add">Add recording</string>
+    <string name="notes_recording_play">Play recording %1$s</string>
+    <string name="notes_recording_pause">Pause recording %1$s</string>
+    <string name="notes_recording_remove">Remove recording %1$s</string>
+    <string name="notes_recording">Recording… %1$s</string>
+    <string name="notes_recording_stop">Stop recording</string>
+    <string name="notes_uploading">Storing…</string>
+    <string name="notes_discover">Discover the text</string>
+    <string name="notes_discover_photo">Discover the text in photo %1$s</string>
+    <string name="notes_discover_recording">Discover the text in recording %1$s</string>
+    <string name="notes_discover_off">The AI is turned off in the settings of the notes, an admin turns it on.</string>
+    <string name="notes_discovering">Discovering the text…</string>
+    <string name="notes_delete_note">Delete note</string>
+    <string name="notes_note_menu">Menu of the note</string>
+    <string name="notes_this_note">this note</string>
+    <string name="notes_error_not_loaded">The notes could not be loaded.</string>
+    <string name="notes_error_not_created">The note could not be created.</string>
+    <string name="notes_error_not_saved">The note could not be saved.</string>
+    <string name="notes_error_not_deleted">The note could not be deleted.</string>
+    <string name="notes_error_photo_not_read">The photo could not be read.</string>
+    <string name="notes_error_photo_not_stored">The photo could not be stored.</string>
+    <string name="notes_error_photo_not_loaded">The photo could not be loaded.</string>
+    <string name="notes_error_microphone">The microphone could not be used.</string>
+    <string name="notes_error_microphone_denied">The app may not use the microphone, allow it in the settings of the phone.</string>
+    <string name="notes_error_recording_not_stored">The recording could not be stored.</string>
+    <string name="notes_error_recording_not_loaded">The recording could not be loaded.</string>
+    <string name="notes_error_recording_not_played">The recording could not be played.</string>
+    <string name="notes_error_no_text_in_photo">There is no text in the photo.</string>
+    <string name="notes_error_no_text_in_recording">There is no text in the recording.</string>
+    <string name="notes_error_not_discovered">The text could not be discovered.</string>
+</resources>

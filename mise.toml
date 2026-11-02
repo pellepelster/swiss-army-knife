@@ -756,7 +756,7 @@ run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew assembleDebug
 [tasks."android:release:build"]
 description = "Build the release apks of the android apps"
 dir = "{{config_root}}/android"
-env = { ANDROID_APPS = "grocery" }
+env = { ANDROID_APPS = "grocery notes" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -791,7 +791,7 @@ done
 [tasks."android:release"]
 description = "Add the release apks of the android apps to the GitHub release"
 dir = "{{config_root}}/android"
-env = { ANDROID_APPS = "grocery" }
+env = { ANDROID_APPS = "grocery notes" }
 run = """
 set -eu
 for app in $ANDROID_APPS; do
@@ -882,4 +882,66 @@ fi
 ./gradlew :grocery:assembleDebug
 "$adb" -s "$serial" install -r grocery/build/outputs/apk/debug/grocery-debug.apk
 "$adb" -s "$serial" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
+'''
+
+# the debug build of the notes in the emulator, the avd sak-grocery of the grocery app made once, the emulator started when none
+# runs and left running; the debug build takes a server url like http://10.0.2.2:8080/api/v1, the
+# backend of local:run on the host
+[tasks."notes:android:run"]
+description = "Run the notes app in the emulator"
+depends = ["android:sdk"]
+dir = "{{config_root}}/android"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+adb="$ANDROID_HOME/platform-tools/adb"
+emulator="$ANDROID_HOME/emulator/emulator"
+avd="sak-grocery"
+if ! "$emulator" -list-avds | grep -qx "$avd"; then
+  echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" \
+    -k "system-images;android-36;google_apis;x86_64" -d pixel_7
+fi
+if ! "$adb" devices | grep -q '^emulator-'; then
+  nohup "$emulator" -avd "$avd" -no-boot-anim >/dev/null 2>&1 &
+  "$adb" wait-for-device
+  until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+fi
+./gradlew :notes:installDebug
+"$adb" shell am start -n io.pelle.sak.notes.debug/io.pelle.sak.notes.MainActivity
+'''
+
+# the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
+# than one phone attached, ANDROID_SERIAL names the one (adb devices lists them)
+[tasks."notes:android:install"]
+description = "Install the notes app on the attached phone"
+depends = ["android:sdk"]
+dir = "{{config_root}}/android"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+adb="$ANDROID_HOME/platform-tools/adb"
+# one serial a line; the task is a template of mise, which takes the length syntax of bash for a comment
+phones=$("$adb" devices | awk 'NR > 1 && $2 == "device" && $1 !~ /^emulator-/ { print $1 }')
+count=$(printf '%s' "$phones" | grep -c . || true)
+unauthorized=$("$adb" devices | awk 'NR > 1 && $2 == "unauthorized" { print $1 }')
+if [ -n "${ANDROID_SERIAL:-}" ]; then
+  serial="$ANDROID_SERIAL"
+elif [ "$count" -eq 1 ]; then
+  serial="$phones"
+elif [ "$count" -eq 0 ]; then
+  if [ -n "$unauthorized" ]; then
+    echo "the phone $unauthorized does not allow usb debugging yet, confirm the prompt on it" >&2
+  else
+    echo "no phone attached: plug it in with usb debugging on (Settings > System > Developer options)" >&2
+  fi
+  exit 1
+else
+  echo "more than one phone attached ($(echo $phones)), name one with ANDROID_SERIAL=<serial>" >&2
+  exit 1
+fi
+./gradlew :notes:assembleDebug
+"$adb" -s "$serial" install -r notes/build/outputs/apk/debug/notes-debug.apk
+"$adb" -s "$serial" shell am start -n io.pelle.sak.notes.debug/io.pelle.sak.notes.MainActivity
 '''

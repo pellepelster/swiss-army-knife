@@ -6,6 +6,7 @@ import io.pelle.sak.core.UiText
 import io.pelle.sak.core.ui.AccountMenu
 import io.pelle.sak.core.ui.Busy
 import io.pelle.sak.core.ui.ConfirmDelete
+import io.pelle.sak.core.ui.PhotoScaling
 import io.pelle.sak.core.ui.DeploymentScreen
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Form

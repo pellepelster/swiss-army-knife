@@ -62,7 +62,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
   is disabled, its tooltip says why (`UX-8`).
 - `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out".
-  An app that can update itself (e.g. the Android app, not the web ui, which a browser updates) has "Check for updates"
+  An app that can update itself (e.g. the Android apps, not the web ui, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
   found.
 
@@ -77,14 +77,15 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   cancelled. A delete asks inline, in the view itself.
 - `WEB-4` **Copy to the clipboard** looks and behaves the same everywhere.
 
-## Android app
+## Android apps
 
-- `ANDROID-1` **Material 3, the colors of the phone.** The grocery app follows the light or dark mode of the system and
-  takes the colors of the wallpaper where Android has them.
-- `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the overview of the lists, one list and a new
-  list. The overview has the name of the deployment as its title; at the top right are the button that adds a list and
-  the menu with the check for updates and the sign-out. Every other screen of a signed in user has a back arrow at the
-  top left with its own title; the back of the system does the same.
+- `ANDROID-1` **Material 3, the colors of the phone.** The Android apps follow the light or dark mode of the system
+  and take the colors of the wallpaper where Android has them.
+- `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the first screen of the app (e.g. the overview
+  of the lists, the wall of the notes) and the screens it leads to. The first screen has the name of the deployment as
+  its title; at its top right are its main create action and the menu with the check for updates and the sign-out.
+  Every other screen of a signed in user has a back arrow at the top left with its own title; the back of the system
+  does the same.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
   pulls it down.
 

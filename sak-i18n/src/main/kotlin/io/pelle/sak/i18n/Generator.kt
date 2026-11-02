@@ -16,7 +16,11 @@ const val WEB_FILE = "sak-frontend/src/app/i18n/catalog.ts"
 // the android apps (android/): the texts of no app go to core, the ones of an app to its module; an
 // app gets its texts once its module is listed here
 const val ANDROID_CORE_RES = "android/core/src/main/res"
-val ANDROID_APPS = mapOf("grocery" to "android/grocery/src/main/res")
+val ANDROID_APPS =
+    mapOf(
+        "grocery" to "android/grocery/src/main/res",
+        "notes" to "android/notes/src/main/res",
+    )
 const val CTL_DIR = "sak-cli/src-tauri/locales"
 
 private const val GENERATED = "generated from $SOURCE by sak-i18n (mise run i18n:generate), do not edit"

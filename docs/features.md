@@ -21,7 +21,8 @@ and all data stays on your own server.
 ### Notes
 
 Post-its from text, photos and voice recordings, sorted with labels and in colors. When you turn it on, the text in a
-photo or a recording is written into the note on request.
+photo or a recording is written into the note on request. The notes also have an Android app, which downloads from
+`sak.<your domain>/notes/download/app`.
 
 ![Notes](screenshots/web-notes-desktop.png)
 

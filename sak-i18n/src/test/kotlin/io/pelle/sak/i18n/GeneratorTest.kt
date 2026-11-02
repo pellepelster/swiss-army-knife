@@ -43,9 +43,12 @@ class GeneratorTest {
         web shouldContain "notes: {\n      photo_removed: 'Photo removed',\n      page: {\n        new: 'New note',"
         web shouldNotContain "too_many"
         web shouldNotContain "Malformed"
-        // notes has no android part
+        // the common texts of the notes go to the module of the notes app, never to core
         files.getValue("$ANDROID_CORE_RES/values/strings.xml") shouldNotContain "notes_"
-        files.keys.none { it.startsWith("android/notes") } shouldBe true
+        val notes = files.getValue("android/notes/src/main/res/values/strings.xml")
+        notes shouldContain "<string name=\"notes_photo_removed\">Photo removed</string>"
+        notes shouldNotContain "too_many"
+        notes shouldNotContain "New note"
     }
 
     @Test

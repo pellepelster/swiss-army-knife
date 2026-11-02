@@ -1,4 +1,4 @@
-package io.pelle.sak.grocery.ui
+package io.pelle.sak.core.ui
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,7 +11,7 @@ import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 
-// a photo the camera took or the user chose, as it is stored: upright as it was taken, at most
+// a photo the camera took or the user chose, as an app stores it: upright as it was taken, at most
 // MAX_SIZE pixels on its longer side, a jpeg without the exif data, which can tell where it was
 // taken (as the PhotoScaler of the web app)
 object PhotoScaling {

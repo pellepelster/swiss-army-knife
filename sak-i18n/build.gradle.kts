@@ -28,6 +28,8 @@ tasks.test {
         rootDir.resolve("android/core/src/main/res/values-de"),
         rootDir.resolve("android/grocery/src/main/res/values"),
         rootDir.resolve("android/grocery/src/main/res/values-de"),
+        rootDir.resolve("android/notes/src/main/res/values"),
+        rootDir.resolve("android/notes/src/main/res/values-de"),
         rootDir.resolve("sak-cli/src-tauri/locales"),
     )
 }

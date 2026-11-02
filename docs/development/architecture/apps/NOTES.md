@@ -24,6 +24,15 @@ and add it to the note.
   [FDR-004](../../fdr/FDR-004-maintenance-cleanup.md) for the cleanup).
 - `NOTES-3` **The text discovered** in a file is kept with the file; a file is sent to the AI once.
 
+## Android
+
+- `NOTES-6` **The Android app.** The notes have an Android app of their own (`android/notes`), on top of
+  `android/core`, with a sign-in of its own. It opens on the wall of the notes and has what the web app has: the notes
+  in their colors, a filter by one label, a note created from text, a photo or a recording, its text, color, labels,
+  photos and recordings changed, a note deleted, the text discovered in a photo or a recording (`NOTES-5`, on the same
+  terms as in the web app). The notes have no change stream: the wall loads again when it is pulled down
+  (`ANDROID-3`) and when the app comes back to the front.
+
 ## API
 
 - `NOTES-4` Create, change, read and delete a note; read the notes page by page, of a label or all.

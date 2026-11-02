@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the icon of the notes app of the web app (sak-frontend/public/icons/notes.svg) without its paper
+     white, which is the background layer: the note-sticky of Font Awesome Free 7.3.1
+     (https://fontawesome.com, CC BY 4.0) in the yellow of a note, outlined in ink, with the swiss army
+     knife of the favicon in its corner. Scaled to 0.72 around the center, so the masks of the launchers
+     keep the whole note -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.72" android:scaleY="0.72">
+        <!-- the note, translate(28 26) scale(0.098214) of the svg -->
+        <group android:translateX="28" android:translateY="26" android:scaleX="0.098214" android:scaleY="0.098214">
+            <path
+                android:pathData="M64 480c-35.3 0-64-28.7-64-64L0 96C0 60.7 28.7 32 64 32l320 0c35.3 0 64 28.7 64 64l0 213.5c0 17-6.7 33.3-18.7 45.3L322.7 461.3c-12 12-28.3 18.7-45.3 18.7L64 480zM389.5 304L296 304c-13.3 0-24 10.7-24 24l0 93.5 117.5-117.5z"
+                android:fillColor="#fff59d"
+                android:strokeColor="#2b2a27"
+                android:strokeWidth="30.545"
+                android:strokeLineJoin="round" />
+        </group>
+        <!-- the swiss army knife, translate(52 52) scale(0.53125) rotate(-40 32 32) of the svg -->
+        <group android:translateX="52" android:translateY="52" android:scaleX="0.53125" android:scaleY="0.53125">
+            <group android:rotation="-40" android:pivotX="32" android:pivotY="32">
+                <path
+                    android:pathData="M44,22 L66,22 Q63,33 50,37 L44,37 Z"
+                    android:fillColor="#d7dbe2"
+                    android:strokeColor="#5b6170"
+                    android:strokeWidth="2"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M13,20 H37 A13,13 0 0 1 50,33 A13,13 0 0 1 37,46 H13 A13,13 0 0 1 0,33 A13,13 0 0 1 13,20 Z"
+                    android:fillColor="#d52b1e"
+                    android:strokeColor="#8f1a12"
+                    android:strokeWidth="2" />
+                <path
+                    android:pathData="M22.5,25 H27.5 A1,1 0 0 1 28.5,26 V40 A1,1 0 0 1 27.5,41 H22.5 A1,1 0 0 1 21.5,40 V26 A1,1 0 0 1 22.5,25 Z"
+                    android:fillColor="#ffffff" />
+                <path
+                    android:pathData="M18,29.5 H32 A1,1 0 0 1 33,30.5 V35.5 A1,1 0 0 1 32,36.5 H18 A1,1 0 0 1 17,35.5 V30.5 A1,1 0 0 1 18,29.5 Z"
+                    android:fillColor="#ffffff" />
+            </group>
+        </group>
+    </group>
+</vector>
