@@ -398,3 +398,11 @@ a {
   --bs-btn-font-weight: 400;
   --bs-btn-line-height: 1.4;
 }
+
+// an item struck through: bought, or while its check can be undone (GROCERY-3, GROCERY-14); a
+// thick red line, seen at once
+.item-struck {
+  text-decoration-line: line-through;
+  text-decoration-color: var(--bs-danger);
+  text-decoration-thickness: 2px;
+}

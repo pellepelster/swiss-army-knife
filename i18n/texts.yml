@@ -1272,6 +1272,10 @@ grocery:
       bought: { en: "%{name} bought", de: "%{name} gekauft" }
       category: { en: "Category", de: "Kategorie" }
       category_not_set: { en: "The category could not be set.", de: "Die Kategorie konnte nicht gesetzt werden." }
+      not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
+      show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
+      hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel verbergen" }
+      bought_unchanged: { en: "A bought item does not change.", de: "Ein gekaufter Artikel ändert sich nicht." }
     categories:
       title: { en: "Categories", de: "Kategorien" }
       hint:
@@ -1299,6 +1303,9 @@ grocery:
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }
     photo_choose: { en: "Choose photo", de: "Foto auswählen" }
     photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
+    item_not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
+    show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
+    hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel ausblenden" }
     no_lists:
       en: "You have no list yet, add one with the plus at the top."
       de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."

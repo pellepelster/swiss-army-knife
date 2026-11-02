@@ -463,7 +463,9 @@ databaseChangeLog:
             sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL
 
         # the grocery lists of a user: every item is on one, a user without a list gets "Default" when
-        # they sign in (LIST-1), a list like the others; a shared list is one of all users (LIST-2). The name is unique among the lists of an owner that are not deleted only
+        # they sign in (LIST-1), a list like the others; a shared list is one of all users (LIST-2). The
+        # name is unique among the lists of an owner that are not deleted only. The icon is one emoji,
+        # none shows the first letter of the name
         - createTable:
             tableName: grocery_lists
             columns:
@@ -489,6 +491,9 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: icon
+                  type: varchar(32)
+              - column:
                   name: created_at
                   type: timestamp
                   constraints:
@@ -503,11 +508,39 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX grocery_lists_owner_name_key ON grocery_lists (owner, name) WHERE deleted_at IS NULL
 
+        # the categories of a list (GROCERY-13): a name, an icon (one emoji, none for none) and the
+        # place of their group in the list; only the owner of the list changes them, everyone who
+        # sees it sees them. name_key is the name normalized (groceryNameKey, sak-model), unique among
+        # the live categories of a list, so "Dairy" and "dairy" are one name
+        - sql:
+            sql: |
+              CREATE TABLE grocery_categories (
+                id INTEGER NOT NULL PRIMARY KEY,
+                list_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(32) NOT NULL,
+                name_key VARCHAR(32) NOT NULL,
+                icon VARCHAR(32),
+                position INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT grocery_categories_list_id_fkey FOREIGN KEY (list_id) REFERENCES grocery_lists (id)
+              )
+        - sql:
+            sql: CREATE INDEX grocery_categories_list_id_idx ON grocery_categories (list_id)
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX grocery_categories_list_name_key ON grocery_categories (list_id, name_key) WHERE deleted_at IS NULL
+
         # the items of the grocery lists; owner is who added it, on a shared list another user than
-        # the owner of the list. name_key is the name normalized (groceryNameKey, sak-model), what the
-        # items to buy are left out of the suggestions by. An amount is positive, a unit needs one; the
-        # category is a name of GroceryCategory (sak-backend), the only list of them, checked by
-        # GroceryService. A bought item is deleted, a list no longer shows it (GROCERY-3)
+        # the owner of the list. An item is to buy until it is checked (checked_at, GROCERY-3); a
+        # checked item stays as the history of the list, what its suggestions are made of, the
+        # latest item of a name gives their values (GROCERY-11). A deleted item is gone for good, a
+        # forgotten suggestion deletes the checked items of its name. name_key is the name
+        # normalized (groceryNameKey, sak-model). An amount is positive, a unit needs one; the
+        # category is one of the list (GROCERY-13), the repository checks it; the photo is a file of
+        # the file storage (GROCERY-12)
         - sql:
             sql: |
               CREATE TABLE grocery_items (
@@ -518,43 +551,58 @@ databaseChangeLog:
                 name_key VARCHAR(128) NOT NULL,
                 amount DECIMAL(10, 3),
                 unit VARCHAR(16),
-                category VARCHAR(32),
+                category_id INTEGER,
+                photo_file_id INTEGER,
+                checked_at TIMESTAMP,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP,
                 deleted_at TIMESTAMP,
                 CONSTRAINT grocery_items_list_id_fkey FOREIGN KEY (list_id) REFERENCES grocery_lists (id),
+                CONSTRAINT grocery_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES grocery_categories (id),
+                CONSTRAINT grocery_items_photo_file_id_fkey FOREIGN KEY (photo_file_id) REFERENCES files (id),
                 CONSTRAINT grocery_items_amount_check CHECK (amount IS NULL OR amount > 0),
                 CONSTRAINT grocery_items_unit_check CHECK (unit IS NULL OR amount IS NOT NULL)
               )
-        - createIndex:
-            tableName: grocery_items
-            indexName: grocery_items_list_id_idx
+        # the items of a list by name, what the suggestions group
+        - sql:
+            sql: CREATE INDEX grocery_items_list_name_idx ON grocery_items (list_id, name_key)
+
+        # the users an admin adds by e-mail address, with an optional name; they sign in with a link by
+        # e-mail and use the apps of the role user. The admins of the configuration are no rows. The
+        # address is unique among the rows that are not deleted
+        - createTable:
+            tableName: users
             columns:
               - column:
-                  name: list_id
-
-        # the products a user added, what the suggestions come from (GROCERY-7): the name as last
-        # written, the category and the quantity used last, how often and when last. name_key is the
-        # name normalized (groceryNameKey, sak-model), sqlite folds the case of A-Z only; one product
-        # of a key among the ones of an owner that are not deleted
-        - sql:
-            sql: |
-              CREATE TABLE grocery_products (
-                id INTEGER NOT NULL PRIMARY KEY,
-                owner VARCHAR(254) NOT NULL,
-                name VARCHAR(128) NOT NULL,
-                name_key VARCHAR(128) NOT NULL,
-                amount DECIMAL(10, 3),
-                unit VARCHAR(16),
-                category VARCHAR(32),
-                times_used INTEGER NOT NULL,
-                last_used_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP,
-                deleted_at TIMESTAMP,
-                CONSTRAINT grocery_products_amount_check CHECK (amount IS NULL OR amount > 0),
-                CONSTRAINT grocery_products_unit_check CHECK (unit IS NULL OR amount IS NOT NULL)
-              )
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
         - sql:
             dbms: sqlite
-            sql: CREATE UNIQUE INDEX grocery_products_owner_name_key ON grocery_products (owner, name_key) WHERE deleted_at IS NULL
+            sql: CREATE UNIQUE INDEX users_email_key ON users (email) WHERE deleted_at IS NULL

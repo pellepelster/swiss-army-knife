@@ -45,10 +45,11 @@ import { ConfirmDelete } from './confirm-delete';
       type="button"
       class="btn btn-link link-body-emphasis"
       [class.d-none]="confirming()"
+      [disabled]="!!disabled()"
       aria-haspopup="menu"
       [attr.aria-expanded]="open()"
       [attr.aria-label]="label()"
-      [title]="'shared.actions' | t"
+      [title]="disabled() ?? ('shared.actions' | t)"
       (click)="toggleMenu()"
     >
       <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
@@ -92,6 +93,8 @@ export class ActionMenu {
   readonly deletes = input(false, { transform: booleanAttribute });
   // why the delete does not apply to the row, null when it does
   readonly deleteDisabled = input<string | null>(null);
+  // why no entry applies to the row, the menu does not open (UX-8); null when they do
+  readonly disabled = input<string | null>(null);
   // the delete was confirmed
   readonly deleted = output<void>();
 

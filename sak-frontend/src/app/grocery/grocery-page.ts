@@ -94,16 +94,37 @@ interface ItemGroup {
           }}</span>
         }
       </h1>
-      <!-- always in its place (UX-8): only the owner changes a list -->
-      @if (shown()?.mine) {
-        <a class="btn btn-primary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
-          ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
+      <!-- one toolbar (UX-10): the bought items shown or not (GROCERY-14), the settings, always in
+           their place (UX-8): only the owner changes a list -->
+      <div class="btn-group" role="group" [attr.aria-label]="'shared.actions' | t">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-testid="toggle-bought"
+          [attr.aria-pressed]="showBought()"
+          [attr.aria-label]="
+            (showBought() ? 'grocery.list.hide_bought' : 'grocery.list.show_bought') | t
+          "
+          [title]="(showBought() ? 'grocery.list.hide_bought' : 'grocery.list.show_bought') | t"
+          (click)="toggleBought()"
         >
-      } @else {
-        <button type="button" class="btn btn-primary" disabled [title]="'grocery.only_owner' | t">
-          <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}
+          <i
+            class="fa-solid"
+            [class.fa-eye]="showBought()"
+            [class.fa-eye-slash]="!showBought()"
+            aria-hidden="true"
+          ></i>
         </button>
-      }
+        @if (shown()?.mine) {
+          <a class="btn btn-primary" [routerLink]="['/grocery/lists', shown()!.id, 'edit']"
+            ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
+          >
+        } @else {
+          <button type="button" class="btn btn-primary" disabled [title]="'grocery.only_owner' | t">
+            <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}
+          </button>
+        }
+      </div>
     </header>
 
     @if (error(); as error) {
@@ -157,7 +178,7 @@ interface ItemGroup {
         </ul>
       }
 
-      @if (loaded() && !toBuy().length) {
+      @if (loaded() && !hasToBuy()) {
         <p class="text-center text-body-secondary fs-4 py-5">{{ 'grocery.list.empty' | t }}</p>
       }
     }
@@ -165,7 +186,8 @@ interface ItemGroup {
     <ng-template #row let-item>
       <!-- the photo shows the photo in full, a tap on the rest of the row checks the item
            (GROCERY-3), struck through while it can be undone; the menu attaches a photo and sets
-           the category, one of the list or none (GROCERY-13) -->
+           the category, one of the list or none (GROCERY-13). A bought item, shown with the bought
+           ones (GROCERY-14), is struck through and does not change -->
       <li
         class="list-group-item p-0 d-flex align-items-center"
         [attr.data-testid]="'item-' + item.id"
@@ -190,13 +212,15 @@ interface ItemGroup {
           type="button"
           class="btn grocery-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex flex-wrap align-items-center gap-2 px-3 py-2"
           [id]="'item-' + item.id"
-          [attr.aria-pressed]="struck().has(item.id)"
-          (click)="check(item)"
+          [attr.aria-pressed]="struck().has(item.id) || !!item.checkedAt"
+          [attr.aria-disabled]="!!item.checkedAt"
+          [attr.data-bought]="item.checkedAt ? '' : null"
+          (click)="item.checkedAt ? null : check(item)"
         >
           <span
             class="item-name flex-grow-1 text-break"
-            [class.text-decoration-line-through]="struck().has(item.id)"
-            [class.text-body-secondary]="struck().has(item.id)"
+            [class.item-struck]="struck().has(item.id) || !!item.checkedAt"
+            [class.text-body-secondary]="struck().has(item.id) || !!item.checkedAt"
           >
             {{ item.name }}
             @if (item.amount !== null) {
@@ -204,7 +228,13 @@ interface ItemGroup {
             }
           </span>
         </button>
-        <app-action-menu class="pe-1" [name]="item.name">
+        <app-action-menu
+          class="pe-1"
+          [name]="item.name"
+          deletes
+          [disabled]="item.checkedAt ? ('grocery.list.bought_unchanged' | t) : null"
+          (deleted)="deleteItem(item)"
+        >
           <button
             type="button"
             class="dropdown-item"
@@ -327,6 +357,10 @@ export class GroceryPage {
   protected readonly lists = signal<GroceryList[]>([]);
   protected readonly categories = signal<GroceryCategory[]>([]);
   protected readonly items = signal<GroceryItem[]>([]);
+  // the bought items shown too, after the ones to buy of their category (GROCERY-14)
+  protected readonly showBought = signal(false);
+  // whether an item is to buy, what the empty list says
+  protected readonly hasToBuy = computed(() => this.items().some((item) => !item.checkedAt));
   protected readonly loaded = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -485,11 +519,27 @@ export class GroceryPage {
       () => {
         this.struck.update((ids) => without(ids, item.id));
         this.items.update((items) => items.filter((each) => each.id !== item.id));
-        this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_checked'));
+        // shown with the bought ones, it comes back in its place among them
+        this.send(this.service.checkItem(item.id), this.i18n.t('grocery.list.not_checked'), () => {
+          if (this.showBought()) this.loadItems(this.shown());
+        });
       },
       () => this.struck.update((ids) => without(ids, item.id)),
     );
     this.struck.update((ids) => new Set([...ids, item.id]));
+  }
+
+  // the bought items shown or not (GROCERY-14)
+  protected toggleBought(): void {
+    this.showBought.update((shown) => !shown);
+    this.loadItems(this.shown());
+  }
+
+  // removed for good, not bought: it goes from the list and from the suggestions
+  protected deleteItem(item: GroceryItem): void {
+    this.error.set(null);
+    this.items.update((items) => items.filter((each) => each.id !== item.id));
+    this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_deleted'));
   }
 
   protected undo(): void {
@@ -608,8 +658,9 @@ export class GroceryPage {
 
   // not ended with the page: what was done is sent also when the page is left; a failure brings
   // the list back as the backend has it
-  private send(request: Observable<unknown>, failure: string): void {
+  private send(request: Observable<unknown>, failure: string, done?: () => void): void {
     request.subscribe({
+      next: () => done?.(),
       error: (error: unknown) => {
         this.error.set(apiErrorMessage(error, failure));
         this.loadItems(this.shown());
@@ -653,7 +704,7 @@ export class GroceryPage {
         return of([]);
       }),
     );
-    this.loadingItems = forkJoin([this.service.items(list.id), categories])
+    this.loadingItems = forkJoin([this.service.items(list.id, this.showBought()), categories])
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ([items, categories]) => {

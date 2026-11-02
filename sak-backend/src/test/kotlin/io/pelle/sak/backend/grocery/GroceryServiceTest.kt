@@ -60,7 +60,7 @@ class GroceryServiceTest {
         val apples = add(PELLE, own, input("Apples", "1", "kg", category(own, "Fruit & vegetables")))
         val candles = add(PELLE, own, input("Candles"))
         val milk = add(PELLE, own, input("Milk", categoryId = category(own, "Dairy & eggs")))
-        service.deleteItem(PELLE, apples.id) shouldBe true
+        service.checkItem(PELLE, apples.id) shouldBe true
 
         service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Milk", "Soap", "Candles")
         milk.listId shouldBe soap.listId
@@ -70,6 +70,23 @@ class GroceryServiceTest {
         val ids = service.categories(PELLE, own)!!.map { it.id }
         (service.orderCategories(PELLE, own, ids.reversed()) as GroceryCategoriesResult.Ordered).categories.map { it.id } shouldBe ids.reversed()
         service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Soap", "Milk", "Candles")
+    }
+
+    @Test
+    fun `the bought items show with the ones to buy when asked, in their category after them, the last bought first (GROCERY-14)`() {
+        val own = list(PELLE)
+        val bakery = category(own, "Bakery")
+        val rolls = add(PELLE, own, input("Rolls", categoryId = bakery))
+        add(PELLE, own, input("Bread", categoryId = bakery))
+        val soap = add(PELLE, own, input("Soap"))
+        add(PELLE, own, input("Cake", categoryId = bakery))
+        service.checkItem(PELLE, rolls.id) shouldBe true
+        service.checkItem(PELLE, soap.id) shouldBe true
+
+        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Bread", "Cake")
+        service.items(PELLE, own, checked = true)!!.map { it.name to (it.checkedAt != null) } shouldBe
+            listOf("Bread" to false, "Cake" to false, "Rolls" to true, "Soap" to true)
+        service.items(OTHER, own, checked = true) shouldBe null
     }
 
     @Test
@@ -123,7 +140,7 @@ class GroceryServiceTest {
             listOf(ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY))
         service.setCategory(OTHER, add(PELLE, secret, input("Wine")).id, null) shouldBe GroceryItemResult.NotFound
         // the next item of the name on the list gets it
-        service.deleteItem(OTHER, chips.id)
+        service.checkItem(OTHER, chips.id)
         add(PELLE, party, input("chips")).categoryId shouldBe snacks.id
         add(PELLE, own, input("chips")).categoryId shouldBe null
 
@@ -131,7 +148,7 @@ class GroceryServiceTest {
         service.deleteCategory(PELLE, party, snacks.id) shouldBe true
         service.items(PELLE, party)!!.single().categoryId shouldBe null
         service.suggestions(PELLE, party, "chips")!!.let { it shouldBe emptyList() }
-        service.deleteItem(PELLE, service.items(PELLE, party)!!.single().id)
+        service.checkItem(PELLE, service.items(PELLE, party)!!.single().id)
         service.suggestions(PELLE, party, "chips")!!.single().categoryId shouldBe null
     }
 
@@ -160,11 +177,11 @@ class GroceryServiceTest {
         val bread = add(PELLE, own, input("Bread"))
         (service.updateItem(PELLE, bread.id, input("Bread", categoryId = category(own, "Bakery"))) as GroceryItemResult.Saved).item.categoryId shouldBe
             category(own, "Bakery")
-        service.deleteItem(PELLE, bread.id)
+        service.checkItem(PELLE, bread.id)
         add(PELLE, own, input("bread")).let {
             it.categoryId shouldBe category(own, "Bakery")
             (service.updateItem(PELLE, it.id, input("bread")) as GroceryItemResult.Saved).item.categoryId shouldBe null
-            service.deleteItem(PELLE, it.id)
+            service.checkItem(PELLE, it.id)
         }
         add(PELLE, own, input("Bread")).categoryId shouldBe null
     }
@@ -193,9 +210,9 @@ class GroceryServiceTest {
         service.lists(OTHER).map { it.name } shouldBe listOf("Party")
         val chips = add(OTHER, shared.id, input("Chips"))
         service.updateItem(PELLE, chips.id, input("Crisps")).shouldBeInstanceOf<GroceryItemResult.Saved>()
-        service.deleteItem(PELLE, chips.id) shouldBe true
+        service.checkItem(PELLE, chips.id) shouldBe true
         val wine = add(PELLE, private.id, input("Wine"))
-        service.deleteItem(OTHER, wine.id) shouldBe false
+        service.checkItem(OTHER, wine.id) shouldBe false
         service.updateItem(OTHER, wine.id, input("Water")) shouldBe GroceryItemResult.NotFound
         service.addItem(OTHER, private.id, input("Wine")) shouldBe GroceryItemResult.NotFound
         service.items(OTHER, private.id) shouldBe null
@@ -244,9 +261,9 @@ class GroceryServiceTest {
         val otherOwn = list(OTHER)
         val milk = add(PELLE, own, input("Milk", "1", "l", category(own, "Dairy & eggs")))
         // bought, no longer to buy
-        service.deleteItem(PELLE, milk.id) shouldBe true
+        service.checkItem(PELLE, milk.id) shouldBe true
         val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
-        add(OTHER, party, input("Mints")).let { service.deleteItem(OTHER, it.id) }
+        add(OTHER, party, input("Mints")).let { service.checkItem(OTHER, it.id) }
 
         val suggestion = service.suggestions(PELLE, own, "mi")!!.single()
         suggestion.name shouldBe "Milk"
@@ -272,8 +289,8 @@ class GroceryServiceTest {
             add(PELLE, own, input("Wine"))
             val chips = add(PELLE, party, input("Chips"))
             service.updateItem(OTHER, chips.id, input("Crisps"))
-            service.deleteItem(OTHER, chips.id) shouldBe true
-            service.deleteItem(OTHER, chips.id) shouldBe false
+            service.checkItem(OTHER, chips.id) shouldBe true
+            service.checkItem(OTHER, chips.id) shouldBe false
             service.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
 
             // the own list of pelle is private, the shared one heard also when it goes

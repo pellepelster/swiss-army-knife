@@ -29,6 +29,9 @@ class FakeBackend {
     // the Accept-Language of the requests
     val languages = mutableListOf<String?>()
 
+    // the requests with their query, e.g. "GET /grocery/lists/1/items?checked=true&offset=0&limit=100"
+    val queries = mutableListOf<String>()
+
     // the dispatcher of the test, so advanceUntilIdle waits for the answers too
     var dispatcher: CoroutineDispatcher? = null
 
@@ -48,6 +51,7 @@ class FakeBackend {
             requests += if (request.body is OutgoingContent.ByteArrayContent) "$key ${body(request)}" else key
             tokens[path] = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
             languages += request.headers[HttpHeaders.AcceptLanguage]
+            queries += "$key?${request.url.encodedQuery}"
             val (status, body) = answers[key] ?: (HttpStatusCode.NotFound to "")
             answer(status, body)
         }

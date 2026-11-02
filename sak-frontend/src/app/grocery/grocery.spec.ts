@@ -214,6 +214,25 @@ describe('Grocery', () => {
     );
   });
 
+  it('deletes an item for good from the menu of its row after asking, a failure brings it back', async () => {
+    await load([defaultList], [item(2, 'Milk', null), item(3, 'Bread', null)]);
+    await deleteFromRow('Milk');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=item-2]')).toBeNull();
+    http.expectNone({ method: 'POST' });
+
+    await deleteFromRow('Bread');
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/3' })
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    await flushItems(1, [item(3, 'Bread', null)]);
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'The item could not be deleted.',
+    );
+    expect(page().querySelector('[data-testid=item-3]')).not.toBeNull();
+  });
+
   it('sets the category of an item from the menu of its row, one of the list or none', async () => {
     await load([defaultList], [item(2, 'Milk', null)]);
     const choices = async () => [
@@ -477,7 +496,7 @@ describe('Grocery', () => {
     const viewer = page().querySelector<HTMLElement>('[data-testid=photo-viewer]')!;
     expect(viewer.querySelector('img')?.getAttribute('src')).toBe('blob:photo-2');
     expect(page().querySelector('[role=status]')).toBeNull();
-    http.expectNone({ method: 'DELETE' });
+    http.expectNone({ method: 'POST' });
 
     viewer.click();
     await harness.fixture.whenStable();
@@ -534,15 +553,59 @@ describe('Grocery', () => {
     expect(page().querySelector('[data-testid=item-2] img')).toBeNull();
   });
 
+  it('shows the bought items with the eye, struck through, not checked by a tap and without a menu (GROCERY-14)', async () => {
+    await load([defaultList], [item(2, 'Milk', 12)]);
+    const toggle = page().querySelector<HTMLButtonElement>('[data-testid=toggle-bought]')!;
+    expect(toggle.querySelector('i')!.classList.contains('fa-eye-slash')).toBe(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle.getAttribute('aria-label')).toBe('Show bought items');
+
+    toggle.click();
+    await harness.fixture.whenStable();
+    http
+      .expectOne('/api/v1/grocery/lists/1/items?checked=true&offset=0&limit=100')
+      .flush(
+        pageOf([
+          item(2, 'Milk', 12),
+          { ...item(4, 'Milk', 12), checkedAt: '2026-11-01T10:00:00Z' },
+        ]),
+      );
+    http
+      .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
+      .flush(pageOf(categories));
+    await harness.fixture.whenStable();
+    expect(toggle.querySelector('i')!.classList.contains('fa-eye')).toBe(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle.getAttribute('aria-label')).toBe('Hide bought items');
+
+    // the bought one is struck through, a tap does nothing, its menu does not open
+    const bought = page().querySelector('[data-testid=item-4]')!;
+    expect(bought.querySelector('.item-name')!.classList.contains('item-struck')).toBe(true);
+    expect(
+      page().querySelector('[data-testid=item-2] .item-name')!.classList.contains('item-struck'),
+    ).toBe(false);
+    input('item-4').click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=status]')).toBeNull();
+    const menu = bought.querySelector<HTMLButtonElement>('app-action-menu button')!;
+    expect(menu.disabled).toBe(true);
+    expect(menu.title).toBe('A bought item does not change.');
+    http.expectNone({ method: 'POST' });
+
+    // hidden again: the items to buy only
+    toggle.click();
+    await harness.fixture.whenStable();
+    await flushItems(1, [item(2, 'Milk', 12)]);
+    expect(page().querySelector('[data-testid=item-4]')).toBeNull();
+  });
+
   it('strikes a checked item through until the time is up, undoes it, the backend learns it afterwards', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await load([defaultList], [item(2, 'Milk', 12), item(3, 'Candles', null)]);
 
     // bought: struck through while the bar runs, unstruck with undo or a second click, nothing sent
     const struck = () =>
-      page()
-        .querySelector('[data-testid=item-2] .item-name')!
-        .classList.contains('text-decoration-line-through');
+      page().querySelector('[data-testid=item-2] .item-name')!.classList.contains('item-struck');
     // a tap on the row, no checkbox; the row says it is pressed while it is struck through
     expect(page().querySelector('[data-testid=item-2] input[type=checkbox]')).toBeNull();
     input('item-2').click();
@@ -559,13 +622,13 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(struck()).toBe(false);
     expect(page().querySelector('[role=status]')).toBeNull();
-    http.expectNone({ method: 'DELETE' });
+    http.expectNone({ method: 'POST' });
 
-    // bought for good once the time is up: the item is deleted
+    // bought for good once the time is up: the item is checked
     input('item-2').click();
     await harness.fixture.whenStable();
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
-    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2' }).flush(null);
+    http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/2/check' }).flush(null);
     await harness.fixture.whenStable();
     // gone once the time is up
     expect(page().querySelector('[data-testid=item-2]')).toBeNull();
@@ -576,7 +639,7 @@ describe('Grocery', () => {
     expect(page().querySelector('[role=status]')?.textContent).toContain('Candles bought');
     expect(page().querySelector('[aria-label="Delete Candles"]')).toBeNull();
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
-    http.expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/3' }).flush(null);
+    http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/3/check' }).flush(null);
     await harness.fixture.whenStable();
     expect(page().textContent).toContain('Nothing to buy yet, add something.');
     expect(page().querySelector('[role=status]')).toBeNull();

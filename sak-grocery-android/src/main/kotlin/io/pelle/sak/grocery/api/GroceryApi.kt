@@ -142,7 +142,12 @@ class GroceryApi(
     }
 
     // the items to buy, by the order of their category, the ones without one last
-    suspend fun items(listId: Int): List<GroceryItemResponse> = all("$url/grocery/lists/$listId/items", R.string.grocery_list_items_not_loaded)
+    // the items to buy of the list, with checked also the bought ones after them in each category (GROCERY-14)
+    suspend fun items(
+        listId: Int,
+        checked: Boolean = false,
+    ): List<GroceryItemResponse> =
+        all("$url/grocery/lists/$listId/items" + if (checked) "?checked=true" else "", R.string.grocery_list_items_not_loaded)
 
     // the new item, on the list it names (GROCERY-2)
     suspend fun addItem(
@@ -156,12 +161,21 @@ class GroceryApi(
                 setBody(GroceryNewItemRequest(listId, name))
             }.answer(R.string.grocery_list_not_added)
 
-    // the item is bought: the backend deletes it (DELETE answers 204, no body)
+    // the item is bought: the backend keeps it as the history of the list, the suggestions come from
+    // it (GROCERY-3); POST answers 204, no body
     suspend fun checkItem(id: Int) {
+        client
+            .post("$url/grocery/items/$id/check") {
+                session()
+            }.answer<Unit>(R.string.grocery_list_not_checked)
+    }
+
+    // the item goes for good, it is no history and no suggestion (DELETE answers 204, no body)
+    suspend fun deleteItem(id: Int) {
         client
             .delete("$url/grocery/items/$id") {
                 session()
-            }.answer<Unit>(R.string.grocery_list_not_checked)
+            }.answer<Unit>(R.string.grocery_item_not_deleted)
     }
 
     // a photo into the file storage, a jpeg scaled down already; the id of its file

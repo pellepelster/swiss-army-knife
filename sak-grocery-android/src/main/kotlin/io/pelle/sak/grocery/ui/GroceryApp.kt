@@ -77,6 +77,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -97,7 +99,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -888,6 +889,13 @@ private fun ListScreen(
             }
         },
         actions = {
+            // the bought items hidden (eye-slash) or shown (eye) too (GROCERY-14)
+            IconButton(onClick = model::toggleBought, modifier = Modifier.testTag("toggle-bought")) {
+                Icon(
+                    painterResource(if (screen.showBought) R.drawable.ic_eye else R.drawable.ic_eye_slash),
+                    contentDescription = stringResource(if (screen.showBought) R.string.grocery_hide_bought else R.string.grocery_show_bought),
+                )
+            }
             // the settings of the list, of a list of another user disabled in their place (UX-8)
             IconButton(
                 onClick = { model.openSettings(open) },
@@ -1013,8 +1021,9 @@ private fun NewItem(
 
 // the photo of the item, a tap shows it in full; the rest of the row checks the item, struck through
 // while the check can be undone, no checkbox, the row tells a screen reader it is one (GROCERY-3);
-// its menu attaches a photo, from the camera or the photos of the phone. The photo has the same
-// space to its left, above and below it
+// its menu attaches a photo, from the camera or the photos of the phone. A bought item (GROCERY-14)
+// is struck through, a tap does nothing and its menu is disabled. The photo has the same space to its
+// left, above and below it
 @Composable
 private fun ItemRow(
     item: GroceryItemResponse,
@@ -1023,9 +1032,12 @@ private fun ItemRow(
     model: GroceryModel,
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val bought = item.checkedAt != null
+    val crossed = struck || bought
     // the items are the main content, larger than the text around them
     val text = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp)
-    val style = if (struck) text.copy(textDecoration = TextDecoration.LineThrough, color = muted) else text
+    val style = if (crossed) text.copy(color = muted) else text
+    val line = Modifier.redStrikeThrough(crossed, MaterialTheme.colorScheme.error)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         if (item.photoId != null) {
             val description = stringResource(R.string.grocery_photo_of, item.name)
@@ -1047,20 +1059,36 @@ private fun ItemRow(
             Modifier
                 .weight(1f)
                 .heightIn(min = 56.dp)
-                .toggleable(value = struck, role = Role.Checkbox, onValueChange = { model.check(item) })
+                .toggleable(value = crossed, enabled = !bought, role = Role.Checkbox, onValueChange = { model.check(item) })
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .testTag("item-${item.id}"),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(item.name, style = style, modifier = Modifier.weight(1f))
-            quantity(item)?.let { Text(it, style = style, color = muted) }
+            Box(Modifier.weight(1f)) { Text(item.name, style = style, modifier = line) }
+            quantity(item)?.let { Text(it, style = style, color = muted, modifier = line) }
         }
         ItemMenu(item, busy, model)
     }
 }
 
+// a red line through the middle of a struck text, more visible than the line of the font (GROCERY-3)
+private fun Modifier.redStrikeThrough(
+    struck: Boolean,
+    color: Color,
+): Modifier =
+    if (!struck) {
+        this
+    } else {
+        drawWithContent {
+            drawContent()
+            val middle = size.height / 2
+            drawLine(color, Offset(0f, middle), Offset(size.width, middle), strokeWidth = 2.dp.toPx())
+        }
+    }
+
 // the menu of an item: its category, chosen on a screen of its own (CategoryScreen); a photo from the camera or the photos of the phone (PhotoPicker), scaled down
-// on the phone before it is sent, or the photo removed; the camera only when the phone has one (UX-8)
+// on the phone before it is sent, or the photo removed; the camera only when the phone has one (UX-8). Its last entry deletes the
+// item for good after a confirmation (UX-12, UX-4.1)
 @Composable
 private fun ItemMenu(
     item: GroceryItemResponse,
@@ -1069,8 +1097,10 @@ private fun ItemMenu(
 ) {
     val photos = LocalPhotoPicker.current
     var menu by rememberSaveable { mutableStateOf(false) }
+    var confirming by rememberSaveable { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) {
+        // a bought item changes no more, its menu stays in its place disabled (UX-8)
+        IconButton(onClick = { menu = true }, enabled = item.checkedAt == null, modifier = Modifier.testTag("menu-item-${item.id}")) {
             if (busy) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
@@ -1110,8 +1140,19 @@ private fun ItemMenu(
                 },
                 enabled = item.photoId != null && !busy,
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.shared_delete)) },
+                onClick = {
+                    menu = false
+                    confirming = true
+                },
+                enabled = !busy,
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag("delete-item-${item.id}"),
+            )
         }
     }
+    if (confirming) ConfirmDelete(item.name, onDelete = { model.deleteItem(item) }, onDismiss = { confirming = false })
 }
 
 // the photo of an item as large as it shows: fetched in the scaled size that fills that many pixels

@@ -11,6 +11,6 @@ data class GroceryItemRequest(
     // free text, only with an amount
     val unit: String? = null,
     // one of the categories of the list, none when missing: the item loses its category (GROCERY-13);
-    // a changed one goes onto the list's suggestion of the name
+    // the next item of the name on the list takes it
     val categoryId: Int? = null,
 )

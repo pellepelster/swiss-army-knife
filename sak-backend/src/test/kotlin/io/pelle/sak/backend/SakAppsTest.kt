@@ -576,13 +576,14 @@ class SakAppsTest {
             // the next item of the name has the photo: of the one who attached it, and on the shared list
             // for everyone, the list learned it; not on another user's own list (GROCERY-11)
             add(admin, shared, " milk ").string("photoId") shouldBe photo
-            add(anna, shared, "Milk").string("photoId") shouldBe photo
+            val latest = add(anna, shared, "Milk").also { it.string("photoId") shouldBe photo }.string("id")
             val own = lists(anna).single { it.string("mine") == "true" }.string("id")
             add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
 
-            // taken away: from the item and from what the next item of the name takes
+            // taken away from an item, the next item of the name takes what the latest one has (GROCERY-12)
             delete(port, "/api/v1/grocery/items/$milk/photo", admin).json().getValue("photoId") shouldBe JsonNull
             image(admin, "?size=100").statusCode() shouldBe 404
+            delete(port, "/api/v1/grocery/items/$latest/photo", anna).json().getValue("photoId") shouldBe JsonNull
             add(admin, shared, "Milk").getValue("photoId") shouldBe JsonNull
         }
     }
@@ -653,8 +654,17 @@ class SakAppsTest {
             put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session).json().let {
                 it.string("amount") shouldBe "1.5"
             }
-            delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 204
+            post(port, "/api/v1/grocery/items/$milkId/check", "", session).statusCode() shouldBe 204
+            post(port, "/api/v1/grocery/items/$milkId/check", "", session).statusCode() shouldBe 404
+            // the bought items only when asked, with when they were bought (GROCERY-14)
+            get(port, "/api/v1/grocery/lists/$listId/items?checked=true", session).json().getValue("items").jsonArray.map { it.jsonObject }.let { items ->
+                items.single { it.string("id") == milkId }.containsKey("checkedAt") shouldBe true
+                items.single { it.string("id") == milkId }["checkedAt"].toString() shouldNotBe "null"
+            }
+            // a checked item can not be deleted, one to buy goes for good
             delete(port, "/api/v1/grocery/items/$milkId", session).statusCode() shouldBe 404
+            val typo = post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Mlik"}""", session).json().string("id")
+            delete(port, "/api/v1/grocery/items/$typo", session).statusCode() shouldBe 204
             get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
                 listOf("Apples")
             get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("items") shouldBe "1"
@@ -1187,6 +1197,7 @@ class SakAppsTest {
                         "/api/v1/grocery/items",
                         "/api/v1/grocery/items/{id}",
                         "/api/v1/grocery/items/{id}/category",
+                        "/api/v1/grocery/items/{id}/check",
                         "/api/v1/grocery/items/{id}/photo",
                         "/api/v1/grocery/items/{id}/photos/{fileId}",
                         "/api/v1/files",

@@ -95,6 +95,8 @@ data class GroceryItemResponse(
     val categoryId: Int? = null,
     // the file of its photo, none without one
     val photoId: Int? = null,
+    // when it was bought, none while it is to buy (GROCERY-3); only the items of a list with the bought ones have it
+    val checkedAt: String? = null,
 )
 
 // a file the file storage keeps, e.g. a photo

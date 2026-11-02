@@ -28,9 +28,10 @@ photo or a recording is written into the note on request.
 ### Grocery lists
 
 Shopping lists, private or shared with everyone of the deployment. A checked item goes after a moment, unless you undo
-it; what you added to a list before comes back as a suggestion on that list. Each list groups its items by its own
-categories, with a name and an icon, which its owner changes in the settings of the list. Every change shows at once on
-every device that has the list open, also in the Android app, which downloads from `sak.<your domain>/grocery/download/app`.
+it, and stays as bought: the eye in the toolbar shows the bought items too. What you added to a list before comes back
+as a suggestion on that list. Each list groups its items by its own categories, with a name and an icon, which its
+owner changes in the settings of the list. Every change shows at once on every device that has the list open, also in
+the Android app, which downloads from `sak.<your domain>/grocery/download/app`.
 
 ### Static hosting
 

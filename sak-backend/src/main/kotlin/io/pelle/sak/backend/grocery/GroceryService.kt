@@ -18,7 +18,7 @@ import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.grocery.GroceryList
 import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryListUpdate
-import io.pelle.sak.model.grocery.GroceryProduct
+import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.pelle.sak.model.grocery.GroceryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -176,15 +176,22 @@ class GroceryService(
         id: Int,
     ): GroceryListDelete = repository.deleteList(user, id).also { if (it == GroceryListDelete.Deleted) changes.changed(id) }
 
-    // the items to buy of a list the user sees, null for another one: by the order of their
-    // category (GROCERY-13), the ones without a category last, then in the order they were added
+    // the items to buy of a list the user sees, with checked also the bought ones (GROCERY-14); null
+    // for another list. By the order of their category (GROCERY-13), the ones without a category
+    // last; in a category the ones to buy first in the order they were added, then the bought ones,
+    // the last bought first
     fun items(
         user: String,
         listId: Int,
+        checked: Boolean = false,
     ): List<GroceryItem>? {
-        val items = repository.items(user, listId) ?: return null
+        val items = repository.items(user, listId, checked) ?: return null
         val order = repository.categories(user, listId).orEmpty().withIndex().associate { (index, category) -> category.id to index }
-        return items.sortedWith(compareBy({ order[it.categoryId] ?: order.size }, { it.id }))
+        return items.sortedWith(
+            compareBy<GroceryItem>({ order[it.categoryId] ?: order.size }, { it.checkedAt != null })
+                .thenByDescending { it.checkedAt }
+                .thenBy { it.id },
+        )
     }
 
     // on a list the user sees, an item names its list (LIST-1); the product of its name learns it
@@ -273,7 +280,17 @@ class GroceryService(
             GroceryCategoryOrder.Mismatch -> GroceryCategoriesResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_CATEGORY_ORDER)))
         }
 
-    // bought (GROCERY-3), by any user who sees its list (LIST-2); false when the user sees no such item
+    // bought (GROCERY-3), by any user who sees its list (LIST-2): it leaves the list and stays as its
+    // history (GROCERY-11); false when the user sees no such item to buy
+    fun checkItem(
+        user: String,
+        id: Int,
+    ): Boolean {
+        val listId = repository.item(user, id)?.listId ?: return false
+        return repository.checkItem(user, id).also { if (it) changes.changed(listId) }
+    }
+
+    // an item to buy gone for good, by any user who sees its list; false when the user sees no such item
     fun deleteItem(
         user: String,
         id: Int,
@@ -282,8 +299,8 @@ class GroceryService(
         return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
     }
 
-    // the photo of an item on a list the user sees: a file the user uploaded that is an image, or none
-    // to take it away; the product of its name of the user takes it too (GROCERY-11)
+    // the photo of an item to buy on a list the user sees: a file the user uploaded that is an image, or
+    // none to take it away; the next item of its name on the list takes it (GROCERY-12)
     fun setPhoto(
         user: String,
         id: Int,
@@ -300,20 +317,22 @@ class GroceryService(
         fileId: Int,
     ): StoredFile? = repository.photo(user, id, fileId)
 
-    // what the list learned whose name contains the text, the ones bought most and last first; the
-    // ones to buy on the list are left out. Null when the user does not see the list (GROCERY-11)
+    // the names added to the list before whose name contains the text, the ones added most and last
+    // first; the ones to buy on the list are left out. Null when the user does not see the list
+    // (GROCERY-11)
     fun suggestions(
         user: String,
         listId: Int,
         text: String,
-    ): List<GroceryProduct>? = repository.products(user, listId, text.trim(), MAX_SUGGESTIONS)
+    ): List<GrocerySuggestion>? = repository.suggestions(user, listId, text.trim(), MAX_SUGGESTIONS)
 
-    // false when the user does not see the list or it learned no such suggestion
+    // the checked items of the name of the suggestion go for good; false when the user does not see
+    // the list or it has no such suggestion
     fun forget(
         user: String,
         listId: Int,
         id: Int,
-    ): Boolean = repository.deleteProduct(user, listId, id)
+    ): Boolean = repository.forget(user, listId, id)
 
     private fun categoryResult(
         listId: Int,

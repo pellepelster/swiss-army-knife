@@ -47,7 +47,7 @@ import io.pelle.sak.model.grocery.GroceryCategory
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryListDelete
 import io.pelle.sak.model.grocery.GroceryList
-import io.pelle.sak.model.grocery.GroceryProduct
+import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.ktor.server.application.ApplicationCall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -68,9 +68,9 @@ private fun GroceryList.response(user: String) =
     GroceryListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
 
 private fun GroceryItem.response() =
-    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, categoryId, createdAt.apiTime(), updatedAt?.apiTime(), photoFileId)
+    GroceryItemResponse(id, listId, name, amount?.toDouble(), unit, categoryId, createdAt.apiTime(), updatedAt?.apiTime(), photoFileId, checkedAt?.apiTime())
 
-private fun GroceryProduct.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, categoryId)
+private fun GrocerySuggestion.response() = GrocerySuggestionResponse(id, name, amount?.toDouble(), unit, categoryId)
 
 private fun GroceryCategory.response() = GroceryCategoryResponse(id, name, icon)
 
@@ -216,16 +216,23 @@ fun Route.grocery(
         get("/{id}/items") {
             val id = call.idParameter() ?: return@get
             val page = call.pageRequest() ?: return@get
-            when (val items = withContext(Dispatchers.IO) { groceryService.items(call.owner, id) }) {
+            val checked = call.request.queryParameters["checked"] == "true"
+            when (val items = withContext(Dispatchers.IO) { groceryService.items(call.owner, id, checked) }) {
                 null -> call.respond(HttpStatusCode.NotFound)
                 else -> call.respond(page.of(page.of(items.map { it.response() })))
             }
         }.describe {
             tag(GROCERY_TAG)
             summary = "The items to buy of a grocery list"
-            description = "The ones to buy first, by their category, the ones without one last; the bought ones after them."
+            description =
+                "By their category, the ones without one last; in a category the ones to buy in the order they were added, " +
+                "with checked=true the bought ones after them, the last bought first (GROCERY-14)."
             parameters {
                 listId()
+                query("checked") {
+                    description = "true answers the bought items too, each with its checkedAt"
+                    schema = jsonSchema<Boolean>()
+                }
                 pagination()
             }
             responses {
@@ -406,11 +413,13 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Forget a suggestion of a grocery list"
-            description = "For every user who sees the list; no item changes. Adding an item of the name teaches it again."
+            description =
+                "For every user who sees the list: the checked items of its name go for good, an item to buy stays. Adding an " +
+                "item of the name brings it back (GROCERY-11)."
             parameters {
                 listId()
                 path("suggestionId") {
-                    description = "The id of the suggestion"
+                    description = "The id of the suggestion, the latest item of its name"
                     required = true
                     schema = jsonSchema<Int>()
                 }
@@ -474,8 +483,8 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Set the category of an item"
             description =
-                "One of the categories of its list, or none; the list's suggestion of the item's name takes it too, so the next " +
-                "item of the name on the list has it (GROCERY-13)."
+                "Of an item to buy: one of the categories of its list, or none; the next item of the name on the list takes it " +
+                "(GROCERY-13)."
             parameters { itemId() }
             requestBody {
                 required = true
@@ -499,8 +508,8 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Attach a photo to an item"
             description =
-                "The photo is a file the user uploaded to the file storage (POST /files) that is an image. The user's " +
-                "list's suggestion of the item's name takes it too, so the next item of the name on the list has it (GROCERY-12)."
+                "Of an item to buy: a file the user uploaded to the file storage (POST /files) that is an image. The next item " +
+                "of the name on the list takes it (GROCERY-12)."
             parameters { itemId() }
             requestBody {
                 required = true
@@ -522,7 +531,7 @@ fun Route.grocery(
         }.describe {
             tag(GROCERY_TAG)
             summary = "Take the photo away from an item"
-            description = "From the item and from the list's suggestion of its name; the file stays in the file storage."
+            description = "From an item to buy, the next item of the name on the list has none; the file stays in the file storage."
             parameters { itemId() }
             responses {
                 HttpStatusCode.OK {
@@ -584,18 +593,35 @@ fun Route.grocery(
             }
         }
 
+        post("/{id}/check") {
+            val id = call.idParameter() ?: return@post
+            val checked = withContext(Dispatchers.IO) { groceryService.checkItem(call.owner, id) }
+            call.respond(if (checked) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "Check an item"
+            description =
+                "The item is bought (GROCERY-3): the list no longer shows it, it stays as the history of the list, what its " +
+                "suggestions are made of (GROCERY-11)."
+            parameters { itemId() }
+            responses {
+                HttpStatusCode.NoContent { description = "The item is checked" }
+                HttpStatusCode.NotFound { description = "The user sees no such item to buy" }
+            }
+        }
+
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
             val deleted = withContext(Dispatchers.IO) { groceryService.deleteItem(call.owner, id) }
             call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
         }.describe {
             tag(GROCERY_TAG)
-            summary = "Check an item"
-            description = "The item is bought: it is deleted and the list no longer shows it."
+            summary = "Delete an item"
+            description = "An item to buy goes for good, e.g. one added by mistake: no list shows it, no suggestion counts it."
             parameters { itemId() }
             responses {
                 HttpStatusCode.NoContent { description = "The item is gone" }
-                HttpStatusCode.NotFound { description = "The user sees no such item" }
+                HttpStatusCode.NotFound { description = "The user sees no such item to buy" }
             }
         }
     }

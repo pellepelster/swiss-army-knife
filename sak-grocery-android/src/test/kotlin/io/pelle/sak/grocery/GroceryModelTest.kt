@@ -12,6 +12,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -302,9 +304,9 @@ class GroceryModelTest {
     private fun GroceryModel.names() = (screen.value as Screen.Lists).groups.flatMap { group -> group.items.map { it.name } }
 
     @Test
-    fun `a checked item is struck through and goes when its undo ran out, the backend deletes it`() =
+    fun `a checked item is struck through and goes when its undo ran out, the backend keeps it as bought`() =
         runTest {
-            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
             advanceUntilIdle()
 
@@ -315,22 +317,57 @@ class GroceryModelTest {
             assertEquals(setOf(10), struck.struck)
             assertEquals("Apples bought", struck.undo?.text.english())
             assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
-            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+            assertTrue(backend.requests.none { it.endsWith("/check") })
 
             advanceUntilIdle()
             val lists = model.screen.value as Screen.Lists
             assertEquals(emptySet<Int>(), lists.struck)
             assertNull(lists.undo)
             assertEquals(listOf("Dairy & eggs", GroceryModel.NO_CATEGORY.english()), lists.groups.map { it.label.english() })
-            assertEquals(listOf("DELETE /grocery/items/10"), backend.requests.filter { it.startsWith("DELETE") })
-            assertEquals("t", backend.tokens["/grocery/items/10"])
+            assertEquals(listOf("POST /grocery/items/10/check"), backend.requests.filter { it.endsWith("/check") })
+            assertEquals("t", backend.tokens["/grocery/items/10/check"])
+        }
+
+    @Test
+    fun `the eye shows the bought items too, struck through and not checked again, the eye-slash hides them (GROCERY-14)`() =
+        runTest {
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+            assertFalse((model.screen.value as Screen.Lists).showBought)
+            assertTrue(backend.queries.filter { it.startsWith("GET /grocery/lists/1/items") }.none { "checked=true" in it })
+
+            val bought = """{"id":13,"listId":1,"name":"Bread","categoryId":null,"checkedAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["GET /grocery/lists/1/items"] =
+                HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(11, 1, "Milk", 2, 1.5, "l"), item(12, 1, "Candles", null), bought)
+            model.toggleBought()
+            advanceUntilIdle()
+            assertTrue((model.screen.value as Screen.Lists).showBought)
+            assertTrue("checked=true" in backend.queries.last { it.startsWith("GET /grocery/lists/1/items") })
+            assertEquals(listOf("Apples", "Milk", "Candles", "Bread"), model.names())
+
+            // a bought item is checked already, a tap does nothing
+            model.check(model.item("Bread"))
+            assertEquals(emptySet<Int>(), (model.screen.value as Screen.Lists).struck)
+            // an item checked while they show stays, as bought, after the ones to buy of its group
+            model.check(model.item("Apples"))
+            advanceTimeBy(UNDO_MS + 1)
+            runCurrent()
+            assertNotNull(model.item("Apples").checkedAt)
+            assertEquals(listOf("POST /grocery/items/10/check"), backend.requests.filter { it.endsWith("/check") })
+
+            // hidden again
+            model.toggleBought()
+            advanceUntilIdle()
+            assertFalse((model.screen.value as Screen.Lists).showBought)
+            assertFalse("checked=true" in backend.queries.last { it.startsWith("GET /grocery/lists/1/items") })
         }
 
     @Test
     fun `an undo or a second tap keeps the item, a check before goes to the backend at once`() =
         runTest {
-            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
-            backend.answers["DELETE /grocery/items/11"] = HttpStatusCode.NoContent to ""
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
+            backend.answers["POST /grocery/items/11/check"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
             advanceUntilIdle()
 
@@ -339,19 +376,39 @@ class GroceryModelTest {
             model.check(model.item("Milk"))
             model.check(model.item("Milk"))
             advanceUntilIdle()
-            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+            assertTrue(backend.requests.none { it.endsWith("/check") })
             assertEquals(emptySet<Int>(), (model.screen.value as Screen.Lists).struck)
 
             model.check(model.item("Apples"))
             model.check(model.item("Milk"))
             runCurrent()
-            assertEquals(listOf("DELETE /grocery/items/10"), backend.requests.filter { it.startsWith("DELETE") })
+            assertEquals(listOf("POST /grocery/items/10/check"), backend.requests.filter { it.endsWith("/check") })
             assertEquals(setOf(11), (model.screen.value as Screen.Lists).struck)
 
             model.signOut()
             advanceUntilIdle()
-            assertEquals(2, backend.requests.count { it.startsWith("DELETE") })
-            assertEquals("t", backend.tokens["/grocery/items/11"])
+            assertEquals(2, backend.requests.count { it.endsWith("/check") })
+            assertEquals("t", backend.tokens["/grocery/items/11/check"])
+        }
+
+    @Test
+    fun `an item deleted from the menu of its row goes for good, a refused delete shows why`() =
+        runTest {
+            backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.deleteItem(model.item("Apples"))
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /grocery/items/10"))
+            assertTrue(backend.requests.none { it.endsWith("/check") })
+            assertNull((model.screen.value as Screen.Lists).error)
+            // the list loads again as the backend has it
+            assertEquals(2, backend.requests.count { it.startsWith("GET /grocery/lists/1/items") })
+
+            model.deleteItem(model.item("Milk"))
+            advanceUntilIdle()
+            assertEquals("The item could not be deleted.", (model.screen.value as Screen.Lists).error.english())
         }
 
     @Test

@@ -80,6 +80,9 @@
     <string name="grocery_photo_take">Take photo</string>
     <string name="grocery_photo_choose">Choose photo</string>
     <string name="grocery_photo_not_read">The photo could not be read.</string>
+    <string name="grocery_item_not_deleted">The item could not be deleted.</string>
+    <string name="grocery_show_bought">Show bought items</string>
+    <string name="grocery_hide_bought">Hide bought items</string>
     <string name="grocery_no_lists">You have no list yet, add one with the plus at the top.</string>
     <string name="grocery_shared">Shared with all users</string>
     <string name="grocery_shared_badge">Shared</string>

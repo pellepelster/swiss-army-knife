@@ -16,4 +16,7 @@ data class GroceryItemResponse(
     val updatedAt: String?,
     // the file of its photo, null without one; GET /grocery/items/{id}/photos/{photoId} shows it
     val photoId: Int? = null,
+    // when it was bought, missing while it is to buy (GROCERY-3); only GET /lists/{id}/items?checked=true
+    // answers bought items
+    val checkedAt: String? = null,
 )

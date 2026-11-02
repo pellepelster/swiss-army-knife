@@ -17,7 +17,7 @@ document in its own one.
 | Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `hosting/`   | `s3_buckets`, `s3_buckets_domains`                                         | none     |
 | Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                                | none     |
 | Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                       | `notes`  |
-| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`, `grocery_products` | none     |
+| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                     | none     |
 | Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`            | `health/`    | none                                                                       | none     |
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to

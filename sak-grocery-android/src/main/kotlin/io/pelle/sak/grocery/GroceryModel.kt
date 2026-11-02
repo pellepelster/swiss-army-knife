@@ -173,6 +173,8 @@ sealed interface Screen {
         val adding: Boolean = false,
         // the items checked while they can be undone, struck through until they go
         val struck: Set<Int> = emptySet(),
+        // whether the list open shows its bought items too, struck through (GROCERY-14); hidden when a list opens
+        val showBought: Boolean = false,
         val undo: Undo? = null,
         // the screen of the settings of a list, a new one or one of the user's own, over the home
         val settings: ListSettings? = null,
@@ -394,6 +396,8 @@ class GroceryModel(
     // check before goes to the backend at once (GROCERY-3)
     fun check(item: GroceryItemResponse) {
         val lists = state.value as? Screen.Lists ?: return
+        // a bought item is checked already
+        if (item.checkedAt != null) return
         if (item.id in lists.struck) {
             undo()
             return
@@ -424,7 +428,18 @@ class GroceryModel(
         pending = null
         timer.cancel()
         (state.value as? Screen.Lists)?.let { lists ->
-            val groups = lists.groups.map { it.copy(items = it.items.filter { each -> each.id != item.id }) }.filter { it.items.isNotEmpty() }
+            val groups =
+                if (lists.showBought) {
+                    // it stays, as the latest bought item of its group, after the ones to buy
+                    val bought = item.copy(checkedAt = clock.instant().toString())
+                    lists.groups.map { group ->
+                        if (group.items.none { it.id == item.id }) return@map group
+                        val others = group.items.filter { it.id != item.id }
+                        group.copy(items = others.filter { it.checkedAt == null } + bought + others.filter { it.checkedAt != null })
+                    }
+                } else {
+                    lists.groups.map { it.copy(items = it.items.filter { each -> each.id != item.id }) }.filter { it.items.isNotEmpty() }
+                }
             state.value = lists.copy(groups = groups, struck = lists.struck - item.id, undo = null)
         }
         return scope.launch { request(R.string.grocery_list_not_checked, ::failed) { it.checkItem(item.id) } }
@@ -440,6 +455,16 @@ class GroceryModel(
         val lists = state.value as? Screen.Lists ?: return
         state.value = lists.copy(error = error)
         load()
+    }
+
+    // an item from the menu of its row, after the user confirmed it (UX-12): it goes for good, no
+    // suggestion comes from it. A failure shows on the list, which loads as the backend has it
+    fun deleteItem(item: GroceryItemResponse) {
+        if (state.value !is Screen.Lists) return
+        scope.launch {
+            request(R.string.grocery_item_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
+            load()
+        }
     }
 
     // a list of the home opens, the next start opens it again (LIST-3)
@@ -797,8 +822,17 @@ class GroceryModel(
     private fun show(open: Int?) {
         commitPending()
         val lists = state.value as? Screen.Lists ?: return
-        state.value = lists.copy(open = open, groups = emptyList(), categories = emptyList(), choosing = null, loading = true, error = null, itemName = "")
+        state.value = lists.copy(open = open, groups = emptyList(), categories = emptyList(), choosing = null, loading = true, error = null, itemName = "", showBought = false)
         scope.launch { store.update { it.copy(openList = open) } }
+        load()
+    }
+
+    // the bought items of the list open shown too, or hidden again (GROCERY-14); the list loads
+    fun toggleBought() {
+        commitPending()
+        val lists = state.value as? Screen.Lists ?: return
+        if (lists.open == null) return
+        state.value = lists.copy(showBought = !lists.showBought, loading = true, error = null)
         load()
     }
 
@@ -954,10 +988,11 @@ class GroceryModel(
             scope.launch {
                 request(R.string.grocery_lists_not_loaded, { error -> lists { it.copy(loading = false, error = error) } }) { api ->
                     val lists = api.lists()
-                    val wanted = (state.value as? Screen.Lists ?: return@request).open
+                    val current = state.value as? Screen.Lists ?: return@request
+                    val wanted = current.open
                     val open = wanted?.takeIf { id -> lists.any { it.id == id } }
                     if (wanted != null && open == null) store.update { it.copy(openList = null) }
-                    val items = open?.let { api.items(it) }.orEmpty()
+                    val items = open?.let { api.items(it, checked = current.showBought) }.orEmpty()
                     val categories = open?.let { api.categories(it) }.orEmpty()
                     lists { current ->
                         // the item whose category is chosen as it is now; gone, e.g. bought by another user, the list shows

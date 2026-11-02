@@ -178,6 +178,10 @@ export const CATALOG = {
         bought: '%{name} bought',
         category: 'Category',
         category_not_set: 'The category could not be set.',
+        not_deleted: 'The item could not be deleted.',
+        show_bought: 'Show bought items',
+        hide_bought: 'Hide bought items',
+        bought_unchanged: 'A bought item does not change.',
       },
       page_title: {
         create: 'Create list · Grocery',
@@ -658,6 +662,10 @@ export const CATALOG = {
         bought: '%{name} gekauft',
         category: 'Kategorie',
         category_not_set: 'Die Kategorie konnte nicht gesetzt werden.',
+        not_deleted: 'Der Artikel konnte nicht gelöscht werden.',
+        show_bought: 'Gekaufte Artikel zeigen',
+        hide_bought: 'Gekaufte Artikel verbergen',
+        bought_unchanged: 'Ein gekaufter Artikel ändert sich nicht.',
       },
       page_title: {
         create: 'Liste erstellen · Einkaufslisten',

@@ -34,6 +34,8 @@ export interface GroceryItem {
   categoryId: number | null;
   // the file of its photo, null without one
   photoId?: number | null;
+  // when it was bought, missing while it is to buy (GROCERY-3)
+  checkedAt?: string | null;
 }
 
 // what is given of an item
@@ -80,9 +82,14 @@ export class GroceryService {
     return this.http.delete<void>(`/api/v1/grocery/lists/${id}`);
   }
 
-  // the ones to buy first, by their category, the bought ones after them
-  items(listId: number): Observable<GroceryItem[]> {
-    return fetchAll<GroceryItem>(this.http, `/api/v1/grocery/lists/${listId}/items`);
+  // the items to buy by their category; with checked also the bought ones, after the ones to buy of
+  // their category, the last bought first
+  items(listId: number, checked = false): Observable<GroceryItem[]> {
+    return fetchAll<GroceryItem>(
+      this.http,
+      `/api/v1/grocery/lists/${listId}/items`,
+      checked ? { checked: 'true' } : {},
+    );
   }
 
   addItem(listId: number, values: GroceryItemValues): Observable<GroceryItem> {
@@ -98,7 +105,12 @@ export class GroceryService {
     return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}/category`, { categoryId });
   }
 
-  // checks the item: it is bought and deleted
+  // checks the item: it is bought, it goes from the list and stays as its history (GROCERY-3)
+  checkItem(id: number): Observable<void> {
+    return this.http.post<void>(`/api/v1/grocery/items/${id}/check`, null);
+  }
+
+  // removes the item for good, also from the suggestions
   deleteItem(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/grocery/items/${id}`);
   }
