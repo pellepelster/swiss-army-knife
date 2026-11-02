@@ -51,9 +51,6 @@ import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.logs.SiteLogs
-import io.pelle.sak.logs.SiteMetricsService
-import io.pelle.sak.logs.VictoriaLogsClient
 import io.pelle.sak.logs.accessLogs
 import java.net.URI
 import kotlinx.coroutines.Dispatchers
@@ -190,11 +187,10 @@ fun Application.apps(
                             buckets(bucketService, statistics)
                             // the access logs of all the domains a bucket is served at
                             route("/{bucket}/access-logs") {
-                                val victoriaLogs = VictoriaLogsClient(config.logs.victorialogsUrl)
                                 accessLogs(
                                     { call -> withContext(Dispatchers.IO) { bucketSite(bucketService, call.parameters["bucket"].orEmpty()) } },
-                                    SiteMetricsService(victoriaLogs),
-                                    SiteLogs(victoriaLogs),
+                                    accessLogsManager.metrics,
+                                    accessLogsManager.logs,
                                 )
                             }
                         }

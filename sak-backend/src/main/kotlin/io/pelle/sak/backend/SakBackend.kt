@@ -30,6 +30,7 @@ import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
+import io.pelle.sak.logs.AccessLogsManager
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.FilesystemBinaryStorage
@@ -89,6 +90,8 @@ class SakServices(
     val redirectsHealth: RedirectsHealth,
     // the users an admin added, the role user
     val userService: UserService,
+    // victorialogs, the access logs of the buckets (EXT-1)
+    val accessLogsManager: AccessLogsManager,
 ) {
     // the apps that prepare the data of a user who signs in, e.g. the list of their notes (NOTES-1)
     val loginListeners: List<LoginListener> get() = listOf(noteService)
@@ -149,6 +152,7 @@ fun Application.sak(config: SakConfig): SakServices {
             HostingHealth(bucketService, domainCheck, config.addresses),
             RedirectsHealth(redirectService, domainCheck, config.addresses),
             UserService(database, config.auth?.admins.orEmpty()),
+            AccessLogsManager(config.logs.victorialogsUrl),
         )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them

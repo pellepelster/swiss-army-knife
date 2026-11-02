@@ -116,7 +116,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   provider, in a container runtime or behind a remote api, is the one place they are looked up, created, changed and
   deleted, and the one place its clients are made; the rest of the code asks it. sakctl has one for the deployments,
   the provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
-  (`OpenRouterManager`).
+  (`OpenRouterManager`) and one for the access logs in victorialogs (`AccessLogsManager`).
 
 ## The server of a deployment
 

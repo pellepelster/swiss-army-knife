@@ -33,7 +33,7 @@ enum class StatusClass(
 
 // requests per status class and code, bytes and clients of a site over a range, computed
 // from the caddy access logs with logsql stats queries
-class SiteMetricsService(
+class SiteMetricsService internal constructor(
     private val client: VictoriaLogsClient,
 ) {
     fun metrics(

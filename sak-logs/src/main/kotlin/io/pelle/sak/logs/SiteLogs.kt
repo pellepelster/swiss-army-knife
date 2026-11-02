@@ -6,7 +6,7 @@ import java.time.format.DateTimeParseException
 
 
 // the access log entries of one site, searched in the stored entries
-class SiteLogs(
+class SiteLogs internal constructor(
     private val client: VictoriaLogsClient,
 ) {
     // the entries whose request line (method, host, path, status) or user agent contains the

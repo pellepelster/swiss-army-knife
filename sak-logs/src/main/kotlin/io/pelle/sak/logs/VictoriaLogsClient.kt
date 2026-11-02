@@ -34,8 +34,8 @@ data class StatsPoint(
 
 // victorialogs runs next to the controller and only listens on localhost, so there is neither
 // authentication nor tenant. The addresses are built once: a url that is none fails here, at the
-// start, not with every request
-class VictoriaLogsClient(
+// start, not with every request. Only AccessLogsManager makes it (EXT-1)
+internal class VictoriaLogsClient(
     url: String,
     private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
 ) {

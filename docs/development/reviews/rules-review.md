@@ -103,7 +103,11 @@ the health.
 
 Fix: one of the two, in the table and in `FRONTEND-1`.
 
-### `RR-9` The access logs have no manager
+### ~~`RR-9` The access logs have no manager~~
+
+**Fixed:** the access logs are an external system: `AccessLogsManager` (`sak-logs`) is the one place the client of
+victorialogs is made, `VictoriaLogsClient` is `internal`, and `EXT-1` names the manager. Caddy has its manager
+already (`CaddyManager`).
 
 `EXT-1` asks for one manager for each external system, the one place its clients are made. The client of victorialogs
 is made in the routes (`SakApps.kt`, `VictoriaLogsClient(config.logs.victorialogsUrl)`), and the client of caddy in
