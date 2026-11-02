@@ -70,7 +70,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
                     [disabled]="off(setting)"
                     [id]="inputId(setting)"
                     [value]="shown(setting)"
-                    [placeholder]="setting.mask === null ? '' : storedValue(setting)"
+                    [placeholder]="setting.mask == null ? '' : storedValue(setting)"
                     [attr.maxlength]="setting.maxLength"
                     (input)="edit(setting, text.value)"
                   />
@@ -169,7 +169,7 @@ export class SettingsScopeTab {
 
   // a masked value is not shown, only its mask as the placeholder; what is typed is a new value
   protected shown(setting: SettingDefinition): SettingValue {
-    return setting.mask === null ? this.value(setting) : (this.edits()[setting.name] ?? '');
+    return setting.mask == null ? this.value(setting) : (this.edits()[setting.name] ?? '');
   }
 
   // whether the setting is greyed out: its scope is turned off, as shown, and it is not the

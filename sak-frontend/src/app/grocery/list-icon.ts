@@ -23,7 +23,8 @@ import { Component, computed, input } from '@angular/core';
 })
 export class ListIcon {
   readonly name = input.required<string>();
-  readonly icon = input<string | null>(null);
+  // missing in the answer of a list without one (GroceryListResponse)
+  readonly icon = input<string | null | undefined>(null);
   readonly size = input(40);
 
   // the first character as the user sees it, also one of several code units

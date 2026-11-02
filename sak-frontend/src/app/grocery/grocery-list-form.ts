@@ -408,7 +408,7 @@ export class GroceryListForm implements OnInit {
           this.last.set(lists.filter((each) => each.mine).length === 1);
           this.name.set(list.name);
           this.shared.set(list.shared);
-          this.icon.set(list.icon);
+          this.icon.set(list.icon ?? null);
           this.loadCategories();
         },
         error: (error: unknown) =>
@@ -565,7 +565,7 @@ export class GroceryListForm implements OnInit {
           listId,
           id,
           values.name ?? stored.name,
-          values.icon === undefined ? stored.icon : values.icon,
+          values.icon === undefined ? (stored.icon ?? null) : values.icon,
         );
       },
       (changed) =>

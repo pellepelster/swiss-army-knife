@@ -1,5 +1,6 @@
 package io.pelle.sak.notes.ui
 
+import io.pelle.sak.api.model.NoteResponse
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -107,7 +108,6 @@ import io.pelle.sak.notes.NotesModel
 import io.pelle.sak.notes.NotesScreen
 import io.pelle.sak.notes.R
 import io.pelle.sak.notes.RecordingFor
-import io.pelle.sak.notes.api.NoteResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "sak-android"
 
-include(":core", ":testing", ":grocery", ":notes")
+include(":api", ":core", ":testing", ":grocery", ":notes")

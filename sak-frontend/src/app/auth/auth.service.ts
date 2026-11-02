@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
+import { DeploymentInfo, ExchangeResponse, UserMode, WhoAmI } from '../api/models';
 
 interface Session {
   token: string;
@@ -11,35 +12,10 @@ interface Session {
   roles: string[];
 }
 
-interface ExchangeResponse {
-  sessionToken: string;
-  email: string;
-  expiresAt: string;
-  roles: string[];
-  redirect: string;
-}
-
-// how a user can sign in: with a link by e-mail, with the admin password, or both
-// who signs in to the deployment: multi, users by e-mail and the admin by password; single, only the
-// admin by password
-export type UserMode = 'single' | 'multi';
-
-// what GET /api/v1/info tells about the deployment; no version for a build that is no release
-export interface DeploymentInfo {
-  name: string;
-  dnsMode: string;
-  userMode: UserMode;
-  version: string | null;
-}
-
-// who the backend takes the session for: admin for the password login, else the e-mail address
-export interface WhoAmI {
-  username: string;
-  // the name an admin gave the user, null without one: the address shows then
-  name: string | null;
-  // admin, or user for the apps of the lists only
-  roles: string[];
-}
+// how a user can sign in, what GET /api/v1/info tells about the deployment (no version for a build
+// that is no release) and who the backend takes the session for (admin for the password login, else
+// the e-mail address; the name an admin gave the user)
+export type { DeploymentInfo, UserMode, WhoAmI } from '../api/models';
 
 export const SESSION_STORAGE_KEY = 'sak.session';
 

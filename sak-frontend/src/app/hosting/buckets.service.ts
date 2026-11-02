@@ -1,36 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { Bucket, BucketSecret } from '../api/models';
 import { fetchAll, Page, PAGE_SIZE } from '../shared/api';
 import { apiHost } from '../shared/api-url';
 
-// objects, bytes and computedAt are missing while the bucket is still being counted or when it
-// could not be counted
-interface BucketStatistics {
-  computing: boolean;
-  failed: boolean;
-  objects?: number;
-  bytes?: number;
-  computedAt?: string;
-}
-
-// without its keys, they are fetched on their own
-export interface Bucket {
-  name: string;
-  domains: string[];
-  // <name>.<root_domain>, the bucket is served there as well; missing for names with dots,
-  // which were allowed before
-  subdomain?: string;
-  createdAt: string;
-  // missing until its domains are changed
-  updatedAt?: string | null;
-  statistics: BucketStatistics;
-}
-
-export interface BucketSecret {
-  accessKeyId: string;
-  secretAccessKey: string;
-}
+// without its keys, they are fetched on their own; the statistics miss objects, bytes and
+// computedAt while the bucket is still being counted or when it could not be counted
+export type { Bucket, BucketSecret } from '../api/models';
 
 // the names the backend accepts, each is the label of the bucket's subdomain; it also rejects
 // the names of its own sites and the ones whose subdomain is served already

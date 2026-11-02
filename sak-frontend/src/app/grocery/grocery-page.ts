@@ -265,7 +265,7 @@ interface ItemGroup {
               [class.text-body-secondary]="struck().has(item.id) || !!item.checkedAt"
             >
               {{ item.name }}
-              @if (item.amount !== null) {
+              @if (item.amount != null) {
                 <span class="text-body-secondary">· {{ item.amount }} {{ item.unit ?? '' }}</span>
               }
             </span>
@@ -329,13 +329,13 @@ interface ItemGroup {
               type="button"
               class="dropdown-item"
               role="menuitemradio"
-              [attr.aria-checked]="item.categoryId === null"
+              [attr.aria-checked]="item.categoryId == null"
               [disabled]="categoryBusy() === item.id"
               (click)="setCategory(item, null)"
             >
               <span class="d-inline-block me-2 category-icon" aria-hidden="true"></span
               >{{ 'grocery.list.no_category' | t }}
-              @if (item.categoryId === null) {
+              @if (item.categoryId == null) {
                 <i class="fa-solid fa-check ms-2" aria-hidden="true"></i>
               }
             </button>
@@ -445,7 +445,7 @@ export class GroceryPage {
     const groups: ItemGroup[] = categories.map((category) => ({
       key: category.id,
       label: category.name,
-      icon: category.icon,
+      icon: category.icon ?? null,
       items: [],
     }));
     const none: ItemGroup = {
@@ -506,9 +506,9 @@ export class GroceryPage {
     this.itemName.set(name);
     const chosen = this.suggestions().find((each) => each.name === name);
     if (chosen) {
-      this.itemAmount.set(chosen.amount === null ? '' : String(chosen.amount));
+      this.itemAmount.set(chosen.amount == null ? '' : String(chosen.amount));
       this.itemUnit.set(chosen.unit ?? '');
-      this.itemCategory.set(chosen.categoryId);
+      this.itemCategory.set(chosen.categoryId ?? null);
       return;
     }
     this.itemAmount.set('');

@@ -1,0 +1,4973 @@
+{
+    "openapi": "3.1.1",
+    "info": {
+        "title": "sak api",
+        "version": "v1",
+        "description": "The full api of the backend of sak: every route below /api/v1."
+    },
+    "paths": {
+        "/api/v1/info": {
+            "get": {
+                "tags": [
+                    "info"
+                ],
+                "summary": "The deployment that answers",
+                "description": "The name, the dns mode (domain or subdomain), the user mode (multi with a mail server, single without) and the version of SAK of the deployment the backend belongs to. Needs no session.",
+                "responses": {
+                    "200": {
+                        "description": "The name, the dns mode, the user mode and the version of the deployment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InfoResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/link": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Request a login link",
+                "description": "Sends a link with a login token, valid for 15 minutes, to the signin page of the apps if the address may sign in. Answered the same way for every address.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "The link is on its way if the address may sign in"
+                    },
+                    "400": {
+                        "description": "No valid e-mail address or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many login requests from this client"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/exchange": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Exchange a login token for a session token",
+                "description": "Every login token can be exchanged once, the session token is valid for 30 days.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExchangeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The session token and where the login started",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExchangeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The login token is invalid, expired or was already used"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login/password": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Sign in as the admin with the admin password",
+                "description": "The admin password is the password of the deployment. The session token is valid for 30 days. Only a few attempts an hour are answered.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PasswordLoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The session token of the admin and where the login started",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExchangeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The password is not the admin password"
+                    },
+                    "429": {
+                        "description": "Too many attempts from this client or altogether"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/who-am-i": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "The signed in user",
+                "responses": {
+                    "200": {
+                        "description": "The address, its name if it has one, its roles and when the session expires",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WhoAmIResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No valid session token"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting": {
+            "post": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "Create a bucket",
+                "description": "Creates the bucket with a key pair that may access this bucket only, served at the domains in their order and at <name>.<root_domain>. The name can not be changed later.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateBucketRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new bucket",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No valid bucket name or one reserved for the controller's sites, a domain that is not valid or one the controller serves or redirects, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "A bucket of the name exists, <name>.<root_domain> is already served, or another bucket is served at one of the domains",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "The buckets with the number of their objects and their size",
+                "description": "The numbers are counted in the background and kept, recounted after 5 minutes and after every write to a bucket; a bucket not counted yet is still computing, ask again.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the buckets with the domains they are served at and their statistics",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/BucketResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}": {
+            "delete": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "Delete a bucket",
+                "description": "The bucket is no longer served and its key pair is refused. Its name stays taken and its objects stay in the storage until it is purged. A bucket that redirects lead to is not deleted.",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "description": "The name of the bucket",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The bucket is deleted"
+                    },
+                    "404": {
+                        "description": "Unknown bucket"
+                    },
+                    "409": {
+                        "description": "Redirects lead to the bucket, named in the message",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "A bucket with the number of its objects and its size",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "description": "The name of the bucket",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The bucket, the domains it is served at and its statistics",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown bucket"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}/domains": {
+            "put": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "Change the domains of a bucket",
+                "description": "Serves the bucket at the domains in their order instead of its current ones, none for no domain.",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "description": "The name of the bucket",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDomainsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The bucket with its new domains",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "A domain that is not valid or one the controller serves or redirects, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown bucket"
+                    },
+                    "409": {
+                        "description": "Another bucket is served at one of the domains",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}/secret": {
+            "get": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "The key pair of a bucket",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "description": "The name of the bucket",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The access key and the secret that may access the bucket",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketSecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown bucket"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}/access-logs": {
+            "get": {
+                "tags": [
+                    "access logs"
+                ],
+                "summary": "The site of the access logs and the ranges of its metrics",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The site with its domains, the ranges and the default range",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessLogsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No such site, or it is not served at a domain"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}/access-logs/metrics": {
+            "get": {
+                "tags": [
+                    "access logs"
+                ],
+                "summary": "The request metrics of a site",
+                "description": "Requests per status class and code, transferred bytes and user agent groups over a range.",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "range",
+                        "in": "query",
+                        "description": "The range, one of the keys the access logs list, 24h by default",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The metrics of the range",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SiteMetricsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Unknown range",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No such site, or it is not served at a domain"
+                    },
+                    "503": {
+                        "description": "The logs are not available"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/static-hosting/{bucket}/access-logs/search": {
+            "get": {
+                "tags": [
+                    "access logs"
+                ],
+                "summary": "Search the logs",
+                "description": "The requests of the last 30d whose request line (method, host, path, status) or user agent contains the text, case-insensitively, newest first.",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "The text to search for, at most 200 characters",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the matching requests, newest first",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/LogEntryResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No, too long or control characters in the search text, or an invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No such site, or it is not served at a domain"
+                    },
+                    "503": {
+                        "description": "The logs are not available"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/redirects": {
+            "post": {
+                "tags": [
+                    "ingress"
+                ],
+                "summary": "Redirect a domain",
+                "description": "Redirects every request for the domain to an external domain, or to the first domain a bucket is served at. Caddy is configured right away.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRedirectRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new redirect",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RedirectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No valid domain, the source is the target, a domain the controller or a bucket serves, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The domain is redirected already",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The bucket is unknown or not served at a domain",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "ingress"
+                ],
+                "summary": "The redirected domains",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the redirects, each with its target and the domain it leads to",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/RedirectResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/redirects/{source}": {
+            "put": {
+                "tags": [
+                    "ingress"
+                ],
+                "summary": "Change where a domain is redirected to",
+                "description": "The redirected domain stays, its target is replaced. Caddy is configured right away.",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "description": "The redirected domain",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRedirectRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed redirect",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RedirectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No valid domain, the redirected domain itself, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The domain is not redirected"
+                    },
+                    "422": {
+                        "description": "The bucket is unknown or not served at a domain",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "ingress"
+                ],
+                "summary": "Stop redirecting a domain",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "description": "The redirected domain",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The redirect is gone"
+                    },
+                    "404": {
+                        "description": "The domain is not redirected"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "ingress"
+                ],
+                "summary": "A redirected domain",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "description": "The redirected domain",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The redirect with its target and the domain it leads to",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RedirectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The domain is not redirected"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/labels": {
+            "post": {
+                "tags": [
+                    "labels"
+                ],
+                "summary": "Create a label",
+                "description": "The name is stored in lower case with single spaces.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LabelRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new label",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LabelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "A label of the name exists",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "labels"
+                ],
+                "summary": "The labels of the signed in user",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the labels, sorted by name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/LabelResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/labels/{id}": {
+            "put": {
+                "tags": [
+                    "labels"
+                ],
+                "summary": "Rename a label",
+                "description": "Every entity the label is attached to has it under the new name.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the label",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LabelRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The renamed label",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LabelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such label"
+                    },
+                    "409": {
+                        "description": "Another label has the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "labels"
+                ],
+                "summary": "Delete a label",
+                "description": "The label is detached from every entity, its name can be used again.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the label",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The label is gone"
+                    },
+                    "404": {
+                        "description": "There is no such label"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "labels"
+                ],
+                "summary": "A label",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the label",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The label",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LabelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such label of the signed in user"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/notes": {
+            "post": {
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Create a note",
+                "description": "The note belongs to the signed in user. The labels are given by name, the ones that do not exist yet are created.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NoteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new note",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NoteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has no list of notes, they get one when they sign in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "notes"
+                ],
+                "summary": "The notes of the signed in user",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "label",
+                        "in": "query",
+                        "description": "Only the notes with the label of the name",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the notes, the newest first",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/NoteResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/notes/{id}": {
+            "put": {
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Change a note",
+                "description": "Replaces the text, the color, the labels and the photos; the labels that do not exist yet are created.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NoteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed note",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NoteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The signed in user has no such note"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Delete a note",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The note is gone"
+                    },
+                    "404": {
+                        "description": "The signed in user has no such note"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "notes"
+                ],
+                "summary": "A note",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The note",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NoteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The signed in user has no such note"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists": {
+            "post": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Create a grocery list",
+                "description": "With the default categories, named in the language of the request (Accept-Language, GROCERY-13).",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has a list of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "The grocery lists",
+                "description": "The lists of the signed in user and the shared lists of the others, by name.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the lists",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GroceryListResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Rename or share a grocery list",
+                "description": "Only its owner changes a list.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user has no such list"
+                    },
+                    "409": {
+                        "description": "Another list of the user has the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Delete a grocery list",
+                "description": "Its items go with it; only its owner deletes a list, but not their last own list.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The list is gone"
+                    },
+                    "404": {
+                        "description": "The user has no such list"
+                    },
+                    "409": {
+                        "description": "The last list of the user's own",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/items": {
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "The items to buy of a grocery list",
+                "description": "By their category, the ones without one last; in a category the ones to buy in the order they were added, with checked=true the latest bought item of each name that is not to buy after them, the last bought first (GROCERY-14).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "checked",
+                        "in": "query",
+                        "description": "true answers the latest bought item of each name too, each with its checkedAt",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the items to buy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GroceryItemResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/suggestions": {
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Suggestions for an item of a grocery list",
+                "description": "The names of the items of the list that contain the text, one for each name with the values of its latest item, the names of the most items and the latest first, at most 10; the names to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "text",
+                        "in": "query",
+                        "description": "What the name contains, all when it is missing",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the suggestions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GrocerySuggestionResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/suggestions/{suggestionId}": {
+            "delete": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Forget a suggestion of a grocery list",
+                "description": "For every user who sees the list: the checked items of its name go for good, an item to buy stays. Adding an item of the name brings it back (GROCERY-11).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "suggestionId",
+                        "in": "path",
+                        "description": "The id of the suggestion (the latest item of its name), or of any live item of the list with the name",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The suggestion is gone"
+                    },
+                    "404": {
+                        "description": "The user sees no such list, or it has no such suggestion"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/categories": {
+            "post": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Add a category to a grocery list",
+                "description": "The last one; only the owner of the list (GROCERY-13), at most 30.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryCategoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new category",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryCategoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or icon, too many categories, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The list has a category of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user owns no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "The categories of a grocery list",
+                "description": "In the order the list shows the groups of its items; every user who sees the list sees them (GROCERY-13).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the categories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GroceryCategoryResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/categories/order": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Order the categories of a grocery list",
+                "description": "The ids of all categories of the list, each once, in their new order; only the owner of the list (GROCERY-13).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryCategoryOrderRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "A page of all categories in their new order",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GroceryCategoryResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Ids that are not the categories of the list, each once, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user owns no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/lists/{id}/categories/{categoryId}": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Change a category of a grocery list",
+                "description": "Its name and its icon; only the owner of the list (GROCERY-13).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "categoryId",
+                        "in": "path",
+                        "description": "The id of the category",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryCategoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed category",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryCategoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or icon, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The list has another category of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user owns no such list, or it has no such category"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Delete a category of a grocery list",
+                "description": "Its items and the suggestions of the list lose it; only the owner of the list (GROCERY-13).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "categoryId",
+                        "in": "path",
+                        "description": "The id of the category",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The category is gone"
+                    },
+                    "404": {
+                        "description": "The user owns no such list, or it has no such category"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items": {
+            "post": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Add an item to a grocery list",
+                "description": "An item names its list, one the user sees.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryNewItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name, amount, unit or category, or a malformed request, e.g. without a list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items/{id}": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Change an item",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name, amount, unit or category, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such item"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Delete an item",
+                "description": "An item, to buy or bought, goes for good, e.g. one added by mistake: no list shows it, no suggestion counts it.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The item is gone"
+                    },
+                    "404": {
+                        "description": "The user sees no such item"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items/{id}/category": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Set the category of an item",
+                "description": "Of an item, to buy or bought: one of the categories of its list, or none; the next item of the name on the list takes it (GROCERY-13).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryItemCategoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The item with its category",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No category of the list, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such item"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items/{id}/photo": {
+            "put": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Attach a photo to an item",
+                "description": "Of an item, to buy or bought: a file the user uploaded to the file storage (POST /files) that is an image. The next item of the name on the list takes it (GROCERY-12).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroceryPhotoRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The item with its photo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The file is no image the user uploaded, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such item"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Take the photo away from an item",
+                "description": "From an item, to buy or bought; the next item of the name on the list has none; the file stays in the file storage.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The item without a photo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such item"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items/{id}/photos/{fileId}": {
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "The photo of an item",
+                "description": "To every user who sees the list of the item. With size, the photo scaled to the smallest of 128, 256, 480, 1024 pixels on the longer side that is at least that large, a JPEG; larger, or without size, the photo itself. The apps ask for the size the photo shows at on the screen.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "fileId",
+                        "in": "path",
+                        "description": "The file of the photo, photoId of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "The pixels the photo is to have at least on its longer side",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The photo, scaled or itself"
+                    },
+                    "400": {
+                        "description": "No file id or no positive size"
+                    },
+                    "404": {
+                        "description": "The user sees no such item, or the file is not its photo"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/items/{id}/check": {
+            "post": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Check an item",
+                "description": "The item is bought (GROCERY-3): the list no longer shows it, it stays as the history of the list, what its suggestions are made of (GROCERY-11).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The item is checked"
+                    },
+                    "404": {
+                        "description": "The user sees no such item to buy"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/changes": {
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "The changes of the lists",
+                "description": "A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({\"listId\": 2}) whenever a list the user sees, or its items, change, also when it is deleted. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.",
+                "responses": {
+                    "200": {
+                        "description": "The stream of the changes"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users": {
+            "post": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Add a user",
+                "description": "The user signs in with a link by e-mail and uses the notes and the grocery lists (the role user). No mail is sent.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The added user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid address or name, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "A user of the address exists, or it is an admin of the configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "The users",
+                "description": "The admins of the configuration of the deployment first, then the users an admin added, by address.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/UserResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/app-link": {
+            "post": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Send the link of the grocery app",
+                "description": "Sends a user or an admin of the deployment an e-mail with the link to the page that downloads the Android app of the grocery lists (/grocery/download/app), in the language of the request.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AppLinkRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "The e-mail is sent"
+                    },
+                    "404": {
+                        "description": "The address is no user or admin of the deployment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The deployment has no mail server",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "The mail server did not take the e-mail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/{id}": {
+            "delete": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete a user",
+                "description": "The user can no longer sign in, their sessions end with their next request; their data stays.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the added user",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The user is deleted"
+                    },
+                    "404": {
+                        "description": "No such added user; an admin of the configuration is not deleted here"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/settings": {
+            "get": {
+                "tags": [
+                    "settings"
+                ],
+                "summary": "The scopes of settings",
+                "description": "Every scope with its settings, their labels, types and defaults, what the settings page is built from. Admins only.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the scopes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/SettingScopeResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/settings/{scope}": {
+            "put": {
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Change the settings of a scope",
+                "description": "Sets the values of the settings named; the others keep their values. Every value is validated first, one that is not valid sets none. Admins only.",
+                "parameters": [
+                    {
+                        "name": "scope",
+                        "in": "path",
+                        "description": "The name of the scope, e.g. openrouter",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/JsonElement"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Every setting of the scope with its value, after the change",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An unknown setting, a value of the wrong type or not valid, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such scope"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "settings"
+                ],
+                "summary": "The settings of a scope",
+                "description": "Every setting of the scope with its stored value, also while it is off; with effective=true as the apps use it, the default for a setting that is off. A masked value shows its first characters only. Admins only.",
+                "parameters": [
+                    {
+                        "name": "scope",
+                        "in": "path",
+                        "description": "The name of the scope, e.g. openrouter",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "effective",
+                        "in": "query",
+                        "description": "true for the values as the apps use them, false by default",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The settings of the scope, by their names",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such scope"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/health": {
+            "get": {
+                "tags": [
+                    "health"
+                ],
+                "summary": "The health of the backend",
+                "description": "Runs every health check, e.g. whether the domains of the buckets and the redirects point to the server.",
+                "responses": {
+                    "200": {
+                        "description": "The status of every check, in a fixed order",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/HealthStatusResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/files": {
+            "post": {
+                "tags": [
+                    "files"
+                ],
+                "summary": "Store a file",
+                "description": "The body is the content of the file. Every upload is a file of its own, served at /api/v1/files/{id}. The type is told by the content.",
+                "responses": {
+                    "201": {
+                        "description": "The stored file",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "A type the storage does not take, content that is no such file, an image larger than 2048 pixels, or a recording longer than 5 minutes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "A file larger than the storage takes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/files/{id}/discover/text": {
+            "post": {
+                "tags": [
+                    "files"
+                ],
+                "summary": "Discover the text in an image or a recording",
+                "description": "Reads the text in an image with a vision model, writes down a recording with a speech to text model, both at OpenRouter; providers that collect the data are not asked. The text is kept with the file, a file is only read once. Needs the AI features turned on in the settings.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the file",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The text in the image or the recording, empty when there is none",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DiscoverTextResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The file is neither an image nor a recording",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The signed in user has no such file"
+                    },
+                    "409": {
+                        "description": "The AI features are turned off in the settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The user had too many texts discovered at OpenRouter lately; a known text does not count",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "OpenRouter could not read the file",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "No OpenRouter API key is set in the settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/files/{id}": {
+            "get": {
+                "tags": [
+                    "files"
+                ],
+                "summary": "The content of a stored file",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the file",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The content with its type"
+                    },
+                    "404": {
+                        "description": "The signed in user has no such file"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/files/{id}/thumbnail": {
+            "get": {
+                "tags": [
+                    "files"
+                ],
+                "summary": "The thumbnail of a stored image or recording",
+                "description": "A JPEG of at most 480 pixels on the longer side, of a recording its waveform; made when it is first asked for.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the file",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The thumbnail"
+                    },
+                    "404": {
+                        "description": "The signed in user has no such file, or it is neither an image nor a recording that can be read"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/deployment": {
+            "get": {
+                "tags": [
+                    "config"
+                ],
+                "summary": "The settings of the deployment",
+                "description": "The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakctl can deploy it again with them. Only for a request signed by sakctl, no session.",
+                "responses": {
+                    "200": {
+                        "description": "The settings of the deployment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "InfoResponse": {
+                "type": "object",
+                "title": "InfoResponse",
+                "required": [
+                    "name",
+                    "dnsMode",
+                    "userMode"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "dnsMode": {
+                        "type": "string"
+                    },
+                    "userMode": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "LoginRequest": {
+                "type": "object",
+                "title": "LoginRequest",
+                "required": [
+                    "email"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "redirect": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "client": {
+                        "type": "string",
+                        "enum": [
+                            "web",
+                            "grocery-android",
+                            "notes-android"
+                        ]
+                    }
+                }
+            },
+            "ApiErrorMessage": {
+                "type": "object",
+                "title": "ApiErrorMessage",
+                "required": [
+                    "code",
+                    "message"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ApiErrorResponse": {
+                "type": "object",
+                "title": "ApiErrorResponse",
+                "required": [
+                    "errors"
+                ],
+                "properties": {
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ApiErrorMessage"
+                        }
+                    }
+                }
+            },
+            "ExchangeRequest": {
+                "type": "object",
+                "title": "ExchangeRequest",
+                "required": [
+                    "token"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ExchangeResponse": {
+                "type": "object",
+                "title": "ExchangeResponse",
+                "required": [
+                    "sessionToken",
+                    "email",
+                    "expiresAt",
+                    "roles",
+                    "redirect"
+                ],
+                "properties": {
+                    "sessionToken": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "redirect": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PasswordLoginRequest": {
+                "type": "object",
+                "title": "PasswordLoginRequest",
+                "required": [
+                    "password"
+                ],
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "redirect": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "WhoAmIResponse": {
+                "type": "object",
+                "title": "WhoAmIResponse",
+                "required": [
+                    "username",
+                    "roles"
+                ],
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "expiresAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "BucketStatisticsResponse": {
+                "type": "object",
+                "title": "BucketStatisticsResponse",
+                "required": [
+                    "computing"
+                ],
+                "properties": {
+                    "computing": {
+                        "type": "boolean"
+                    },
+                    "failed": {
+                        "type": "boolean"
+                    },
+                    "objects": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "bytes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "computedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "BucketResponse": {
+                "type": "object",
+                "title": "BucketResponse",
+                "required": [
+                    "name",
+                    "domains",
+                    "createdAt",
+                    "statistics"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "domains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "subdomain": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "statistics": {
+                        "$ref": "#/components/schemas/BucketStatisticsResponse"
+                    }
+                }
+            },
+            "PaginationResponse": {
+                "type": "object",
+                "title": "PaginationResponse",
+                "required": [
+                    "offset",
+                    "limit",
+                    "total"
+                ],
+                "properties": {
+                    "offset": {
+                        "type": "integer"
+                    },
+                    "limit": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "CreateBucketRequest": {
+                "type": "object",
+                "title": "CreateBucketRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "domains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "UpdateDomainsRequest": {
+                "type": "object",
+                "title": "UpdateDomainsRequest",
+                "required": [
+                    "domains"
+                ],
+                "properties": {
+                    "domains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "BucketSecretResponse": {
+                "type": "object",
+                "title": "BucketSecretResponse",
+                "required": [
+                    "accessKeyId",
+                    "secretAccessKey"
+                ],
+                "properties": {
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SiteResponse": {
+                "type": "object",
+                "title": "SiteResponse",
+                "required": [
+                    "id",
+                    "domains"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "domains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "MetricsRangeResponse": {
+                "type": "object",
+                "title": "MetricsRangeResponse",
+                "required": [
+                    "key",
+                    "label"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                }
+            },
+            "AccessLogsResponse": {
+                "type": "object",
+                "title": "AccessLogsResponse",
+                "required": [
+                    "site",
+                    "ranges",
+                    "defaultRange"
+                ],
+                "properties": {
+                    "site": {
+                        "$ref": "#/components/schemas/SiteResponse"
+                    },
+                    "ranges": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MetricsRangeResponse"
+                        }
+                    },
+                    "defaultRange": {
+                        "type": "string"
+                    }
+                }
+            },
+            "StatusClassSeriesResponse": {
+                "type": "object",
+                "title": "StatusClassSeriesResponse",
+                "required": [
+                    "statusClass",
+                    "values"
+                ],
+                "properties": {
+                    "statusClass": {
+                        "type": "string"
+                    },
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "StatusCodeSeriesResponse": {
+                "type": "object",
+                "title": "StatusCodeSeriesResponse",
+                "required": [
+                    "status",
+                    "statusClass",
+                    "values"
+                ],
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    },
+                    "statusClass": {
+                        "type": "string"
+                    },
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "UserAgentSeriesResponse": {
+                "type": "object",
+                "title": "UserAgentSeriesResponse",
+                "required": [
+                    "group",
+                    "values"
+                ],
+                "properties": {
+                    "group": {
+                        "type": "string"
+                    },
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "requests": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "SiteMetricsResponse": {
+                "type": "object",
+                "title": "SiteMetricsResponse",
+                "required": [
+                    "site",
+                    "range",
+                    "start",
+                    "end",
+                    "stepSeconds",
+                    "buckets",
+                    "series",
+                    "statusCodes",
+                    "bytes",
+                    "totalRequests",
+                    "errorRequests",
+                    "errorRate",
+                    "totalBytes",
+                    "userAgents"
+                ],
+                "properties": {
+                    "site": {
+                        "type": "string"
+                    },
+                    "range": {
+                        "type": "string"
+                    },
+                    "start": {
+                        "type": "string"
+                    },
+                    "end": {
+                        "type": "string"
+                    },
+                    "stepSeconds": {
+                        "type": "integer"
+                    },
+                    "buckets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "series": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatusClassSeriesResponse"
+                        }
+                    },
+                    "statusCodes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatusCodeSeriesResponse"
+                        }
+                    },
+                    "bytes": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "totalRequests": {
+                        "type": "integer"
+                    },
+                    "errorRequests": {
+                        "type": "integer"
+                    },
+                    "errorRate": {
+                        "type": "number"
+                    },
+                    "totalBytes": {
+                        "type": "integer"
+                    },
+                    "userAgents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserAgentSeriesResponse"
+                        }
+                    }
+                }
+            },
+            "LogEntryResponse": {
+                "type": "object",
+                "title": "LogEntryResponse",
+                "required": [
+                    "time",
+                    "host",
+                    "path"
+                ],
+                "properties": {
+                    "time": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "RedirectTarget.Bucket": {
+                "type": "object",
+                "title": "RedirectTarget.Bucket",
+                "required": [
+                    "type",
+                    "bucket"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "bucket"
+                        ]
+                    },
+                    "bucket": {
+                        "type": "string"
+                    }
+                }
+            },
+            "RedirectTarget.Domain": {
+                "type": "object",
+                "title": "RedirectTarget.Domain",
+                "required": [
+                    "type",
+                    "domain"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "domain"
+                        ]
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                }
+            },
+            "RedirectTarget": {
+                "type": "object",
+                "title": "RedirectTarget",
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/RedirectTarget.Bucket"
+                    },
+                    {
+                        "$ref": "#/components/schemas/RedirectTarget.Domain"
+                    }
+                ],
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                        "bucket": "#/components/schemas/RedirectTarget.Bucket",
+                        "domain": "#/components/schemas/RedirectTarget.Domain"
+                    }
+                }
+            },
+            "RedirectResponse": {
+                "type": "object",
+                "title": "RedirectResponse",
+                "required": [
+                    "sourceDomain",
+                    "target",
+                    "createdAt"
+                ],
+                "properties": {
+                    "sourceDomain": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/RedirectTarget"
+                    },
+                    "location": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "CreateRedirectRequest": {
+                "type": "object",
+                "title": "CreateRedirectRequest",
+                "required": [
+                    "sourceDomain",
+                    "target"
+                ],
+                "properties": {
+                    "sourceDomain": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/RedirectTarget"
+                    }
+                }
+            },
+            "UpdateRedirectRequest": {
+                "type": "object",
+                "title": "UpdateRedirectRequest",
+                "required": [
+                    "target"
+                ],
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/RedirectTarget"
+                    }
+                }
+            },
+            "LabelResponse": {
+                "type": "object",
+                "title": "LabelResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "LabelRequest": {
+                "type": "object",
+                "title": "LabelRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PhotoResponse": {
+                "type": "object",
+                "title": "PhotoResponse",
+                "required": [
+                    "id",
+                    "url",
+                    "thumbnailUrl"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string"
+                    }
+                }
+            },
+            "RecordingResponse": {
+                "type": "object",
+                "title": "RecordingResponse",
+                "required": [
+                    "id",
+                    "url",
+                    "thumbnailUrl"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string"
+                    }
+                }
+            },
+            "NoteResponse": {
+                "type": "object",
+                "title": "NoteResponse",
+                "required": [
+                    "id",
+                    "text",
+                    "color",
+                    "labels",
+                    "photos",
+                    "recordings",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "labels": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LabelResponse"
+                        }
+                    },
+                    "photos": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PhotoResponse"
+                        }
+                    },
+                    "recordings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecordingResponse"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "NoteRequest": {
+                "type": "object",
+                "title": "NoteRequest",
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "labels": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "photos": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "recordings": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            "GroceryListResponse": {
+                "type": "object",
+                "title": "GroceryListResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "shared",
+                    "mine",
+                    "items",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "mine": {
+                        "type": "boolean"
+                    },
+                    "items": {
+                        "type": "integer"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryListRequest": {
+                "type": "object",
+                "title": "GroceryListRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryItemResponse": {
+                "type": "object",
+                "title": "GroceryItemResponse",
+                "required": [
+                    "id",
+                    "listId",
+                    "name",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "listId": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "categoryId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "photoId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "checkedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GrocerySuggestionResponse": {
+                "type": "object",
+                "title": "GrocerySuggestionResponse",
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "categoryId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryCategoryResponse": {
+                "type": "object",
+                "title": "GroceryCategoryResponse",
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryCategoryRequest": {
+                "type": "object",
+                "title": "GroceryCategoryRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryCategoryOrderRequest": {
+                "type": "object",
+                "title": "GroceryCategoryOrderRequest",
+                "required": [
+                    "ids"
+                ],
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            "GroceryNewItemRequest": {
+                "type": "object",
+                "title": "GroceryNewItemRequest",
+                "required": [
+                    "listId",
+                    "name"
+                ],
+                "properties": {
+                    "listId": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "categoryId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryItemRequest": {
+                "type": "object",
+                "title": "GroceryItemRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "categoryId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryItemCategoryRequest": {
+                "type": "object",
+                "title": "GroceryItemCategoryRequest",
+                "properties": {
+                    "categoryId": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryPhotoRequest": {
+                "type": "object",
+                "title": "GroceryPhotoRequest",
+                "required": [
+                    "fileId"
+                ],
+                "properties": {
+                    "fileId": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "UserResponse": {
+                "type": "object",
+                "title": "UserResponse",
+                "required": [
+                    "email",
+                    "configured"
+                ],
+                "properties": {
+                    "id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "configured": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "UserRequest": {
+                "type": "object",
+                "title": "UserRequest",
+                "required": [
+                    "email"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "AppLinkRequest": {
+                "type": "object",
+                "title": "AppLinkRequest",
+                "required": [
+                    "email"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SettingRequirementResponse": {
+                "type": [
+                    "object",
+                    "null"
+                ],
+                "title": "SettingRequirementResponse",
+                "required": [
+                    "scope",
+                    "setting"
+                ],
+                "properties": {
+                    "scope": {
+                        "type": "string"
+                    },
+                    "setting": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SettingResponse": {
+                "type": "object",
+                "title": "SettingResponse",
+                "required": [
+                    "name",
+                    "label",
+                    "description",
+                    "type",
+                    "default",
+                    "readOnly"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "boolean",
+                            "text"
+                        ]
+                    },
+                    "default": {
+                        "type": "string"
+                    },
+                    "maxLength": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "mask": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "readOnly": {
+                        "type": "boolean"
+                    },
+                    "requires": {
+                        "$ref": "#/components/schemas/SettingRequirementResponse"
+                    }
+                }
+            },
+            "SettingScopeResponse": {
+                "type": "object",
+                "title": "SettingScopeResponse",
+                "required": [
+                    "name",
+                    "label",
+                    "description",
+                    "settings"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SettingResponse"
+                        }
+                    },
+                    "enabledBy": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "JsonElement": {
+                "type": "object",
+                "title": "JsonElement"
+            },
+            "HealthDetailResponse": {
+                "type": "object",
+                "title": "HealthDetailResponse",
+                "required": [
+                    "name",
+                    "state"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "HealthStatusResponse": {
+                "type": "object",
+                "title": "HealthStatusResponse",
+                "required": [
+                    "name",
+                    "state",
+                    "details"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "details": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/HealthDetailResponse"
+                        }
+                    }
+                }
+            },
+            "FileResponse": {
+                "type": "object",
+                "title": "FileResponse",
+                "required": [
+                    "id",
+                    "contentType",
+                    "size",
+                    "url",
+                    "thumbnailUrl",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "integer"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DiscoverTextResponse": {
+                "type": "object",
+                "title": "DiscoverTextResponse",
+                "required": [
+                    "text"
+                ],
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SmtpConfigResponse": {
+                "type": [
+                    "object",
+                    "null"
+                ],
+                "title": "SmtpConfigResponse",
+                "required": [
+                    "host",
+                    "port",
+                    "passwordSet",
+                    "from",
+                    "tls",
+                    "starttls"
+                ],
+                "properties": {
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "username": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "passwordSet": {
+                        "type": "boolean"
+                    },
+                    "password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "from": {
+                        "type": "string"
+                    },
+                    "tls": {
+                        "type": "boolean"
+                    },
+                    "starttls": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "DeploymentResponse": {
+                "type": "object",
+                "title": "DeploymentResponse",
+                "required": [
+                    "name",
+                    "dnsMode",
+                    "rootDomain",
+                    "userMode"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "dnsMode": {
+                        "type": "string"
+                    },
+                    "rootDomain": {
+                        "type": "string"
+                    },
+                    "userMode": {
+                        "type": "string"
+                    },
+                    "adminEmail": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "smtp": {
+                        "$ref": "#/components/schemas/SmtpConfigResponse"
+                    },
+                    "acmeCa": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "session": {
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "The session token the apps get for a login link, see POST /api/v1/auth/login/exchange.",
+                "type": "http"
+            },
+            "api-signature": {
+                "scheme": "SAK-Ed25519",
+                "description": "A request sakctl signs with the ed25519 key it derives from the password of the deployment, see sakctl config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
+                "type": "http"
+            }
+        }
+    }
+}

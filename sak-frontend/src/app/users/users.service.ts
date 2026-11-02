@@ -1,16 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { User } from '../api/models';
 import { Page, PAGE_SIZE } from '../shared/api';
 
 // who may sign in: an admin of the configuration of the deployment (no id, not deleted here) or a
 // user an admin added, the role user
-export interface User {
-  id: number | null;
-  email: string;
-  name: string | null;
-  configured: boolean;
-}
+export type { User } from '../api/models';
 
 // the users, only an admin reaches them
 @Injectable({ providedIn: 'root' })

@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     api(libs.kotlinx.serialization.json)
+    // the bodies of the api, generated from openapi.json
+    api(project(":api"))
 
     testImplementation(libs.junit)
 }

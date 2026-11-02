@@ -1,22 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { Redirect, RedirectTarget } from '../api/models';
 import { Page, PAGE_SIZE } from '../shared/api';
 
-// where a redirect leads to, told apart by its type
-export type RedirectTarget =
-  { type: 'domain'; domain: string } | { type: 'bucket'; bucket: string };
-
-// location is the domain the redirect leads to now, missing for a bucket no longer served at a
-// domain
-export interface Redirect {
-  sourceDomain: string;
-  target: RedirectTarget;
-  location?: string | null;
-  createdAt: string;
-  // missing until it is changed
-  updatedAt: string | null;
-}
+// where a redirect leads to, told apart by its type; location is the domain the redirect leads to
+// now, missing for a bucket no longer served at a domain
+export type { Redirect, RedirectTarget } from '../api/models';
 
 // the domains caddy redirects
 @Injectable({ providedIn: 'root' })

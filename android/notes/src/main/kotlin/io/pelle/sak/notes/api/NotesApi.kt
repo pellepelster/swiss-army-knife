@@ -1,5 +1,10 @@
 package io.pelle.sak.notes.api
 
+import io.pelle.sak.api.model.DiscoverTextResponse
+import io.pelle.sak.api.model.FileResponse
+import io.pelle.sak.api.model.LabelResponse
+import io.pelle.sak.api.model.NoteRequest
+import io.pelle.sak.api.model.NoteResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -11,7 +16,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
-import io.pelle.sak.core.api.StoredFileResponse
 import io.pelle.sak.notes.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
@@ -69,20 +73,18 @@ class NotesApi(
         client.delete("$url/notes/$id") { session() }.answer<Unit>(R.string.notes_error_not_deleted)
     }
 
-    // a photo (a jpeg scaled down already) or a recording (a wav) into the file storage; the id of its
-    // file
+    // a photo (a jpeg scaled down already) or a recording (a wav) into the file storage; its file
     suspend fun upload(
         content: ByteArray,
         type: ContentType,
         failure: Int,
-    ): Int =
+    ): FileResponse =
         client
             .post("$url/files") {
                 session()
                 contentType(type)
                 setBody(content)
-            }.answer<StoredFileResponse>(failure)
-            .id
+            }.answer<FileResponse>(failure)
 
     // the content of a file of the user, a photo or a recording; its thumbnail with thumbnail
     suspend fun file(

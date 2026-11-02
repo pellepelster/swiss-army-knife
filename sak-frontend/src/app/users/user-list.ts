@@ -69,8 +69,8 @@ import { PageHeader } from '../shared/page-header';
                   <app-action-menu
                     [name]="user.email"
                     deletes
-                    [deleteDisabled]="user.configured || user.id === null ? configured : null"
-                    (deleted)="user.id !== null && delete(user.id)"
+                    [deleteDisabled]="user.configured || user.id == null ? configured : null"
+                    (deleted)="user.id != null && delete(user.id)"
                   >
                     <button
                       type="button"

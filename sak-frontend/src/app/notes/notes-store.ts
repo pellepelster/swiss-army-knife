@@ -7,6 +7,7 @@ import { I18n } from '../i18n/i18n';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
 import { PendingUndo } from '../shared/pending-undo';
+import { NoteResponse as ApiNoteResponse } from '../api/models';
 import { UNDO_DELETE_MS } from '../shared/undo-toast';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
@@ -38,16 +39,7 @@ export interface Note {
 }
 
 // what the api answers, the labels are the shared ones
-interface NoteResponse {
-  id: number;
-  text: string;
-  color: NoteColor;
-  labels: { id: number; name: string }[];
-  photos: { id: number; url: string; thumbnailUrl: string }[];
-  recordings: { id: number; url: string; thumbnailUrl: string }[];
-  createdAt: string;
-  updatedAt: string | null;
-}
+type NoteResponse = ApiNoteResponse;
 
 // the most labels a note has, the backend takes no more
 export const MAX_LABELS = 10;
@@ -612,11 +604,17 @@ function newestFirst(a: Note, b: Note): number {
   return b.created.getTime() - a.created.getTime() || b.id - a.id;
 }
 
+// the backend sends the color as a string and takes only the ones of NOTE_COLORS; one the app does
+// not know shows as the first
+function noteColor(color: string): NoteColor {
+  return (NOTE_COLORS as readonly string[]).includes(color) ? (color as NoteColor) : NOTE_COLORS[0];
+}
+
 function toNote(response: NoteResponse): Note {
   return {
     id: response.id,
     text: response.text,
-    color: response.color,
+    color: noteColor(response.color),
     labels: response.labels.map((label) => label.name),
     photos: response.photos.map((photo) => photo.id),
     recordings: response.recordings.map((recording) => recording.id),
@@ -625,6 +623,6 @@ function toNote(response: NoteResponse): Note {
   };
 }
 
-function toDate(value: string | null): Date | null {
-  return value === null ? null : new Date(value);
+function toDate(value: string | null | undefined): Date | null {
+  return value == null ? null : new Date(value);
 }

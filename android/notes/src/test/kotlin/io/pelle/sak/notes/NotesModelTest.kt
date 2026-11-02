@@ -40,7 +40,7 @@ class NotesModelTest {
             answers["POST /auth/login/link"] = HttpStatusCode.Accepted to ""
             answers["POST /auth/login/password"] = HttpStatusCode.OK to session("password-session", "admin")
             answers["GET /notes"] = HttpStatusCode.OK to page(note(2, "Buy milk", labels = listOf("shopping")), note(1, "Call the plumber", "pink"))
-            answers["GET /labels"] = HttpStatusCode.OK to page("""{"id":1,"name":"work"}""", """{"id":2,"name":"shopping"}""")
+            answers["GET /labels"] = HttpStatusCode.OK to page("""{"id":1,"name":"work","createdAt":"2026-10-30T08:00:00.000Z"}""", """{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
             answers["GET /settings/notes"] = HttpStatusCode.OK to """{"ai":false}"""
         }
 
@@ -56,7 +56,7 @@ class NotesModelTest {
         labels: List<String> = emptyList(),
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
-    ) = """{"id":$id,"text":"$text","color":"$color","labels":[${labels.mapIndexed { i, l -> """{"id":${i + 1},"name":"$l"}""" }.joinToString(",")}],""" +
+    ) = """{"id":$id,"text":"$text","color":"$color","labels":[${labels.mapIndexed { i, l -> """{"id":${i + 1},"name":"$l","createdAt":"2026-10-30T08:00:00.000Z"}""" }.joinToString(",")}],""" +
         """"photos":[${photos.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}],""" +
         """"recordings":[${recordings.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}],""" +
         """"createdAt":"2026-11-02T07:00:00.000Z","updatedAt":null}"""
@@ -207,7 +207,7 @@ class NotesModelTest {
     @Test
     fun `a photo is stored first, then a new note is made with it or a note takes it`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["POST /notes"] = HttpStatusCode.Created to note(6, "", photos = listOf(40))
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", photos = listOf(40))
             val model = model().also { it.start() }
@@ -235,7 +235,7 @@ class NotesModelTest {
     @Test
     fun `a recording is stored as a wav and attached, for a new note too, stopped before it recorded nothing is kept`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":50}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":50,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/50","thumbnailUrl":"/api/v1/files/50/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", recordings = listOf(50))
             backend.answers["POST /notes"] = HttpStatusCode.Created to note(7, "", recordings = listOf(50))
             val model = model().also { it.start() }

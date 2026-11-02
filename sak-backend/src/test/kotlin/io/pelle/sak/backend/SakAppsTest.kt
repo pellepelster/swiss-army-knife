@@ -16,6 +16,7 @@ import com.icegreen.greenmail.junit5.GreenMailExtension
 import com.icegreen.greenmail.util.GreenMailUtil
 import com.icegreen.greenmail.util.ServerSetupTest
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -1148,6 +1149,22 @@ class SakAppsTest {
             // content security policy blocks
             getWithHost(port, "sak.example.org", "/") shouldNotContain "media=\"print\""
             getWithHost(port, "sak.example.org", "/api/v1/auth/who-am-i") shouldStartWith "HTTP/1.1 401"
+        }
+    }
+
+    // the document the routes describe is the openapi.json at the root of the repository, which the
+    // models of the android apps and the types of sak-frontend are generated from; SAK_OPENAPI_WRITE=true
+    // (mise run api:generate) writes it instead
+    @Test
+    fun `the openapi document is the openapi json of the repository`() {
+        withServer { port ->
+            val pretty = Json { prettyPrint = true }
+            val document = pretty.encodeToString(JsonObject.serializer(), get(port, "/doc/openapi.json").json()) + "\n"
+            val committed = Path.of("..", "openapi.json")
+            if (System.getenv("SAK_OPENAPI_WRITE") == "true") Files.writeString(committed, document)
+            withClue("openapi.json is not the document of the routes, run mise run api:generate") {
+                Files.readString(committed) shouldBe document
+            }
         }
     }
 

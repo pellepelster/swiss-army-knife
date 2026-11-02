@@ -1,12 +1,9 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { EMPTY, expand, Observable, reduce } from 'rxjs';
+import { Pagination } from '../api/models';
 
 // where a page starts in the whole list, how many items it has at most and how many there are
-export interface Pagination {
-  offset: number;
-  limit: number;
-  total: number;
-}
+export type { Pagination } from '../api/models';
 
 // what every list endpoint of the api answers
 export interface Page<T> {

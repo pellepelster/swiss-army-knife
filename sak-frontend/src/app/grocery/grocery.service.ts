@@ -1,60 +1,27 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
+import {
+  GroceryCategory,
+  GroceryItem,
+  GroceryList,
+  GroceryNewItem,
+  GrocerySuggestion,
+} from '../api/models';
 import { fetchAll, Page } from '../shared/api';
 
-// a category of a list, the groups of its items in the order the list answers them (GROCERY-13)
-export interface GroceryCategory {
-  id: number;
-  name: string;
-  // one emoji, null for none
-  icon: string | null;
-}
+// the shapes of the api (GROCERY-13: the categories in the order the list shows them; checkedAt
+// is missing while an item is to buy, GROCERY-3)
+export type {
+  GroceryCategory,
+  GroceryItem,
+  GroceryList,
+  GroceryNewItem,
+  GrocerySuggestion,
+} from '../api/models';
 
-export interface GroceryList {
-  id: number;
-  name: string;
-  // of all users
-  shared: boolean;
-  // of the signed in user, who renames, shares and deletes it
-  mine: boolean;
-  // how many items are to buy on it
-  items: number;
-  // one emoji, null shows the first letter of the name
-  icon: string | null;
-}
-
-export interface GroceryItem {
-  id: number;
-  listId: number;
-  name: string;
-  amount: number | null;
-  unit: string | null;
-  // a category of its list, null for none
-  categoryId: number | null;
-  // the file of its photo, null without one
-  photoId?: number | null;
-  // when it was bought, missing while it is to buy (GROCERY-3)
-  checkedAt?: string | null;
-}
-
-// what is given of an item
-export interface GroceryItemValues {
-  name: string;
-  amount: number | null;
-  unit: string | null;
-  // a category of the list; a new item without one gets the one the list learned of its name
-  categoryId: number | null;
-}
-
-// an item added before, with the quantity and the category used last
-export interface GrocerySuggestion {
-  id: number;
-  name: string;
-  amount: number | null;
-  unit: string | null;
-  categoryId: number | null;
-}
+// what is given of an item: the request of a new one without its list
+export type GroceryItemValues = Omit<GroceryNewItem, 'listId'>;
 
 // the grocery lists of the signed in user and the shared ones, their items and the suggestions
 @Injectable({ providedIn: 'root' })

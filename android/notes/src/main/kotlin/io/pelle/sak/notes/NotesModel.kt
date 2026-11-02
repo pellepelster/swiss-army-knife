@@ -1,5 +1,11 @@
 package io.pelle.sak.notes
 
+import io.pelle.sak.api.model.FileResponse
+import io.pelle.sak.api.model.LabelResponse
+import io.pelle.sak.api.model.NoteRequest
+import io.pelle.sak.api.model.NoteResponse
+import io.pelle.sak.api.model.PhotoResponse
+import io.pelle.sak.api.model.RecordingResponse
 import io.ktor.http.ContentType
 import io.pelle.sak.core.AppScreen
 import io.pelle.sak.core.SakModel
@@ -10,10 +16,6 @@ import io.pelle.sak.core.session.Stored
 import io.pelle.sak.core.uiText
 import io.pelle.sak.core.update.AppUpdate
 import io.pelle.sak.core.update.Updater
-import io.pelle.sak.notes.api.LabelResponse
-import io.pelle.sak.notes.api.NoteFileResponse
-import io.pelle.sak.notes.api.NoteRequest
-import io.pelle.sak.notes.api.NoteResponse
 import io.pelle.sak.notes.api.NotesApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -215,12 +217,12 @@ class NotesModel(
         if (notesScreen()?.creating != false) return
         notes { it.copy(creating = true, error = null) }
         scope.launch {
-            val fileId = uploadPhoto(read)
-            if (fileId == null) {
+            val file = uploadPhoto(read)
+            if (file == null) {
                 notes { it.copy(creating = false) }
                 return@launch
             }
-            createNow(photos = listOf(fileId), recordings = emptyList())
+            createNow(photos = listOf(file.id), recordings = emptyList())
         }
     }
 
@@ -257,7 +259,8 @@ class NotesModel(
                 if (note.labels.any { it.name == name } || note.labels.size >= MAX_LABELS) {
                     note
                 } else {
-                    note.copy(labels = (note.labels + LabelResponse(0, name)).sortedBy { it.name })
+                    // a stand-in until the save answers the note with the label as it is stored
+                    note.copy(labels = (note.labels + LabelResponse(id = 0, name = name, createdAt = "")).sortedBy { it.name })
                 }
             }
         if (changed) {
@@ -281,9 +284,11 @@ class NotesModel(
     ) {
         notes { it.copy(uploading = it.uploading + id, error = null) }
         scope.launch {
-            val fileId = uploadPhoto(read)
+            val file = uploadPhoto(read)
             notes { it.copy(uploading = it.uploading - id) }
-            if (fileId != null && change(id) { if (it.photos.any { photo -> photo.id == fileId }) it else it.copy(photos = it.photos + NoteFileResponse(fileId)) }) {
+            if (file != null &&
+                change(id) { if (it.photos.any { photo -> photo.id == file.id }) it else it.copy(photos = it.photos + PhotoResponse(file.id, file.url, file.thumbnailUrl)) }
+            ) {
                 saveNow(id)
             }
         }
@@ -329,17 +334,19 @@ class NotesModel(
             if (wav == null) return@launch
             val id = (target as? RecordingFor.Note)?.id
             if (id != null) notes { it.copy(uploading = it.uploading + id) } else notes { it.copy(creating = true) }
-            val fileId =
+            val file =
                 request(R.string.notes_error_recording_not_stored, ::failed) { api ->
                     api.upload(wav, WAV, R.string.notes_error_recording_not_stored)
                 }
             if (id == null) {
-                if (fileId == null) notes { it.copy(creating = false) } else createNow(photos = emptyList(), recordings = listOf(fileId))
+                if (file == null) notes { it.copy(creating = false) } else createNow(photos = emptyList(), recordings = listOf(file.id))
                 return@launch
             }
             notes { it.copy(uploading = it.uploading - id) }
-            if (fileId != null &&
-                change(id) { if (it.recordings.any { recording -> recording.id == fileId }) it else it.copy(recordings = it.recordings + NoteFileResponse(fileId)) }
+            if (file != null &&
+                change(id) {
+                    if (it.recordings.any { recording -> recording.id == file.id }) it else it.copy(recordings = it.recordings + RecordingResponse(file.id, file.url, file.thumbnailUrl))
+                }
             ) {
                 saveNow(id)
             }
@@ -438,7 +445,7 @@ class NotesModel(
     }
 
     // the photo stored in the file storage, null when it could not be read or stored
-    private suspend fun uploadPhoto(read: suspend () -> ByteArray?): Int? {
+    private suspend fun uploadPhoto(read: suspend () -> ByteArray?): FileResponse? {
         val jpeg = read()
         if (jpeg == null) {
             photoNotRead()

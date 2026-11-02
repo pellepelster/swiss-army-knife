@@ -6,6 +6,9 @@ The android apps of SAK, one gradle build with a module for each app on top of `
 its own architecture document.
 
 - **Modules.**
+  - `api` (kotlin library, no android, `io.pelle.sak.api.model`): the bodies of the api, generated at build time
+    from `openapi.json` at the root of the repository (openapi-generator, kotlinx.serialization data classes), the
+    schemas the apps use listed in `api/build.gradle.kts`. `core` passes it on to every app.
   - `core` (library, `io.pelle.sak.core`): what every app needs. The deployment and the sign-in by link or password
     (`SakModel`, the screens `Screen.Deployment` and `Screen.SignIn`, the composables `DeploymentScreen` and
     `SignInScreen`), the session kept encrypted (`session/`), the base of the api (`SakApi`, `sakClient`,
@@ -31,8 +34,12 @@ its own architecture document.
 - **A new app** is a module in `settings.gradle.kts`, its name in `ANDROID_APPS` of `android:release:build` and
   `android:release` in `mise.toml`, its resources in `ANDROID_APPS` of `sak-i18n` (`Generator.kt`), and its client
   in `LoginClient` of `sak-auth` with its package in the signin page of the web app.
-- **The api.** The response classes in `core/api/ApiModels.kt` and in an app's `api/ApiModels.kt` are copies of the
-  ones of `sak-backend`, with the fields the apps use only; change them with the api.
+- **The api.** The request and response classes are generated from `openapi.json` (module `api`), never written or
+  copied by hand; only the generic page (`PageResponse`, whose schema is inline for each list) is in
+  `core/api/ApiModels.kt`. After a change of the api, `mise run api:generate` writes `openapi.json` from the routes
+  of `sak-backend` (a test of the backend fails while it is not current); a schema an app starts to use is added to
+  the list in `api/build.gradle.kts`. A nullable field without a value is left out of a request, the backend takes
+  a missing nullable field as null; the fake backends of the tests answer every field the schema requires.
 - **The logic** is in the model of each app (and `SakModel`), without android, tested on the jvm against the fake
   backend.
 - **Texts.** Every text the user reads is in `i18n/texts.yml` at the root of the repository: `android` and `common`

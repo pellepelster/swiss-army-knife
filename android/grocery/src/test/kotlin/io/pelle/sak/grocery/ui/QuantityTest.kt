@@ -1,6 +1,6 @@
 package io.pelle.sak.grocery.ui
 
-import io.pelle.sak.grocery.api.GroceryItemResponse
+import io.pelle.sak.api.model.GroceryItemResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -9,7 +9,7 @@ class QuantityTest {
     private fun item(
         amount: Double?,
         unit: String? = null,
-    ) = GroceryItemResponse(1, 1, "Milk", amount, unit)
+    ) = GroceryItemResponse(id = 1, listId = 1, name = "Milk", createdAt = "2026-10-27T08:00:00Z", amount = amount, unit = unit)
 
     @Test
     fun `an amount without trailing zeros, with its unit`() {

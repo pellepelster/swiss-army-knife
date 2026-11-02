@@ -1,5 +1,12 @@
 package io.pelle.sak.core.api
 
+import io.pelle.sak.api.model.ApiErrorResponse
+import io.pelle.sak.api.model.ExchangeRequest
+import io.pelle.sak.api.model.ExchangeResponse
+import io.pelle.sak.api.model.InfoResponse
+import io.pelle.sak.api.model.LoginRequest
+import io.pelle.sak.api.model.PasswordLoginRequest
+import io.pelle.sak.api.model.WhoAmIResponse
 import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -70,7 +77,7 @@ open class SakApi(
             .post("$url/auth/login/link") {
                 session()
                 contentType(ContentType.Application.Json)
-                setBody(LoginRequest(email, client = loginClient))
+                setBody(LoginRequest(email, client = LoginRequest.Client.entries.single { it.value == loginClient }))
             }.answer<Unit>(R.string.error_link_not_requested)
     }
 

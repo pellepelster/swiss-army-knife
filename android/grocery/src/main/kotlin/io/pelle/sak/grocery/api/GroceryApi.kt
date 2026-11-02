@@ -1,5 +1,16 @@
 package io.pelle.sak.grocery.api
 
+import io.pelle.sak.api.model.FileResponse
+import io.pelle.sak.api.model.GroceryCategoryOrderRequest
+import io.pelle.sak.api.model.GroceryCategoryRequest
+import io.pelle.sak.api.model.GroceryCategoryResponse
+import io.pelle.sak.api.model.GroceryItemCategoryRequest
+import io.pelle.sak.api.model.GroceryItemRequest
+import io.pelle.sak.api.model.GroceryItemResponse
+import io.pelle.sak.api.model.GroceryListRequest
+import io.pelle.sak.api.model.GroceryListResponse
+import io.pelle.sak.api.model.GroceryNewItemRequest
+import io.pelle.sak.api.model.GroceryPhotoRequest
 import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -30,7 +41,6 @@ import io.ktor.utils.io.readLine
 import io.pelle.sak.core.api.ApiJson
 import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
-import io.pelle.sak.core.api.StoredFileResponse
 import io.pelle.sak.grocery.R
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -141,7 +151,7 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Image.JPEG)
                 setBody(jpeg)
-            }.answer<StoredFileResponse>(R.string.grocery_photo_not_attached)
+            }.answer<FileResponse>(R.string.grocery_photo_not_attached)
             .id
 
     // the photo of the item, and of the user's next item of its name (GROCERY-11)

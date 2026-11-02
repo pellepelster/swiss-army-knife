@@ -1,5 +1,8 @@
 package io.pelle.sak.grocery.ui
 
+import io.pelle.sak.api.model.GroceryCategoryResponse
+import io.pelle.sak.api.model.GroceryItemResponse
+import io.pelle.sak.api.model.GroceryListResponse
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.Screen
 import io.pelle.sak.core.UiText
@@ -144,9 +147,6 @@ import io.pelle.sak.grocery.Renaming
 import io.pelle.sak.grocery.ListsScreen
 import io.pelle.sak.grocery.UNDO_MS
 import io.pelle.sak.grocery.Undo
-import io.pelle.sak.grocery.api.GroceryCategoryResponse
-import io.pelle.sak.grocery.api.GroceryItemResponse
-import io.pelle.sak.grocery.api.GroceryListResponse
 import io.pelle.sak.grocery.scaledSize
 import java.io.File
 import java.math.BigDecimal
