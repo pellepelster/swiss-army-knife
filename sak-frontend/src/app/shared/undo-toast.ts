@@ -4,8 +4,8 @@ import { TranslatePipe } from '../i18n/i18n';
 // how long what was removed can be brought back before the backend removes it (UX-4.2)
 export const UNDO_DELETE_MS = 2000;
 
-// tells what was removed and offers to bring it back while the bar shrinks; centered at the bottom,
-// on a phone above the floating buttons of a page that has them. Shown anew for every removal, the
+// tells what was removed and offers to bring it back while the bar shrinks; centered at the bottom.
+// Shown anew for every removal, the
 // bar starts again
 @Component({
   selector: 'app-undo-toast',
@@ -13,7 +13,6 @@ export const UNDO_DELETE_MS = 2000;
   template: `
     <div
       class="undo-toast toast show position-fixed bottom-0 start-50 translate-middle-x mb-3"
-      [class.above-buttons]="aboveButtons()"
       role="status"
     >
       <div class="d-flex align-items-center gap-2 p-2 ps-3">
@@ -51,14 +50,10 @@ export const UNDO_DELETE_MS = 2000;
       }
     }
 
-    // on a phone as wide as the screen allows, above the floating buttons of a page that has them
+    // on a phone as wide as the screen allows
     @media (max-width: 767.98px) {
       .undo-toast {
         width: calc(100% - 2rem);
-      }
-
-      .undo-toast.above-buttons {
-        margin-bottom: 11rem !important;
       }
     }
   `,
@@ -66,8 +61,6 @@ export const UNDO_DELETE_MS = 2000;
 export class UndoToast {
   // what was removed, e.g. "Note deleted"
   readonly text = input.required<string>();
-  // the page has floating buttons at the bottom on a phone, e.g. the notes
-  readonly aboveButtons = input(false);
   // how long it can be undone, the bar takes as long
   readonly ms = input(UNDO_DELETE_MS);
   readonly undo = output<void>();

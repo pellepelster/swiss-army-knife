@@ -771,7 +771,7 @@ class GroceryModel(
     override fun sessionChanged() = restartListening()
 
     override fun showApp(stored: Stored) {
-        state.value = ListsScreen(stored.deployment ?: stored.apiUrl.orEmpty(), stored.email.orEmpty(), open = stored.openList)
+        state.value = ListsScreen(stored.email.orEmpty(), open = stored.openList)
         load()
     }
 

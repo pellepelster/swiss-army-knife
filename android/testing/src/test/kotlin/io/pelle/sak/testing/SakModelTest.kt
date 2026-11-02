@@ -39,7 +39,6 @@ private class ThingsApi(
 
 // the screen of the app: the things loaded
 private data class ThingsScreen(
-    override val deployment: String,
     override val user: String,
     override val update: AppUpdate? = null,
     override val updateNotice: UiText? = null,
@@ -69,7 +68,7 @@ private class ThingsModel(
         nonce = { "the nonce of the test" },
     ) {
     override fun showApp(stored: Stored) {
-        state.value = ThingsScreen(stored.deployment.orEmpty(), stored.email.orEmpty())
+        state.value = ThingsScreen(stored.email.orEmpty())
     }
 
     fun load() =

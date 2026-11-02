@@ -65,8 +65,6 @@ interface Screen {
 
 // the screen of an app once the user is signed in: who is signed in, and the update of the app
 interface AppScreen : Screen {
-    val deployment: String
-
     // who is signed in: their name, else the e-mail address, or admin
     val user: String
 

@@ -93,7 +93,6 @@ private data class Loaded(
 
 // filtered by or all (NOTES-1: the lists are not shown, the app opens on the notes, LIST-3)
 data class NotesScreen(
-    override val deployment: String,
     override val user: String,
     override val update: AppUpdate? = null,
     override val updateNotice: UiText? = null,
@@ -194,7 +193,7 @@ class NotesModel(
     private val files = FileCache(MAX_FILE_BYTES)
 
     override fun showApp(stored: Stored) {
-        state.value = NotesScreen(stored.deployment ?: stored.apiUrl.orEmpty(), stored.email.orEmpty())
+        state.value = NotesScreen(stored.email.orEmpty())
         load()
     }
 

@@ -82,8 +82,8 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `ANDROID-1` **Material 3, the colors of the phone.** The Android apps follow the light or dark mode of the system
   and take the colors of the wallpaper where Android has them.
 - `ANDROID-2` **One screen at a time.** The deployment, the sign-in, the first screen of the app (e.g. the overview
-  of the lists, the wall of the notes) and the screens it leads to. The first screen has the name of the deployment as
-  its title; at its top right are its main create action and the menu with the check for updates and the sign-out.
+  of the lists, the wall of the notes) and the screens it leads to. The first screen has the name of the app as its
+  title; at its top right are its main create action and the menu with the check for updates and the sign-out.
   Every other screen of a signed in user has a back arrow at the top left with its own title; the back of the system
   does the same.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user

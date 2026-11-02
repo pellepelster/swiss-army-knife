@@ -56,7 +56,7 @@ internal fun HomeScreen(
     model: GroceryModel,
 ) {
     Page(
-        screen.deployment,
+        stringResource(R.string.grocery_app_name),
         actions = {
             IconButton(onClick = model::newList, modifier = Modifier.testTag("new-list")) {
                 Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.grocery_form_create))

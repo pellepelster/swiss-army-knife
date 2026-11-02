@@ -144,7 +144,6 @@ class NotesModelTest {
             advanceUntilIdle()
 
             val screen = model.notes()
-            assertEquals("family", screen.deployment)
             assertFalse(screen.loading)
             assertFalse(screen.ai)
             // the second page asked for after the first, at its offset

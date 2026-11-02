@@ -316,7 +316,7 @@ private fun WallScreen(
     var photoMenu by remember { mutableStateOf(false) }
     val busy = screen.creating || screen.recording != null
     Page(
-        screen.deployment,
+        stringResource(R.string.notes_app_name),
         bottomBar = { BottomBars(screen, model) },
         actions = {
             Box {

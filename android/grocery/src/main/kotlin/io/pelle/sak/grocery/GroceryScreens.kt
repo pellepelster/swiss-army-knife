@@ -79,7 +79,6 @@ fun scaledSize(pixels: Int): Int? = SCALED_SIZES.firstOrNull { it >= pixels }
 
 // the screen of the grocery lists once the user is signed in (the screens before are core's)
 data class ListsScreen(
-    override val deployment: String,
     // who is signed in: their name, else the e-mail address, or admin
     override val user: String,
     val lists: List<GroceryListResponse> = emptyList(),

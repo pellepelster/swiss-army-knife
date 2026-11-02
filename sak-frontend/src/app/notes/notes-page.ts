@@ -20,8 +20,7 @@ import { PageHeader } from '../shared/page-header';
 @Component({
   selector: 'app-notes-page',
   imports: [PageHeader, NoteCard, PaginationControl, RecordingOverlay, TranslatePipe, UndoToast],
-  styleUrl: './notes-page.scss',
-  host: { class: 'd-block container-xl pb-md-5' },
+  host: { class: 'd-block container-xl pb-5' },
   template: `
     <header
       appPageHeader
@@ -40,9 +39,9 @@ import { PageHeader } from '../shared/page-header';
         aria-hidden="true"
         (change)="addPhoto($any($event.target))"
       />
-      <!-- the actions of the page, on a phone the floating buttons -->
+      <!-- the actions of the page, the main create action rightmost (UX-2) -->
       <div
-        class="btn-group d-none d-md-inline-flex"
+        class="btn-group"
         role="group"
         [attr.aria-label]="'notes.page.create_notes' | t"
       >
@@ -145,48 +144,9 @@ import { PageHeader } from '../shared/page-header';
       (offsetChange)="goTo($event)"
     />
 
-    <div
-      class="note-fabs d-md-none position-fixed bottom-0 end-0 m-3 d-flex flex-column align-items-center gap-2"
-    >
-      <button
-        type="button"
-        class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        [attr.aria-label]="'notes.page.create_with_photo' | t"
-        [title]="'notes.page.create_with_photo' | t"
-        [disabled]="addingPhoto()"
-        (click)="camera.click()"
-      >
-        @if (addingPhoto()) {
-          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-        } @else {
-          <i class="fa-solid fa-camera" aria-hidden="true"></i>
-        }
-      </button>
-      <button
-        type="button"
-        class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        [attr.aria-label]="'notes.page.create_with_recording' | t"
-        [title]="'notes.page.create_with_recording' | t"
-        [disabled]="store.recordingFor() !== null"
-        (click)="record()"
-      >
-        <i class="fa-solid fa-microphone" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        class="note-fab btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0 fs-4"
-        [attr.aria-label]="'notes.page.create_note' | t"
-        [title]="'notes.page.create_note' | t"
-        (click)="add()"
-      >
-        <i class="sak-icon-plus" aria-hidden="true"></i>
-      </button>
-    </div>
-
     @for (removal of removed(); track removal) {
       <app-undo-toast
         [text]="removedText[removal.kind]"
-        [aboveButtons]="true"
         (undo)="store.undoRemove()"
       />
     }
