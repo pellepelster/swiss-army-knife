@@ -1,7 +1,7 @@
 ---
 title: "Review: API"
 linkTitle: "API"
-description: "The review of the routes below /api/v1 against the API contract (API-1 to API-5)."
+description: "The review of the routes below /api/v1 against the API contract (API-1 to API-4 and API-6)."
 weight: 2
 ---
 

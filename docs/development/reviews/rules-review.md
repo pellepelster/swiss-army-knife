@@ -73,7 +73,9 @@ Fix: name it in `SECURITY-3`.
 
 ## Could fix
 
-### `RR-6` The API review refers to `API-5`, which went
+### ~~`RR-6` The API review refers to `API-5`, which went~~
+
+**Fixed:** the description of the API review says "API-1 to API-4 and API-6".
 
 The description of [api-review.md](api-review.md) says "API-1 to API-5"; `API-5` (authentication) went, `API-6` is
 there.
