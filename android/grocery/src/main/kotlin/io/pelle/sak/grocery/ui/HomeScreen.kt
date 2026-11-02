@@ -76,11 +76,10 @@ internal fun HomeScreen(
                 if (!screen.loading && screen.error == null && screen.lists.isEmpty()) {
                     item { Empty(stringResource(R.string.grocery_no_lists)) }
                 }
-                val last = screen.lists.count { it.mine } == 1
                 itemsIndexed(screen.lists, key = { _, list -> list.id }) { index, list ->
                     ListRow(
                         list,
-                        deletable = list.mine && !last,
+                        deletable = list.mine,
                         open = { model.open(list.id) },
                         settings = { model.openSettings(list.id) },
                         delete = { model.deleteList(list.id) },
@@ -94,7 +93,7 @@ internal fun HomeScreen(
 
 // a list on the home: its icon, its name, how many items are to buy and whether it is shared; the
 // menu of its row leads to its settings and deletes it after a confirmation (UX-12, UX-4.1), both only
-// of a list of the user's own and the delete not of their last one (UX-8, LIST-1)
+// of a list of the user's own, the last one too (UX-8, LIST-1)
 @Composable
 private fun ListRow(
     list: GroceryListResponse,

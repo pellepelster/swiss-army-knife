@@ -14,7 +14,7 @@ import org.jooq.impl.DSL
 import java.time.Clock
 import java.time.Instant
 
-// the list a user gets when they sign in without a list of their own (LIST-1); the lists are not
+// the list a user gets when they sign in without a list of their own (NOTES-1); the lists are not
 // shown to the users yet, every note of a user goes to their list
 const val DEFAULT_LIST = "Default"
 
@@ -105,7 +105,7 @@ class NoteRepository(
             .limit(1)
             .fetchOne(NOTE_LISTS.ID)
 
-    // a private list of the name for the owner when they have no list of their own (LIST-1); a
+    // a private list of the name for the owner when they have no list of their own (NOTES-1); a
     // list made at the same time, e.g. by another sign-in, is the one (the name is unique among the
     // lists of the owner)
     fun ensureList(

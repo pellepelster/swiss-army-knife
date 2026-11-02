@@ -1209,7 +1209,6 @@ grocery:
       create: { en: "Create list", de: "Liste erstellen" }
       no_icon: { en: "No icon", de: "Kein Icon" }
       delete_list: { en: "Delete list", de: "Liste löschen" }
-      last_list: { en: "Your only list can not be deleted.", de: "Deine einzige Liste kann nicht gelöscht werden." }
       not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
       not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
       choose_icon: { en: "Choose icon", de: "Icon auswählen" }
@@ -1266,7 +1265,6 @@ grocery:
     owner_list_exists:
       en: "The owner of the list has another list of the name."
       de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."
-    last_list: { en: "You can not delete your only list.", de: "Du kannst deine einzige Liste nicht löschen." }
     not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
   web:
     page_title:
@@ -1282,7 +1280,7 @@ grocery:
       de: "Deine Rolle erlaubt es nicht, die Einkaufslisten zu sehen."
     lists:
       label: { en: "Grocery lists", de: "Einkaufslisten" }
-      empty: { en: "You have no list yet, add one first.", de: "Du hast noch keine Liste, füge zuerst eine hinzu." }
+      empty: { en: "You have no list yet, create one first.", de: "Du hast noch keine Liste, erstelle zuerst eine." }
       to_buy_one: { en: "1 item to buy", de: "1 Artikel zu kaufen" }
       to_buy_other: { en: "%{count} items to buy", de: "%{count} Artikel zu kaufen" }
     form:
@@ -1352,8 +1350,8 @@ grocery:
     cancel: { en: "Cancel", de: "Abbrechen" }
     show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
     no_lists:
-      en: "You have no list yet, add one with the plus at the top."
-      de: "Du hast noch keine Liste, füge oben mit dem Plus eine hinzu."
+      en: "You have no list yet, create one with the plus at the top."
+      de: "Du hast noch keine Liste, erstelle oben mit dem Plus eine."
     shared: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
     shared_badge: { en: "Shared", de: "Geteilt" }
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }

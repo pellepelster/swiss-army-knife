@@ -747,7 +747,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the menu of an own list opens its settings, they change its icon and delete it, the last own list stays`() =
+    fun `the menu of an own list opens its settings, they change its icon and delete it, the last own list too`() =
         runTest {
             backend.answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party", shared = true), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-10-30T08:00:00.000Z"}""")
@@ -771,15 +771,16 @@ class GroceryModelTest {
             assertTrue(backend.requests.contains("DELETE /grocery/lists/2"))
             assertNull((model.screen.value as ListsScreen).settings)
 
-            // the only own list
+            // the only own list goes too (LIST-1)
             backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page(list(1, "Default"))
+            backend.answers["DELETE /grocery/lists/1"] = HttpStatusCode.NoContent to ""
             model.refresh()
             advanceUntilIdle()
             model.openSettings(1)
-            assertEquals(true, (model.screen.value as ListsScreen).settings?.last)
             model.deleteList()
             advanceUntilIdle()
-            assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
+            assertTrue(backend.requests.contains("DELETE /grocery/lists/1"))
+            assertNull((model.screen.value as ListsScreen).settings)
         }
 
     @Test
@@ -799,7 +800,6 @@ class GroceryModelTest {
             model.openSettings(3)
             advanceUntilIdle()
             assertEquals(false, settings().mine)
-            assertEquals(false, settings().last)
             assertEquals(listOf("Snacks"), settings().categories.map { it.name })
 
             // the categories as for the owner
@@ -844,7 +844,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the menu of a row on the home deletes an own list, not one of another user and not the last own one`() =
+    fun `the menu of a row on the home deletes an own list, the last one too, not one of another user`() =
         runTest {
             backend.answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to page(list(1, "Default"), list(2, "Party"), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-10-30T08:00:00.000Z"}""")
@@ -862,10 +862,13 @@ class GroceryModelTest {
             assertTrue(backend.requests.contains("DELETE /grocery/lists/2"))
             assertEquals(listOf("Default"), (model.screen.value as ListsScreen).lists.map { it.name })
 
-            // the only own list stays
+            // the only own list goes too (LIST-1), the home is empty then
+            backend.answers["DELETE /grocery/lists/1"] = HttpStatusCode.NoContent to ""
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page()
             model.deleteList(1)
             advanceUntilIdle()
-            assertTrue(backend.requests.none { it == "DELETE /grocery/lists/1" })
+            assertTrue(backend.requests.contains("DELETE /grocery/lists/1"))
+            assertTrue((model.screen.value as ListsScreen).lists.isEmpty())
         }
 
     @Test

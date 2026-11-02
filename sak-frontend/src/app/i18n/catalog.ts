@@ -158,7 +158,7 @@ export const CATALOG = {
       lists: {
         to_buy_none: 'No items to buy',
         label: 'Grocery lists',
-        empty: 'You have no list yet, add one first.',
+        empty: 'You have no list yet, create one first.',
         to_buy_one: '1 item to buy',
         to_buy_other: '%{count} items to buy',
       },
@@ -166,7 +166,6 @@ export const CATALOG = {
         create: 'Create list',
         no_icon: 'No icon',
         delete_list: 'Delete list',
-        last_list: 'Your only list can not be deleted.',
         not_saved: 'The list could not be saved.',
         not_deleted: 'The list could not be deleted.',
         choose_icon: 'Choose icon',
@@ -667,7 +666,7 @@ export const CATALOG = {
       lists: {
         to_buy_none: 'Keine Artikel zu kaufen',
         label: 'Einkaufslisten',
-        empty: 'Du hast noch keine Liste, füge zuerst eine hinzu.',
+        empty: 'Du hast noch keine Liste, erstelle zuerst eine.',
         to_buy_one: '1 Artikel zu kaufen',
         to_buy_other: '%{count} Artikel zu kaufen',
       },
@@ -675,7 +674,6 @@ export const CATALOG = {
         create: 'Liste erstellen',
         no_icon: 'Kein Icon',
         delete_list: 'Liste löschen',
-        last_list: 'Deine einzige Liste kann nicht gelöscht werden.',
         not_saved: 'Die Liste konnte nicht gespeichert werden.',
         not_deleted: 'Die Liste konnte nicht gelöscht werden.',
         choose_icon: 'Icon auswählen',

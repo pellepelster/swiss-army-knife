@@ -78,7 +78,7 @@ class GroceryApi(
                 setBody(GroceryListRequest(name, shared, icon))
             }.answer(R.string.grocery_form_not_saved)
 
-    // a list of the user's own with its items, not their last one (LIST-1)
+    // a list of the user's own with its items, the last one too (LIST-1)
     suspend fun deleteList(id: Int) {
         client
             .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(R.string.grocery_form_not_deleted)

@@ -74,7 +74,7 @@ sealed interface SaveNoteResult {
 
     data object NotFound : SaveNoteResult
 
-    // the owner has no list, they get one when they sign in (LIST-1)
+    // the owner has no list, they get one when they sign in (NOTES-1)
     data object NoList : SaveNoteResult
 
     data class Invalid(
@@ -110,7 +110,7 @@ class NoteService(
         repository.detachDeletedLabels()
     }
 
-    // the list of the notes of a user who has none (LIST-1)
+    // the list of the notes of a user who has none (NOTES-1)
     override fun signedIn(
         owner: String,
         language: Language,

@@ -218,7 +218,7 @@ databaseChangeLog:
                   type: varchar(100000)
 
         # the lists of the notes of a user: every note is in one, a user without a list gets "Default"
-        # when they sign in (LIST-1). A shared list is one of all users (LIST-2). The name is unique
+        # when they sign in (NOTES-1). A shared list is one of all users (LIST-2). The name is unique
         # among the lists of an owner that are not deleted only; a deleted list stays as a row with
         # deleted_at set
         - createTable:
@@ -462,10 +462,9 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL
 
-        # the grocery lists of a user: every item is on one, a user without a list gets "Default" when
-        # they sign in (LIST-1), a list like the others; a shared list is one of all users (LIST-2). The
-        # name is unique among the lists of an owner that are not deleted only. The icon is one emoji,
-        # none shows the first letter of the name
+        # the grocery lists of a user: every item is on one, the user creates them (LIST-1); a shared
+        # list is one of all users (LIST-2). The name is unique among the lists of an owner that are
+        # not deleted only. The icon is one emoji, none shows the first letter of the name
         - createTable:
             tableName: grocery_lists
             columns:

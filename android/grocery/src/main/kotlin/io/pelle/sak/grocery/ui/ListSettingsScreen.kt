@@ -83,7 +83,7 @@ import io.pelle.sak.grocery.R
 
 // the settings of a new list or of one of the user's own: its name, whether all users see it and its
 // icon, one emoji of the picker of the system; a list of the user's own is deleted after a
-// confirmation (UX-4.1), not the last one (LIST-1). Back leads to where they were opened, the list or
+// confirmation (UX-4.1), the last one too (LIST-1). Back leads to where they were opened, the list or
 // the home, and the back arrow says which (AN-52)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,7 +182,7 @@ private fun SettingsForm(
             if (settings.id != null) {
                 // the button that leads to a delete (UX-3): filled like the other buttons, not
                 // the color of the screen, the line and the text in the color of danger
-                val enabled = settings.mine && !settings.last && !settings.busy
+                val enabled = settings.mine && !settings.busy
                 OutlinedButton(
                     onClick = confirm,
                     enabled = enabled,
@@ -207,7 +207,6 @@ private fun SettingsForm(
                 )
             }
         }
-        if (settings.last) Text(stringResource(R.string.grocery_form_last_list), style = MaterialTheme.typography.bodySmall)
         if (settings.id != null) Categories(settings, model)
     }
 }

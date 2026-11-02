@@ -28,9 +28,6 @@ private val ITEMS_TO_BUY =
                 .where(GROCERY_ITEMS.LIST_ID.eq(GROCERY_LISTS.ID), GROCERY_ITEMS.DELETED_AT.isNull, GROCERY_ITEMS.CHECKED_AT.isNull),
         ).`as`("items_to_buy")
 
-// the list a user gets when they sign in without a list of their own (LIST-1), a list like the others
-const val DEFAULT_GROCERY_LIST = "Default"
-
 data class GroceryList(
     val id: Int,
     val owner: String,
@@ -141,9 +138,6 @@ sealed interface GroceryListDelete {
 
     // the user has no such list of their own
     data object NotFound : GroceryListDelete
-
-    // the only list of the user's own, it stays (LIST-1)
-    data object LastList : GroceryListDelete
 }
 
 // what changing a list came to
@@ -182,32 +176,6 @@ class GroceryRepository(
             .where(visibleList(user))
             .orderBy(GROCERY_LISTS.NAME, GROCERY_LISTS.ID)
             .fetch { it.into(GROCERY_LISTS).toList(it.get(ITEMS_TO_BUY) ?: 0) }
-
-    // a private list of the name with the categories for the owner when they have no list of their
-    // own (LIST-1); a list made at the same time, e.g. by another sign-in, is the one (the name is
-    // unique among the lists of the owner)
-    fun ensureList(
-        owner: String,
-        name: String,
-        categories: List<GroceryCategoryValues> = emptyList(),
-    ) {
-        database.dsl.transaction { configuration ->
-            val dsl = DSL.using(configuration)
-            if (dsl.fetchExists(GROCERY_LISTS, ownList(owner))) return@transaction
-            val now = clock.instant()
-            val list =
-                dsl
-                    .insertInto(GROCERY_LISTS)
-                    .set(GROCERY_LISTS.OWNER, owner)
-                    .set(GROCERY_LISTS.NAME, name)
-                    .set(GROCERY_LISTS.SHARED, false)
-                    .set(GROCERY_LISTS.CREATED_AT, now)
-                    .onConflictDoNothing()
-                    .returning(GROCERY_LISTS.ID)
-                    .fetchOne() ?: return@transaction
-            insertCategories(dsl, owner, list.id!!, categories, now)
-        }
-    }
 
     // null when the user does not see the list
     fun list(
@@ -298,8 +266,8 @@ class GroceryRepository(
             GroceryListUpdate.NameTaken
         }
 
-    // a list of the user's own, not their last one (LIST-1); it and its items stay as deleted. The
-    // check of the other lists is part of the update, two lists deleted at once leave one
+    // a list of the user's own, the last one too (LIST-1); it, its items and its categories stay as
+    // deleted
     fun deleteList(
         user: String,
         id: Int,
@@ -307,38 +275,25 @@ class GroceryRepository(
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
-            val other = GROCERY_LISTS.`as`("other")
-            val anotherOwn =
-                DSL.exists(
-                    DSL
-                        .selectOne()
-                        .from(other)
-                        .where(other.OWNER.eq(user), other.DELETED_AT.isNull, other.ID.ne(id)),
-                )
             val deleted =
                 dsl
                     .update(GROCERY_LISTS)
                     .set(GROCERY_LISTS.DELETED_AT, now)
-                    .where(GROCERY_LISTS.ID.eq(id), ownList(user), anotherOwn)
+                    .where(GROCERY_LISTS.ID.eq(id), ownList(user))
                     .execute() > 0
-            when {
-                deleted -> {
-                    dsl
-                        .update(GROCERY_ITEMS)
-                        .set(GROCERY_ITEMS.DELETED_AT, now)
-                        .where(GROCERY_ITEMS.LIST_ID.eq(id), GROCERY_ITEMS.DELETED_AT.isNull)
-                        .execute()
-                    // its categories go with it (GROCERY-13)
-                    dsl
-                        .update(GROCERY_CATEGORIES)
-                        .set(GROCERY_CATEGORIES.DELETED_AT, now)
-                        .where(GROCERY_CATEGORIES.LIST_ID.eq(id), GROCERY_CATEGORIES.DELETED_AT.isNull)
-                        .execute()
-                    GroceryListDelete.Deleted
-                }
-                dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(id), ownList(user)) -> GroceryListDelete.LastList
-                else -> GroceryListDelete.NotFound
-            }
+            if (!deleted) return@transactionResult GroceryListDelete.NotFound
+            dsl
+                .update(GROCERY_ITEMS)
+                .set(GROCERY_ITEMS.DELETED_AT, now)
+                .where(GROCERY_ITEMS.LIST_ID.eq(id), GROCERY_ITEMS.DELETED_AT.isNull)
+                .execute()
+            // its categories go with it (GROCERY-13)
+            dsl
+                .update(GROCERY_CATEGORIES)
+                .set(GROCERY_CATEGORIES.DELETED_AT, now)
+                .where(GROCERY_CATEGORIES.LIST_ID.eq(id), GROCERY_CATEGORIES.DELETED_AT.isNull)
+                .execute()
+            GroceryListDelete.Deleted
         }
 
     // the items to buy of the list in the order they were added, with checked also the latest bought

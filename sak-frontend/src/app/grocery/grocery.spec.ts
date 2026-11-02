@@ -130,7 +130,7 @@ describe('Grocery', () => {
 
   it('without a list there is only the way to add one', async () => {
     await overview([]);
-    expect(page().textContent).toContain('You have no list yet, add one first.');
+    expect(page().textContent).toContain('You have no list yet, create one first.');
     expect(button('Create list').getAttribute('href')).toBe('/grocery/lists/create');
   });
 
@@ -988,26 +988,12 @@ describe('Grocery', () => {
     http.match(() => true).forEach((pending) => pending.flush(pageOf([])));
   });
 
-  it('the only own list can not be deleted, a shared list of another user does not count', async () => {
+  it('the only own list is renamed and deleted like the others (LIST-1)', async () => {
     await open('/grocery/lists/1/edit');
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
     http.expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100').flush(pageOf([]));
     await harness.fixture.whenStable();
-    expect(button('Delete list').disabled).toBe(true);
-    expect(page().querySelector('[data-testid=last-list]')?.textContent).toContain(
-      'Your only list can not be deleted.',
-    );
-  });
-
-  it('the list of the sign-in is renamed and deleted like the others', async () => {
-    await open('/grocery/lists/1/edit');
-    http
-      .expectOne('/api/v1/grocery/lists?offset=0&limit=100')
-      .flush(pageOf([defaultList, { id: 3, name: 'Weekly', shared: false, mine: true }]));
-    http.expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100').flush(pageOf([]));
-    await harness.fixture.whenStable();
     expect(input('list-name').readOnly).toBe(false);
-    expect(page().querySelector('[data-testid=last-list]')).toBeNull();
 
     // delete, cancel and save are one group; the delete asks in its place
     const group = () => page().querySelector('[role=group][aria-label="Actions of the form"]');
@@ -1045,10 +1031,8 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=list-3]')).toBeNull();
 
-    // the only own list stays (LIST-1)
-    const last = await rowMenu('Default');
-    expect(button('Delete', last).disabled).toBe(true);
-    expect(button('Delete', last).title).toBe('Your only list can not be deleted.');
+    // the only own list goes too (LIST-1)
+    expect(button('Delete', await rowMenu('Default')).disabled).toBe(false);
   });
 
   it('the delete in the menu of a row asks first, keep is the way back', async () => {
@@ -1141,7 +1125,6 @@ describe('Grocery', () => {
     );
     expect(button('Delete list').disabled).toBe(true);
     expect(button('Delete list').title).toBe('Only the owner of a list deletes it.');
-    expect(page().querySelector('[data-testid=last-list]')).toBeNull();
 
     // a category of the list changes as on an own list
     expect(page().querySelector('input[aria-label="Name of Fruit & vegetables"]')).not.toBeNull();

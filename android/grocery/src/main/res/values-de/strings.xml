@@ -9,7 +9,6 @@
     <string name="grocery_form_create">Liste erstellen</string>
     <string name="grocery_form_no_icon">Kein Icon</string>
     <string name="grocery_form_delete_list">Liste löschen</string>
-    <string name="grocery_form_last_list">Deine einzige Liste kann nicht gelöscht werden.</string>
     <string name="grocery_form_not_saved">Die Liste konnte nicht gespeichert werden.</string>
     <string name="grocery_form_not_deleted">Die Liste konnte nicht gelöscht werden.</string>
     <string name="grocery_form_choose_icon">Icon auswählen</string>
@@ -36,7 +35,7 @@
     <string name="grocery_item_not_renamed">Der Artikel konnte nicht umbenannt werden.</string>
     <string name="grocery_cancel">Abbrechen</string>
     <string name="grocery_show_bought">Gekaufte Artikel zeigen</string>
-    <string name="grocery_no_lists">Du hast noch keine Liste, füge oben mit dem Plus eine hinzu.</string>
+    <string name="grocery_no_lists">Du hast noch keine Liste, erstelle oben mit dem Plus eine.</string>
     <string name="grocery_shared">Mit allen Benutzern geteilt</string>
     <string name="grocery_shared_badge">Geteilt</string>
     <string name="grocery_settings_of">Einstellungen von %1$s</string>

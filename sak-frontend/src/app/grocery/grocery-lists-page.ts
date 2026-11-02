@@ -34,7 +34,7 @@ import { PageHeader } from '../shared/page-header';
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'grocery.lists.label' | t">
         @for (list of lists(); track list.id) {
           <!-- the row opens the list; its menu the settings and the delete, only of a list of the
-               user's own (UX-8), the last own one is kept (LIST-1) -->
+               user's own (UX-8) -->
           <li class="card card-body flex-row align-items-center gap-3">
             <app-list-icon [name]="list.name" [icon]="list.icon" />
             <a
@@ -114,12 +114,9 @@ export class GroceryListsPage {
       });
   }
 
-  // why a list can not be deleted: of another user, or the last list of the user's own (LIST-1)
+  // why a list can not be deleted: only its owner deletes it (LIST-2)
   protected undeletable(list: GroceryList): string | null {
-    if (!list.mine) return this.i18n.t('grocery.only_owner_deletes');
-    if (this.lists().filter((each) => each.mine).length === 1)
-      return this.i18n.t('grocery.form.last_list');
-    return null;
+    return list.mine ? null : this.i18n.t('grocery.only_owner_deletes');
   }
 
   protected delete(list: GroceryList): void {

@@ -159,7 +159,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                 <button
                   type="button"
                   class="btn btn-outline-danger"
-                  [disabled]="last() || !owner()"
+                  [disabled]="!owner()"
                   [title]="owner() ? '' : ('grocery.only_owner_deletes' | t)"
                   (click)="confirming.set(true)"
                 >
@@ -180,11 +180,6 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
             </div>
           }
         </div>
-        @if (last()) {
-          <div class="form-text text-end" data-testid="last-list">
-            {{ 'grocery.form.last_list' | t }}
-          </div>
-        }
       </form>
     }
 
@@ -361,8 +356,6 @@ export class GroceryListForm implements OnInit {
   protected readonly picking = signal(false);
   protected readonly saving = signal(false);
   protected readonly confirming = signal(false);
-  // the only list of the user's own, which can not be deleted (LIST-1)
-  protected readonly last = signal(false);
   // the user owns the list, or creates one: only then they share, unshare and delete it (LIST-2)
   protected readonly owner = computed(() => this.list()?.mine ?? true);
   protected readonly error = signal<string | null>(null);
@@ -419,7 +412,6 @@ export class GroceryListForm implements OnInit {
             return;
           }
           this.list.set(list);
-          this.last.set(list.mine && lists.filter((each) => each.mine).length === 1);
           this.name.set(list.name);
           this.shared.set(list.shared);
           this.icon.set(list.icon ?? null);

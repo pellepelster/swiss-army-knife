@@ -9,7 +9,6 @@
     <string name="grocery_form_create">Create list</string>
     <string name="grocery_form_no_icon">No icon</string>
     <string name="grocery_form_delete_list">Delete list</string>
-    <string name="grocery_form_last_list">Your only list can not be deleted.</string>
     <string name="grocery_form_not_saved">The list could not be saved.</string>
     <string name="grocery_form_not_deleted">The list could not be deleted.</string>
     <string name="grocery_form_choose_icon">Choose icon</string>
@@ -37,7 +36,7 @@
     <string name="grocery_item_not_renamed">The item could not be renamed.</string>
     <string name="grocery_cancel">Cancel</string>
     <string name="grocery_show_bought">Show bought items</string>
-    <string name="grocery_no_lists">You have no list yet, add one with the plus at the top.</string>
+    <string name="grocery_no_lists">You have no list yet, create one with the plus at the top.</string>
     <string name="grocery_shared">Shared with all users</string>
     <string name="grocery_shared_badge">Shared</string>
     <string name="grocery_settings_of">Settings of %1$s</string>

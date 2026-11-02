@@ -9,6 +9,7 @@ import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.TokenService
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.Json
 import io.kotest.matchers.string.shouldMatch
@@ -190,6 +191,14 @@ class SakAppsTest {
         json: String,
         sessionToken: String? = null,
     ) = request(port, "POST", path, sessionToken, json.toByteArray(), answer = HttpResponse.BodyHandlers.ofString())
+
+    // the id of a new grocery list of the user
+    private fun createList(
+        port: Int,
+        sessionToken: String,
+        name: String = "Default",
+        shared: Boolean = false,
+    ) = post(port, "/api/v1/grocery/lists", """{"name":"$name","shared":$shared}""", sessionToken).json().string("id")
 
     // a request signed like sakctl signs it, for the path as caddy hands it on (below /api)
     private fun signed(
@@ -540,8 +549,7 @@ class SakAppsTest {
             post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
             val anna = signIn(port, email = "anna@example.org", mails = 2)
             fun lists(session: String) = get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.map { it.jsonObject }
-            val shared = lists(admin).single().string("id")
-            put(port, "/api/v1/grocery/lists/$shared", """{"name":"Default","shared":true}""", admin).statusCode() shouldBe 200
+            val shared = createList(port, admin, shared = true)
             fun add(
                 session: String,
                 list: String,
@@ -584,7 +592,8 @@ class SakAppsTest {
             // for everyone, the list learned it; not on another user's own list (GROCERY-11)
             add(admin, shared, " milk ").string("photoId") shouldBe photo
             val latest = add(anna, shared, "Milk").also { it.string("photoId") shouldBe photo }.string("id")
-            val own = lists(anna).single { it.string("mine") == "true" }.string("id")
+            val own = createList(port, anna)
+            lists(anna).map { it.string("id") }.toSet() shouldBe setOf(shared, own)
             add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
 
             // taken away from an item, the next item of the name takes what the latest one has (GROCERY-12)
@@ -599,7 +608,7 @@ class SakAppsTest {
     fun `streams the changes of the grocery lists as server-sent events, a change carries only the id of its list`() {
         withServer { port ->
             val session = signIn(port)
-            val listId = get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            val listId = createList(port, session)
             get(port, "/api/v1/grocery/changes").statusCode() shouldBe 401
 
             // the answer comes at once, its lines as they are sent
@@ -622,9 +631,10 @@ class SakAppsTest {
     @Test
     fun `keeps grocery lists, their items by category and suggestions of what was added before`() {
         withServer { port ->
-            // the sign-in makes the first list, once
+            // the sign-in makes no list, the user creates the first one
             val session = signIn(port)
-            signIn(port, mails = 2)
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            createList(port, session)
             val listId =
                 get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.let {
                     it.string("name") shouldBe "Default"
@@ -634,7 +644,7 @@ class SakAppsTest {
                     it.string("id")
                 }
 
-            // the categories of the list of the sign-in, the default ones in the language of the sign-in
+            // a new list starts with the default categories in the language of the request
             val categories = get(port, "/api/v1/grocery/lists/$listId/categories", session).json().getValue("items").jsonArray.map { it.jsonObject }
             categories.first().let {
                 it.string("name") shouldBe "Fruit & vegetables"
@@ -712,16 +722,15 @@ class SakAppsTest {
                 it["categoryId"].toString() shouldBe "null"
             }
             get(port, "/api/v1/grocery/lists/0/categories", session).statusCode() shouldBe 404
-            // the only own list stays, with another one it goes
-            delete(port, "/api/v1/grocery/lists/$listId", session).let {
-                it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"grocery.last_list","message":"You can not delete your only list."}]}"""
-            }
             post(port, "/api/v1/grocery/lists", """{"name":"Party","shared":false,"icon":"🎉"}""", session).let {
                 it.statusCode() shouldBe 201
                 it.json().string("icon") shouldBe "🎉"
             }
             delete(port, "/api/v1/grocery/lists/$listId", session).statusCode() shouldBe 204
+            // the last own list goes too
+            val party = get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            delete(port, "/api/v1/grocery/lists/$party", session).statusCode() shouldBe 204
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
         }
     }
 
@@ -1596,8 +1605,8 @@ class SakAppsTest {
         withServer(single) { port ->
             val session = passwordLogin(port).json().string("sessionToken")
             post(port, "/api/v1/static-hosting", """{"name":"by-password"}""", session).statusCode() shouldBe 201
-            // the password login makes the first lists too
-            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.single().jsonObject.string("name") shouldBe "Default"
+            // the password login makes the list of the notes too, no grocery list
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
             post(port, "/api/v1/notes", """{"text":"by password"}""", session).statusCode() shouldBe 201
         }
         buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"

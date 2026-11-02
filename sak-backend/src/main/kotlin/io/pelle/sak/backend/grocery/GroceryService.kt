@@ -5,9 +5,7 @@ import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.render
-import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.model.grocery.GroceryCategory
 import io.pelle.sak.model.grocery.GroceryCategoryChange
@@ -125,7 +123,7 @@ sealed interface GroceryItemResult {
 class GroceryService(
     private val repository: GroceryRepository,
     private val changes: GroceryChanges = GroceryChanges(),
-) : LoginListener {
+) {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
@@ -133,13 +131,6 @@ class GroceryService(
 
     // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
     fun changes(user: String): Flow<Int> = changes.lists.filter { withContext(Dispatchers.IO) { repository.seesList(user, it) } }
-
-    // the first list of a user who has none (LIST-1), with the default categories in the language
-    // of the sign-in (GROCERY-13)
-    override fun signedIn(
-        owner: String,
-        language: Language,
-    ) = repository.ensureList(owner, DEFAULT_GROCERY_LIST, DefaultGroceryCategory.of(language))
 
     fun lists(user: String): List<GroceryList> = repository.lists(user)
 
@@ -178,7 +169,7 @@ class GroceryService(
         }
     }
 
-    // with its items, not the last list of the user's own (LIST-1)
+    // with its items, the last list of the user's own too (LIST-1)
     fun deleteList(
         user: String,
         id: Int,
@@ -516,5 +507,4 @@ object GroceryTexts : Catalog("grocery") {
     val LIST_EXISTS = text("list_exists")
     val ONLY_OWNER_SHARES = text("only_owner_shares")
     val OWNER_LIST_EXISTS = text("owner_list_exists")
-    val LAST_LIST = text("last_list")
 }

@@ -204,17 +204,15 @@ fun Route.grocery(
             when (withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }) {
                 GroceryListDelete.Deleted -> call.respond(HttpStatusCode.NoContent)
                 GroceryListDelete.NotFound -> call.respond(HttpStatusCode.NotFound)
-                GroceryListDelete.LastList -> call.respondErrors(GroceryTexts.LAST_LIST, status = HttpStatusCode.Conflict)
             }
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a grocery list"
-            description = "Its items go with it; only its owner deletes a list, but not their last own list."
+            description = "Its items go with it; only its owner deletes a list, their last one too."
             parameters { listId() }
             responses {
                 HttpStatusCode.NoContent { description = "The list is gone" }
                 HttpStatusCode.NotFound { description = "The user has no such list" }
-                errors(HttpStatusCode.Conflict, "The last list of the user's own")
             }
         }
 

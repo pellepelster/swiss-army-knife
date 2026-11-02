@@ -2,7 +2,6 @@ package io.pelle.sak.model.grocery
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.collections.shouldContain
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.jooq.tables.references.GROCERY_CATEGORIES
@@ -19,6 +18,8 @@ import java.time.ZoneOffset
 private const val PELLE = "pelle@pelle.io"
 
 private const val OTHER = "other@example.org"
+
+private const val DEFAULT_GROCERY_LIST = "Default"
 
 private fun values(
     name: String,
@@ -37,34 +38,27 @@ class GroceryRepositoryTest {
 
     private val repository by lazy { GroceryRepository(database, Clock.fixed(now, ZoneOffset.UTC)) }
 
-    // the list of the owner, the one they get when they sign in
-    private fun list(owner: String): Int {
-        repository.ensureList(owner, DEFAULT_GROCERY_LIST)
-        return repository.lists(owner).first { it.owner == owner }.id
-    }
+    // the first list of the owner, created when they have none
+    private fun list(owner: String): Int =
+        repository.lists(owner).firstOrNull { it.owner == owner }?.id
+            ?: repository.insertList(owner, DEFAULT_GROCERY_LIST, shared = false)!!.id
 
     @Test
-    fun `a user without a list gets one, private and only once, a user with a list gets none`() {
-        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST)
-        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST)
-        val weekly = repository.insertList(OTHER, "Weekly", shared = false)!!
-        repository.ensureList(OTHER, DEFAULT_GROCERY_LIST)
-
-        val default = repository.lists(PELLE).single()
+    fun `a new list is private or shared with its categories, its owner deletes it, the last one too`() {
+        repository.lists(PELLE) shouldBe emptyList()
+        val default = repository.insertList(PELLE, DEFAULT_GROCERY_LIST, shared = false, categories = listOf(GroceryCategoryValues("Bakery", "🥖")))!!
         default shouldBe GroceryList(default.id, PELLE, DEFAULT_GROCERY_LIST, false, now, null, items = 0)
-        repository.lists(OTHER) shouldBe listOf(weekly)
+        repository.lists(PELLE) shouldBe listOf(default)
+        repository.categories(PELLE, default.id)!!.map { it.name } shouldBe listOf("Bakery")
         val milk = repository.insertItem(PELLE, default.id, values("Milk", "2", "l"))!!
         repository.items(PELLE, default.id)!!.map { it.name } shouldBe listOf("Milk")
         milk.amount!!.compareTo(BigDecimal("2")) shouldBe 0
 
-        // the last own list stays, with another one it goes; a shared list of another user does not count
-        repository.insertList(OTHER, "Party", shared = true)
-        repository.deleteList(PELLE, default.id) shouldBe GroceryListDelete.LastList
-        repository.lists(PELLE).map { it.id } shouldContain default.id
-        val second = repository.insertList(PELLE, "Weekly", shared = false)!!
+        // the last own list goes too, the user then has none
+        repository.deleteList(OTHER, default.id) shouldBe GroceryListDelete.NotFound
         repository.deleteList(PELLE, default.id) shouldBe GroceryListDelete.Deleted
         repository.deleteList(PELLE, default.id) shouldBe GroceryListDelete.NotFound
-        repository.deleteList(PELLE, second.id) shouldBe GroceryListDelete.LastList
+        repository.lists(PELLE) shouldBe emptyList()
     }
 
     @Test
@@ -277,8 +271,6 @@ class GroceryRepositoryTest {
 
     @Test
     fun `what a shared list learned is seen and forgotten by everyone who sees it, it stays with the list, a deleted list takes it`() {
-        // not the last list of its owner, it can be deleted
-        list(PELLE)
         val party = repository.insertList(PELLE, "Party", shared = true)!!.id
         repository.insertItem(OTHER, party, values("Chips")).let { repository.checkItem(OTHER, it!!.id) }
         repository.insertItem(PELLE, party, values("Dip")).let { repository.checkItem(PELLE, it!!.id) }
@@ -379,13 +371,6 @@ class GroceryRepositoryTest {
         // a deleted list takes them along
         repository.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
         database.dsl.fetchCount(GROCERY_CATEGORIES, GROCERY_CATEGORIES.LIST_ID.eq(party), GROCERY_CATEGORIES.DELETED_AT.isNull) shouldBe 0
-    }
-
-    @Test
-    fun `the list of the sign-in gets the categories, once`() {
-        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST, listOf(GroceryCategoryValues("Bakery", "🥖")))
-        repository.ensureList(PELLE, DEFAULT_GROCERY_LIST, listOf(GroceryCategoryValues("Other", null)))
-        repository.categories(PELLE, repository.lists(PELLE).single().id)!!.map { it.name } shouldBe listOf("Bakery")
     }
 
     @Test

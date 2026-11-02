@@ -38,7 +38,7 @@ class NoteServiceTest {
 
     private val files by lazy { FileService(database, tempDir.resolve("files"), clock) }
 
-    // both users signed in once, so they have their list (LIST-1)
+    // both users signed in once, so they have their list (NOTES-1)
     private val service by lazy { NoteService(database, labels, files, clock).also { listOf(PELLE, OTHER).forEach { user -> it.signedIn(user, Language.EN) } } }
 
     private fun photo(content: String) =

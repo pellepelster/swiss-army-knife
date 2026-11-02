@@ -5,7 +5,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.grocery.DEFAULT_GROCERY_LIST
 import io.pelle.sak.model.grocery.GroceryListDelete
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -41,11 +40,10 @@ class GroceryServiceTest {
         input: GroceryItemInput,
     ) = (service.addItem(user, listId, input) as GroceryItemResult.Saved).item
 
-    // the list of the user, the one they get when they sign in
-    private fun list(user: String): Int {
-        service.signedIn(user, Language.EN)
-        return service.lists(user).first { it.owner == user }.id
-    }
+    // the first list of the user, created with the default categories in english when they have none
+    private fun list(user: String): Int =
+        service.lists(user).firstOrNull { it.owner == user }?.id
+            ?: (service.createList(user, "Default", shared = false, language = Language.EN) as GroceryListResult.Saved).list.id
 
     // the id of the category of the name on the list
     private fun category(
@@ -238,20 +236,12 @@ class GroceryServiceTest {
     }
 
     @Test
-    fun `the list of the sign-in is a list like the others`() {
-        service.signedIn(PELLE, Language.EN)
-        val default = service.lists(PELLE).single()
-        default.name shouldBe DEFAULT_GROCERY_LIST
-        service.signedIn(PELLE, Language.EN)
-        service.lists(PELLE) shouldBe listOf(default)
-
-        (service.updateList(PELLE, default.id, "Weekly", shared = true) as GroceryListResult.Saved).list.shared shouldBe true
-        // the only own list stays
-        service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.LastList
-        val party = (service.createList(PELLE, "Party", shared = false) as GroceryListResult.Saved).list
-        service.deleteList(PELLE, default.id) shouldBe GroceryListDelete.Deleted
-        service.signedIn(PELLE, Language.EN)
-        service.lists(PELLE) shouldBe listOf(party)
+    fun `a user starts without lists, a new list has the default categories, the last one is deleted too`() {
+        service.lists(PELLE) shouldBe emptyList()
+        val weekly = (service.createList(PELLE, "Weekly", shared = false, language = Language.EN) as GroceryListResult.Saved).list
+        service.categories(PELLE, weekly.id)!!.map { it.name } shouldBe DefaultGroceryCategory.of(Language.EN).map { it.name }
+        service.deleteList(PELLE, weekly.id) shouldBe GroceryListDelete.Deleted
+        service.lists(PELLE) shouldBe emptyList()
     }
 
     @Test

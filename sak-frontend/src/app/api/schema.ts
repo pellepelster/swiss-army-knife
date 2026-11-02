@@ -1694,7 +1694,7 @@ export interface paths {
     post?: never;
     /**
      * Delete a grocery list
-     * @description Its items go with it; only its owner deletes a list, but not their last own list.
+     * @description Its items go with it; only its owner deletes a list, their last one too.
      */
     delete: {
       parameters: {
@@ -1721,15 +1721,6 @@ export interface paths {
             [name: string]: unknown;
           };
           content?: never;
-        };
-        /** @description The last list of the user's own */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ApiErrorResponse'];
-          };
         };
       };
     };

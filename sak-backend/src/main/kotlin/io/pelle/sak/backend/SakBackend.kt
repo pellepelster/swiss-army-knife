@@ -88,8 +88,8 @@ class SakServices(
     // the users an admin added, the role user
     val userService: UserService,
 ) {
-    // the apps that prepare the data of a user who signs in, e.g. their first list (SHARED-5)
-    val loginListeners: List<LoginListener> get() = listOf(noteService, groceryService)
+    // the apps that prepare the data of a user who signs in, e.g. the list of their notes (NOTES-1)
+    val loginListeners: List<LoginListener> get() = listOf(noteService)
 }
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the

@@ -137,7 +137,7 @@ fun Application.apps(
             else -> emptySet()
         }
     }
-    // every app that prepares the data of a user who signs in (SHARED-5)
+    // every app that prepares the data of a user who signs in, e.g. the list of the notes (NOTES-1)
     val onLogin = LoginListener { owner, language -> loginListeners.forEach { it.signedIn(owner, language) } }
 
     install(Authentication) {

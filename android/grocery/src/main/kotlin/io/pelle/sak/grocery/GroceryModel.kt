@@ -330,8 +330,7 @@ class GroceryModel(
     fun openSettings(id: Int) {
         val lists = state.value as? ListsScreen ?: return
         val list = lists.lists.firstOrNull { it.id == id } ?: return
-        val last = list.mine && lists.lists.count { it.mine } == 1
-        state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, last, mine = list.mine))
+        state.value = lists.copy(settings = ListSettings(list.id, list.name, list.shared, list.icon, mine = list.mine))
         loadCategories(id)
     }
 
@@ -568,7 +567,7 @@ class GroceryModel(
         val lists = state.value as? ListsScreen ?: return
         val settings = lists.settings ?: return
         val id = settings.id ?: return
-        if (settings.busy || settings.last || !settings.mine) return
+        if (settings.busy || !settings.mine) return
         state.value = lists.copy(settings = settings.copy(busy = true, error = null))
         settingsRequest(settings, R.string.grocery_form_not_deleted) { api ->
             api.deleteList(id)
@@ -640,10 +639,10 @@ class GroceryModel(
     fun viewPhoto(item: GroceryItemResponse?) = lists { it.copy(viewing = item) }
 
     // a list of the user's own from the menu of its row on the home, after the user confirmed it
-    // (UX-12); not the last one (LIST-1). A failure shows on the home
+    // (UX-12), the last one too (LIST-1). A failure shows on the home
     fun deleteList(id: Int) {
         val lists = state.value as? ListsScreen ?: return
-        if (lists.lists.none { it.id == id && it.mine } || lists.lists.count { it.mine } == 1) return
+        if (lists.lists.none { it.id == id && it.mine }) return
         scope.launch {
             request(R.string.grocery_form_not_deleted, { error -> lists { it.copy(error = error) } }) { it.deleteList(id) } ?: return@launch
             lists { it.copy(lists = it.lists.filter { list -> list.id != id }) }
