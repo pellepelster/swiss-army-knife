@@ -1,10 +1,5 @@
 package io.pelle.sak.model
 
-import liquibase.command.CommandScope
-import liquibase.command.core.UpdateCommandStep
-import liquibase.command.core.helpers.DbUrlConnectionArgumentsCommandStep
-import liquibase.database.DatabaseFactory
-import liquibase.database.jvm.JdbcConnection
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
 import org.jooq.conf.RenderNameCase
@@ -26,13 +21,7 @@ class SakDatabase private constructor(
     internal val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE, Settings().withRenderNameCase(RenderNameCase.LOWER))
 
     private fun migrate() {
-        dataSource.connection.use { connection ->
-            val database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(JdbcConnection(connection))
-            CommandScope(*UpdateCommandStep.COMMAND_NAME)
-                .addArgumentValue(DbUrlConnectionArgumentsCommandStep.DATABASE_ARG, database)
-                .addArgumentValue(UpdateCommandStep.CHANGELOG_FILE_ARG, CHANGELOG)
-                .execute()
-        }
+        dataSource.connection.use { migrateIsolated(it, CHANGELOG) }
     }
 
     companion object {

@@ -16,7 +16,7 @@ Volume={{ backend_config_file }}:/etc/sak/config.yaml:ro
 Volume={{ backend_data_path }}:{{ backend_data_path }}
 # the image's /data volume is not used, the data lives in the mounted backend_data_path
 PodmanArgs=--image-volume=ignore
-# the jvm takes at most 192 MB of heap and peaks at about 450 MB, the limit keeps caddy and the
+# the jvm takes at most 192 MB of heap and peaks at about 400 MB, the limit keeps caddy and the
 # logs safe from the backend
 PodmanArgs=--memory=640m
 ReadOnly=true

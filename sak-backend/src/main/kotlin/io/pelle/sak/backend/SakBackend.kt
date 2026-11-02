@@ -56,6 +56,9 @@ fun Application.module() {
     logger.info { "starting sak-backend on port $port with data dir ${config.dataDir}" }
 
     val services = sak(config)
+    // unloads liquibase, which only migrated the database (migrateIsolated in sak-model); the serial
+    // gc would do a full gc only when the old generation is full
+    System.gc()
 
     val reconciler =
         CaddyReconciler(CaddyManager(config.caddyAdminUrl), config = {

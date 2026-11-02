@@ -34,13 +34,14 @@ fake of OpenRouter. The load: 500 api requests, 80 uploads of 2048 × 1536 px jp
 (16 kHz mono), the thumbnails of the 80 photos with 64 requests at the same time, the 6 waveforms, the 6
 transcriptions and 6 text recognitions at the same time.
 
-| | Before | After MR-1 to MR-3 | With the JVM options of MR-4 |
-|---|---|---|---|
-| RSS idle after the start | 319 MB | 329 MB | 305 MB |
-| Largest RSS | 1414 MB | 610 MB | 428 MB |
-| RSS 15 s after the load | 1413 MB | 575 MB | 423 MB |
-| Largest heap after a GC | 746 MB | 253 MB | 118 MB |
-| Heap committed | 1024 MB | 309 MB | 176 MB |
+| | Before | After MR-1 to MR-3 | With MR-4 | With MR-8 to MR-10 |
+|---|---|---|---|---|
+| RSS idle after the start | 319 MB | 329 MB | 305 MB | 261 MB |
+| Largest RSS | 1414 MB | 610 MB | 428 MB | 377 MB |
+| RSS 15 s after the load | 1413 MB | 575 MB | 423 MB | 310 MB |
+| RSS after a full GC | 649 MB | 388 MB | 423 MB | 273 MB |
+| Heap committed at the end | 1024 MB | 309 MB | 176 MB | 104 MB |
+| Metaspace / compiled code | 78 / 28 MB | 78 / 27 MB | 72 / 27 MB | 61 / 16 MB |
 
 With every heap from 96 MB to 256 MB (G1 and serial) the load ran without an `OutOfMemoryError`; at 96 MB the
 thumbnails took 2.9 s instead of 1.7 s. The JVM, without the heap, takes approximately 200 MB (metaspace 73 MB).
@@ -117,7 +118,36 @@ Fix (in `applicationDefaultJvmArgs` of `sak-backend/build.gradle.kts`, measured 
 - `MemoryMax=` (`[Service]`) or `PodmanArgs=--memory=` in `sak-backend.container.j2`, so the backend can not take the
   memory of the other services.
 
+### ~~`MR-8` The heap stays at its peak~~
+
+**Fixed:** `-XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30`. The live heap is 26 MB at idle and 34 MB after the
+load, but the serial gc kept 177 MB committed. Now a full gc gives the free heap back.
+
+### ~~`MR-9` Liquibase stays loaded after the migration~~
+
+**Fixed:** `migrateIsolated` (`sak-model`) runs Liquibase in a class loader of its own, on a thread of its own, and
+flushes the caches of `java.beans` (`ClassInfo.CACHE` kept its classes through soft references). The backend does one
+full gc after its start: 1199 classes (Liquibase, snakeyaml) are unloaded, 11 MB of metaspace.
+
+### ~~`MR-10` The compiled code is large for one household~~
+
+**Fixed:** `-XX:TieredStopAtLevel=1`, the client compiler only: 16 MB instead of 27 MB of code, the load took as long.
+
 ## Could fix
+
+### `MR-11` `kotlin-reflect` is loaded with the first response
+
+Ktor gets the type of a response with `typeOf`; with `kotlin-reflect` on the classpath this loads 1080 classes
+(approximately 13 MB of metaspace). `ktor-server-core` and `jackson-module-kotlin` (`sak-s3`) depend on it.
+
+Fix: try the backend without `kotlin-reflect` (an `exclude` of the dependency), with all tests and the e2e tests.
+
+### `MR-12` Two generations of Jackson are loaded
+
+Jackson 3 (`sak-s3`, the XML of the S3 api) and Jackson 2 (`java-jwt`) are loaded both, approximately 1000 classes.
+
+Fix: write the few XML messages of the S3 api with kotlinx or by hand, and drop Jackson 3 and
+`jackson-module-kotlin`.
 
 ### `MR-5` An S3 listing walks the whole bucket for each page
 

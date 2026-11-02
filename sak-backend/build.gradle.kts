@@ -38,14 +38,18 @@ dependencies {
 
 application {
     mainClass = "io.pelle.sak.backend.SakBackendKt"
-    // measured under load (docs/development/reviews/memory-review.md, MR-4): about 100 MB of live heap at the
-    // peak, the serial gc fits one household; an OutOfMemoryError ends the backend, systemd starts it again
+    // measured under load (docs/development/reviews/memory-review.md, MR-4, MR-8, MR-10): about 100 MB of live
+    // heap at the peak, the serial gc fits one household and gives the heap back at a full gc; the client
+    // compiler only, its code is half as large; an OutOfMemoryError ends the backend, systemd starts it again
     applicationDefaultJvmArgs =
         listOf(
             "--enable-native-access=ALL-UNNAMED",
             "-XX:+UseSerialGC",
             "-XX:+UseCompactObjectHeaders",
             "-Xmx192m",
+            "-XX:MinHeapFreeRatio=10",
+            "-XX:MaxHeapFreeRatio=30",
+            "-XX:TieredStopAtLevel=1",
             "-XX:MaxDirectMemorySize=64m",
             "-XX:+ExitOnOutOfMemoryError",
         )
