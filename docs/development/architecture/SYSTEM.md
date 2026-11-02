@@ -254,11 +254,6 @@ The backend serves apps to its users, for example static hosting and notes. How 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
 - `SECURITY-2` **The ssh key must never be written to disk.**
-- `SECURITY-3` **Secrets that are not derived.** The backend creates some secrets at run time and keeps them in its
-  database: the signing key of the login (a setting) and the secret key of each bucket. They are not derived from the
-  password, so changing the password does not change them. The user also supplies some credentials: the token of the
-  cloud provider, given to sakctl for each run and never stored by it, and the mail server credentials, which sakctl
-  writes to the server's environment for the backend.
 
 ## Tests
 

@@ -62,7 +62,9 @@ recordings (`OpenRouterSpeechTranscriber`, `NOTES-5`).
 
 Fix: "The client of the AI provider: the text in images and recordings (text discovery)".
 
-### `RR-5` `SECURITY-3` leaves out the API key of OpenRouter
+### ~~`RR-5` `SECURITY-3` leaves out the API key of OpenRouter~~
+
+**Fixed:** `SECURITY-3` went.
 
 `SECURITY-3` lists the credentials the user supplies: the token of the cloud provider and the mail server. The API key
 of OpenRouter is one too; an admin enters it in the settings, and the backend keeps it in its database.
