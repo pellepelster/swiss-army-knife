@@ -60,7 +60,7 @@ import { PageHeader } from '../shared/page-header';
             } @else {
               <i class="sak-icon-plus" aria-hidden="true"></i>
             }
-            {{ 'shared.create' | t }}
+            {{ 'hosting.create_page.title' | t }}
           </button>
         </div>
       </div>

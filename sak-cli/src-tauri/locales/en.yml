@@ -271,19 +271,19 @@ ui:
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
-    add: "Add"
+    add: "Add token"
   select:
     title: "Select the provider"
   token:
     label: "API token"
-    add: "Add"
+    add: "Add token"
     checking: "Checking the token, an ssh key is created and deleted again…"
   cancel: "Cancel"
   next: "Next"
   back: "Back"
   deployments:
     title: "Deployments"
-    create: "Create"
+    create: "Create deployment"
     loading: "Looking for deployments at the providers…"
     address: "Address"
   deployment:
@@ -337,7 +337,7 @@ ui:
     source_none: "Nothing is known of the settings of the deployment. It did not answer: %{error}"
     title_destroy: "Destroy the deployment"
     password_hint_destroy: "The password the deployment was created with; everything but its data volume is deleted."
-    title: "New deployment"
+    title: "Create deployment"
     name: "Name"
     name_hint: "Lower case letters, digits and dashes; the name of every resource of the deployment."
     password: "Password"

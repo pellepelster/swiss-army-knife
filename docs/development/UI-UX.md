@@ -19,10 +19,16 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-1` **One look.** All apps use the same theme, its colors, fonts and status lights. They follow the light or dark
   mode of the system and have no switch of their own.
 - `UX-2` **Only the main create action has a plus.** A page has at most one button with the plus sign of the theme: the
-  one that creates what the page is about (a note, a bucket, a redirect, a domain), labelled "Create" or "Add" with the
-  plus; its tooltip names what it creates, the page it leads to has the full name as its title. Other add actions show only what
-  they add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they do. A
-  small inline link to add something (`+ label`) may start with a plus in its text.
+  one that creates what the page is about (a note, a static hosting, a redirect, a list). Other add actions show only
+  what they add, as its icon (a photo, a recording, an item of a grocery list); their label and tooltip say what they
+  do. A small inline link to add something (`+ label`) may start with a plus in its text.
+  - `UX-2.1` **Create or Add.** "Create" makes something new that has a page or screen of its own (a list, a note, a
+    static hosting, a redirect, a user, a deployment); "Add" puts something into what the page shows (an item or a
+    category into a list, a domain into a static hosting, a photo or a label into a note, a token into the settings).
+  - `UX-2.2` **The verb with its noun, the same everywhere.** The label is the verb with what it makes ("Create list",
+    "Liste erstellen"; "Add category"), and the same text is its tooltip, the title of the page or screen it leads to
+    and the label of the button that ends it.
+  - `UX-2.3` **No "New".** No action says "New …"; "new" only names a thing being made (e.g. "the new note").
 - `UX-3` **Destructive is red.** A button that destroys or deletes something has the danger color. The button
   that does it is red; a toolbar button that only leads to it is outlined red. No other button is red.
 - `UX-4` **Two ways to delete data.** An action that deletes something that holds data or configuration the

@@ -75,6 +75,8 @@ export function showPlan(plan, deployment, onCancel) {
   document.getElementById('plan-name').textContent = plan.name;
   document.getElementById('plan-intro').textContent = intentText('common.plan.intro', deployment.intent);
   planList.replaceChildren(...plan.resources.map(row));
+  // a new deployment ends with the label it started with (UX-2.2)
+  deployButton.textContent = text(deployment.intent === 'create' ? 'ui.deployments.create' : 'ui.plan.deploy_changes');
   // deploy changes only when there is something to change; the button stays, disabled
   deployButton.disabled = plan.resources.every((resource) => resource.resourceStatus === 'up_to_date');
   setStatus(planStatus, '');

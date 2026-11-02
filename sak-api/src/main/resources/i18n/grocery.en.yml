@@ -2,7 +2,6 @@
 all_lists: "All lists"
 lists_not_loaded: "The lists could not be loaded."
 lists:
-  add: "Add list"
   to_buy_none: "No items to buy"
 form:
   create: "Create list"

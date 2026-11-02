@@ -19,8 +19,8 @@ import { PageHeader } from '../shared/page-header';
   template: `
     <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.title' | t }}</h1>
-      <a class="btn btn-primary" routerLink="/users/create" [title]="'users.add_user' | t">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.add' | t }}
+      <a class="btn btn-primary" routerLink="/users/create" [title]="'users.create_user' | t">
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'users.create_user' | t }}
       </a>
     </header>
 

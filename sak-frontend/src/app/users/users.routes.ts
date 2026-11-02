@@ -10,6 +10,6 @@ export const usersRoute: Route = {
   canActivate: [authGuard],
   children: [
     { path: '', component: UserList, title: pageTitle('users.title') },
-    { path: 'create', component: UserCreate, title: pageTitle('users.add_title') },
+    { path: 'create', component: UserCreate, title: pageTitle('users.create_title') },
   ],
 };

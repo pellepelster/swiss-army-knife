@@ -416,7 +416,7 @@ private fun HomeScreen(
         screen.deployment,
         actions = {
             IconButton(onClick = model::newList, modifier = Modifier.testTag("new-list")) {
-                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.grocery_lists_add))
+                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.grocery_form_create))
             }
             Menu(screen, model, home = true)
         },
@@ -609,7 +609,7 @@ private fun ListSettingsScreen(
     val canSave = settings.name.isNotBlank() && !settings.busy
     val edit = { name: String, shared: Boolean, icon: String? -> model.editSettings(name, shared, icon) }
     Page(
-        stringResource(if (settings.id == null) R.string.grocery_new_list else R.string.shared_settings),
+        stringResource(if (settings.id == null) R.string.grocery_form_create else R.string.shared_settings),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))

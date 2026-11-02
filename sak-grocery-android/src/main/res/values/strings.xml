@@ -55,7 +55,6 @@
     <string name="update_not_installed_because">The update was not installed: %1$s</string>
     <string name="grocery_all_lists">All lists</string>
     <string name="grocery_lists_not_loaded">The lists could not be loaded.</string>
-    <string name="grocery_lists_add">Add list</string>
     <string name="grocery_lists_to_buy_none">No items to buy</string>
     <string name="grocery_form_create">Create list</string>
     <string name="grocery_form_no_icon">No icon</string>
@@ -90,7 +89,6 @@
     <string name="grocery_shared">Shared with all users</string>
     <string name="grocery_shared_badge">Shared</string>
     <string name="grocery_settings_of">Settings of %1$s</string>
-    <string name="grocery_new_list">New list</string>
     <string name="grocery_saving">Saving…</string>
     <string name="grocery_nothing_to_buy">Nothing to buy.</string>
     <string name="grocery_bought">%1$s bought</string>

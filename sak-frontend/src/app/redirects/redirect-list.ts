@@ -26,7 +26,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
     <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.redirects' | t }}</h1>
       <a class="btn btn-primary" routerLink="/redirects/create" [title]="'redirects.create' | t">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.create' | t }}
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'redirects.create' | t }}
       </a>
     </header>
 

@@ -62,9 +62,9 @@ export const CATALOG = {
     users: {
       invalid_email: 'An e-mail address like name@example.org is needed.',
       title: 'Users',
-      add_title: 'Add user · Users',
+      create_title: 'Create user · Users',
       all_users: 'All users',
-      add_user: 'Add user',
+      create_user: 'Create user',
       intro: 'The admins come from the configuration of the deployment. A user signs in with a link by e-mail and uses the notes and the grocery lists.',
       column: {
         email: 'E-mail',
@@ -136,7 +136,6 @@ export const CATALOG = {
       all_lists: 'All lists',
       lists_not_loaded: 'The lists could not be loaded.',
       lists: {
-        add: 'Add list',
         to_buy_none: 'No items to buy',
         label: 'Grocery lists',
         empty: 'You have no list yet, add one first.',
@@ -356,10 +355,10 @@ export const CATALOG = {
     },
     notes: {
       page: {
-        new_notes: 'New notes',
-        new_with_photo: 'New note with a photo',
-        new_with_recording: 'New note with a recording',
-        new_note: 'New note',
+        create_notes: 'Create notes',
+        create_with_photo: 'Create note with a photo',
+        create_with_recording: 'Create note with a recording',
+        create_note: 'Create note',
         filter: 'Filter by label',
         all: 'All',
         none_labelled: 'No note is labelled #%{label}.',
@@ -553,9 +552,9 @@ export const CATALOG = {
     users: {
       invalid_email: 'Eine E-Mail-Adresse wie name@example.org ist nötig.',
       title: 'Benutzer',
-      add_title: 'Benutzer hinzufügen · Benutzer',
+      create_title: 'Benutzer erstellen · Benutzer',
       all_users: 'Alle Benutzer',
-      add_user: 'Benutzer hinzufügen',
+      create_user: 'Benutzer erstellen',
       intro: 'Die Admins kommen aus der Konfiguration des Deployments. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten.',
       column: {
         email: 'E-Mail',
@@ -627,7 +626,6 @@ export const CATALOG = {
       all_lists: 'Alle Listen',
       lists_not_loaded: 'Die Listen konnten nicht geladen werden.',
       lists: {
-        add: 'Liste hinzufügen',
         to_buy_none: 'Keine Artikel zu kaufen',
         label: 'Einkaufslisten',
         empty: 'Du hast noch keine Liste, füge zuerst eine hinzu.',
@@ -847,10 +845,10 @@ export const CATALOG = {
     },
     notes: {
       page: {
-        new_notes: 'Neue Notizen',
-        new_with_photo: 'Neue Notiz mit einem Foto',
-        new_with_recording: 'Neue Notiz mit einer Aufnahme',
-        new_note: 'Neue Notiz',
+        create_notes: 'Notizen erstellen',
+        create_with_photo: 'Notiz mit einem Foto erstellen',
+        create_with_recording: 'Notiz mit einer Aufnahme erstellen',
+        create_note: 'Notiz erstellen',
         filter: 'Nach Label filtern',
         all: 'Alle',
         none_labelled: 'Keine Notiz hat das Label #%{label}.',

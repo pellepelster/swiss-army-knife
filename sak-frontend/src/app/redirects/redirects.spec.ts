@@ -57,7 +57,7 @@ describe('Redirects', () => {
     expect(external.querySelector('[data-testid=location]')).toBeNull();
     const bucket = page().querySelector('[data-testid="redirect-example.de"]')!;
     expect(bucket.querySelector('.target a')?.getAttribute('href')).toBe('/static-hosting/site');
-    expect(button('Create').getAttribute('href')).toBe('/redirects/create');
+    expect(button('Create redirect').getAttribute('href')).toBe('/redirects/create');
     expect(button('example.com').getAttribute('href')).toBe('/redirects/example.com');
   });
 
@@ -269,15 +269,15 @@ describe('Redirects', () => {
     const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
     expect(
       [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
-    ).toEqual(['Cancel', 'Create']);
+    ).toEqual(['Cancel', 'Create redirect']);
     http.expectOne('/api/v1/static-hosting?offset=0&limit=100').flush(pageOf([]));
     expect(page().querySelector('[role=dialog]')).toBeNull();
 
     await type('#source-domain', 'example.com');
-    expect(button('Create').disabled).toBe(true);
+    expect(button('Create redirect').disabled).toBe(true);
     await type('#target-domain-name', 'example.org');
-    expect(button('Create').disabled).toBe(false);
-    button('Create').click();
+    expect(button('Create redirect').disabled).toBe(false);
+    button('Create redirect').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/redirects' });
     expect(request.request.body).toEqual({
@@ -309,7 +309,7 @@ describe('Redirects', () => {
 
     await type('#source-domain', 'example.de');
     await type('#target-bucket-name', 'site');
-    button('Create').click();
+    button('Create redirect').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/redirects' });
     expect(request.request.body).toEqual({

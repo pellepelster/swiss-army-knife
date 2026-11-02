@@ -75,7 +75,7 @@ describe('NotesPage', () => {
   });
 
   it('adds a note on top, ready to be written on', async () => {
-    button('New note').click();
+    button('Create note').click();
     http
       .expectOne({ method: 'POST', url: '/api/v1/notes' })
       .flush(noteResponse(4, '', 'yellow', []));
@@ -110,7 +110,7 @@ describe('NotesPage', () => {
     expect(texts()).toEqual(['Buy milk']);
 
     // a note added while filtering gets the label and stays in sight
-    button('New note').click();
+    button('Create note').click();
     const created = http.expectOne({ method: 'POST', url: '/api/v1/notes' });
     expect(created.request.body.labels).toEqual(['groceries']);
     created.flush(noteResponse(4, '', 'yellow', ['groceries']));
@@ -351,7 +351,7 @@ describe('NotesPage', () => {
   });
 
   it('records a new note until escape stops it', async () => {
-    button('New note with a recording').click();
+    button('Create note with a recording').click();
     await fixture.whenStable();
     expect(overlay()?.textContent).toContain('the new note');
 
@@ -370,7 +370,7 @@ describe('NotesPage', () => {
   it('stops a recording while the microphone is set up, nothing is kept', async () => {
     const recorder = TestBed.inject(AudioRecorder) as unknown as FakeRecorder;
     recorder.slowStart = true;
-    button('New note with a recording').click();
+    button('Create note with a recording').click();
     await fixture.whenStable();
     expect(overlay()?.textContent).toContain('Starting…');
 

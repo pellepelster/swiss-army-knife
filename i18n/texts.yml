@@ -284,9 +284,9 @@ web:
       de: "Deine Rolle erlaubt nicht, die Einstellungen zu ändern."
   users:
     title: { en: "Users", de: "Benutzer" }
-    add_title: { en: "Add user · Users", de: "Benutzer hinzufügen · Benutzer" }
+    create_title: { en: "Create user · Users", de: "Benutzer erstellen · Benutzer" }
     all_users: { en: "All users", de: "Alle Benutzer" }
-    add_user: { en: "Add user", de: "Benutzer hinzufügen" }
+    create_user: { en: "Create user", de: "Benutzer erstellen" }
     intro:
       en: "The admins come from the configuration of the deployment. A user signs in with a link by e-mail and uses the notes and the grocery lists."
       de: "Die Admins kommen aus der Konfiguration des Deployments. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten."
@@ -954,12 +954,12 @@ ctl:
       empty:
         en: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
         de: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."
-      add: { en: "Add", de: "Hinzufügen" }
+      add: { en: "Add token", de: "Token hinzufügen" }
     select:
       title: { en: "Select the provider", de: "Wähle den Provider" }
     token:
       label: { en: "API token", de: "API-Token" }
-      add: { en: "Add", de: "Hinzufügen" }
+      add: { en: "Add token", de: "Token hinzufügen" }
       checking:
         en: "Checking the token, an ssh key is created and deleted again…"
         de: "Prüfe das Token, ein SSH-Key wird erstellt und wieder gelöscht…"
@@ -968,7 +968,7 @@ ctl:
     back: { en: "Back", de: "Zurück" }
     deployments:
       title: { en: "Deployments", de: "Deployments" }
-      create: { en: "Create", de: "Erstellen" }
+      create: { en: "Create deployment", de: "Deployment erstellen" }
       loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
       address: { en: "Address", de: "Adresse" }
     deployment:
@@ -1048,7 +1048,7 @@ ctl:
       password_hint_destroy:
         en: "The password the deployment was created with; everything but its data volume is deleted."
         de: "Das Passwort, mit dem das Deployment erstellt wurde; alles außer seinem Datenvolume wird gelöscht."
-      title: { en: "New deployment", de: "Neues Deployment" }
+      title: { en: "Create deployment", de: "Deployment erstellen" }
       name: { en: "Name", de: "Name" }
       name_hint:
         en: "Lower case letters, digits and dashes; the name of every resource of the deployment."
@@ -1167,7 +1167,6 @@ grocery:
     all_lists: { en: "All lists", de: "Alle Listen" }
     lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
     lists:
-      add: { en: "Add list", de: "Liste hinzufügen" }
       to_buy_none: { en: "No items to buy", de: "Keine Artikel zu kaufen" }
     form:
       create: { en: "Create list", de: "Liste erstellen" }
@@ -1322,7 +1321,6 @@ grocery:
     shared: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
     shared_badge: { en: "Shared", de: "Geteilt" }
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
-    new_list: { en: "New list", de: "Neue Liste" }
     saving: { en: "Saving…", de: "Wird gespeichert…" }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
     bought: { en: "%{item} bought", de: "%{item} gekauft" }
@@ -1569,10 +1567,10 @@ notes:
       description: { en: "The settings of the notes.", de: "Die Einstellungen der Notizen." }
   web:
     page:
-      new_notes: { en: "New notes", de: "Neue Notizen" }
-      new_with_photo: { en: "New note with a photo", de: "Neue Notiz mit einem Foto" }
-      new_with_recording: { en: "New note with a recording", de: "Neue Notiz mit einer Aufnahme" }
-      new_note: { en: "New note", de: "Neue Notiz" }
+      create_notes: { en: "Create notes", de: "Notizen erstellen" }
+      create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }
+      create_with_recording: { en: "Create note with a recording", de: "Notiz mit einer Aufnahme erstellen" }
+      create_note: { en: "Create note", de: "Notiz erstellen" }
       filter: { en: "Filter by label", de: "Nach Label filtern" }
       all: { en: "All", de: "Alle" }
       none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }

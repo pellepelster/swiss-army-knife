@@ -45,13 +45,13 @@ import { PageHeader } from '../shared/page-header';
       <div
         class="btn-group d-none d-md-inline-flex"
         role="group"
-        [attr.aria-label]="'notes.page.new_notes' | t"
+        [attr.aria-label]="'notes.page.create_notes' | t"
       >
         <button
           type="button"
           class="btn btn-outline-secondary"
-          [attr.aria-label]="'notes.page.new_with_photo' | t"
-          [title]="'notes.page.new_with_photo' | t"
+          [attr.aria-label]="'notes.page.create_with_photo' | t"
+          [title]="'notes.page.create_with_photo' | t"
           [disabled]="addingPhoto()"
           (click)="camera.click()"
         >
@@ -64,8 +64,8 @@ import { PageHeader } from '../shared/page-header';
         <button
           type="button"
           class="btn btn-outline-secondary"
-          [attr.aria-label]="'notes.page.new_with_recording' | t"
-          [title]="'notes.page.new_with_recording' | t"
+          [attr.aria-label]="'notes.page.create_with_recording' | t"
+          [title]="'notes.page.create_with_recording' | t"
           [disabled]="store.recordingFor() !== null"
           (click)="record()"
         >
@@ -74,8 +74,8 @@ import { PageHeader } from '../shared/page-header';
         <button
           type="button"
           class="btn btn-primary"
-          [attr.aria-label]="'notes.page.new_note' | t"
-          [title]="'notes.page.new_note' | t"
+          [attr.aria-label]="'notes.page.create_note' | t"
+          [title]="'notes.page.create_note' | t"
           (click)="add()"
         >
           <i class="sak-icon-plus" aria-hidden="true"></i>
@@ -152,8 +152,8 @@ import { PageHeader } from '../shared/page-header';
       <button
         type="button"
         class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        [attr.aria-label]="'notes.page.new_with_photo' | t"
-        [title]="'notes.page.new_with_photo' | t"
+        [attr.aria-label]="'notes.page.create_with_photo' | t"
+        [title]="'notes.page.create_with_photo' | t"
         [disabled]="addingPhoto()"
         (click)="camera.click()"
       >
@@ -166,8 +166,8 @@ import { PageHeader } from '../shared/page-header';
       <button
         type="button"
         class="note-fab-small btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0"
-        [attr.aria-label]="'notes.page.new_with_recording' | t"
-        [title]="'notes.page.new_with_recording' | t"
+        [attr.aria-label]="'notes.page.create_with_recording' | t"
+        [title]="'notes.page.create_with_recording' | t"
         [disabled]="store.recordingFor() !== null"
         (click)="record()"
       >
@@ -176,8 +176,8 @@ import { PageHeader } from '../shared/page-header';
       <button
         type="button"
         class="note-fab btn btn-primary rounded-circle shadow d-inline-flex align-items-center justify-content-center p-0 fs-4"
-        [attr.aria-label]="'notes.page.new_note' | t"
-        [title]="'notes.page.new_note' | t"
+        [attr.aria-label]="'notes.page.create_note' | t"
+        [title]="'notes.page.create_note' | t"
         (click)="add()"
       >
         <i class="sak-icon-plus" aria-hidden="true"></i>

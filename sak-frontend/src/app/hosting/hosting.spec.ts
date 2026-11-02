@@ -126,7 +126,7 @@ describe('Hosting', () => {
     expect(page().querySelector('[data-testid="bucket-backups"]')?.textContent).toContain(
       'not served at a domain',
     );
-    expect(button('Create').getAttribute('href')).toBe('/static-hosting/create');
+    expect(button('Create static hosting').getAttribute('href')).toBe('/static-hosting/create');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
     http
@@ -171,22 +171,22 @@ describe('Hosting', () => {
     const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
     expect(
       [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
-    ).toEqual(['Cancel', 'Create']);
+    ).toEqual(['Cancel', 'Create static hosting']);
 
     for (const name of ['No_Bucket', 'under_score', 'dot.ted']) {
       await type('#bucket-name', name);
-      expect(button('Create').disabled).toBe(true);
+      expect(button('Create static hosting').disabled).toBe(true);
       expect(page().querySelector('#bucket-name')?.getAttribute('aria-invalid')).toBe('true');
     }
     await type('#bucket-name', 'my-site');
-    expect(button('Create').disabled).toBe(false);
+    expect(button('Create static hosting').disabled).toBe(false);
 
     button('Add domain').click();
     await harness.fixture.whenStable();
     await type('#domain-0', 'no domain');
-    expect(button('Create').disabled).toBe(true);
+    expect(button('Create static hosting').disabled).toBe(true);
     await type('#domain-0', 'example.org');
-    button('Create').click();
+    button('Create static hosting').click();
 
     const request = http.expectOne({ method: 'POST', url: '/api/v1/static-hosting' });
     expect(request.request.body).toEqual({ name: 'my-site', domains: ['example.org'] });
@@ -200,7 +200,7 @@ describe('Hosting', () => {
   it('shows what the backend rejected the bucket for and stays', async () => {
     await open('/static-hosting/create');
     await type('#bucket-name', 'backups');
-    button('Create').click();
+    button('Create static hosting').click();
     http
       .expectOne({ method: 'POST', url: '/api/v1/static-hosting' })
       .flush(

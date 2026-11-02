@@ -56,7 +56,7 @@ import { PageHeader } from '../shared/page-header';
             } @else {
               <i class="sak-icon-plus" aria-hidden="true"></i>
             }
-            {{ 'shared.create' | t }}
+            {{ 'redirects.create' | t }}
           </button>
         </div>
       </div>

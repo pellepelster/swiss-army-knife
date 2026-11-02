@@ -21,8 +21,8 @@ import { PageHeader } from '../shared/page-header';
   template: `
     <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
       <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.grocery' | t }}</h1>
-      <a class="btn btn-primary" routerLink="lists/create">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.lists.add' | t }}
+      <a class="btn btn-primary" routerLink="lists/create" [title]="'grocery.form.create' | t">
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.form.create' | t }}
       </a>
     </header>
 

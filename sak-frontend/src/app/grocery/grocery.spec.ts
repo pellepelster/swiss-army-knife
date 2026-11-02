@@ -100,7 +100,7 @@ describe('Grocery', () => {
       'Party 1 item to buy shared',
       'Hardware No items to buy shared',
     ]);
-    expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
+    expect(button('Create list').getAttribute('href')).toBe('/grocery/lists/create');
     expect(page().querySelector('#item-name')).toBeNull();
     // the emoji of a list, else the first letter of its name
     expect(
@@ -131,7 +131,7 @@ describe('Grocery', () => {
   it('without a list there is only the way to add one', async () => {
     await overview([]);
     expect(page().textContent).toContain('You have no list yet, add one first.');
-    expect(button('Add list').getAttribute('href')).toBe('/grocery/lists/create');
+    expect(button('Create list').getAttribute('href')).toBe('/grocery/lists/create');
   });
 
   it('a list that is gone leads to all lists', async () => {

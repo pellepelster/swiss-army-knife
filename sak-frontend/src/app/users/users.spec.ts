@@ -60,7 +60,7 @@ describe('Users', () => {
     const menu = await rowMenu('admin@example.org');
     expect(button('Delete', menu).disabled).toBe(true);
     expect(button('Delete', menu).title).toBe('Set by the configuration of the deployment');
-    expect(button('Add').getAttribute('href')).toBe('/users/create');
+    expect(button('Create user').getAttribute('href')).toBe('/users/create');
   });
 
   it('deletes a user from the menu of its row after a confirmation, keep is the way back', async () => {
@@ -118,19 +118,19 @@ describe('Users', () => {
     const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
     expect(
       [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
-    ).toEqual(['Cancel', 'Add']);
+    ).toEqual(['Cancel', 'Create user']);
     await type('user-email', 'anna');
     // no error while typing
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     input('user-email').dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
     expect(input('user-email').classList.contains('is-invalid')).toBe(true);
-    expect(button('Add').disabled).toBe(true);
+    expect(button('Create user').disabled).toBe(true);
 
     await type('user-email', ' anna@example.org ');
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     await type('user-name', ' Anna ');
-    button('Add').click();
+    button('Create user').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/users' });
     expect(request.request.body).toEqual({ email: 'anna@example.org', name: 'Anna' });
     request.flush(anna, { status: 201, statusText: 'Created' });
@@ -144,7 +144,7 @@ describe('Users', () => {
     input('user-email').value = 'admin@example.org';
     input('user-email').dispatchEvent(new Event('input'));
     await harness.fixture.whenStable();
-    button('Add').click();
+    button('Create user').click();
     http.expectOne({ method: 'POST', url: '/api/v1/users' }).flush(
       {
         errors: [{ message: 'The address is an admin of the deployment, it is no user to add.' }],

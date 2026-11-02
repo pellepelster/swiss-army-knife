@@ -24,7 +24,7 @@ export function validEmail(email: string): boolean {
   host: { class: 'd-block container pb-5' },
   template: `
     <header appPageHeader back="/users" [backLabel]="'users.all_users' | t">
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.add_user' | t }}</h1>
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'users.create_user' | t }}</h1>
     </header>
 
     <form class="vstack gap-3 card card-body" (submit)="$event.preventDefault(); add()">
@@ -80,7 +80,7 @@ export function validEmail(email: string): boolean {
             } @else {
               <i class="sak-icon-plus" aria-hidden="true"></i>
             }
-            {{ 'shared.add' | t }}
+            {{ 'users.create_user' | t }}
           </button>
         </div>
       </div>

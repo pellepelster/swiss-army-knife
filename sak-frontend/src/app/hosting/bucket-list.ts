@@ -25,7 +25,7 @@ import { PageHeader } from '../shared/page-header';
         routerLink="/static-hosting/create"
         [title]="'hosting.create_page.title' | t"
       >
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'shared.create' | t }}
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'hosting.create_page.title' | t }}
       </a>
     </header>
 

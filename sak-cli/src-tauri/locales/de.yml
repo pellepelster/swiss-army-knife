@@ -271,19 +271,19 @@ ui:
   providers:
     title: "Provider-Tokens"
     empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."
-    add: "Hinzufügen"
+    add: "Token hinzufügen"
   select:
     title: "Wähle den Provider"
   token:
     label: "API-Token"
-    add: "Hinzufügen"
+    add: "Token hinzufügen"
     checking: "Prüfe das Token, ein SSH-Key wird erstellt und wieder gelöscht…"
   cancel: "Abbrechen"
   next: "Weiter"
   back: "Zurück"
   deployments:
     title: "Deployments"
-    create: "Erstellen"
+    create: "Deployment erstellen"
     loading: "Suche Deployments bei den Providern…"
     address: "Adresse"
   deployment:
@@ -337,7 +337,7 @@ ui:
     source_none: "Von den Einstellungen des Deployments ist nichts bekannt. Es hat nicht geantwortet: %{error}"
     title_destroy: "Deployment zerstören"
     password_hint_destroy: "Das Passwort, mit dem das Deployment erstellt wurde; alles außer seinem Datenvolume wird gelöscht."
-    title: "Neues Deployment"
+    title: "Deployment erstellen"
     name: "Name"
     name_hint: "Kleinbuchstaben, Ziffern und Bindestriche; der Name jeder Ressource des Deployments."
     password: "Passwort"
