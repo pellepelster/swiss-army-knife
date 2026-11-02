@@ -117,6 +117,9 @@ class NoteService(
     ) = repository.ensureList(owner, DEFAULT_LIST)
 
     // the newest first, of the label or of all when label is null; an unknown label has no notes
+    // the labels a note of the owner has, the ones to filter by
+    fun usedLabels(owner: String): List<Label> = repository.usedLabels(owner)
+
     fun page(
         owner: String,
         offset: Long,

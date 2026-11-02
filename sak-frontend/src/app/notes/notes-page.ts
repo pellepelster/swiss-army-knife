@@ -96,7 +96,7 @@ import { PageHeader } from '../shared/page-header';
           <span class="opacity-75">{{ page.total }}</span>
         }
       </button>
-      @for (label of store.knownLabels(); track label) {
+      @for (label of chips(); track label) {
         <button
           type="button"
           class="btn btn-sm flex-shrink-0"
@@ -199,6 +199,16 @@ export class NotesPage {
   private readonly injector = inject(Injector);
 
   protected readonly filter = signal<string | null>(null);
+
+  // the labels the notes filter by: the ones a note has, and the active filter while it is on,
+  // also when no note has it any more, so it can be turned off
+  protected readonly chips = computed(() => {
+    const used = this.store.usedLabels();
+    const filter = this.filter();
+    return filter === null || used.includes(filter)
+      ? used
+      : [...used, filter].sort((a, b) => a.localeCompare(b));
+  });
 
   // where the page shown starts
   protected readonly offset = signal(0);

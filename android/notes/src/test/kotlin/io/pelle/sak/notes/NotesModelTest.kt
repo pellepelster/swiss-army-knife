@@ -43,6 +43,7 @@ class NotesModelTest {
             answers["GET /notes"] = HttpStatusCode.OK to page(note(2, "Buy milk", labels = listOf("shopping")), note(1, "Call the plumber", "pink"))
             answers["GET /labels"] = HttpStatusCode.OK to page("""{"id":1,"name":"work","createdAt":"2026-10-30T08:00:00.000Z"}""", """{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
             answers["GET /notes/settings"] = HttpStatusCode.OK to """{"discoverText":false}"""
+            answers["GET /notes/labels"] = HttpStatusCode.OK to page("""{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
         }
 
     private fun session(
@@ -91,6 +92,32 @@ class NotesModelTest {
 
     // the body of the last request to the method and path
     private fun body(key: String) = backend.requests.last { it.startsWith("$key ") }.removePrefix("$key ")
+
+    @Test
+    fun `the wall filters by the labels its notes have, a label goes with its last note, the suggestions are all`() =
+        runTest {
+            backend.answers["PUT /notes/2"] = HttpStatusCode.OK to note(2, "Buy milk")
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+
+            // the chips are the labels a note has, the suggestions every label
+            assertEquals(listOf("shopping"), model.notes().chips)
+            assertEquals(listOf("shopping", "work"), model.notes().labels)
+            assertTrue(backend.requests.contains("GET /notes/labels"))
+
+            // filtered by it, the chip stays while no note has the label any more, so it can be turned off
+            model.filter("shopping")
+            advanceUntilIdle()
+            backend.answers["GET /notes/labels"] = HttpStatusCode.OK to page()
+            model.removeLabel(2, "shopping")
+            advanceUntilIdle()
+            assertEquals(emptyList<String>(), model.notes().used)
+            assertEquals(listOf("shopping"), model.notes().chips)
+            model.filter(null)
+            advanceUntilIdle()
+            assertEquals(emptyList<String>(), model.notes().chips)
+            assertEquals(listOf("shopping", "work"), model.notes().labels)
+        }
 
     @Test
     fun `the login link it asks for names the notes app`() =

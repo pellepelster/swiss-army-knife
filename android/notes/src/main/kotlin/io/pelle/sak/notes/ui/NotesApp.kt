@@ -352,7 +352,7 @@ private fun WallScreen(
                 if (screen.creating) item(span = full) { Text(stringResource(R.string.notes_uploading)) }
                 screen.error?.let { item(span = full) { Message(it, model::dismissError) } }
                 screen.notice?.let { item(span = full) { Message(it, model::dismissNotice, error = false) } }
-                if (screen.labels.isNotEmpty()) item(span = full) { LabelFilter(screen, model) }
+                if (screen.chips.isNotEmpty()) item(span = full) { LabelFilter(screen, model) }
                 if (!screen.loading && screen.error == null && screen.notes.isEmpty()) {
                     item(span = full) {
                         Text(
@@ -416,7 +416,7 @@ private fun LabelFilter(
             onClick = { model.filter(null) },
             label = { Text(count?.let { stringResource(R.string.notes_all_count, it) } ?: stringResource(R.string.notes_page_all)) },
         )
-        screen.labels.forEach { label ->
+        screen.chips.forEach { label ->
             FilterChip(selected = screen.filter == label, onClick = { model.filter(label) }, label = { Text("#$label") })
         }
     }

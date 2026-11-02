@@ -1206,6 +1206,7 @@ class SakAppsTest {
                         "/api/v1/labels/{id}",
                         "/api/v1/notes",
                         "/api/v1/notes/settings",
+                        "/api/v1/notes/labels",
                         "/api/v1/notes/{id}",
                         "/api/v1/grocery/changes",
                         "/api/v1/users",

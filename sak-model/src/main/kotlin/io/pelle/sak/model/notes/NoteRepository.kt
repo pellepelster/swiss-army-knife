@@ -1,6 +1,7 @@
 package io.pelle.sak.model.notes
 
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
 import io.pelle.sak.model.jooq.tables.references.LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES
@@ -66,6 +67,23 @@ class NoteRepository(
         owner: String,
         labelId: Int?,
     ): Long = database.dsl.fetchCount(NOTES, visible(owner, labelId)).toLong()
+
+    // the live labels a live note of the owner has, by name: the ones the notes filter by
+    fun usedLabels(owner: String): List<Label> =
+        database.dsl
+            .selectFrom(LABELS)
+            .where(
+                LABELS.DELETED_AT.isNull,
+                LABELS.ID.`in`(
+                    DSL
+                        .select(NOTES_LABELS.LABEL_ID)
+                        .from(NOTES_LABELS)
+                        .join(NOTES)
+                        .on(NOTES.ID.eq(NOTES_LABELS.NOTE_ID))
+                        .where(NOTES_LABELS.DELETED_AT.isNull, visible(owner, null)),
+                ),
+            ).orderBy(LABELS.NAME)
+            .fetch { Label(it.id!!, it.name!!, it.createdAt!!, it.updatedAt) }
 
     fun byId(
         owner: String,

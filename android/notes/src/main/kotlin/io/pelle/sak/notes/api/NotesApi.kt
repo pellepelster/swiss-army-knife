@@ -46,6 +46,9 @@ class NotesApi(
     // the labels of all apps, the ones to suggest
     suspend fun labels(): List<LabelResponse> = all("$url/labels", R.string.notes_errors_not_loaded)
 
+    // the labels a note of the user has, by name: the ones the wall filters by
+    suspend fun usedLabels(): List<LabelResponse> = all("$url/notes/labels", R.string.notes_errors_not_loaded)
+
     suspend fun createNote(note: NoteRequest): NoteResponse =
         client
             .post("$url/notes") {

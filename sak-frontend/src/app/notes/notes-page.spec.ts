@@ -51,6 +51,7 @@ describe('NotesPage', () => {
         ]),
       );
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
     await fixture.whenStable();
   });
 
@@ -64,6 +65,11 @@ describe('NotesPage', () => {
 
   afterEach(async () => {
     await flushThumbnails();
+    // the used labels a change loads again after it, when a test let the time pass
+    http
+      .match('/api/v1/notes/labels?offset=0&limit=100')
+      .filter((used) => !used.cancelled)
+      .forEach((used) => used.flush(pageOf([])));
     http.verify();
     page.remove();
   });
@@ -105,6 +111,7 @@ describe('NotesPage', () => {
       .expectOne('/api/v1/notes?offset=0&limit=50&label=groceries')
       .flush(pageOf([noteResponse(1, 'Buy milk', 'yellow', ['shopping', 'groceries'])]));
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
     await fixture.whenStable();
     expect(texts()).toEqual(['Buy milk']);
 
@@ -129,9 +136,65 @@ describe('NotesPage', () => {
         ]),
       );
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
     await fixture.whenStable();
     expect(notes().length).toBe(4);
     expect(button('All').textContent).toContain('4');
+  });
+
+  it('filters by the labels the notes have, the active one stays until it is off, every label is suggested', async () => {
+    const chips = () =>
+      [...page.querySelectorAll<HTMLButtonElement>('nav button')]
+        .map((chip) => chip.textContent!.trim())
+        .filter((chip) => chip.startsWith('#'));
+    const suggestions = () =>
+      [...page.querySelectorAll<HTMLOptionElement>('#known-labels option')].map(
+        (option) => option.value,
+      );
+    const reload = async (
+      used: readonly string[],
+      notesOf: ReturnType<typeof noteResponse>[],
+      label?: string,
+    ) => {
+      http
+        .expectOne(`/api/v1/notes?offset=0&limit=50${label ? `&label=${label}` : ''}`)
+        .flush(pageOf(notesOf));
+      // every label of every app, also one no note has any more
+      http
+        .expectOne('/api/v1/labels?offset=0&limit=100')
+        .flush(pageOf([{ name: 'ideas' }, { name: 'shopping' }]));
+      http
+        .expectOne('/api/v1/notes/labels?offset=0&limit=100')
+        .flush(pageOf(used.map((name) => ({ name }))));
+      await fixture.whenStable();
+    };
+    const milk = noteResponse(1, 'Buy milk', 'yellow', ['shopping']);
+
+    button('Show the notes labelled shopping').click();
+    await fixture.whenStable();
+    await reload(['home', 'shopping', 'todo'], [milk], 'shopping');
+    // the chips are the labels of the notes, the suggestions every label of every app
+    expect(chips()).toEqual(['#home', '#shopping', '#todo']);
+    expect(suggestions()).toContain('ideas');
+
+    // the last note of the label loses it: the label goes, once the change is saved
+    button('Remove label shopping from the note').click();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/notes/1' })
+      .flush(noteResponse(1, 'Buy milk', 'yellow', []));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    http
+      .expectOne('/api/v1/notes/labels?offset=0&limit=100')
+      .flush(pageOf([{ name: 'home' }, { name: 'todo' }]));
+    await fixture.whenStable();
+    // the active filter stays, so it can be turned off
+    expect(chips()).toEqual(['#home', '#shopping', '#todo']);
+
+    button('All').click();
+    await fixture.whenStable();
+    await reload(['home', 'todo'], [noteResponse(1, 'Buy milk', 'yellow', [])]);
+    expect(chips()).toEqual(['#home', '#todo']);
+    expect(suggestions()).toContain('shopping');
   });
 
   it('shows the notes a page at a time', async () => {
@@ -142,6 +205,7 @@ describe('NotesPage', () => {
     const answer = async (offset: number, note: ReturnType<typeof noteResponse>) => {
       http.expectOne(`/api/v1/notes?offset=${offset}&limit=50`).flush(page(offset, note));
       http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+      http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
       await fixture.whenStable();
     };
     // the three notes fit on one page

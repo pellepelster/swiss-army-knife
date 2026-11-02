@@ -82,6 +82,15 @@ data class Removal(
 )
 
 // the notes of the signed in user once signed in: the wall of their notes, newest first, of the label
+// what a load answers: the notes of the filter, the labels to suggest, the labels the notes have (null
+// when they could not be read) and whether the AI is offered
+private data class Loaded(
+    val notes: List<NoteResponse>,
+    val shared: List<String>,
+    val used: List<String>?,
+    val ai: Boolean,
+)
+
 // filtered by or all (NOTES-1: the lists are not shown, the app opens on the notes, LIST-3)
 data class NotesScreen(
     override val deployment: String,
@@ -89,8 +98,10 @@ data class NotesScreen(
     override val update: AppUpdate? = null,
     override val updateNotice: UiText? = null,
     val notes: List<NoteResponse> = emptyList(),
-    // the labels to choose from: the ones of all apps and of the notes, sorted
+    // the labels to choose from when one is added to a note: the ones of all apps and of the notes, sorted
     val labels: List<String> = emptyList(),
+    // the labels a note has, sorted: the ones the wall filters by (GET /notes/labels)
+    val used: List<String> = emptyList(),
     // the label the wall shows the notes of, null for all
     val filter: String? = null,
     // how many notes there are, of the last load of all; the count of All while a label is filtered
@@ -127,6 +138,10 @@ data class NotesScreen(
     ) = copy(update = update, updateNotice = updateNotice)
 
     fun note(id: Int?) = notes.firstOrNull { it.id == id }
+
+    // the chips of the filter: the labels a note has, and the one filtered by while it is on, also when no
+    // note has it any more, so it can be turned off
+    val chips: List<String> get() = (used + listOfNotNull(filter)).distinct().sorted()
 }
 
 // the logic of the notes app, without android: the notes are kept by the backend, a change shows at
@@ -228,13 +243,18 @@ class NotesModel(
                             all += page.items
                             if (page.items.size < SakApi.PAGE_LIMIT || all.size >= page.pagination.total) break
                         }
-                        Triple(all, runCatching { api.labels().map { it.name } }.getOrDefault(emptyList()), aiOf(api))
+                        Loaded(
+                            all,
+                            runCatching { api.labels().map { it.name } }.getOrDefault(emptyList()),
+                            runCatching { api.usedLabels().map { it.name } }.getOrNull(),
+                            aiOf(api),
+                        )
                     }
                 if (loaded == null) {
                     notes { it.copy(loading = false) }
                     return@launch
                 }
-                val (all, shared, ai) = loaded
+                val (all, shared, used, ai) = loaded
                 all.filter { it.id !in changedWhileLoading }.forEach { stored[it.id] = it }
                 notes { screen ->
                     val here = screen.notes.filter { it.id in changedWhileLoading }.associateBy { it.id }
@@ -245,6 +265,7 @@ class NotesModel(
                     screen.copy(
                         notes = notes,
                         labels = (shared + notes.flatMap { note -> note.labels.map { it.name } }).distinct().sorted(),
+                        used = used ?: screen.used,
                         allCount = if (filter == null) notes.size else screen.allCount,
                         ai = ai,
                         loading = false,
@@ -576,6 +597,7 @@ class NotesModel(
                     removal = current.removal?.takeUnless { it.noteId == id },
                 )
             }
+            reloadUsed()
         }
     }
 
@@ -628,6 +650,7 @@ class NotesModel(
             stored[note.id] = note
             // a load running does not have it yet (AN-5)
             changedWhileLoading += note.id
+            if (note.labels.isNotEmpty()) reloadUsed()
         }
         notes { screen ->
             if (note == null) {
@@ -741,7 +764,17 @@ class NotesModel(
         }
         stored[id] = saved
         if ((versions[id] ?: 0) == version) notes { screen -> screen.copy(notes = screen.notes.map { if (it.id == id) saved else it }) }
+        reloadUsed()
         return true
+    }
+
+    // the labels the notes have, again after a note changed: a label goes once its last note lost it; on
+    // a failure the ones before stay, the wall still works
+    private fun reloadUsed() {
+        scope.launch {
+            val used = request(R.string.notes_errors_not_loaded, {}) { api -> api.usedLabels().map { it.name } } ?: return@launch
+            notes { it.copy(used = used) }
+        }
     }
 
     // the note back as the backend stored it last, the change it refused undone; the error says why

@@ -8,6 +8,7 @@ import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.files.thumbnailUrl
 import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.api.idParameter
+import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.backend.labels.response
 import io.pelle.sak.backend.notes.model.NoteResponse
 import io.pelle.sak.backend.notes.model.NotesSettingsResponse
@@ -149,6 +150,24 @@ fun Route.notes(
             }
             errors(HttpStatusCode.BadRequest, "A too long text, an unknown color, an invalid label name, too many labels, an unknown photo, too many photos or a malformed request")
             errors(HttpStatusCode.Conflict, "The user has no list of notes, they get one when they sign in")
+        }
+    }
+
+    get("/labels") {
+        val page = call.pageRequest() ?: return@get
+        val labels = withContext(Dispatchers.IO) { noteService.usedLabels(call.owner) }
+        call.respond(page.of(page.of(labels.map { it.response() })))
+    }.describe {
+        tag(NOTES_TAG)
+        summary = "The labels of the notes"
+        description = "The labels a note of the signed in user has, by name: the ones the notes filter by. GET /api/v1/labels has every label."
+        parameters { pagination() }
+        responses {
+            HttpStatusCode.OK {
+                description = "A page of the labels"
+                schema = jsonSchema<PageResponse<LabelResponse>>()
+            }
+            errors(HttpStatusCode.BadRequest, "An invalid page")
         }
     }
 

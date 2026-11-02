@@ -35,9 +35,17 @@ describe('NotesStore', () => {
     http
       .expectOne('/api/v1/labels?offset=0&limit=100')
       .flush(pageOf([{ name: 'ideas' }, { name: 'home' }]));
+    http
+      .expectOne('/api/v1/notes/labels?offset=0&limit=100')
+      .flush(pageOf([{ name: 'home' }, { name: 'shopping' }, { name: 'todo' }]));
   });
 
   afterEach(() => {
+    // the used labels a change loads again after it, when a test let the time pass
+    http
+      .match('/api/v1/notes/labels?offset=0&limit=100')
+      .filter((used) => !used.cancelled)
+      .forEach((used) => used.flush(pageOf([])));
     http.verify();
     vi.useRealTimers();
   });
@@ -188,6 +196,7 @@ describe('NotesStore', () => {
       .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(pageOf([noteResponse(1, 'milk', 'yellow', [], [], [FILE_ID])]));
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
 
     const discovered = store.discoverText(1, FILE_ID);
     http.expectOne({ method: 'POST' }).flush({ text: '' });
@@ -275,6 +284,7 @@ describe('NotesStore', () => {
       .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(null, { status: 500, statusText: 'Error' });
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
     expect(store.error()).toBe('The notes could not be loaded.');
 
     store.setColor(1, 'blue');
@@ -367,6 +377,9 @@ describe('NotesStore', () => {
         ]),
       );
     http.match('/api/v1/labels?offset=0&limit=100').forEach((request) => request.flush(pageOf([])));
+    http
+      .match('/api/v1/notes/labels?offset=0&limit=100')
+      .forEach((request) => request.flush(pageOf([])));
   };
 
   it('saves a note without a removed photo once it can no longer be brought back', () => {
@@ -423,6 +436,7 @@ describe('NotesStore', () => {
       pagination: { offset: 50, limit: 50, total: 51 },
     });
     http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+    http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
 
     expect(store.notes().map((note) => note.id)).toEqual([9]);
     expect(store.pagination()).toEqual({ offset: 50, limit: 50, total: 51 });
@@ -477,6 +491,7 @@ describe('NotesStore', () => {
     const answer = (...notes: ReturnType<typeof noteResponse>[]) => {
       http.expectOne('/api/v1/notes?offset=0&limit=50').flush(pageOf(notes));
       http.expectOne('/api/v1/labels?offset=0&limit=100').flush(pageOf([]));
+      http.expectOne('/api/v1/notes/labels?offset=0&limit=100').flush(pageOf([]));
     };
 
     it('takes the notes of the backend, the ones changed elsewhere and the new ones', () => {
@@ -564,6 +579,10 @@ describe('NotesStore', () => {
       expect(first.cancelled).toBe(true);
       second.flush(pageOf([noteResponse(1, 'milk', 'yellow', ['shopping'])]));
       http.match('/api/v1/labels?offset=0&limit=100').forEach((labels) => labels.flush(pageOf([])));
+      http
+        .match('/api/v1/notes/labels?offset=0&limit=100')
+        .filter((labels) => !labels.cancelled)
+        .forEach((labels) => labels.flush(pageOf([])));
 
       expect(store.notes().map((note) => note.id)).toEqual([1]);
     });

@@ -1341,6 +1341,62 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/notes/labels': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The labels of the notes
+     * @description The labels a note of the signed in user has, by name: the ones the notes filter by. GET /api/v1/labels has every label.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the labels */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['LabelResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/notes/{id}': {
     parameters: {
       query?: never;

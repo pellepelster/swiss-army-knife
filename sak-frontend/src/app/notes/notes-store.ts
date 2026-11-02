@@ -53,6 +53,9 @@ export const MAX_LABELS = 10;
 // how long typing pauses before the text is saved
 export const SAVE_TEXT_AFTER_MS = 600;
 
+// how long the used labels wait for further changes before they are loaded again
+export const LOAD_USED_LABELS_AFTER_MS = 300;
+
 // how long a deleted note, photo or recording can be brought back before the backend removes it
 export { UNDO_DELETE_MS };
 
@@ -76,6 +79,11 @@ export class NotesStore {
 
   private readonly all = signal<readonly Note[]>([]);
   private readonly shared = signal<readonly string[]>([]);
+  private readonly used = signal<readonly string[]>([]);
+  private loadingUsed?: Subscription;
+  private usedTimer?: ReturnType<typeof setTimeout>;
+  // the notes whose labels changed here and are not saved yet: their save loads the used labels
+  private readonly labelsChanged = new Set<number>();
   private readonly pendingText = new Map<number, ReturnType<typeof setTimeout>>();
 
   // the requests saving or deleting a note that are not answered yet, by note
@@ -126,6 +134,9 @@ export class NotesStore {
     [...new Set(this.all().flatMap((note) => note.labels))].sort((a, b) => a.localeCompare(b)),
   );
 
+  // the labels a note of the user has, by name (GET /notes/labels): the ones the notes filter by
+  readonly usedLabels = this.used.asReadonly();
+
   // the labels of all the apps and of the notes, to suggest them
   readonly knownLabels = computed(() =>
     [...new Set([...this.shared(), ...this.labels()])].sort((a, b) => a.localeCompare(b)),
@@ -146,6 +157,8 @@ export class NotesStore {
       this.pendingText.forEach((timer) => clearTimeout(timer));
       this.removal.dispose();
       this.loadingNotes?.unsubscribe();
+      this.loadingUsed?.unsubscribe();
+      clearTimeout(this.usedTimer);
       window?.removeEventListener('pagehide', leaving);
       this.document.removeEventListener('visibilitychange', hidden);
     });
@@ -193,6 +206,24 @@ export class NotesStore {
       // the labels are only suggestions
       error: () => this.shared.set([]),
     });
+    this.loadUsed();
+  }
+
+  // the labels the notes have, again; one not answered yet is cancelled. A label that could not be
+  // loaded keeps the list as it was
+  private loadUsed(): void {
+    clearTimeout(this.usedTimer);
+    this.loadingUsed?.unsubscribe();
+    this.loadingUsed = fetchAll<{ name: string }>(this.http, '/api/v1/notes/labels').subscribe({
+      next: (labels) => this.used.set(labels.map((label) => label.name)),
+      error: () => undefined,
+    });
+  }
+
+  // the labels the notes have, once a row of changes calmed down
+  private loadUsedSoon(): void {
+    clearTimeout(this.usedTimer);
+    this.usedTimer = setTimeout(() => this.loadUsed(), LOAD_USED_LABELS_AFTER_MS);
   }
 
   // null when it could not be created
@@ -214,6 +245,7 @@ export class NotesStore {
       const known = this.all().some((other) => other.id === note.id);
       this.all.update((notes) => [note, ...notes.filter((other) => other.id !== note.id)]);
       if (!known) this.countNotes(1);
+      if (labels.length) this.loadUsedSoon();
       return note;
     } catch {
       this.error.set(this.i18n.t('notes.errors.not_created'));
@@ -244,7 +276,10 @@ export class NotesStore {
         ? note
         : { ...note, labels: [...note.labels, normalized] },
     );
-    if (changed) this.save(id);
+    if (changed) {
+      this.labelsChanged.add(id);
+      this.save(id);
+    }
   }
 
   removeLabel(id: number, label: string): void {
@@ -253,7 +288,10 @@ export class NotesStore {
         ? { ...note, labels: note.labels.filter((l) => l !== label) }
         : note,
     );
-    if (changed) this.save(id);
+    if (changed) {
+      this.labelsChanged.add(id);
+      this.save(id);
+    }
   }
 
   // a new note with the photo, null when the photo or the note could not be stored
@@ -404,7 +442,11 @@ export class NotesStore {
             this.restore(note);
             this.error.set(this.i18n.t('notes.errors.not_deleted'));
           },
-          complete: () => this.finishRequest(id),
+          complete: () => {
+            this.finishRequest(id);
+            // its labels may have been the last of their name
+            if (note.labels.length) this.loadUsedSoon();
+          },
         });
       },
       () => {
@@ -501,6 +543,7 @@ export class NotesStore {
           this.all.update((notes) =>
             notes.map((n) => (n.id === id ? { ...n, updated: toDate(response.updatedAt) } : n)),
           );
+          if (this.labelsChanged.delete(id)) this.loadUsedSoon();
         },
         error: () => {
           this.finishRequest(id);

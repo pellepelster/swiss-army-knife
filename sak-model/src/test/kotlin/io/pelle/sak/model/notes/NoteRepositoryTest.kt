@@ -114,6 +114,25 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `the labels of the notes are the ones a live note of the owner has, by name`() {
+        val owner = "pelle@pelle.io"
+        val milk = label("milk")
+        val eggs = label("eggs")
+        // a label of no note, and one of a note deleted, filter nothing
+        label("unused")
+        val gone = label("gone")
+        val note = repository.insert(owner, list(owner), "shopping", "yellow", setOf(milk, eggs), emptyList())
+        repository.insert(owner, list(owner), "old", "yellow", setOf(gone), emptyList()).let { repository.delete(owner, it.id) }
+        // the labels of another user's notes are theirs
+        repository.insert("other@example.org", list("other@example.org"), "theirs", "yellow", setOf(label("theirs")), emptyList())
+
+        repository.usedLabels(owner).map { it.name } shouldBe listOf("eggs", "milk")
+        // removed from its last note, a label filters nothing any more
+        repository.update(owner, note.id, "shopping", "yellow", setOf(eggs), emptyList())
+        repository.usedLabels(owner).map { it.name } shouldBe listOf("eggs")
+    }
+
+    @Test
     fun `deletes the labels removed from a note softly, the labels that stay keep their link`() {
         val milk = label("milk")
         val eggs = label("eggs")
