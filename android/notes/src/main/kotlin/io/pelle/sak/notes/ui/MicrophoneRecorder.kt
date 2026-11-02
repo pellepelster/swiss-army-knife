@@ -27,14 +27,16 @@ class MicrophoneRecorder : Recorder {
             stopped = false
             val buffer =
                 AudioRecord.getMinBufferSize(RECORDING_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT).coerceAtLeast(RECORDING_RATE)
-            val record = AudioRecord(MediaRecorder.AudioSource.MIC, RECORDING_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, buffer)
+            // the source of speech recognition: tuned for a voice, as the noise suppression of the web app (AN-51)
+            val record = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RECORDING_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, buffer)
             if (record.state != AudioRecord.STATE_INITIALIZED) {
                 record.release()
                 throw IOException("the microphone can not be used")
             }
-            val pcm = ByteArrayOutputStream()
-            val chunk = ByteArray(buffer)
             val most = RECORDING_RATE * 2 * MAX_RECORDING_SECONDS
+            // sized for a minute up front, so it grows less often (AN-51)
+            val pcm = ByteArrayOutputStream(minOf(most, RECORDING_RATE * 2 * 60))
+            val chunk = ByteArray(buffer)
             try {
                 record.startRecording()
                 while (!stopped && coroutineContext.isActive && pcm.size() < most) {

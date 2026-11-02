@@ -1,5 +1,9 @@
 package io.pelle.sak.api
 
+import kotlinx.serialization.Serializable
+
+// the api answers it by its name (HealthStatusResponse)
+@Serializable
 enum class HealthState {
     HEALTHY,
     UNHEALTHY,

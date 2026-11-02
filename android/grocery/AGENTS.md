@@ -4,7 +4,7 @@ How this app is built is in [GROCERY.md](../../docs/development/architecture/app
 share is in [../AGENTS.md](../AGENTS.md). Every change here keeps to them; a change that breaks a rule of the app
 changes GROCERY.md in the same commit.
 
-- `mise run grocery:android:run` (emulator) and `grocery:android:install` (the phone attached by usb); its release
+- `mise run android:run grocery` (emulator) and `android:install grocery` (the phone attached by usb); its release
   apk is `sak-grocery-<VERSION>.apk`.
 - The logic is in `GroceryModel` (on top of `SakModel` of core), tested in `GroceryModelTest` against the fake
   backend of `testing`.

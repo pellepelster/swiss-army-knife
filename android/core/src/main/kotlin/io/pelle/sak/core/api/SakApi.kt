@@ -12,6 +12,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
@@ -42,26 +43,41 @@ class ApiException(
     val text: UiText,
 ) : Exception(text.toString())
 
-// the one client of an app, shared by the api of every deployment and session; the engine does the io
+// the one client of an app, shared by the api of every deployment and session; the engine does the io.
+// A request ends after REQUEST_TIMEOUT_MS, also one a server answers byte by byte (AN-39); an upload,
+// a download or a stream sets its own (longTransfer)
 fun sakClient(engine: HttpClientEngine): HttpClient =
     HttpClient(engine) {
         expectSuccess = false
         install(ContentNegotiation) { json(ApiJson) }
-        install(HttpTimeout)
+        install(HttpTimeout) {
+            connectTimeoutMillis = CONNECT_TIMEOUT_MS
+            socketTimeoutMillis = SOCKET_TIMEOUT_MS
+            requestTimeoutMillis = REQUEST_TIMEOUT_MS
+        }
     }
+
+const val CONNECT_TIMEOUT_MS = 15_000L
+const val SOCKET_TIMEOUT_MS = 30_000L
+const val REQUEST_TIMEOUT_MS = 60_000L
+
+// an upload or a download of a file, e.g. a photo or a recording, over a slow connection
+const val TRANSFER_TIMEOUT_MS = 10 * 60_000L
+
+// the most pages all() asks for, a server that does not page can not keep it asking (AN-38)
+const val MAX_PAGES = 1_000
 
 // the api of one deployment, below its url, e.g. https://api.example.org/v1; token is the session,
 // null before signing in. Cheap to make, the client is shared. Every call is suspending. The backend
 // answers its texts in the languages of the phone (Accept-Language, e.g. de-DE,en-US). What every app
 // calls: the deployment and the sign-in; an app adds its own calls in a subclass. loginClient names the
-// app the signin page of the web app hands a login link on to, e.g. grocery-android (LoginClient of
-// sak-auth)
+// app the signin page of the web app hands a login link on to (LoginClient of sak-auth)
 open class SakApi(
     protected val client: HttpClient,
     protected val url: String,
     protected val token: String? = null,
     protected val languages: String? = null,
-    private val loginClient: String,
+    private val loginClient: LoginRequest.Client,
 ) {
     // the session and the languages, on every request
     protected fun HttpRequestBuilder.session() {
@@ -69,24 +85,39 @@ open class SakApi(
         languages?.let { header(HttpHeaders.AcceptLanguage, it) }
     }
 
+    // an upload or a download of a file, which may take longer than a request (TRANSFER_TIMEOUT_MS)
+    protected fun HttpRequestBuilder.longTransfer() {
+        timeout {
+            requestTimeoutMillis = TRANSFER_TIMEOUT_MS
+            socketTimeoutMillis = TRANSFER_TIMEOUT_MS
+        }
+    }
+
     suspend fun info(): InfoResponse = client.get("$url/info") { session() }.answer(R.string.error_no_sak)
 
-    // the link goes out by mail if the address may sign in, the answer is the same for every address
-    suspend fun requestLink(email: String) {
+    // the link goes out by mail if the address may sign in, the answer is the same for every address;
+    // the link signs in only with the nonce (AN-8)
+    suspend fun requestLink(
+        email: String,
+        nonce: String,
+    ) {
         client
             .post("$url/auth/login/link") {
                 session()
                 contentType(ContentType.Application.Json)
-                setBody(LoginRequest(email, client = LoginRequest.Client.entries.single { it.value == loginClient }))
+                setBody(LoginRequest(email, client = loginClient, nonce = nonce))
             }.answer<Unit>(R.string.error_link_not_requested)
     }
 
-    suspend fun exchange(loginToken: String): ExchangeResponse =
+    suspend fun exchange(
+        loginToken: String,
+        nonce: String,
+    ): ExchangeResponse =
         client
             .post("$url/auth/login/exchange") {
                 session()
                 contentType(ContentType.Application.Json)
-                setBody(ExchangeRequest(loginToken))
+                setBody(ExchangeRequest(loginToken, nonce))
             }.answer(R.string.login_link_invalid, unauthorized = R.string.login_link_invalid)
 
     suspend fun passwordLogin(password: String): ExchangeResponse =
@@ -104,13 +135,14 @@ open class SakApi(
                 session()
             }.answer(R.string.error_user_not_read)
 
-    // every page of a list
+    // every page of a list; a page shorter than asked for is the last, and at most MAX_PAGES are asked
+    // for, so a server that ignores the offset ends it too (AN-38)
     protected suspend inline fun <reified T> all(
         path: String,
         @StringRes failure: Int,
     ): List<T> {
         val all = mutableListOf<T>()
-        while (true) {
+        repeat(MAX_PAGES) {
             val page: PageResponse<T> =
                 client
                     .get(path) {
@@ -119,8 +151,9 @@ open class SakApi(
                         parameter("limit", PAGE_LIMIT)
                     }.answer(failure)
             all += page.items
-            if (page.items.isEmpty() || all.size >= page.pagination.total) return all
+            if (page.items.size < PAGE_LIMIT || all.size >= page.pagination.total) return all
         }
+        return all
     }
 
     // the body of a successful answer, else an ApiException; unauthorized is the text of a 401 without

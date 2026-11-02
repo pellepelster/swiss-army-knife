@@ -18,22 +18,40 @@ its own architecture document.
   - `testing` (library): what the tests of every app share, a fake backend (`FakeBackend`, `page()`) and the
     english texts (`english()`), on the jvm.
   - one module for each app, e.g. `grocery` (`io.pelle.sak.grocery`): its model extends `SakModel` (its screen
-    once the user is signed in is an `AppScreen`), its api extends `SakApi`, its activity takes the login links of
-    its own scheme. An app names itself to the backend when it asks for a login link (`SakApi.loginClient`, e.g.
-    `grocery-android`), so the signin page of the web app hands the link on to that app only.
-- **Build.** `mise run android:build`, `android:test` (all modules), `<app>:android:run` (emulator) and
-  `<app>:android:install` (the phone attached by usb, `ANDROID_SERIAL` names one of several). The sdk is installed by
-  `android:sdk`, without the emulator by `android:sdk:build`.
-- **Release.** `android:release:build` writes `build/sak-<app>-<VERSION>.apk` of each app (`ANDROID_APPS`) and its
-  `.sha256`; the versionCode comes from the version (1.4.2 is 10402, `latest` is 1). The apks are signed with the
-  keystore of `ANDROID_KEYSTORE` (base64) and its passwords, the secrets of the workflow (`github:secrets:update`,
-  from `pass` `sak/android/signing-key` and `sak/android/signing-key-password`); a release is never unsigned. The job
-  `android` builds them on every build, signed for a tag only, as the artifact `android-apks`; the job `release`
-  adds them to the github release of the tag (`android:release`). The key is the identity of an app: an update with
-  another key does not install over it.
-- **A new app** is a module in `settings.gradle.kts`, its name in `ANDROID_APPS` of `android:release:build` and
-  `android:release` in `mise.toml`, its resources in `ANDROID_APPS` of `sak-i18n` (`Generator.kt`), and its client
-  in `LoginClient` of `sak-auth` with its package in the signin page of the web app.
+    once the user is signed in is an `AppScreen`), its api extends `SakApi`, its activity extends `SakActivity`
+    (which takes the login links of its scheme, once) and its view model `SakViewModel` (the store of the session,
+    the updater, the client of the process). An app names itself to the backend when it asks for a login link
+    (`LoginRequest.Client`, e.g. `GROCERY_ANDROID`), so the signin page of the web app hands the link on to that
+    app only; the request carries a nonce the exchange needs. What an app keeps with the session goes into
+    `Stored.app` (its own names, e.g. the list open last), work that must not end with the screen (the last save
+    when the app closes) into `launchLasting`, a request of an upload or a download sets `longTransfer()`.
+- **Build.** `mise run android:build`, `android:test` (all modules), `android:run <app>` (the emulator only, also
+  with a phone attached) and `android:install <app>` (the phone attached by usb, `ANDROID_SERIAL` names one of
+  several). The sdk is installed by `android:sdk`, without the emulator (enough for a build and an install) by
+  `android:sdk:build`.
+- **Conventions.** What every module shares is in the convention plugins of `build-logic` (an included build):
+  `sak.android.library` (`core`, `testing`: the sdks of `SakSdk`, java 17) and `sak.android.app` (the apps: the
+  sdks, java 17, the version of SAK, the signing, the build types, r8, the test property `sak.app.package`). A
+  module keeps its namespace, its applicationId and its own dependencies; compose, ktor and the api come with `core`.
+  The rules of r8 for every app are in `proguard-rules.pro`.
+- **Version.** `VERSION` is `latest` (every build but a release, versionCode 1) or a release `x.y.z`, whose
+  versionCode is `x*1_000_000 + y*1_000 + z` (1.4.2 is 1004002); any other `VERSION`, or a minor or patch of 1000
+  or more, fails the build (`SakVersion` of `build-logic`).
+- **Release.** `android:release:build` writes `build/sak-<app>-<VERSION>.apk` of each app and its `.sha256`. The apks
+  are signed with the keystore of `ANDROID_KEYSTORE` (base64) and its passwords, the secrets of the workflow
+  (`github:secrets:update`, from `pass` `sak/android/signing-key` and `sak/android/signing-key-password`; the alias
+  of the key is `sak-grocery`, from when grocery was the only app); a release is never unsigned, the build of a
+  version without the keystore fails. A signed apk must carry the certificate `ANDROID_CERT_SHA256` of
+  `android:release:build`, the key every installed app was signed with; another key fails the release, an update with
+  it would install over no app. The release apks are shrunk by r8: try a release build on a phone after a change of
+  a dependency or of `proguard-rules.pro`. The job `android` builds them on every build, signed for a tag only, as the
+  artifact `android-apks`; the job `release` adds them to the github release of the tag (`android:release`, a file
+  already there is replaced, so the job runs again after a failure).
+- **Debug builds** are the package `<app>.debug`, installed next to the release. A login link never opens them: the
+  signin page of the web app hands the link to the package of the release (`signin.ts`), so a debug build signs in
+  with the password of the admin.
+- **A new app** is a line in `apps.txt` (which `settings.gradle.kts`, `mise.toml` and `sak-i18n` read), its client
+  in `LoginClient` of `sak-auth` with its package in the signin page of the web app (`signin.ts`).
 - **The api.** The request and response classes are generated from `openapi.json` (module `api`), never written or
   copied by hand; only the generic page (`PageResponse`, whose schema is inline for each list) is in
   `core/api/ApiModels.kt`. After a change of the api, `mise run api:generate` writes `openapi.json` from the routes

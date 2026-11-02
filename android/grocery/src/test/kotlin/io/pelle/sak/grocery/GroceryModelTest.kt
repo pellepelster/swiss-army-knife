@@ -159,13 +159,19 @@ class GroceryModelTest {
 
             model.requestLink(" pelle@pelle.io ")
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""POST /auth/login/link {"email":"pelle@pelle.io","client":"grocery-android"}"""))
+            // with a nonce of this request, kept for the exchange (AN-8)
+            val pending = store.load().pending!!
+            assertTrue(
+                backend.requests.contains(
+                    """POST /auth/login/link {"email":"pelle@pelle.io","client":"grocery-android","nonce":"${pending.nonce}"}""",
+                ),
+            )
             assertEquals("pelle@pelle.io", (model.screen.value as Screen.SignIn).linkSentTo)
-            assertEquals(PendingLogin(URL, now), store.load().pending)
+            assertEquals(PendingLogin(URL, now, pending.nonce), pending)
 
             model.signInWithLink("login-token")
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""POST /auth/login/exchange {"token":"login-token"}"""))
+            assertTrue(backend.requests.contains("""POST /auth/login/exchange {"token":"login-token","nonce":"${pending.nonce}"}"""))
             assertEquals("pelle@pelle.io", (model.screen.value as ListsScreen).user)
             // used once
             assertNull(store.load().pending)
@@ -175,7 +181,7 @@ class GroceryModelTest {
     fun `a pending login older than 15 minutes is no longer taken`() =
         runTest {
             val store =
-                MemorySessionStore(Stored(apiUrl = URL, deployment = "family", pending = PendingLogin(URL, now.minusSeconds(16 * 60))))
+                MemorySessionStore(Stored(apiUrl = URL, deployment = "family", pending = PendingLogin(URL, now.minusSeconds(16 * 60), "a nonce of sixteen")))
             val model = model(store).also { it.start() }
             model.signInWithLink("login-token")
             advanceUntilIdle()
@@ -239,7 +245,7 @@ class GroceryModelTest {
 
     private fun signedInStore(openList: Int? = 1) =
         MemorySessionStore(
-            Stored(apiUrl = URL, deployment = "family", token = "t", email = "admin", expiresAt = now.plusSeconds(60), openList = openList),
+            Stored(apiUrl = URL, deployment = "family", token = "t", email = "admin", expiresAt = now.plusSeconds(60)).withOpenList(openList),
         )
 
     // signed in, the list open last open again
@@ -968,7 +974,8 @@ class GroceryModelTest {
             val sent = backend.requests.size
             model.editCategoryName(2, "Dairy ")
             model.saveCategoryName(2)
-            model.setCategoryIcon(2, "🧀")
+            // the icon it has
+            model.setCategoryIcon(2, null)
             model.editCategoryName(2, " ")
             model.saveCategoryName(2)
             advanceUntilIdle()
@@ -1349,7 +1356,7 @@ class GroceryModelTest {
             advanceUntilIdle()
             current.checkUpdate()
             advanceUntilIdle()
-            assertEquals("Your deployment runs no release, there is no update for the app.", notice(current))
+            assertEquals("Your SAK instance runs no release, there is no update for the app.", notice(current))
 
             val debug = model(signedInStore(openList = null), appVersion = "latest").also { it.start() }
             advanceUntilIdle()
@@ -1379,4 +1386,212 @@ class GroceryModelTest {
             backend.api(URL, null).info()
             assertEquals(listOf("de-DE,en-US", null), backend.languages)
         }
+
+    @Test
+    fun `a change of a category queued when the settings close keeps what the category has, its icon too (AN-6)`() =
+        runTest {
+            backend.answers["PUT /grocery/lists/1/categories/1"] = HttpStatusCode.OK to category(1, "Fruit", "🥦")
+            backend.answers["PUT /grocery/lists/1/categories/order"] = HttpStatusCode.OK to page()
+            val model = signedIn()
+            advanceUntilIdle()
+
+            // a name typed, back at once: the icon goes with it
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editCategoryName(1, "Fruit")
+            model.back()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/1 {"name":"Fruit","icon":"🥦"}"""))
+
+            // a rename, then an icon, then back: the icon keeps the new name
+            model.openSettings(1)
+            advanceUntilIdle()
+            model.editCategoryName(1, "Obst")
+            model.saveCategoryName(1)
+            model.setCategoryIcon(1, "🍎")
+            model.moveCategory(2, 0)
+            model.back()
+            assertNull(model.lists().settings)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/1 {"name":"Obst","icon":"🥦"}"""))
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/1 {"name":"Obst","icon":"🍎"}"""))
+            // a move queued at the close is sent too, with the order of then
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/1/categories/order {"ids":[2,1]}"""))
+        }
+
+    @Test
+    fun `two moves in a row each take the order of then, the second one the order the first one made (AN-7)`() =
+        runTest {
+            backend.answers["GET /grocery/lists/1/categories"] =
+                HttpStatusCode.OK to page(category(1, "A", null), category(2, "B", null), category(3, "C", null), category(4, "D", null))
+            backend.answers["PUT /grocery/lists/1/categories/order"] = HttpStatusCode.OK to page()
+            val model = signedIn()
+            advanceUntilIdle()
+            model.openSettings(1)
+            advanceUntilIdle()
+
+            model.moveCategory(4, 0)
+            assertEquals(listOf(4, 1, 2, 3), model.lists().settings!!.categories.map { it.id })
+            // C one row up: from where it is now
+            model.moveCategory(3, 1)
+            assertEquals(listOf(4, 3, 1, 2), model.lists().settings!!.categories.map { it.id })
+            advanceUntilIdle()
+            val orders = backend.requests.filter { it.startsWith("PUT /grocery/lists/1/categories/order") }
+            assertEquals(
+                listOf("""PUT /grocery/lists/1/categories/order {"ids":[4,1,2,3]}""", """PUT /grocery/lists/1/categories/order {"ids":[4,3,1,2]}"""),
+                orders,
+            )
+        }
+
+    @Test
+    fun `a photo while another one is sent waits for it, none is dropped (AN-32)`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/9","thumbnailUrl":"/api/v1/files/9/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
+            backend.answers["PUT /grocery/items/11/photo"] = HttpStatusCode.OK to item(11, 1, "Milk", 2)
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.attachPhoto(10) { "a".toByteArray() }
+            model.attachPhoto(11) { "b".toByteArray() }
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/10/photo {"fileId":9}"""))
+            assertTrue(backend.requests.contains("""PUT /grocery/items/11/photo {"fileId":9}"""))
+            assertNull(model.lists().photoBusy)
+        }
+
+    @Test
+    fun `a photo the camera took after the session ended is dropped, not kept for a later sign-in (AN-52)`() =
+        runTest {
+            backend.dispatcher = StandardTestDispatcher(testScheduler)
+            val model = GroceryModel(MemorySessionStore(Stored(apiUrl = URL, deployment = "family")), backend::api, this, allowUrl = false)
+            var discarded = false
+            model.attachPhoto(10, discard = { discarded = true }) { "jpeg".toByteArray() }
+            model.start()
+            advanceUntilIdle()
+            assertTrue(model.screen.value is Screen.SignIn)
+            assertTrue(discarded)
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+        }
+
+    @Test
+    fun `the dialogs and the photo of a list that went go with it (AN-31)`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            val apples = model.item("Apples")
+            model.askRename(apples)
+            model.askDelete(apples)
+            model.viewPhoto(apples)
+
+            // the owner deleted the list meanwhile
+            backend.answers["GET /grocery/lists"] = HttpStatusCode.OK to page(list(2, "Party", shared = true))
+            model.refresh()
+            advanceUntilIdle()
+            val lists = model.lists()
+            assertNull(lists.open)
+            assertNull(lists.renaming)
+            assertNull(lists.deleting)
+            assertNull(lists.viewing)
+        }
+
+    @Test
+    fun `the settings load their categories again when the app comes back (AN-33)`() =
+        runTest {
+            backend.answers["GET /grocery/changes"] = HttpStatusCode.OK to ": listening\n\n"
+            val model = signedIn()
+            advanceUntilIdle()
+            model.openSettings(1)
+            advanceUntilIdle()
+            val loads = { backend.requests.count { it == "GET /grocery/lists/1/categories" } }
+            val before = loads()
+
+            model.startListening()
+            runCurrent()
+            // the first stream ended at once; the next one loads what it may have missed
+            advanceTimeBy(GroceryModel.RETRY_DELAY_MS + 1)
+            runCurrent()
+            assertTrue(loads() > before)
+            model.stopListening()
+        }
+
+    @Test
+    fun `the list suggests names for what is typed, one chosen brings its quantity and category (GROCERY-11)`() =
+        runTest {
+            backend.answers["GET /grocery/lists/1/suggestions"] =
+                HttpStatusCode.OK to page("""{"id":20,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}""")
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(13, 1, "Milk", 2, 1.5, "l")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.typed("mi")
+            runCurrent()
+            // after a short pause of typing only
+            assertTrue(backend.queries.none { it.contains("/suggestions") })
+            advanceTimeBy(GroceryModel.SUGGEST_DELAY_MS + 1)
+            advanceUntilIdle()
+            assertTrue(backend.queries.any { it.startsWith("GET /grocery/lists/1/suggestions?text=mi") })
+            assertEquals(listOf("Milk"), model.lists().suggestions.map { it.name })
+
+            model.chooseSuggestion(model.lists().suggestions.single())
+            assertEquals("Milk", model.lists().itemName)
+            assertEquals(emptyList<Any>(), model.lists().suggestions)
+            model.addItem()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /grocery/items {"listId":1,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}"""))
+            assertNull(model.lists().chosen)
+            assertEquals("", model.lists().itemName)
+        }
+
+    @Test
+    fun `a name changed after a suggestion was chosen goes without its quantity and category`() =
+        runTest {
+            backend.answers["GET /grocery/lists/1/suggestions"] =
+                HttpStatusCode.OK to page("""{"id":20,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}""")
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(13, 1, "Milch", null)
+            val model = signedIn()
+            advanceUntilIdle()
+            model.typed("mi")
+            advanceUntilIdle()
+            model.chooseSuggestion(model.lists().suggestions.single())
+            model.typed("Milch")
+            assertNull(model.lists().chosen)
+            model.addItem()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /grocery/items {"listId":1,"name":"Milch"}"""))
+
+            val asked = backend.queries.count { it.contains("/suggestions") }
+            model.typed("")
+            advanceUntilIdle()
+            assertEquals(asked, backend.queries.count { it.contains("/suggestions") })
+        }
+
+    @Test
+    fun `a check that waits is sent when the app goes to the background (AN-29)`() =
+        runTest {
+            backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+            model.check(model.item("Apples"))
+            model.stopped()
+            runCurrent()
+            assertTrue(backend.requests.contains("POST /grocery/items/10/check"))
+            assertNull(model.lists().undo)
+        }
+
+    @Test
+    fun `the photos kept fetched have at most their bytes, the ones used last stay (AN-21)`() {
+        val cache = PhotoCache(10)
+        cache.put("a", ByteArray(4))
+        cache.put("b", ByteArray(4))
+        cache.get("a")
+        cache.put("c", ByteArray(4))
+        assertNotNull(cache.get("a"))
+        assertNull(cache.get("b"))
+        assertNotNull(cache.get("c"))
+        assertEquals(8L, cache.size())
+        // larger than all of it: not kept
+        cache.put("d", ByteArray(11))
+        assertNull(cache.get("d"))
+    }
 }

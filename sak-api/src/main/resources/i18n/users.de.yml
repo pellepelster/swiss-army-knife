@@ -2,8 +2,8 @@
 invalid_email: "Eine E-Mail-Adresse wie name@example.org ist nötig."
 invalid_name: "Ein Name darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
 exists: "Einen Benutzer mit dieser Adresse gibt es schon."
-not_a_user: "Die Adresse ist kein Benutzer des Deployments."
-no_mail_server: "Das Deployment hat keinen Mailserver, es verschickt keine E-Mails."
+not_a_user: "Die Adresse ist kein Benutzer."
+no_mail_server: "Es ist kein Mailserver eingerichtet, es werden keine E-Mails verschickt."
 app_link_not_sent: "Die E-Mail konnte nicht verschickt werden, prüfe den Mailserver."
 app_link_subject: "Die Android-Apps von %{app}"
 app_link_body: |
@@ -15,4 +15,4 @@ app_link_body: |
   Notizen: %{notes}
 
   Melde dich dann mit dieser E-Mail-Adresse darin an.
-is_admin: "Die Adresse ist ein Admin des Deployments, sie ist kein Benutzer zum Hinzufügen."
+is_admin: "Die Adresse ist ein Admin, sie ist kein Benutzer zum Hinzufügen."

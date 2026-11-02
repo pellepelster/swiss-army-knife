@@ -11,9 +11,12 @@ kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.11.0"
 junit = "4.13.2"
 emoji2 = "1.6.0"
-openapi-generator = "7.14.0"
+# the newest release that is two weeks old at least
+openapi-generator = "7.26.0"
 
 [libraries]
+# the android gradle plugin for the convention plugins (build-logic), compileOnly there
+android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 emoji2-emojipicker = { module = "androidx.emoji2:emoji2-emojipicker", version.ref = "emoji2" }

@@ -20,12 +20,9 @@ export class SettingsService {
     return fetchAll<SettingScope>(this.http, '/api/v1/settings');
   }
 
-  // the stored values, also of the settings that are off; effective as the apps use them, the
-  // default for a setting that is off
-  values(scope: string, effective = false): Observable<ScopeValues> {
-    return this.http.get<ScopeValues>(`/api/v1/settings/${encodeURIComponent(scope)}`, {
-      params: effective ? { effective: true } : {},
-    });
+  // the stored values, also of the settings that are off
+  values(scope: string): Observable<ScopeValues> {
+    return this.http.get<ScopeValues>(`/api/v1/settings/${encodeURIComponent(scope)}`);
   }
 
   // sets the values given, the others of the scope stay; answers all of the scope

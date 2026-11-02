@@ -10,6 +10,7 @@ import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.api.idParameter
 import io.pelle.sak.backend.labels.response
 import io.pelle.sak.backend.notes.model.NoteResponse
+import io.pelle.sak.backend.notes.model.NotesSettingsResponse
 import io.pelle.sak.backend.notes.model.PhotoResponse
 import io.pelle.sak.backend.notes.model.RecordingResponse
 import io.pelle.sak.backend.notes.model.NoteRequest
@@ -47,7 +48,7 @@ private fun Note.response() =
     NoteResponse(
         id,
         text,
-        color.id,
+        color,
         labels.map { it.response() },
         photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
         recordings.map { RecordingResponse(it, fileUrl(it), thumbnailUrl(it)) },
@@ -83,8 +84,28 @@ private suspend fun RoutingCall.respondSaved(
 // the notes of the signed in user with their labels, meant to be mounted behind the
 // authentication
 @OptIn(ExperimentalKtorApi::class)
-fun Route.notes(noteService: NoteService) {
+fun Route.notes(
+    noteService: NoteService,
+    // whether a text can be discovered now (FileTextService.available)
+    discoverText: () -> Boolean = { false },
+) {
     installApi()
+
+    get("/settings") {
+        call.respond(NotesSettingsResponse(withContext(Dispatchers.IO) { discoverText() }))
+    }.describe {
+        tag(NOTES_TAG)
+        summary = "What the notes app may do"
+        description =
+            "For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The " +
+            "switches themselves are settings of the admins (GET /api/v1/settings/notes)."
+        responses {
+            HttpStatusCode.OK {
+                description = "What the notes app may do"
+                schema = jsonSchema<NotesSettingsResponse>()
+            }
+        }
+    }
 
     get {
         val page = call.pageRequest() ?: return@get

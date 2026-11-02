@@ -28,6 +28,7 @@ import io.ktor.server.netty.Netty
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.hosting.CreateBucketResult
 import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
@@ -496,7 +497,7 @@ class SakAppsTest {
             // an admin of the configuration is no user to add
             post(port, "/api/v1/users", """{"email":"SECOND@example.org"}""", admin).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"users.is_admin","message":"The address is an admin of the deployment, it is no user to add."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"users.is_admin","message":"The address is an admin, it is no user to add."}]}"""
             }
             post(port, "/api/v1/users", """{"email":"nobody"}""", admin).let {
                 it.statusCode() shouldBe 400
@@ -516,6 +517,11 @@ class SakAppsTest {
             get(port, "/api/v1/auth/who-am-i", admin).json().getValue("name") shouldBe JsonNull
             get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/notes", anna).statusCode() shouldBe 200
+            // the user may know whether the AI discovers texts, the switch itself is the admin's (AN-26)
+            get(port, "/api/v1/notes/settings", anna).let {
+                it.statusCode() shouldBe 200
+                it.json().string("discoverText") shouldBe "false"
+            }
             listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
             }
@@ -793,7 +799,9 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"files.unsupported_type","message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
             }
-            upload(jpeg + ByteArray(10 * 1024 * 1024)).statusCode() shouldBe 413
+            // a file of at most 64 MB is stored (FileServiceTest refuses a larger one), more than the 10 MB before
+            FileService.DEFAULT_MAX_SIZE shouldBe 64L * 1024 * 1024
+            upload(jpeg + ByteArray(20 * 1024 * 1024)).statusCode() shouldBe 201
             // the apps scale photos down, the storage takes nothing larger
             upload(Media.jpeg(2049, 1)).let {
                 it.statusCode() shouldBe 400
@@ -935,17 +943,13 @@ class SakAppsTest {
             openrouter.stop(0)
         }
 
-        // without an api key there is no discovery
+        // the api key does not go while the AI is turned on
         withServer(config()) { port ->
             val session = signIn(port)
-            // the database is the one of the server before, its api key is taken away
-            put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":""}""", session).statusCode() shouldBe 200
-            val png = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
-            val file =
-                request(port, "POST", "/api/v1/files", session, png, "application/octet-stream", HttpResponse.BodyHandlers.ofString()).json().string("id")
-            post(port, "/api/v1/files/$file/discover/text", "", session).let {
-                it.statusCode() shouldBe 503
-                it.body() shouldBe """{"errors":[{"code":"files.no_api_key","message":"No OpenRouter API key is set in the settings."}]}"""
+            // the database is the one of the server before
+            put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":""}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI needs an API key of OpenRouter to be turned on."}]}"""
             }
         }
     }
@@ -1201,6 +1205,7 @@ class SakAppsTest {
                         "/api/v1/labels",
                         "/api/v1/labels/{id}",
                         "/api/v1/notes",
+                        "/api/v1/notes/settings",
                         "/api/v1/notes/{id}",
                         "/api/v1/grocery/changes",
                         "/api/v1/users",
@@ -1356,7 +1361,25 @@ class SakAppsTest {
 
     @Test
     fun `admins read and change the settings, a value that is not valid changes nothing`() {
-        withServer { port ->
+        // openrouter takes the key "token" only
+        val openrouter =
+            HttpServer.create(InetSocketAddress("localhost", 0), 0).apply {
+                createContext("/api/v1/key") { exchange ->
+                    exchange.sendResponseHeaders(if (exchange.requestHeaders.getFirst("Authorization") == "Bearer token") 200 else 401, -1)
+                    exchange.close()
+                }
+                start()
+            }
+        val config = config().copy(openrouter = SakConfig.OpenRouterConfig(url = "http://localhost:${openrouter.address.port}/api/v1"))
+        try {
+            settingsOfAdmins(config)
+        } finally {
+            openrouter.stop(0)
+        }
+    }
+
+    private fun settingsOfAdmins(config: SakConfig) {
+        withServer(config) { port ->
             get(port, "/api/v1/settings").statusCode() shouldBe 401
             val session = signIn(port)
 
@@ -1386,9 +1409,14 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"settings.requires","message":"\"AI features\" needs \"AI features\" of \"AI\" turned on."}]}"""
             }
+            // turned on only with an api key
             put(port, "/api/v1/settings/ai", """{"enabled":true}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI needs an API key of OpenRouter to be turned on."}]}"""
+            }
+            put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).let {
                 it.statusCode() shouldBe 200
-                it.body() shouldBe """{"enabled":true,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+                it.body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
             }
             put(port, "/api/v1/settings/ai", """{"enabled":"false","other":1}""", session).let {
                 it.statusCode() shouldBe 400
@@ -1402,7 +1430,7 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"settings.read_only","message":"\"Vision model\" can not be changed."}]}"""
             }
-            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
 
             put(port, "/api/v1/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
             // turned off for the deployment, the notes keep their value but use the AI no more

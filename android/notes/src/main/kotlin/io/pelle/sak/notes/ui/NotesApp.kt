@@ -78,7 +78,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -89,6 +91,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.Screen
@@ -99,10 +104,16 @@ import io.pelle.sak.core.ui.DeploymentScreen
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Page
 import io.pelle.sak.core.ui.PhotoScaling
+import io.pelle.sak.core.ui.resolve
 import io.pelle.sak.core.ui.SignInScreen
 import io.pelle.sak.core.ui.UpdateBanner
 import io.pelle.sak.core.ui.UpdateNotice
 import io.pelle.sak.notes.MAX_LABELS
+import io.pelle.sak.notes.MAX_LABEL_LENGTH
+import io.pelle.sak.notes.MAX_PHOTOS
+import io.pelle.sak.notes.MAX_RECORDINGS
+import io.pelle.sak.notes.MAX_TEXT_LENGTH
+import io.pelle.sak.notes.Removal
 import io.pelle.sak.notes.NOTE_COLORS
 import io.pelle.sak.notes.NotesModel
 import io.pelle.sak.notes.NotesScreen
@@ -118,23 +129,23 @@ import java.io.File
 // --note-* of sak-frontend/src/styles.scss)
 private val NOTE_BACKGROUNDS =
     mapOf(
-        "yellow" to Color(0xFFFFF59D),
-        "pink" to Color(0xFFF8BBD0),
-        "blue" to Color(0xFFB3E5FC),
-        "green" to Color(0xFFC5E1A5),
-        "orange" to Color(0xFFFFCC80),
+        NoteResponse.Color.YELLOW to Color(0xFFFFF59D),
+        NoteResponse.Color.PINK to Color(0xFFF8BBD0),
+        NoteResponse.Color.BLUE to Color(0xFFB3E5FC),
+        NoteResponse.Color.GREEN to Color(0xFFC5E1A5),
+        NoteResponse.Color.ORANGE to Color(0xFFFFCC80),
     )
 private val NOTE_INK = Color(0xFF2B2A27)
 
-private fun noteColor(color: String) = NOTE_BACKGROUNDS[color] ?: NOTE_BACKGROUNDS.getValue("yellow")
+private fun noteColor(color: NoteResponse.Color) = NOTE_BACKGROUNDS.getValue(color)
 
 private val COLOR_NAMES =
     mapOf(
-        "yellow" to R.string.notes_colors_yellow,
-        "pink" to R.string.notes_colors_pink,
-        "blue" to R.string.notes_colors_blue,
-        "green" to R.string.notes_colors_green,
-        "orange" to R.string.notes_colors_orange,
+        NoteResponse.Color.YELLOW to R.string.notes_colors_yellow,
+        NoteResponse.Color.PINK to R.string.notes_colors_pink,
+        NoteResponse.Color.BLUE to R.string.notes_colors_blue,
+        NoteResponse.Color.GREEN to R.string.notes_colors_green,
+        NoteResponse.Color.ORANGE to R.string.notes_colors_orange,
     )
 
 // a photo is taken or chosen for a note, or for a new note (NEW)
@@ -143,10 +154,14 @@ private const val NEW = -1
 @Composable
 fun NotesApp(model: NotesModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
+    val player = rememberPlayer(model)
+    // a recording plays only while its note is open, the app in front and the user signed in (AN-28)
+    val open = (screen as? NotesScreen)?.open
+    LaunchedEffect(open) { player.stop() }
     CompositionLocalProvider(
         LocalPhotoPicker provides rememberPhotoPicker(model),
         LocalMicrophone provides rememberMicrophone(model),
-        LocalPlayer provides rememberPlayer(model),
+        LocalPlayer provides player,
     ) {
         when (val current = screen) {
             is Screen.Deployment -> DeploymentScreen(stringResource(R.string.notes_app_name), current, model::connect)
@@ -215,7 +230,13 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
     }
     val camera =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-            if (taken) send(cameraUri) { cameraFile.delete() } else pending = null
+            // the file of the camera (with its EXIF) goes also when no photo was taken (AN-27)
+            if (taken) {
+                send(cameraUri) { cameraFile.delete() }
+            } else {
+                pending = null
+                cameraFile.delete()
+            }
         }
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -275,18 +296,19 @@ private fun WallScreen(
     val busy = screen.creating || screen.recording != null
     Page(
         screen.deployment,
+        bottomBar = { BottomBars(screen, model) },
         actions = {
             Box {
                 IconButton(onClick = { photoMenu = true }, enabled = !busy, modifier = Modifier.testTag("create-with-photo")) {
-                    Icon(painterResource(R.drawable.ic_camera), contentDescription = stringResource(R.string.notes_create_with_photo))
+                    Icon(painterResource(R.drawable.ic_camera), contentDescription = stringResource(R.string.notes_page_create_with_photo))
                 }
                 PhotoMenu(photoMenu, picker, NEW) { photoMenu = false }
             }
             IconButton(onClick = { microphone(RecordingFor.New) }, enabled = !busy, modifier = Modifier.testTag("create-with-recording")) {
-                Icon(painterResource(R.drawable.ic_microphone), contentDescription = stringResource(R.string.notes_create_with_recording))
+                Icon(painterResource(R.drawable.ic_microphone), contentDescription = stringResource(R.string.notes_page_create_with_recording))
             }
             IconButton(onClick = model::create, enabled = !busy, modifier = Modifier.testTag("create-note")) {
-                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.notes_create_note))
+                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.notes_page_create_note))
             }
             AccountMenu(screen, model, home = true)
         },
@@ -306,19 +328,19 @@ private fun WallScreen(
                 val full = StaggeredGridItemSpan.FullLine
                 screen.update?.let { item(span = full) { UpdateBanner(it, model::update) } }
                 screen.updateNotice?.let { item(span = full) { UpdateNotice(it, model::dismissUpdateNotice) } }
-                if (screen.recording == RecordingFor.New) item(span = full) { RecordingBar(model) }
                 if (screen.creating) item(span = full) { Text(stringResource(R.string.notes_uploading)) }
-                screen.error?.let { item(span = full) { Error(it) } }
+                screen.error?.let { item(span = full) { Message(it, model::dismissError) } }
+                screen.notice?.let { item(span = full) { Message(it, model::dismissNotice, error = false) } }
                 if (screen.labels.isNotEmpty()) item(span = full) { LabelFilter(screen, model) }
                 if (!screen.loading && screen.error == null && screen.notes.isEmpty()) {
                     item(span = full) {
                         Text(
-                            screen.filter?.let { stringResource(R.string.notes_none_labelled, it) } ?: stringResource(R.string.notes_empty),
+                            screen.filter?.let { stringResource(R.string.notes_page_none_labelled, it) } ?: stringResource(R.string.notes_empty),
                             modifier = Modifier.padding(16.dp),
                         )
                     }
                 }
-                items(screen.notes, key = { it.id }) { note -> NoteCard(note, model) }
+                items(screen.notes, key = { it.id }) { note -> NoteCard(screen, note, model) }
             }
         }
     }
@@ -366,7 +388,13 @@ private fun LabelFilter(
             .testTag("filter"),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(selected = screen.filter == null, onClick = { model.filter(null) }, label = { Text(stringResource(R.string.notes_all)) })
+        // how many notes there are: the notes shown, or while a label is filtered the last count of all
+        val count = if (screen.filter == null) screen.notes.size.takeUnless { screen.loading } else screen.allCount
+        FilterChip(
+            selected = screen.filter == null,
+            onClick = { model.filter(null) },
+            label = { Text(count?.let { stringResource(R.string.notes_all_count, it) } ?: stringResource(R.string.notes_page_all)) },
+        )
         screen.labels.forEach { label ->
             FilterChip(selected = screen.filter == label, onClick = { model.filter(label) }, label = { Text("#$label") })
         }
@@ -377,10 +405,12 @@ private fun LabelFilter(
 // tap opens it, the menu of the card deletes it after a confirmation (UX-12, UX-4.1)
 @Composable
 private fun NoteCard(
+    screen: NotesScreen,
     note: NoteResponse,
     model: NotesModel,
 ) {
     var menu by remember { mutableStateOf(false) }
+    val deleting = note.id in screen.deletingNow
     Card(
         colors = CardDefaults.cardColors(containerColor = noteColor(note.color), contentColor = NOTE_INK),
         modifier = Modifier.fillMaxWidth().clickable { model.open(note.id) }.testTag("note-${note.id}"),
@@ -388,16 +418,20 @@ private fun NoteCard(
         Column(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    note.text.ifBlank { stringResource(R.string.notes_write) },
+                    note.text.ifBlank { stringResource(R.string.notes_card_write) },
                     maxLines = 8,
                     overflow = TextOverflow.Ellipsis,
                     color = if (note.text.isBlank()) NOTE_INK.copy(alpha = 0.6f) else NOTE_INK,
                     modifier = Modifier.weight(1f).padding(top = 8.dp),
                 )
                 Box {
-                    val description = stringResource(R.string.notes_note_menu)
-                    IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = description }) {
-                        Text("⋮", style = MaterialTheme.typography.titleLarge, color = NOTE_INK)
+                    if (deleting) {
+                        val deletingText = stringResource(R.string.notes_deleting)
+                        CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp).semantics { contentDescription = deletingText }, strokeWidth = 2.dp)
+                    } else {
+                        IconButton(onClick = { menu = true }) {
+                            Icon(painterResource(CoreR.drawable.ic_menu), contentDescription = stringResource(R.string.notes_note_menu), tint = NOTE_INK)
+                        }
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
@@ -418,8 +452,21 @@ private fun NoteCard(
                     note.recordings.size.takeIf { it > 0 }?.let { "🎙 $it" },
                 ).joinToString("  ")
             if (counts.isNotEmpty()) Text(counts, style = MaterialTheme.typography.bodySmall)
+            // a label filters the wall by it, as on the web
             if (note.labels.isNotEmpty()) {
-                Text(note.labels.joinToString(" ") { "#${it.name}" }, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = 12.dp))
+                Row(Modifier.padding(end = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    note.labels.forEach { label ->
+                        Text(
+                            "#${label.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(role = Role.Button) { model.filter(label.name) }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
             }
         }
     }
@@ -459,8 +506,10 @@ private fun NoteScreen(
     val microphone = LocalMicrophone.current
     var menu by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<Int?>(null) }
+    val deleting = note.id in screen.deletingNow
     Page(
         stringResource(R.string.notes_note),
+        bottomBar = { BottomBars(screen, model) },
         navigationIcon = {
             IconButton(onClick = { model.open(null) }, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.notes_back_to_notes))
@@ -468,8 +517,13 @@ private fun NoteScreen(
         },
         actions = {
             Box {
-                IconButton(onClick = { menu = true }, modifier = Modifier.testTag("note-menu")) {
-                    Text("⋮", style = MaterialTheme.typography.titleLarge)
+                // while the note is deleted its menu waits, a second delete does nothing (AN-51)
+                IconButton(onClick = { menu = true }, enabled = !deleting, modifier = Modifier.testTag("note-menu")) {
+                    if (deleting) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(painterResource(CoreR.drawable.ic_menu), contentDescription = stringResource(R.string.notes_note_menu))
+                    }
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
@@ -483,20 +537,27 @@ private fun NoteScreen(
             }
         },
     ) { padding ->
-        Column(
-            Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .background(noteColor(note.color))
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        // pulled down, the notes load again (ANDROID-3)
+        PullToRefreshBox(
+            isRefreshing = screen.loading,
+            onRefresh = model::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            Error(screen.error)
-            NoteText(note, model)
-            ColorChoice(note, model)
-            Labels(screen, note, model)
-            Media(screen, note, model, picker, microphone) { viewing = it }
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(noteColor(note.color))
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                screen.error?.let { Message(it, model::dismissError) }
+                screen.notice?.let { Message(it, model::dismissNotice, error = false) }
+                NoteText(note, model)
+                ColorChoice(note, model)
+                Labels(screen, note, model)
+                Media(screen, note, model, picker, microphone) { viewing = it }
+            }
         }
     }
     viewing?.let { fileId -> PhotoDialog(fileId, model) { viewing = null } }
@@ -514,12 +575,14 @@ private fun NoteText(
     LaunchedEffect(note.text) { if (note.text != text) text = note.text }
     OutlinedTextField(
         value = text,
+        // at most MAX_TEXT_LENGTH characters, the field says so once it is full (AN-24)
         onValueChange = {
-            text = it
-            model.setText(note.id, it)
+            text = it.take(MAX_TEXT_LENGTH)
+            model.setText(note.id, text)
         },
         label = { Text(stringResource(R.string.notes_text)) },
-        placeholder = { Text(stringResource(R.string.notes_write)) },
+        placeholder = { Text(stringResource(R.string.notes_card_write)) },
+        supportingText = if (text.length >= MAX_TEXT_LENGTH) ({ Text(stringResource(R.string.notes_text_full, MAX_TEXT_LENGTH)) }) else null,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         minLines = 4,
         modifier = Modifier.fillMaxWidth().testTag("text"),
@@ -533,7 +596,7 @@ private fun ColorChoice(
     model: NotesModel,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.notes_color), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
+        Text(stringResource(R.string.notes_card_color), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NOTE_COLORS.forEach { color ->
                 val name = stringResource(R.string.notes_color_of, stringResource(COLOR_NAMES.getValue(color)))
@@ -569,7 +632,7 @@ private fun Labels(
         label = ""
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.notes_labels), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
+        Text(stringResource(R.string.notes_card_labels), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             note.labels.forEach { each ->
                 val remove = stringResource(R.string.notes_label_remove, each.name)
@@ -582,22 +645,23 @@ private fun Labels(
             }
         }
         // the known labels the note does not have yet, one tap adds one
+        // disabled, not hidden, once the note has MAX_LABELS (UX-8)
         val known = screen.labels.filter { name -> note.labels.none { it.name == name } && (label.isBlank() || name.contains(label.trim().lowercase())) }
-        if (!full && known.isNotEmpty()) {
+        if (known.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 known.take(12).forEach { name ->
-                    FilterChip(selected = false, onClick = { model.addLabel(note.id, name) }, label = { Text("#$name") })
+                    FilterChip(selected = false, enabled = !full, onClick = { model.addLabel(note.id, name) }, label = { Text("#$name") })
                 }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = label,
-                onValueChange = { label = it },
+                onValueChange = { label = it.take(MAX_LABEL_LENGTH) },
                 label = { Text(stringResource(R.string.notes_label_new)) },
                 singleLine = true,
                 enabled = !full,
-                supportingText = if (full) ({ Text(stringResource(R.string.notes_labels_full, MAX_LABELS)) }) else null,
+                supportingText = if (full) ({ Text(stringResource(R.string.notes_card_labels_full, MAX_LABELS)) }) else null,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (label.isNotBlank()) add() }),
                 modifier = Modifier.weight(1f).testTag("label"),
@@ -609,9 +673,10 @@ private fun Labels(
     }
 }
 
-// the photos and recordings of the note: a photo opens in full, a recording plays; each can go, and the
-// AI discovers the text in it when an admin turned it on (otherwise its button stays, disabled, and the
-// screen says why, UX-8)
+// the photos and recordings of the note: a photo opens in full, a recording plays; each can go (undo
+// brings it back), and the AI discovers the text in it when it is turned on (otherwise its button stays,
+// disabled, and the screen says why, UX-8). A note takes MAX_PHOTOS and MAX_RECORDINGS, the add buttons
+// say why they are disabled (AN-24)
 @Composable
 private fun Media(
     screen: NotesScreen,
@@ -623,11 +688,13 @@ private fun Media(
 ) {
     var photoMenu by remember { mutableStateOf(false) }
     val uploading = note.id in screen.uploading
-    val recordingHere = screen.recording == RecordingFor.Note(note.id)
+    val photosFull = note.photos.size >= MAX_PHOTOS
+    val recordingsFull = note.recordings.size >= MAX_RECORDINGS
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.notes_photos), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
         note.photos.forEachIndexed { index, photo ->
             val number = index + 1
+            val name = stringResource(R.string.notes_photo_of, number)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Thumbnail(
                     photo.id,
@@ -635,42 +702,42 @@ private fun Media(
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { view(photo.id) }
+                        .clickable(role = Role.Button) { view(photo.id) }
+                        .semantics { contentDescription = name }
                         .testTag("photo-${photo.id}"),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.notes_photo_of, number), color = NOTE_INK, modifier = Modifier.weight(1f))
+                    Text(name, color = NOTE_INK, modifier = Modifier.weight(1f))
                     Discover(screen, note.id, photo.id, stringResource(R.string.notes_discover_photo, number), model)
-                    IconButton(onClick = { model.removePhoto(note.id, photo.id) }) {
+                    IconButton(onClick = { model.removePhoto(note.id, photo.id) }, modifier = Modifier.testTag("remove-photo-${photo.id}")) {
                         Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_photo_remove, number), tint = NOTE_INK)
                     }
                 }
             }
         }
         Box {
-            OutlinedButton(onClick = { photoMenu = true }, enabled = !uploading, modifier = Modifier.testTag("add-photo")) {
+            OutlinedButton(onClick = { photoMenu = true }, enabled = !uploading && !photosFull, modifier = Modifier.testTag("add-photo")) {
                 Icon(painterResource(R.drawable.ic_camera), contentDescription = null, modifier = Modifier.size(18.dp))
                 Text(stringResource(R.string.notes_photo_add), modifier = Modifier.padding(start = 8.dp))
             }
             PhotoMenu(photoMenu, picker, note.id) { photoMenu = false }
         }
+        if (photosFull) Text(stringResource(R.string.notes_photos_full, MAX_PHOTOS), style = MaterialTheme.typography.bodySmall, color = NOTE_INK)
 
         Text(stringResource(R.string.notes_recordings), style = MaterialTheme.typography.titleSmall, color = NOTE_INK)
         note.recordings.forEachIndexed { index, recording ->
             RecordingRow(screen, note.id, recording.id, index + 1, model)
         }
-        if (recordingHere) {
-            RecordingBar(model)
-        } else {
-            OutlinedButton(
-                onClick = { microphone(RecordingFor.Note(note.id)) },
-                enabled = !uploading && screen.recording == null,
-                modifier = Modifier.testTag("add-recording"),
-            ) {
-                Icon(painterResource(R.drawable.ic_microphone), contentDescription = null, modifier = Modifier.size(18.dp))
-                Text(stringResource(R.string.notes_recording_add), modifier = Modifier.padding(start = 8.dp))
-            }
+        // while recording, the bar at the bottom of every screen stops it (AN-23)
+        OutlinedButton(
+            onClick = { microphone(RecordingFor.Note(note.id)) },
+            enabled = !uploading && screen.recording == null && !recordingsFull,
+            modifier = Modifier.testTag("add-recording"),
+        ) {
+            Icon(painterResource(R.drawable.ic_microphone), contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.notes_recording_add), modifier = Modifier.padding(start = 8.dp))
         }
+        if (recordingsFull) Text(stringResource(R.string.notes_recordings_full, MAX_RECORDINGS), style = MaterialTheme.typography.bodySmall, color = NOTE_INK)
         if (uploading) Text(stringResource(R.string.notes_uploading), color = NOTE_INK)
         if (!screen.ai && (note.photos.isNotEmpty() || note.recordings.isNotEmpty())) {
             Text(stringResource(R.string.notes_discover_off), style = MaterialTheme.typography.bodySmall, color = NOTE_INK, modifier = Modifier.testTag("discover-off"))
@@ -725,34 +792,88 @@ private fun RecordingRow(
             }
             Text(stringResource(R.string.notes_recording_of, number), color = NOTE_INK, modifier = Modifier.weight(1f))
             Discover(screen, noteId, fileId, stringResource(R.string.notes_discover_recording, number), model)
-            IconButton(onClick = { model.removeRecording(noteId, fileId) }) {
+            IconButton(onClick = { model.removeRecording(noteId, fileId) }, modifier = Modifier.testTag("remove-recording-$fileId")) {
                 Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_recording_remove, number), tint = NOTE_INK)
             }
         }
     }
 }
 
-// while recording: how long it records and its stop
+// the bars at the bottom of every screen of the notes: the recording running with its stop (AN-23), and
+// the photo or recording just taken off with its undo (UX-4.2)
 @Composable
-private fun RecordingBar(model: NotesModel) {
+private fun BottomBars(
+    screen: NotesScreen,
+    model: NotesModel,
+) {
+    Column {
+        screen.recordingSince?.takeIf { screen.recording != null }?.let { RecordingBar(it, model) }
+        screen.removal?.let { UndoBar(it, model) }
+    }
+}
+
+// while recording: how long it records, counted from its start in the model (it stays across a
+// rotation), and its stop; the time is read out as it changes (a live region)
+@Composable
+private fun RecordingBar(
+    since: java.time.Instant,
+    model: NotesModel,
+) {
     var seconds by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(since) {
         while (true) {
+            seconds = java.time.Duration.between(since, java.time.Instant.now()).seconds.toInt().coerceAtLeast(0)
             delay(1_000)
-            seconds += 1
         }
     }
-    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth().testTag("recording")) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth().testTag("recording")) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.notes_recording, "%d:%02d".format(seconds / 60, seconds % 60)),
                 color = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
             )
             Button(onClick = model::stopRecording, modifier = Modifier.testTag("stop-recording")) {
                 Icon(painterResource(R.drawable.ic_stop), contentDescription = null, modifier = Modifier.size(16.dp))
                 Text(stringResource(R.string.notes_recording_stop), modifier = Modifier.padding(start = 8.dp))
             }
+        }
+    }
+}
+
+// the photo or recording just taken off, and its undo
+@Composable
+private fun UndoBar(
+    removal: Removal,
+    model: NotesModel,
+) {
+    Surface(color = MaterialTheme.colorScheme.inverseSurface, modifier = Modifier.fillMaxWidth().testTag("undo")) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(if (removal.photo != null) R.string.notes_photo_removed else R.string.notes_recording_removed, removal.number),
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            TextButton(onClick = model::undoRemoval, modifier = Modifier.testTag("undo-removal")) {
+                Text(stringResource(CoreR.string.shared_undo), color = MaterialTheme.colorScheme.inversePrimary)
+            }
+        }
+    }
+}
+
+// an error or a notice with its close (dismissError, dismissNotice)
+@Composable
+private fun Message(
+    text: io.pelle.sak.core.UiText,
+    dismiss: () -> Unit,
+    error: Boolean = true,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            if (error) Error(text) else Text(text.resolve(), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        IconButton(onClick = dismiss) {
+            Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_dismiss), modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -775,51 +896,69 @@ private fun PhotoDialog(
 private class Player(
     val playing: Int?,
     val toggle: (Int) -> Unit,
+    val stop: () -> Unit,
 )
 
-private val LocalPlayer = staticCompositionLocalOf { Player(null) {} }
+private val LocalPlayer = staticCompositionLocalOf { Player(null, {}, {}) }
 
-// the recording playing: a second toggle pauses it, another one plays instead; it ends with the app
+// the recording playing: a second toggle pauses it, another one plays instead. It stops when the app goes
+// to the background and ends with the app; its file in the cache goes when it stops (AN-28)
 @Composable
 private fun rememberPlayer(model: NotesModel): Player {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var playing by remember { mutableStateOf<Int?>(null) }
     val player = remember { arrayOfNulls<MediaPlayer>(1) }
+    val file = remember { File(context.cacheDir, "recording.wav") }
     fun stop() {
         player[0]?.release()
         player[0] = null
         playing = null
+        file.delete()
     }
-    DisposableEffect(Unit) { onDispose { stop() } }
-    return Player(playing) { fileId ->
-        if (playing == fileId) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) stop() }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
             stop()
-            return@Player
-        }
-        stop()
-        playing = fileId
-        scope.launch {
-            val wav = model.file(fileId, thumbnail = false, recording = true)
-            if (wav == null || playing != fileId) {
-                if (playing == fileId) playing = null
-                return@launch
-            }
-            try {
-                // the recordings are served only with the session, the player reads a file of the cache
-                val file = withContext(Dispatchers.IO) { File(context.cacheDir, "recording.wav").apply { writeBytes(wav) } }
-                player[0] =
-                    MediaPlayer().apply {
-                        setDataSource(file.path)
-                        setOnCompletionListener { stop() }
-                        prepare()
-                        start()
-                    }
-            } catch (e: Exception) {
-                Log.w("sak-notes", "the recording $fileId could not be played", e)
-                stop()
-                model.recordingNotPlayed()
-            }
         }
     }
+    return Player(
+        playing,
+        toggle = { fileId ->
+            if (playing == fileId) {
+                stop()
+            } else {
+                stop()
+                playing = fileId
+                scope.launch {
+                    val wav = model.file(fileId, thumbnail = false, recording = true)
+                    if (wav == null || playing != fileId) {
+                        if (playing == fileId) playing = null
+                        return@launch
+                    }
+                    try {
+                        // the recordings are served only with the session, the player reads a file of the cache
+                        withContext(Dispatchers.IO) { file.writeBytes(wav) }
+                        // another recording was tapped while this one was written (AN-28)
+                        if (playing != fileId) return@launch
+                        player[0] =
+                            MediaPlayer().apply {
+                                setDataSource(file.path)
+                                setOnCompletionListener { stop() }
+                                prepare()
+                                start()
+                            }
+                    } catch (e: Exception) {
+                        Log.w("sak-notes", "a recording could not be played", e)
+                        stop()
+                        model.recordingNotPlayed()
+                    }
+                }
+            }
+        },
+        stop = ::stop,
+    )
 }

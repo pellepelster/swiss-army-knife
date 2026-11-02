@@ -39,7 +39,7 @@ describe('AppDownload', () => {
 
   const text = () => harness.routeNativeElement!.textContent!;
 
-  it('downloads the apk of the release the deployment runs, without a session', async () => {
+  it('downloads the apk of the release the SAK instance runs, without a session', async () => {
     expect(TestBed.inject(Router).url).toBe('/grocery/download/app');
     http.expectOne('/api/v1/info').flush(info('1.4.2'));
     await harness.fixture.whenStable();
@@ -72,18 +72,18 @@ describe('AppDownload', () => {
     );
   });
 
-  it('a deployment without a release has no app to download', async () => {
+  it('a SAK instance without a release has no app to download', async () => {
     http.expectOne('/api/v1/info').flush(info(null));
     await harness.fixture.whenStable();
     expect(page.load).not.toHaveBeenCalled();
-    expect(text()).toContain('This deployment runs no release, there is no app to download.');
+    expect(text()).toContain('This SAK instance runs no release, there is no app to download.');
   });
 
   it('says when the version could not be loaded and links the releases', async () => {
     http.expectOne('/api/v1/info').flush(null, { status: 502, statusText: 'Bad Gateway' });
     await harness.fixture.whenStable();
     expect(page.load).not.toHaveBeenCalled();
-    expect(text()).toContain('The version of the deployment could not be loaded.');
+    expect(text()).toContain('The version of the SAK instance could not be loaded.');
     expect(harness.routeNativeElement!.querySelector('a')!.getAttribute('href')).toBe(
       'https://github.com/pellepelster/swiss-army-knife/releases',
     );

@@ -95,6 +95,14 @@ class AuthRoutesTest {
             setBody("""{"token":"$token"}""")
         }
 
+    private suspend fun HttpClient.exchangeWithNonce(
+        token: String,
+        nonce: String,
+    ) = post("/api/v1/auth/login/exchange") {
+        contentType(ContentType.Application.Json)
+        setBody("""{"token":"$token","nonce":"$nonce"}""")
+    }
+
     private suspend fun receiveLink(): Url {
         val mail = withTimeout(5_000) { mails.receive() }
         val link = mail.text.lines().single { it.startsWith(FRONTEND_URL) }
@@ -156,13 +164,27 @@ class AuthRoutesTest {
                 client
                     .post("/api/v1/auth/login/link") {
                         contentType(ContentType.Application.Json)
-                        setBody("""{"email":"admin@example.org","client":"$app"}""")
+                        setBody("""{"email":"admin@example.org","client":"$app","nonce":"the nonce of $app"}""")
                     }.status shouldBe HttpStatusCode.Accepted
                 val link = receiveLink()
                 link.parameters.names() shouldBe setOf("token", "client")
                 link.parameters["client"] shouldBe app
-                client.exchange(link.parameters["token"]!!).status shouldBe HttpStatusCode.OK
+                val token = link.parameters["token"]!!
+                // only with the nonce of the request (AN-8); a wrong one does not use the link up
+                client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
+                client.exchangeWithNonce(token, "another nonce of 16+").status shouldBe HttpStatusCode.Unauthorized
+                client.exchangeWithNonce(token, "the nonce of $app").status shouldBe HttpStatusCode.OK
             }
+
+            // an android app without its nonce, or one too short, gets no link
+            listOf("""{"email":"admin@example.org","client":"notes-android"}""", """{"email":"admin@example.org","client":"notes-android","nonce":"short"}""")
+                .forEach { body ->
+                    client
+                        .post("/api/v1/auth/login/link") {
+                            contentType(ContentType.Application.Json)
+                            setBody(body)
+                        }.status shouldBe HttpStatusCode.BadRequest
+                }
 
             // no client the list does not name, also not the one before the apps were told apart
             listOf("ios", "android").forEach { unknown ->

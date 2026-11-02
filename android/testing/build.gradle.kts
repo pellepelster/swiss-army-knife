@@ -1,23 +1,13 @@
 // what the tests of every app share, without android: a fake backend of one deployment for the client
 // of the api, and the english texts of core and the app
+// (sdks and java 17 from sak.android.library, build-logic)
 plugins {
     alias(libs.plugins.android.library)
+    id("sak.android.library")
 }
 
 android {
     namespace = "io.pelle.sak.testing"
-    compileSdk {
-        version = release(37) { minorApiLevel = 2 }
-    }
-
-    defaultConfig {
-        minSdk = 26
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 }
 
 dependencies {

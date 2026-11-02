@@ -89,6 +89,14 @@ class FileTextServiceTest {
     }
 
     @Test
+    fun `a text can be discovered only with the AI turned on and a provider set up (AN-26)`() {
+        FileTextService(files, { recognizer }, { null }) { true }.available() shouldBe true
+        FileTextService(files, { null }, { transcriber }) { true }.available() shouldBe true
+        FileTextService(files, { recognizer }, { transcriber }) { false }.available() shouldBe false
+        FileTextService(files, { null }, { null }) { true }.available() shouldBe false
+    }
+
+    @Test
     fun `discovers the text in an image once and keeps it with the file`() {
         val receipt = photo("Total 12.50")
 

@@ -124,6 +124,9 @@ backend:
       label: { en: "AI", de: "KI" }
       description: { en: "Configure all AI features", de: "Alle KI-Funktionen einrichten" }
     key_refused: { en: "OpenRouter does not take the API key.", de: "OpenRouter nimmt den API-Schlüssel nicht an." }
+    key_missing:
+      en: "The AI needs an API key of OpenRouter to be turned on."
+      de: "Die KI-Funktionen brauchen einen API-Schlüssel von OpenRouter, um eingeschaltet zu werden."
     key_unchecked:
       en: "The API key could not be checked at OpenRouter, please try again later."
       de: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."
@@ -145,10 +148,10 @@ backend:
       en: "A name must have at most %{max} characters and no control characters."
       de: "Ein Name darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
     exists: { en: "A user of the address exists.", de: "Einen Benutzer mit dieser Adresse gibt es schon." }
-    not_a_user: { en: "The address is no user of the deployment.", de: "Die Adresse ist kein Benutzer des Deployments." }
+    not_a_user: { en: "The address is no user.", de: "Die Adresse ist kein Benutzer." }
     no_mail_server:
-      en: "The deployment has no mail server, it sends no e-mail."
-      de: "Das Deployment hat keinen Mailserver, es verschickt keine E-Mails."
+      en: "No mail server is set up, no e-mail is sent."
+      de: "Es ist kein Mailserver eingerichtet, es werden keine E-Mails verschickt."
     app_link_not_sent:
       en: "The e-mail could not be sent, check the mail server."
       de: "Die E-Mail konnte nicht verschickt werden, prüfe den Mailserver."
@@ -173,8 +176,8 @@ backend:
 
         Melde dich dann mit dieser E-Mail-Adresse darin an.
     is_admin:
-      en: "The address is an admin of the deployment, it is no user to add."
-      de: "Die Adresse ist ein Admin des Deployments, sie ist kein Benutzer zum Hinzufügen."
+      en: "The address is an admin, it is no user to add."
+      de: "Die Adresse ist ein Admin, sie ist kein Benutzer zum Hinzufügen."
   dns:
     not_checked:
       en: "The domains of the %{what} could not be checked."
@@ -214,11 +217,11 @@ web:
     started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
     again: { en: "Download again", de: "Erneut herunterladen" }
     no_release:
-      en: "This deployment runs no release, there is no app to download."
-      de: "Dieses Deployment läuft mit keinem Release, es gibt keine App zum Herunterladen."
+      en: "This SAK instance runs no release, there is no app to download."
+      de: "Diese SAK-Instanz läuft mit keinem Release, es gibt keine App zum Herunterladen."
     failed:
-      en: "The version of the deployment could not be loaded."
-      de: "Die Version des Deployments konnte nicht geladen werden."
+      en: "The version of the SAK instance could not be loaded."
+      de: "Die Version der SAK-Instanz konnte nicht geladen werden."
     releases: { en: "All releases on GitHub", de: "Alle Releases auf GitHub" }
   app:
     notes: { en: "Notes", de: "Notizen" }
@@ -237,7 +240,7 @@ web:
     needs_multi_user: { en: "Needs the multi user mode", de: "Braucht den Mehrbenutzermodus" }
     maintenance: { en: "Maintenance", de: "Wartung" }
     health_description: { en: "The status of all health checks", de: "Der Stand aller Health-Checks" }
-    settings_description: { en: "What the whole deployment does", de: "Was das ganze Deployment tut" }
+    settings_description: { en: "Configuration for system and apps", de: "Konfiguration für System und Apps" }
     api: { en: "API", de: "API" }
     api_description:
       en: "The full api of the backend, to try out"
@@ -304,8 +307,8 @@ web:
     all_users: { en: "All users", de: "Alle Benutzer" }
     create_user: { en: "Create user", de: "Benutzer erstellen" }
     intro:
-      en: "The admins come from the configuration of the deployment. A user signs in with a link by e-mail and uses the notes and the grocery lists."
-      de: "Die Admins kommen aus der Konfiguration des Deployments. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten."
+      en: "The admins come from the configuration of the SAK instance. A user signs in with a link by e-mail and uses the notes and the grocery lists."
+      de: "Die Admins kommen aus der Konfiguration der SAK-Instanz. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten."
     column:
       email: { en: "E-mail", de: "E-Mail" }
       role: { en: "Role", de: "Rolle" }
@@ -314,8 +317,8 @@ web:
       admin: { en: "admin", de: "Admin" }
       user: { en: "user", de: "Benutzer" }
     configured:
-      en: "Set by the configuration of the deployment"
-      de: "Durch die Konfiguration des Deployments festgelegt"
+      en: "Set by the configuration of the SAK instance"
+      de: "Durch die Konfiguration der SAK-Instanz festgelegt"
     pages: { en: "Pages of the users", de: "Seiten der Benutzer" }
     not_loaded: { en: "The users could not be loaded.", de: "Die Benutzer konnten nicht geladen werden." }
     forbidden_see: { en: "Only an admin sees the users.", de: "Nur ein Admin sieht die Benutzer." }
@@ -354,19 +357,23 @@ web:
 
 android:
   deployment_hint:
-    en: "Enter the base domain of your SAK deployment, the one the web app is at as sak.<base domain>."
-    de: "Gib die Basisdomain deines SAK-Deployments ein, unter der die Web-App als sak.<Basisdomain> erreichbar ist."
+    en: "Enter the base domain of your SAK instance, the one the web app is at as sak.<base domain>."
+    de: "Gib die Basisdomain deiner SAK-Instanz ein, unter der die Web-App als sak.<Basisdomain> erreichbar ist."
   base_domain: { en: "Base domain", de: "Basisdomain" }
   connecting: { en: "Connecting…", de: "Verbinde…" }
   connect: { en: "Connect", de: "Verbinden" }
-  other_deployment: { en: "Other deployment", de: "Anderes Deployment" }
+  other_deployment: { en: "Other SAK instance", de: "Andere SAK-Instanz" }
+  send_again: { en: "Send again", de: "Erneut senden" }
+  other_address: { en: "Other address", de: "Andere Adresse" }
+  retry: { en: "Try again", de: "Erneut versuchen" }
+  menu: { en: "Menu", de: "Menü" }
   link_sent:
     en: "A login link is on its way to %{email} if the address may sign in. Open it on this phone and tap \"Open in the app\"."
     de: "Ein Login-Link ist an %{email} unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\"."
   signed_in_as: { en: "Signed in as %{email}", de: "Angemeldet als %{email}" }
   update_available:
-    en: "Version %{version} of the app is available, the version of your deployment."
-    de: "Version %{version} der App ist verfügbar, die Version deines Deployments."
+    en: "Version %{version} of the app is available, the version of your SAK instance. The update downloads it from GitHub, which sees the address of this phone."
+    de: "Version %{version} der App ist verfügbar, die Version deiner SAK-Instanz. Das Update lädt sie von GitHub herunter, das die Adresse dieses Handys sieht."
   downloading: { en: "Downloading…", de: "Wird heruntergeladen…" }
   update: { en: "Update", de: "Aktualisieren" }
   update_check: { en: "Check for updates", de: "Nach Updates suchen" }
@@ -376,17 +383,17 @@ android:
     en: "This build of the app is no release, it is not updated."
     de: "Dieser Build der App ist kein Release, er wird nicht aktualisiert."
   update_deployment_no_release:
-    en: "Your deployment runs no release, there is no update for the app."
-    de: "Dein Deployment läuft mit keinem Release, es gibt kein Update für die App."
+    en: "Your SAK instance runs no release, there is no update for the app."
+    de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
   error:
     base_domain:
-      en: "Enter the base domain of your SAK deployment, e.g. example.org."
-      de: "Gib die Basisdomain deines SAK-Deployments ein, z. B. example.org."
+      en: "Enter the base domain of your SAK instance, e.g. example.org."
+      de: "Gib die Basisdomain deiner SAK-Instanz ein, z. B. example.org."
     no_deployment:
-      en: "No SAK deployment answers at this domain."
-      de: "Unter dieser Domain antwortet kein SAK-Deployment."
-    no_sak: { en: "This is no SAK deployment.", de: "Das ist kein SAK-Deployment." }
+      en: "No SAK instance answers at this domain."
+      de: "Unter dieser Domain antwortet keine SAK-Instanz."
+    no_sak: { en: "This is no SAK instance.", de: "Das ist keine SAK-Instanz." }
     link_not_requested:
       en: "The login link could not be requested."
       de: "Der Login-Link konnte nicht angefordert werden."
@@ -397,10 +404,10 @@ android:
     password_not_checked: { en: "The password could not be checked.", de: "Das Passwort konnte nicht geprüft werden." }
     password_wrong: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     user_not_read: { en: "The user could not be read.", de: "Der Benutzer konnte nicht gelesen werden." }
-    deployment_unreachable: { en: "The deployment could not be reached.", de: "Das Deployment war nicht erreichbar." }
+    deployment_unreachable: { en: "The SAK instance could not be reached.", de: "Die SAK-Instanz war nicht erreichbar." }
     connection:
-      en: "The deployment could not be reached, check the connection."
-      de: "Das Deployment war nicht erreichbar, prüfe die Verbindung."
+      en: "The SAK instance could not be reached, check the connection."
+      de: "Die SAK-Instanz war nicht erreichbar, prüfe die Verbindung."
     session_ended:
       en: "Your session ended, please sign in again."
       de: "Deine Sitzung ist abgelaufen, bitte melde dich erneut an."
@@ -1348,7 +1355,8 @@ grocery:
     category_not_set:
       en: "The category of the item could not be set."
       de: "Die Kategorie des Artikels konnte nicht gesetzt werden."
-    category_menu: { en: "Menu of %{category}", de: "Menü von %{category}" }
+    menu_of: { en: "Menu of %{name}", de: "Menü von %{name}" }
+    suggestions: { en: "Suggestions", de: "Vorschläge" }
     category_drag: { en: "Drag to move %{category}", de: "Ziehen, um %{category} zu verschieben" }
     categories_retry: { en: "Load again", de: "Erneut laden" }
     back_to_list: { en: "Back to the list", de: "Zurück zur Liste" }
@@ -1568,22 +1576,47 @@ notes:
       ai:
         label: { en: "AI features", de: "KI-Funktionen" }
         description:
-          en: "Lets the notes discover the text in photos and recordings with the AI of the deployment."
-          de: "Lässt die Notizen den Text in Fotos und Aufnahmen mit der KI des Deployments erkennen."
+          en: "Lets the notes discover the text in photos and recordings with the AI features."
+          de: "Lässt die Notizen den Text in Fotos und Aufnahmen mit den KI-Funktionen erkennen."
       label: { en: "Notes", de: "Notizen" }
       description: { en: "The settings of the notes.", de: "Die Einstellungen der Notizen." }
+  common:
+    page:
+      create_note: { en: "Create note", de: "Notiz erstellen" }
+      create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }
+      create_with_recording: { en: "Create note with a recording", de: "Notiz mit einer Aufnahme erstellen" }
+      none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }
+      all: { en: "All", de: "Alle" }
+      filter: { en: "Filter by label", de: "Nach Label filtern" }
+    card:
+      write: { en: "Write something…", de: "Schreib etwas…" }
+      color: { en: "Color", de: "Farbe" }
+      labels: { en: "Labels", de: "Labels" }
+      labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
+      discover: { en: "Discover the text", de: "Text erkennen" }
+    colors:
+      yellow: { en: "yellow", de: "gelb" }
+      pink: { en: "pink", de: "rosa" }
+      blue: { en: "blue", de: "blau" }
+      green: { en: "green", de: "grün" }
+      orange: { en: "orange", de: "orange" }
+    errors:
+      not_loaded: { en: "The notes could not be loaded.", de: "Die Notizen konnten nicht geladen werden." }
+      not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
+      not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
+      photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
+      microphone: { en: "The microphone could not be used.", de: "Das Mikrofon konnte nicht verwendet werden." }
+      recording_not_stored:
+        en: "The recording could not be stored."
+        de: "Die Aufnahme konnte nicht gespeichert werden."
+      no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
+      not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
   web:
     download:
       page_title: { en: "Download the app · Notes", de: "App herunterladen · Notizen" }
       title: { en: "The notes app for Android", de: "Die Notizen-App für Android" }
     page:
       create_notes: { en: "Create notes", de: "Notizen erstellen" }
-      create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }
-      create_with_recording: { en: "Create note with a recording", de: "Notiz mit einer Aufnahme erstellen" }
-      create_note: { en: "Create note", de: "Notiz erstellen" }
-      filter: { en: "Filter by label", de: "Nach Label filtern" }
-      all: { en: "All", de: "Alle" }
-      none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }
       empty: { en: "No notes yet, add one.", de: "Noch keine Notizen, leg eine an." }
       pages: { en: "Pages of the notes", de: "Seiten der Notizen" }
     removed:
@@ -1601,27 +1634,16 @@ notes:
         pause: { en: "Pause Recording %{number}", de: "Aufnahme %{number} pausieren" }
         discover: { en: "Discover the text in recording %{number}", de: "Text in Aufnahme %{number} erkennen" }
         remove: { en: "Remove recording %{number} from the note", de: "Aufnahme %{number} von der Notiz entfernen" }
-      discover: { en: "Discover the text", de: "Text erkennen" }
-      write: { en: "Write something…", de: "Schreib etwas…" }
       text_of: { en: "Text of note %{note}", de: "Text von Notiz %{note}" }
-      labels: { en: "Labels", de: "Labels" }
       show_labelled: { en: "Show the notes labelled %{label}", de: "Die Notizen mit dem Label %{label} zeigen" }
       remove_label: { en: "Remove label %{label} from the note", de: "Label %{label} von der Notiz entfernen" }
       add_label: { en: "+ label", de: "+ Label" }
       add_label_to: { en: "Add a label to note %{note}", de: "Ein Label zu Notiz %{note} hinzufügen" }
-      labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
-      color: { en: "Color", de: "Farbe" }
       add_photo_to: { en: "Add a photo to note %{note}", de: "Ein Foto zu Notiz %{note} hinzufügen" }
       add_photo: { en: "Add a photo", de: "Foto hinzufügen" }
       record_for: { en: "Record for note %{note}", de: "Aufnahme für Notiz %{note}" }
       record: { en: "Record", de: "Aufnehmen" }
       delete_note: { en: "Delete note %{note}", de: "Notiz %{note} löschen" }
-    colors:
-      yellow: { en: "yellow", de: "gelb" }
-      pink: { en: "pink", de: "rosa" }
-      blue: { en: "blue", de: "blau" }
-      green: { en: "green", de: "grün" }
-      orange: { en: "orange", de: "orange" }
     recording:
       dialog_new: { en: "Recording the new note", de: "Aufnahme für die neue Notiz" }
       dialog: { en: "Recording note %{note}", de: "Aufnahme für Notiz %{note}" }
@@ -1632,47 +1654,33 @@ notes:
       subject_new: { en: "the new note", de: "die neue Notiz" }
       subject: { en: "note %{note}", de: "Notiz %{note}" }
     errors:
-      not_loaded: { en: "The notes could not be loaded.", de: "Die Notizen konnten nicht geladen werden." }
       not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht angelegt werden." }
-      microphone: { en: "The microphone could not be used.", de: "Das Mikrofon konnte nicht verwendet werden." }
-      recording_not_stored:
-        en: "The recording could not be stored."
-        de: "Die Aufnahme konnte nicht gespeichert werden."
-      no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
       no_text_in_photo: { en: "There is no text in the photo.", de: "Auf dem Foto ist kein Text." }
-      not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
-      not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
-      not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
-      photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
   android:
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Notes"
-    create_note: { en: "Create note", de: "Notiz erstellen" }
-    create_with_photo: { en: "Create note with a photo", de: "Notiz mit einem Foto erstellen" }
-    create_with_recording: { en: "Create note with a recording", de: "Notiz mit einer Aufnahme erstellen" }
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }
     photo_choose: { en: "Choose photo", de: "Foto auswählen" }
     empty: { en: "No notes yet, create one with the plus at the top.", de: "Noch keine Notizen, erstelle eine mit dem Plus oben." }
-    none_labelled: { en: "No note is labelled #%{label}.", de: "Keine Notiz hat das Label #%{label}." }
-    all: { en: "All", de: "Alle" }
-    filter: { en: "Filter by label", de: "Nach Label filtern" }
+    all_count: { en: "All (%{count})", de: "Alle (%{count})" }
     note: { en: "Note", de: "Notiz" }
     back_to_notes: { en: "Back to the notes", de: "Zurück zu den Notizen" }
-    write: { en: "Write something…", de: "Schreib etwas…" }
     text: { en: "Text", de: "Text" }
-    color: { en: "Color", de: "Farbe" }
     color_of: { en: "Color %{color}", de: "Farbe %{color}" }
-    colors:
-      yellow: { en: "yellow", de: "gelb" }
-      pink: { en: "pink", de: "rosa" }
-      blue: { en: "blue", de: "blau" }
-      green: { en: "green", de: "grün" }
-      orange: { en: "orange", de: "orange" }
-    labels: { en: "Labels", de: "Labels" }
     label_new: { en: "New label", de: "Neues Label" }
     label_add: { en: "Add label", de: "Label hinzufügen" }
     label_remove: { en: "Remove label %{label}", de: "Label %{label} entfernen" }
-    labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
+    label_too_long: { en: "A label has at most %{max} characters.", de: "Ein Label hat höchstens %{max} Zeichen." }
+    text_full: { en: "A note has at most %{max} characters.", de: "Eine Notiz hat höchstens %{max} Zeichen." }
+    photos_full: { en: "A note has at most %{max} photos.", de: "Eine Notiz hat höchstens %{max} Fotos." }
+    recordings_full: { en: "A note has at most %{max} recordings.", de: "Eine Notiz hat höchstens %{max} Aufnahmen." }
+    photo_removed: { en: "Photo %{number} removed", de: "Foto %{number} entfernt" }
+    recording_removed: { en: "Recording %{number} removed", de: "Aufnahme %{number} entfernt" }
+    recording_longest:
+      en: "The recording stopped after %{minutes} minutes, the longest a recording is."
+      de: "Die Aufnahme endete nach %{minutes} Minuten, so lang ist eine Aufnahme höchstens."
+    dismiss: { en: "Close the message", de: "Meldung schließen" }
+    deleting: { en: "Deleting…", de: "Wird gelöscht…" }
     photos: { en: "Photos", de: "Fotos" }
     photo_of: { en: "Photo %{number}", de: "Foto %{number}" }
     photo_add: { en: "Add photo", de: "Foto hinzufügen" }
@@ -1686,35 +1694,25 @@ notes:
     recording: { en: "Recording… %{time}", de: "Aufnahme läuft… %{time}" }
     recording_stop: { en: "Stop recording", de: "Aufnahme beenden" }
     uploading: { en: "Storing…", de: "Wird gespeichert…" }
-    discover: { en: "Discover the text", de: "Text erkennen" }
     discover_photo: { en: "Discover the text in photo %{number}", de: "Den Text in Foto %{number} erkennen" }
     discover_recording: { en: "Discover the text in recording %{number}", de: "Den Text in Aufnahme %{number} erkennen" }
     discover_off:
-      en: "The AI is turned off in the settings of the notes, an admin turns it on."
-      de: "Die KI ist in den Einstellungen der Notizen ausgeschaltet, ein Admin schaltet sie ein."
+      en: "The AI features are not turned on."
+      de: "Die KI-Funktionen sind nicht eingeschaltet."
     discovering: { en: "Discovering the text…", de: "Der Text wird erkannt…" }
     delete_note: { en: "Delete note", de: "Notiz löschen" }
     note_menu: { en: "Menu of the note", de: "Menü der Notiz" }
     this_note: { en: "this note", de: "diese Notiz" }
     error:
-      not_loaded: { en: "The notes could not be loaded.", de: "Die Notizen konnten nicht geladen werden." }
       not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht erstellt werden." }
-      not_saved: { en: "The note could not be saved.", de: "Die Notiz konnte nicht gespeichert werden." }
-      not_deleted: { en: "The note could not be deleted.", de: "Die Notiz konnte nicht gelöscht werden." }
       photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
-      photo_not_stored: { en: "The photo could not be stored.", de: "Das Foto konnte nicht gespeichert werden." }
       photo_not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
-      microphone: { en: "The microphone could not be used.", de: "Das Mikrofon konnte nicht verwendet werden." }
       microphone_denied:
         en: "The app may not use the microphone, allow it in the settings of the phone."
         de: "Die App darf das Mikrofon nicht verwenden, erlaube es in den Einstellungen des Handys."
-      recording_not_stored: { en: "The recording could not be stored.", de: "Die Aufnahme konnte nicht gespeichert werden." }
       recording_not_loaded: { en: "The recording could not be loaded.", de: "Die Aufnahme konnte nicht geladen werden." }
       recording_not_played: { en: "The recording could not be played.", de: "Die Aufnahme konnte nicht abgespielt werden." }
       no_text_in_photo: { en: "There is no text in the photo.", de: "Im Foto ist kein Text." }
-      no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
-      not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
-
 redirects:
   backend:
     invalid_domains:

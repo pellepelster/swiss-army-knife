@@ -207,7 +207,7 @@ fun Application.apps(
                         }
                         route("/notes") {
                             requireRole(Role.ADMIN, Role.USER)
-                            notes(noteService)
+                            notes(noteService, fileTextService::available)
                         }
                         route("/grocery") {
                             requireRole(Role.ADMIN, Role.USER)

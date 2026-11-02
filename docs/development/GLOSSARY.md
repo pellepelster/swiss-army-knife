@@ -12,6 +12,11 @@ user interface. Use the same term for the same thing every time.
 - **Swiss Army Knife**, short **SAK**: The name of the product, in the user interface, the documentation and the
   code. Write it as three words, `Swiss Army Knife`, or as `SAK`; never `SwissArmyKnife`. Lower case `sak` is only a technical prefix, for example
   `sakctl`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the icon shows.
+- **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code, documentation and
+  sakctl, a tool for technical users that creates and deploys it, say **deployment**. The texts of the apps (web,
+  Android, the messages of the backend) never say "deployment"; where they need a word for what the user signed in
+  to, it is **SAK instance** (German "SAK-Instanz"). A term of another tool keeps its word, e.g. the "deployment
+  target" of a static site generator.
 - **name**: The unique name of a SAK deployment. Each deployment has one name. Two
   deployments cannot have the same name. Each cloud resource of a deployment has
   the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in

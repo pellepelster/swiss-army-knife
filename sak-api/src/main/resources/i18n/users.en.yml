@@ -2,8 +2,8 @@
 invalid_email: "An e-mail address like name@example.org is needed."
 invalid_name: "A name must have at most %{max} characters and no control characters."
 exists: "A user of the address exists."
-not_a_user: "The address is no user of the deployment."
-no_mail_server: "The deployment has no mail server, it sends no e-mail."
+not_a_user: "The address is no user."
+no_mail_server: "No mail server is set up, no e-mail is sent."
 app_link_not_sent: "The e-mail could not be sent, check the mail server."
 app_link_subject: "The Android apps of %{app}"
 app_link_body: |
@@ -15,4 +15,4 @@ app_link_body: |
   Notes: %{notes}
 
   Then sign in to them with this e-mail address.
-is_admin: "The address is an admin of the deployment, it is no user to add."
+is_admin: "The address is an admin, it is no user to add."

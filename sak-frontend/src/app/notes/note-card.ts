@@ -1,7 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { I18n, TranslatePipe } from '../i18n/i18n';
-import { SettingsStore } from '../settings/settings-store';
 import { LocalDateTimePipe } from '../shared/local-date-time.pipe';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 import { StoredFiles, ThumbnailPipe } from './stored-files';
@@ -60,8 +59,8 @@ interface Media {
                 </span>
               </button>
             }
-            <!-- the text is only discovered with the AI turned on in the settings of the notes -->
-            @if (settings.notesAi()) {
+            <!-- the text is only discovered while the backend says it can be (NOTES-5) -->
+            @if (store.discoverAvailable()) {
               <button
                 type="button"
                 class="photo-discover"
@@ -210,7 +209,6 @@ interface Media {
 })
 export class NoteCard {
   protected readonly store = inject(NotesStore);
-  protected readonly settings = inject(SettingsStore);
 
   readonly note = input.required<Note>();
   // the id of the datalist that suggests the known labels

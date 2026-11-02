@@ -13,14 +13,19 @@ const val SOURCE = "i18n/texts.yml"
 // the catalogs of the backend, i18n/<catalog>.<language>.yml on the class path of every module
 const val BACKEND_DIR = "sak-api/src/main/resources/i18n"
 const val WEB_FILE = "sak-frontend/src/app/i18n/catalog.ts"
-// the android apps (android/): the texts of no app go to core, the ones of an app to its module; an
-// app gets its texts once its module is listed here
+// the android apps (android/): the texts of no app go to core, the ones of an app to its module; the
+// apps are the lines of android/apps.txt, relative to the repository (sak.root of the tests, the
+// working directory of the run)
 const val ANDROID_CORE_RES = "android/core/src/main/res"
-val ANDROID_APPS =
-    mapOf(
-        "grocery" to "android/grocery/src/main/res",
-        "notes" to "android/notes/src/main/res",
-    )
+const val ANDROID_APPS_FILE = "android/apps.txt"
+val ANDROID_APPS: Map<String, String> =
+    (System.getProperty("sak.root")?.let { Path.of(it) } ?: Path.of(""))
+        .resolve(ANDROID_APPS_FILE)
+        .readText()
+        .lines()
+        .map { it.substringBefore('#').trim() }
+        .filter { it.isNotEmpty() }
+        .associateWith { "android/$it/src/main/res" }
 const val CTL_DIR = "sak-cli/src-tauri/locales"
 
 private const val GENERATED = "generated from $SOURCE by sak-i18n (mise run i18n:generate), do not edit"
@@ -58,7 +63,7 @@ class Generator(
             res[dir] = merge(parts, problems)
         }
         val unknown = texts.apps.filter { (app, section) -> section.group("android") != null && app !in ANDROID_APPS }.keys
-        unknown.forEach { problems += "$it has texts of android, but no module of android (ANDROID_APPS)" }
+        unknown.forEach { problems += "$it has texts of android, but no module of android (android/apps.txt)" }
         return res
     }
 

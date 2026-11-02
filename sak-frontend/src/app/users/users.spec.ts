@@ -59,7 +59,7 @@ describe('Users', () => {
     // an admin is in the configuration, its delete says so (UX-8)
     const menu = await rowMenu('admin@example.org');
     expect(button('Delete', menu).disabled).toBe(true);
-    expect(button('Delete', menu).title).toBe('Set by the configuration of the deployment');
+    expect(button('Delete', menu).title).toBe('Set by the configuration of the SAK instance');
     expect(button('Create user').getAttribute('href')).toBe('/users/create');
   });
 
@@ -139,7 +139,7 @@ describe('Users', () => {
     http.expectOne('/api/v1/users?offset=0&limit=50').flush(pageOf([admin, anna]));
   });
 
-  it('says why an address is refused, e.g. an admin of the deployment', async () => {
+  it('says why an address is refused, e.g. an admin', async () => {
     await open('/users/create');
     input('user-email').value = 'admin@example.org';
     input('user-email').dispatchEvent(new Event('input'));
@@ -147,13 +147,13 @@ describe('Users', () => {
     button('Create user').click();
     http.expectOne({ method: 'POST', url: '/api/v1/users' }).flush(
       {
-        errors: [{ message: 'The address is an admin of the deployment, it is no user to add.' }],
+        errors: [{ message: 'The address is an admin, it is no user to add.' }],
       },
       { status: 409, statusText: 'Conflict' },
     );
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=add-error]')?.textContent).toContain(
-      'The address is an admin of the deployment',
+      'The address is an admin',
     );
   });
 });

@@ -6,7 +6,8 @@
     <!-- the update to the version of the deployment, the apk of its release (AndroidUpdater) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <application>
+    <!-- nothing of the app goes to a backup or a new phone (AN-14) -->
+    <application android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- what the installer of android answers to an update -->
         <receiver
             android:name="io.pelle.sak.core.update.UpdateReceiver"

@@ -11,6 +11,11 @@ class ApiUrlTest {
         // the address of the web app or of the api is taken as well
         assertEquals("https://api.example.org/v1", apiUrl("sak.example.org", allowUrl = false))
         assertEquals("https://api.example.org/v1", apiUrl("api.example.org", allowUrl = false))
+        // one prefix only, and only when a domain stays (AN-43)
+        assertEquals("https://api.api.example.org/v1", apiUrl("sak.api.example.org", allowUrl = false))
+        assertEquals("https://api.sak.io/v1", apiUrl("sak.io", allowUrl = false))
+        // an international domain in its ascii form
+        assertEquals("https://api.xn--bcher-kva.example/v1", apiUrl("Bücher.example", allowUrl = false))
         assertNull(apiUrl("example", allowUrl = false))
         assertNull(apiUrl("exa mple.org", allowUrl = false))
         assertNull(apiUrl("", allowUrl = false))

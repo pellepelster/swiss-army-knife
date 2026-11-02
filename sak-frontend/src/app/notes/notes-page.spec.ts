@@ -4,7 +4,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotesPage } from './notes-page';
 import { NotesStore, UNDO_DELETE_MS } from './notes-store';
-import { SettingsStore } from '../settings/settings-store';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
 import { noteResponse, pageOf, scaler, FILE_ID } from './notes-testing';
@@ -41,7 +40,7 @@ describe('NotesPage', () => {
     page = fixture.nativeElement;
     document.body.appendChild(page);
     await fixture.whenStable();
-    http.expectOne('/api/v1/settings/notes?effective=true').flush({ ai: true });
+    http.expectOne('/api/v1/notes/settings').flush({ discoverText: true });
     http
       .expectOne('/api/v1/notes?offset=0&limit=50')
       .flush(
@@ -265,8 +264,8 @@ describe('NotesPage', () => {
     expect(texts()[2]).toBe('Buy milk\n\nTotal 12.50');
   });
 
-  it('offers to discover the text only with the AI features turned on', async () => {
-    TestBed.inject(SettingsStore).effective.set({ notes: { ai: false } });
+  it('offers to discover the text only while the backend says it can, for every user (AN-26)', async () => {
+    TestBed.inject(NotesStore).discoverAvailable.set(false);
     await fixture.whenStable();
     expect(button('Discover the text in photo 1', notes()[2])).toBeUndefined();
     expect(button('Discover the text in recording 1', notes()[2])).toBeUndefined();

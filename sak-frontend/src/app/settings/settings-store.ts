@@ -1,9 +1,8 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ScopeValues, SettingsService } from './settings.service';
 
-// the values of the scopes loaded, which the whole app shares: stored for the settings page,
-// effective for the apps, e.g. the notes
+// the values of the scopes loaded, which the whole app shares, for the settings page
 @Injectable({ providedIn: 'root' })
 export class SettingsStore {
   private readonly service = inject(SettingsService);
@@ -13,15 +12,6 @@ export class SettingsStore {
 
   // the stored values by scope, a scope missing until it is loaded
   readonly values = signal<Record<string, ScopeValues>>({});
-
-  // the values as the apps use them by scope, a setting that is off has its default
-  readonly effective = signal<Record<string, ScopeValues>>({});
-
-  private loadingEffective?: Subscription;
-
-  // whether the notes offer the AI; off until the settings of the notes say otherwise, also while
-  // they are loaded or could not be
-  readonly notesAi = computed(() => this.effective()['notes']?.['ai'] === true);
 
   // why a scope could not be loaded, by scope
   readonly errors = signal<Record<string, unknown>>({});
@@ -40,15 +30,6 @@ export class SettingsStore {
         },
       }),
     );
-  }
-
-  // the values of the scope as the apps use them; a load not answered yet is cancelled
-  loadEffective(scope: string): void {
-    this.loadingEffective?.unsubscribe();
-    this.loadingEffective = this.service.values(scope, true).subscribe({
-      next: (values) => this.effective.update((all) => ({ ...all, [scope]: values })),
-      error: () => this.effective.update(({ [scope]: _, ...others }) => others),
-    });
   }
 
   // sets the values given of the scope and takes all of it the backend answers; rejects with the

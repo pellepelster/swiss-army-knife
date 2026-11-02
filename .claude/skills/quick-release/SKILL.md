@@ -8,10 +8,13 @@ disable-model-invocation: true
 
 Stop and tell the user at the first step that can not be finished.
 
-1. **Test.** Run all of `mise run backend:test:unit`, `frontend:test:unit`, `cli:test:unit`, and
-   `android:test` when an Android SDK is there (else say it was skipped).
+1. **Test.** Run all of `mise run backend:test:unit`, `frontend:test:unit`, `cli:test:unit`, and,
+   when an Android SDK is there (else say it was skipped), `android:test` and
+   `VERSION=latest mise run android:release:build`, which builds the release apks the tag will publish
+   (r8, lint) unsigned.
 2. **Fix.** Fix the cause of each failure; change a test only when its behavior changed on purpose,
-   never skip or loosen one. Regenerate generated files (`mise run i18n:generate`), never edit them.
+   never skip or loosen one. Regenerate generated files (`mise run i18n:generate`, `mise run api:generate`),
+   never edit them.
    Ask when a fix needs a decision. Repeat 1 until all pass.
 3. **Commit and push** everything on `main` as one commit, a one-sentence message in the style of
    `git log` with the session's attribution lines; ask about untracked files that look like

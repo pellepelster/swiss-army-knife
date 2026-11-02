@@ -51,14 +51,16 @@ class OpenRouterManager(
     // null without an api key
     fun speechTranscriber(): SpeechTranscriber? = clients()?.transcriber
 
-    // a new api key is checked at openrouter, but only while it is turned on: nothing goes to
-    // openrouter before. Turning it on checks the key stored
+    // turned on it needs an api key: turning it on without one, or taking the key away while it is
+    // on, is refused. A new api key is checked at openrouter, but only while it is turned on: nothing
+    // goes to openrouter before. Turning it on checks the key stored
     override fun check(values: List<SettingValue<*>>): List<ErrorMessage> {
         val enabled = values.valueOf(ENABLED) ?: stored(ENABLED)
         val newKey = values.valueOf(API_KEY)
         val apiKey = (newKey ?: stored(API_KEY)).trim()
+        if (enabled && apiKey.isEmpty()) return listOf(ErrorMessage(OpenRouterTexts.KEY_MISSING))
         val changed = (newKey != null && newKey != stored(API_KEY)) || (enabled && !stored(ENABLED))
-        if (!enabled || !changed || apiKey.isEmpty()) return emptyList()
+        if (!enabled || !changed) return emptyList()
         return when (keyCheck.check(apiKey)) {
             ApiKeyStatus.VALID -> emptyList()
             ApiKeyStatus.INVALID -> listOf(ErrorMessage(OpenRouterTexts.KEY_REFUSED))
@@ -139,4 +141,5 @@ object OpenRouterTexts : Catalog("openrouter") {
     val SCOPE_DESCRIPTION = text("settings.description")
     val KEY_REFUSED = text("key_refused")
     val KEY_UNCHECKED = text("key_unchecked")
+    val KEY_MISSING = text("key_missing")
 }

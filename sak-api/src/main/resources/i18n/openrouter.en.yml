@@ -15,4 +15,5 @@ settings:
   label: "AI"
   description: "Configure all AI features"
 key_refused: "OpenRouter does not take the API key."
+key_missing: "The AI needs an API key of OpenRouter to be turned on."
 key_unchecked: "The API key could not be checked at OpenRouter, please try again later."

@@ -93,3 +93,10 @@ is built is in [SYSTEM.md](architecture/SYSTEM.md).
   takes two devices of the same user acting within milliseconds, nothing is lost but the label on the note, and
   the user sees the result at once and can add the label again; a lock across both for every save costs more
   than it gives.
+
+- **A session ends only when its token expires.** Signing out, in the web ui and in the Android apps, forgets the
+  session token on the device only; the backend keeps no list of sessions and can not revoke one, so a token that was
+  copied stays valid until it expires (its lifetime is the session TTL of the backend). Accepted: the token never
+  leaves the device in plain text (on Android it is encrypted with a key of the keystore), it travels only in a
+  header over https, and a list of revoked tokens would be the first state the backend keeps for a session. Revisit
+  when a stolen token becomes likely, e.g. with shared devices.

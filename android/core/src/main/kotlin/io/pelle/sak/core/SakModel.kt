@@ -1,6 +1,7 @@
 package io.pelle.sak.core
 
 import androidx.annotation.StringRes
+import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.core.api.ApiException
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.core.session.PendingLogin
@@ -14,17 +15,26 @@ import io.pelle.sak.core.update.newer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.security.SecureRandom
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.util.Base64
 
 // how long a login link the app asked for is taken (the login token of the backend lives as long)
 val PENDING_FOR: Duration = Duration.ofMinutes(15)
+
+// a nonce of a login request: 32 random bytes, base64url without padding (43 characters, AN-8)
+fun randomNonce(): String = ByteArray(32).also(SecureRandom()::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
 // what an app shows: until the user is signed in the screens of core, then the app's own, an
 // AppScreen
@@ -78,7 +88,9 @@ interface AppScreen : Screen {
 // the logic every app shares, without android: the deployment, the sign-in by link or password, the
 // session that ends, the sign-out and the update of the app. An app shows its own screen once the user
 // is signed in (showApp) and reacts to the session going (the hooks). apiOf makes the api of a url
-// with a session token or none
+// with a session token or none.
+// Every change of the session (a sign-in, the sign-out, its end, another deployment) counts up the
+// epoch; what a request of an older epoch answers changes nothing (AN-3)
 abstract class SakModel<A : SakApi>(
     protected val store: SessionStore,
     protected val apiOf: (url: String, token: String?) -> A,
@@ -89,12 +101,29 @@ abstract class SakModel<A : SakApi>(
     // the version of the app, 1.4.2 of a release, latest of every other build
     private val appVersion: String = "latest",
     private val updater: Updater = Updater { error("no updater") },
+    // the nonce of each login request
+    private val nonce: () -> String = ::randomNonce,
 ) {
     protected val state = MutableStateFlow<Screen>(Screen.Starting)
     val screen: StateFlow<Screen> = state.asStateFlow()
 
+    // where work goes that must not end with the screen, e.g. the last save when the app closes
+    // (AN-29); the scope of the process in the app (SakProcess), the scope of the model in the tests
+    var lasting: CoroutineScope = scope
+
     // start(), which a link of a cold start waits for, so its screen does not come after the app's
     private var starting: Job? = null
+
+    // one login link at a time (AN-2)
+    private val links = Mutex()
+
+    // counts up with every change of the session (AN-3)
+    @Volatile
+    private var epoch = 0
+
+    // work that is done also when the screen, the activity or the model goes (AN-29), e.g. a save the
+    // user expects to happen; on the lasting scope, not cancelled with the screen
+    protected fun launchLasting(block: suspend CoroutineScope.() -> Unit): Job = lasting.launch { withContext(NonCancellable) { block() } }
 
     // the screen of the app for a session, set as the state; its data loads after it
     protected abstract fun showApp(stored: Stored)
@@ -126,49 +155,88 @@ abstract class SakModel<A : SakApi>(
     }
 
     fun connect(input: String) {
+        if ((state.value as? Screen.Deployment)?.busy == true) return
         val url = apiUrl(input, allowUrl)
         if (url == null) {
             state.value = Screen.Deployment(input, error = uiText(R.string.error_base_domain))
             return
         }
-        state.value = Screen.Deployment(input, busy = true)
+        val connecting = Screen.Deployment(input, busy = true)
+        state.value = connecting
+        val since = epoch
         scope.launch {
             try {
                 val info = apiOf(url, null).info()
+                if (since != epoch || state.value !== connecting) return@launch
                 val stored = Stored(apiUrl = url, deployment = info.name)
                 store.save(stored)
                 showSignIn(stored)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                state.value = Screen.Deployment(input, error = failure(e, R.string.error_no_deployment))
+                if (since == epoch && state.value === connecting) {
+                    state.value = Screen.Deployment(input, error = failure(e, R.string.error_no_deployment))
+                }
             }
         }
     }
 
-    // back to the deployment, the session and a pending login go
+    // back to the deployment, the session and a pending login go; what is still asked of the old
+    // deployment changes nothing
     fun changeDeployment() =
         scope.launch {
-            store.save(Stored())
+            epoch++
+            // a store that fails to write is no reason to stay (AN-46)
+            runCatchingNonCancel { store.save(Stored()) }
             clearSession()
             sessionChanged()
             state.value = Screen.Deployment()
         }
 
+    // a link to the address, with a nonce of this request; again to the same address from the screen
+    // that says it went (AN-42)
     fun requestLink(email: String) {
         val signIn = state.value as? Screen.SignIn ?: return
+        if (signIn.busy) return
         val address = email.trim()
         if (address.isEmpty()) return
-        state.value = signIn.copy(busy = true, error = null)
+        val asking = signIn.copy(busy = true, error = null)
+        state.value = asking
+        val since = epoch
         scope.launch {
             val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
+            val url = stored.apiUrl
+            if (url == null) {
+                if (state.value === asking) state.value = signIn.copy(busy = false)
+                return@launch
+            }
+            val value = nonce()
             try {
-                apiOf(url, null).requestLink(address)
-                store.update { it.copy(pending = PendingLogin(url, clock.instant())) }
-                state.value = signIn.copy(busy = false, linkSentTo = address)
+                apiOf(url, null).requestLink(address, value)
+                if (since != epoch) return@launch
+                store.update { if (it.apiUrl == url) it.copy(pending = PendingLogin(url, clock.instant(), value)) else it }
+                if (state.value === asking) state.value = signIn.copy(busy = false, linkSentTo = address)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                state.value = signIn.copy(busy = false, error = failure(e, R.string.error_link_not_requested))
+                if (since == epoch && state.value === asking) {
+                    state.value = signIn.copy(busy = false, error = failure(e, R.string.error_link_not_requested))
+                }
             }
         }
+    }
+
+    // after a link went: another address is typed in (AN-42)
+    fun otherAddress() {
+        val signIn = state.value as? Screen.SignIn ?: return
+        if (!signIn.busy) state.value = signIn.copy(linkSentTo = null, error = null)
+    }
+
+    // the deployment did not answer on the sign-in: asked again (AN-42)
+    fun retrySignIn() {
+        val signIn = state.value as? Screen.SignIn ?: return
+        if (signIn.busy) return
+        scope.launch { showSignIn(store.load()) }
     }
 
     // between the e-mail login and the password login, in the multi user mode
@@ -179,51 +247,71 @@ abstract class SakModel<A : SakApi>(
 
     fun signInWithPassword(password: String) {
         val signIn = state.value as? Screen.SignIn ?: return
-        if (password.isEmpty()) return
-        state.value = signIn.copy(busy = true, error = null)
+        if (signIn.busy || password.isEmpty()) return
+        val checking = signIn.copy(busy = true, error = null)
+        state.value = checking
+        val since = epoch
         scope.launch {
-            val stored = store.load()
-            val url = stored.apiUrl ?: return@launch
+            val url = store.load().apiUrl
+            if (url == null) {
+                if (state.value === checking) state.value = signIn.copy(busy = false)
+                return@launch
+            }
             try {
                 val session = apiOf(url, null).passwordLogin(password)
-                signedIn(session.sessionToken, session.email, session.expiresAt)
+                if (since == epoch) signedIn(url, session.sessionToken, session.email, session.expiresAt)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                state.value = signIn.copy(busy = false, error = failure(e, R.string.error_password_not_checked))
+                if (since == epoch && state.value === checking) {
+                    state.value = signIn.copy(busy = false, error = failure(e, R.string.error_password_not_checked))
+                }
             }
         }
     }
 
     // the token of a login link the signin page of the web app handed on; taken only for a login
-    // this app asked for, on the same deployment, within PENDING_FOR
+    // this app asked for, on the same deployment, within PENDING_FOR, with the nonce of its request.
+    // One link at a time; a link while signed in changes nothing, e.g. one tapped twice or given again
+    // by android (AN-2)
     fun signInWithLink(token: String) =
         scope.launch {
             starting?.join()
-            val stored = store.load()
-            val pending = stored.pending
-            val url = stored.apiUrl
-            val fresh = pending != null && url == pending.apiUrl && Duration.between(pending.startedAt, clock.instant()) <= PENDING_FOR
-            if (url == null || !fresh) {
-                if (url == null) {
-                    state.value = Screen.Deployment(error = NOT_ASKED)
-                } else {
-                    showSignIn(stored, error = NOT_ASKED)
+            links.withLock {
+                val stored = store.load()
+                if (signedIn(stored)) return@withLock
+                val pending = stored.pending
+                val url = stored.apiUrl
+                val fresh = pending != null && url == pending.apiUrl && Duration.between(pending.startedAt, clock.instant()) <= PENDING_FOR
+                if (url == null || pending == null || !fresh) {
+                    if (url == null) {
+                        state.value = Screen.Deployment(error = NOT_ASKED)
+                    } else {
+                        showSignIn(stored, error = NOT_ASKED)
+                    }
+                    return@withLock
                 }
-                return@launch
-            }
-            (state.value as? Screen.SignIn)?.let { state.value = it.copy(busy = true, error = null) }
-            try {
-                val session = apiOf(url, null).exchange(token)
-                signedIn(session.sessionToken, session.email, session.expiresAt)
-            } catch (e: Exception) {
-                showSignIn(stored, error = failure(e, R.string.error_link_not_used))
+                (state.value as? Screen.SignIn)?.let { state.value = it.copy(busy = true, error = null) }
+                val since = epoch
+                try {
+                    val session = apiOf(url, null).exchange(token, pending.nonce)
+                    if (since == epoch) signedIn(url, session.sessionToken, session.email, session.expiresAt)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // the pending login stays: the right link may still come
+                    if (since == epoch) showSignIn(store.load(), error = failure(e, R.string.error_link_not_used))
+                }
             }
         }
 
-    // the session goes, the deployment stays
+    // the session goes, the deployment stays; what the app still sends goes first, a failure of it
+    // does not keep the user signed in (AN-46)
     fun signOut() =
         scope.launch {
-            signingOut()
-            store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, openList = null) }
+            runCatchingNonCancel { signingOut() }
+            epoch++
+            store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, app = emptyMap()) }
             clearSession()
             sessionChanged()
             showSignIn(store.load())
@@ -290,7 +378,8 @@ abstract class SakModel<A : SakApi>(
 
     // a request of the signed in user with the api of their session; nothing without one, e.g. signed
     // out meanwhile. A session that ended leads to the sign-in, another failure goes to failed with
-    // its text, or the fallback when it has none. The answer, null when there is none
+    // its text, or the fallback when it has none; the answer of a session that is no longer the one
+    // stored changes nothing (AN-3). The answer, null when there is none
     protected suspend fun <T> request(
         @StringRes fallback: Int,
         failed: (UiText) -> Unit,
@@ -299,25 +388,43 @@ abstract class SakModel<A : SakApi>(
         val stored = store.load()
         val url = stored.apiUrl ?: return null
         val token = stored.token ?: return null
+        val since = epoch
         return try {
             call(apiOf(url, token))
         } catch (e: CancellationException) {
             throw e
         } catch (e: ApiException) {
-            if (e.status == 401) sessionEnded(e) else failed(e.text)
+            when {
+                e.status == 401 -> sessionEnded(e, token)
+                since == epoch -> failed(e.text)
+            }
             null
         } catch (e: Exception) {
-            failed(failure(e, fallback))
+            if (since == epoch) failed(failure(e, fallback))
             null
         }
     }
 
     // the session ended: the sign-in says why; what the app reacts with after the screen changed goes
-    // last, e.g. the stream of the old session, which may be the one that found the end
-    protected suspend fun sessionEnded(e: ApiException) {
+    // last, e.g. the stream of the old session, which may be the one that found the end. token is the
+    // one that was refused: a newer session stored meanwhile stays (AN-3); null ends any
+    protected suspend fun sessionEnded(
+        e: ApiException,
+        token: String? = null,
+    ) {
+        var ended = false
+        store.update {
+            if (token != null && it.token != token) {
+                it
+            } else {
+                ended = true
+                it.copy(token = null, email = null, expiresAt = null, app = emptyMap())
+            }
+        }
+        if (!ended) return
+        epoch++
         sessionEnding()
         clearSession()
-        store.update { it.copy(token = null, email = null, expiresAt = null, openList = null) }
         showSignIn(store.load(), error = e.text)
         sessionChanged()
     }
@@ -333,15 +440,37 @@ abstract class SakModel<A : SakApi>(
             else -> uiText(fallback)
         }
 
-    // the session of a sign-in; a login link that was pending is used up
+    // the session of a sign-in at url; a login link that was pending is used up. Nothing when the
+    // deployment changed meanwhile (AN-3)
     private suspend fun signedIn(
+        url: String,
         token: String,
         email: String,
         expiresAt: String,
     ) {
         val until = runCatching { Instant.parse(expiresAt) }.getOrNull()
-        store.update { it.copy(token = token, email = email, expiresAt = until, pending = null) }
+        var taken = false
+        store.update {
+            if (it.apiUrl != url) {
+                it
+            } else {
+                taken = true
+                it.copy(token = token, email = email, expiresAt = until, pending = null)
+            }
+        }
+        if (!taken) return
+        epoch++
         startApp(store.load())
+    }
+
+    // a failure of a hook or the store is not the end of what called it (AN-46)
+    private suspend fun runCatchingNonCancel(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
     }
 
     private fun signedIn(stored: Stored) = stored.token != null && stored.expiresAt?.isAfter(clock.instant()) == true
@@ -369,18 +498,24 @@ abstract class SakModel<A : SakApi>(
     ) {
         val url = stored.apiUrl ?: return
         val deployment = stored.deployment ?: url
-        state.value = Screen.SignIn(deployment, multiUser = null, busy = true, error = error)
-        state.value =
+        val asking = Screen.SignIn(deployment, multiUser = null, busy = true, error = error)
+        state.value = asking
+        val shown =
             try {
-                Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode == "multi", error = error)
+                Screen.SignIn(deployment, multiUser = apiOf(url, null).info().userMode.multiUser(), error = error)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Screen.SignIn(deployment, multiUser = null, error = failure(e, R.string.error_deployment_unreachable))
             }
+        // only while nothing else came meanwhile, e.g. the app of a sign-in
+        if (state.value === asking) state.value = shown
     }
 
     companion object {
         val NOT_ASKED = uiText(R.string.error_not_asked)
     }
 }
+
+// whether the deployment runs in the multi user mode (UX-7)
+private fun InfoResponse.UserMode.multiUser() = this == InfoResponse.UserMode.MULTI

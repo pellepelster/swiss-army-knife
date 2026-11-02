@@ -2,9 +2,11 @@ package io.pelle.sak.notes.api
 
 import io.pelle.sak.api.model.DiscoverTextResponse
 import io.pelle.sak.api.model.FileResponse
+import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.api.model.LabelResponse
 import io.pelle.sak.api.model.NoteRequest
 import io.pelle.sak.api.model.NoteResponse
+import io.pelle.sak.api.model.NotesSettingsResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -17,10 +19,6 @@ import io.ktor.http.contentType
 import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.notes.R
-import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 // the notes api of one deployment on top of what every app calls (SakApi): the notes, the labels, the
 // files of their photos and recordings and the text the AI discovers in them. Its login links are
@@ -43,10 +41,10 @@ class NotesApi(
                 parameter("offset", offset)
                 parameter("limit", limit)
                 label?.let { parameter("label", it) }
-            }.answer(R.string.notes_error_not_loaded)
+            }.answer(R.string.notes_errors_not_loaded)
 
     // the labels of all apps, the ones to suggest
-    suspend fun labels(): List<LabelResponse> = all("$url/labels", R.string.notes_error_not_loaded)
+    suspend fun labels(): List<LabelResponse> = all("$url/labels", R.string.notes_errors_not_loaded)
 
     suspend fun createNote(note: NoteRequest): NoteResponse =
         client
@@ -66,11 +64,11 @@ class NotesApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(note)
-            }.answer(R.string.notes_error_not_saved)
+            }.answer(R.string.notes_errors_not_saved)
 
     // DELETE answers 204, no body; the files stay in the storage (NOTES-2)
     suspend fun deleteNote(id: Int) {
-        client.delete("$url/notes/$id") { session() }.answer<Unit>(R.string.notes_error_not_deleted)
+        client.delete("$url/notes/$id") { session() }.answer<Unit>(R.string.notes_errors_not_deleted)
     }
 
     // a photo (a jpeg scaled down already) or a recording (a wav) into the file storage; its file
@@ -82,6 +80,7 @@ class NotesApi(
         client
             .post("$url/files") {
                 session()
+                longTransfer()
                 contentType(type)
                 setBody(content)
             }.answer<FileResponse>(failure)
@@ -93,7 +92,10 @@ class NotesApi(
         failure: Int,
     ): ByteArray =
         client
-            .get("$url/files/$id" + if (thumbnail) "/thumbnail" else "") { session() }
+            .get("$url/files/$id" + if (thumbnail) "/thumbnail" else "") {
+                session()
+                longTransfer()
+            }
             .answer(failure)
 
     // the text the AI discovers in a photo or a recording of the user (NOTES-5); the backend sends it
@@ -101,27 +103,19 @@ class NotesApi(
     suspend fun discoverText(fileId: Int): String =
         client
             .post("$url/files/$fileId/discover/text") { session() }
-            .answer<DiscoverTextResponse>(R.string.notes_error_not_discovered)
+            .answer<DiscoverTextResponse>(R.string.notes_errors_not_discovered)
             .text
 
-    // whether the notes offer the AI, the settings of the notes as the apps use them; off when they can
-    // not be read, e.g. by a user who is no admin, as the web app does
-    suspend fun aiEnabled(): Boolean =
-        try {
-            val values: JsonObject =
-                client
-                    .get("$url/settings/notes") {
-                        session()
-                        parameter("effective", true)
-                    }.answer(R.string.notes_error_not_loaded)
-            values["ai"]?.jsonPrimitive?.booleanOrNull == true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
-        }
+    // whether the AI discovers the text of photos and recordings: an admin turned it on and a provider is
+    // set up; every signed in user may ask (GET /notes/settings, AN-26), the backend still refuses a
+    // discover while it is off
+    suspend fun discoverAvailable(): Boolean =
+        client
+            .get("$url/notes/settings") { session() }
+            .answer<NotesSettingsResponse>(R.string.notes_errors_not_loaded)
+            .discoverText
 
     companion object {
-        const val LOGIN_CLIENT = "notes-android"
+        val LOGIN_CLIENT = LoginRequest.Client.NOTES_ANDROID
     }
 }

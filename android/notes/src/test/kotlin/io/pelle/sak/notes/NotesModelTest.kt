@@ -5,6 +5,7 @@ import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.Screen
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.Stored
+import io.pelle.sak.api.model.NoteResponse
 import io.pelle.sak.core.uiText
 import io.pelle.sak.testing.FakeBackend
 import io.pelle.sak.testing.URL
@@ -41,7 +42,7 @@ class NotesModelTest {
             answers["POST /auth/login/password"] = HttpStatusCode.OK to session("password-session", "admin")
             answers["GET /notes"] = HttpStatusCode.OK to page(note(2, "Buy milk", labels = listOf("shopping")), note(1, "Call the plumber", "pink"))
             answers["GET /labels"] = HttpStatusCode.OK to page("""{"id":1,"name":"work","createdAt":"2026-10-30T08:00:00.000Z"}""", """{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
-            answers["GET /settings/notes"] = HttpStatusCode.OK to """{"ai":false}"""
+            answers["GET /notes/settings"] = HttpStatusCode.OK to """{"discoverText":false}"""
         }
 
     private fun session(
@@ -98,14 +99,18 @@ class NotesModelTest {
             advanceUntilIdle()
             model.requestLink("pelle@pelle.io")
             advanceUntilIdle()
-            assertEquals("""{"email":"pelle@pelle.io","client":"notes-android"}""", body("POST /auth/login/link"))
+            assertTrue(body("POST /auth/login/link").startsWith("""{"email":"pelle@pelle.io","client":"notes-android","nonce":"""))
         }
 
     @Test
     fun `signed in it opens on the wall of all notes, every page, with the labels and the AI off`() =
         runTest {
-            backend.answers["GET /notes"] =
-                HttpStatusCode.OK to """{"items":[${note(3, "First page")}],"pagination":{"offset":0,"limit":100,"total":2}}"""
+            // a full first page, the second asked for at its offset; a short page is the last (AN-38)
+            val first = (1..100).map { note(1000 - it, "Note $it") }
+            backend.answersByQuery["GET /notes?offset=0&limit=100"] =
+                HttpStatusCode.OK to """{"items":[${first.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":101}}"""
+            backend.answersByQuery["GET /notes?offset=100&limit=100"] =
+                HttpStatusCode.OK to """{"items":[${note(3, "Last page")}],"pagination":{"offset":100,"limit":100,"total":101}}"""
             val model = model(MemorySessionStore(Stored(apiUrl = URL, deployment = "family"))).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("a password of sixteen")
@@ -116,9 +121,12 @@ class NotesModelTest {
             assertFalse(screen.loading)
             assertFalse(screen.ai)
             // the second page asked for after the first, at its offset
-            assertTrue(backend.queries.any { it.startsWith("GET /notes?") && it.contains("offset=1") })
+            assertTrue(backend.queries.contains("GET /notes?offset=100&limit=100"))
+            assertEquals(101, screen.notes.size)
+            assertEquals(101, screen.allCount)
             assertEquals(listOf("work", "shopping").sorted(), screen.labels)
-            assertTrue(backend.queries.contains("GET /settings/notes?effective=true"))
+            // the switch of the AI every user may read (AN-26)
+            assertTrue(backend.requests.contains("GET /notes/settings"))
         }
 
     @Test
@@ -178,16 +186,14 @@ class NotesModelTest {
             val model = model().also { it.start() }
             advanceUntilIdle()
 
-            model.setColor(1, "blue")
+            model.setColor(1, NoteResponse.Color.BLUE)
             advanceUntilIdle()
             assertTrue(body("PUT /notes/1").contains(""""color":"blue""""))
 
-            model.setColor(1, "purple")
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "blue", labels = listOf("home work"))
             model.addLabel(1, "  Home   Work ")
             advanceUntilIdle()
             assertTrue(body("PUT /notes/1").contains(""""labels":["home work"]"""))
-            assertFalse(backend.requests.any { it.contains("purple") })
             assertTrue("home work" in model.notes().labels)
 
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "blue")
@@ -195,11 +201,12 @@ class NotesModelTest {
             advanceUntilIdle()
             assertTrue(body("PUT /notes/1").contains(""""labels":[]"""))
 
+            // the changes made before the save runs go in one save (AN-4)
             val saves = backend.requests.count { it.startsWith("PUT /notes/1") }
             (1..11).forEach { model.addLabel(1, "label $it") }
             assertEquals(MAX_LABELS, model.notes().note(1)!!.labels.size)
             advanceUntilIdle()
-            assertEquals(saves + MAX_LABELS, backend.requests.count { it.startsWith("PUT /notes/1") })
+            assertEquals(saves + 1, backend.requests.count { it.startsWith("PUT /notes/1") })
             assertTrue(body("PUT /notes/1").contains(""""label 10""""))
             assertFalse(body("PUT /notes/1").contains(""""label 11""""))
         }
@@ -288,7 +295,7 @@ class NotesModelTest {
             advanceUntilIdle()
             assertTrue(backend.requests.none { it.contains("discover") })
 
-            backend.answers["GET /settings/notes"] = HttpStatusCode.OK to """{"ai":true}"""
+            backend.answers["GET /notes/settings"] = HttpStatusCode.OK to """{"discoverText":true}"""
             model.refresh()
             advanceUntilIdle()
             assertTrue(model.notes().ai)
@@ -313,9 +320,9 @@ class NotesModelTest {
         }
 
     @Test
-    fun `the AI is off when the settings can not be read, by a user who is no admin`() =
+    fun `the AI is off when the backend can not say, without an error`() =
         runTest {
-            backend.answers["GET /settings/notes"] = HttpStatusCode.Forbidden to ""
+            backend.answers["GET /notes/settings"] = HttpStatusCode.InternalServerError to ""
             val model = model().also { it.start() }
             advanceUntilIdle()
             assertFalse(model.notes().ai)
@@ -359,6 +366,276 @@ class NotesModelTest {
             assertEquals(uiText(CoreR.string.error_session_ended), signIn.error)
             assertNull(store.load().token)
         }
+
+    // the note of a save as the backend answers it: the note the request sent, with its id
+    private fun saved(
+        id: Int,
+        body: String,
+    ) = """{"id":$id,""" + body.removePrefix("{").replace(Regex(""""labels":\[([^\]]*)\]""")) { match ->
+        val names = Regex("\"([^\"]+)\"").findAll(match.groupValues[1]).map { it.groupValues[1] }.toList()
+        """"labels":[${names.mapIndexed { i, l -> """{"id":${i + 1},"name":"$l","createdAt":"2026-10-30T08:00:00.000Z"}""" }.joinToString(",")}]"""
+    }.replace(Regex(""""(photos|recordings)":\[([0-9,]*)\]""")) { match ->
+        val ids = match.groupValues[2].split(",").filter { it.isNotBlank() }
+        """"${match.groupValues[1]}":[${ids.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}]"""
+    }.removeSuffix("}") + ""","createdAt":"2026-11-02T07:00:00.000Z","updatedAt":null}"""
+
+    private fun TestScope.gated(): Pair<GatedBackend, NotesModel> {
+        val gated = GatedBackend(StandardTestDispatcher(testScheduler))
+        gated.answers["GET /notes"] = { HttpStatusCode.OK to page(note(2, "Buy milk"), note(1, "Call the plumber", "pink")) }
+        gated.answers["GET /labels"] = { HttpStatusCode.OK to page() }
+        gated.answers["GET /notes/settings"] = { HttpStatusCode.OK to """{"discoverText":false}""" }
+        gated.answers["PUT /notes/1"] = { body -> HttpStatusCode.OK to saved(1, body) }
+        gated.answers["PUT /notes/2"] = { body -> HttpStatusCode.OK to saved(2, body) }
+        val model = NotesModel(signedIn(), { url, token -> gated.api(url, token) }, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC), recorder = recorder)
+        return gated to model
+    }
+
+    @Test
+    fun `the saves of a note go one at a time, a change during a save sends the note once more after it (AN-4)`() =
+        runTest {
+            val (gated, model) = gated()
+            model.start()
+            advanceUntilIdle()
+
+            val gate = CompletableDeferred<Unit>()
+            gated.gates["PUT /notes/1"] = gate
+            model.setColor(1, NoteResponse.Color.BLUE)
+            runCurrent()
+            assertEquals(1, gated.requests.count { it.startsWith("PUT /notes/1") })
+            // the first save waits for its answer: the second change is not sent beside it
+            model.setColor(1, NoteResponse.Color.GREEN)
+            model.addLabel(1, "home")
+            runCurrent()
+            assertEquals(1, gated.requests.count { it.startsWith("PUT /notes/1") })
+
+            gate.complete(Unit)
+            advanceUntilIdle()
+            val puts = gated.requests.filter { it.startsWith("PUT /notes/1") }
+            assertEquals(2, puts.size)
+            assertTrue(puts[0].contains(""""color":"blue""""))
+            assertTrue(puts[1].contains(""""color":"green"""") && puts[1].contains(""""labels":["home"]"""))
+            // the answer of the older save did not take the place of the newer note
+            assertEquals(NoteResponse.Color.GREEN, model.notes().note(1)!!.color)
+            assertEquals(listOf("home"), model.notes().note(1)!!.labels.map { it.name })
+        }
+
+    @Test
+    fun `a load keeps what changed while it ran, a note typed, created or deleted (AN-5)`() =
+        runTest {
+            val (gated, model) = gated()
+            gated.answers["POST /notes"] = { HttpStatusCode.Created to note(9, "") }
+            gated.answers["DELETE /notes/2"] = { HttpStatusCode.NoContent to "" }
+            model.start()
+            advanceUntilIdle()
+
+            // the load answers the notes as they were before the changes
+            val load = CompletableDeferred<Unit>()
+            gated.gates["GET /notes"] = load
+            model.refresh()
+            runCurrent()
+            model.setText(1, "Call the plumber at 9")
+            model.delete(2)
+            model.create()
+            advanceTimeBy(SAVE_TEXT_AFTER_MS + 1)
+            runCurrent()
+            assertEquals(9, model.notes().open)
+
+            load.complete(Unit)
+            advanceUntilIdle()
+            val screen = model.notes()
+            assertEquals(listOf(9, 1), screen.notes.map { it.id })
+            assertEquals("Call the plumber at 9", screen.note(1)!!.text)
+            assertEquals(9, screen.open)
+        }
+
+    @Test
+    fun `the limits of the backend hold in the app, a change it refuses goes back (AN-24)`() =
+        runTest {
+            val full = (1..MAX_PHOTOS).toList()
+            backend.answers["GET /notes"] = HttpStatusCode.OK to page(note(1, "Full", photos = full, recordings = (100 until 100 + MAX_RECORDINGS).toList()), note(2, "Short"))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+
+            var read = false
+            model.addPhoto(1) {
+                read = true
+                "jpeg".toByteArray()
+            }
+            advanceUntilIdle()
+            assertTrue(read)
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+            assertEquals("A note has at most 20 photos.", model.notes().error.english())
+
+            model.record(RecordingFor.Note(1))
+            assertNull(model.notes().recording)
+            assertEquals("A note has at most 20 recordings.", model.notes().error.english())
+
+            model.addLabel(2, "x".repeat(MAX_LABEL_LENGTH + 1))
+            assertEquals("A label has at most 64 characters.", model.notes().error.english())
+            assertTrue(model.notes().note(2)!!.labels.isEmpty())
+
+            model.setText(2, "y".repeat(MAX_TEXT_LENGTH + 5))
+            assertEquals(MAX_TEXT_LENGTH, model.notes().note(2)!!.text.length)
+
+            // refused by the backend: the note goes back as it was stored, the error says why
+            backend.answers["PUT /notes/2"] =
+                HttpStatusCode.BadRequest to """{"errors":[{"code":"notes.text_too_long","message":"The text must have at most 10000 characters."}]}"""
+            advanceUntilIdle()
+            assertEquals("Short", model.notes().note(2)!!.text)
+            assertEquals("The text must have at most 10000 characters.", model.notes().error.english())
+        }
+
+    @Test
+    fun `a photo or a recording taken off comes back with undo, the backend learns of it once the time is up, UX-4 point 2`() =
+        runTest {
+            backend.answers["GET /notes"] = HttpStatusCode.OK to page(note(1, "Receipt", photos = listOf(40, 41), recordings = listOf(50)))
+            backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Receipt", photos = listOf(40, 41))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+
+            model.removePhoto(1, 40)
+            assertEquals(listOf(41), model.notes().note(1)!!.photos.map { it.id })
+            assertEquals(1, model.notes().removal!!.number)
+            advanceTimeBy(UNDO_REMOVE_MS - 1)
+            runCurrent()
+            model.undoRemoval()
+            advanceUntilIdle()
+            assertEquals(listOf(40, 41), model.notes().note(1)!!.photos.map { it.id })
+            assertNull(model.notes().removal)
+            assertTrue(backend.requests.none { it.startsWith("PUT /notes/1") })
+
+            // a second removal sends the first at once; the time up, the second goes too
+            backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Receipt", photos = listOf(40))
+            model.removeRecording(1, 50)
+            model.removePhoto(1, 41)
+            runCurrent()
+            assertTrue(body("PUT /notes/1").contains(""""recordings":[]"""))
+            advanceUntilIdle()
+            assertTrue(body("PUT /notes/1").contains(""""photos":[40]"""))
+            assertNull(model.notes().removal)
+        }
+
+    @Test
+    fun `a photo or a recording that is not stored says so, a session that ends during a save leads to the sign-in`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.InternalServerError to ""
+            val store = signedIn()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+
+            model.addPhoto(1) { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            assertEquals("The photo could not be stored.", model.notes().error.english())
+            assertTrue(model.notes().uploading.isEmpty())
+            assertTrue(backend.requests.none { it.startsWith("PUT /notes/1") })
+
+            model.record(RecordingFor.Note(1))
+            runCurrent()
+            recorder.recording.complete("RIFFwav".toByteArray())
+            advanceUntilIdle()
+            assertEquals("The recording could not be stored.", model.notes().error.english())
+
+            backend.answers["PUT /notes/1"] = HttpStatusCode.Unauthorized to ""
+            model.setColor(1, NoteResponse.Color.GREEN)
+            advanceUntilIdle()
+            assertTrue(model.screen.value is Screen.SignIn)
+            assertNull(store.load().token)
+        }
+
+    @Test
+    fun `a session that ends during a recording leads to the sign-in, the recording stops`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Unauthorized to ""
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+            model.record(RecordingFor.New)
+            runCurrent()
+            recorder.recording.complete("RIFFwav".toByteArray())
+            advanceUntilIdle()
+            assertTrue(model.screen.value is Screen.SignIn)
+        }
+
+    @Test
+    fun `a photo handed over before the notes are there waits for them (AN-27)`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", photos = listOf(40))
+            val model = model()
+            // android ended the app behind the camera: the model starts again with the photo
+            model.addPhoto(1) { "jpeg".toByteArray() }
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+            model.start()
+            advanceUntilIdle()
+            assertTrue(body("PUT /notes/1").contains(""""photos":[40]"""))
+        }
+
+    @Test
+    fun `the notes load again on coming to the front only when the last load is older than half a minute`() =
+        runTest {
+            val clock = MovableClock(now)
+            backend.dispatcher = StandardTestDispatcher(testScheduler)
+            val model = NotesModel(signedIn(), backend::api, this, allowUrl = false, clock = clock, recorder = recorder).also { it.start() }
+            advanceUntilIdle()
+            val loads = { backend.requests.count { it == "GET /notes" } }
+            val first = loads()
+            model.resume()
+            advanceUntilIdle()
+            assertEquals(first, loads())
+            clock.now = now.plusMillis(RELOAD_AFTER_MS)
+            model.resume()
+            advanceUntilIdle()
+            assertEquals(first + 1, loads())
+        }
+
+    @Test
+    fun `a note is deleted once also when asked twice, going to the background stops the recording and saves the text`() =
+        runTest {
+            backend.answers["DELETE /notes/2"] = HttpStatusCode.NoContent to ""
+            backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Typed")
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+            model.delete(2)
+            assertTrue(2 in model.notes().deletingNow)
+            model.delete(2)
+            advanceUntilIdle()
+            assertEquals(1, backend.requests.count { it.startsWith("DELETE /notes/2") })
+            assertTrue(model.notes().deletingNow.isEmpty())
+
+            model.setText(1, "Typed")
+            model.record(RecordingFor.Note(1))
+            runCurrent()
+            model.pause()
+            advanceUntilIdle()
+            assertNull(model.notes().recording)
+            assertTrue(body("PUT /notes/1").contains(""""text":"Typed""""))
+        }
+
+    @Test
+    fun `a recording of the longest time says it stopped there`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":50,"contentType":"audio/wav","size":1,"url":"/api/v1/files/50","thumbnailUrl":"/api/v1/files/50/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /notes"] = HttpStatusCode.Created to note(7, "", recordings = listOf(50))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+            model.record(RecordingFor.New)
+            runCurrent()
+            assertEquals(now, model.notes().recordingSince)
+            recorder.recording.complete(wav(ByteArray(RECORDING_RATE * 2 * MAX_RECORDING_SECONDS)))
+            advanceUntilIdle()
+            assertEquals("The recording stopped after 5 minutes, the longest a recording is.", model.notes().notice.english())
+            assertNull(model.notes().recordingSince)
+        }
+
+    // a clock the test moves
+    private class MovableClock(
+        var now: Instant,
+    ) : Clock() {
+        override fun getZone() = ZoneOffset.UTC
+
+        override fun withZone(zone: java.time.ZoneId?) = this
+
+        override fun instant() = now
+    }
 
     @Test
     fun `a recording is a wav of 16 kHz mono 16 bit`() {

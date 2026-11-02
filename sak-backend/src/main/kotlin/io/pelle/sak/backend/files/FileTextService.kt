@@ -43,6 +43,10 @@ class FileTextService(
     // whether the files may be sent to the AI provider at all
     private val aiEnabled: () -> Boolean,
 ) {
+    // whether a text can be discovered now: the AI features turned on and an AI provider set up
+    // (AN-26); what every user of the notes may know, the switches themselves are for the admins
+    fun available(): Boolean = aiEnabled() && (recognizer() != null || transcriber() != null)
+
     // the text in a file of the owner, the address that uploaded it; the text once discovered is
     // answered even when nothing is configured any more or the AI features are turned off.
     // mayAsk is asked only right before the file goes to the AI provider, so a limit of what that

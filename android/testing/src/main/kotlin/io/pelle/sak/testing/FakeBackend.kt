@@ -23,6 +23,14 @@ class FakeBackend {
     // "GET /grocery/lists" to the status and the body
     val answers = mutableMapOf<String, Pair<HttpStatusCode, String>>()
 
+    // the answers to a request with its query, which come before the ones of answers, e.g. the pages
+    // of a list: "GET /grocery/lists?offset=100&limit=100"
+    val answersByQuery = mutableMapOf<String, Pair<HttpStatusCode, String>>()
+
+    // the content type of the answers by key, application/json when there is none, e.g. a body of an
+    // error that is no json
+    val contentTypes = mutableMapOf<String, String>()
+
     // the session token of the requests, by path
     val tokens = mutableMapOf<String, String?>()
 
@@ -52,8 +60,8 @@ class FakeBackend {
             tokens[path] = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
             languages += request.headers[HttpHeaders.AcceptLanguage]
             queries += "$key?${request.url.encodedQuery}"
-            val (status, body) = answers[key] ?: (HttpStatusCode.NotFound to "")
-            answer(status, body)
+            val (status, body) = answersByQuery["$key?${request.url.encodedQuery}"] ?: answers[key] ?: (HttpStatusCode.NotFound to "")
+            answer(status, body, contentTypes[key] ?: "application/json")
         }
 
     // the client the api of an app takes, e.g. GroceryApi(backend.client, url, token, languages)
@@ -64,7 +72,15 @@ class FakeBackend {
     private fun MockRequestHandleScope.answer(
         status: HttpStatusCode,
         body: String,
-    ): HttpResponseData = respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
+        contentType: String,
+    ): HttpResponseData = respond(body, status, headersOf(HttpHeaders.ContentType, contentType))
 }
 
 fun page(vararg items: String) = """{"items":[${items.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":${items.size}}}"""
+
+// a page of a longer list: the items from offset, of total in all
+fun page(
+    offset: Int,
+    total: Int,
+    items: List<String>,
+) = """{"items":[${items.joinToString(",")}],"pagination":{"offset":$offset,"limit":100,"total":$total}}"""

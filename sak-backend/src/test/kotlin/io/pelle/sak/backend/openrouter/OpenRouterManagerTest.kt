@@ -57,18 +57,30 @@ class OpenRouterManagerTest {
 
         manager.set(OpenRouterManager.API_KEY, "good other key") shouldBe null
         manager.textRecognizer() shouldNotBe recognizer
+        // the key does not go while it is turned on
+        manager.set(OpenRouterManager.API_KEY, "  ") shouldBe ErrorMessage(OpenRouterTexts.KEY_MISSING)
+        manager.get(OpenRouterManager.API_KEY) shouldBe "good other key"
+        manager.set(OpenRouterManager.ENABLED, false) shouldBe null
         manager.set(OpenRouterManager.API_KEY, "  ") shouldBe null
         manager.textRecognizer() shouldBe null
     }
 
     @Test
+    fun `it is not turned on without an api key`() {
+        manager.set(OpenRouterManager.ENABLED, true) shouldBe ErrorMessage(OpenRouterTexts.KEY_MISSING)
+        manager.enabled() shouldBe false
+        checked shouldBe emptyList()
+    }
+
+    @Test
     fun `a key openrouter does not take is not set`() {
+        manager.set(OpenRouterManager.API_KEY, "good first key") shouldBe null
         manager.set(OpenRouterManager.ENABLED, true) shouldBe null
         manager.set(OpenRouterManager.API_KEY, "bad key") shouldBe ErrorMessage(OpenRouterTexts.KEY_REFUSED)
         unknown = true
         manager.set(OpenRouterManager.API_KEY, "good key") shouldBe
             ErrorMessage(OpenRouterTexts.KEY_UNCHECKED)
-        manager.get(OpenRouterManager.API_KEY) shouldBe ""
+        manager.get(OpenRouterManager.API_KEY) shouldBe "good first key"
 
         // turning it on checks the key stored
         unknown = false
@@ -81,7 +93,8 @@ class OpenRouterManagerTest {
     @Test
     fun `answers the models of the configuration while it is turned on`() {
         manager.get(OpenRouterManager.VISION_MODEL) shouldBe null
-        manager.set(OpenRouterManager.ENABLED, true)
+        manager.set(OpenRouterManager.API_KEY, "good key")
+        manager.set(OpenRouterManager.ENABLED, true) shouldBe null
         manager.get(OpenRouterManager.VISION_MODEL) shouldBe SakConfig.DEFAULT_OPENROUTER_MODEL
         manager.get(OpenRouterManager.SPEECH_MODEL) shouldBe SakConfig.DEFAULT_OPENROUTER_SPEECH_MODEL
     }

@@ -30,7 +30,8 @@ class NotesSettingsServiceTest {
         // the switch of the notes needs the one of the deployment
         notes.set(NotesSettingsService.AI, true) shouldBe
             ErrorMessage(SettingsTexts.REQUIRES, "label" to NotesTexts.AI_LABEL, "required" to OpenRouterTexts.ENABLED_LABEL, "scope" to OpenRouterTexts.SCOPE_LABEL)
-        openRouter.set(OpenRouterManager.ENABLED, true)
+        openRouter.set(OpenRouterManager.API_KEY, "key")
+        openRouter.set(OpenRouterManager.ENABLED, true) shouldBe null
         notes.set(NotesSettingsService.AI, true) shouldBe null
         notes.aiEnabled() shouldBe true
 

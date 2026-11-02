@@ -134,6 +134,12 @@ fun Route.login(
             call.respondErrors(AuthTexts.INVALID_EMAIL)
             return@post
         }
+        // an android app always sends its nonce, of 16 to 128 characters (AN-8)
+        val nonce = request.nonce
+        if ((request.client != LoginClient.WEB && nonce == null) || (nonce != null && nonce.length !in 16..128)) {
+            call.respond(HttpStatusCode.BadRequest)
+            return@post
+        }
         val client = call.clientAddress()
         if (!loginsPerClient.tryAcquire(client)) {
             call.respond(HttpStatusCode.TooManyRequests)
@@ -152,7 +158,7 @@ fun Route.login(
             // the redirect travels in the token, the signin page takes it from the exchange; a link
             // of an android app tells the signin page to hand the token on to that app
             val client = request.client.linkName?.let { "&client=$it" }.orEmpty()
-            val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect)}$client"
+            val link = "${app.url.trimEnd('/')}/signin?token=${tokens.issueLoginToken(email, redirect, nonce)}$client"
             try {
                 mailSender.send(
                     email,
@@ -172,6 +178,7 @@ fun Route.login(
         description =
             "Sends a link with a login token, valid for ${tokens.loginTokenTtl.toMinutes()} minutes, to the signin page of the apps " +
             "if the address may sign in. " +
+            "An android app sends a nonce of 16 to 128 characters, the link signs in only with it. " +
             "Answered the same way for every address."
         requestBody {
             required = true
@@ -185,7 +192,8 @@ fun Route.login(
     }
 
     post("/exchange") {
-        val claims = tokens.exchangeLoginToken(call.receive<ExchangeRequest>().token)
+        val exchange = call.receive<ExchangeRequest>()
+        val claims = tokens.exchangeLoginToken(exchange.token, exchange.nonce)
         // the roles are the address' ones now, an address without any can not use links sent before
         val roles = claims?.let { rolesOf(it.email) }.orEmpty()
         if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of '${claims.email}': the address has no role" }
@@ -203,7 +211,9 @@ fun Route.login(
     }.describe {
         tag(AUTH_TAG)
         summary = "Exchange a login token for a session token"
-        description = "Every login token can be exchanged once, the session token is valid for ${tokens.sessionTokenTtl.toDays()} days."
+        description =
+            "Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce; the session " +
+            "token is valid for ${tokens.sessionTokenTtl.toDays()} days."
         requestBody {
             required = true
             schema = jsonSchema<ExchangeRequest>()

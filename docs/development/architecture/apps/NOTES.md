@@ -36,5 +36,8 @@ and add it to the note.
 ## API
 
 - `NOTES-4` Create, change, read and delete a note; read the notes page by page, of a label or all.
-- `NOTES-5` Discover the text in a photo or a recording of the user (`POST /api/v1/files/{id}/discover/text`).
+- `NOTES-5` Discover the text in a photo or a recording of the user (`POST /api/v1/files/{id}/discover/text`). Every
+  user may ask whether it can be done now (`GET /api/v1/notes/settings`, `discoverText`): the AI turned on by an admin
+  and a provider set up; the switches themselves are settings of the admins, and the backend checks them on every
+  discovery.
 

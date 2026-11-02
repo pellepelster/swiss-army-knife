@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { PaginationControl } from '../shared/pagination';
-import { SettingsStore } from '../settings/settings-store';
 import { NoteCard } from './note-card';
 import { UndoToast } from '../shared/undo-toast';
 import { Note, NotesStore, Removal } from './notes-store';
@@ -197,7 +196,6 @@ import { PageHeader } from '../shared/page-header';
 })
 export class NotesPage {
   protected readonly store = inject(NotesStore);
-  private readonly settings = inject(SettingsStore);
   private readonly injector = inject(Injector);
 
   protected readonly filter = signal<string | null>(null);
@@ -230,7 +228,7 @@ export class NotesPage {
 
   constructor() {
     // whether the photos and recordings offer to discover their text
-    this.settings.loadEffective('notes');
+    this.store.loadSettings();
     effect(() => {
       const offset = this.offset();
       const label = this.filter();

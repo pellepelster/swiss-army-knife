@@ -197,7 +197,9 @@ class FileService(
     }
 
     companion object {
-        const val DEFAULT_MAX_SIZE = 10L * 1024 * 1024
+        // the most a stored file has, for every app (the request body of the apps and the limit of
+        // caddy follow it, APPS_MAX_BODY_SIZE)
+        const val DEFAULT_MAX_SIZE = 64L * 1024 * 1024
 
         // the apps scale the photos down to this many pixels on the longer side, they record at
         // most this long; the storage takes no more

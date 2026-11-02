@@ -10,13 +10,16 @@ const val RECORDING_RATE = 16_000
 // its longest recording (FileService.MAX_RECORDING_SECONDS)
 const val MAX_RECORDING_SECONDS = 300
 
-// the samples, 16 bit mono little endian, as a wav file: its RIFF header of 44 bytes and the samples
+// the bytes of the RIFF header of a wav, before its samples
+const val WAV_HEADER = 44
+
+// the samples, 16 bit mono little endian, as a wav file: its RIFF header of WAV_HEADER bytes and the samples
 fun wav(
     pcm: ByteArray,
     rate: Int = RECORDING_RATE,
 ): ByteArray =
     ByteBuffer
-        .allocate(44 + pcm.size)
+        .allocate(WAV_HEADER + pcm.size)
         .order(ByteOrder.LITTLE_ENDIAN)
         .apply {
             put("RIFF".toByteArray())

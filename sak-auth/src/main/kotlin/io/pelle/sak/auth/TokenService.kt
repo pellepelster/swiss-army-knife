@@ -7,6 +7,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.exceptions.SignatureVerificationException
 import com.auth0.jwt.exceptions.TokenExpiredException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -52,17 +53,24 @@ class TokenService(
     // memory is enough; a restart only lets links that were valid anyway be used once more
     private val usedLoginTokens = ConcurrentHashMap<String, Instant>()
 
+    // with the nonce of the login request, the token is exchanged only with it (its sha-256 travels in
+    // the token, not the nonce)
     fun issueLoginToken(
         email: String,
         redirect: String,
+        nonce: String? = null,
     ): String =
         sign(email, LOGIN, loginTokenTtl)
             .withJWTId(UUID.randomUUID().toString())
             .withClaim(REDIRECT, redirect)
+            .apply { nonce?.let { withClaim(NONCE, sha256(it)) } }
             .sign(algorithm)
 
     // null for invalid, expired and already used tokens; why is logged, never the token
-    fun exchangeLoginToken(token: String): LoginClaims? {
+    fun exchangeLoginToken(
+        token: String,
+        nonce: String? = null,
+    ): LoginClaims? {
         val jwt =
             try {
                 loginVerifier.verify(token)
@@ -79,6 +87,13 @@ class TokenService(
             }
         val id = jwt.id ?: return null
         val email = jwt.subject ?: return null
+        // a token of a login with a nonce only with that nonce; checked before it counts as used, so
+        // a wrong one does not use up the link of the one who asked for it
+        val expected = jwt.getClaim(NONCE).asString()
+        if (expected != null && (nonce == null || !MessageDigest.isEqual(expected.toByteArray(), sha256(nonce).toByteArray()))) {
+            logger.info { "rejected a login token: its nonce does not match" }
+            return null
+        }
         // the verifier only checks the expiry of tokens that have one
         val expiresAt = jwt.expiresAtAsInstant ?: return null
 
@@ -135,6 +150,7 @@ class TokenService(
         private const val SESSION = "session"
 
         private const val REDIRECT = "redirect"
+        private const val NONCE = "nonce"
 
         // the roles of a session token, unknown ones are ignored
         const val ROLES = "roles"
@@ -149,3 +165,6 @@ class TokenService(
         fun roles(claim: List<String>?) = claim.orEmpty().mapNotNull { Role.of(it) }.toSet()
     }
 }
+
+// the sha-256 of the text, lower case hex
+private fun sha256(text: String): String = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

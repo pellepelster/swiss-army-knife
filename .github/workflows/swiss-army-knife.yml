@@ -219,8 +219,6 @@ jobs:
         with:
           install_args: java
       - uses: gradle/actions/setup-gradle@v6
-        with:
-          build-root-directory: android
       - run: mise run android:sdk:build
       - run: mise run android:test
       - run: mise run android:release:build

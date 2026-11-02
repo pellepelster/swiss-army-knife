@@ -1,4 +1,32 @@
 # the texts of the catalog notes in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+page:
+  create_note: "Notiz erstellen"
+  create_with_photo: "Notiz mit einem Foto erstellen"
+  create_with_recording: "Notiz mit einer Aufnahme erstellen"
+  none_labelled: "Keine Notiz hat das Label #%{label}."
+  all: "Alle"
+  filter: "Nach Label filtern"
+card:
+  write: "Schreib etwas…"
+  color: "Farbe"
+  labels: "Labels"
+  labels_full: "Eine Notiz hat höchstens %{max} Labels."
+  discover: "Text erkennen"
+colors:
+  yellow: "gelb"
+  pink: "rosa"
+  blue: "blau"
+  green: "grün"
+  orange: "orange"
+errors:
+  not_loaded: "Die Notizen konnten nicht geladen werden."
+  not_saved: "Die Notiz konnte nicht gespeichert werden."
+  not_deleted: "Die Notiz konnte nicht gelöscht werden."
+  photo_not_stored: "Das Foto konnte nicht gespeichert werden."
+  microphone: "Das Mikrofon konnte nicht verwendet werden."
+  recording_not_stored: "Die Aufnahme konnte nicht gespeichert werden."
+  no_text_in_recording: "In der Aufnahme ist kein Text."
+  not_discovered: "Der Text konnte nicht erkannt werden."
 text_too_long: "Der Text darf höchstens %{max} Zeichen haben."
 invalid_color: "Die Farbe muss eine von %{colors} sein."
 too_many_labels: "Eine Notiz kann höchstens %{max} Labels haben."
@@ -10,6 +38,6 @@ no_list: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekomm
 settings:
   ai:
     label: "KI-Funktionen"
-    description: "Lässt die Notizen den Text in Fotos und Aufnahmen mit der KI des Deployments erkennen."
+    description: "Lässt die Notizen den Text in Fotos und Aufnahmen mit den KI-Funktionen erkennen."
   label: "Notizen"
   description: "Die Einstellungen der Notizen."

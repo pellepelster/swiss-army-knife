@@ -2,6 +2,7 @@ package io.pelle.sak.core.update
 
 import io.pelle.sak.core.R
 import io.pelle.sak.core.uiText
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -37,7 +38,14 @@ class AndroidUpdater(
     // the name of the app in the name of its apk, e.g. grocery for sak-grocery-1.4.2.apk
     private val app: String,
 ) : Updater {
-    private val client = HttpClient(engine) { install(HttpTimeout) }
+    private val client =
+        HttpClient(engine) {
+            install(HttpTimeout) {
+                connectTimeoutMillis = CONNECT_TIMEOUT_MS
+                socketTimeoutMillis = SOCKET_TIMEOUT_MS
+                requestTimeoutMillis = DOWNLOAD_TIMEOUT_MS
+            }
+        }
 
     override suspend fun install(version: String) {
         val apk = File(context.cacheDir, "sak-$app-update.apk")
@@ -108,8 +116,43 @@ class AndroidUpdater(
     }
 
     private companion object {
+        const val CONNECT_TIMEOUT_MS = 15_000L
+        const val SOCKET_TIMEOUT_MS = 60_000L
         const val DOWNLOAD_TIMEOUT_MS = 10 * 60_000L
         const val BUFFER_SIZE = 64 * 1024
+    }
+}
+
+// the confirmation of an update the installer of android asks the user for: android shows it only
+// from an app that is seen (the start of an activity from the background is blocked), so it waits
+// for the next activity of the app that is seen when there is none (AN-12)
+object PendingInstall {
+    private var confirm: Intent? = null
+    private var shown: Activity? = null
+
+    @Synchronized
+    fun ask(intent: Intent) {
+        val activity = shown
+        if (activity != null) {
+            activity.startActivity(intent)
+        } else {
+            confirm = intent
+        }
+    }
+
+    // an activity of the app is seen: the confirmation that waits shows
+    @Synchronized
+    fun seen(activity: Activity) {
+        shown = activity
+        confirm?.let {
+            confirm = null
+            activity.startActivity(it)
+        }
+    }
+
+    @Synchronized
+    fun unseen() {
+        shown = null
     }
 }
 
@@ -129,7 +172,7 @@ class UpdateReceiver : BroadcastReceiver() {
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra(Intent.EXTRA_INTENT)
                     }
-                confirm?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                confirm?.let { PendingInstall.ask(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             // the user declined, nothing to say

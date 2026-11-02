@@ -7,7 +7,7 @@ import { I18n } from '../i18n/i18n';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
 import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
 import { PendingUndo } from '../shared/pending-undo';
-import { NoteResponse as ApiNoteResponse } from '../api/models';
+import { NoteResponse as ApiNoteResponse, NotesSettings } from '../api/models';
 import { UNDO_DELETE_MS } from '../shared/undo-toast';
 import { AudioRecorder } from './audio-recorder';
 import { PhotoScaler } from './photo-scaler';
@@ -20,9 +20,15 @@ export interface Removal {
   readonly fileId: number | null;
 }
 
-export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'orange'] as const;
+export const NOTE_COLORS = [
+  'yellow',
+  'pink',
+  'blue',
+  'green',
+  'orange',
+] as const satisfies readonly NoteResponse['color'][];
 
-type NoteColor = (typeof NOTE_COLORS)[number];
+type NoteColor = NoteResponse['color'];
 
 // photos and recordings are the ids of files of the backend's file storage, served with the
 // session at /api/v1/files/<id>
@@ -105,6 +111,9 @@ export class NotesStore {
 
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
+  // whether the photos and recordings offer to discover their text: the AI turned on by an admin
+  // and a provider set up (GET /notes/settings, AN-26); off until it is known, also when it is not
+  readonly discoverAvailable = signal(false);
 
   // what was removed last while it can be brought back with undoRemove, null otherwise
   readonly removed = this.removal.current.asReadonly();
@@ -324,6 +333,14 @@ export class NotesStore {
   }
 
   // the text the backend discovers in the photo or the recording is added to the text of the note
+  // what the notes app may do for the signed in user, whatever their role
+  loadSettings(): void {
+    this.http.get<NotesSettings>('/api/v1/notes/settings').subscribe({
+      next: (settings) => this.discoverAvailable.set(settings.discoverText),
+      error: () => this.discoverAvailable.set(false),
+    });
+  }
+
   async discoverText(id: number, fileId: number): Promise<void> {
     this.error.set(null);
     const recording = this.all()
@@ -604,17 +621,11 @@ function newestFirst(a: Note, b: Note): number {
   return b.created.getTime() - a.created.getTime() || b.id - a.id;
 }
 
-// the backend sends the color as a string and takes only the ones of NOTE_COLORS; one the app does
-// not know shows as the first
-function noteColor(color: string): NoteColor {
-  return (NOTE_COLORS as readonly string[]).includes(color) ? (color as NoteColor) : NOTE_COLORS[0];
-}
-
 function toNote(response: NoteResponse): Note {
   return {
     id: response.id,
     text: response.text,
-    color: noteColor(response.color),
+    color: response.color,
     labels: response.labels.map((label) => label.name),
     photos: response.photos.map((photo) => photo.id),
     recordings: response.recordings.map((recording) => recording.id),

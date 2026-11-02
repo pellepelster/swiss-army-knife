@@ -31,12 +31,14 @@ val models =
         "GroceryCategoryRequest",
         "GroceryCategoryOrderRequest",
         "GroceryItemCategoryRequest",
+        "GrocerySuggestionResponse",
         "LabelResponse",
         "PhotoResponse",
         "RecordingResponse",
         "NoteResponse",
         "NoteRequest",
         "DiscoverTextResponse",
+        "NotesSettingsResponse",
     )
 
 val spec = rootProject.layout.projectDirectory.file("../openapi.json")
@@ -61,25 +63,35 @@ openApiGenerate {
             "enumPropertyNaming" to "UPPERCASE",
         ),
     )
-    // the document has no formats: an integer is an Int, an amount a Double, a time a String
+    // the document has no formats: an integer is an Int, an amount a Double, a time a String. Int is
+    // enough also for the size of a file (FileResponse.size): the backend takes files of at most
+    // 64 MB (FileService.DEFAULT_MAX_SIZE)
     typeMappings.set(mapOf("number" to "kotlin.Double", "integer" to "kotlin.Int"))
     cleanupOutput.set(true)
 }
 
+// the spec is a path to the plugin; its content is the input, so a new openapi.json generates anew
+val generate =
+    tasks.named("openApiGenerate") {
+        inputs.file(spec).withPathSensitivity(PathSensitivity.RELATIVE)
+        outputs.dir(generated)
+    }
+
+// java 17 like the android modules, with the jdk gradle runs on (no toolchain to install); the
+// generated sources come from the task, so an import of the IDE generates them too
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
     sourceSets.main {
-        kotlin.srcDir(generated.map { it.dir("src/main/kotlin") })
+        kotlin.srcDir(generate.map { generated.get().dir("src/main/kotlin") })
     }
 }
-
-// the spec is a path to the plugin; its content is the input, so a new openapi.json generates anew
-tasks.named("openApiGenerate") {
-    inputs.file(spec).withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(generated)
-}
-
-tasks.named("compileKotlin") { dependsOn(tasks.named("openApiGenerate")) }
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)

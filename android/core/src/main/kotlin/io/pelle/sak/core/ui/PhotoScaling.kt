@@ -19,7 +19,19 @@ object PhotoScaling {
     private const val MAX_SIZE = 2048
     private const val JPEG_QUALITY = 85
 
+    // an image too large for the memory of the phone is an IOException, as one that can not be read
+    // (AN-36)
     fun jpeg(
+        context: Context,
+        uri: Uri,
+    ): ByteArray =
+        try {
+            scaled(context, uri)
+        } catch (e: OutOfMemoryError) {
+            throw IOException("$uri is too large", e)
+        }
+
+    private fun scaled(
         context: Context,
         uri: Uri,
     ): ByteArray {
@@ -32,25 +44,25 @@ object PhotoScaling {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         read { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("$uri is no image")
-        // decoded at a power of two below its size, as small as still at least MAX_SIZE
+        // decoded at a power of two below its size, as small as still at least MAX_SIZE, and scaled
+        // while it is decoded to MAX_SIZE on its longer side: a photo of 12 megapixels never is in
+        // the memory whole (about 16 MB instead of 48 MB)
+        val longer = max(bounds.outWidth, bounds.outHeight)
         var sample = 1
-        while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIZE) sample *= 2
-        val decoded =
-            read { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
-                ?: throw IOException("$uri is no image")
-        val degrees =
-            when (read { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }) {
-                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                else -> 0f
+        while (longer / (sample * 2) >= MAX_SIZE) sample *= 2
+        val options =
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+                if (longer / sample > MAX_SIZE) {
+                    inScaled = true
+                    inDensity = longer / sample
+                    inTargetDensity = MAX_SIZE
+                }
             }
+        val decoded = read { BitmapFactory.decodeStream(it, null, options) } ?: throw IOException("$uri is no image")
+        val orientation = read { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
         val factor = min(1f, MAX_SIZE.toFloat() / max(decoded.width, decoded.height))
-        val matrix =
-            Matrix().apply {
-                postScale(factor, factor)
-                postRotate(degrees)
-            }
+        val matrix = upright(orientation).apply { preScale(factor, factor) }
         val upright = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
         return ByteArrayOutputStream().use { out ->
             upright.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
@@ -60,3 +72,24 @@ object PhotoScaling {
         }
     }
 }
+
+// the turn that makes a photo of the exif orientation upright, the mirrored ones too (a front camera
+// or an editor writes them)
+internal fun upright(orientation: Int): Matrix =
+    Matrix().apply {
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> setScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> setRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> setScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                setRotate(90f)
+                postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_90 -> setRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                setRotate(-90f)
+                postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_270 -> setRotate(-90f)
+        }
+    }

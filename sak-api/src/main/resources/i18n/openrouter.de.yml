@@ -15,4 +15,5 @@ settings:
   label: "KI"
   description: "Alle KI-Funktionen einrichten"
 key_refused: "OpenRouter nimmt den API-Schlüssel nicht an."
+key_missing: "Die KI-Funktionen brauchen einen API-Schlüssel von OpenRouter, um eingeschaltet zu werden."
 key_unchecked: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."

@@ -21,15 +21,17 @@ tasks.test {
     systemProperty("sak.root", rootDir.absolutePath)
     // the texts and the generated files are outside of the module
     inputs.file(rootDir.resolve("i18n/texts.yml"))
+    inputs.file(rootDir.resolve("android/apps.txt"))
+    // the texts of core and of every app of android/apps.txt
+    val androidModules =
+        listOf("core") +
+            rootDir.resolve("android/apps.txt").readLines().map { it.substringBefore('#').trim() }.filter { it.isNotEmpty() }
     inputs.files(
         rootDir.resolve("sak-api/src/main/resources/i18n"),
         rootDir.resolve("sak-frontend/src/app/i18n/catalog.ts"),
-        rootDir.resolve("android/core/src/main/res/values"),
-        rootDir.resolve("android/core/src/main/res/values-de"),
-        rootDir.resolve("android/grocery/src/main/res/values"),
-        rootDir.resolve("android/grocery/src/main/res/values-de"),
-        rootDir.resolve("android/notes/src/main/res/values"),
-        rootDir.resolve("android/notes/src/main/res/values-de"),
         rootDir.resolve("sak-cli/src-tauri/locales"),
     )
+    androidModules.forEach { module ->
+        inputs.files(rootDir.resolve("android/$module/src/main/res/values"), rootDir.resolve("android/$module/src/main/res/values-de"))
+    }
 }

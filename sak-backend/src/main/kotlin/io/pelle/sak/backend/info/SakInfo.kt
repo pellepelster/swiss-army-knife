@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.info
 
 import io.ktor.http.HttpStatusCode
+import io.pelle.sak.backend.info.model.UserMode
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -28,7 +29,7 @@ fun Route.info(
     installApi()
 
     get {
-        call.respond(InfoResponse(name, dnsMode.value, if (mailServer) "multi" else "single", version))
+        call.respond(InfoResponse(name, dnsMode, if (mailServer) UserMode.MULTI else UserMode.SINGLE, version))
     }.describe {
         tag(INFO_TAG)
         summary = "The deployment that answers"

@@ -226,7 +226,7 @@ rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
 # .../releases/download/v<VERSION>/sak-cli-<platform>-<architecture>-<VERSION>.zip. Needs gh and GH_TOKEN with
 # contents: write (the workflow, job release, on a tag only)
 [tasks."cli:release"]
-description = "Publish the sakctl GitHub release"
+description = "Publish the GitHub release with the zips of sakctl"
 dir = "{{config_root}}/sak-cli"
 run = """
 set -eu
@@ -236,8 +236,12 @@ for platform in linux-x86_64 macos-universal windows-x86_64; do
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
   files="$files $zip $zip.sha256"
 done
-gh release create "v${VERSION}" --verify-tag --title "sakctl $VERSION" \
-  --notes "sakctl for linux, macOS and windows, built from $(git rev-parse --short=12 HEAD)." $files
+# created once; a release that failed halfway runs again, its files are replaced
+if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
+  gh release create "v${VERSION}" --verify-tag --title "SAK $VERSION" \
+    --notes "sakctl for linux, macOS and windows and the android apps of the grocery lists and the notes, built from $(git rev-parse --short=12 HEAD)."
+fi
+gh release upload "v${VERSION}" $files --clobber
 """
 
 # the wizard on the command line, the same code as its pages: list, create [<name>],
@@ -721,7 +725,7 @@ wait
 '''
 
 # android/, the android apps of SAK: one gradle build of its own with its own wrapper, a module for
-# each app (grocery) on top of core. The sdk is in $ANDROID_HOME, ~/Android/Sdk when unset;
+# each app of android/apps.txt on top of core. The sdk is in $ANDROID_HOME, ~/Android/Sdk when unset;
 # android:sdk installs the command-line tools of google there, accepts their licenses and installs what
 # the build and the emulator need
 [tasks."android:sdk"]
@@ -760,17 +764,21 @@ description = "Build the android apps"
 dir = "{{config_root}}/android"
 run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew assembleDebug'
 
-# the release apk of every app, android/build/sak-<app>-<VERSION>.apk, and its checksum. Signed with the
-# keystore of ANDROID_KEYSTORE (base64, from the secrets of the workflow, github:secrets:update),
-# decoded into a directory removed afterwards; without it unsigned, which a release refuses
+# the release apk of every app of android/apps.txt, android/build/sak-<app>-<VERSION>.apk, and its
+# checksum. Signed with the keystore of ANDROID_KEYSTORE (base64, from the secrets of the workflow,
+# github:secrets:update), decoded into a directory removed afterwards; without it unsigned, which only
+# VERSION=latest may be (the build of sak.android.app refuses it too). A signed apk must be signed
+# with the certificate of ANDROID_CERT_SHA256, the key every installed app was signed with: an apk of
+# another key installs over none of them
 [tasks."android:release:build"]
 description = "Build the release apks of the android apps"
 dir = "{{config_root}}/android"
-env = { ANDROID_APPS = "grocery notes" }
+env = { ANDROID_CERT_SHA256 = "546205591d3d1ad2e3b10e38f2ef8ce154eb19b543125a5ea6c7bf2ef9890679" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+apps=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' apps.txt)
 signed=false
 if [ -n "${ANDROID_KEYSTORE:-}" ]; then
   keys="$(mktemp -d)"
@@ -783,38 +791,49 @@ if [ "$VERSION" != latest ] && [ "$signed" != true ]; then
   echo "the release $VERSION needs ANDROID_KEYSTORE, a release apk is signed" >&2
   exit 1
 fi
+# no apk of a build before is taken for this one
+for app in $apps; do rm -rf "$app/build/outputs/apk/release"; done
 ./gradlew assembleRelease
 mkdir -p build
-for app in $ANDROID_APPS; do
+apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)/apksigner"
+for app in $apps; do
   apk="build/sak-${app}-${VERSION}.apk"
-  cp "$(ls "$app"/build/outputs/apk/release/*.apk | head -n1)" "$apk"
   if [ "$signed" = true ]; then
-    "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)/apksigner" verify --print-certs "$apk"
+    cp "$app/build/outputs/apk/release/${app}-release.apk" "$apk"
+    digest=$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+    if [ "$digest" != "$ANDROID_CERT_SHA256" ]; then
+      echo "$apk is signed with the certificate $digest, not with $ANDROID_CERT_SHA256 of the installed apps" >&2
+      exit 1
+    fi
+  else
+    cp "$app/build/outputs/apk/release/${app}-release-unsigned.apk" "$apk"
   fi
   (cd build && sha256sum "sak-${app}-${VERSION}.apk" > "sak-${app}-${VERSION}.apk.sha256")
   echo "the release apk is $apk, signed: $signed"
 done
 '''
 
-# the release apks and their checksums into the github release of the tag v<VERSION>, which
-# cli:release created
+# the release apks of android/apps.txt and their checksums into the github release of the tag
+# v<VERSION>, which cli:release created; a file already there is replaced, so a release that failed
+# halfway runs again
 [tasks."android:release"]
 description = "Add the release apks of the android apps to the GitHub release"
 dir = "{{config_root}}/android"
-env = { ANDROID_APPS = "grocery notes" }
 run = """
 set -eu
-for app in $ANDROID_APPS; do
+for app in $(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' apps.txt); do
   apk="build/sak-${app}-${VERSION}.apk"
   [ -f "$apk" ] && [ -f "$apk.sha256" ] || { echo "$apk or its checksum is missing" >&2; exit 1; }
-  gh release upload "v${VERSION}" "$apk" "$apk.sha256"
+  gh release upload "v${VERSION}" "$apk" "$apk.sha256" --clobber
 done
 """
 
 # the secrets of the workflow that signs the release apks of the android apps, from pass: the
 # keystore as base64 (sak/android/signing-key) and its password (sak/android/signing-key-password),
 # which is also the one of the key in a pkcs12 keystore. The values go to gh through pipes only,
-# never as an argument or into the environment
+# never as an argument or into the environment. The alias of the key in the keystore is sak-grocery,
+# from when the grocery app was the only one; it signs every app, renaming it means a new keystore
+# secret
 [tasks."github:secrets:update"]
 description = "Set the GitHub secrets of the swiss army knife repository from pass"
 run = """
@@ -832,42 +851,53 @@ description = "Run the tests of the android apps"
 dir = "{{config_root}}/android"
 run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testDebugUnitTest'
 
-# the debug build in the emulator: the avd sak-grocery is made once, the emulator started when none
-# runs and left running; the debug build takes a server url like http://10.0.2.2:8080/api/v1, the
-# backend of local:run on the host
-[tasks."grocery:android:run"]
-description = "Run the grocery app in the emulator"
+# the debug build of an app of android/apps.txt in the emulator, e.g. mise run android:run notes: the
+# avd sak is made once, the emulator started when none runs and left running; the debug build is
+# installed on the emulator only (ANDROID_SERIAL), also when a phone is attached. It takes a server url
+# like http://10.0.2.2:8080/api/v1, the backend of local:run on the host
+[tasks."android:run"]
+description = "Run an android app in the emulator"
+usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes)"'
 depends = ["android:sdk"]
 dir = "{{config_root}}/android"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
+app="$usage_app"
+sed -e 's/#.*//' -e 's/[[:space:]]//g' apps.txt | grep -qx "$app" || { echo "no app $app in android/apps.txt" >&2; exit 1; }
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 adb="$ANDROID_HOME/platform-tools/adb"
 emulator="$ANDROID_HOME/emulator/emulator"
-avd="sak-grocery"
+avd="sak"
 if ! "$emulator" -list-avds | grep -qx "$avd"; then
   echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" \
     -k "system-images;android-36;google_apis;x86_64" -d pixel_7
 fi
-if ! "$adb" devices | grep -q '^emulator-'; then
+serial=$("$adb" devices | awk 'NR > 1 && $2 == "device" && $1 ~ /^emulator-/ { print $1; exit }')
+if [ -z "$serial" ]; then
   nohup "$emulator" -avd "$avd" -no-boot-anim >/dev/null 2>&1 &
-  "$adb" wait-for-device
-  until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+  until serial=$("$adb" devices | awk 'NR > 1 && $1 ~ /^emulator-/ { print $1; exit }') && [ -n "$serial" ]; do sleep 2; done
+  "$adb" -s "$serial" wait-for-device
+  until [ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
 fi
-./gradlew :grocery:installDebug
-"$adb" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
+export ANDROID_SERIAL="$serial"
+./gradlew ":$app:installDebug"
+"$adb" -s "$serial" shell am start -n "io.pelle.sak.$app.debug/io.pelle.sak.$app.MainActivity"
 '''
 
-# the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
-# than one phone attached, ANDROID_SERIAL names the one (adb devices lists them)
-[tasks."grocery:android:install"]
-description = "Install the grocery app on the attached phone"
-depends = ["android:sdk"]
+# the debug build of an app of android/apps.txt on the phone attached by usb (usb debugging on), not on
+# an emulator, e.g. mise run android:install grocery; with more than one phone attached,
+# ANDROID_SERIAL names the one (adb devices lists them). The sdk without the emulator is enough
+[tasks."android:install"]
+description = "Install an android app on the attached phone"
+usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes)"'
+depends = ["android:sdk:build"]
 dir = "{{config_root}}/android"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
+app="$usage_app"
+sed -e 's/#.*//' -e 's/[[:space:]]//g' apps.txt | grep -qx "$app" || { echo "no app $app in android/apps.txt" >&2; exit 1; }
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 adb="$ANDROID_HOME/platform-tools/adb"
 # one serial a line; the task is a template of mise, which takes the length syntax of bash for a comment
@@ -889,69 +919,7 @@ else
   echo "more than one phone attached ($(echo $phones)), name one with ANDROID_SERIAL=<serial>" >&2
   exit 1
 fi
-./gradlew :grocery:assembleDebug
-"$adb" -s "$serial" install -r grocery/build/outputs/apk/debug/grocery-debug.apk
-"$adb" -s "$serial" shell am start -n io.pelle.sak.grocery.debug/io.pelle.sak.grocery.MainActivity
-'''
-
-# the debug build of the notes in the emulator, the avd sak-grocery of the grocery app made once, the emulator started when none
-# runs and left running; the debug build takes a server url like http://10.0.2.2:8080/api/v1, the
-# backend of local:run on the host
-[tasks."notes:android:run"]
-description = "Run the notes app in the emulator"
-depends = ["android:sdk"]
-dir = "{{config_root}}/android"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-adb="$ANDROID_HOME/platform-tools/adb"
-emulator="$ANDROID_HOME/emulator/emulator"
-avd="sak-grocery"
-if ! "$emulator" -list-avds | grep -qx "$avd"; then
-  echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n "$avd" \
-    -k "system-images;android-36;google_apis;x86_64" -d pixel_7
-fi
-if ! "$adb" devices | grep -q '^emulator-'; then
-  nohup "$emulator" -avd "$avd" -no-boot-anim >/dev/null 2>&1 &
-  "$adb" wait-for-device
-  until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
-fi
-./gradlew :notes:installDebug
-"$adb" shell am start -n io.pelle.sak.notes.debug/io.pelle.sak.notes.MainActivity
-'''
-
-# the debug build on the phone attached by usb (usb debugging on), not on an emulator; with more
-# than one phone attached, ANDROID_SERIAL names the one (adb devices lists them)
-[tasks."notes:android:install"]
-description = "Install the notes app on the attached phone"
-depends = ["android:sdk"]
-dir = "{{config_root}}/android"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-adb="$ANDROID_HOME/platform-tools/adb"
-# one serial a line; the task is a template of mise, which takes the length syntax of bash for a comment
-phones=$("$adb" devices | awk 'NR > 1 && $2 == "device" && $1 !~ /^emulator-/ { print $1 }')
-count=$(printf '%s' "$phones" | grep -c . || true)
-unauthorized=$("$adb" devices | awk 'NR > 1 && $2 == "unauthorized" { print $1 }')
-if [ -n "${ANDROID_SERIAL:-}" ]; then
-  serial="$ANDROID_SERIAL"
-elif [ "$count" -eq 1 ]; then
-  serial="$phones"
-elif [ "$count" -eq 0 ]; then
-  if [ -n "$unauthorized" ]; then
-    echo "the phone $unauthorized does not allow usb debugging yet, confirm the prompt on it" >&2
-  else
-    echo "no phone attached: plug it in with usb debugging on (Settings > System > Developer options)" >&2
-  fi
-  exit 1
-else
-  echo "more than one phone attached ($(echo $phones)), name one with ANDROID_SERIAL=<serial>" >&2
-  exit 1
-fi
-./gradlew :notes:assembleDebug
-"$adb" -s "$serial" install -r notes/build/outputs/apk/debug/notes-debug.apk
-"$adb" -s "$serial" shell am start -n io.pelle.sak.notes.debug/io.pelle.sak.notes.MainActivity
+./gradlew ":$app:assembleDebug"
+"$adb" -s "$serial" install -r "$app/build/outputs/apk/debug/$app-debug.apk"
+"$adb" -s "$serial" shell am start -n "io.pelle.sak.$app.debug/io.pelle.sak.$app.MainActivity"
 '''

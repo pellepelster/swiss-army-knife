@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -31,12 +32,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -102,9 +108,19 @@ fun Form(
     ) { content() }
 }
 
+// an error, read out by talkback when it shows (a live region, AN-34)
 @Composable
 fun Error(text: UiText?) {
-    text?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) }
+    text?.let {
+        Text(
+            it.resolve(),
+            color = MaterialTheme.colorScheme.error,
+            modifier =
+                Modifier
+                    .testTag("error")
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
 }
 
 // the deployment, its base domain typed in; title is the name of the app
@@ -124,7 +140,7 @@ fun DeploymentScreen(
                 label = { Text(stringResource(R.string.base_domain)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { connect(input) }),
+                keyboardActions = KeyboardActions(onGo = { if (!screen.busy) connect(input) }),
                 modifier = Modifier.fillMaxWidth(),
             )
             Error(screen.error)
@@ -142,18 +158,33 @@ fun SignInScreen(
     model: SakModel<*>,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    // not in the saved state of the activity, which android writes to the disk (AN-9)
+    var password by remember { mutableStateOf("") }
     Page(screen.deployment, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
         Form(padding) {
             Text(stringResource(R.string.login_sign_in), style = MaterialTheme.typography.headlineSmall)
             Error(screen.error)
             when {
-                screen.linkSentTo != null ->
+                screen.linkSentTo != null -> {
                     Text(
                         stringResource(R.string.link_sent, screen.linkSentTo),
                         modifier = Modifier.testTag("link-sent"),
                     )
-                screen.multiUser == null -> Unit
+                    // the same address again, or another one (AN-42)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { model.requestLink(screen.linkSentTo) }, enabled = !screen.busy, modifier = Modifier.testTag("send-again")) {
+                            Text(stringResource(R.string.send_again))
+                        }
+                        TextButton(onClick = { model.otherAddress() }, enabled = !screen.busy, modifier = Modifier.testTag("other-address")) {
+                            Text(stringResource(R.string.other_address))
+                        }
+                    }
+                }
+                // the deployment did not answer: asked again (AN-42)
+                screen.multiUser == null ->
+                    if (!screen.busy) {
+                        Button(onClick = { model.retrySignIn() }, modifier = Modifier.testTag("retry")) { Text(stringResource(R.string.retry)) }
+                    }
                 !screen.withPassword -> {
                     OutlinedTextField(
                         value = email,
@@ -161,7 +192,7 @@ fun SignInScreen(
                         label = { Text(stringResource(R.string.shared_email)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { model.requestLink(email) }),
+                        keyboardActions = KeyboardActions(onSend = { if (!screen.busy) model.requestLink(email) }),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(onClick = { model.requestLink(email) }, enabled = email.isNotBlank() && !screen.busy) {
@@ -179,7 +210,7 @@ fun SignInScreen(
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { model.signInWithPassword(password) }),
+                        keyboardActions = KeyboardActions(onDone = { if (!screen.busy) model.signInWithPassword(password) }),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy) {
@@ -206,7 +237,9 @@ fun AccountMenu(
     home: Boolean = false,
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
-    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu")) { Text("⋮", style = MaterialTheme.typography.titleLarge) }
+    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu")) {
+        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.menu))
+    }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)
         if (home) {

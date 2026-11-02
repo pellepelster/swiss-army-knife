@@ -26,9 +26,9 @@ private const val HEALTH_TAG = "health"
 fun HealthStatus.response(language: Language) =
     HealthStatusResponse(
         name.render(language),
-        state.name,
+        state,
         message?.render(language),
-        details.map { HealthDetailResponse(it.name, it.state.name, it.message?.render(language)) },
+        details.map { HealthDetailResponse(it.name, it.state, it.message?.render(language)) },
     )
 
 // the health of everything the backend checks, meant to be mounted behind the authentication;

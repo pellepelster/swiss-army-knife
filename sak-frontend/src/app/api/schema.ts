@@ -50,7 +50,7 @@ export interface paths {
     put?: never;
     /**
      * Request a login link
-     * @description Sends a link with a login token, valid for 15 minutes, to the signin page of the apps if the address may sign in. Answered the same way for every address.
+     * @description Sends a link with a login token, valid for 15 minutes, to the signin page of the apps if the address may sign in. An android app sends a nonce of 16 to 128 characters, the link signs in only with it. Answered the same way for every address.
      */
     post: {
       parameters: {
@@ -107,7 +107,7 @@ export interface paths {
     put?: never;
     /**
      * Exchange a login token for a session token
-     * @description Every login token can be exchanged once, the session token is valid for 30 days.
+     * @description Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce; the session token is valid for 30 days.
      */
     post: {
       parameters: {
@@ -1197,6 +1197,45 @@ export interface paths {
         };
       };
     };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/notes/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * What the notes app may do
+     * @description For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The switches themselves are settings of the admins (GET /api/v1/settings/notes).
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description What the notes app may do */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['NotesSettingsResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -3263,8 +3302,10 @@ export interface components {
     /** InfoResponse */
     InfoResponse: {
       name: string;
-      dnsMode: string;
-      userMode: string;
+      /** @enum {string} */
+      dnsMode: 'domain' | 'subdomain';
+      /** @enum {string} */
+      userMode: 'single' | 'multi';
       version?: string | null;
     };
     /** LoginRequest */
@@ -3273,6 +3314,7 @@ export interface components {
       redirect?: string | null;
       /** @enum {string} */
       client?: 'web' | 'grocery-android' | 'notes-android';
+      nonce?: string | null;
     };
     /** ApiErrorMessage */
     ApiErrorMessage: {
@@ -3286,6 +3328,7 @@ export interface components {
     /** ExchangeRequest */
     ExchangeRequest: {
       token: string;
+      nonce?: string | null;
     };
     /** ExchangeResponse */
     ExchangeResponse: {
@@ -3453,6 +3496,10 @@ export interface components {
     LabelRequest: {
       name: string;
     };
+    /** NotesSettingsResponse */
+    NotesSettingsResponse: {
+      discoverText: boolean;
+    };
     /** PhotoResponse */
     PhotoResponse: {
       id: number;
@@ -3469,7 +3516,8 @@ export interface components {
     NoteResponse: {
       id: number;
       text: string;
-      color: string;
+      /** @enum {string} */
+      color: 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
       labels: components['schemas']['LabelResponse'][];
       photos: components['schemas']['PhotoResponse'][];
       recordings: components['schemas']['RecordingResponse'][];
@@ -3580,7 +3628,7 @@ export interface components {
     SettingRequirementResponse: {
       scope: string;
       setting: string;
-    } | null;
+    };
     /** SettingResponse */
     SettingResponse: {
       name: string;
@@ -3588,11 +3636,11 @@ export interface components {
       description: string;
       /** @enum {string} */
       type: 'boolean' | 'text';
-      default: string;
+      default: string | boolean | number;
       maxLength?: number | null;
       mask?: number | null;
       readOnly: boolean;
-      requires?: components['schemas']['SettingRequirementResponse'];
+      requires?: components['schemas']['SettingRequirementResponse'] | null;
     };
     /** SettingScopeResponse */
     SettingScopeResponse: {
@@ -3607,13 +3655,15 @@ export interface components {
     /** HealthDetailResponse */
     HealthDetailResponse: {
       name: string;
-      state: string;
+      /** @enum {string} */
+      state: 'HEALTHY' | 'UNHEALTHY' | 'UNKNOWN';
       message?: string | null;
     };
     /** HealthStatusResponse */
     HealthStatusResponse: {
       name: string;
-      state: string;
+      /** @enum {string} */
+      state: 'HEALTHY' | 'UNHEALTHY' | 'UNKNOWN';
       message?: string | null;
       details: components['schemas']['HealthDetailResponse'][];
     };

@@ -1,0 +1,4 @@
+# the android apps of SAK, one module of android/ a line: settings.gradle.kts includes them, mise.toml
+# builds, releases, runs and installs them, sak-i18n writes their texts (android/<app>/src/main/res)
+grocery
+notes

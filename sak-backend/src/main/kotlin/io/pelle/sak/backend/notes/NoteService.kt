@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.notes
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.Page
@@ -14,11 +16,21 @@ import java.time.Clock
 import java.time.Instant
 
 // the paper colors of the post-its
+@Serializable
 enum class NoteColor {
+    @SerialName("yellow")
     YELLOW,
+
+    @SerialName("pink")
     PINK,
+
+    @SerialName("blue")
     BLUE,
+
+    @SerialName("green")
     GREEN,
+
+    @SerialName("orange")
     ORANGE,
     ;
 
