@@ -800,10 +800,10 @@ for app in $apps; do
   apk="build/sak-${app}-${VERSION}.apk"
   if [ "$signed" = true ]; then
     cp "$app/build/outputs/apk/release/${app}-release.apk" "$apk"
-    # every signer the apk names (the label differs between the versions of apksigner, e.g.
-    # "Signer #1" or one of a range of sdks) has the certificate of the installed apps, at least one
+    # every signer the apk names has the certificate of the installed apps, at least one; the label
+    # differs between the versions of apksigner, e.g. "Signer #1" (36) or "V2 Signer" (37)
     certs=$("$apksigner" verify --print-certs "$apk")
-    digests=$(printf '%s\n' "$certs" | sed -n 's/^Signer.* certificate SHA-256 digest: *//p' | sort -u)
+    digests=$(printf '%s\n' "$certs" | sed -n 's/^.*Signer.* certificate SHA-256 digest: *//p' | sort -u)
     if [ "$digests" != "$ANDROID_CERT_SHA256" ]; then
       echo "$apk is signed with the certificates '$digests', not only with $ANDROID_CERT_SHA256 of the installed apps:" >&2
       printf '%s\n' "$certs" >&2
