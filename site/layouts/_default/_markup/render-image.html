@@ -1,19 +1,21 @@
 {{- /* the image hook of relearn, its image and its lightbox as they are, in a frame drawn by CSS
    (assets/css/sak-frames.css) that the name of a screenshot asks for, the file keeps its pixels:
    web-*-desktop.png in a browser with the address of its page, web-*-mobile.png in a phone with
-   that address, android-*.png in a phone, sakctl-ui-* in a window of the sakctl ui, sakctl-cli-*
-   in a dark terminal; a name with -dark in a dark frame. A video (.mp4) plays muted in a loop, in
-   its frame too. Every other image as relearn shows it */}}
-{{- $video := strings.HasSuffix .Destination ".mp4" }}
+   that address, android-*.png and pwa-*.png in a phone, sakctl-ui-* in a window of the sakctl ui,
+   sakctl-cli-* in a dark terminal; a name with -dark in a dark frame. A video (.mp4) plays muted in
+   a loop, in its frame too. Every other image as relearn shows it. A page below docs/ links a
+   screenshot as ../screenshots/<name>.png (as many ../ as it is deep), so github finds it too */}}
+{{- $dest := .Destination | replaceRE `^(\.\./)+screenshots/` "screenshots/" }}
+{{- $video := strings.HasSuffix $dest ".mp4" }}
 {{- $image := "" }}
 {{- if $video }}
-  {{- $src := .Destination }}
-  {{- with resources.Get .Destination }}{{ $src = .RelPermalink }}{{ end }}
+  {{- $src := $dest }}
+  {{- with resources.Get $dest }}{{ $src = .RelPermalink }}{{ end }}
   {{- $image = printf `<video class="sak-frame-video" src="%s" autoplay muted loop playsinline controls aria-label="%s"></video>` $src .Text | safeHTML }}
 {{- else }}
 {{- $image = partial "shortcodes/image.html" (dict
   "page" .Page
-  "url" .Destination
+  "url" $dest
   "title" .Title
   "alt" .Text
   "id" ""
@@ -21,14 +23,14 @@
   "attributes" .Attributes
 ) }}
 {{- end }}
-{{- $name := path.Base .Destination | replaceRE `\.(png|mp4)$` "" }}
+{{- $name := path.Base $dest | replaceRE `\.(png|mp4)$` "" }}
 {{- $dark := strings.Contains $name "-dark" }}
 {{- $kind := "" }}
 {{- if and (strings.HasPrefix $name "web-") (strings.HasSuffix $name "-desktop") }}
   {{- $kind = "browser" }}
 {{- else if and (strings.HasPrefix $name "web-") (strings.HasSuffix $name "-mobile") }}
   {{- $kind = "phone-browser" }}
-{{- else if strings.HasPrefix $name "android-" }}
+{{- else if or (strings.HasPrefix $name "android-") (strings.HasPrefix $name "pwa-") }}
   {{- $kind = "phone" }}
 {{- else if strings.HasPrefix $name "sakctl-ui" }}
   {{- $kind = "window" }}

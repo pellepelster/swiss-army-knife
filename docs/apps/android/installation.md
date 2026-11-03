@@ -11,6 +11,9 @@ SAK Notes and SAK Grocery List are Android apps for your SAK instance. You downl
 the version your SAK instance runs. Android does not know apps from outside of Google Play, so it shows warnings
 during the installation. This page tells you what to answer.
 
+To use the apps without a download and without warnings, [install the web apps](web-apps.md) from Chrome or
+Firefox instead.
+
 ## Get the links
 
 Each link downloads the app in the version that your SAK instance runs. Use one of these:
