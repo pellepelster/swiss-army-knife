@@ -65,6 +65,9 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   An app that can update itself (e.g. the Android apps, not the web ui, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
   found.
+- `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
+  (`fa-robot`), in every app. Examples are the action that discovers the text of a photo or a recording of a note and
+  the action that reads the items in a photo for a grocery list.
 
 ## Web ui
 
