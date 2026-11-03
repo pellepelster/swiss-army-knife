@@ -60,5 +60,5 @@ user interface. Use the same term for the same thing every time.
   exists but differs). Messages use these words and no others for it, in the sakctl ui and the sakctl cli, the
   status first and then what is done to the resource: `volume 'sak-alpha-data' missing, will be created`. A resource
   found under another name is no status but an error that stops the plan.
-- **deployment status**: The state of a whole deployment: **up-to-date** when every resource is,
+- **instance status**: The state of a whole SAK instance: **up-to-date** when every resource is,
   **incomplete** when one is missing, else **has changes**.
