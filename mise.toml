@@ -780,11 +780,12 @@ done
 # sak-grocery is from when grocery was the only app, renaming it means a new keystore
 # renovate.json against this checkout, nothing changed (docs/development/DEPENDENCIES.md): validates
 # it, then lists the pull requests Renovate would open and the dependencies it skips; the full log
-# in build/renovate/renovate.log. Renovate 44 needs node 24; GITHUB_COM_TOKEN, when set, also looks
-# up the actions and the tools of github releases
+# in build/renovate/renovate.log. Renovate 44 needs node 24. GITHUB_COM_TOKEN, from pass unless set,
+# looks up the actions and the tools of github releases
 [tasks."renovate:dry-run"]
 description = "Run Renovate locally without changes"
 dir = "{{config_root}}"
+env = { GITHUB_COM_TOKEN = "{{ get_env(name='GITHUB_COM_TOKEN', default=exec(command='pass show github/pellepelster/pat/admin 2>/dev/null | head -n1')) }}" }
 run = '''
 set -eu
 dir="{{config_root}}/build/renovate"

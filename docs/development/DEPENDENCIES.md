@@ -85,7 +85,8 @@ mise run renovate:dry-run
 
 The task validates `renovate.json` and runs Renovate on the checkout without a change. It shows the pull requests
 that Renovate opens and the dependencies that it skips. The full log is in `build/renovate/renovate.log`. Without a
-GitHub token (`GITHUB_COM_TOKEN`), Renovate skips the actions and the tools that come from GitHub releases.
+GitHub token, Renovate skips the actions and the tools that come from GitHub releases. The task reads the token from
+`pass github/pellepelster/pat/admin`, `GITHUB_COM_TOKEN` replaces it.
 
 The TOML parser of Renovate does not accept an inline table on more than one line. In `mise.toml`, write the
 environment of a task as a table of its own (`[tasks."<task>".env]`).
