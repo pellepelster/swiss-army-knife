@@ -50,9 +50,10 @@ uninstall the app, Android deletes all of this data.
   of your SAK instance turns them on with the API key of their own OpenRouter account. When they are on, your SAK
   instance, not the app, sends the photo or the recording to OpenRouter. The app shows the name OpenRouter before it
   sends it.
-- **Updates of the apps from GitHub.** The apps that you install from the GitHub releases of SAK download an update
-  from GitHub when you start the update. GitHub then sees the IP address of your phone. The apps from Google Play do
-  not do this: Google Play updates them.
+- **Downloads from GitHub.** The apps that are not from Google Play come from the GitHub releases of SAK: the link
+  that installs an app downloads it from GitHub, and an app downloads its update from GitHub when you start the
+  update. GitHub then sees the IP address of your phone, but no other data. The apps from Google Play do not do this:
+  Google Play installs and updates them.
 - **Google Play.** When you install an app from Google Play, the privacy policy of Google applies to Google Play.
 
 ## Delete your data

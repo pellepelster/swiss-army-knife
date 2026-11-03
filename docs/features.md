@@ -16,6 +16,16 @@ looked after by one program, sakctl.
 Nothing goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays on your
 server.
 
+**Downloads from GitHub:** the software of SAK comes from GitHub. GitHub sees the IP address of the computer, the
+server or the phone that downloads, but never your data:
+
+- sakctl and its updates come from the GitHub releases. sakctl updates only when you ask.
+- At each start, sakctl downloads the container image of its tools from the GitHub container registry (`ghcr.io`).
+- At each deploy, the server of your SAK instance downloads the container images of SAK from `ghcr.io`, and the two
+  images for its logs (VictoriaLogs and Vector) from Docker Hub.
+- The native Android apps and their updates come from the GitHub releases. An app updates only when you start the
+  update.
+
 **No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
 the Android apps. Read the [privacy policy of the Android apps](apps/android/privacy.md).
 

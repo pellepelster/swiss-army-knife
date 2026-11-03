@@ -33,7 +33,11 @@ them") and the `play` flavor of the apps (`SakAndroidAppPlugin.kt`). When the ap
 Fix: when the apps are in Google Play, name Google Play first on the Android page and on `native-apps.md`, and keep
 the warnings for the apps from GitHub. Until then, `privacy.md` can stay as it is.
 
-### `UD-2` The privacy policy names GitHub only for updates, but the first download also comes from GitHub
+### ~~`UD-2` The privacy policy names GitHub only for updates, but the first download also comes from GitHub~~
+
+**Fixed:** the privacy policy names the download and the updates of the apps from GitHub; the features list every
+download from GitHub (sakctl, the image of its tools, the images of the server, the Android apps) and the two images
+from Docker Hub.
 
 `privacy.md` ("Updates of the apps from GitHub") says that GitHub sees the IP address of the phone when the app
 downloads an update. The links of `native-apps.md` (`<SAK address>/downloads`, `/<app>/download/app`, the e-mail)
