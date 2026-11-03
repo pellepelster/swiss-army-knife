@@ -156,7 +156,10 @@ Fix: a description for users (what SAK is, how to install it, the apps), and the
 
 ## README
 
-### `UD-13` "Nothing goes to a third party" is not true for the downloads
+### ~~`UD-13` "Nothing goes to a third party" is not true for the downloads~~
+
+**Fixed:** the README and the features say "Your data never goes to a third party"; the README names the downloads from
+GitHub and links them.
 
 `README.md` and `features.md` start the privacy with "Nothing goes to a third party unless you turn it on". sakctl,
 the server and the native Android apps download from GitHub and Docker Hub, which see the IP address
@@ -165,14 +168,18 @@ the server and the native Android apps download from GitHub and Docker Hub, whic
 Fix: "Your data never goes to a third party unless you turn it on", and in the README one sentence on the downloads
 from GitHub with a link to the features.
 
-### `UD-14` "No accounts" contradicts the users that the admin adds
+### ~~`UD-14` "No accounts" contradicts the users that the admin adds~~
+
+**Fixed:** the README and the features say "No passwords for users".
 
 `README.md` and `features.md`: "**No accounts:** no sign-up and no passwords to remember". The admin adds each user
 by the e-mail address, which is an account, and the admin signs in with a password.
 
 Fix: "**No passwords for users:** no sign-up, users sign in with a link sent by e-mail."
 
-### `UD-15` The README does not say what the AI features do
+### ~~`UD-15` The README does not say what the AI features do~~
+
+**Fixed:** the README says what the AI features read and that only the user starts them.
 
 `README.md` says only that the AI features are off until an admin turns them on. `features.md` says what they read
 and that only the user starts them.
@@ -180,7 +187,9 @@ and that only the user starts them.
 Fix: one sentence as in `features.md`: they read the text of a photo or a recording of a note and the items in a
 photo for a grocery list, and only the user starts them.
 
-### `UD-16` The README does not lead to the first steps and does not say what you need
+### ~~`UD-16` The README does not lead to the first steps and does not say what you need~~
+
+**Fixed:** "Get started" lists what you need and links the installation and the first steps.
 
 "Get started" links the installation and the features, not [the first steps](../../first-steps.md). The README
 never says that SAK needs a Hetzner Cloud project and a domain with its DNS zone at Hetzner.
@@ -188,7 +197,9 @@ never says that SAK needs a Hetzner Cloud project and a domain with its DNS zone
 Fix: "Get started" lists what you need (a Hetzner Cloud project, a domain, Docker or Podman) and links the
 installation and the first steps.
 
-### `UD-17` The README does not link the installation of the web apps
+### ~~`UD-17` The README does not link the installation of the web apps~~
+
+**Fixed:** the README links the installation of the web apps on Android.
 
 "Across all devices" says that every app "installs on the home screen (PWA)" without a link;
 `features.md` links [the web apps](../../apps/android/web-apps.md).
@@ -204,7 +215,10 @@ Fix: "on Linux and macOS".
 
 ## sakctl texts (`i18n/texts.yml`)
 
-### `UD-19` The UI and the command line of sakctl say "deployment"
+### ~~`UD-19` The UI and the command line of sakctl say "deployment"~~
+
+**Fixed:** every text of sakctl and its help say "SAK instance" ("SAK-Instanz"), the verb and the command `deploy`
+stay; the glossary says so.
 
 The documentation for users says "SAK instance" (`UD-5`), but sakctl, which the documentation shows step by step,
 says "deployment": 49 English texts of `ctl.common` and `ctl.cli` and 37 of `ctl.ui`, the German texts

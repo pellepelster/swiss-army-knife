@@ -13,8 +13,8 @@ looked after by one program, sakctl.
 
 ## Privacy first
 
-Nothing goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays on your
-server.
+Your data never goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays
+on your server.
 
 **Downloads from GitHub:** the software of SAK comes from GitHub. GitHub sees the IP address of the computer, the
 server or the phone that downloads, but never your data:
@@ -40,7 +40,7 @@ that collect data are never used.
 
 - **Single user:** the admin signs in with the password. No mail server needed.
 - **Multiple users:** the admin adds users by their e-mail address. Needs a mail server.
-- **No accounts:** no sign-up and no passwords to remember, users sign in with a link sent by e-mail.
+- **No passwords for users:** no sign-up, users sign in with a link sent by e-mail.
 - **Simple sharing:** data is private, or shared with everyone. No roles, no groups.
 
 ![The users an admin added](screenshots/web-users-desktop.png)
