@@ -26,7 +26,10 @@ The apps send your data only to the SAK deployment whose address you enter. The 
 lists, notes, photos and voice recordings are kept on that deployment. The operator of the deployment is responsible
 for the data on it, not the developer of the apps.
 
-The apps contain no advertising, no analytics, no crash reporting and no other tracking.
+## No tracking
+
+SAK uses no tracking, neither in the apps nor in the web frontend of your deployment: no advertising, no analytics,
+no crash reporting, no tracking pixels and no other tracking. The web frontend loads nothing from a third party.
 
 ## Data on your phone
 
