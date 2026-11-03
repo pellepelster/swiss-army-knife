@@ -6,8 +6,8 @@ weight: 5
 
 # Installation
 
-sakctl is the program on your computer that creates your Swiss Army Knife, keeps it up to date, backs it up and
-removes it. It has a UI and, on Linux and macOS, a command line. There is no installer: sakctl is a single program.
+sakctl is the program on your computer that creates your SAK instance, keeps it up to date, backs it up and
+destroys it. It has a UI and, on Linux and macOS, a command line. There is no installer: sakctl is a single program.
 
 ## What you need
 

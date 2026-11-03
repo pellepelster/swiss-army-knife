@@ -58,7 +58,7 @@ it changes anything.
   <img src="docs/screenshots/sakctl-cli-help.png" alt="The help of the sakctl command line" width="80%">
 </p>
 
-Both can install, update and remove a SAK instance, back up and restore all its data as one encrypted file, maintain
+Both can install, update and destroy a SAK instance, back up and restore all its data as one encrypted file, maintain
 its server, and update themselves.
 
 ## Across all devices

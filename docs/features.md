@@ -64,7 +64,7 @@ it changes anything.
 
 Both can:
 
-- **Install, update and remove** a SAK instance.
+- **Install, update and destroy** a SAK instance.
 - **Back up and restore** all data, as one encrypted file on your computer.
 - **Maintain the server:** upgrade its packages and reboot it, without interrupting a backup.
 - **Update itself** when you ask; the next deploy updates the server too.

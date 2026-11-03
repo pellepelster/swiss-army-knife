@@ -86,7 +86,9 @@ Fix: one rule for the pages and add it to the glossary, for example: the pages f
 (`docs/apps/`) say "SAK instance", the pages for the admin who runs sakctl say "deployment". Then change
 `privacy.md`, and `features.md` and `README.md` in the sakctl sections.
 
-### `UD-6` Remove, destroy
+### ~~`UD-6` Remove, destroy~~
+
+**Fixed:** the installation, the features and the README say "destroy".
 
 The glossary says that a deployment is **destroyed**. `installation.md` ("creates your Swiss Army Knife … and
 removes it"), `features.md` ("Install, update and remove") and `README.md` ("install, update and remove") say
