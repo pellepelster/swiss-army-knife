@@ -532,6 +532,18 @@ description = "Run the backend unit tests"
 dir = "{{config_root}}"
 run = "./gradlew test"
 
+# the prompt of the ingredients against the recipe photos of sak-backend's grocery/recipes, at
+# openrouter (RecipeIngredientsTest): sends the 7 photos, costs a few cents. The key comes from pass
+# unless set; OPENROUTER_MODEL takes another model than the default of the deployment
+[tasks."backend:test:recipes"]
+description = "Test the recipe prompt against OpenRouter"
+dir = "{{config_root}}"
+env = { OPENROUTER_API_KEY = "{{ get_env(name='OPENROUTER_API_KEY', default=exec(command='pass show openrouter/pelle/api-key 2>/dev/null | head -n1')) }}" }
+run = """
+[ -n "$OPENROUTER_API_KEY" ] || { echo "no OpenRouter API key, set OPENROUTER_API_KEY or put it into pass openrouter/pelle/api-key" >&2; exit 1; }
+./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun
+"""
+
 # openapi.json at the root: the document the routes of sak-backend describe, what the models of the
 # android apps and the types of sak-frontend are generated from; a test fails while it is not current
 [tasks."api:generate"]
