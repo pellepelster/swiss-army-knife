@@ -75,9 +75,11 @@ You need:
    - **DNS Mode:** **Subdomain**, see [the DNS mode](#the-dns-mode).
    - **Users:** **Single user**. Leave **Admin e-mail address (optional)** empty.
 
-   Then click **Plan**.
+   ![The form of a new SAK instance: name, password, location and root domain](screenshots/sakctl-ui-create.png)
 
-   ![The form of a new SAK instance](screenshots/sakctl-ui-create.png)
+   ![The form of a new SAK instance: the DNS mode Subdomain and a single user](screenshots/sakctl-ui-create-users.png)
+
+   Then click **Plan**.
 
 6. **Read the plan.** The plan shows each resource that sakctl creates in your project: the SSH key, the data volume,
    the addresses, the firewall, the server, the DNS records and the provisioning of the server. Nothing has changed

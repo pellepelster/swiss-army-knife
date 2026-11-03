@@ -26,9 +26,10 @@ import java.nio.file.Paths
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 private val VIDEOS: Path = Paths.get(System.getProperty("sak.e2e.videos") ?: "build/videos")
 
-// what the tour types: the deployment example1 on krawallbu.de in domain mode, single user
+// what the tour types: the deployment family on krawallbu.de in subdomain mode, single user, the SAK
+// instance of docs/first-steps.md
 private const val TOKEN = "kGq7XnL2cVb9WmR4tYp8sZ1aD6fH3jK5eQ0uI2oP7lN9xC4vB8mT1rE6yU3wA5sD"
-private const val NAME = "example1"
+private const val NAME = "family"
 private const val PASSWORD = "correct horse battery staple"
 private const val ROOT_DOMAIN = "krawallbu.de"
 
@@ -70,9 +71,14 @@ private fun Page.tour(
     type(locator("#create-password-repeat"), PASSWORD)
     locator("#create-location").selectOption("hel1")
     locator("#create-root-domain").selectOption("krawallbu.de")
-    locator("#create-dns-mode-domain").check()
+    locator("#create-dns-mode-subdomain").check()
     locator("#create-name").scrollIntoViewIfNeeded()
     step("create")
+    // further down: the dns mode and the users, a single user without an admin address
+    locator("#create-user-mode-single").check()
+    assertThat(locator("#create-admin-email")).isEmpty()
+    locator("#create-user-mode").scrollIntoViewIfNeeded()
+    step("create-users")
 
     // multiple users need a mail server; a test e-mail goes to the address the dialog asks for,
     // then back to a single user, the deployment of the tour
@@ -111,7 +117,7 @@ private fun Page.tour(
     locator("#run-done").click()
     assertThat(locator("#view-deployment")).isVisible()
     assertThat(locator("#deployment-config li").first()).containsText(ROOT_DOMAIN)
-    assertThat(locator("#deployment-config")).containsText("sak@krawallbu.de")
+    assertThat(locator("#deployment-config")).containsText("Single user")
     assertThat(locator("#deployment-force")).isEnabled()
     assertThat(locator("#deployment-deploy")).isDisabled()
     assertThat(locator("#deployment-check")).hasClass(java.util.regex.Pattern.compile("btn-primary"))
@@ -121,8 +127,8 @@ private fun Page.tour(
     locator("#deployment-edit-config").click()
     assertThat(locator("#view-create")).isVisible()
     assertThat(locator("#create-title")).hasText("Config")
-    assertThat(locator("#create-smtp-from")).hasValue("sak@krawallbu.de")
-    assertThat(locator("#create-dns-mode-domain")).isChecked()
+    assertThat(locator("#create-user-mode-single")).isChecked()
+    assertThat(locator("#create-dns-mode-subdomain")).isChecked()
     // cancel leads to the list, with the deployment, and the password opens it again
     locator("#create-cancel").click()
     assertThat(locator("#deployments li.deployment")).hasCount(1)

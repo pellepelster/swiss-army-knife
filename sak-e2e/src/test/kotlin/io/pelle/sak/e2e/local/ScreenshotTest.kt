@@ -116,9 +116,19 @@ class ScreenshotTest {
     @EnumSource(Device::class)
     fun `the login with the password`(device: Device) {
         val context = context(device, signedIn = false)
+        // as a SAK instance of a single user answers (docs/first-steps.md): the sign-in shows only
+        // the password (UX-7)
+        context.route("**/api/v1/info") { route ->
+            val info = route.fetch()
+            route.fulfill(
+                com.microsoft.playwright.Route
+                    .FulfillOptions()
+                    .setResponse(info)
+                    .setBody(info.text().replace(Regex("\"userMode\"\\s*:\\s*\"multi\""), "\"userMode\":\"single\"")),
+            )
+        }
         val page = context.newPage()
         page.navigate("/login")
-        page.getByTestId("use-password").click()
         page.getByLabel("Admin password").fill(ADMIN_PASSWORD)
         page.shot("login-password", device)
         page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Sign in")).click()

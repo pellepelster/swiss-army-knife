@@ -1,6 +1,6 @@
 //! the answers of the window's commands for the screenshots and the video of the sakctl ui
-//! (`sak-e2e`, its README): what rust sends for a create of `example1` on
-//! `krawallbu.de` in domain mode, built from the real types, texts and resources so the window
+//! (`sak-e2e`, its README): what rust sends for a create of `family` on
+//! `krawallbu.de` in subdomain mode for a single user, the SAK instance of docs/first-steps.md, built from the real types, texts and resources so the window
 //! shows nothing rust would not send. Not a test of its own: `mise run docs:screenshots` and
 //! `docs:videos` run it (`cargo test window_fixtures -- --ignored`) and the run writes
 //! `SAK_WINDOW_FIXTURES` (`build/ui-fixtures/window.json` of the repository by default)
@@ -12,7 +12,7 @@ use sak_cloud::api::Resource;
 use sak_cloud::hetzner::deployment::{DeploymentStatus, ResourceState, RootDomain};
 use serde_json::{Value, json};
 
-const NAME: &str = "example1";
+const NAME: &str = "family";
 const ROOT_DOMAIN: &str = "krawallbu.de";
 const PASSWORD: &str = "correct horse battery staple";
 const LOCATION: Location = Location::hel1;
@@ -76,30 +76,20 @@ pub(super) fn spec() -> DeploymentSpec {
     let public_key = crate::core::keys::derive_public_key(NAME, PASSWORD).unwrap();
     DeploymentSpec::new(NAME, &public_key, LOCATION, ServerType::cx23)
         .unwrap()
-        .with_dns_mode(DnsMode::Domain)
+        .with_dns_mode(DnsMode::Subdomain)
         .with_root_domain(ROOT_DOMAIN)
         .with_password_hash(&crate::core::keys::password_hash(NAME, PASSWORD).unwrap())
 }
 
-/// the configuration the running deployment of the spec answers: multiple users with an admin
-/// and a mail server that sends as sak@<root domain>, in dns mode domain
+/// the configuration the running deployment of the spec answers: a single user, no mail server,
+/// in dns mode subdomain
 fn settings() -> Detected {
     Detected {
         source: Some(SettingsSource::Running),
-        dns_mode: Some(DnsMode::Domain),
+        dns_mode: Some(DnsMode::Subdomain),
         root_domain: Some(ROOT_DOMAIN.to_string()),
         acme_ca: Some(AcmeCa::Production),
-        user_mode: Some(UserMode::Multi),
-        admin_email: Some("admin@example.org".to_string()),
-        smtp: Some(DetectedSmtp {
-            host: "smtp.example.org".to_string(),
-            port: 587,
-            username: "sak@example.org".to_string(),
-            password: None,
-            password_set: true,
-            starttls: true,
-            from: format!("sak@{ROOT_DOMAIN}"),
-        }),
+        user_mode: Some(UserMode::Single),
         ..Detected::default()
     }
 }
@@ -254,7 +244,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     ));
     let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
         NAME,
-        DnsMode::Domain,
+        DnsMode::Subdomain,
         ROOT_DOMAIN,
     ));
     events.push(after(
@@ -296,9 +286,9 @@ fn created(spec: &DeploymentSpec) -> DeploymentResponse {
         name: NAME.to_string(),
         status: DeploymentStatus::Ok,
         location: Some(LOCATION),
-        dns_mode: Some(DnsMode::Domain),
+        dns_mode: Some(DnsMode::Subdomain),
         root_domain: Some(ROOT_DOMAIN.to_string()),
-        frontend_url: Some(format!("https://sak.{ROOT_DOMAIN}")),
+        frontend_url: Some(format!("https://sak.{NAME}.{ROOT_DOMAIN}")),
         resources: resources(spec).iter().map(state).collect(),
         error: None,
     }
