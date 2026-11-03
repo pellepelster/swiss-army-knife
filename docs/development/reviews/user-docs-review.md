@@ -135,7 +135,9 @@ parentheses, and the line is longer than 120 characters.
 Fix: "Every app works in the browser on a desktop and on a phone. On Android, you can [install it on the home
 screen](apps/android/web-apps.md) as a web app (PWA)."
 
-### `UD-11` The source of the native apps on the Android page
+### ~~`UD-11` The source of the native apps on the Android page~~
+
+**Fixed:** the Android page says "you download them with a link of your SAK instance".
 
 `INDEX.md`: "you download them from the GitHub release of your SAK instance". A SAK instance has no GitHub release;
 the app comes from the release of the version that the SAK instance runs, by a link of the SAK instance.

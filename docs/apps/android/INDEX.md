@@ -9,7 +9,7 @@ weight: 10
 You can use SAK Notes and SAK Grocery List on an Android phone in two ways:
 
 - **[The web apps](web-apps.md):** you install them from Chrome or Firefox in a few taps.
-- **[The native apps](native-apps.md):** you download them from the GitHub release of your SAK instance.
+- **[The native apps](native-apps.md):** you download them with a link of your SAK instance.
 
 ## Apps from outside of Google Play
 
