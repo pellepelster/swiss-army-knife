@@ -46,10 +46,11 @@ uninstall the app, Android deletes all of this data.
 
 ## Exceptions
 
-- **AI features.** The AI features read the text of a photo or a voice recording. They are off until the administrator
-  of your SAK instance turns them on with the API key of their own OpenRouter account. When they are on, your SAK
-  instance, not the app, sends the photo or the recording to OpenRouter. The app shows the name OpenRouter before it
-  sends it.
+- **AI features.** In SAK Notes, the AI features read the text of a photo or a voice recording of a note. In SAK
+  Grocery List, they read the items in a photo of a recipe or a shopping list. They are off until the administrator
+  of your SAK instance turns them on with the API key of their own OpenRouter account. When they are on, they never
+  start automatically: only you start them, with the robot button, for one photo or one recording at a time. Then
+  your SAK instance, not the app, sends this photo or recording to OpenRouter.
 - **Downloads from GitHub.** The apps that are not from Google Play come from the GitHub releases of SAK: the link
   that installs an app downloads it from GitHub, and an app downloads its update from GitHub when you start the
   update. GitHub then sees the IP address of your phone, but no other data. The apps from Google Play do not do this:

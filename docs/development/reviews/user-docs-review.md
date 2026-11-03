@@ -46,7 +46,11 @@ the IP address at the first installation.
 
 Fix: say in `privacy.md` that the download and the updates come from GitHub.
 
-### `UD-3` The privacy policy and the features do not name the items that the AI features read in a photo
+### ~~`UD-3` The privacy policy and the features do not name the items that the AI features read in a photo~~
+
+**Fixed:** the privacy policy and the features name both (the text of a photo or a recording of a note, the items in
+a photo for a grocery list) and say that only the user starts them, with the robot button, one photo or recording at
+a time.
 
 `features.md` ("The AI features, which read the text of a photo or a recording") and `privacy.md` ("The AI features
 read the text of a photo or a voice recording") do not include `GROCERY-16`: SAK Grocery List sends a photo to

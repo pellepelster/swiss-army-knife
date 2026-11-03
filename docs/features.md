@@ -29,8 +29,10 @@ server or the phone that downloads, but never your data:
 **No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
 the Android apps. Read the [privacy policy of the Android apps](apps/android/privacy.md).
 
-The AI features, which read the text of a photo or a recording, are off until an admin turns them on with the API key
-of their own OpenRouter account. Providers that collect data are never used.
+The AI features read the text of a photo or a recording of a note, and the items in a photo for a grocery list. They
+are off until an admin turns them on with the API key of their own OpenRouter account. They never start
+automatically: only the user starts them, with the robot button, for one photo or one recording at a time. Providers
+that collect data are never used.
 
 ![The settings of the AI features, turned off](screenshots/web-settings-ai-desktop.png)
 
