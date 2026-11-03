@@ -62,7 +62,8 @@ private fun Page.tour(
     locator("#providers-next").click()
 
     // no deployment yet, a new one
-    assertThat(locator("#deployments-status")).not().isEmpty()
+    // the list once the providers answered, not while it looks
+    assertThat(locator("#deployments-status")).containsText("No SAK instance found")
     step("deployments-empty")
     locator("#deployments-create").click()
     type(locator("#create-name"), NAME)
