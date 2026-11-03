@@ -40,6 +40,7 @@
     <string name="notes_label_too_long">A label has at most %1$s characters.</string>
     <string name="notes_text_full">A note has at most %1$s characters.</string>
     <string name="notes_photos_full">A note has at most %1$s photos.</string>
+    <string name="notes_shared_signed_out">Sign in first, then share the photos with the app again.</string>
     <string name="notes_recordings_full">A note has at most %1$s recordings.</string>
     <string name="notes_photo_removed">Photo %1$s removed</string>
     <string name="notes_recording_removed">Recording %1$s removed</string>

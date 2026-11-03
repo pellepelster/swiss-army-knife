@@ -33,6 +33,10 @@ and add it to the note.
   photos and recordings changed, a note deleted, the text discovered in a photo or a recording (`NOTES-5`, on the same
   terms as in the web app). The notes have no change stream: the wall loads again when it is pulled down
   (`ANDROID-3`) and when the app comes back to the front.
+- `NOTES-7` **Photos shared with the Android app.** Photos another app shares with the notes app (one or several)
+  become one new note, with the text shared along with them as its text; a note takes at most 20 photos, the others
+  are left out and the app says so. Photos shared before the notes are loaded wait for them; without a session they
+  are not kept, the sign-in asks to share them again after signing in.
 
 ## API
 

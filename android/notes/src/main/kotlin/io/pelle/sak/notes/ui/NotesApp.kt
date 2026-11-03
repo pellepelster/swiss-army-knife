@@ -106,7 +106,6 @@ import io.pelle.sak.core.ui.ConfirmDelete
 import io.pelle.sak.core.ui.DeploymentScreen
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Page
-import io.pelle.sak.core.ui.PhotoScaling
 import io.pelle.sak.core.ui.resolve
 import io.pelle.sak.core.ui.SignInScreen
 import io.pelle.sak.core.ui.UpdateBanner
@@ -119,10 +118,12 @@ import io.pelle.sak.notes.MAX_TEXT_LENGTH
 import io.pelle.sak.notes.Removal
 import io.pelle.sak.notes.NOTE_COLORS
 import io.pelle.sak.notes.NotesModel
+import io.pelle.sak.notes.scaledPhoto
 import io.pelle.sak.notes.NotesScreen
 import io.pelle.sak.notes.R
 import io.pelle.sak.notes.RecordingFor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -216,7 +217,7 @@ private val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no
 private val LocalMicrophone = staticCompositionLocalOf<(RecordingFor) -> Unit> { error("no microphone") }
 
 // the camera and the photo picker of the app, at its root: the note they are for is kept with the
-// saved state; the photo is read and scaled by PhotoScaling of core and sent by the model
+// saved state; the photo is read and scaled by scaledPhoto and sent by the model
 @Composable
 private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
     val context = LocalContext.current
@@ -236,15 +237,11 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
         val noteId = pending ?: return
         pending = null
         val read: suspend () -> ByteArray? = {
-            withContext(Dispatchers.IO) {
-                try {
-                    PhotoScaling.jpeg(context, uri)
-                } catch (e: Exception) {
-                    Log.w("sak-notes", "the photo $uri could not be read", e)
-                    null
-                } finally {
-                    done()
-                }
+            try {
+                scaledPhoto(context, uri)
+            } finally {
+                // also when the read is cancelled: the file of the camera goes
+                withContext(NonCancellable + Dispatchers.IO) { done() }
             }
         }
         if (noteId == NEW) model.createWithPhoto(read) else model.addPhoto(noteId, read)

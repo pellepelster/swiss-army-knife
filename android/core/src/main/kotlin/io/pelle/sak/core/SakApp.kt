@@ -68,16 +68,20 @@ abstract class SakActivity : ComponentActivity() {
     @Composable
     protected abstract fun Content()
 
+    // an intent of the app other than a login link, e.g. photos another app shares; called once for an
+    // intent, as a login link. True when it was taken: the activity keeps it no longer
+    protected open fun receive(intent: Intent): Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (savedInstanceState == null) signIn(intent)
+        if (savedInstanceState == null) take(intent)
         setContent { SakTheme { Content() } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        signIn(intent)
+        take(intent)
     }
 
     override fun onStart() {
@@ -90,10 +94,19 @@ abstract class SakActivity : ComponentActivity() {
         super.onStop()
     }
 
-    private fun signIn(intent: Intent?) {
+    private fun take(intent: Intent?) {
         intent ?: return
-        val link = intent.data ?: return
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        // what it had is taken once, a recreated activity must not find it again
+        if (receive(intent)) {
+            setIntent(Intent(this, javaClass))
+            return
+        }
+        signIn(intent)
+    }
+
+    private fun signIn(intent: Intent) {
+        val link = intent.data ?: return
         if (link.scheme != signinScheme || link.host != "signin") return
         link.getQueryParameter("token")?.takeIf { it.isNotEmpty() }?.let { sakModel.signInWithLink(it) }
         // the token is used once, a recreated activity must not find it again

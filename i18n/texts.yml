@@ -1711,6 +1711,9 @@ notes:
     label_too_long: { en: "A label has at most %{max} characters.", de: "Ein Label hat höchstens %{max} Zeichen." }
     text_full: { en: "A note has at most %{max} characters.", de: "Eine Notiz hat höchstens %{max} Zeichen." }
     photos_full: { en: "A note has at most %{max} photos.", de: "Eine Notiz hat höchstens %{max} Fotos." }
+    shared_signed_out:
+      en: "Sign in first, then share the photos with the app again."
+      de: "Melde dich zuerst an und teile die Fotos dann noch einmal mit der App."
     recordings_full: { en: "A note has at most %{max} recordings.", de: "Eine Notiz hat höchstens %{max} Aufnahmen." }
     photo_removed: { en: "Photo %{number} removed", de: "Foto %{number} entfernt" }
     recording_removed: { en: "Recording %{number} removed", de: "Aufnahme %{number} entfernt" }

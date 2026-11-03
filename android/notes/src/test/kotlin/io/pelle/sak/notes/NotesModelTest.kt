@@ -595,6 +595,128 @@ class NotesModelTest {
             assertTrue(body("PUT /notes/1").contains(""""photos":[40]"""))
         }
 
+    private val photoFile = """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+
+    private fun shares(count: Int): List<suspend () -> ByteArray?> = List(count) { { "jpeg".toByteArray() } }
+
+    @Test
+    fun `photos another app shares become one new note with its text, at most MAX_PHOTOS of them`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to photoFile
+            backend.answers["POST /notes"] = HttpStatusCode.Created to note(6, "Look at this", photos = listOf(40))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+
+            model.createWithPhotos(shares(2), "  Look at this \n")
+            advanceUntilIdle()
+            assertEquals(2, backend.requests.count { it.startsWith("POST /files") })
+            assertEquals(1, backend.requests.count { it.startsWith("POST /notes") })
+            assertTrue(body("POST /notes").contains(""""text":"Look at this""""))
+            assertEquals(6, model.notes().open)
+            assertNull(model.notes().error)
+
+            // more than a note takes: the first MAX_PHOTOS are stored, the others are still read
+            backend.requests.clear()
+            var read = 0
+            model.createWithPhotos(List(MAX_PHOTOS + 2) { { read++; "jpeg".toByteArray() } })
+            advanceUntilIdle()
+            assertEquals(MAX_PHOTOS + 2, read)
+            assertEquals(MAX_PHOTOS, backend.requests.count { it.startsWith("POST /files") })
+            assertEquals("A note has at most 20 photos.", model.notes().error.english())
+        }
+
+    @Test
+    fun `a shared photo that can not be read is left out, without any a note is made of the text only`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to photoFile
+            backend.answers["POST /notes"] = HttpStatusCode.Created to note(6, "", photos = listOf(40))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+
+            model.createWithPhotos(listOf({ null }, { "jpeg".toByteArray() }))
+            advanceUntilIdle()
+            assertTrue(body("POST /notes").contains(""""photos":[40]"""))
+            assertEquals("The photo could not be read.", model.notes().error.english())
+
+            backend.requests.clear()
+            model.createWithPhotos(listOf { null })
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("POST /notes") })
+            assertFalse(model.notes().creating)
+
+            model.createWithPhotos(listOf { null }, "Caption")
+            advanceUntilIdle()
+            assertTrue(body("POST /notes").contains(""""text":"Caption""""))
+            assertTrue(body("POST /notes").contains(""""photos":[]"""))
+
+            // a text longer than a note takes is cut, the app says so
+            model.createWithPhotos(emptyList(), "a".repeat(MAX_TEXT_LENGTH + 1))
+            advanceUntilIdle()
+            assertTrue(body("POST /notes").contains(""""text":"${"a".repeat(MAX_TEXT_LENGTH)}""""))
+            assertEquals("A note has at most 10000 characters.", model.notes().error.english())
+        }
+
+    @Test
+    fun `photos shared when the app starts wait for the notes, the ones shared while a note is made for it`() =
+        runTest {
+            backend.answers["POST /files"] = HttpStatusCode.Created to photoFile
+            backend.answers["POST /notes"] = HttpStatusCode.Created to note(6, "", photos = listOf(40))
+            val model = model()
+            // the app started for the share: the session is not known yet
+            model.createWithPhotos(shares(1), "first")
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+            model.start()
+            advanceUntilIdle()
+            assertEquals(1, backend.requests.count { it.startsWith("POST /notes") })
+
+            // a second share while the first note is still being made is made into a note after it
+            val first = CompletableDeferred<ByteArray?>()
+            model.createWithPhotos(listOf { first.await() }, "second")
+            runCurrent()
+            assertTrue(model.notes().creating)
+            model.createWithPhotos(shares(1), "third")
+            first.complete("jpeg".toByteArray())
+            advanceUntilIdle()
+            val made = backend.requests.filter { it.startsWith("POST /notes") }
+            assertEquals(3, made.size)
+            assertTrue(made[1].contains(""""text":"second""""))
+            assertTrue(made[2].contains(""""text":"third""""))
+        }
+
+    @Test
+    fun `photos shared without a session go, the sign-in says so`() =
+        runTest {
+            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            advanceUntilIdle()
+            var read = false
+            model.createWithPhotos(listOf { read = true; "jpeg".toByteArray() })
+            advanceUntilIdle()
+            assertTrue(read)
+            assertTrue(backend.requests.none { it.startsWith("POST /files") })
+            assertEquals("Sign in first, then share the photos with the app again.", (model.screen.value as Screen.SignIn).error.english())
+
+            // shared when the app starts, without a session: they wait until it is known there is none
+            val starting = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")))
+            var waited = false
+            starting.createWithPhotos(listOf { waited = true; "jpeg".toByteArray() })
+            starting.start()
+            advanceUntilIdle()
+            assertTrue(waited)
+            assertEquals("Sign in first, then share the photos with the app again.", (starting.screen.value as Screen.SignIn).error.english())
+
+            val fresh = model(MemorySessionStore()).also { it.start() }
+            advanceUntilIdle()
+            fresh.createWithPhotos(shares(1))
+            assertEquals("Sign in first, then share the photos with the app again.", (fresh.screen.value as Screen.Deployment).error.english())
+        }
+
+    @Test
+    fun `the text of a share is trimmed and cut at MAX_TEXT_LENGTH, an emoji not in the middle`() {
+        assertEquals("caption", sharedText("  caption\n"))
+        assertEquals("a".repeat(MAX_TEXT_LENGTH), sharedText("a".repeat(MAX_TEXT_LENGTH + 5)))
+        assertEquals("a".repeat(MAX_TEXT_LENGTH - 1), sharedText("a".repeat(MAX_TEXT_LENGTH - 1) + "😀"))
+    }
+
     @Test
     fun `the notes load again on coming to the front only when the last load is older than half a minute`() =
         runTest {

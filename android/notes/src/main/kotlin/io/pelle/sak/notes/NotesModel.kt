@@ -9,6 +9,7 @@ import io.pelle.sak.api.model.RecordingResponse
 import io.ktor.http.ContentType
 import io.pelle.sak.core.AppScreen
 import io.pelle.sak.core.SakModel
+import io.pelle.sak.core.Screen
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.api.ApiException
 import io.pelle.sak.core.api.SakApi
@@ -22,6 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -49,6 +51,15 @@ const val RELOAD_AFTER_MS = 30_000L
 
 // the bytes of the photos and recordings fetched that are kept, the ones used last (AN-21)
 private const val MAX_FILE_BYTES = 32L * 1024 * 1024
+
+// the text of a new note another app shared: without the blanks around it, at most MAX_TEXT_LENGTH
+// characters, a character of two halves (an emoji) not cut in the middle
+fun sharedText(text: String): String {
+    val trimmed = text.trim()
+    if (trimmed.length <= MAX_TEXT_LENGTH) return trimmed
+    val end = if (Character.isHighSurrogate(trimmed[MAX_TEXT_LENGTH - 1])) MAX_TEXT_LENGTH - 1 else MAX_TEXT_LENGTH
+    return trimmed.substring(0, end).trimEnd()
+}
 
 // labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
 // backend stores them the same way
@@ -183,8 +194,8 @@ class NotesModel(
     private var loadedAt: Instant? = null
 
     // the photos handed over before the notes were there, e.g. after android ended the app behind the
-    // camera (AN-27): the note they are for (null for a new note) and how to read them
-    private val waitingPhotos = mutableListOf<Pair<Int?, suspend () -> ByteArray?>>()
+    // camera (AN-27), or shared while a note was being created
+    private val waitingPhotos = mutableListOf<Waiting>()
 
     // the time of the undo of a removal
     private var removing: Job? = null
@@ -220,7 +231,7 @@ class NotesModel(
         changedWhileLoading.clear()
         loadedAt = null
         // the photos of the session that went are not attached; read, so the ui deletes the file of the camera
-        waitingPhotos.toList().forEach { (_, read) -> discard(read) }
+        waitingPhotos.toList().forEach { waiting -> waiting.reads.forEach(::discard) }
         waitingPhotos.clear()
     }
 
@@ -317,26 +328,64 @@ class NotesModel(
     // a new empty note, labelled with the label the wall shows, open to be written
     fun create() = create(photos = emptyList(), recordings = emptyList())
 
-    // a new note with the photo; read is the photo, scaled down already, null when it could not be read.
-    // Before the notes are there, the photo waits for them (AN-27); read is always called once
-    fun createWithPhoto(read: suspend () -> ByteArray?) {
-        val screen = notesScreen()
-        if (screen == null || screen.loading) {
-            waitingPhotos += null to read
+    // a new note with the photo of the camera or the picker
+    fun createWithPhoto(read: suspend () -> ByteArray?) = createWithPhotos(listOf(read))
+
+    // a new note with the photos and the text, e.g. shared by another app; each read is a photo, scaled
+    // down already, null when it could not be read, and is called once. The first MAX_PHOTOS are
+    // attached (AN-24), the text is cut at MAX_TEXT_LENGTH, the app says so. Before the notes are there or
+    // while a note is being created they wait (AN-27); without a session they go, the sign-in or the
+    // deployment says so
+    fun createWithPhotos(
+        reads: List<suspend () -> ByteArray?>,
+        text: String = "",
+    ) {
+        if (reads.isEmpty() && text.isBlank()) return
+        val wall = notesScreen()
+        if (wall == null) {
+            if (state.value == Screen.Starting) {
+                // the session is not known yet, e.g. the app started for the share: they wait, and go once
+                // there is none
+                waitingPhotos += Waiting(null, reads, text)
+                scope.launch {
+                    screen.first { it != Screen.Starting }
+                    if (notesScreen() == null) dropWaitingNotes()
+                }
+            } else {
+                reads.forEach(::discard)
+                signedOut()
+            }
             return
         }
-        if (screen.creating) {
-            discard(read)
+        if (wall.loading || wall.creating) {
+            waitingPhotos += Waiting(null, reads, text)
             return
         }
-        notes { it.copy(creating = true, error = null) }
+        reads.drop(MAX_PHOTOS).forEach(::discard)
+        val limit =
+            when {
+                reads.size > MAX_PHOTOS -> uiText(R.string.notes_photos_full, MAX_PHOTOS)
+                text.trim().length > MAX_TEXT_LENGTH -> uiText(R.string.notes_text_full, MAX_TEXT_LENGTH)
+                else -> null
+            }
+        notes { it.copy(creating = true, error = limit) }
         scope.launch {
-            val file = uploadPhoto(read)
-            if (file == null) {
+            val files = mutableListOf<Int>()
+            for (read in reads.take(MAX_PHOTOS)) {
+                // a session that ended during the uploads leads to the sign-in, the photos left go
+                if (notesScreen() == null) {
+                    discard(read)
+                    continue
+                }
+                uploadPhoto(read)?.let { files += it.id }
+            }
+            if (notesScreen() == null) return@launch
+            if (files.isEmpty() && text.isBlank()) {
                 notes { it.copy(creating = false) }
+                attachWaitingPhotos()
                 return@launch
             }
-            createNow(photos = listOf(file.id), recordings = emptyList())
+            createNow(photos = files.distinct(), recordings = emptyList(), text = sharedText(text))
         }
     }
 
@@ -407,7 +456,7 @@ class NotesModel(
     ) {
         val screen = notesScreen()
         if (screen == null || screen.loading) {
-            waitingPhotos += id to read
+            waitingPhotos += Waiting(id, listOf(read))
             return
         }
         val note = screen.note(id)
@@ -516,7 +565,13 @@ class NotesModel(
                     api.upload(wav, WAV, R.string.notes_errors_recording_not_stored)
                 }
             if (id == null) {
-                if (file == null) notes { it.copy(creating = false) } else createNow(photos = emptyList(), recordings = listOf(file.id))
+                if (file == null) {
+                    notes { it.copy(creating = false) }
+                    // what was shared while it was recorded
+                    attachWaitingPhotos()
+                } else {
+                    createNow(photos = emptyList(), recordings = listOf(file.id))
+                }
                 return@launchLasting
             }
             notes { it.copy(uploading = it.uploading - id) }
@@ -639,11 +694,12 @@ class NotesModel(
     private suspend fun createNow(
         photos: List<Int>,
         recordings: List<Int>,
+        text: String = "",
     ) {
         val labels = listOfNotNull(notesScreen()?.filter)
         val note =
             request(R.string.notes_error_not_created, ::failed) {
-                it.createNote(NoteRequest("", NOTE_COLORS.first().value, labels, photos, recordings))
+                it.createNote(NoteRequest(text, NOTE_COLORS.first().value, labels, photos, recordings))
             }
         if (note != null) {
             stored[note.id] = note
@@ -663,13 +719,41 @@ class NotesModel(
                 )
             }
         }
+        // what was shared while it was created
+        attachWaitingPhotos()
     }
 
     // the photos that waited for the notes, attached or made into notes now
     private fun attachWaitingPhotos() {
-        val waiting = waitingPhotos.toList()
-        waitingPhotos.clear()
-        waiting.forEach { (id, read) -> if (id == null) createWithPhoto(read) else addPhoto(id, read) }
+        val screen = notesScreen() ?: return
+        if (screen.loading || waitingPhotos.isEmpty()) return
+        // the new notes one after the other: the first now, the others once it is created
+        val next = waitingPhotos.indexOfFirst { it.note == null }
+        val ready = waitingPhotos.filter { it.note != null } + listOfNotNull(waitingPhotos.getOrNull(next))
+        waitingPhotos.removeAll(ready)
+        ready.forEach { waiting ->
+            if (waiting.note == null) createWithPhotos(waiting.reads, waiting.text) else addPhoto(waiting.note, waiting.reads.single())
+        }
+    }
+
+    // the new notes that waited for a session there is none of: they go, the sign-in or the deployment
+    // says so
+    private fun dropWaitingNotes() {
+        val dropped = waitingPhotos.filter { it.note == null }
+        if (dropped.isEmpty()) return
+        waitingPhotos.removeAll(dropped)
+        dropped.forEach { it.reads.forEach(::discard) }
+        signedOut()
+    }
+
+    // photos were shared without a session
+    private fun signedOut() {
+        val error = uiText(R.string.notes_shared_signed_out)
+        when (val screen = state.value) {
+            is Screen.SignIn -> state.value = screen.copy(error = error)
+            is Screen.Deployment -> state.value = screen.copy(error = error)
+            else -> {}
+        }
     }
 
     // a photo that is not attached is still read, so the ui deletes the file of the camera
@@ -822,6 +906,14 @@ class NotesModel(
 }
 
 // what the backend takes of a note
+// photos handed over before they could be attached: the note they are for (null for a new note), how
+// to read them and the text of a new note
+private class Waiting(
+    val note: Int?,
+    val reads: List<suspend () -> ByteArray?>,
+    val text: String = "",
+)
+
 private fun NoteResponse.request() = NoteRequest(text, color.value, labels.map { it.name }, photos.map { it.id }, recordings.map { it.id })
 
 // the files fetched, the ones used last, at most maxBytes of them; one larger than that is kept alone

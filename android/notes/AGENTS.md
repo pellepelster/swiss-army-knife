@@ -17,5 +17,9 @@ changes NOTES.md in the same commit.
   the backend (photos, recordings, labels, text) are checked in the app. A photo or a recording taken off comes back
   with undo until `UNDO_REMOVE_MS`. Saves and the upload of a recording run with `launchLasting`, so they end also
   when the app closes.
+- Photos shared by another app (`SEND`, `SEND_MULTIPLE` of `image/*`, `NOTES-7`) are taken by `MainActivity.receive`
+  (`SakActivity` hands over every intent once, as a login link) and read at once: the app may read a shared photo
+  only while the activity that got it lives. `NotesModel.createWithPhotos` makes them one note; the activity is
+  `singleTask`, so a share goes to the app that runs instead of a second activity in the task of the other app.
 - No stream of changes: the notes load again when the app comes to the front, the text typed is saved when it goes.
 - Its texts are `notes.android` (and `notes.common`) in `i18n/texts.yml`, e.g. `R.string.notes_create_note`.

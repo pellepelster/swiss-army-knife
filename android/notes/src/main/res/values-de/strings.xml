@@ -39,6 +39,7 @@
     <string name="notes_label_too_long">Ein Label hat höchstens %1$s Zeichen.</string>
     <string name="notes_text_full">Eine Notiz hat höchstens %1$s Zeichen.</string>
     <string name="notes_photos_full">Eine Notiz hat höchstens %1$s Fotos.</string>
+    <string name="notes_shared_signed_out">Melde dich zuerst an und teile die Fotos dann noch einmal mit der App.</string>
     <string name="notes_recordings_full">Eine Notiz hat höchstens %1$s Aufnahmen.</string>
     <string name="notes_photo_removed">Foto %1$s entfernt</string>
     <string name="notes_recording_removed">Aufnahme %1$s entfernt</string>
