@@ -1,7 +1,7 @@
 {
   "id": "/grocery",
-  "name": "Grocery",
-  "short_name": "Grocery",
+  "name": "SAK Grocery List",
+  "short_name": "SAK Grocery List",
   "description": "Shopping lists to share",
   "start_url": "/grocery",
   "scope": "/",

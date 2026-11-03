@@ -105,7 +105,7 @@ export const CATALOG = {
     },
     app: {
       notes: 'Notes',
-      notes_description: 'Post-Its from text, images or audio',
+      notes_description: 'Post-its from text, images or audio',
       grocery: 'Grocery',
       grocery_description: 'Shopping lists to share',
       static_hosting: 'Static hosting',

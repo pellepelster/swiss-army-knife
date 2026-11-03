@@ -12,6 +12,11 @@ user interface. Use the same term for the same thing every time.
 - **Swiss Army Knife**, short **SAK**: The name of the product, in the user interface, the documentation and the
   code. Write it as three words, `Swiss Army Knife`, or as `SAK`; never `SwissArmyKnife`. Lower case `sak` is only a technical prefix, for example
   `sakctl`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the icon shows.
+- **SAK Notes** and **SAK Grocery List**: The names of the apps where they are installed: the Android app, its
+  listing in Google Play and the installed web app (`name` and `short_name` of `<app>.webmanifest`, which a test
+  checks against `app_name` of `i18n/texts.yml`). They are the same in every language. Inside SAK, where the
+  prefix is clear, the app has its short name of `app.*` in `i18n/texts.yml`: "Notes" ("Notizen") and "Grocery"
+  ("Einkaufslisten"), for example in the list of the apps of the web frontend.
 - **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code, documentation and
   sakctl, a tool for technical users that creates and deploys it, say **deployment**. The texts of the apps (web,
   Android, the messages of the backend) never say "deployment"; where they need a word for what the user signed in

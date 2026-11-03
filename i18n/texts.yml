@@ -251,7 +251,7 @@ web:
     releases: { en: "All releases on GitHub", de: "Alle Releases auf GitHub" }
   app:
     notes: { en: "Notes", de: "Notizen" }
-    notes_description: { en: "Post-Its from text, images or audio", de: "Post-its aus Text, Bildern oder Audio" }
+    notes_description: { en: "Post-its from text, images or audio", de: "Post-its aus Text, Bildern oder Audio" }
     grocery: { en: "Grocery", de: "Einkaufslisten" }
     grocery_description: { en: "Shopping lists to share", de: "Einkaufslisten zum Teilen" }
     static_hosting: { en: "Static hosting", de: "Statisches Hosting" }
