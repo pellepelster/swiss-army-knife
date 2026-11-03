@@ -19,7 +19,11 @@ What is good: the pages are short, each has one task, the steps use the labels o
 
 ## Must fix
 
-### `UD-1` The Android pages say that the native apps do not come from Google Play
+### ~~`UD-1` The Android pages say that the native apps do not come from Google Play~~
+
+**No change:** the apps are not yet in Google Play, so the Android pages are right. `privacy.md` already covers
+Google Play for the review of the store. When the apps are in Google Play, name it first on the Android page and on
+`native-apps.md`.
 
 `docs/apps/android/INDEX.md` ("The native apps do not come from Google Play") and `native-apps.md` (the GitHub
 release is the only source) contradict `privacy.md` ("The apps from Google Play do not do this: Google Play updates
