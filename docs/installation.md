@@ -72,3 +72,5 @@ The next deploy updates the server of the SAK instance to the same version.
 sakctl first looks for Docker or Podman and downloads the image of its tools, which takes a few minutes the first
 time. Then it asks for the API token of your Hetzner Cloud project and shows your SAK instances in the list
 **Deployments**.
+
+Next: [first steps](first-steps.md), to create your first SAK instance.
