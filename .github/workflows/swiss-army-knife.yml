@@ -208,9 +208,10 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # the android apps (android/): their tests and their release apks on every build, so a broken
-  # release build shows before a tag; signed only for a tag, with the key of the secrets
-  # (mise run github:secrets:update), unsigned otherwise. The apks and their checksums are one artifact
+  # the android apps (android/): their tests, their release apks and their bundles for google play on
+  # every build, so a broken release build shows before a tag; signed only for a tag, with the key of
+  # the secrets (mise run github:secrets:update), unsigned otherwise. The apks and their checksums are
+  # one artifact, the bundles and the maps of r8 another
   sak-android-apps:
     runs-on: ubuntu-24.04
     steps:
@@ -233,6 +234,20 @@ jobs:
           path: |
             android/build/sak-*.apk
             android/build/sak-*.apk.sha256
+          if-no-files-found: error
+      # the bundles for google play and the maps of r8, uploaded to the play console by hand
+      - run: mise run android:play:build
+        env:
+          ANDROID_KEYSTORE: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          ANDROID_KEY_ALIAS: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_ALIAS || '' }}
+          ANDROID_KEY_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_PASSWORD || '' }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-play
+          path: |
+            android/build/sak-*.aab
+            android/build/sak-*-mapping.txt
           if-no-files-found: error
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on

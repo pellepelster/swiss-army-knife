@@ -8,7 +8,7 @@ import io.pelle.sak.grocery.api.GroceryApi
 // the model of the app for the activity, kept across a rotation (SakViewModel)
 class GroceryViewModel(
     application: Application,
-) : SakViewModel<GroceryModel>(application, app = "grocery") {
+) : SakViewModel<GroceryModel>(application, app = "grocery", selfUpdate = BuildConfig.SELF_UPDATE) {
     override val model =
         GroceryModel(
             store = store,

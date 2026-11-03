@@ -6,7 +6,8 @@ import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 
 // an app of android/ (grocery, notes): the sdks, java 17, the version of SAK, the signing of a
-// release and its build types; the module keeps its namespace, its applicationId and its texts
+// release, its build types and its distributions; the module keeps its namespace, its applicationId
+// and its texts
 class SakAndroidAppPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.pluginManager.apply("com.android.application")
@@ -49,6 +50,21 @@ class SakAndroidAppPlugin : Plugin<Project> {
                     signingConfig = signingConfigs.findByName("release")
                 }
             }
+            // where the app comes from: github, the apks of the github release, the app updates itself
+            // from them; play, the bundle for google play, which updates the app and forbids an app to
+            // install itself: no updater and no REQUEST_INSTALL_PACKAGES (android/play/AndroidManifest.xml)
+            flavorDimensions += "distribution"
+            productFlavors {
+                create("github") {
+                    dimension = "distribution"
+                    buildConfigField("boolean", "SELF_UPDATE", "true")
+                }
+                create("play") {
+                    dimension = "distribution"
+                    buildConfigField("boolean", "SELF_UPDATE", "false")
+                }
+            }
+            sourceSets.getByName("play").manifest.srcFile(target.rootProject.file("play/AndroidManifest.xml"))
             buildFeatures {
                 compose = true
                 buildConfig = true
@@ -78,11 +94,13 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
-        // a release is signed: the apk of a version without the keystore fails, latest may stay unsigned
+        // a release is signed: the apk or bundle of a version without the keystore fails, latest may
+        // stay unsigned
         val unsigned = !sak.latest && keystore == null
+        val packaging = Regex("(package|bundle)[A-Za-z]*Release")
         target.tasks.configureEach {
-            if (name == "packageRelease" && unsigned) {
-                doFirst { throw GradleException("the release ${sak.name} needs ANDROID_KEYSTORE_FILE, a release apk is signed") }
+            if (unsigned && packaging.matches(name)) {
+                doFirst { throw GradleException("the release ${sak.name} needs ANDROID_KEYSTORE_FILE, a release apk or bundle is signed") }
             }
         }
     }

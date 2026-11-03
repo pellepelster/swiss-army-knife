@@ -32,14 +32,17 @@ object SakProcess {
 
 // the model of an app for its activity, kept across a rotation: the store of the session of the app,
 // its updater and the languages of the phone for its api; app is the name of the app, e.g. grocery
-// (sak-grocery-<version>.apk, the key sak-grocery-session). The app makes its model with them
+// (sak-grocery-<version>.apk, the key sak-grocery-session). The app makes its model with them.
+// selfUpdate is BuildConfig.SELF_UPDATE of the app: false in the build of google play, which has no
+// updater
 abstract class SakViewModel<M : SakModel<*>>(
     application: Application,
     app: String,
+    selfUpdate: Boolean,
 ) : AndroidViewModel(application) {
     protected val client: HttpClient get() = SakProcess.client
     protected val store = DataStoreSessionStore(application, app)
-    protected val updater = AndroidUpdater(application, SakProcess.engine, app)
+    protected val updater = if (selfUpdate) AndroidUpdater(application, SakProcess.engine, app) else null
 
     // the languages of the phone, e.g. de-DE,en-US, for the texts the backend answers
     protected val languages: String get() = LocaleList.getDefault().toLanguageTags()

@@ -229,7 +229,7 @@ fun SignInScreen(
 }
 
 // who is signed in and the sign-out, at the top right of every screen of an app; on its home also the
-// check for updates of the app (UX-13)
+// check for updates of the app when it updates itself (UX-13)
 @Composable
 fun AccountMenu(
     screen: AppScreen,
@@ -242,7 +242,7 @@ fun AccountMenu(
     }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)
-        if (home) {
+        if (home && model.updates) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.update_check)) },
                 onClick = {

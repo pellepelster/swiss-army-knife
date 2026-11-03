@@ -45,7 +45,7 @@ class GroceryModel(
     clock: Clock = Clock.systemUTC(),
     // the version of the app, 1.4.2 of a release, latest of every other build
     appVersion: String = "latest",
-    updater: Updater = Updater { error("no updater") },
+    updater: Updater? = Updater { error("no updater") },
 ) : SakModel<GroceryApi>(store, apiOf, scope, allowUrl, clock, appVersion, updater) {
     private var loading: Job? = null
 

@@ -31,12 +31,23 @@ its own architecture document.
   `android:sdk:build`.
 - **Conventions.** What every module shares is in the convention plugins of `build-logic` (an included build):
   `sak.android.library` (`core`, `testing`: the sdks of `SakSdk`, java 17) and `sak.android.app` (the apps: the
-  sdks, java 17, the version of SAK, the signing, the build types, r8, the test property `sak.app.package`). A
-  module keeps its namespace, its applicationId and its own dependencies; compose, ktor and the api come with `core`.
+  sdks, java 17, the version of SAK, the signing, the build types, the flavors, r8, the test property
+  `sak.app.package`). A module keeps its namespace, its applicationId and its own dependencies; compose, ktor and the api come with `core`.
   The rules of r8 for every app are in `proguard-rules.pro`.
 - **Version.** `VERSION` is `latest` (every build but a release, versionCode 1) or a release `x.y.z`, whose
   versionCode is `x*1_000_000 + y*1_000 + z` (1.4.2 is 1004002); any other `VERSION`, or a minor or patch of 1000
   or more, fails the build (`SakVersion` of `build-logic`).
+- **Distributions.** Every app has the flavors `github` and `play` (dimension `distribution`). `github` is the apk of
+  the github release, which updates itself (`AndroidUpdater`). `play` is the bundle for google play, which updates
+  the app and forbids an app to install itself: `BuildConfig.SELF_UPDATE` is false, so `SakViewModel` has no updater
+  and the model offers no update and no "Check for updates" (`SakModel.updates`), and `play/AndroidManifest.xml`
+  removes `REQUEST_INSTALL_PACKAGES` and the receiver of the update. The tasks of mise run, install and test
+  `github`; `android:build` builds both.
+- **Google Play.** `android:play:build` writes `build/sak-<app>-<VERSION>.aab` of each app and
+  `build/sak-<app>-<VERSION>-mapping.txt`, the map of r8 for the play console, signed and checked as the apks of a
+  release. The key is the app signing key of play (play app signing), so an apk of github installs over an app of
+  play. The package of an app in the play console is its applicationId, e.g. `io.pelle.sak.notes`. The job
+  `sak-android-apps` builds them as the artifact `android-play`; they are uploaded by hand.
 - **Release.** `android:release:build` writes `build/sak-<app>-<VERSION>.apk` of each app and its `.sha256`. The apks
   are signed with the keystore of `ANDROID_KEYSTORE` (base64) and its passwords, the secrets of the workflow
   (`github:secrets:update`, from `pass` `sak/android/signing-key` and `sak/android/signing-key-password`; the alias

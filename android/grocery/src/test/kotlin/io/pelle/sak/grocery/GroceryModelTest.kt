@@ -89,7 +89,7 @@ class GroceryModelTest {
         store: MemorySessionStore,
         at: Instant = now,
         appVersion: String = "latest",
-        updater: Updater = Updater { error("no update expected") },
+        updater: Updater? = Updater { error("no update expected") },
     ): GroceryModel {
         backend.dispatcher = StandardTestDispatcher(testScheduler)
         return GroceryModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(at, ZoneOffset.UTC), appVersion, updater)
@@ -1740,6 +1740,22 @@ class GroceryModelTest {
             debug.checkUpdate()
             advanceUntilIdle()
             assertEquals("This build of the app is no release, it is not updated.", notice(debug))
+        }
+
+    @Test
+    fun `the build of google play has no updater and offers no update, google play updates it`() =
+        runTest {
+            backend.answers["GET /info"] = info("0.1.15")
+            val model = model(signedInStore(openList = null), appVersion = "0.1.14", updater = null).also { it.start() }
+            advanceUntilIdle()
+            assertFalse(model.updates)
+            assertNull((model.screen.value as ListsScreen).update)
+
+            model.checkUpdate()
+            model.update()
+            advanceUntilIdle()
+            assertNull((model.screen.value as ListsScreen).update)
+            assertNull(notice(model))
         }
 
     @Test

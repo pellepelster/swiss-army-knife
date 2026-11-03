@@ -168,7 +168,7 @@ class NotesModel(
     allowUrl: Boolean,
     clock: Clock = Clock.systemUTC(),
     appVersion: String = "latest",
-    updater: Updater = Updater { error("no updater") },
+    updater: Updater? = Updater { error("no updater") },
     private val recorder: Recorder = NO_RECORDER,
 ) : SakModel<NotesApi>(store, apiOf, scope, allowUrl, clock, appVersion, updater) {
     // the text typed and not saved yet, by note: its save after the pause

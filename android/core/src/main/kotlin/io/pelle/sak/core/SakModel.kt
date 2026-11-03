@@ -99,11 +99,15 @@ abstract class SakModel<A : SakApi>(
     protected val clock: Clock = Clock.systemUTC(),
     // the version of the app, 1.4.2 of a release, latest of every other build
     private val appVersion: String = "latest",
-    private val updater: Updater = Updater { error("no updater") },
+    // none in the build of google play, which updates the app itself: the model offers no update
+    private val updater: Updater? = Updater { error("no updater") },
     // the nonce of each login request
     private val nonce: () -> String = ::randomNonce,
 ) {
     protected val state = MutableStateFlow<Screen>(Screen.Starting)
+
+    // the app updates itself to the version of the deployment, not in the build of google play (UX-13)
+    val updates: Boolean get() = updater != null
     val screen: StateFlow<Screen> = state.asStateFlow()
 
     // where work goes that must not end with the screen, e.g. the last save when the app closes
@@ -323,6 +327,7 @@ abstract class SakModel<A : SakApi>(
     // the check for updates of the menu: the version of the deployment asked for again; a newer one is
     // offered as on the start, else the app says why there is none
     fun checkUpdate() {
+        if (!updates) return
         val app = state.value as? AppScreen ?: return
         if (app.update != null) return
         state.value = app.withUpdate(null, uiText(R.string.update_checking))
@@ -357,6 +362,7 @@ abstract class SakModel<A : SakApi>(
     // the app of the version of the deployment is downloaded and handed to the installer of android,
     // which asks the user; the app ends when it is installed
     fun update() {
+        val updater = updater ?: return
         val app = state.value as? AppScreen ?: return
         val update = app.update ?: return
         if (update.busy) return
@@ -488,7 +494,7 @@ abstract class SakModel<A : SakApi>(
             (state.value as? AppScreen)?.let { state.value = it.withUser(name) }
         }
         // the app of the version of the deployment, when it is newer
-        scope.launch {
+        if (updates) scope.launch {
             val url = stored.apiUrl ?: return@launch
             val version = runCatching { newer(appVersion, apiOf(url, null).info().version) }.getOrNull() ?: return@launch
             (state.value as? AppScreen)?.let { state.value = it.withUpdate(AppUpdate(version), it.updateNotice) }
