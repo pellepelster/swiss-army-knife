@@ -5,7 +5,7 @@
 FROM debian:13.7-slim
 
 # renovate: datasource=pypi depName=ansible
-ARG ANSIBLE_VERSION=11.13.0
+ARG ANSIBLE_VERSION=14.5.0
 
 # ssh and sshpass for the hosts ansible provisions, git and rsync for its modules
 RUN apt-get update \
