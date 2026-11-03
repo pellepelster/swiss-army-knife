@@ -19,9 +19,9 @@ import java.net.http.HttpClient
 import java.time.Duration
 
 // reads the ingredients of a recipe in an image with a vision model through openrouter's chat
-// completions, as json of a schema (structured outputs); the image goes along as data url, streamed
-// from the storage (base64Body). Only providers that take the schema and do not collect the data are
-// asked
+// completions, as json of a schema (structured outputs, where the provider takes them); the image goes
+// along as data url, streamed from the storage (base64Body). Only providers that do not collect the
+// data are asked
 class OpenRouterIngredientRecognizer(
     url: String,
     private val apiToken: String,
@@ -65,10 +65,10 @@ class OpenRouterIngredientRecognizer(
                 put("type", "json_schema")
                 put("json_schema", SCHEMA)
             }
-            putJsonObject("provider") {
-                put("data_collection", "deny")
-                put("require_parameters", true)
-            }
+            // no require_parameters: it leaves out every provider that does not take all of them, and no
+            // provider of a model may take temperature (anthropic/claude-haiku-5.5 has none); one that
+            // ignores the schema still answers the json the prompt asks for
+            putJsonObject("provider") { put("data_collection", "deny") }
         }
 
     companion object {

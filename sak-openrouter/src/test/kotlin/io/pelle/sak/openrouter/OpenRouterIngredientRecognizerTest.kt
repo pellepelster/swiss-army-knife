@@ -62,7 +62,8 @@ class OpenRouterIngredientRecognizerTest {
         headers["Authorization"] shouldBe "Bearer token"
         body.string("model") shouldBe "vendor/vision-model"
         body["provider"]!!.jsonObject.string("data_collection") shouldBe "deny"
-        body["provider"]!!.jsonObject.string("require_parameters") shouldBe "true"
+        // a provider that does not take every parameter, e.g. temperature, is not left out
+        body["provider"]!!.jsonObject.containsKey("require_parameters") shouldBe false
         body["response_format"]!!.jsonObject.string("type") shouldBe "json_schema"
         val content = body["messages"]!!.jsonArray.single().jsonObject["content"]!!.jsonArray
         content[0].jsonObject.string("text") shouldBe OpenRouterIngredientRecognizer.PROMPT
