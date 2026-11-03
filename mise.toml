@@ -2,16 +2,16 @@
 # the jdk of the gradle toolchain
 java = "temurin-25.0.5+8.0.LTS"
 # sak-frontend, called by the gradle build
-node = "22.22.3"
+node = "22.23.4"
 # linux and macOS only; sakctl itself runs ansible in the tools image
 "pipx:ansible-core" = { version = "2.18.19", os = ["linux", "macos"] }
-pipx = { version = "1.17.2", os = ["linux", "macos"] }
+pipx = { version = "1.18.4", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/
 rust = "1.99.1"
 "npm:@tauri-apps/cli" = "2.12.4"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.168.0"
-go = "1.26.0"
+go = "1.27.3"
 # the rust tests, with junit reports (.config/nextest.toml of each crate)
 "github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
