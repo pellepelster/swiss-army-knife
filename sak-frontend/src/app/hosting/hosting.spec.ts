@@ -327,7 +327,6 @@ describe('Hosting', () => {
     await open('/static-hosting/site/credentials');
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));
     await harness.fixture.whenStable();
-    button('Show the key pair').click();
     http.expectOne('/api/v1/static-hosting/site/secret').flush(SECRET);
     await harness.fixture.whenStable();
 
@@ -338,7 +337,7 @@ describe('Hosting', () => {
     expect(text('hugo-deploy')).toContain(`AWS_ACCESS_KEY_ID=${SECRET.accessKeyId}`);
   });
 
-  it('shows the endpoint and the key pair only when asked for, the secret hidden until shown', async () => {
+  it('shows the endpoint and the key pair when the tab opens, the secret hidden until shown', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     await open('/static-hosting/site/credentials');
@@ -346,8 +345,6 @@ describe('Hosting', () => {
     await harness.fixture.whenStable();
 
     expect(text('endpoint')).toBe(s3Endpoint());
-    http.expectNone('/api/v1/static-hosting/site/secret');
-    button('Show the key pair').click();
     http.expectOne('/api/v1/static-hosting/site/secret').flush(SECRET);
     await harness.fixture.whenStable();
 
@@ -394,7 +391,7 @@ describe('Hosting', () => {
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', []));
   });
 
-  it('shows the hugo deployment target and the deploy command with the key pair when asked for', async () => {
+  it('shows the hugo deployment target and the deploy command with the key pair', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     await open('/static-hosting/site/publishing');
@@ -413,9 +410,7 @@ describe('Hosting', () => {
         `URL = "s3://site?endpoint=${s3Endpoint()}&region=sak&use_path_style=true"`,
       ].join('\n'),
     );
-    http.expectNone('/api/v1/static-hosting/site/secret');
 
-    button('Show the deploy command with the key pair').click();
     http.expectOne('/api/v1/static-hosting/site/secret').flush(SECRET);
     await harness.fixture.whenStable();
     expect(text('hugo-deploy')).toContain(`AWS_ACCESS_KEY_ID=${SECRET.accessKeyId}`);

@@ -45,9 +45,8 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await expect(page).toHaveURL('/static-hosting/e2e-hosting/configuration');
   await expect(page.getByTestId('domains')).toContainText('https://www.hosting.example.org/');
 
-  // the keys are fetched when asked for, the secret stays hidden until shown
+  // the keys are shown when the tab opens, the secret stays hidden until shown
   await page.getByRole('link', { name: 'Credentials' }).click();
-  await page.getByRole('button', { name: 'Show the key pair' }).click();
   const accessKey = page.getByTestId('access-key');
   await expect(accessKey).toHaveText(/^[A-Z2-7]{20}$/);
   await expect(page.getByTestId('secret-key')).toHaveText(/^•+$/);

@@ -5,7 +5,7 @@ import { BucketStore } from './bucket-store';
 import { s3Endpoint } from './buckets.service';
 
 // the credentials tab of a bucket: the endpoint of the s3 api and the key pair that may access
-// this bucket only; the keys are only fetched when asked for, the secret stays hidden until it
+// this bucket only; the keys are fetched when the tab opens, the secret stays hidden until it
 // is shown or copied
 @Component({
   selector: 'app-bucket-credentials',
@@ -89,24 +89,13 @@ import { s3Endpoint } from './buckets.service';
               (failed)="copyFailed.set($event)"
             />
           </dd>
-        } @else {
+        } @else if (store.retrievingSecret()) {
           <dt class="col-sm-3 fw-normal text-body-secondary">
             {{ 'hosting.credentials.keys' | t }}
           </dt>
-          <dd class="col-sm-9">
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              [disabled]="store.retrievingSecret()"
-              (click)="store.retrieveSecret()"
-            >
-              @if (store.retrievingSecret()) {
-                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-              } @else {
-                <i class="fa-solid fa-key" aria-hidden="true"></i>
-              }
-              {{ 'hosting.credentials.show_keys' | t }}
-            </button>
+          <dd class="col-sm-9 text-body-secondary">
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+            {{ 'shared.loading' | t }}
           </dd>
         }
       </dl>
@@ -124,4 +113,8 @@ export class BucketCredentials {
   protected readonly endpoint = s3Endpoint();
   protected readonly shown = signal(false);
   protected readonly copyFailed = signal(false);
+
+  constructor() {
+    this.store.retrieveSecret();
+  }
 }

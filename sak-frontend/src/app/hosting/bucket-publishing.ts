@@ -8,8 +8,8 @@ import { CodeBlock } from './code-block';
 const SECRET_MASK = '••••••••••••••••••••';
 
 // the publishing tab of a bucket: how hugo deploys a site into it, the deployment target for the
-// site's configuration and the command with the key pair of the bucket; the keys are only
-// fetched when asked for, the secret stays masked until it is shown
+// site's configuration and the command with the key pair of the bucket; the keys are fetched
+// when the tab opens, the secret stays masked until it is shown
 @Component({
   selector: 'app-bucket-publishing',
   imports: [CodeBlock, TranslatePipe],
@@ -84,22 +84,11 @@ const SECRET_MASK = '•••••••••••••••••••�
                   {{ (shown() ? 'hosting.publishing.hide' : 'hosting.publishing.show') | t }}
                 </button>
               </app-code-block>
-            } @else {
-              <div>
-                <button
-                  type="button"
-                  class="btn btn-primary btn-sm"
-                  [disabled]="store.retrievingSecret()"
-                  (click)="store.retrieveSecret()"
-                >
-                  @if (store.retrievingSecret()) {
-                    <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-                  } @else {
-                    <i class="fa-solid fa-key" aria-hidden="true"></i>
-                  }
-                  {{ 'hosting.publishing.show_command' | t }}
-                </button>
-              </div>
+            } @else if (store.retrievingSecret()) {
+              <p class="text-body-secondary mb-0">
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                {{ 'shared.loading' | t }}
+              </p>
             }
           </li>
           <li class="vstack gap-2">
@@ -116,6 +105,10 @@ export class BucketPublishing {
   protected readonly store = inject(BucketStore);
 
   protected readonly shown = signal(false);
+
+  constructor() {
+    this.store.retrieveSecret();
+  }
 
   // the deployment target of hugo (gocloud's s3 url), the region is only part of the signature
   protected readonly configuration = computed(() => {

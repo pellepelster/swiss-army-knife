@@ -325,7 +325,6 @@ export const CATALOG = {
         show_secret_key: 'Show secret key',
         copy_secret_key: 'Copy secret key',
         keys: 'Keys',
-        show_keys: 'Show the key pair',
         keys_failed: 'The key pair could not be fetched.',
       },
       publishing: {
@@ -344,7 +343,6 @@ export const CATALOG = {
         show_secret_key: 'Show the secret key',
         hide: 'Hide',
         show: 'Show',
-        show_command: 'Show the deploy command with the key pair',
         uploads: 'It only uploads what changed and deletes what is gone. The site is served at the domains of the bucket once their DNS records point at the server.',
       },
       logs: {
@@ -833,7 +831,6 @@ export const CATALOG = {
         show_secret_key: 'Geheimen Schlüssel zeigen',
         copy_secret_key: 'Geheimen Schlüssel kopieren',
         keys: 'Schlüssel',
-        show_keys: 'Schlüsselpaar zeigen',
         keys_failed: 'Das Schlüsselpaar konnte nicht abgerufen werden.',
       },
       publishing: {
@@ -852,7 +849,6 @@ export const CATALOG = {
         show_secret_key: 'Den geheimen Schlüssel zeigen',
         hide: 'Verbergen',
         show: 'Zeigen',
-        show_command: 'Deploy-Befehl mit dem Schlüsselpaar zeigen',
         uploads: 'Es lädt nur hoch, was sich geändert hat, und löscht, was weg ist. Die Site wird unter den Domains des Buckets ausgeliefert, sobald ihre DNS-Einträge auf den Server zeigen.',
       },
       logs: {

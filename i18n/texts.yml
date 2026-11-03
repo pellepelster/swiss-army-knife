@@ -1536,7 +1536,6 @@ hosting:
       show_secret_key: { en: "Show secret key", de: "Geheimen Schlüssel zeigen" }
       copy_secret_key: { en: "Copy secret key", de: "Geheimen Schlüssel kopieren" }
       keys: { en: "Keys", de: "Schlüssel" }
-      show_keys: { en: "Show the key pair", de: "Schlüsselpaar zeigen" }
       keys_failed: { en: "The key pair could not be fetched.", de: "Das Schlüsselpaar konnte nicht abgerufen werden." }
     publishing:
       label: { en: "Publishing with Hugo", de: "Veröffentlichen mit Hugo" }
@@ -1560,9 +1559,6 @@ hosting:
       show_secret_key: { en: "Show the secret key", de: "Den geheimen Schlüssel zeigen" }
       hide: { en: "Hide", de: "Verbergen" }
       show: { en: "Show", de: "Zeigen" }
-      show_command:
-        en: "Show the deploy command with the key pair"
-        de: "Deploy-Befehl mit dem Schlüsselpaar zeigen"
       uploads:
         en: "It only uploads what changed and deletes what is gone. The site is served at the domains of the bucket once their DNS records point at the server."
         de: "Es lädt nur hoch, was sich geändert hat, und löscht, was weg ist. Die Site wird unter den Domains des Buckets ausgeliefert, sobald ihre DNS-Einträge auf den Server zeigen."
