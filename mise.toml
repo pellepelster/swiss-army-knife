@@ -342,10 +342,6 @@ done
 # victorialogs 9428, mailpit 1025 (smtp) and 8025 (web ui)
 [tasks."local:env:run"]
 description = "Run ingress, victorialogs and mailpit"
-env = {
-    SAK_LOCAL_DIR = "{{config_root}}/build/local",
-    SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
-}
 run = """
 # before docker creates them owned by root
 mkdir -p "$SAK_LOCAL_DATA_DIR/s3" "$SAK_LOCAL_DIR/ingress/log" "$SAK_LOCAL_DIR/victorialogs" "$SAK_LOCAL_DIR/vector"
@@ -361,15 +357,13 @@ echo "the services are up"
 $compose logs -f
 """
 
+[tasks."local:env:run".env]
+SAK_LOCAL_DIR = "{{config_root}}/build/local"
+SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
+
 # on 8080; local:frontend:run on 4200 proxies /api to it
 [tasks."local:backend:run"]
 description = "Run sak-backend"
-env = {
-    SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data",
-    SAK_IPV4 = "192.0.2.1",
-    # the argon2id hash of `a password of sixteen`, the password login of the local backend
-    SAK_LOCAL_ADMIN_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=1$al/AGZtQJD5CTnS21yvIXg$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4",
-}
 run = """
 if curl -s -o /dev/null --max-time 2 http://localhost:8080/; then
   echo "a backend runs already on http://localhost:8080, stop it first" >&2
@@ -378,6 +372,12 @@ fi
 mkdir -p "$SAK_LOCAL_DATA_DIR"
 ./gradlew :sak-backend:run --args="-config={{config_root}}/config/local-config.yaml"
 """
+
+[tasks."local:backend:run".env]
+SAK_LOCAL_DATA_DIR = "{{config_root}}/build/local/data"
+SAK_IPV4 = "192.0.2.1"
+# the argon2id hash of `a password of sixteen`, the password login of the local backend
+SAK_LOCAL_ADMIN_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=1$al/AGZtQJD5CTnS21yvIXg$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4"
 
 # the database, the files and the buckets; the directories stay for the mounts of local:env:run, the
 # state of caddy and the logs stay too

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "The dependency updates of SAK, docs/development/DEPENDENCIES.md",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 0,
+  "semanticCommits": "disabled",
+  "platformAutomerge": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "dependencyDashboardFooter": "Not updated by Renovate, update these by hand (docs/development/DEPENDENCIES.md): the Android SDK in `mise.toml` (the command-line tools with their sha1, `ANDROID_BUILD_TOOLS`, the platform and the system image), the Hetzner server image `debian-13` in sak-cloud, the major version of Java (`mise.toml`, the Gradle toolchain, `openjdk*-jre` in `sak-backend/Dockerfile`).",
+  "docker-compose": {
+    "managerFilePatterns": ["/^config/local-compose\\.yaml$/"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "A version in a Dockerfile ARG, with a renovate comment on the line before it",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG \\S+=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "The pinned images of the ansible roles, <name>_image: docker.io/<image>:<tag>",
+      "managerFilePatterns": ["/^ansible/roles/[^/]+/defaults/main\\.yml$/"],
+      "matchStrings": ["_image: \"?(?<depName>docker\\.io/[^:\\s\"]+):(?<currentValue>[^\\s\"]+)\"?"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "One PR a week for each ecosystem with its minor and patch updates",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "{{manager}} minor and patch",
+      "groupSlug": "{{manager}}-minor-patch"
+    },
+    {
+      "description": "The npm dependencies apart from the dev dependencies, which merge automatically",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm dependencies minor and patch",
+      "groupSlug": "npm-dependencies-minor-patch"
+    },
+    {
+      "description": "Merged when the workflow is green: the actions, the npm dev dependencies, the crates",
+      "matchManagers": ["github-actions", "npm", "cargo"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "automerge": false
+    },
+    {
+      "description": "Before 1.0 a minor version can break the api (cargo), so by hand",
+      "matchCurrentValue": "/^[~^]?0\\./",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "{{manager}} 0.x minor",
+      "groupSlug": "{{manager}}-0x-minor",
+      "automerge": false
+    },
+    {
+      "description": "The releases of nextest are tagged cargo-nextest-<version>",
+      "matchManagers": ["mise"],
+      "matchPackageNames": ["nextest-rs/nextest"],
+      "extractVersion": "^cargo-nextest-(?<version>.+)$"
+    },
+    {
+      "description": "Kotlin of the backend build and the android build together",
+      "matchPackageNames": ["/^org\\.jetbrains\\.kotlin[.:]/", "/^org\\.jetbrains\\.kotlin$/"],
+      "groupName": "kotlin",
+      "groupSlug": "kotlin"
+    },
+    {
+      "description": "Tauri: the cli of mise.toml and the crates must have the same version",
+      "matchPackageNames": ["/tauri/"],
+      "groupName": "tauri",
+      "groupSlug": "tauri",
+      "automerge": false
+    },
+    {
+      "description": "Playwright: the java library of sak-e2e and the npm package of sak-frontend, with the same browsers",
+      "matchPackageNames": ["com.microsoft.playwright:playwright", "@playwright/test"],
+      "groupName": "playwright",
+      "groupSlug": "playwright",
+      "automerge": false
+    },
+    {
+      "description": "Ansible: the package of the tools image, ansible-core of mise.toml and the collections; ansible <n> contains a fixed ansible-core 2.<m>",
+      "matchPackageNames": ["/ansible/", "community.general"],
+      "groupName": "ansible",
+      "groupSlug": "ansible",
+      "separateMajorMinor": false,
+      "automerge": false
+    },
+    {
+      "description": "A major version of Java changes the toolchain and the image of the backend too, by hand",
+      "matchManagers": ["mise"],
+      "matchPackageNames": ["java"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Images and majors only by hand: the workflow does not run the integration and e2e tests",
+      "matchDatasources": ["docker"],
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
+  ]
+}
