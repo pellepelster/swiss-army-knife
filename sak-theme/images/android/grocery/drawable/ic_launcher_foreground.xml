@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the icon of the grocery app of the web app (sak-frontend/public/icons/grocery.svg) without its
+<!-- the icon of the grocery app of the web app (sak-theme/images/web/icons/grocery.svg) without its
      paper white, which is the background layer: a shopping basket in orange, outlined in ink, with
      the swiss army knife of the favicon in its corner. Scaled to 0.72 around the center, so the
      masks of the launchers keep the rim of the basket -->

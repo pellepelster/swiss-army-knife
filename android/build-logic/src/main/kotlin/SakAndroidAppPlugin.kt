@@ -65,6 +65,9 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 }
             }
             sourceSets.getByName("play").manifest.srcFile(target.rootProject.file("play/AndroidManifest.xml"))
+            // the icons of every app and the launcher icon of this one, kept in sak-theme/images/android
+            sourceSets.getByName("main").res.srcDir(target.rootProject.file("../sak-theme/images/android/icons"))
+            sourceSets.getByName("main").res.srcDir(target.rootProject.file("../sak-theme/images/android/${target.name}"))
             buildFeatures {
                 compose = true
                 buildConfig = true

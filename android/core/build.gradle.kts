@@ -11,6 +11,9 @@ plugins {
 android {
     namespace = "io.pelle.sak.core"
 
+    // the icons of every app, kept in sak-theme/images/android (sak.android.app adds them to each app)
+    sourceSets.getByName("main").res.srcDir(rootProject.file("../sak-theme/images/android/icons"))
+
     buildFeatures {
         compose = true
     }

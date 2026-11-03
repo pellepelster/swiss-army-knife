@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the icon of the notes app of the web app (sak-frontend/public/icons/notes.svg) without its paper
+<!-- the icon of the notes app of the web app (sak-theme/images/web/icons/notes.svg) without its paper
      white, which is the background layer: the note-sticky of Font Awesome Free 7.3.1
      (https://fontawesome.com, CC BY 4.0) in the yellow of a note, outlined in ink, with the swiss army
      knife of the favicon in its corner. Scaled to 0.72 around the center, so the masks of the launchers

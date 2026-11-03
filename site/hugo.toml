@@ -59,7 +59,7 @@ target = 'assets/readme.md'
 # the knife of the apps and of sakctl: relearn takes images/logo.* as the logo next to the title
 # and as the favicon
 [[module.mounts]]
-source = '../sak-frontend/public/favicon.svg'
+source = '../sak-theme/images/web/favicon.svg'
 target = 'assets/images/logo.svg'
 
 [[module.mounts]]

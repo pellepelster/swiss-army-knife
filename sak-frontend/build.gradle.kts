@@ -16,6 +16,8 @@ val npmBuild by tasks.registering(Exec::class) {
     commandLine("npm", "run", "build")
     inputs.dir("src")
     inputs.dir("public")
+    // the favicons and the icons of the apps (angular.json)
+    inputs.dir("../sak-theme/images/web")
     inputs.files("angular.json", "tsconfig.json", "tsconfig.app.json", "package-lock.json")
     outputs.dir("dist")
 }

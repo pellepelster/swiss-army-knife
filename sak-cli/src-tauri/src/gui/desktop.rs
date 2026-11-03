@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 /// the name of the desktop file and of the icon, the app id of the window
 const APP_ID: &str = "sakctl";
 
-/// the icon of the bundles, 512 pixels
-const ICON: &[u8] = include_bytes!("../../icons/icon.png");
+/// the icon of the bundles, 512 pixels (sak-theme/images/tauri)
+const ICON: &[u8] = include_bytes!("../../../../sak-theme/images/tauri/icon.png");
 
 /// a release build only, a build of the development would point the entry at itself
 pub fn install() {

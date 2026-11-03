@@ -30,6 +30,11 @@
                 "input": "public"
               },
               {
+                "glob": "**/*",
+                "input": "node_modules/sak-theme/images/web",
+                "output": "/"
+              },
+              {
                 "glob": "data.json",
                 "input": "node_modules/emoji-picker-element-data/en/emojibase",
                 "output": "emoji"

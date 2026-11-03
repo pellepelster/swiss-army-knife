@@ -26,7 +26,7 @@ impl ProviderType {
     // below ui/
     fn logo(self) -> &'static str {
         match self {
-            ProviderType::Hetzner => "providers/hetzner.svg",
+            ProviderType::Hetzner => "theme/images/providers/hetzner.svg",
         }
     }
 

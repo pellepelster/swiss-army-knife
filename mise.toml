@@ -146,6 +146,7 @@ cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
 cp ../sak-theme/tokens.css ../sak-theme/bootstrap.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
 cp -r ../sak-theme/fonts ui/theme/fonts
 cp -r ../sak-theme/icons ui/theme/icons
+cp -r ../sak-theme/images/sakctl ui/theme/images
 """
 
 # the ui without arguments, the command line with them: `mise run cli:run -- --help`. tauri dev

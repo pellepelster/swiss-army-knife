@@ -72,6 +72,9 @@ its own architecture document.
   a missing nullable field as null; the fake backends of the tests answer every field the schema requires.
 - **The logic** is in the model of each app (and `SakModel`), without android, tested on the jvm against the fake
   backend.
+- **Icons.** The icons are in `sak-theme/images/android/`, not in a module: `icons/` (Font Awesome as vector
+  drawables, each once, `R.drawable.ic_<name>` of `core` and of every app) and `<app>/` (the launcher icon of the
+  app); `core/build.gradle.kts` and `sak.android.app` add them as res directories. A new icon goes there too.
 - **Texts.** Every text the user reads is in `i18n/texts.yml` at the root of the repository: `android` and `common`
   for texts of no app go to `core`, `<app>.android` and `<app>.common` to the module of the app, e.g.
   `grocery.form.save` is `R.string.grocery_form_save` of `io.pelle.sak.grocery.R`, `shared.delete` is

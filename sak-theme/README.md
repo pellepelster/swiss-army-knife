@@ -25,6 +25,17 @@ of the rack-led icon, IBM Plex Sans and Mono.
   warn, danger, neutral, busy), `.sak-status` (the led with a word), `.sak-label` (a mono label
   over data), `.sak-mono`.
 
+- `images/` - every image and icon of the apps, once, read from here by each build:
+  - `web/` - the favicons and `icons/` (the icons of the apps as svg and png, also for the manifests), copied to the
+    root of sak-frontend by its `angular.json`; the docs site takes `favicon.svg`.
+  - `sources/` - the sources the png icons are made from, not shipped.
+  - `sakctl/` - the icon of Swiss Army Knife and `providers/` (the logo of each cloud provider), copied by
+    `mise run cli:theme` into `sak-cli/ui/theme/images/`.
+  - `tauri/` - the icons of the sakctl installers and windows, named in `sak-cli/src-tauri/tauri.conf.json`.
+  - `android/icons/` - the icons of the android apps (Font Awesome as vector drawables), a res directory of `core`
+    and of every app; `android/<app>/` - the launcher icon of the app, a res directory of that app
+    (`sak.android.app`).
+
 A consumer's own stylesheet holds no color literal, every color is a `var(--sak-…)`;
 sakctl's tests check that for its `ui/style.css`.
 
