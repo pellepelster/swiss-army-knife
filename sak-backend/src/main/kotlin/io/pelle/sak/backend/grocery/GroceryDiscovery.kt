@@ -88,11 +88,12 @@ class GroceryDiscovery(
         // what the model answered within the limits of an item: a name without control characters
         // and the blanks around it, cut at its longest; an amount rounded to 3 decimal places, none
         // when it is out of range; a unit only with an amount, cut at its longest. One without a
-        // name is left out
+        // name and water from the tap are left out. An item of a recipe that needs it in several parts (e.g. the dough and the
+        // filling) is one item (merged), the model does not do that every time
         internal fun items(ingredients: List<Ingredient>): List<DiscoveredItem> =
-            ingredients
-                .mapNotNull { ingredient ->
-                    val name = clean(ingredient.name, MAX_ITEM_NAME_LENGTH) ?: return@mapNotNull null
+            merged(
+                ingredients.mapNotNull { ingredient ->
+                    val name = clean(ingredient.name, MAX_ITEM_NAME_LENGTH)?.takeUnless(::water) ?: return@mapNotNull null
                     val amount =
                         ingredient.quantity
                             ?.takeIf { it.isFinite() }
@@ -100,7 +101,59 @@ class GroceryDiscovery(
                             ?.takeIf { it.signum() > 0 && it <= MAX_AMOUNT }
                     val unit = amount?.let { ingredient.unit?.let { unit -> clean(unit, MAX_UNIT_LENGTH) } }
                     DiscoveredItem(name, amount?.let { if (it.scale() < 0) it.setScale(0) else it }, unit)
-                }.take(MAX_ITEMS)
+                },
+            ).take(MAX_ITEMS)
+
+        // the endings of the plural of a german name (Ei, Eier; Zwiebel, Zwiebeln; Tomate, Tomaten) and of
+        // an english one (egg, eggs)
+        private val PLURALS = listOf("en", "er", "n", "e", "s")
+
+        // the items of one name, without case and in the singular or the plural, as one where the first of
+        // them is, under the longer name (Eier): the amounts of one unit added up (at most MAX_AMOUNT),
+        // one without an amount dropped when another one of the name has one; items of the name in other
+        // units stay items of their own
+        private fun merged(items: List<DiscoveredItem>): List<DiscoveredItem> {
+            val names = mutableListOf<String>()
+
+            // the name of the items it is one with, the first of them that was seen; what is in brackets
+            // tells them apart not (Eier, Eier (Größe M))
+            fun key(item: DiscoveredItem): String {
+                val name = bare(item.name)
+                return names.firstOrNull { it == name || plural(it, name) || plural(name, it) } ?: name.also { names += it }
+            }
+            val keys = items.map(::key)
+            val counted = items.indices.filter { items[it].amount != null }.map { keys[it] }.toSet()
+            val merged = LinkedHashMap<Pair<String, String?>, DiscoveredItem>()
+            items.forEachIndexed { index, item ->
+                if (item.amount == null && keys[index] in counted) return@forEachIndexed
+                val at = keys[index] to item.unit?.lowercase()
+                val before = merged[at]
+                merged[at] =
+                    when {
+                        before == null -> item
+                        before.amount == null || item.amount == null -> before
+                        else ->
+                            before.copy(
+                                name = maxOf(before.name, item.name, compareBy { bare(it).length }),
+                                amount = (before.amount + item.amount).min(MAX_AMOUNT),
+                            )
+                    }
+            }
+            return merged.values.toList()
+        }
+
+        // the name without case and what is in brackets
+        private fun bare(name: String) = name.lowercase().replace(Regex("\\([^)]*\\)"), " ").replace(Regex("\\s+"), " ").trim()
+
+        // water from the tap, nothing to buy; the model keeps it now and then (kaltes Wasser)
+        private val WATER = Regex("(?i)((kalt|warm|heiß|heiss|lauwarm)(es|em)? )?(leitungs)?wasser|((cold|warm|hot|lukewarm|tap) )?water")
+
+        private fun water(name: String) = WATER.matches(name)
+
+        private fun plural(
+            singular: String,
+            name: String,
+        ) = singular.length >= 2 && PLURALS.any { name == singular + it }
 
         private fun clean(
             text: String,

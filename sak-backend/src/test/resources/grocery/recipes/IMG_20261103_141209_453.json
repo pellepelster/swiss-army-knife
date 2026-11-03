@@ -1,5 +1,5 @@
 {
-  "recipe": "Jägersoße mit Spätzle, 4 Portionen; alternatives, a range, ½, Butter and Salz twice",
+  "recipe": "Jägersoße mit Spätzle, 4 Portionen; alternatives, a range, ½, Butter and Salz twice; 40 g Butter oder 2 EL Olivenöl is a choice",
   "ingredients": [
     {
       "names": [
@@ -32,8 +32,19 @@
       "names": [
         "Butter"
       ],
-      "quantity": 90,
+      "quantity": [
+        90,
+        50
+      ],
       "unit": "g"
+    },
+    {
+      "names": [
+        "Olivenöl"
+      ],
+      "quantity": 2,
+      "unit": "EL",
+      "optional": true
     },
     {
       "names": [

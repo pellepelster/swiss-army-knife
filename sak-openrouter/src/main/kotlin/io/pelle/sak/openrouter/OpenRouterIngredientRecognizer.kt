@@ -144,8 +144,8 @@ For each ingredient:
   "nach Belieben").
 - unit: the unit as the recipe writes it, shortened the usual way: g, kg, ml, l, EL, TL, Prise, Dose,
   Stange, Scheibe, Zehe, Bund, Becher, Packung. null for a count of things ("4 Eier", "1 Zwiebel",
-  "1 Stück(e) Paprika" → quantity 1, unit null), and null when the quantity is null. A unit glued to
-  the name is the unit ("2 Knoblauchzehen" → quantity 2, unit Zehe, name Knoblauch).
+  "1 Stück(e) Paprika" → quantity 1, unit null), and null when the quantity is null. A unit that is
+  part of the word stays in the name ("2 Knoblauchzehen" → quantity 2, unit null, name Knoblauchzehen).
 - A package size in brackets belongs to neither ("1 Dose Tomatenmark (125 g)" → 1 Dose Tomatenmark).
 
 Special cases:

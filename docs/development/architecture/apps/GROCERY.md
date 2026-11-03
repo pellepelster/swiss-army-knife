@@ -45,7 +45,8 @@ An app to manage grocery lists.
 - `GROCERY-16` **Items from a photo.** With the AI features turned on (the setting of the grocery lists, `APP-PRIVACY-1`)
   a robot next to the field of a new item takes a photo or lets the user choose one, of a recipe or a shopping list.
   Its label names OpenRouter, where the photo goes (`PRIVACY-2`). The AI reads the items in it, with their quantity
-  (`GROCERY-15`); nothing is added yet. The user sees the items in a list first, corrects their names and
+  (`GROCERY-15`); an item the recipe names twice is one, its quantities added up, water from the tap is none;
+  nothing is added yet. The user sees the items in a list first, corrects their names and
   quantities, leaves out the ones not to buy and adds the others to the list at once, or cancels. The photo stays in the
   file storage of the user (`SHARED-3`), it is attached to no item.
 

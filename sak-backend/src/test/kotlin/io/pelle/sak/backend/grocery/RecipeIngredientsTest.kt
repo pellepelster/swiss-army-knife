@@ -5,6 +5,8 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.OpenRouterIngredientRecognizer
 import io.pelle.sak.storage.BlobContent
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
@@ -75,13 +77,17 @@ class RecipeIngredientsTest {
     }
 
     // an ingredient of a photo: the names it may have (all words of one of them in the name, a word of
-    // 4 letters or more also as the start of a word: Lachs is Lachsfilet), its quantity and unit
+    // 4 letters or more also as the start of a word: Lachs is Lachsfilet), its quantity, or the ones it
+    // may have where the recipe offers a choice (40 g Butter oder 2 EL Olivenöl), and unit; an optional
+    // one, the other choice, may be missing
     data class Expected(
         val names: List<String>,
-        val quantity: Double?,
+        val quantities: List<Double?>,
         val unit: String?,
+        val optional: Boolean = false,
     ) {
-        override fun toString() = listOfNotNull(quantity?.let(::number), unit, names.first()).joinToString(" ")
+        override fun toString() =
+            listOfNotNull(quantities.filterNotNull().joinToString(" or ") { number(it) }.ifEmpty { null }, unit, names.first()).joinToString(" ")
     }
 
     data class Result(
@@ -94,10 +100,12 @@ class RecipeIngredientsTest {
     private fun expected(file: Path): List<Expected> =
         Json.parseToJsonElement(file.readText()).jsonObject.getValue("ingredients").jsonArray.map { element ->
             val ingredient = element.jsonObject
+            val quantity = ingredient["quantity"]
             Expected(
                 ingredient.getValue("names").jsonArray.map { it.jsonPrimitive.content },
-                ingredient["quantity"]?.jsonPrimitive?.doubleOrNull,
+                if (quantity is JsonArray) quantity.map { it.jsonPrimitive.doubleOrNull } else listOf(quantity?.jsonPrimitive?.doubleOrNull),
                 ingredient["unit"]?.jsonPrimitive?.contentOrNull,
+                ingredient["optional"]?.jsonPrimitive?.booleanOrNull == true,
             )
         }
 
@@ -112,15 +120,30 @@ class RecipeIngredientsTest {
         for (ingredient in expected) {
             val match = left.firstOrNull { named(it.name, ingredient.names) }
             if (match == null) {
-                missing += "$ingredient"
+                if (!ingredient.optional) missing += "$ingredient"
                 continue
             }
             left -= match
-            val sameQuantity = (match.quantity == null) == (ingredient.quantity == null) &&
-                (match.quantity == null || abs(match.quantity - ingredient.quantity!!) < 0.001)
-            if (!sameQuantity || unit(match.unit) != unit(ingredient.unit)) missing += "$ingredient (answered $match)"
+            val sameQuantity =
+                ingredient.quantities.any { quantity ->
+                    (match.quantity == null) == (quantity == null) && (match.quantity == null || abs(match.quantity - quantity!!) < 0.001)
+                }
+            if (!sameQuantity || !sameUnit(match, ingredient)) missing += "$ingredient (answered $match)"
         }
         return Result(missing, left)
+    }
+
+    // the unit of the photo, or the unit as part of the word of the name: 2 Knoblauchzehen is 2 Zehe
+    // Knoblauch
+    private fun sameUnit(
+        match: Ingredient,
+        ingredient: Expected,
+    ): Boolean {
+        val expected = unit(ingredient.unit)
+        if (unit(match.unit) == expected) return true
+        if (match.unit != null || ingredient.unit == null) return false
+        val glued = ingredient.names.map { (words(it).joinToString("") + ingredient.unit).lowercase() }
+        return words(match.name).any { word -> glued.any { word.startsWith(it) } }
     }
 
     private fun named(
@@ -213,15 +236,18 @@ class RecipeIngredientsTest {
         return 1
     }
 
-    // the ingredients the recognizer of the deployment reads in the photo
+    // the items the backend answers for the photo: what the recognizer of the deployment reads in it,
+    // within the limits of an item and merged (GroceryDiscovery.items)
     private fun ingredients(
         key: String,
         model: String,
         jpeg: ByteArray,
     ): List<Ingredient> =
-        OpenRouterIngredientRecognizer(SakConfig.DEFAULT_OPENROUTER_URL, key, model)
-            .ingredients(BlobContent(jpeg.size.toLong()) { jpeg.inputStream() }, "image/jpeg")
-            .map { Ingredient(it.name, it.quantity, it.unit?.takeIf { unit -> unit.isNotBlank() }) }
+        GroceryDiscovery
+            .items(
+                OpenRouterIngredientRecognizer(SakConfig.DEFAULT_OPENROUTER_URL, key, model)
+                    .ingredients(BlobContent(jpeg.size.toLong()) { jpeg.inputStream() }, "image/jpeg"),
+            ).map { Ingredient(it.name, it.amount?.toDouble(), it.unit) }
 
     companion object {
         private val UNITS =

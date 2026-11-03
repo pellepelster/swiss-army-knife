@@ -102,4 +102,48 @@ class GroceryDiscoveryTest {
             )
         GroceryDiscovery.items(List(150) { Ingredient("Item $it", null, null) }).size shouldBe GroceryDiscovery.MAX_ITEMS
     }
+
+    @Test
+    fun `an item named twice is one, its amounts of one unit added up`() {
+        GroceryDiscovery.items(
+            listOf(
+                Ingredient("Zwiebel", 1.0, null),
+                Ingredient("Erdnussöl", 2.0, "EL"),
+                Ingredient("Salz", null, null),
+                Ingredient("zwiebel", 1.0, null),
+                Ingredient("Erdnussöl", 1.0, "el"),
+                Ingredient("Salz", 1.0, "TL"),
+                Ingredient("Butter", 50.0, "g"),
+                Ingredient("Butter", 2.0, "EL"),
+                Ingredient("Pfeffer", null, null),
+                Ingredient("Pfeffer", null, null),
+                Ingredient("Zucker", 9_999_999.0, "g"),
+                Ingredient("Zucker", 5.0, "g"),
+                // the singular and the plural, under the plural
+                Ingredient("Ei", 1.0, null),
+                Ingredient("Eier", 4.0, null),
+                Ingredient("Tomaten", 2.0, null),
+                Ingredient("Tomate", 1.0, null),
+                Ingredient("Eigelb", 1.0, null),
+                Ingredient("Eier (Größe M)", 2.0, null),
+                // water from the tap is nothing to buy, other water is
+                Ingredient("kaltes Wasser", 1.0, "EL"),
+                Ingredient("Wasser", null, null),
+                Ingredient("Mineralwasser", 1.0, "l"),
+            ),
+        ) shouldBe
+            listOf(
+                DiscoveredItem("Zwiebel", BigDecimal("2"), null),
+                DiscoveredItem("Erdnussöl", BigDecimal("3"), "EL"),
+                DiscoveredItem("Salz", BigDecimal("1"), "TL"),
+                DiscoveredItem("Butter", BigDecimal("50"), "g"),
+                DiscoveredItem("Butter", BigDecimal("2"), "EL"),
+                DiscoveredItem("Pfeffer", null, null),
+                DiscoveredItem("Zucker", GroceryService.MAX_AMOUNT, "g"),
+                DiscoveredItem("Eier", BigDecimal("7"), null),
+                DiscoveredItem("Tomaten", BigDecimal("3"), null),
+                DiscoveredItem("Eigelb", BigDecimal("1"), null),
+                DiscoveredItem("Mineralwasser", BigDecimal("1"), "l"),
+            )
+    }
 }
