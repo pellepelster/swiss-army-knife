@@ -37,9 +37,17 @@ Before anything changes, sakctl shows a plan of what it will create, change or d
 
 ## The SAK instance
 
-A SAK instance is one server at Hetzner Cloud, with a name, for example `family`, and a domain. Its apps are at
-`sak.<domain>`, where you and your users sign in. All its data lives on its data volume, a disk that outlives the
-server: a deploy may replace the server, the data volume stays.
+A SAK instance is one server at Hetzner Cloud, with a name, for example `family`, and a root domain, for example
+`example.org`. Its apps are at its SAK address, where you and your users sign in. The **DNS Mode** of the SAK
+instance sets this address:
+
+- **Subdomain** (the default): the apps are at `sak.<name>.<root domain>`, for example `sak.family.example.org`.
+  More SAK instances can use the same root domain.
+- **Domain**: the apps are at `sak.<root domain>`, for example `sak.example.org`. The SAK instance uses the root
+  domain alone.
+
+All its data lives on its data volume, a disk that outlives the server: a deploy may replace the server, the data
+volume stays.
 
 The SAK instance runs on its own. Your computer and sakctl are only needed to set it up, change or update it, and for
 backups and maintenance.

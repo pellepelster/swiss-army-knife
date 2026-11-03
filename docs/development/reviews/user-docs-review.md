@@ -59,7 +59,9 @@ OpenRouter to read the items in it. For the privacy policy of SAK Grocery List t
 Fix: name both in `privacy.md` and `features.md`: the text of a photo or a recording of a note, and the items in a
 photo for a grocery list.
 
-### `UD-4` The overview gives the wrong address of the apps
+### ~~`UD-4` The overview gives the wrong address of the apps~~
+
+**Fixed:** the overview names both DNS modes and the SAK address of each.
 
 `overview.md` says "Its apps are at `sak.<domain>`". With the dns mode `subdomain`, the default, the address is
 `sak.<name>.<root domain>`.
