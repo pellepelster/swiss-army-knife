@@ -10,6 +10,11 @@ publish = false
 sha2 = "0.11.0"
 tauri-build = { version = "2.7.4", features = [] }
 
+[features]
+# the console program of windows (sakctl-cli.exe): the same sakctl, but a console program, so its
+# commands print to the terminal; elsewhere it changes nothing
+console = []
+
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
 serde = { version = "1", features = ["derive"] }

@@ -34,11 +34,26 @@ fn platform() -> String {
     }
 }
 
-/// the binary in the zip
+/// the binaries in the zip: on windows the window (sakctl.exe, without a console) and the
+/// console program for the command line (sakctl-cli.exe, the feature `console`); the update
+/// replaces all of them
 #[cfg(windows)]
-const BINARY: &str = "sakctl.exe";
+const BINARIES: &[&str] = &["sakctl.exe", "sakctl-cli.exe"];
 #[cfg(not(windows))]
-const BINARY: &str = "sakctl";
+const BINARIES: &[&str] = &["sakctl"];
+
+/// the binary of the zip that runs: the one of the name of this program, the first one when it
+/// was renamed
+fn running() -> &'static str {
+    let name = std::env::current_exe().ok().and_then(|path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().to_string())
+    });
+    BINARIES
+        .iter()
+        .find(|binary| name.as_deref() == Some(**binary))
+        .unwrap_or(&BINARIES[0])
+}
 
 /// what a check found
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -166,8 +181,18 @@ impl Updater {
             .download(&release.checksum.browser_download_url)
             .await?;
         verify(&zip, &checksum, &release.zip.name)?;
-        let binary = unzip(&zip, &release.zip.name)?;
-        write_and_replace(&binary, replace)?;
+        let binaries = BINARIES
+            .iter()
+            .map(|binary| Ok((*binary, unzip(&zip, &release.zip.name, binary)?)))
+            .collect::<Result<Vec<_>, String>>()?;
+        // the others next to this one first, the running one last
+        let running = running();
+        for (name, binary) in binaries.iter().filter(|(name, _)| *name != running) {
+            write_beside(name, binary)?;
+        }
+        if let Some((_, binary)) = binaries.iter().find(|(name, _)| *name == running) {
+            write_and_replace(binary, replace)?;
+        }
         Ok(status)
     }
 
@@ -325,10 +350,10 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
     }
 }
 
-fn unzip(zip: &[u8], name: &str) -> Result<Vec<u8>, String> {
-    let no_binary = |_| t!("common.update.no_binary", name = name, binary = BINARY).to_string();
+fn unzip(zip: &[u8], name: &str, binary: &str) -> Result<Vec<u8>, String> {
+    let no_binary = |_| t!("common.update.no_binary", name = name, binary = binary).to_string();
     let mut archive = zip::ZipArchive::new(Cursor::new(zip)).map_err(no_binary)?;
-    let mut file = archive.by_name(BINARY).map_err(no_binary)?;
+    let mut file = archive.by_name(binary).map_err(no_binary)?;
     let mut binary = Vec::new();
     file.read_to_end(&mut binary)
         .map_err(|error| no_binary(zip::result::ZipError::Io(error)))?;
@@ -357,6 +382,27 @@ fn write_and_replace(
     let _ = std::fs::remove_file(&path);
     result.map_err(|error| {
         let target = std::env::current_exe().unwrap_or_default();
+        t!(
+            "common.update.not_replaced",
+            path = target.display().to_string(),
+            error = error.to_string()
+        )
+        .to_string()
+    })
+}
+
+/// a binary that does not run, next to the running one: written beside it and renamed over it,
+/// so a failed write leaves the old one
+fn write_beside(name: &str, binary: &[u8]) -> Result<(), String> {
+    let target = std::env::current_exe()
+        .map(|path| path.with_file_name(name))
+        .unwrap_or_else(|_| std::path::PathBuf::from(name));
+    let staged = target.with_extension("update");
+    let result = std::fs::write(&staged, binary).and_then(|()| std::fs::rename(&staged, &target));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&staged);
+    }
+    result.map_err(|error| {
         t!(
             "common.update.not_replaced",
             path = target.display().to_string(),
@@ -485,7 +531,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_update_replaces_the_binary_with_the_one_of_the_zip() {
-        let zip = zip_of(BINARY, b"the new sakctl");
+        let zip = zip_of(BINARIES[0], b"the new sakctl");
         let checksum = sha256_of(&zip);
         let server = github("v0.2.0", zip, &checksum).await;
         let replaced = Mutex::new(Vec::new());
@@ -522,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_wrong_checksum_or_a_zip_without_the_binary_replaces_nothing() {
-        let wrong = zip_of(BINARY, b"the new sakctl");
+        let wrong = zip_of(BINARIES[0], b"the new sakctl");
         let without = zip_of("README", b"no binary");
         for (zip, checksum) in [
             (wrong.clone(), sha256_of(b"something else")),

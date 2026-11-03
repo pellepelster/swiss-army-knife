@@ -58,7 +58,8 @@ it changes anything.
   <img src="docs/screenshots/sakctl-ui.gif" alt="Installing a SAK instance with the sakctl UI" width="560">
 </p>
 
-**The command line, for advanced users:** the same as commands, for scripts and automation.
+**The command line, for advanced users:** the same as commands, for scripts and automation (on Windows the program
+`sakctl-cli.exe`).
 
 <p align="center">
   <img src="docs/screenshots/sakctl-cli-help.png" alt="The help of the sakctl command line" width="80%">

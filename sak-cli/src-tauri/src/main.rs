@@ -1,6 +1,10 @@
 // no console window next to the app in windows release builds; there the commands of cli/
-// print nothing
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// print nothing. The feature `console` builds the console program of windows, sakctl-cli.exe,
+// whose commands print to the terminal they run in (cli:build:windows)
+#![cfg_attr(
+    all(not(debug_assertions), not(feature = "console")),
+    windows_subsystem = "windows"
+)]
 
 //! sakctl: the window (gui) or, with a command as the first argument, the command line
 //! (cli), both on the same core

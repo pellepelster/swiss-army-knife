@@ -194,17 +194,21 @@ zip -j "build/sak-cli-macos-universal-${VERSION}.zip" src-tauri/target/universal
 (cd build && shasum -a 256 "sak-cli-macos-universal-${VERSION}.zip" > "sak-cli-macos-universal-${VERSION}.zip.sha256")
 """
 
-# git bash has no zip but 7-Zip; -e stops at a failed step like sh does elsewhere
+# git bash has no zip but 7-Zip; -e stops at a failed step like sh does elsewhere. Two programs in
+# the zip: sakctl.exe, the window without a console, and sakctl-cli.exe, the same built with the
+# feature console as a console program, whose commands print to the terminal
 [tasks."cli:build:windows"]
 description = "Build sakctl for windows"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli"
 shell = "bash -e -c"
 run = """
-tauri build --no-bundle
 mkdir -p build
+tauri build --no-bundle --features console
+cp src-tauri/target/release/sakctl.exe build/sakctl-cli.exe
+tauri build --no-bundle
 rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
-7z a -tzip "build/sak-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe
+7z a -tzip "build/sak-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe ./build/sakctl-cli.exe
 (cd build && sha256sum "sak-cli-windows-x86_64-${VERSION}.zip" > "sak-cli-windows-x86_64-${VERSION}.zip.sha256")
 """
 

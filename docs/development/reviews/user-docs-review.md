@@ -206,7 +206,10 @@ installation and the first steps.
 
 Fix: the same link as in `features.md`.
 
-### `UD-18` The command line is not on every system
+### ~~`UD-18` The command line is not on every system~~
+
+**Fixed:** the release for Windows has a console program for the command line, `sakctl-cli.exe`, next to
+`sakctl.exe`; the installation and the README name it.
 
 "**The command line, for advanced users:** the same as commands" does not say that the command line of
 `sakctl.exe` shows no output on Windows (`installation.md`).

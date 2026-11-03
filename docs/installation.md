@@ -7,7 +7,7 @@ weight: 5
 # Installation
 
 sakctl is the program on your computer that creates your SAK instance, keeps it up to date, backs it up and
-destroys it. It has a UI and, on Linux and macOS, a command line. There is no installer: sakctl is a single program.
+destroys it. It has a UI and a command line. There is no installer: sakctl is a single program.
 
 ## What you need
 
@@ -56,8 +56,16 @@ In PowerShell:
 Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. If Windows SmartScreen warns about it, click **More info**,
 then **Run anyway**.
 
-On Windows, use the UI: the command line of `sakctl.exe` shows no output. The UI needs the Microsoft Edge WebView2
-runtime, which Windows 10 and 11 have.
+On Windows, sakctl is two programs, both in `%LOCALAPPDATA%\Programs\sakctl`:
+
+- **`sakctl.exe`** opens the UI. Start it in the Explorer, for example with a double click. On the command line it
+  shows no output.
+- **`sakctl-cli.exe`** is the command line. Use it in PowerShell or the command prompt, for example
+  `& "$env:LOCALAPPDATA\Programs\sakctl\sakctl-cli.exe" --help`. Where this page and the help say `sakctl`, type
+  `sakctl-cli.exe`. Without a command, it also opens the UI, but with a console window next to it.
+
+An update, in the UI or with `sakctl-cli.exe update`, replaces both programs. If `sakctl-cli.exe` is missing, run the
+commands above again. The UI needs the Microsoft Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## Update
 
