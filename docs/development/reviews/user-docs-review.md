@@ -153,3 +153,69 @@ features") and the heading "Documentation — How Swiss Army Knife is built and 
 developers. The page is the first page for users.
 
 Fix: a description for users (what SAK is, how to install it, the apps), and the development as one entry of the list.
+
+## README
+
+### `UD-13` "Nothing goes to a third party" is not true for the downloads
+
+`README.md` and `features.md` start the privacy with "Nothing goes to a third party unless you turn it on". sakctl,
+the server and the native Android apps download from GitHub and Docker Hub, which see the IP address
+(`features.md`, "Downloads from GitHub").
+
+Fix: "Your data never goes to a third party unless you turn it on", and in the README one sentence on the downloads
+from GitHub with a link to the features.
+
+### `UD-14` "No accounts" contradicts the users that the admin adds
+
+`README.md` and `features.md`: "**No accounts:** no sign-up and no passwords to remember". The admin adds each user
+by the e-mail address, which is an account, and the admin signs in with a password.
+
+Fix: "**No passwords for users:** no sign-up, users sign in with a link sent by e-mail."
+
+### `UD-15` The README does not say what the AI features do
+
+`README.md` says only that the AI features are off until an admin turns them on. `features.md` says what they read
+and that only the user starts them.
+
+Fix: one sentence as in `features.md`: they read the text of a photo or a recording of a note and the items in a
+photo for a grocery list, and only the user starts them.
+
+### `UD-16` The README does not lead to the first steps and does not say what you need
+
+"Get started" links the installation and the features, not [the first steps](../../first-steps.md). The README
+never says that SAK needs a Hetzner Cloud project and a domain with its DNS zone at Hetzner.
+
+Fix: "Get started" lists what you need (a Hetzner Cloud project, a domain, Docker or Podman) and links the
+installation and the first steps.
+
+### `UD-17` The README does not link the installation of the web apps
+
+"Across all devices" says that every app "installs on the home screen (PWA)" without a link;
+`features.md` links [the web apps](../../apps/android/web-apps.md).
+
+Fix: the same link as in `features.md`.
+
+### `UD-18` The command line is not on every system
+
+"**The command line, for advanced users:** the same as commands" does not say that the command line of
+`sakctl.exe` shows no output on Windows (`installation.md`).
+
+Fix: "on Linux and macOS".
+
+## sakctl texts (`i18n/texts.yml`)
+
+### `UD-19` The UI and the command line of sakctl say "deployment"
+
+The documentation for users says "SAK instance" (`UD-5`), but sakctl, which the documentation shows step by step,
+says "deployment": 49 English texts of `ctl.common` and `ctl.cli` and 37 of `ctl.ui`, the German texts
+"Deployment" 87 times. Examples: **Create deployment** (the button of the list and the button of the plan, the title
+of the form), **Deployments** (the title of the list), "Looking for deployments at the providers…", "Password of the
+deployment: ", "The deployment %{name} is up-to-date.", the hints of the DNS mode ("The deployment manages …").
+The texts of the apps say "SAK instance" already; the only other "deployment" is the "deployment target" of Hugo in
+static hosting, a term of another tool, which stays.
+
+The verb stays: the command `sakctl deploy`, **Deploy changes**, **Force deploy**, "a deploy".
+
+Fix, when the glossary changes: every noun "deployment" of `ctl.*` becomes "SAK instance" ("SAK-Instanz"), e.g.
+**Create SAK instance**, **SAK instances**, "Password of the SAK instance: "; the code keeps its names
+(`DeploymentManager`). Then the documentation can quote the labels without an exception.
