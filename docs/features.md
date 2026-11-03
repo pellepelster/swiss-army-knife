@@ -27,7 +27,7 @@ server or the phone that downloads, but never your data:
   update.
 
 **No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
-the Android apps. Read the [privacy policy of the Android apps](apps/android/privacy.md).
+the native Android apps. Read the [privacy policy of the Android apps](apps/android/privacy.md).
 
 The AI features read the text of a photo or a recording of a note, and the items in a photo for a grocery list. They
 are off until an admin turns them on with the API key of their own OpenRouter account. They never start
@@ -71,8 +71,9 @@ Both can:
 
 ## Across all devices
 
-Every app works in the browser on a desktop and on a phone, and installs on the home screen (PWA, [install the web apps on Android](apps/android/web-apps.md)). The notes and the
-grocery lists also have an Android app; [install the native Android apps](apps/android/native-apps.md).
+Every app works in the browser on a desktop and on a phone. On Android, you can [install it on the home
+screen](apps/android/web-apps.md) as a web app (PWA). The notes and the grocery lists also have a native Android app;
+[install the native Android apps](apps/android/native-apps.md).
 
 On a desktop:
 
@@ -82,9 +83,9 @@ In the browser of a phone:
 
 ![The notes in the browser of a phone](screenshots/web-notes-mobile.png)
 
-In the Android app:
+In the native Android app:
 
-![The notes in the Android app](screenshots/android-notes.png)
+![The notes in the native Android app](screenshots/android-notes.png)
 
 ## Light and dark
 

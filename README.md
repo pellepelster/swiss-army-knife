@@ -24,7 +24,7 @@ server, set up and looked after by one program, sakctl.
 - **Static hosting:** websites from S3 buckets, at their own domain or at a subdomain.
 - **Redirects:** domains that lead to another address, with automatic TLS certificates.
 
-The notes and the grocery lists also have an Android app.
+The notes and the grocery lists also have a native Android app.
 
 ## Privacy first
 
@@ -32,7 +32,7 @@ Nothing goes to a third party unless you turn it on. The apps load nothing from 
 server. The AI features are off until an admin turns them on with their own OpenRouter API key.
 
 **No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
-the Android apps.
+the native Android apps.
 
 ## Users
 
@@ -73,9 +73,9 @@ dark mode of the device.
 <p align="center">
   <img src="docs/screenshots/web-notes-mobile.png" alt="The notes in the browser of a phone" width="30%">
   &nbsp;
-  <img src="docs/screenshots/android-notes.png" alt="The notes in the Android app" width="30%">
+  <img src="docs/screenshots/android-notes.png" alt="The notes in the native Android app" width="30%">
   &nbsp;
-  <img src="docs/screenshots/android-notes-dark.png" alt="The notes in the Android app in the dark mode" width="30%">
+  <img src="docs/screenshots/android-notes-dark.png" alt="The notes in the native Android app in the dark mode" width="30%">
 </p>
 
 ## Get started

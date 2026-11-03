@@ -105,7 +105,10 @@ pages and the UI say "sign in".
 
 Fix: "Sign in with just your e-mail address".
 
-### `UD-8` The names of the Android apps
+### ~~`UD-8` The names of the Android apps~~
+
+**Fixed:** the features and the README say "native Android app" where they mean it; the privacy policy names SAK
+Notes first. The labels of the UI ("Android apps") and the title of the privacy policy stay.
 
 Since the web apps have their own page, "the Android app" is not clear: `README.md` ("The notes and the grocery lists
 also have an Android app") and `features.md` ("also have an Android app", "In the Android app") mean the native apps.
@@ -122,7 +125,9 @@ Fix: take the screenshots again after that SAK instance is updated.
 
 ## Wording
 
-### `UD-10` The sentence about the web apps in the features
+### ~~`UD-10` The sentence about the web apps in the features~~
+
+**Fixed:** the link is no longer in parentheses, the lines are at most 120 characters.
 
 `features.md`: "and installs on the home screen (PWA, install the web apps on Android)" puts a link in
 parentheses, and the line is longer than 120 characters.

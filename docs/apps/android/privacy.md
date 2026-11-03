@@ -1,7 +1,7 @@
 ---
 title: "Privacy Policy of the Android Apps"
 linkTitle: "Privacy"
-description: "The privacy policy of the Android apps SAK Grocery List and SAK Notes: the apps send your data only to the SAK instance you operate."
+description: "The privacy policy of the Android apps SAK Notes and SAK Grocery List: the apps send your data only to the SAK instance you operate."
 weight: 10
 ---
 
@@ -9,8 +9,8 @@ weight: 10
 
 This policy applies to these Android apps of Swiss Army Knife (SAK):
 
-- SAK Grocery List (`io.pelle.sak.grocery`)
 - SAK Notes (`io.pelle.sak.notes`)
+- SAK Grocery List (`io.pelle.sak.grocery`)
 
 Effective date: 3 November 2026
 
