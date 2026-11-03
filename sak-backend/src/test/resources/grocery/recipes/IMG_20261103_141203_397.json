@@ -1,0 +1,59 @@
+{
+  "recipe": "Vegetarische Carbonara, 4 Portionen; Salz und Pfeffer in one line",
+  "ingredients": [
+    {
+      "names": [
+        "Spaghetti"
+      ],
+      "quantity": 400,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Eier",
+        "Ei"
+      ],
+      "quantity": 4
+    },
+    {
+      "names": [
+        "Hartkäse",
+        "Montello"
+      ],
+      "quantity": 150,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "getrocknete Tomaten",
+        "Tomaten"
+      ],
+      "quantity": 100,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Knoblauch"
+      ],
+      "quantity": 2,
+      "unit": "Zehe"
+    },
+    {
+      "names": [
+        "Butter"
+      ],
+      "quantity": 30,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Salz"
+      ]
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ]
+    }
+  ]
+}

@@ -1,9 +1,12 @@
 package io.pelle.sak.grocery.api
 
+import androidx.annotation.StringRes
 import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.GroceryCategoryOrderRequest
 import io.pelle.sak.api.model.GroceryCategoryRequest
 import io.pelle.sak.api.model.GroceryCategoryResponse
+import io.pelle.sak.api.model.GroceryDiscoveredItem
+import io.pelle.sak.api.model.GroceryDiscoveredResponse
 import io.pelle.sak.api.model.GroceryItemCategoryRequest
 import io.pelle.sak.api.model.GroceryItemRequest
 import io.pelle.sak.api.model.GroceryItemResponse
@@ -11,6 +14,7 @@ import io.pelle.sak.api.model.GroceryListRequest
 import io.pelle.sak.api.model.GroceryListResponse
 import io.pelle.sak.api.model.GroceryNewItemRequest
 import io.pelle.sak.api.model.GroceryPhotoRequest
+import io.pelle.sak.api.model.GrocerySettingsResponse
 import io.pelle.sak.api.model.GrocerySuggestionResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.ktor.client.HttpClient
@@ -129,17 +133,19 @@ class GroceryApi(
             }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
-    // the values of an item, to buy or bought, e.g. its name with a spelling error fixed
+    // the values of an item, to buy or bought, e.g. its name with a spelling error fixed or its
+    // quantity (GROCERY-15); failure is the text when the backend sends none
     suspend fun updateItem(
         id: Int,
         request: GroceryItemRequest,
+        @StringRes failure: Int = R.string.grocery_item_not_renamed,
     ): GroceryItemResponse =
         client
             .put("$url/grocery/items/$id") {
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(request)
-            }.answer(R.string.grocery_item_not_renamed)
+            }.answer(failure)
 
     // the item goes for good, it is no history and no suggestion (DELETE answers 204, no body)
     suspend fun deleteItem(id: Int) {
@@ -159,6 +165,38 @@ class GroceryApi(
                 setBody(jpeg)
             }.answer<FileResponse>(R.string.grocery_photo_not_attached)
             .id
+
+    // a photo of a recipe or a shopping list into the file storage, a jpeg scaled down already, to
+    // discover its items in (GROCERY-16); the id of its file
+    suspend fun uploadDiscoverPhoto(jpeg: ByteArray): Int =
+        client
+            .post("$url/files") {
+                session()
+                longTransfer()
+                contentType(ContentType.Image.JPEG)
+                setBody(jpeg)
+            }.answer<FileResponse>(R.string.grocery_discover_not_read)
+            .id
+
+    // the items the AI discovers in a photo of the file storage, with their quantity (GROCERY-16);
+    // nothing is added to a list. The backend reads it only with the AI features of the grocery lists
+    // turned on
+    suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItem> =
+        client
+            .post("$url/grocery/discover/$fileId") {
+                session()
+                longTransfer()
+            }.answer<GroceryDiscoveredResponse>(R.string.grocery_discover_not_read)
+            .items
+
+    // whether the AI discovers the items of a photo: the AI features of the grocery lists are turned on
+    // and a provider is set up; every signed in user may ask (GET /grocery/settings), the backend
+    // still refuses a discover while they are off
+    suspend fun discoverAvailable(): Boolean =
+        client
+            .get("$url/grocery/settings") { session() }
+            .answer<GrocerySettingsResponse>(R.string.grocery_discover_not_read)
+            .discoverItems
 
     // the photo of the item, and of the next item of its name on the list (GROCERY-12)
     suspend fun attachPhoto(

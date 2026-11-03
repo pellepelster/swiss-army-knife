@@ -32,12 +32,14 @@ import { apiErrorMessage } from '../shared/api';
 import { PendingUndo } from '../shared/pending-undo';
 import { UndoToast } from '../shared/undo-toast';
 import { ListIcon } from './list-icon';
+import { amountText, parseAmount, UnitOption, unitOptions } from './grocery-quantity';
 import { GroceryPhotos, PHOTO_IN_ROW, PhotoInRowPipe } from './grocery-photos';
 import { PhotoScaler } from '../notes/photo-scaler';
 import { ActionMenu } from '../shared/action-menu';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import {
   GroceryCategory,
+  GroceryDiscoveredItem,
   GroceryItem,
   GroceryList,
   GroceryService,
@@ -61,6 +63,20 @@ function byToBuyThenBought(a: GroceryItem, b: GroceryItem): number {
     return a.checkedAt < b.checkedAt ? 1 : -1;
   }
   return a.id - b.id;
+}
+
+// one item the AI read in a photo, as the user corrects it before it is added (GROCERY-16); the
+// errors show once a field is left or the items are added
+interface DiscoveredRow {
+  key: number;
+  include: boolean;
+  name: string;
+  amount: string;
+  unit: string;
+  // the units to choose, the one the AI read among them
+  units: UnitOption[];
+  nameEmpty: boolean;
+  amountInvalid: boolean;
 }
 
 // one group of the items to buy, of a category or of none
@@ -92,6 +108,15 @@ interface ItemGroup {
   host: {
     class: 'd-block container pb-5',
   },
+  // the number of a quantity wide enough for its longest one, the unit as wide as its label
+  styles: `
+    .quantity-amount {
+      width: 8rem;
+    }
+    .quantity-unit {
+      width: auto;
+    }
+  `,
   template: `
     <header appPageHeader back="/grocery" [backLabel]="'grocery.all_lists' | t">
       @if (shown(); as list) {
@@ -151,6 +176,21 @@ interface ItemGroup {
             [value]="itemName()"
             (input)="typed(name.value)"
           />
+          <!-- the robot reads the items in a photo, only with the AI features turned on; its label
+               names OpenRouter, where the photo goes (GROCERY-16, PRIVACY-2) -->
+          @if (discoverItems()) {
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              data-testid="discover"
+              [attr.aria-label]="'grocery.discover.label' | t"
+              [title]="'grocery.discover.label' | t"
+              [disabled]="discovering()"
+              (click)="chooseDiscoverPhoto()"
+            >
+              <i class="fa-solid fa-robot" aria-hidden="true"></i>
+            </button>
+          }
           <button class="btn btn-primary" type="submit" [disabled]="!itemName().trim() || adding()">
             @if (adding()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -160,12 +200,162 @@ interface ItemGroup {
             {{ 'grocery.list.add_item' | t }}
           </button>
         </div>
+        @if (discovering()) {
+          <p class="mt-2 mb-0 text-body-secondary" role="status" data-testid="discover-reading">
+            <i class="fa-solid fa-spinner fa-spin me-2" aria-hidden="true"></i
+            >{{ 'grocery.discover.reading' | t }}
+          </p>
+        }
         <datalist id="grocery-suggestions">
           @for (suggestion of suggestions(); track suggestion.id) {
             <option [value]="suggestion.name"></option>
           }
         </datalist>
       </form>
+
+      <!-- the items read in the photo, in the page, not in a dialog (WEB-3): corrected, left out or
+           added at once; cancel adds none (GROCERY-16) -->
+      @if (discovered(); as rows) {
+        <form
+          id="discovered"
+          class="card card-body mb-4"
+          tabindex="-1"
+          aria-labelledby="discovered-title"
+          data-testid="discovered"
+          (submit)="$event.preventDefault(); addDiscovered()"
+        >
+          <!-- nothing changes while the items are added, their answers would undo it -->
+          <fieldset class="border-0 p-0 m-0" [disabled]="addingDiscovered()">
+            <h2 class="h5" id="discovered-title">{{ 'grocery.discover.title' | t }}</h2>
+            @if (rows.length) {
+              <p class="text-body-secondary">{{ 'grocery.discover.hint' | t }}</p>
+              <ul class="list-unstyled mb-0">
+                @for (row of rows; track row.key; let index = $index) {
+                  <li
+                    class="d-flex flex-wrap align-items-start gap-2 mb-2"
+                    [attr.data-testid]="'discovered-' + index"
+                  >
+                    <input
+                      type="checkbox"
+                      class="form-check-input flex-shrink-0 mt-2"
+                      [checked]="row.include"
+                      [attr.aria-label]="'grocery.discover.include' | t: { name: row.name }"
+                      (change)="changeDiscovered(row.key, { include: $any($event.target).checked })"
+                    />
+                    <div class="flex-grow-1 min-w-0">
+                      <input
+                        class="form-control"
+                        maxlength="128"
+                        autocomplete="off"
+                        required
+                        [id]="'discovered-name-' + row.key"
+                        [class.is-invalid]="row.include && row.nameEmpty"
+                        [attr.aria-label]="'grocery.discover.name_of' | t: { number: index + 1 }"
+                        [attr.aria-describedby]="
+                          row.include && row.nameEmpty ? 'discovered-name-error-' + row.key : null
+                        "
+                        [value]="row.name"
+                        (input)="
+                          changeDiscovered(row.key, {
+                            name: $any($event.target).value,
+                            nameEmpty: false,
+                          })
+                        "
+                        (blur)="
+                          changeDiscovered(row.key, {
+                            nameEmpty: !$any($event.target).value.trim(),
+                          })
+                        "
+                      />
+                      @if (row.include && row.nameEmpty) {
+                        <div
+                          class="invalid-feedback d-block"
+                          [id]="'discovered-name-error-' + row.key"
+                        >
+                          {{ 'grocery.list.name_required' | t }}
+                        </div>
+                      }
+                    </div>
+                    <div
+                      class="d-flex align-items-start gap-2"
+                      role="group"
+                      [attr.aria-label]="'grocery.quantity.of' | t: { name: row.name }"
+                    >
+                      <div class="quantity-amount">
+                        <input
+                          class="form-control"
+                          inputmode="decimal"
+                          autocomplete="off"
+                          [id]="'discovered-amount-' + row.key"
+                          [class.is-invalid]="row.include && row.amountInvalid"
+                          [attr.aria-label]="'grocery.quantity.amount' | t"
+                          [attr.aria-describedby]="
+                            row.include && row.amountInvalid
+                              ? 'discovered-amount-error-' + row.key
+                              : null
+                          "
+                          [value]="row.amount"
+                          (input)="
+                            changeDiscovered(row.key, {
+                              amount: $any($event.target).value,
+                              amountInvalid: false,
+                            })
+                          "
+                          (blur)="
+                            changeDiscovered(row.key, {
+                              amountInvalid: parseAmount($any($event.target).value) === undefined,
+                            })
+                          "
+                        />
+                        @if (row.include && row.amountInvalid) {
+                          <div
+                            class="invalid-feedback d-block"
+                            [id]="'discovered-amount-error-' + row.key"
+                          >
+                            {{ 'grocery.quantity.invalid' | t }}
+                          </div>
+                        }
+                      </div>
+                      <select
+                        class="form-select quantity-unit"
+                        [id]="'discovered-unit-' + row.key"
+                        [attr.aria-label]="'grocery.quantity.unit' | t"
+                        (change)="changeDiscovered(row.key, { unit: $any($event.target).value })"
+                      >
+                        <option value="" [selected]="row.unit === ''">
+                          {{ 'grocery.quantity.no_unit' | t }}
+                        </option>
+                        @for (unit of row.units; track unit.value) {
+                          <option [value]="unit.value" [selected]="unit.value === row.unit">
+                            {{ unit.label }}
+                          </option>
+                        }
+                      </select>
+                    </div>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="mb-0">{{ 'grocery.discover.none' | t }}</p>
+            }
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button type="button" class="btn btn-outline-secondary" (click)="closeDiscovered()">
+                {{ 'shared.cancel' | t }}
+              </button>
+              @if (rows.length) {
+                <button type="submit" class="btn btn-primary" [disabled]="!canAddDiscovered()">
+                  @if (addingDiscovered()) {
+                    <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                  } @else {
+                    <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+                  }
+                  {{ 'grocery.discover.add' | t }}
+                </button>
+              }
+            </div>
+          </fieldset>
+        </form>
+      }
 
       @for (group of toBuy(); track group.key) {
         <h2
@@ -239,6 +429,67 @@ interface ItemGroup {
               </div>
             }
           </div>
+        } @else if (quantityOf() === item.id) {
+          <!-- the quantity in fields, a number and a unit (GROCERY-15): Enter or Save saves, Escape
+               or Cancel keeps it; leaving a field saves nothing, there are two of them, the number
+               is checked when it is left (UX-6) -->
+          <div
+            class="flex-grow-1 min-w-0 px-3 py-2 d-flex flex-wrap align-items-start gap-2"
+            role="group"
+            [attr.aria-label]="'grocery.quantity.of' | t: { name: item.name }"
+            (keydown.escape)="$event.preventDefault(); cancelQuantity(item)"
+          >
+            <span class="item-name text-break align-self-center me-auto">{{ item.name }}</span>
+            <div class="quantity-amount">
+              <input
+                #amountField
+                [id]="'amount-' + item.id"
+                class="form-control"
+                inputmode="decimal"
+                autocomplete="off"
+                [class.is-invalid]="quantityInvalid()"
+                [attr.aria-label]="'grocery.quantity.amount' | t"
+                [attr.aria-describedby]="quantityInvalid() ? 'amount-error-' + item.id : null"
+                [value]="amountText(item.amount)"
+                (input)="quantityInvalid.set(false)"
+                (blur)="checkAmount(amountField)"
+                (keydown.enter)="
+                  $event.preventDefault(); saveQuantity(item, amountField, unitField)
+                "
+              />
+              @if (quantityInvalid()) {
+                <div class="invalid-feedback d-block" [id]="'amount-error-' + item.id">
+                  {{ 'grocery.quantity.invalid' | t }}
+                </div>
+              }
+            </div>
+            <select
+              #unitField
+              [id]="'unit-' + item.id"
+              class="form-select quantity-unit"
+              [attr.aria-label]="'grocery.quantity.unit' | t"
+              (keydown.enter)="$event.preventDefault(); saveQuantity(item, amountField, unitField)"
+            >
+              <option value="" [selected]="item.unit == null">
+                {{ 'grocery.quantity.no_unit' | t }}
+              </option>
+              @for (unit of quantityUnits(); track unit.value) {
+                <option [value]="unit.value" [selected]="unit.value === item.unit">
+                  {{ unit.label }}
+                </option>
+              }
+            </select>
+            <button
+              type="button"
+              class="btn btn-primary"
+              (click)="saveQuantity(item, amountField, unitField)"
+            >
+              {{ 'shared.save' | t }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="cancelQuantity(item)">
+              {{ 'shared.cancel' | t }}
+            </button>
+          </div>
         } @else {
           <button
             type="button"
@@ -271,6 +522,17 @@ interface ItemGroup {
             (click)="startRename(item)"
           >
             <i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'grocery.list.rename' | t }}
+          </button>
+          <button
+            type="button"
+            class="dropdown-item"
+            role="menuitem"
+            [disabled]="quantityOf() === item.id"
+            [title]="quantityOf() === item.id ? ('grocery.quantity.editing' | t) : ''"
+            (click)="startQuantity(item)"
+          >
+            <i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i
+            >{{ 'grocery.quantity.label' | t }}
           </button>
           <button
             type="button"
@@ -333,6 +595,16 @@ interface ItemGroup {
         </app-action-menu>
       </li>
     </ng-template>
+
+    <!-- the photo the robot reads the items in; no capture either (GROCERY-16) -->
+    <input
+      #discoverInput
+      type="file"
+      accept="image/*"
+      hidden
+      data-testid="discover-input"
+      (change)="discoverChosen($any($event.target))"
+    />
 
     <!-- the photo chosen for the item of photoFor; no capture, so a phone offers the camera and the
          photos it has -->
@@ -462,12 +734,21 @@ export class GroceryPage {
 
   constructor() {
     this.loadLists();
+    this.service
+      .settings()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (settings) => this.discoverItems.set(settings.discoverItems === true),
+        error: () => this.discoverItems.set(false),
+      });
     // the items and the categories of the list shown, anew when another one is chosen; what was done on the list
     // before goes to the backend
     effect(() => {
       const list = this.shown();
       untracked(() => {
         this.pending.commit();
+        // the items read for another list go with it, they are never added to this one
+        if (list?.id !== this.discoveredList) this.closeDiscoveredOf();
         this.loadItems(list);
       });
     });
@@ -563,7 +844,7 @@ export class GroceryPage {
       { text: this.i18n.t('grocery.list.bought', { name: item.name }) },
       () => {
         this.struck.update((ids) => without(ids, item.id));
-        this.closeRename(item.id);
+        this.closeFields(item.id);
         // bought on another device meanwhile: done already, nothing to send
         const bought = !!this.items().find((each) => each.id === item.id)?.checkedAt;
         this.items.update((items) => items.filter((each) => each.id !== item.id));
@@ -608,7 +889,7 @@ export class GroceryPage {
       this.pending.dispose();
       this.struck.update((ids) => without(ids, item.id));
     }
-    this.closeRename(item.id);
+    this.closeFields(item.id);
     this.error.set(null);
     this.items.update((items) => items.filter((each) => each.id !== item.id));
     this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_deleted'));
@@ -623,6 +904,8 @@ export class GroceryPage {
   protected readonly renameEmpty = signal(false);
 
   protected startRename(item: GroceryItem): void {
+    // one field in a row at a time: the quantity is not saved
+    this.quantityOf.set(null);
     this.renameEmpty.set(false);
     this.renaming.set(item.id);
     afterNextRender(
@@ -637,15 +920,20 @@ export class GroceryPage {
 
   // Escape keeps the name, the focus goes back to the row
   protected cancelRename(item: GroceryItem): void {
-    this.closeRename(item.id);
+    this.closeFields(item.id);
     this.focusRow(item.id);
   }
 
-  // the field of the item closed, e.g. when the item leaves the list
-  private closeRename(id: number): void {
-    if (this.renaming() !== id) return;
-    this.renameEmpty.set(false);
-    this.renaming.set(null);
+  // the fields of the item closed, its name or its quantity, e.g. when the item leaves the list
+  private closeFields(id: number): void {
+    if (this.renaming() === id) {
+      this.renameEmpty.set(false);
+      this.renaming.set(null);
+    }
+    if (this.quantityOf() === id) {
+      this.quantityInvalid.set(false);
+      this.quantityOf.set(null);
+    }
   }
 
   // the focus on the row of the item once it shows again, not lost to the page
@@ -688,6 +976,214 @@ export class GroceryPage {
           this.loadItems(this.shown());
         },
       });
+  }
+
+  // the item whose quantity is in fields, to buy or bought, and the units to choose for it, the one it
+  // has among them (GROCERY-15); an amount that is no positive number is not saved
+  protected readonly quantityOf = signal<number | null>(null);
+  protected readonly quantityInvalid = signal(false);
+  protected readonly quantityUnits = signal<UnitOption[]>([]);
+  protected readonly amountText = amountText;
+  protected readonly parseAmount = parseAmount;
+
+  protected startQuantity(item: GroceryItem): void {
+    // one field in a row at a time: a name left open was saved when its field was left
+    this.renaming.set(null);
+    this.renameEmpty.set(false);
+    this.quantityInvalid.set(false);
+    this.quantityUnits.set(unitOptions(this.i18n, item.unit));
+    this.quantityOf.set(item.id);
+    afterNextRender(
+      () => {
+        const field = this.host.nativeElement.querySelector<HTMLInputElement>(`#amount-${item.id}`);
+        field?.focus();
+        field?.select();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  // the number is checked when its field is left (UX-6)
+  protected checkAmount(field: HTMLInputElement): void {
+    this.quantityInvalid.set(parseAmount(field.value) === undefined);
+  }
+
+  // Escape or Cancel keeps the quantity, the focus goes back to the row
+  protected cancelQuantity(item: GroceryItem): void {
+    this.closeFields(item.id);
+    this.focusRow(item.id);
+  }
+
+  // the quantity once Enter or Save is pressed, with the name and the category the item has; no
+  // number takes the unit away too, the backend keeps no unit without one. The focus goes back to
+  // the row
+  protected saveQuantity(
+    item: GroceryItem,
+    amountField: HTMLInputElement,
+    unitField: HTMLSelectElement,
+  ): void {
+    if (this.quantityOf() !== item.id) return;
+    const amount = parseAmount(amountField.value);
+    if (amount === undefined) {
+      this.quantityInvalid.set(true);
+      return;
+    }
+    const unit = amount === null ? null : unitField.value || null;
+    this.closeFields(item.id);
+    this.focusRow(item.id);
+    if (amount === (item.amount ?? null) && unit === (item.unit ?? null)) return;
+    this.error.set(null);
+    this.service
+      .updateItem(item.id, { name: item.name, amount, unit, categoryId: item.categoryId })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (changed) =>
+          this.items.update((items) =>
+            items.map((each) => (each.id === changed.id ? changed : each)),
+          ),
+        error: (error: unknown) => {
+          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.quantity.not_saved')));
+          this.loadItems(this.shown());
+        },
+      });
+  }
+
+  // whether the robot offers to read the items in a photo: the AI features turned on, asked once
+  // with the page, not offered when that fails (GROCERY-16)
+  protected readonly discoverItems = signal(false);
+  // the photo is being sent and read
+  protected readonly discovering = signal(false);
+  // the items read in the photo, null while none are shown
+  protected readonly discovered = signal<DiscoveredRow[] | null>(null);
+  protected readonly addingDiscovered = signal(false);
+  // the list the photo was read for, the only one its items are added to
+  private discoveredList: number | null = null;
+  // at least one item left in; one that is not valid says why once Add is pressed
+  protected readonly canAddDiscovered = computed(() =>
+    (this.discovered() ?? []).some((row) => row.include),
+  );
+  private readonly discoverInput =
+    viewChild.required<ElementRef<HTMLInputElement>>('discoverInput');
+
+  protected chooseDiscoverPhoto(): void {
+    this.discoverInput().nativeElement.click();
+  }
+
+  // the photo scaled down and stored as the one of an item, the items the AI reads in it shown to
+  // correct them; the photo stays in the file storage, attached to no item
+  protected async discoverChosen(input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    input.value = '';
+    const list = this.shown()?.id;
+    if (!file || list == null) return;
+    this.discovering.set(true);
+    this.closeDiscoveredOf();
+    this.error.set(null);
+    try {
+      const scaled = await this.scaler.scale(file);
+      const stored = await firstValueFrom(this.service.uploadPhoto(scaled));
+      const items = await firstValueFrom(this.service.discover(stored.id));
+      // read while another list was chosen: not shown there
+      if (this.destroyed || this.shown()?.id !== list) return;
+      this.discoveredList = list;
+      this.discovered.set(items.map((each, key) => this.discoveredRow(key, each)));
+      afterNextRender(
+        () => this.host.nativeElement.querySelector<HTMLElement>('#discovered')?.focus(),
+        {
+          injector: this.injector,
+        },
+      );
+    } catch (error: unknown) {
+      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.discover.not_read')));
+    } finally {
+      this.discovering.set(false);
+    }
+  }
+
+  // an item read, in with the quantity the AI read; a unit not among the usual ones stays one to
+  // choose
+  private discoveredRow(key: number, item: GroceryDiscoveredItem): DiscoveredRow {
+    return {
+      key,
+      include: true,
+      name: item.name,
+      amount: amountText(item.amount),
+      unit: item.unit ?? '',
+      units: unitOptions(this.i18n, item.unit),
+      nameEmpty: false,
+      amountInvalid: false,
+    };
+  }
+
+  protected changeDiscovered(key: number, change: Partial<DiscoveredRow>): void {
+    this.discovered.update(
+      (rows) => rows?.map((row) => (row.key === key ? { ...row, ...change } : row)) ?? null,
+    );
+  }
+
+  private validDiscovered(row: DiscoveredRow): boolean {
+    return !!row.name.trim() && parseAmount(row.amount) !== undefined;
+  }
+
+  // the items left in added one after the other, without a category: the backend gives each the
+  // one it learned for its name (GROCERY-13). The ones the backend refuses stay to try again, an
+  // item left in that is not valid says why and none is added
+  protected async addDiscovered(): Promise<void> {
+    const rows = (this.discovered() ?? []).filter((row) => row.include);
+    const list = this.discoveredList;
+    if (list == null || !rows.length || this.addingDiscovered()) return;
+    if (!rows.every((row) => this.validDiscovered(row))) {
+      for (const row of rows) {
+        this.changeDiscovered(row.key, {
+          nameEmpty: !row.name.trim(),
+          amountInvalid: parseAmount(row.amount) === undefined,
+        });
+      }
+      return;
+    }
+    this.addingDiscovered.set(true);
+    this.error.set(null);
+    const failed: DiscoveredRow[] = [];
+    for (const row of rows) {
+      const amount = parseAmount(row.amount) ?? null;
+      try {
+        await firstValueFrom(
+          this.service.addItem(list, {
+            name: row.name.trim(),
+            amount,
+            unit: amount === null ? null : row.unit || null,
+          }),
+        );
+      } catch {
+        failed.push(row);
+      }
+    }
+    this.addingDiscovered.set(false);
+    // another list was chosen meanwhile: its items are loaded with it
+    if (this.destroyed || this.discoveredList !== list) return;
+    if (failed.length) {
+      this.discovered.set(failed);
+      this.error.set(this.i18n.t('grocery.discover.not_all_added'));
+    } else {
+      this.closeDiscoveredOf();
+    }
+    if (failed.length < rows.length) this.loadItems(this.shown());
+  }
+
+  // closed, nothing is added; the focus goes back to the field of a new item
+  protected closeDiscovered(): void {
+    this.closeDiscoveredOf();
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLElement>('#item-name')?.focus(),
+      {
+        injector: this.injector,
+      },
+    );
+  }
+
+  private closeDiscoveredOf(): void {
+    this.discovered.set(null);
+    this.discoveredList = null;
   }
 
   // the category of the item, one of the list or none; the backend learns it for the next item of
@@ -857,9 +1353,8 @@ export class GroceryPage {
       .subscribe({
         next: ([items, categories]) => {
           // a field of an item that is gone closes (GROCERY-14)
-          const renaming = this.renaming();
-          if (renaming !== null && !items.some((each) => each.id === renaming)) {
-            this.closeRename(renaming);
+          for (const open of [this.renaming(), this.quantityOf()]) {
+            if (open !== null && !items.some((each) => each.id === open)) this.closeFields(open);
           }
           this.items.set(items);
           this.categories.set(categories);

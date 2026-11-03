@@ -1246,6 +1246,47 @@ grocery:
       not_added: { en: "The item could not be added.", de: "Der Artikel konnte nicht hinzugefügt werden." }
       not_checked: { en: "The item could not be checked.", de: "Der Artikel konnte nicht abgehakt werden." }
       items_not_loaded: { en: "The items could not be loaded.", de: "Die Artikel konnten nicht geladen werden." }
+    # the quantity of an item from the menu of its row (GROCERY-15)
+    quantity:
+      label: { en: "Quantity", de: "Menge" }
+      of: { en: "Quantity of %{name}", de: "Menge von %{name}" }
+      amount: { en: "Amount", de: "Anzahl" }
+      unit: { en: "Unit", de: "Einheit" }
+      no_unit: { en: "No unit", de: "Keine Einheit" }
+      invalid:
+        en: "Type a positive number with at most 3 decimal places."
+        de: "Gib eine positive Zahl mit höchstens 3 Nachkommastellen ein."
+      not_saved: { en: "The quantity could not be saved.", de: "Die Menge konnte nicht gespeichert werden." }
+      editing: { en: "The quantity is changed in its row.", de: "Die Menge wird in ihrer Zeile geändert." }
+      # the units to choose from, stored as their text in the language of the user
+      units:
+        g: { en: "g", de: "g" }
+        kg: { en: "kg", de: "kg" }
+        ml: { en: "ml", de: "ml" }
+        l: { en: "l", de: "l" }
+        tbsp: { en: "tbsp", de: "EL" }
+        tsp: { en: "tsp", de: "TL" }
+        pinch: { en: "pinch", de: "Prise" }
+        pack: { en: "pack", de: "Packung" }
+        can: { en: "can", de: "Dose" }
+        bunch: { en: "bunch", de: "Bund" }
+        piece: { en: "piece", de: "Stück" }
+    # the items the AI reads in a photo, confirmed before they are added (GROCERY-16)
+    discover:
+      label:
+        en: "Add items from a photo, read by the AI features at OpenRouter"
+        de: "Artikel aus einem Foto hinzufügen, gelesen von den KI-Funktionen bei OpenRouter"
+      reading: { en: "Reading the photo…", de: "Das Foto wird gelesen…" }
+      title: { en: "Items in the photo", de: "Artikel im Foto" }
+      hint:
+        en: "Correct the items and leave out the ones not to buy."
+        de: "Korrigiere die Artikel und lass die weg, die du nicht kaufen willst."
+      none: { en: "There are no items in the photo.", de: "Im Foto sind keine Artikel." }
+      include: { en: "Add %{name}", de: "%{name} hinzufügen" }
+      name_of: { en: "Name of item %{number}", de: "Name von Artikel %{number}" }
+      add: { en: "Add to the list", de: "Zur Liste hinzufügen" }
+      not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
+      not_all_added: { en: "Not every item could be added.", de: "Nicht jeder Artikel konnte hinzugefügt werden." }
   backend:
     category:
       fruit_vegetables: { en: "Fruit & vegetables", de: "Obst & Gemüse" }
@@ -1288,6 +1329,20 @@ grocery:
       en: "The owner of the list has another list of the name."
       de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."
     not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
+    too_many_discoveries:
+      en: "Too many photos were read, please try again later."
+      de: "Es wurden zu viele Fotos gelesen, bitte versuche es später erneut."
+    discovery_failed:
+      en: "The items in the photo could not be discovered, please try again later."
+      de: "Die Artikel im Foto konnten nicht erkannt werden, bitte versuche es später erneut."
+    settings:
+      ai:
+        label: { en: "AI features", de: "KI-Funktionen" }
+        description:
+          en: "Lets the grocery lists discover the items in photos of recipes and shopping lists with the AI features."
+          de: "Lässt die Einkaufslisten die Artikel in Fotos von Rezepten und Einkaufszetteln mit den KI-Funktionen erkennen."
+      label: { en: "Grocery lists", de: "Einkaufslisten" }
+      description: { en: "The settings of the grocery lists.", de: "Die Einstellungen der Einkaufslisten." }
   web:
     page_title:
       create: { en: "Create list · Grocery", de: "Liste erstellen · Einkaufslisten" }

@@ -51,23 +51,27 @@ import kotlinx.coroutines.withContext
 internal val PHOTO_IN_ROW = 48.dp
 internal val PHOTO_SPACE = 8.dp
 
-// takes a photo with the camera or chooses one of the phone for an item; whether the phone has a camera
+// takes a photo with the camera or chooses one of the phone for an item, or one whose items the AI
+// reads (GROCERY-16); whether the phone has a camera
 class PhotoPicker(
     val hasCamera: Boolean,
     val take: (itemId: Int) -> Unit,
     val choose: (itemId: Int) -> Unit,
+    val takeToDiscover: () -> Unit,
+    val chooseToDiscover: () -> Unit,
 )
 
 internal val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
 
 // the camera and the photo picker of the app, at its root: always there, also while the app starts
 // anew after android ended it while the camera was open, so their answer is never lost. The item
-// they are for is kept with the saved state; the photo is read and sent by the model, which waits for
-// the lists. The file the camera wrote is deleted once it was read, or when the model drops it
+// they are for, or that the AI reads the photo, is kept with the saved state; the photo is read and
+// sent by the model, which waits for the lists. The file the camera wrote is deleted once it was read, or when the model drops it
 @Composable
 internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
     val context = LocalContext.current
     var pendingItem by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pendingDiscover by rememberSaveable { mutableStateOf(false) }
     // the camera writes into a file of the cache, shared with it by the file provider only
     val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
     val cameraUri =
@@ -79,37 +83,45 @@ internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
         uri: Uri,
         done: () -> Unit = {},
     ) {
+        val read: suspend () -> ByteArray? = {
+            withContext(Dispatchers.IO) {
+                try {
+                    PhotoScaling.jpeg(context, uri)
+                } catch (e: Exception) {
+                    Log.w("sak-grocery", "a photo could not be read", e)
+                    null
+                } finally {
+                    done()
+                }
+            }
+        }
+        if (pendingDiscover) {
+            pendingDiscover = false
+            model.discover(discard = done, read = read)
+            return
+        }
         val itemId = pendingItem ?: return
         pendingItem = null
-        model.attachPhoto(
-            itemId,
-            read = {
-                withContext(Dispatchers.IO) {
-                    try {
-                        PhotoScaling.jpeg(context, uri)
-                    } catch (e: Exception) {
-                        Log.w("sak-grocery", "a photo could not be read", e)
-                        null
-                    } finally {
-                        done()
-                    }
-                }
-            },
-            discard = done,
-        )
+        model.attachPhoto(itemId, read = read, discard = done)
+    }
+
+    // nothing was taken or chosen
+    fun drop() {
+        pendingItem = null
+        pendingDiscover = false
     }
     val camera =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
             if (taken) {
                 send(cameraUri) { cameraFile.delete() }
             } else {
-                pendingItem = null
+                drop()
                 cameraFile.delete()
             }
         }
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) send(uri) else pendingItem = null
+            if (uri != null) send(uri) else drop()
         }
     val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
     return remember(camera, picker) {
@@ -117,10 +129,22 @@ internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
             hasCamera,
             take = { itemId ->
                 pendingItem = itemId
+                pendingDiscover = false
                 camera.launch(cameraUri)
             },
             choose = { itemId ->
                 pendingItem = itemId
+                pendingDiscover = false
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            takeToDiscover = {
+                pendingItem = null
+                pendingDiscover = true
+                camera.launch(cameraUri)
+            },
+            chooseToDiscover = {
+                pendingItem = null
+                pendingDiscover = true
                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             },
         )

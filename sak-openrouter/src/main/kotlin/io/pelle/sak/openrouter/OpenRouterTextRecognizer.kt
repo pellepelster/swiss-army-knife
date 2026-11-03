@@ -2,22 +2,12 @@ package io.pelle.sak.openrouter
 
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import java.io.IOException
-import java.net.URI
 import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import io.pelle.sak.storage.BlobContent
 
@@ -37,32 +27,9 @@ class OpenRouterTextRecognizer(
         image: BlobContent,
         contentType: String,
     ): String {
-        val response =
-            try {
-                httpClient.send(
-                    HttpRequest
-                        .newBuilder(URI.create("$url/chat/completions"))
-                        .timeout(timeout)
-                        .header("Authorization", "Bearer $apiToken")
-                        .header("Content-Type", "application/json")
-                        .POST(base64Body(request(contentType).toString(), image))
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                )
-            } catch (e: IOException) {
-                throw TextRecognitionException("openrouter is not reachable: ${e.message}", e)
-            }
-        val body =
-            try {
-                Json.parseToJsonElement(response.body()).jsonObject
-            } catch (e: IllegalArgumentException) {
-                throw TextRecognitionException("openrouter answered ${response.statusCode()} without json", e)
-            }
-        if (response.statusCode() !in 200..299 || "error" in body) {
-            val message = body["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
-            throw TextRecognitionException("openrouter answered ${response.statusCode()}: ${message ?: "no message"}")
-        }
-        return text(body)
+        val completion = chatCompletion(httpClient, url, apiToken, timeout, request(contentType).toString(), image)
+        return completion.content?.trim()?.takeUnless { it == NO_TEXT }
+            ?: if (completion.choices > 0) "" else throw TextRecognitionException("openrouter answered without a choice")
     }
 
     private fun request(contentType: String): JsonObject =
@@ -96,19 +63,6 @@ class OpenRouterTextRecognizer(
             putJsonObject("provider") { put("data_collection", "deny") }
         }
 
-    private fun text(body: JsonObject): String =
-        body["choices"]
-            ?.jsonArray
-            ?.firstOrNull()
-            ?.jsonObject
-            ?.get("message")
-            ?.jsonObject
-            ?.get("content")
-            ?.jsonPrimitive
-            ?.contentOrNull
-            ?.trim()
-            ?.takeUnless { it == NO_TEXT }
-            ?: if (body["choices"]?.jsonArray?.isNotEmpty() == true) "" else throw TextRecognitionException("openrouter answered without a choice")
 
     companion object {
         // what the model answers for an image without text, models do not answer with nothing

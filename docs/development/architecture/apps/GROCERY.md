@@ -37,6 +37,17 @@ An app to manage grocery lists.
   hidden, `eye` while shown. The latest bought item of each name that is not to buy shows in its category after the
   items to buy, struck through with a red line; a tap does not check it again, the menu of its row changes it like
   an item to buy (e.g. to fix its name).
+- `GROCERY-15` **Quantity.** The menu of a row sets the quantity of an item: a number, typed with a point or a comma,
+  and a unit chosen from a list of the usual ones in the language of the user (g, kg, ml, l, EL, TL, Prise, Packung,
+  Dose, Bund, Stück), or none. A unit the item has that is not in the list stays one to choose. No number takes the
+  unit away too. The web shows the fields in the row, Enter or Save saves, Escape or Cancel keeps the quantity; Android
+  shows them in a dialog, Save saves, Cancel keeps it.
+- `GROCERY-16` **Items from a photo.** With the AI features turned on (the setting of the grocery lists, `APP-PRIVACY-1`)
+  a robot next to the field of a new item takes a photo or lets the user choose one, of a recipe or a shopping list.
+  Its label names OpenRouter, where the photo goes (`PRIVACY-2`). The AI reads the items in it, with their quantity
+  (`GROCERY-15`); nothing is added yet. The user sees the items in a list first, corrects their names and
+  quantities, leaves out the ones not to buy and adds the others to the list at once, or cancels. The photo stays in the
+  file storage of the user (`SHARED-3`), it is attached to no item.
 
 ## Data
 
@@ -48,12 +59,17 @@ item is a file of the file storage (`SHARED-3`).
 Read, create, rename, share and delete a list; read the items to buy of a list, its suggestions and its categories;
 add, change, order and delete a category; forget a suggestion; add, change, check and delete an item, set its
 category, attach and take away its photo, read the photo in a scaled size (`GROCERY-12`); listen to the changes of the
-lists (`GET /api/v1/grocery/changes`, `LIST-4`).
+lists (`GET /api/v1/grocery/changes`, `LIST-4`). Every user may ask whether the items in a photo can be discovered
+now (`GET /api/v1/grocery/settings`, `discoverItems`) and discover them in a photo of the file storage
+(`POST /api/v1/grocery/discover/{id}`, `GROCERY-16`); the photos and the texts discovered share a limit for each user.
 
 ## Settings
 
-None.
+- `ai` (scope `grocery`): the AI features of the grocery lists (`GROCERY-16`), off by default; it needs the AI of the
+  deployment turned on (scope `ai`).
 
 ## External systems
 
-None.
+- **OpenRouter**, only with the AI features turned on and only when the user takes or chooses a photo with the robot
+  (`GROCERY-16`): the photo goes to the vision model of the deployment, through providers that do not collect the data.
+  OpenRouter sees the photo and the API key of the deployment, not who took it.

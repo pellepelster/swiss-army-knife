@@ -8,6 +8,7 @@ import {
   GroceryNewItem,
   GrocerySuggestion,
 } from '../api/models';
+import { components } from '../api/schema';
 import { fetchAll, Page } from '../shared/api';
 
 // the shapes of the api (GROCERY-13: the categories in the order the list shows them; checkedAt
@@ -22,6 +23,11 @@ export type {
 
 // what is given of an item: the request of a new one without its list
 export type GroceryItemValues = Omit<GroceryNewItem, 'listId'>;
+
+// whether the items in a photo can be discovered now, and the items discovered in one, with their
+// quantity if the photo has it (GROCERY-16)
+export type GrocerySettings = components['schemas']['GrocerySettingsResponse'];
+export type GroceryDiscoveredItem = components['schemas']['GroceryDiscoveredItem'];
 
 // the grocery lists of the signed in user and the shared ones, their items and the suggestions
 @Injectable({ providedIn: 'root' })
@@ -96,6 +102,22 @@ export class GroceryService {
 
   removePhoto(id: number): Observable<GroceryItem> {
     return this.http.delete<GroceryItem>(`/api/v1/grocery/items/${id}/photo`);
+  }
+
+  // whether the robot offers to discover the items in a photo: the AI features turned on
+  // (GROCERY-16)
+  settings(): Observable<GrocerySettings> {
+    return this.http.get<GrocerySettings>('/api/v1/grocery/settings');
+  }
+
+  // the items the AI reads in a photo of the file storage; nothing is added yet (GROCERY-16)
+  discover(fileId: number): Observable<GroceryDiscoveredItem[]> {
+    return this.http
+      .post<components['schemas']['GroceryDiscoveredResponse']>(
+        `/api/v1/grocery/discover/${fileId}`,
+        null,
+      )
+      .pipe(map((discovered) => discovered.items));
   }
 
   // the categories of a list in their order (GROCERY-13); only its owner changes them

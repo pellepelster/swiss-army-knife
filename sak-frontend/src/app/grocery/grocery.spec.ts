@@ -55,7 +55,13 @@ describe('Grocery', () => {
     URL.revokeObjectURL = vi.fn();
   });
 
-  afterEach(() => http.verify());
+  // the settings the page asks for once, which most specs do not look at: the robot is not offered
+  afterEach(() => {
+    http
+      .match('/api/v1/grocery/settings')
+      .forEach((request) => request.cancelled || request.flush({ discoverItems: false }));
+    http.verify();
+  });
 
   const { page, button, open, url, rowMenu, deleteFromRow } = pageHelpers(() => harness);
   const input = (id: string) => page().querySelector<HTMLInputElement>(`#${id}`)!;
@@ -76,9 +82,10 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
   };
 
-  // the page of the list 1
-  const load = async (lists: object[], items: object[]) => {
+  // the page of the list 1, the robot offered or not (GROCERY-16)
+  const load = async (lists: object[], items: object[], discoverItems = false) => {
     await open('/grocery/lists/1');
+    http.expectOne('/api/v1/grocery/settings').flush({ discoverItems });
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf(lists));
     await harness.fixture.whenStable();
     await flushItems(1, items);
@@ -971,6 +978,375 @@ describe('Grocery', () => {
       amount: 2,
       unit: 'l',
       categoryId: 12,
+    });
+  });
+
+  it('sets the quantity of an item in its row from its menu, with a comma or a point; Escape and Cancel keep it, an invalid number is not saved (GROCERY-15)', async () => {
+    await load([defaultList], [item(2, 'Flour', null), item(3, 'Milk', 12)]);
+    const quantity = async (name: string) => {
+      button('Quantity', await rowMenu(name)).click();
+      await harness.fixture.whenStable();
+    };
+    const amount = () => input('amount-2');
+    const unit = () => page().querySelector<HTMLSelectElement>('#unit-2')!;
+    const row = () => page().querySelector('[data-testid=item-2]')!;
+
+    // the fields in the row, the number focused; its menu entry disabled while they are open
+    await quantity('Flour');
+    expect(document.activeElement?.id).toBe('amount-2');
+    expect(row().querySelector('[role=group]')?.getAttribute('aria-label')).toBe(
+      'Quantity of Flour',
+    );
+    expect(amount().getAttribute('aria-label')).toBe('Amount');
+    expect(unit().getAttribute('aria-label')).toBe('Unit');
+    expect(button('Quantity', row()).disabled).toBe(true);
+    expect([...unit().options].map((option) => option.text.trim())).toEqual([
+      'No unit',
+      'g',
+      'kg',
+      'ml',
+      'l',
+      'tbsp',
+      'tsp',
+      'pinch',
+      'pack',
+      'can',
+      'bunch',
+      'piece',
+    ]);
+    expect(unit().value).toBe('');
+
+    // Escape keeps the quantity, the focus is back on the row
+    amount().value = '3';
+    amount().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#amount-2')).toBeNull();
+    expect(document.activeElement?.id).toBe('item-2');
+
+    // so does Cancel; leaving a field saves nothing
+    await quantity('Flour');
+    amount().value = '3';
+    amount().dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    button('Cancel', row()).click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#amount-2')).toBeNull();
+    http.expectNone({ method: 'PUT' });
+
+    // a number that is not positive or has more than 3 decimal places says so when it is left,
+    // typing takes the error away; Save keeps the fields open and sends nothing
+    await quantity('Flour');
+    for (const invalid of ['-1', '0', '1,2345', 'two']) {
+      amount().value = invalid;
+      amount().dispatchEvent(new Event('blur'));
+      await harness.fixture.whenStable();
+      expect(amount().classList.contains('is-invalid')).toBe(true);
+      expect(page().querySelector('#amount-error-2')?.textContent).toContain(
+        'Type a positive number with at most 3 decimal places.',
+      );
+      amount().dispatchEvent(new Event('input'));
+      await harness.fixture.whenStable();
+      expect(page().querySelector('#amount-error-2')).toBeNull();
+    }
+    amount().value = '1.2345';
+    button('Save', row()).click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#amount-error-2')).not.toBeNull();
+    http.expectNone({ method: 'PUT' });
+
+    // Enter saves, with a comma, the name and the category the item has
+    amount().value = '0,5';
+    amount().dispatchEvent(new Event('input'));
+    unit().value = 'kg';
+    amount().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await harness.fixture.whenStable();
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2' });
+    expect(request.request.body).toEqual({
+      name: 'Flour',
+      amount: 0.5,
+      unit: 'kg',
+      categoryId: null,
+    });
+    request.flush({ ...item(2, 'Flour', null), amount: 0.5, unit: 'kg' });
+    await harness.fixture.whenStable();
+    expect(document.activeElement?.id).toBe('item-2');
+    expect(row().textContent).toContain('0.5 kg');
+
+    // the quantity it has: nothing to send
+    await quantity('Flour');
+    expect(amount().value).toBe('0.5');
+    expect(unit().value).toBe('kg');
+    button('Save', row()).click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'PUT' });
+
+    // one field in a row at a time: Rename closes the quantity of the item
+    await quantity('Flour');
+    button('Rename', row()).click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#amount-2')).toBeNull();
+    expect(page().querySelector('#rename-2')).not.toBeNull();
+    page()
+      .querySelector('#rename-2')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await harness.fixture.whenStable();
+  });
+
+  it('a unit an item has that is not one of the list stays one to choose, no number takes the unit away too (GROCERY-15)', async () => {
+    await load([defaultList], [{ ...item(2, 'Garlic', null), amount: 2, unit: 'clove' }]);
+    const quantity = async () => {
+      button('Quantity', await rowMenu('Garlic')).click();
+      await harness.fixture.whenStable();
+    };
+    const amount = () => input('amount-2');
+    const unit = () => page().querySelector<HTMLSelectElement>('#unit-2')!;
+
+    await quantity();
+    expect(amount().value).toBe('2');
+    expect(unit().value).toBe('clove');
+    expect([...unit().options].map((option) => option.text.trim()).at(-1)).toBe('clove');
+    amount().value = '3';
+    button('Save').click();
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2' });
+    expect(request.request.body).toEqual({
+      name: 'Garlic',
+      amount: 3,
+      unit: 'clove',
+      categoryId: null,
+    });
+    request.flush({ ...item(2, 'Garlic', null), amount: 3, unit: 'clove' });
+    await harness.fixture.whenStable();
+
+    // no number: no unit either; a quantity the backend refuses says so and loads the list again
+    await quantity();
+    amount().value = ' ';
+    button('Save').click();
+    const cleared = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/items/2' });
+    expect(cleared.request.body).toEqual({
+      name: 'Garlic',
+      amount: null,
+      unit: null,
+      categoryId: null,
+    });
+    cleared.flush(null, { status: 500, statusText: 'Server Error' });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'The quantity could not be saved.',
+    );
+    await flushItems(1, [{ ...item(2, 'Garlic', null), amount: 3, unit: 'clove' }]);
+  });
+
+  const robotLabel = 'Add items from a photo, read by the AI features at OpenRouter';
+
+  it('the robot reads items in a photo only with the AI features turned on (GROCERY-16)', async () => {
+    await load([defaultList], []);
+    expect(button(robotLabel)).toBeUndefined();
+  });
+
+  it('settings that can not be loaded offer no robot (GROCERY-16)', async () => {
+    await open('/grocery/lists/1');
+    http
+      .expectOne('/api/v1/grocery/settings')
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    await harness.fixture.whenStable();
+    await flushItems(1, []);
+    expect(button(robotLabel)).toBeUndefined();
+    expect(page().querySelector('[role=alert]')).toBeNull();
+  });
+
+  // the robot takes a photo, scaled and stored first; the request that reads the items in it
+  const discoverPhoto = async (fileId = 21) => {
+    const chooser = page().querySelector<HTMLInputElement>('[data-testid=discover-input]')!;
+    const choose = vi.spyOn(chooser, 'click').mockImplementation(() => undefined);
+    button(robotLabel).click();
+    expect(choose).toHaveBeenCalled();
+    const photo = new File(['jpeg'], 'recipe.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(chooser, 'files', { value: [photo], configurable: true });
+    chooser.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      http.expectOne({ method: 'POST', url: '/api/v1/files' }).flush({ id: fileId }),
+    );
+    const request = await vi.waitFor(() =>
+      http.expectOne({ method: 'POST', url: `/api/v1/grocery/discover/${fileId}` }),
+    );
+    await harness.fixture.whenStable();
+    return request;
+  };
+  // the panel of the items read, once it shows
+  const discovered = () =>
+    vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      const panel = page().querySelector<HTMLElement>('[data-testid=discovered]');
+      expect(panel).not.toBeNull();
+      return panel!;
+    });
+  const discoveredRow = (index: number) =>
+    page().querySelector<HTMLElement>(`[data-testid=discovered-${index}]`)!;
+  const rowField = (index: number, selector: string) =>
+    discoveredRow(index).querySelector<HTMLInputElement & HTMLSelectElement>(selector)!;
+  const edit = async (index: number, selector: string, value: string) => {
+    const field = rowField(index, selector);
+    field.value = value;
+    field.dispatchEvent(new Event(field instanceof HTMLSelectElement ? 'change' : 'input'));
+    field.dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+  };
+  const addedItem = () =>
+    vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/v1/grocery/items' }));
+
+  it('adds the items the robot reads in a photo once they are corrected, the ones left out not (GROCERY-16)', async () => {
+    await load([defaultList], [], true);
+    const robot = button(robotLabel);
+    expect(robot.title).toBe(robotLabel);
+    const chooser = page().querySelector<HTMLInputElement>('[data-testid=discover-input]')!;
+    expect(chooser.accept).toBe('image/*');
+    expect(chooser.hasAttribute('capture')).toBe(false);
+
+    const request = await discoverPhoto();
+    expect(page().querySelector('[data-testid=discover-reading]')?.textContent?.trim()).toBe(
+      'Reading the photo…',
+    );
+    expect(robot.disabled).toBe(true);
+    request.flush({
+      items: [
+        { name: 'Mehl', amount: 250, unit: 'g' },
+        { name: 'Slaz' },
+        { name: 'Knoblauch', amount: 2, unit: 'Zehe' },
+        { name: 'Zucker', amount: null, unit: null },
+      ],
+    });
+    const panel = await discovered();
+    expect(robot.disabled).toBe(false);
+    expect(page().querySelector('[data-testid=discover-reading]')).toBeNull();
+    expect(panel.querySelector('h2')?.textContent).toContain('Items in the photo');
+    expect(panel.textContent).toContain('Correct the items and leave out the ones not to buy.');
+    expect(document.activeElement).toBe(panel);
+
+    // every item in, with the quantity read; a unit not among the usual ones stays one to choose
+    const checkbox = rowField(0, 'input[type=checkbox]');
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.getAttribute('aria-label')).toBe('Add Mehl');
+    expect(rowField(0, '[id^=discovered-name]').getAttribute('aria-label')).toBe('Name of item 1');
+    expect(rowField(0, '[id^=discovered-name]').value).toBe('Mehl');
+    expect(rowField(0, '[id^=discovered-amount]').value).toBe('250');
+    expect(rowField(0, 'select').value).toBe('g');
+    expect(rowField(1, '[id^=discovered-amount]').value).toBe('');
+    expect(rowField(1, 'select').value).toBe('');
+    expect(rowField(2, 'select').value).toBe('Zehe');
+    expect([...rowField(2, 'select').options].map((option) => option.text.trim()).at(-1)).toBe(
+      'Zehe',
+    );
+
+    // corrected: an empty name and an invalid number say so when they are left
+    await edit(1, '[id^=discovered-name]', ' ');
+    expect(discoveredRow(1).textContent).toContain('An item needs a name.');
+    await edit(0, '[id^=discovered-amount]', '0,2505');
+    expect(discoveredRow(0).textContent).toContain(
+      'Type a positive number with at most 3 decimal places.',
+    );
+    // the others can be added, an item left in that is not valid keeps them all from it
+    const add = button('Add to the list', panel);
+    expect(add.disabled).toBe(false);
+    add.click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'POST', url: '/api/v1/grocery/items' });
+
+    await edit(1, '[id^=discovered-name]', 'Salz');
+    await edit(0, '[id^=discovered-amount]', '0,25');
+    await edit(0, 'select', 'kg');
+    expect(panel.querySelector('.invalid-feedback')).toBeNull();
+    // left out
+    rowField(3, 'input[type=checkbox]').click();
+    await harness.fixture.whenStable();
+
+    // one after the other, without a category: the backend learns it from the name
+    button('Add to the list', panel).click();
+    const flour = await addedItem();
+    expect(flour.request.body).toEqual({ listId: 1, name: 'Mehl', amount: 0.25, unit: 'kg' });
+    await harness.fixture.whenStable();
+    expect(button('Add to the list', panel).matches(':disabled')).toBe(true);
+    flour.flush(item(30, 'Mehl', null));
+    const salt = await addedItem();
+    expect(salt.request.body).toEqual({ listId: 1, name: 'Salz', amount: null, unit: null });
+    salt.flush(item(31, 'Salz', null));
+    const garlic = await addedItem();
+    expect(garlic.request.body).toEqual({ listId: 1, name: 'Knoblauch', amount: 2, unit: 'Zehe' });
+    garlic.flush(item(32, 'Knoblauch', null));
+    await vi.waitFor(() =>
+      flushItems(1, [item(30, 'Mehl', null), item(31, 'Salz', null), item(32, 'Knoblauch', null)]),
+    );
+    expect(page().querySelector('[data-testid=discovered]')).toBeNull();
+    expect(page().querySelector('[data-testid=item-32]')?.textContent).toContain('Knoblauch');
+  });
+
+  it('the items the backend refuses stay to add again, cancel adds none (GROCERY-16)', async () => {
+    await load([defaultList], [], true);
+    (await discoverPhoto()).flush({ items: [{ name: 'Mehl' }, { name: 'Salz' }] });
+    const panel = await discovered();
+    button('Add to the list', panel).click();
+    (await addedItem()).flush(null, { status: 500, statusText: 'Server Error' });
+    (await addedItem()).flush(item(31, 'Salz', null));
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[data-testid=discovered-1]')).toBeNull();
+    });
+    expect(rowField(0, '[id^=discovered-name]').value).toBe('Mehl');
+    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+      'Not every item could be added.',
+    );
+    await flushItems(1, [item(31, 'Salz', null)]);
+
+    button('Cancel', page().querySelector('[data-testid=discovered]')!).click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=discovered]')).toBeNull();
+    expect(document.activeElement?.id).toBe('item-name');
+    http.expectNone({ method: 'POST', url: '/api/v1/grocery/items' });
+  });
+
+  it('a photo without items says so, one that can not be read says why (GROCERY-16)', async () => {
+    await load([defaultList], [], true);
+    (await discoverPhoto()).flush({ items: [] });
+    const panel = await discovered();
+    expect(panel.textContent).toContain('There are no items in the photo.');
+    expect(button('Add to the list', panel)).toBeUndefined();
+    button('Cancel', panel).click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=discovered]')).toBeNull();
+
+    // the reason of the backend, e.g. the AI could not read it
+    (await discoverPhoto(22)).flush(
+      {
+        errors: [{ code: 'grocery.discover_failed', message: 'The AI could not read the photo.' }],
+      },
+      { status: 502, statusText: 'Bad Gateway' },
+    );
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[role=alert]')?.textContent).toContain(
+        'The AI could not read the photo.',
+      );
+    });
+    expect(page().querySelector('[data-testid=discovered]')).toBeNull();
+    expect(button(robotLabel).disabled).toBe(false);
+
+    // a photo that can not be stored, without a reason
+    const chooser = page().querySelector<HTMLInputElement>('[data-testid=discover-input]')!;
+    Object.defineProperty(chooser, 'files', {
+      value: [new File(['jpeg'], 'list.jpg', { type: 'image/jpeg' })],
+      configurable: true,
+    });
+    chooser.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      http
+        .expectOne({ method: 'POST', url: '/api/v1/files' })
+        .flush(null, { status: 500, statusText: 'Server Error' }),
+    );
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[role=alert]')?.textContent).toContain(
+        'The photo could not be read.',
+      );
     });
   });
 

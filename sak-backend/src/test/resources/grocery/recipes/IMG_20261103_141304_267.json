@@ -1,0 +1,79 @@
+{
+  "recipe": "Currywurst mit Currysauce und Pommes frites, 6 Portionen; two sections with •, a package size in brackets, the Currywurst is not in the list shown",
+  "ingredients": [
+    {
+      "names": [
+        "Olivenöl"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Tomatenmark"
+      ],
+      "quantity": 1,
+      "unit": "Dose"
+    },
+    {
+      "names": [
+        "Currypulver",
+        "Curry"
+      ],
+      "quantity": 3,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Cayennepfeffer"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Orangensaft"
+      ],
+      "quantity": 250,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Instantbrühe",
+        "Brühe"
+      ]
+    },
+    {
+      "names": [
+        "Sternanis"
+      ],
+      "quantity": 2
+    },
+    {
+      "names": [
+        "Salz"
+      ]
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ]
+    },
+    {
+      "names": [
+        "Zucker"
+      ]
+    },
+    {
+      "names": [
+        "Kartoffeln"
+      ],
+      "quantity": 8
+    },
+    {
+      "names": [
+        "Frittierfett"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.grocery
 
 import io.pelle.sak.api.language
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -28,7 +29,13 @@ import io.pelle.sak.api.PageRequest
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
+import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.owner
+import io.pelle.sak.backend.files.discoverTextLimiter
+import io.pelle.sak.backend.files.FilesTexts
+import io.pelle.sak.backend.grocery.model.GroceryDiscoveredItem
+import io.pelle.sak.backend.grocery.model.GroceryDiscoveredResponse
+import io.pelle.sak.backend.grocery.model.GrocerySettingsResponse
 import io.pelle.sak.backend.grocery.model.GroceryCategoryOrderRequest
 import io.pelle.sak.backend.grocery.model.GroceryCategoryRequest
 import io.pelle.sak.backend.grocery.model.GroceryCategoryResponse
@@ -62,6 +69,8 @@ import kotlin.time.Duration.Companion.seconds
 private val KEEP_ALIVE = 25.seconds
 
 private const val GROCERY_TAG = "grocery"
+
+private val logger = KotlinLogging.logger {}
 
 
 private fun GroceryList.response(user: String) =
@@ -128,8 +137,76 @@ private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoResult) =
 fun Route.grocery(
     groceryService: GroceryService,
     fileService: FileService,
+    discovery: GroceryDiscovery? = null,
+    // the limit of what goes to openrouter, shared with the text the notes discover
+    discoverLimiter: RateLimiter = discoverTextLimiter(),
 ) {
     installApi()
+
+    get("/settings") {
+        call.respond(GrocerySettingsResponse(withContext(Dispatchers.IO) { discovery?.available() == true }))
+    }.describe {
+        tag(GROCERY_TAG)
+        summary = "What the grocery lists may do"
+        description =
+            "For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches " +
+            "themselves are settings of the admins (GET /api/v1/settings/grocery)."
+        responses {
+            HttpStatusCode.OK {
+                description = "What the grocery lists may do"
+                schema = jsonSchema<GrocerySettingsResponse>()
+            }
+        }
+    }
+
+    post("/discover/{id}") {
+        val id = call.idParameter() ?: return@post
+        val owner = call.owner
+        val result =
+            withContext(Dispatchers.IO) {
+                discovery?.discover(owner, id) { discoverLimiter.tryAcquire(owner) } ?: GroceryDiscoverResult.Disabled
+            }
+        when (result) {
+            is GroceryDiscoverResult.Discovered ->
+                call.respond(GroceryDiscoveredResponse(result.items.map { GroceryDiscoveredItem(it.name, it.amount?.toDouble(), it.unit) }))
+            GroceryDiscoverResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            GroceryDiscoverResult.NotAPhoto -> call.respondErrors(GroceryTexts.NOT_A_PHOTO)
+            GroceryDiscoverResult.NotConfigured -> call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
+            GroceryDiscoverResult.Disabled -> call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
+            GroceryDiscoverResult.Limited -> call.respondErrors(GroceryTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
+            is GroceryDiscoverResult.Failed -> {
+                logger.warn(result.cause) { "could not discover the items in file $id" }
+                call.respondErrors(GroceryTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)
+            }
+        }
+    }.describe {
+        tag(GROCERY_TAG)
+        summary = "Discover the items in a photo"
+        description =
+            "Reads the ingredients of a recipe or the items of a shopping list in a photo of the file storage with a vision " +
+            "model at OpenRouter; providers that collect the data are not asked. Nothing is added to a list: the items are " +
+            "added once the user confirmed them (POST /api/v1/grocery/items). Needs the AI features of the grocery lists " +
+            "turned on in the settings."
+        parameters {
+            path("id") {
+                description = "The id of the photo in the file storage"
+                required = true
+                schema = jsonSchema<Int>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The items in the photo, empty when it shows none"
+                schema = jsonSchema<GroceryDiscoveredResponse>()
+            }
+            errors(HttpStatusCode.BadRequest, "The file is no photo the user uploaded")
+            errors(HttpStatusCode.NotFound, "The signed in user has no such file")
+            errors(HttpStatusCode.Conflict, "The AI features of the grocery lists are turned off in the settings")
+            errors(HttpStatusCode.TooManyRequests, "The user had too many photos or texts read at OpenRouter lately")
+            errors(HttpStatusCode.BadGateway, "OpenRouter could not read the photo")
+            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter API key is set in the settings")
+        }
+    }
 
     route("/lists") {
         get {

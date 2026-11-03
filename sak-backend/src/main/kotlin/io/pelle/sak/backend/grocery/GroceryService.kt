@@ -487,6 +487,12 @@ sealed interface GroceryPhotoResult {
 
 object GroceryTexts : Catalog("grocery") {
     val NOT_A_PHOTO = text("not_a_photo")
+    val TOO_MANY_DISCOVERIES = text("too_many_discoveries")
+    val DISCOVERY_FAILED = text("discovery_failed")
+    val AI_LABEL = text("settings.ai.label")
+    val AI_DESCRIPTION = text("settings.ai.description")
+    val SCOPE_LABEL = text("settings.label")
+    val SCOPE_DESCRIPTION = text("settings.description")
     val FRUIT_VEGETABLES = text("category.fruit_vegetables")
     val BAKERY = text("category.bakery")
     val DAIRY = text("category.dairy")

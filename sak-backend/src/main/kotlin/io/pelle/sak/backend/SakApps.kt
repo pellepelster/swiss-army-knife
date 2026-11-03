@@ -38,6 +38,7 @@ import io.pelle.sak.auth.login
 import io.pelle.sak.auth.whoAmI
 import io.pelle.sak.auth.apiSignature
 import io.pelle.sak.auth.session
+import io.pelle.sak.backend.files.discoverTextLimiter
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
@@ -113,6 +114,9 @@ fun Application.apps(
     auth: SakConfig.AuthConfig,
     services: SakServices,
 ) = with(services) {
+    // what goes to openrouter costs money: one limit of each user for the text of the notes and the
+    // items of the grocery lists
+    val discoverLimiter = discoverTextLimiter()
     // generated once and kept in the settings, so sessions survive restarts
     val signingKey = settings.getOrCreate(SettingName.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
     val tokens = TokenService(SigningKey.fromPem(signingKey), config.frontendUrl)
@@ -208,7 +212,7 @@ fun Application.apps(
                         }
                         route("/grocery") {
                             requireRole(Role.ADMIN, Role.USER)
-                            grocery(groceryService, fileService)
+                            grocery(groceryService, fileService, groceryDiscovery, discoverLimiter)
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)
@@ -225,7 +229,7 @@ fun Application.apps(
                         route("/files") {
                             requireRole(Role.ADMIN, Role.USER)
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
-                            files(fileService, fileTextService)
+                            files(fileService, fileTextService, discoverLimiter)
                             servedFiles(fileService)
                         }
                     }

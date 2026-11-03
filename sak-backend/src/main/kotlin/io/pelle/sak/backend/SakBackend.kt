@@ -25,6 +25,8 @@ import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
+import io.pelle.sak.backend.grocery.GroceryDiscovery
+import io.pelle.sak.backend.grocery.GrocerySettingsService
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
@@ -84,6 +86,7 @@ class SakServices(
     val groceryService: GroceryService,
     val fileService: FileService,
     val fileTextService: FileTextService,
+    val groceryDiscovery: GroceryDiscovery,
     // whether the domains of the buckets and the redirects point to the server
     val hostingHealth: HostingHealth,
     val redirectsHealth: RedirectsHealth,
@@ -118,6 +121,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val settings = SettingService(database)
     val openRouter = OpenRouterManager(config.openrouter, settings)
     val notesSettings = NotesSettingsService(settings)
+    val grocerySettings = GrocerySettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(database, reservedDomains(config))
     val bucketService = S3BucketService(database, baseDomain = config.baseDomain, reservedNames = RESERVED_SITES, domains = domains)
@@ -141,7 +145,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings,
-            SettingsRegistry(listOf(openRouter, notesSettings)),
+            SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings)),
             statistics,
             bucketService,
             redirectService,
@@ -150,6 +154,7 @@ fun Application.sak(config: SakConfig): SakServices {
             groceryService,
             fileService,
             fileTextService,
+            GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),
             HostingHealth(bucketService, domainCheck, config.addresses),
             RedirectsHealth(redirectService, domainCheck, config.addresses),
             UserService(database, config.auth?.admins.orEmpty()),

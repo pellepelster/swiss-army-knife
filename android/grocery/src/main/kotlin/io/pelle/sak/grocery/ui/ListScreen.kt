@@ -77,10 +77,13 @@ import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Page
 import io.pelle.sak.core.ui.resolve
 import io.pelle.sak.grocery.GroceryModel
+import io.pelle.sak.grocery.Amount
 import io.pelle.sak.grocery.ListsScreen
+import io.pelle.sak.grocery.Quantity
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.Renaming
 import io.pelle.sak.grocery.Undo
+import io.pelle.sak.grocery.amountOf
 
 // the items to buy of one list, the field to add one at the top; back leads to the home
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +97,8 @@ internal fun ListScreen(
     screen.viewing?.let { PhotoDialog(it, model) }
     // the dialogs of the menu of an item live in the model, they stay when the row goes (GROCERY-14)
     screen.renaming?.let { RenameItem(it, model) }
+    screen.quantity?.let { QuantityItem(it, model) }
+    screen.discovery?.let { DiscoveryDialog(it, model) }
     screen.deleting?.let { item -> ConfirmDelete(item.name, onDelete = { model.deleteItem(item) }, onDismiss = model::dismissDelete) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
@@ -210,27 +215,31 @@ private fun CategoryChoice(
 
 // the field at the top of a list, without a button: Enter on the keyboard adds the item and keeps the
 // keyboard open for the next one (GROCERY-2). Under it the names the list suggests for what is typed
-// (GROCERY-11), a tap takes one with its quantity and category
+// (GROCERY-11), a tap takes one with its quantity and category. With the AI features on, the robot
+// next to it adds the items of a photo (DiscoverButton)
 @Composable
 private fun NewItem(
     screen: ListsScreen,
     model: GroceryModel,
 ) {
-    OutlinedTextField(
-        value = screen.itemName,
-        onValueChange = model::typed,
-        label = { Text(stringResource(R.string.grocery_list_item)) },
-        singleLine = true,
-        trailingIcon =
-            if (screen.adding) {
-                { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
-            } else {
-                null
-            },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { model.addItem() }),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("item-name"),
-    )
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = if (screen.discoverItems) 4.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = screen.itemName,
+            onValueChange = model::typed,
+            label = { Text(stringResource(R.string.grocery_list_item)) },
+            singleLine = true,
+            trailingIcon =
+                if (screen.adding) {
+                    { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+                } else {
+                    null
+                },
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { model.addItem() }),
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp).testTag("item-name"),
+        )
+        if (screen.discoverItems) DiscoverButton(busy = screen.discovery != null)
+    }
     if (screen.suggestions.isNotEmpty()) {
         val label = stringResource(R.string.grocery_suggestions)
         Surface(
@@ -252,6 +261,38 @@ private fun NewItem(
                     )
                 }
             }
+        }
+    }
+}
+
+// the robot that adds the items of a photo of a recipe or a shopping list (GROCERY-16): its menu takes
+// a photo with the camera, only when the phone has one (UX-8), or chooses one of the phone (PhotoPicker),
+// scaled down on the phone before it is sent. Its label names OpenRouter, where the photo goes
+// (PRIVACY-2); busy while the items of a photo show
+@Composable
+private fun DiscoverButton(busy: Boolean) {
+    val photos = LocalPhotoPicker.current
+    var menu by rememberSaveable { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { menu = true }, enabled = !busy, modifier = Modifier.testTag("discover")) {
+            Icon(painterResource(R.drawable.ic_robot), contentDescription = stringResource(R.string.grocery_discover_label))
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_photo_take)) },
+                onClick = {
+                    menu = false
+                    photos.takeToDiscover()
+                },
+                enabled = photos.hasCamera,
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_photo_choose)) },
+                onClick = {
+                    menu = false
+                    photos.chooseToDiscover()
+                },
+            )
         }
     }
 }
@@ -338,7 +379,8 @@ private fun StruckText(
     Text(text, style = style, modifier = line, onTextLayout = { layout = it })
 }
 
-// the menu of an item, to buy or bought (GROCERY-14): its name in a dialog (RenameItem); its category,
+// the menu of an item, to buy or bought (GROCERY-14): its name and its quantity in a dialog (RenameItem,
+// QuantityItem, GROCERY-15); its category,
 // chosen on a screen of its own (CategoryScreen); a photo from the camera or the photos of the phone
 // (PhotoPicker), scaled down on the phone before it is sent, or the photo removed; the camera only
 // when the phone has one (UX-8); a photo while another one is sent waits for it. Its last entry
@@ -367,6 +409,14 @@ private fun ItemMenu(
                     model.askRename(item)
                 },
                 modifier = Modifier.testTag("rename-item-${item.id}"),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.grocery_quantity_label)) },
+                onClick = {
+                    menu = false
+                    model.askQuantity(item)
+                },
+                modifier = Modifier.testTag("quantity-item-${item.id}"),
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.grocery_item_category)) },
@@ -452,6 +502,41 @@ private fun RenameItem(
             }
         },
         dismissButton = { TextButton(onClick = model::dismissRename) { Text(stringResource(R.string.grocery_cancel)) } },
+    )
+}
+
+// the quantity of an item in a dialog (GROCERY-15): the amount, with a point or a comma, and the unit;
+// an amount that is no valid one shows its error under the field once the field was left or Save was
+// pressed, and can not be saved (UX-6); no amount takes the unit away. Cancel is the safe default
+@Composable
+private fun QuantityItem(
+    quantity: Quantity,
+    model: GroceryModel,
+) {
+    val valid = amountOf(quantity.amount) != Amount.Invalid
+    AlertDialog(
+        onDismissRequest = model::dismissQuantity,
+        title = { Text(stringResource(R.string.grocery_quantity_label)) },
+        text = {
+            Column {
+                AmountField(
+                    quantity.amount,
+                    quantity.left && !valid,
+                    onAmount = model::editQuantityAmount,
+                    onLeave = model::leaveQuantity,
+                    imeAction = ImeAction.Done,
+                    onDone = model::saveQuantity,
+                    modifier = Modifier.fillMaxWidth().testTag("quantity-amount"),
+                )
+                UnitField(quantity.unit, onUnit = model::chooseQuantityUnit, modifier = Modifier.fillMaxWidth().testTag("quantity-unit"))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = model::saveQuantity, enabled = valid, modifier = Modifier.testTag("quantity-save")) {
+                Text(stringResource(CoreR.string.shared_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = model::dismissQuantity) { Text(stringResource(R.string.grocery_cancel)) } },
     )
 }
 

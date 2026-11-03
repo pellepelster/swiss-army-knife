@@ -36,6 +36,45 @@ data class Renaming(
     val left: Boolean = false,
 )
 
+// the quantity of an item set in a dialog over the list (GROCERY-15): the amount typed, with a point or
+// a comma, and the unit chosen, null for none; its error shows once the field was left or the
+// quantity was to be saved (UX-6)
+data class Quantity(
+    val item: GroceryItemResponse,
+    val amount: String,
+    val unit: String?,
+    val left: Boolean = false,
+)
+
+// an item the AI read in a photo, as the user corrects it before it is added (GROCERY-16): whether it
+// is added, its name, its amount typed and its unit; the errors of its fields show once a field was
+// left or the items were to be added (UX-6). id is its place among the items the AI read, the key of
+// its row
+data class DiscoveredRow(
+    val id: Int,
+    val name: String,
+    val amount: String,
+    val unit: String?,
+    val included: Boolean = true,
+    val nameLeft: Boolean = false,
+    val amountLeft: Boolean = false,
+) {
+    val valid get() = GroceryModel.validItemName(name) && amountOf(amount) != Amount.Invalid
+}
+
+// the items of a photo for the list listId, over it (GROCERY-16): read while the photo is sent and the
+// AI reads it, then the rows to correct, none when it found no item; adding while the rows checked
+// are added, error why some were not
+data class Discovery(
+    val listId: Int,
+    val reading: Boolean = true,
+    val rows: List<DiscoveredRow> = emptyList(),
+    val adding: Boolean = false,
+    // the items were to be added: the errors of all fields show
+    val submitted: Boolean = false,
+    val error: UiText? = null,
+)
+
 // the settings of a list the user creates (no id) or changes, one of their own: its name, whether
 // all users see it and its icon, one emoji; of a list that exists also its categories, each change
 // of them saved at once (GROCERY-13)
@@ -91,6 +130,13 @@ data class ListsScreen(
     val choosing: GroceryItemResponse? = null,
     // the item renamed in a dialog over the list, kept when its row goes, e.g. after a change event
     val renaming: Renaming? = null,
+    // the item whose quantity is set in a dialog over the list, kept like renaming (GROCERY-15)
+    val quantity: Quantity? = null,
+    // whether the robot next to the field of a new item reads the items of a photo: the AI features
+    // of the grocery lists are on (GROCERY-16); false when the backend can not say
+    val discoverItems: Boolean = false,
+    // the items of a photo, read or to be confirmed, over the list (GROCERY-16)
+    val discovery: Discovery? = null,
     // the item whose Delete asks for a confirmation in a dialog over the list (UX-4.1)
     val deleting: GroceryItemResponse? = null,
     val loading: Boolean = true,

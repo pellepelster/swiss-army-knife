@@ -1,0 +1,80 @@
+{
+  "recipe": "Jägersoße mit Spätzle, 4 Portionen; alternatives, a range, ½, Butter and Salz twice",
+  "ingredients": [
+    {
+      "names": [
+        "Champignons"
+      ],
+      "quantity": 300,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Zwiebel"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "Rinderbrühe"
+      ],
+      "quantity": 500,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Tomatenmark"
+      ],
+      "quantity": 3,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Butter"
+      ],
+      "quantity": 90,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Sahne"
+      ],
+      "quantity": 200,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Sojasoße",
+        "Sojasauce"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Salz"
+      ],
+      "quantity": 0.5,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ],
+      "quantity": 0.5,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Spätzle"
+      ],
+      "quantity": 600,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Petersilie"
+      ]
+    }
+  ]
+}

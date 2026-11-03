@@ -1,0 +1,92 @@
+{
+  "recipe": "Auberginen-Lachs-Tarte mit Kapernbutter, 2 Portionen; rotated, one line with •, ranges, the Clafoutis next to it is not part of it",
+  "ingredients": [
+    {
+      "names": [
+        "Knoblauch"
+      ],
+      "quantity": 1,
+      "unit": "Zehe"
+    },
+    {
+      "names": [
+        "Auberginen",
+        "Aubergine"
+      ],
+      "quantity": 3
+    },
+    {
+      "names": [
+        "Olivenöl"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Eigelb"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "Crème fraîche",
+        "Creme fraiche"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Blätterteig"
+      ],
+      "quantity": 1,
+      "unit": "Scheibe"
+    },
+    {
+      "names": [
+        "Lachsfilet",
+        "Lachs"
+      ],
+      "quantity": 200,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Salz"
+      ]
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ]
+    },
+    {
+      "names": [
+        "Tomate"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "Kapern"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Butter"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Petersilie"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    }
+  ]
+}

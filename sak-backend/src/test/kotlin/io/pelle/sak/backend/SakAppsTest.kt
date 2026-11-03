@@ -531,6 +531,12 @@ class SakAppsTest {
                 it.statusCode() shouldBe 200
                 it.json().string("discoverText") shouldBe "false"
             }
+            // the same for the items of a photo of the grocery lists (GROCERY-16); AI off, nothing is read
+            get(port, "/api/v1/grocery/settings", anna).let {
+                it.statusCode() shouldBe 200
+                it.json().string("discoverItems") shouldBe "false"
+            }
+            post(port, "/api/v1/grocery/discover/4711", "", anna).statusCode() shouldBe 404
             listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
             }
@@ -864,6 +870,11 @@ class SakAppsTest {
             download("/api/v1/files/$id", other).statusCode() shouldBe 404
             download("/api/v1/files/$image/thumbnail", other).statusCode() shouldBe 404
             post(port, "/api/v1/files/$image/discover/text", "", other).statusCode() shouldBe 404
+            post(port, "/api/v1/grocery/discover/$image", "", other).statusCode() shouldBe 404
+            post(port, "/api/v1/grocery/discover/$image", "", session).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldContain "files.ai_off"
+            }
             post(port, "/api/v1/notes", """{"text":"mine now","photos":[$id]}""", other).statusCode() shouldBe 422
             download("/api/v1/files/$id").statusCode() shouldBe 200
         }
@@ -1228,6 +1239,8 @@ class SakAppsTest {
                         "/api/v1/users",
                         "/api/v1/users/app-link",
                         "/api/v1/users/{id}",
+                        "/api/v1/grocery/settings",
+                        "/api/v1/grocery/discover/{id}",
                         "/api/v1/grocery/lists",
                         "/api/v1/grocery/lists/{id}",
                         "/api/v1/grocery/lists/{id}/items",
@@ -1448,9 +1461,9 @@ class SakAppsTest {
 
             // the scopes, what the settings page is built from
             val scopes = get(port, "/api/v1/settings", session).json()
-            scopes.getValue("pagination").jsonObject.string("total") shouldBe "2"
+            scopes.getValue("pagination").jsonObject.string("total") shouldBe "3"
             val ai = scopes.getValue("items").jsonArray.first().jsonObject
-            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes")
+            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes", "grocery")
             ai.string("name") shouldBe "ai"
             ai.string("enabledBy") shouldBe "enabled"
             val (enabled, apiKey) = ai.getValue("settings").jsonArray.map { it.jsonObject }

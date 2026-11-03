@@ -1572,6 +1572,141 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/grocery/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * What the grocery lists may do
+     * @description For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches themselves are settings of the admins (GET /api/v1/settings/grocery).
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description What the grocery lists may do */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GrocerySettingsResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/grocery/discover/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Discover the items in a photo
+     * @description Reads the ingredients of a recipe or the items of a shopping list in a photo of the file storage with a vision model at OpenRouter; providers that collect the data are not asked. Nothing is added to a list: the items are added once the user confirmed them (POST /api/v1/grocery/items). Needs the AI features of the grocery lists turned on in the settings.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the photo in the file storage */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The items in the photo, empty when it shows none */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GroceryDiscoveredResponse'];
+          };
+        };
+        /** @description The file is no photo the user uploaded */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The signed in user has no such file */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The AI features of the grocery lists are turned off in the settings */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user had too many photos or texts read at OpenRouter lately */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description OpenRouter could not read the photo */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description No OpenRouter API key is set in the settings */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/grocery/lists': {
     parameters: {
       query?: never;
@@ -3690,6 +3825,20 @@ export interface components {
       labels?: string[];
       photos?: number[];
       recordings?: number[];
+    };
+    /** GrocerySettingsResponse */
+    GrocerySettingsResponse: {
+      discoverItems: boolean;
+    };
+    /** GroceryDiscoveredItem */
+    GroceryDiscoveredItem: {
+      name: string;
+      amount?: number | null;
+      unit?: string | null;
+    };
+    /** GroceryDiscoveredResponse */
+    GroceryDiscoveredResponse: {
+      items: components['schemas']['GroceryDiscoveredItem'][];
     };
     /** GroceryListResponse */
     GroceryListResponse: {

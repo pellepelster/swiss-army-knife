@@ -1798,6 +1798,135 @@
                 ]
             }
         },
+        "/api/v1/grocery/settings": {
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "What the grocery lists may do",
+                "description": "For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches themselves are settings of the admins (GET /api/v1/settings/grocery).",
+                "responses": {
+                    "200": {
+                        "description": "What the grocery lists may do",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GrocerySettingsResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/grocery/discover/{id}": {
+            "post": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "Discover the items in a photo",
+                "description": "Reads the ingredients of a recipe or the items of a shopping list in a photo of the file storage with a vision model at OpenRouter; providers that collect the data are not asked. Nothing is added to a list: the items are added once the user confirmed them (POST /api/v1/grocery/items). Needs the AI features of the grocery lists turned on in the settings.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the photo in the file storage",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The items in the photo, empty when it shows none",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryDiscoveredResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The file is no photo the user uploaded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The signed in user has no such file",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The AI features of the grocery lists are turned off in the settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The user had too many photos or texts read at OpenRouter lately",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "OpenRouter could not read the photo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "No OpenRouter API key is set in the settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/grocery/lists": {
             "post": {
                 "tags": [
@@ -4782,6 +4911,57 @@
                         "type": "array",
                         "items": {
                             "type": "integer"
+                        }
+                    }
+                }
+            },
+            "GrocerySettingsResponse": {
+                "type": "object",
+                "title": "GrocerySettingsResponse",
+                "required": [
+                    "discoverItems"
+                ],
+                "properties": {
+                    "discoverItems": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "GroceryDiscoveredItem": {
+                "type": "object",
+                "title": "GroceryDiscoveredItem",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "GroceryDiscoveredResponse": {
+                "type": "object",
+                "title": "GroceryDiscoveredResponse",
+                "required": [
+                    "items"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GroceryDiscoveredItem"
                         }
                     }
                 }

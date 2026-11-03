@@ -15,13 +15,16 @@ import io.pelle.sak.backend.settings.valueOf
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.ApiKeyCheck
 import io.pelle.sak.openrouter.ApiKeyStatus
+import io.pelle.sak.openrouter.IngredientRecognizer
+import io.pelle.sak.openrouter.OpenRouterIngredientRecognizer
 import io.pelle.sak.openrouter.OpenRouterApiKeyCheck
 import io.pelle.sak.openrouter.OpenRouterSpeechTranscriber
 import io.pelle.sak.openrouter.OpenRouterTextRecognizer
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognizer
 
-// the connection to openrouter, the AI provider that discovers the text in photos and recordings:
+// the connection to openrouter, the AI provider that discovers the text in photos and recordings and
+// the ingredients of recipes:
 // its settings, turned on and the api key, and the one place its clients are made
 class OpenRouterManager(
     private val config: SakConfig.OpenRouterConfig,
@@ -36,6 +39,7 @@ class OpenRouterManager(
         val apiKey: String,
         val recognizer: TextRecognizer,
         val transcriber: SpeechTranscriber,
+        val ingredients: IngredientRecognizer,
     )
 
     // made anew when the api key changes
@@ -50,6 +54,9 @@ class OpenRouterManager(
 
     // null without an api key
     fun speechTranscriber(): SpeechTranscriber? = clients()?.transcriber
+
+    // reads the ingredients of a recipe with the vision model; null without an api key
+    fun ingredientRecognizer(): IngredientRecognizer? = clients()?.ingredients
 
     // turned on it needs an api key: turning it on without one, or taking the key away while it is
     // on, is refused. A new api key is checked at openrouter, but only while it is turned on: nothing
@@ -76,6 +83,7 @@ class OpenRouterManager(
             apiKey,
             OpenRouterTextRecognizer(config.url, apiKey, config.model),
             OpenRouterSpeechTranscriber(config.url, apiKey, config.speechModel),
+            OpenRouterIngredientRecognizer(config.url, apiKey, config.model),
         ).also { clients = it }
     }
 

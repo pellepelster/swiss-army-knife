@@ -1,0 +1,81 @@
+{
+  "recipe": "Griechischer Bauernsalat, 6 Portionen; preparation notes after the names",
+  "ingredients": [
+    {
+      "names": [
+        "Tomaten"
+      ],
+      "quantity": 500,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Salatgurke",
+        "Gurke"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "rote Paprika"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "grüne Paprika"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "rote Zwiebeln",
+        "rote Zwiebel"
+      ],
+      "quantity": 2
+    },
+    {
+      "names": [
+        "Schafskäse",
+        "Feta"
+      ],
+      "quantity": 200,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Oliven"
+      ],
+      "quantity": 80,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Oregano"
+      ]
+    },
+    {
+      "names": [
+        "Olivenöl"
+      ],
+      "quantity": 80,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Zitrone"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "Salz"
+      ]
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ]
+    }
+  ]
+}

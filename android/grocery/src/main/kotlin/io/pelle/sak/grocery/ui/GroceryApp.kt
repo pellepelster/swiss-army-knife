@@ -24,7 +24,7 @@ import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListsScreen
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.UNDO_MS
-import java.math.BigDecimal
+import io.pelle.sak.grocery.amountText
 
 // the screens of the app, one at a time, as the model has it
 @Composable
@@ -81,7 +81,4 @@ internal fun quantity(
     amount: Double?,
     unit: String?,
 ): String? =
-    amount?.let {
-        val number = BigDecimal(it.toString()).stripTrailingZeros().toPlainString()
-        listOfNotNull(number, unit).joinToString(" ")
-    }
+    amount?.let { listOfNotNull(amountText(it), unit).joinToString(" ") }

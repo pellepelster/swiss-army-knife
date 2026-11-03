@@ -2,6 +2,8 @@ package io.pelle.sak.grocery
 
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.core.R as CoreR
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.plugin
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.PENDING_FOR
 import io.pelle.sak.core.Screen
@@ -32,6 +34,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -458,6 +461,301 @@ class GroceryModelTest {
             assertEquals(sent, backend.requests.count { it.startsWith("PUT /grocery/items/") })
             assertTrue(GroceryModel.validItemName("x".repeat(128)))
             assertFalse(GroceryModel.validItemName("x".repeat(129)))
+        }
+
+    @Test
+    fun `the quantity of an item is set with a comma, cancel and an unchanged one send nothing, no amount takes the unit away (GROCERY-15)`() =
+        runTest {
+            backend.answers["PUT /grocery/items/10"] = HttpStatusCode.OK to item(10, 1, "Apples", 1, 0.5, "kg")
+            backend.answers["PUT /grocery/items/11"] = HttpStatusCode.OK to item(11, 1, "Milk", 2)
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.askQuantity(model.item("Apples"))
+            assertEquals(Quantity(model.item("Apples"), "", null), model.lists().quantity)
+            model.editQuantityAmount(" 0,5 ")
+            model.chooseQuantityUnit("kg")
+            model.saveQuantity()
+            assertNull(model.lists().quantity)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/10 {"name":"Apples","amount":0.5,"unit":"kg","categoryId":1}"""))
+            assertNull(model.lists().error)
+
+            // the amount as it shows, without trailing zeros; cancel sends nothing, back too
+            val sent = backend.requests.count { it.startsWith("PUT /grocery/items/") }
+            model.askQuantity(model.item("Milk"))
+            assertEquals("1.5", model.lists().quantity?.amount)
+            assertEquals("l", model.lists().quantity?.unit)
+            model.editQuantityAmount("2")
+            model.dismissQuantity()
+            assertNull(model.lists().quantity)
+            model.askQuantity(model.item("Milk"))
+            model.editQuantityAmount("2")
+            model.back()
+            assertNull(model.lists().quantity)
+            assertEquals(1, model.lists().open)
+            // unchanged, with a point for the comma, the dialog closes and nothing is sent
+            model.askQuantity(model.item("Milk"))
+            model.editQuantityAmount("1,500")
+            model.saveQuantity()
+            assertNull(model.lists().quantity)
+            advanceUntilIdle()
+            assertEquals(sent, backend.requests.count { it.startsWith("PUT /grocery/items/") })
+
+            // no amount: the unit goes too, the backend takes none without one
+            model.askQuantity(model.item("Milk"))
+            model.editQuantityAmount(" ")
+            model.saveQuantity()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/11 {"name":"Milk","categoryId":2}"""))
+        }
+
+    @Test
+    fun `an invalid amount is not saved and shows its error, a unit that is none of the list is kept, a refused one shows why (GROCERY-15)`() =
+        runTest {
+            backend.answers["GET /grocery/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Garlic", 1, 2.0, "Zehe"))
+            backend.answers["PUT /grocery/items/10"] = HttpStatusCode.OK to item(10, 1, "Garlic", 1, 3.0, "Zehe")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.askQuantity(model.item("Garlic"))
+            assertFalse(model.lists().quantity!!.left)
+            listOf("0", "-1", "1.2345", "10000000", "1,2,3", "two", "1e3").forEach { amount ->
+                model.editQuantityAmount(amount)
+                model.saveQuantity()
+                assertTrue(amount, model.lists().quantity!!.left)
+            }
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("PUT /grocery/items/") })
+            // the field left shows the error too
+            model.dismissQuantity()
+            model.askQuantity(model.item("Garlic"))
+            model.leaveQuantity()
+            assertTrue(model.lists().quantity!!.left)
+            assertEquals(Amount.Of(9_999_999.999), amountOf("9999999,999"))
+            assertEquals(Amount.Of(0.5), amountOf(".5"))
+
+            // the unit of the item stays when only the amount changes
+            model.editQuantityAmount("3")
+            model.saveQuantity()
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /grocery/items/10 {"name":"Garlic","amount":3.0,"unit":"Zehe","categoryId":1}"""))
+
+            backend.answers["PUT /grocery/items/10"] = HttpStatusCode.InternalServerError to ""
+            model.askQuantity(model.item("Garlic"))
+            model.editQuantityAmount("4")
+            model.saveQuantity()
+            advanceUntilIdle()
+            assertEquals("The quantity could not be saved.", model.lists().error.english())
+        }
+
+    @Test
+    fun `the robot shows when the backend discovers the items of a photo, not when it says no or can not say (GROCERY-16)`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+            // no answer
+            assertFalse(model.lists().discoverItems)
+
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":true}"""
+            model.refresh()
+            advanceUntilIdle()
+            assertTrue(model.lists().discoverItems)
+
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":false}"""
+            model.refresh()
+            advanceUntilIdle()
+            assertFalse(model.lists().discoverItems)
+
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":true}"""
+            model.refresh()
+            advanceUntilIdle()
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.InternalServerError to ""
+            model.refresh()
+            advanceUntilIdle()
+            assertFalse(model.lists().discoverItems)
+            // the list loads all the same
+            assertNull(model.lists().error)
+            assertEquals(listOf("Apples", "Milk", "Candles"), model.names())
+
+            // asked when the list opens and on a pull down, not on the loads a change starts
+            val asked = backend.requests.count { it == "GET /grocery/settings" }
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":true}"""
+            model.toggleBought()
+            advanceUntilIdle()
+            assertEquals(asked, backend.requests.count { it == "GET /grocery/settings" })
+        }
+
+    private fun discoverAnswers(items: String) {
+        backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":true}"""
+        backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/9","thumbnailUrl":"/api/v1/files/9/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+        backend.answers["POST /grocery/discover/9"] = HttpStatusCode.OK to """{"items":[$items]}"""
+    }
+
+    @Test
+    fun `the items of a photo are read, corrected and the ones checked added without a category (GROCERY-16)`() =
+        runTest {
+            discoverAnswers("""{"name":"Flour","amount":500,"unit":"g"},{"name":"Garlik","amount":2,"unit":"Zehe"},{"name":"Salt","unit":"pinch"},{"name":"Water","amount":null,"unit":null}""")
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(20, 1, "Flour", null)
+            val model = signedIn()
+            advanceUntilIdle()
+
+            // the dialog says the photo is read while it is
+            model.discover {
+                assertTrue(model.lists().discovery!!.reading)
+                "jpeg".toByteArray()
+            }
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("POST /files jpeg"))
+            assertTrue(backend.requests.contains("POST /grocery/discover/9"))
+            // nothing is added yet
+            assertTrue(backend.requests.none { it.startsWith("POST /grocery/items") })
+            val discovery = model.lists().discovery!!
+            assertFalse(discovery.reading)
+            assertEquals(1, discovery.listId)
+            assertEquals(
+                listOf(
+                    DiscoveredRow(0, "Flour", "500", "g"),
+                    DiscoveredRow(1, "Garlik", "2", "Zehe"),
+                    DiscoveredRow(2, "Salt", "", "pinch"),
+                    DiscoveredRow(3, "Water", "", null),
+                ),
+                discovery.rows,
+            )
+
+            // a name corrected, a quantity changed, the water left out
+            model.editDiscoveredName(1, " Garlic ")
+            model.editDiscoveredAmount(0, "0,75")
+            model.chooseDiscoveredUnit(0, "kg")
+            model.includeDiscovered(3, false)
+            model.addDiscovered()
+            assertTrue(model.lists().discovery!!.adding)
+            advanceUntilIdle()
+            assertEquals(
+                listOf(
+                    """POST /grocery/items {"listId":1,"name":"Flour","amount":0.75,"unit":"kg"}""",
+                    """POST /grocery/items {"listId":1,"name":"Garlic","amount":2.0,"unit":"Zehe"}""",
+                    // the unit goes without an amount
+                    """POST /grocery/items {"listId":1,"name":"Salt"}""",
+                ),
+                backend.requests.filter { it.startsWith("POST /grocery/items") },
+            )
+            assertNull(model.lists().discovery)
+            assertNull(model.lists().error)
+            // the list loaded again
+            assertEquals(2, backend.requests.count { it == "GET /grocery/lists/1/items" })
+        }
+
+    @Test
+    fun `the items of a photo are not added with an invalid row checked, or after cancel or back (GROCERY-16)`() =
+        runTest {
+            discoverAnswers("""{"name":"Flour","amount":500,"unit":"g"},{"name":"Sugar"}""")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            model.editDiscoveredName(0, " ")
+            model.editDiscoveredAmount(1, "0")
+            model.leaveDiscoveredName(0)
+            assertTrue(model.lists().discovery!!.rows[0].nameLeft)
+            assertFalse(model.lists().discovery!!.rows[0].valid)
+            model.addDiscovered()
+            assertTrue(model.lists().discovery!!.submitted)
+            assertFalse(model.lists().discovery!!.adding)
+            // a row left out is no error
+            model.includeDiscovered(0, false)
+            model.includeDiscovered(1, false)
+            model.addDiscovered()
+            model.dismissDiscovery()
+            assertNull(model.lists().discovery)
+
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            model.back()
+            assertNull(model.lists().discovery)
+            assertEquals(1, model.lists().open)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("POST /grocery/items") })
+
+            // cancelled while the photo is read: it is not sent, nothing shows
+            val uploads = backend.requests.count { it.startsWith("POST /files") }
+            model.discover {
+                model.dismissDiscovery()
+                "jpeg".toByteArray()
+            }
+            advanceUntilIdle()
+            assertNull(model.lists().discovery)
+            assertEquals(uploads, backend.requests.count { it.startsWith("POST /files") })
+        }
+
+    @Test
+    fun `a photo without items says so, a refused or unreadable one says why (GROCERY-16)`() =
+        runTest {
+            discoverAnswers("")
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            val none = model.lists().discovery!!
+            assertFalse(none.reading)
+            assertTrue(none.rows.isEmpty())
+            model.dismissDiscovery()
+
+            backend.answers["POST /grocery/discover/9"] =
+                HttpStatusCode.Conflict to """{"errors":[{"code":"grocery.discover_off","message":"The AI features are off."}]}"""
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            assertNull(model.lists().discovery)
+            assertEquals("The AI features are off.", model.lists().error.english())
+
+            backend.answers["POST /grocery/discover/9"] = HttpStatusCode.InternalServerError to ""
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            assertEquals("The photo could not be read.", model.lists().error.english())
+
+            // what the phone can not read is not sent
+            val uploads = backend.requests.count { it.startsWith("POST /files") }
+            model.discover { null }
+            advanceUntilIdle()
+            assertNull(model.lists().discovery)
+            assertEquals("The photo could not be read.", model.lists().error.english())
+            assertEquals(uploads, backend.requests.count { it.startsWith("POST /files") })
+        }
+
+    @Test
+    fun `the items of a photo the list does not take stay with why, the others are added (GROCERY-16)`() =
+        runTest {
+            discoverAnswers("""{"name":"Flour"},{"name":"Sugar"},{"name":"Eggs","amount":6}""")
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(20, 1, "Flour", null)
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.discover { "jpeg".toByteArray() }
+            advanceUntilIdle()
+            // the second one is lost on the way, the others are added
+            var adds = 0
+            backend.client.plugin(HttpSend).intercept { request ->
+                if (request.url.buildString().endsWith("/grocery/items") && ++adds == 2) throw IOException("lost")
+                execute(request)
+            }
+            model.addDiscovered()
+            advanceUntilIdle()
+            assertEquals(3, adds)
+            assertEquals(2, backend.requests.count { it.startsWith("POST /grocery/items") })
+            val discovery = model.lists().discovery!!
+            assertEquals(listOf("Sugar"), discovery.rows.map { it.name })
+            assertEquals("Not every item could be added.", discovery.error.english())
+            assertFalse(discovery.adding)
+            // the list shows the ones added
+            assertEquals(2, backend.requests.count { it == "GET /grocery/lists/1/items" })
+
+            // added again, the dialog closes
+            model.addDiscovered()
+            advanceUntilIdle()
+            assertNull(model.lists().discovery)
+            assertEquals("""POST /grocery/items {"listId":1,"name":"Sugar"}""", backend.requests.last { it.startsWith("POST /grocery/items") })
         }
 
     @Test

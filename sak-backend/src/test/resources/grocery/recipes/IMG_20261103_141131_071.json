@@ -1,0 +1,110 @@
+{
+  "recipe": "Wokgemüse mit Erdnusssauce, 4 Personen; blurry, Zwiebel, Knoblauch and Erdnussöl twice",
+  "ingredients": [
+    {
+      "names": [
+        "Brokkoli"
+      ],
+      "quantity": 500,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Zwiebel",
+        "Zwiebeln"
+      ],
+      "quantity": 2
+    },
+    {
+      "names": [
+        "Paprika"
+      ],
+      "quantity": 1
+    },
+    {
+      "names": [
+        "Champignons"
+      ],
+      "quantity": 250,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Ingwer"
+      ],
+      "quantity": 20,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Knoblauch"
+      ],
+      "quantity": 3,
+      "unit": "Zehe"
+    },
+    {
+      "names": [
+        "Erdnussöl"
+      ],
+      "quantity": 3,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Sojasauce",
+        "Sojasoße"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Rohrzucker"
+      ],
+      "quantity": 2,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Currypaste"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Agavendicksaft"
+      ],
+      "quantity": 1,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Erdnussmus"
+      ],
+      "quantity": 100,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Kokosmilch"
+      ],
+      "quantity": 200,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Gemüsebrühe"
+      ],
+      "quantity": 200,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Zitronensaft"
+      ],
+      "quantity": 2,
+      "unit": "TL"
+    }
+  ]
+}

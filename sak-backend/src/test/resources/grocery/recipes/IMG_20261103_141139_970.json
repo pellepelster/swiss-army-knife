@@ -1,0 +1,111 @@
+{
+  "recipe": "Quiche mit Lachs, 1 Quiche; two sections, Ei and Eier merged, Salz with and without amount, water and the butter and flour for the form left out",
+  "ingredients": [
+    {
+      "names": [
+        "Mehl"
+      ],
+      "quantity": 250,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Backpulver"
+      ],
+      "quantity": 1,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Butter"
+      ],
+      "quantity": 120,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Salz"
+      ],
+      "quantity": 1,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Eier",
+        "Ei"
+      ],
+      "quantity": 5
+    },
+    {
+      "names": [
+        "Blattspinat",
+        "Spinat"
+      ],
+      "quantity": 450,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Knoblauch"
+      ],
+      "quantity": 1,
+      "unit": "Zehe"
+    },
+    {
+      "names": [
+        "Porree",
+        "Lauch"
+      ],
+      "quantity": 0.5,
+      "unit": "Stange"
+    },
+    {
+      "names": [
+        "Sonnenblumenöl"
+      ],
+      "quantity": 2,
+      "unit": "EL"
+    },
+    {
+      "names": [
+        "Pfeffer"
+      ]
+    },
+    {
+      "names": [
+        "Muskatnuss",
+        "Muskat"
+      ]
+    },
+    {
+      "names": [
+        "Sahne"
+      ],
+      "quantity": 200,
+      "unit": "ml"
+    },
+    {
+      "names": [
+        "Crème fraîche",
+        "Creme fraiche"
+      ],
+      "quantity": 150,
+      "unit": "g"
+    },
+    {
+      "names": [
+        "Senf"
+      ],
+      "quantity": 1,
+      "unit": "TL"
+    },
+    {
+      "names": [
+        "Lachsfilet",
+        "Lachs"
+      ],
+      "quantity": 250,
+      "unit": "g"
+    }
+  ]
+}

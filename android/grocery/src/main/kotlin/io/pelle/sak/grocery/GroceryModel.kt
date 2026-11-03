@@ -69,6 +69,9 @@ class GroceryModel(
     // the requests of photos, one after the other, none dropped (AN-32)
     private val photoRequests = Mutex()
 
+    // the photo whose items are being read (GROCERY-16), cancelled when its dialog closes
+    private var discovering: Job? = null
+
     // the suggestions asked for the name typed last, after a short pause of typing
     private var suggesting: Job? = null
 
@@ -278,6 +281,184 @@ class GroceryModel(
         }
     }
 
+    // the Quantity of the menu of an item opens its dialog with the quantity as it is (GROCERY-15)
+    fun askQuantity(item: GroceryItemResponse) = lists { it.copy(quantity = Quantity(item, amountText(item.amount), item.unit)) }
+
+    fun editQuantityAmount(amount: String) = lists { lists -> lists.copy(quantity = lists.quantity?.copy(amount = amount)) }
+
+    fun chooseQuantityUnit(unit: String?) = lists { lists -> lists.copy(quantity = lists.quantity?.copy(unit = unit)) }
+
+    // the field of the amount was left: its error shows from now on (UX-6)
+    fun leaveQuantity() = lists { lists -> lists.copy(quantity = lists.quantity?.copy(left = true)) }
+
+    fun dismissQuantity() = lists { it.copy(quantity = null) }
+
+    // the item of the dialog, to buy or bought, with the quantity typed; its name and category stay.
+    // An invalid amount stays in the dialog with its error, no amount takes the unit away too (the
+    // backend takes no unit without one), an unchanged quantity is not sent
+    fun saveQuantity() {
+        val lists = state.value as? ListsScreen ?: return
+        val quantity = lists.quantity ?: return
+        val amount =
+            when (val typed = amountOf(quantity.amount)) {
+                Amount.Invalid -> {
+                    state.value = lists.copy(quantity = quantity.copy(left = true))
+                    return
+                }
+                Amount.None -> null
+                is Amount.Of -> typed.value
+            }
+        val unit = quantity.unit?.takeIf { amount != null }
+        state.value = lists.copy(quantity = null)
+        val item = quantity.item
+        if (amount == item.amount && unit == item.unit) return
+        // a check that can still be undone puts the item back with its new quantity
+        pending?.let { (waiting, timer) -> if (waiting.id == item.id) pending = waiting.copy(amount = amount, unit = unit) to timer }
+        scope.launch {
+            request(R.string.grocery_quantity_not_saved, ::failed) {
+                it.updateItem(item.id, GroceryItemRequest(item.name, amount, unit, item.categoryId), R.string.grocery_quantity_not_saved)
+            } ?: return@launch
+            load()
+        }
+    }
+
+    // the photo the robot next to the field of a new item took or chose, of a recipe or a shopping
+    // list (GROCERY-16): stored, then the AI reads its items for the list open, which show to be
+    // corrected; nothing is added yet. read makes the jpeg the ui scaled down, null when it can not be
+    // read. Like attachPhoto it waits for the lists, and drops the photo when the app starts with the
+    // sign-in, or without a list open; discard deletes what the camera wrote. A failure closes the
+    // dialog and shows why on the list
+    fun discover(
+        discard: () -> Unit = {},
+        read: suspend () -> ByteArray?,
+    ) {
+        discovering?.cancel()
+        discovering =
+            scope.launch {
+                if (state.first { it !is Screen.Starting } !is ListsScreen) {
+                    discard()
+                    return@launch
+                }
+                val listId = (state.value as? ListsScreen)?.open
+                if (listId == null) {
+                    discard()
+                    return@launch
+                }
+                lists { it.copy(discovery = Discovery(listId), error = null) }
+                val jpeg = read()
+                if (jpeg == null) {
+                    lists { it.copy(discovery = null, error = uiText(R.string.grocery_photo_not_read)) }
+                    return@launch
+                }
+                val failed = { error: UiText -> lists { it.copy(discovery = null, error = error) } }
+                val items = request(R.string.grocery_discover_not_read, failed) { api -> api.discoverItems(api.uploadDiscoverPhoto(jpeg)) } ?: return@launch
+                discovery(listId) { discovery ->
+                    discovery.copy(reading = false, rows = items.mapIndexed { index, item -> DiscoveredRow(index, item.name, amountText(item.amount), item.unit) })
+                }
+            }
+    }
+
+    // a row of the items of the photo added or left out
+    fun includeDiscovered(
+        index: Int,
+        included: Boolean,
+    ) = discoveredRow(index) { it.copy(included = included) }
+
+    fun editDiscoveredName(
+        index: Int,
+        name: String,
+    ) = discoveredRow(index) { it.copy(name = name) }
+
+    // the field of the name of a row was left: its error shows from now on (UX-6)
+    fun leaveDiscoveredName(index: Int) = discoveredRow(index) { it.copy(nameLeft = true) }
+
+    fun editDiscoveredAmount(
+        index: Int,
+        amount: String,
+    ) = discoveredRow(index) { it.copy(amount = amount) }
+
+    fun leaveDiscoveredAmount(index: Int) = discoveredRow(index) { it.copy(amountLeft = true) }
+
+    fun chooseDiscoveredUnit(
+        index: Int,
+        unit: String?,
+    ) = discoveredRow(index) { it.copy(unit = unit) }
+
+    // the items of the photo close, none added; a photo still read is dropped
+    fun dismissDiscovery() {
+        discovering?.cancel()
+        discovering = null
+        lists { it.copy(discovery = null) }
+    }
+
+    // the rows checked go to the list of the photo one after the other, as new items without a category,
+    // so the backend gives each the one of the latest item of its name; also when the app closes
+    // meanwhile. A row checked whose name or amount is no valid one shows its error and nothing is
+    // added. The dialog closes once all were added; else only the rows not added stay, with why
+    fun addDiscovered() {
+        val lists = state.value as? ListsScreen ?: return
+        val discovery = lists.discovery ?: return
+        if (discovery.reading || discovery.adding) return
+        val chosen = discovery.rows.filter { it.included }
+        if (chosen.isEmpty()) return
+        if (chosen.any { !it.valid }) {
+            state.value = lists.copy(discovery = discovery.copy(submitted = true))
+            return
+        }
+        state.value = lists.copy(discovery = discovery.copy(adding = true, error = null))
+        launchLasting {
+            val failed =
+                chosen.filter { row ->
+                    val amount = (amountOf(row.amount) as? Amount.Of)?.value
+                    request(R.string.grocery_list_not_added, {}) {
+                        it.addItem(discovery.listId, row.name.trim(), amount, row.unit?.takeIf { amount != null })
+                    } == null
+                }
+            lists { current ->
+                if (current.discovery?.listId != discovery.listId) return@lists current
+                current.copy(
+                    discovery =
+                        failed.takeIf { it.isNotEmpty() }?.let { rows ->
+                            current.discovery.copy(rows = rows, adding = false, error = uiText(R.string.grocery_discover_not_all_added))
+                        },
+                )
+            }
+            load()
+        }
+    }
+
+    // changes the items of the photo for the list listId, nothing when there are none or for another list
+    private inline fun discovery(
+        listId: Int,
+        change: (Discovery) -> Discovery,
+    ) {
+        lists { lists -> lists.discovery?.takeIf { it.listId == listId }?.let { lists.copy(discovery = change(it)) } ?: lists }
+    }
+
+    // changes a row of the items of the photo, none while they are added
+    private inline fun discoveredRow(
+        index: Int,
+        change: (DiscoveredRow) -> DiscoveredRow,
+    ) {
+        lists { lists ->
+            val discovery = lists.discovery?.takeIf { !it.adding && index in it.rows.indices } ?: return@lists lists
+            lists.copy(discovery = discovery.copy(rows = discovery.rows.toMutableList().apply { this[index] = change(this[index]) }))
+        }
+    }
+
+    // whether the next load asks if the AI reads the items of a photo (GET /grocery/settings)
+    private var askDiscover = true
+
+    // whether the AI reads the items of a photo: off when the backend can not say
+    private suspend fun discoverOf(api: GroceryApi): Boolean =
+        try {
+            api.discoverAvailable()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+
     // a list of the home opens, the next start opens it again (LIST-3)
     fun open(id: Int) {
         val lists = state.value as? ListsScreen ?: return
@@ -291,6 +472,8 @@ class GroceryModel(
         val lists = state.value as? ListsScreen ?: return
         when {
             lists.renaming != null -> state.value = lists.copy(renaming = null)
+            lists.quantity != null -> state.value = lists.copy(quantity = null)
+            lists.discovery != null -> dismissDiscovery()
             lists.deleting != null -> state.value = lists.copy(deleting = null)
             lists.settings != null -> {
                 saveDrafts()
@@ -678,6 +861,8 @@ class GroceryModel(
                 categories = emptyList(),
                 choosing = null,
                 renaming = null,
+                quantity = null,
+                discovery = null,
                 deleting = null,
                 viewing = null,
                 loading = true,
@@ -688,6 +873,8 @@ class GroceryModel(
                 showBought = false,
             )
         suggesting?.cancel()
+        discovering?.cancel()
+        askDiscover = true
         scope.launch { store.update { it.withOpenList(open) } }
         load(after = check)
     }
@@ -705,6 +892,7 @@ class GroceryModel(
     fun refresh() {
         val lists = state.value as? ListsScreen ?: return
         state.value = lists.copy(loading = true, error = null)
+        askDiscover = true
         load()
     }
 
@@ -794,6 +982,9 @@ class GroceryModel(
                     if (wanted != null && open == null) store.update { it.withOpenList(null) }
                     val items = open?.let { api.items(it, checked = current.showBought) }.orEmpty()
                     val categories = open?.let { api.categories(it) }.orEmpty()
+                    // asked when a list opens and on a pull down, not on every load a change starts
+                    val discoverItems =
+                        if (open != null && askDiscover) discoverOf(api).also { askDiscover = false } else current.discoverItems
                     lists { current ->
                         // the dialogs belong to the list open: when it went, they go (AN-31)
                         val stays = current.open == open
@@ -804,6 +995,11 @@ class GroceryModel(
                             current.renaming?.takeIf { stays }?.let { renaming ->
                                 items.firstOrNull { it.id == renaming.item.id }?.let { renaming.copy(item = it) } ?: renaming
                             }
+                        val quantity =
+                            current.quantity?.takeIf { stays }?.let { quantity ->
+                                items.firstOrNull { it.id == quantity.item.id }?.let { quantity.copy(item = it) } ?: quantity
+                            }
+                        val discovery = current.discovery?.takeIf { stays && it.listId == open }
                         val deleting = current.deleting?.takeIf { stays }?.let { deleting -> items.firstOrNull { it.id == deleting.id } ?: deleting }
                         val viewing = current.viewing?.takeIf { stays }
                         current.copy(
@@ -813,6 +1009,9 @@ class GroceryModel(
                             categories = categories,
                             choosing = choosing,
                             renaming = renaming,
+                            quantity = quantity,
+                            discoverItems = discoverItems,
+                            discovery = discovery,
                             deleting = deleting,
                             viewing = viewing,
                             loading = false,
