@@ -220,12 +220,11 @@ pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, Strin
 /// The salt comes from the name, so every deploy gives the same hash and the configuration of the
 /// backend does not change
 pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {
-    use argon2::password_hash::{PasswordHasher, SaltString};
+    use argon2::PasswordHasher;
     // 16 bytes of salt, the recommended length
     let digest = Sha256::digest(format!("{VERSION}/admin-password/{name}"));
-    let salt = SaltString::encode_b64(&digest[..16]).map_err(|e| e.to_string())?;
     Ok(argon2(ADMIN_PASSWORD_PARAMS)?
-        .hash_password(normalized(password).as_bytes(), &salt)
+        .hash_password_with_salt(normalized(password).as_bytes(), &digest[..16])
         .map_err(|e| e.to_string())?
         .to_string())
 }
