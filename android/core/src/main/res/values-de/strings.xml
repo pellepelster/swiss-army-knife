@@ -28,7 +28,7 @@
     <string name="menu">Menü</string>
     <string name="link_sent">Ein Login-Link ist an %1$s unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\".</string>
     <string name="signed_in_as">Angemeldet als %1$s</string>
-    <string name="update_available">Version %1$s der App ist verfügbar, die Version deiner SAK-Instanz. Das Update lädt sie von GitHub herunter, das die Adresse dieses Handys sieht.</string>
+    <string name="update_available">Version %1$s der App ist verfügbar. Das Update lädt sie von GitHub herunter.</string>
     <string name="downloading">Wird heruntergeladen…</string>
     <string name="update">Aktualisieren</string>
     <string name="update_check">Nach Updates suchen</string>
