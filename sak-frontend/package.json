@@ -11,7 +11,7 @@
     "api:types": "node scripts/api-types.mjs"
   },
   "private": true,
-  "packageManager": "npm@10.9.8",
+  "packageManager": "npm@10.9.9",
   "dependencies": {
     "@angular/cdk": "^22.2.5",
     "@angular/common": "^22.2.0",
