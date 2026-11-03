@@ -56,7 +56,9 @@ Fix: "Its apps are at its SAK address, for example `https://sak.family.example.o
 
 ## Consistency
 
-### `UD-5` Deployment and SAK instance
+### ~~`UD-5` Deployment and SAK instance~~
+
+**Fixed:** the pages for users say "SAK instance" everywhere, the glossary says so.
 
 The glossary says: the documentation and sakctl say **deployment**, the texts of the apps say **SAK instance**. The
 pages mix them for the same thing:
@@ -78,7 +80,9 @@ removes it"), `features.md` ("Install, update and remove") and `README.md` ("ins
 
 Fix: "destroy" everywhere.
 
-### `UD-7` Log in, sign in
+### ~~`UD-7` Log in, sign in~~
+
+**Fixed:** the features say "Sign in with just your e-mail address".
 
 `features.md` says "Log in with just your e-mail address" (the text and the alt text of the screenshot). All other
 pages and the UI say "sign in".

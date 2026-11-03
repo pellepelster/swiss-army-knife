@@ -17,11 +17,13 @@ user interface. Use the same term for the same thing every time.
   checks against `app_name` of `i18n/texts.yml`). They are the same in every language. Inside SAK, where the
   prefix is clear, the app has its short name of `app.*` in `i18n/texts.yml`: "Notes" ("Notizen") and "Grocery"
   ("Einkaufslisten"), for example in the list of the apps of the web frontend.
-- **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code, documentation and
-  sakctl, a tool for technical users that creates and deploys it, say **deployment**. The texts of the apps (web,
-  Android, the messages of the backend) never say "deployment"; where they need a word for what the user signed in
-  to, it is **SAK instance** (German "SAK-Instanz"). A term of another tool keeps its word, e.g. the "deployment
-  target" of a static site generator.
+- **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code, the documentation
+  for developers (`docs/development/`) and sakctl, a tool for technical users that creates and deploys it, say
+  **deployment**. The documentation for users (`README.md`, the other pages of `docs/`) says **SAK instance**, also
+  where it describes sakctl; only a label of sakctl keeps its word, e.g. the list **Deployments**. The texts of the
+  apps (web, Android, the messages of the backend) never say "deployment"; where they need a word for what the user
+  signed in to, it is **SAK instance** (German "SAK-Instanz"). A term of another tool keeps its word, e.g. the
+  "deployment target" of a static site generator.
 - **name**: The unique name of a SAK deployment. Each deployment has one name. Two
   deployments cannot have the same name. Each cloud resource of a deployment has
   the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in

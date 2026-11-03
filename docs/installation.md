@@ -65,9 +65,10 @@ sakctl only updates when you ask. In the UI, click **Check for updates** in the 
 version, then **Restart**. On the command line, `sakctl update` updates and `sakctl update --check` only checks. sakctl
 downloads the newest release from GitHub, verifies its SHA-256 checksum and replaces itself.
 
-The next deploy updates the server of the deployment to the same version.
+The next deploy updates the server of the SAK instance to the same version.
 
 ## The first start
 
 sakctl first looks for Docker or Podman and downloads the image of its tools, which takes a few minutes the first
-time. Then it asks for the API token of your Hetzner Cloud project and shows your deployments.
+time. Then it asks for the API token of your Hetzner Cloud project and shows your SAK instances in the list
+**Deployments**.

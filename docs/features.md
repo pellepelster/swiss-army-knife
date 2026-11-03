@@ -33,9 +33,9 @@ of their own OpenRouter account. Providers that collect data are never used.
 
 ![The users an admin added](screenshots/web-users-desktop.png)
 
-Log in with just your e-mail address:
+Sign in with just your e-mail address:
 
-![Log in with just your e-mail address](screenshots/web-login-email-desktop.png)
+![Sign in with just your e-mail address](screenshots/web-login-email-desktop.png)
 
 ## sakctl
 
