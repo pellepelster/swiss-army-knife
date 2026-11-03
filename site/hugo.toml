@@ -20,7 +20,7 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! screenshots/**', '! development/design/**']
+files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
 
 # the index of the feature decision records is the page of its section
 [[module.mounts]]
@@ -31,6 +31,11 @@ target = 'content/development/fdr/_index.md'
 [[module.mounts]]
 source = '../docs/development/architecture/apps/INDEX.md'
 target = 'content/development/architecture/apps/_index.md'
+
+# the two ways to the android apps are the page of the section of the android apps
+[[module.mounts]]
+source = '../docs/apps/android/INDEX.md'
+target = 'content/apps/android/_index.md'
 
 # the screenshots as assets, so a page of docs/ shows one as screenshots/<name>.png, the same path
 # that works on github
