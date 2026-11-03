@@ -281,7 +281,8 @@ jobs:
   # from a tag v<version> only, when all images, all zips of sakctl and the apks are built: the images
   # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips and their checksums as
   # the github release of the tag (mise run cli:release), where the installation downloads them, and
-  # the signed apks of the android apps with their checksums (mise run android:release)
+  # the signed apks of the android apps with their checksums and their bundles for google play (mise
+  # run android:release)
   release:
     if: github.ref_type == 'tag'
     needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
@@ -314,6 +315,10 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: android-apks
+          path: android/build
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-play
           path: android/build
       - run: ls -l android/build
       - run: mise run android:release

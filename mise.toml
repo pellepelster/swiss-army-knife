@@ -812,16 +812,19 @@ for app in $apps; do
 done
 '''
 
-# into the github release v<VERSION> of cli:release; files are replaced, a failed release runs again
+# the apks of android:release:build and the bundles for google play of android:play:build into the
+# github release v<VERSION> of cli:release; files are replaced, a failed release runs again
 [tasks."android:release"]
-description = "Add the release apks to the GitHub release"
+description = "Add the release apks and bundles to the GitHub release"
 dir = "{{config_root}}/android"
 run = """
 set -eu
 for app in $(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' apps.txt); do
   apk="build/sak-${app}-${VERSION}.apk"
+  aab="build/sak-${app}-${VERSION}.aab"
   [ -f "$apk" ] && [ -f "$apk.sha256" ] || { echo "$apk or its checksum is missing" >&2; exit 1; }
-  gh release upload "v${VERSION}" "$apk" "$apk.sha256" --clobber
+  [ -f "$aab" ] || { echo "$aab is missing" >&2; exit 1; }
+  gh release upload "v${VERSION}" "$apk" "$apk.sha256" "$aab" --clobber
 done
 """
 

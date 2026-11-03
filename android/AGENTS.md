@@ -47,7 +47,8 @@ its own architecture document.
   `build/sak-<app>-<VERSION>-mapping.txt`, the map of r8 for the play console, signed and checked as the apks of a
   release. The key is the app signing key of play (play app signing), so an apk of github installs over an app of
   play. The package of an app in the play console is its applicationId, e.g. `io.pelle.sak.notes`. The job
-  `sak-android-apps` builds them as the artifact `android-play`; they are uploaded by hand.
+  `sak-android-apps` builds them as the artifact `android-play`; the job `release` adds the bundles to the github
+  release of the tag (`android:release`), they are uploaded to the play console by hand.
 - **Release.** `android:release:build` writes `build/sak-<app>-<VERSION>.apk` of each app and its `.sha256`. The apks
   are signed with the keystore of `ANDROID_KEYSTORE` (base64) and its passwords, the secrets of the workflow
   (`github:secrets:update`, from `pass` `sak/android/signing-key` and `sak/android/signing-key-password`; the alias
