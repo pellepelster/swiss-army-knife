@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 // grocery/recipes and the ingredients each has (<photo>.json, the names it may have, its quantity and
 // unit). It asks openrouter, so it runs only with OPENROUTER_API_KEY set, OPENROUTER_MODEL takes another
 // model than the default of the deployment; each run costs a few cents:
-// mise run backend:test:recipes (the key from pass)
+// mise run backend:test:recipes or run from IntelliJ (gradle reads the key from pass, sak-backend/build.gradle.kts)
 // The photos go as the apps upload them: upright, at most MAX_IMAGE_SIZE pixels, without exif. Only
 // providers that do not collect the data are asked
 @EnabledIfEnvironmentVariable(named = "OPENROUTER_API_KEY", matches = ".+", disabledReason = "the photos go to openrouter only with OPENROUTER_API_KEY")

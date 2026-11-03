@@ -533,16 +533,13 @@ dir = "{{config_root}}"
 run = "./gradlew test"
 
 # the prompt of the ingredients against the recipe photos of sak-backend's grocery/recipes, at
-# openrouter (RecipeIngredientsTest): sends the 7 photos, costs a few cents. The key comes from pass
-# unless set; OPENROUTER_MODEL takes another model than the default of the deployment
+# openrouter (RecipeIngredientsTest): sends the 7 photos, costs a few cents. gradle reads the key from
+# pass unless OPENROUTER_API_KEY is set (sak-backend/build.gradle.kts), also when IntelliJ runs the
+# test; OPENROUTER_MODEL takes another model than the default of the deployment
 [tasks."backend:test:recipes"]
 description = "Test the recipe prompt against OpenRouter"
 dir = "{{config_root}}"
-env = { OPENROUTER_API_KEY = "{{ get_env(name='OPENROUTER_API_KEY', default=exec(command='pass show openrouter/pelle/api-key 2>/dev/null | head -n1')) }}" }
-run = """
-[ -n "$OPENROUTER_API_KEY" ] || { echo "no OpenRouter API key, set OPENROUTER_API_KEY or put it into pass openrouter/pelle/api-key" >&2; exit 1; }
-./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun
-"""
+run = "./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun"
 
 # openapi.json at the root: the document the routes of sak-backend describe, what the models of the
 # android apps and the types of sak-frontend are generated from; a test fails while it is not current
@@ -620,26 +617,18 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # cloud api, then sak-e2e: two deployments created with sakctl, built first, the logins and the apps
 # in a browser against them, the login mails in a mailtrap sandbox. They create and destroy real
 # resources and servers (test-<id>), which takes long and costs money. The token and the mailtrap
-# credentials come from pass unless set; without them the task refuses to run. The deployments run
-# the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
+# credentials come from pass unless set, the token here for the tests of sak-cloud, all of them in
+# gradle for e2eIntegration (sak-e2e/build.gradle.kts); without them the task refuses to run. The
+# deployments run the images of SAK_DOCKER_IMAGE_TAG, <VERSION>-rc unless set: outside of CI the task builds and
 # pushes them first (image:all:push), in CI the jobs of the images pushed them
 [tasks."cli:test:e2e"]
 description = "Run the cli e2e tests"
 depends = ["cli:theme"]
 dir = "{{config_root}}"
-env = {
-    HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}",
-    MAILTRAP_API_TOKEN = "{{ get_env(name='MAILTRAP_API_TOKEN', default=exec(command='pass show mailtrap/pelle/api-token 2>/dev/null | head -n1')) }}",
-    SAK_E2E_SMTP_HOST = "{{ get_env(name='SAK_E2E_SMTP_HOST', default=exec(command='pass show mailtrap/pelle/smtp-server 2>/dev/null | head -n1')) }}",
-    SAK_E2E_SMTP_PORT = "{{ get_env(name='SAK_E2E_SMTP_PORT', default=exec(command='pass show mailtrap/pelle/smtp-port 2>/dev/null | head -n1')) }}",
-    SAK_E2E_SMTP_USERNAME = "{{ get_env(name='SAK_E2E_SMTP_USERNAME', default=exec(command='pass show mailtrap/pelle/smtp-user 2>/dev/null | head -n1')) }}",
-    SAK_E2E_SMTP_PASSWORD = "{{ get_env(name='SAK_E2E_SMTP_PASSWORD', default=exec(command='pass show mailtrap/pelle/smtp-password 2>/dev/null | head -n1')) }}"
-}
+env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = """
 set -e
-for variable in HCLOUD_TOKEN MAILTRAP_API_TOKEN SAK_E2E_SMTP_HOST SAK_E2E_SMTP_PORT SAK_E2E_SMTP_USERNAME SAK_E2E_SMTP_PASSWORD; do
-  [ -n "$(printenv "$variable")" ] || { echo "set $variable, refer to sak-e2e/README.md" >&2; exit 1; }
-done
+[ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN, refer to sak-e2e/README.md" >&2; exit 1; }
 # sakctl first: a build that fails stops the task before any server is created
 (cd sak-cli/src-tauri && cargo build)
 # the images of this source, as the deployments of the tests run them

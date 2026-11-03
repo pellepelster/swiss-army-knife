@@ -71,4 +71,16 @@ e2e("e2eIntegration", "integration", "Runs the integration tests: two deployment
     systemProperty("junit.jupiter.testclass.order.default", "org.junit.jupiter.api.ClassOrderer\$OrderAnnotation")
     // two servers created at once, the tests, then both destroyed
     timeout = Duration.ofMinutes(90)
+    // from pass unless set (README.md); the task refuses to run without them
+    passSecrets(
+        mapOf(
+            "HCLOUD_TOKEN" to "hetzner/pelle.io/hcloud_api_token",
+            "MAILTRAP_API_TOKEN" to "mailtrap/pelle/api-token",
+            "SAK_E2E_SMTP_HOST" to "mailtrap/pelle/smtp-server",
+            "SAK_E2E_SMTP_PORT" to "mailtrap/pelle/smtp-port",
+            "SAK_E2E_SMTP_USERNAME" to "mailtrap/pelle/smtp-user",
+            "SAK_E2E_SMTP_PASSWORD" to "mailtrap/pelle/smtp-password",
+        ),
+        required = true,
+    )
 }

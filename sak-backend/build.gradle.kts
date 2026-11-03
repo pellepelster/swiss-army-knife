@@ -65,9 +65,13 @@ tasks.distZip {
     enabled = false
 }
 
-// SakBackendTest validates the deployed configuration, the template of the backend role
+// SakBackendTest validates the deployed configuration, the template of the backend role.
+// RecipeIngredientsTest asks openrouter with the key of pass openrouter/pelle/api-key, only when it
+// is selected by name: ./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun, or
+// run from IntelliJ; each run costs a few cents
 tasks.test {
     inputs.file(rootProject.file("ansible/roles/backend/templates/backend-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
+    passSecrets(mapOf("OPENROUTER_API_KEY" to "openrouter/pelle/api-key"), selectedTest = "RecipeIngredientsTest")
 }
 
 // the unit tests of the vector configuration the backend role deploys, run with the image

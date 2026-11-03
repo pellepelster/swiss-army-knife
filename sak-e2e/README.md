@@ -85,7 +85,8 @@ The tests run in this order:
 
 Each step and each wait is a line on the output while the tests run, with the time and the deployment it is about.
 
-What the run needs, from pass unless set:
+What the run needs, from pass unless set. gradle reads them for `e2eIntegration` (`build.gradle.kts`), so a test
+also runs from IntelliJ once sakctl is built and the images are pushed; the task stops without them:
 
 | Variable | pass |
 |---|---|
