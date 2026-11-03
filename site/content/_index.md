@@ -1,6 +1,6 @@
 ---
 title: "Swiss Army Knife"
-description: "The documentation of Swiss Army Knife (SAK): how it is built, how it looks and behaves, its words and its features."
+description: "The documentation of Swiss Army Knife (SAK): what it does, how to install it, how to create your SAK instance and how to use its apps."
 ---
 
 {{< readme >}}
@@ -9,6 +9,7 @@ description: "The documentation of Swiss Army Knife (SAK): how it is built, how 
 
 ## Documentation
 
-How Swiss Army Knife is built and why.
+What SAK does, how to install sakctl and create your SAK instance, and how to use the apps. The section
+**Development** tells how SAK is built and why.
 
 {{% pages description="true" display="tree" %}}

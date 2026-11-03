@@ -144,7 +144,9 @@ the app comes from the release of the version that the SAK instance runs, by a l
 
 Fix: "you download them with a link of your SAK instance".
 
-### `UD-12` The home of the documentation describes the development
+### ~~`UD-12` The home of the documentation describes the development~~
+
+**Fixed:** the home describes the documentation for users; the development is one section of it.
 
 `site/content/_index.md`: the description ("how it is built, how it looks and behaves, its words and its
 features") and the heading "Documentation — How Swiss Army Knife is built and why" describe the documentation for
