@@ -400,8 +400,8 @@ android:
     de: "Ein Login-Link ist an %{email} unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\"."
   signed_in_as: { en: "Signed in as %{email}", de: "Angemeldet als %{email}" }
   update_available:
-    en: "Version %{version} of the app is available, the version of your SAK instance. The update downloads it from GitHub, which sees the address of this phone."
-    de: "Version %{version} der App ist verfügbar, die Version deiner SAK-Instanz. Das Update lädt sie von GitHub herunter, das die Adresse dieses Handys sieht."
+    en: "Version %{version} of the app is available. The update downloads it from GitHub."
+    de: "Version %{version} der App ist verfügbar. Das Update lädt sie von GitHub herunter."
   downloading: { en: "Downloading…", de: "Wird heruntergeladen…" }
   update: { en: "Update", de: "Aktualisieren" }
   update_check: { en: "Check for updates", de: "Nach Updates suchen" }
