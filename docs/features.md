@@ -16,6 +16,9 @@ looked after by one program, sakctl.
 Nothing goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays on your
 server.
 
+**No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
+the Android apps. Read the [privacy policy of the Android apps](apps/android/privacy.md).
+
 The AI features, which read the text of a photo or a recording, are off until an admin turns them on with the API key
 of their own OpenRouter account. Providers that collect data are never used.
 

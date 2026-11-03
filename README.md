@@ -31,6 +31,9 @@ The notes and the grocery lists also have an Android app.
 Nothing goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays on your
 server. The AI features are off until an admin turns them on with their own OpenRouter API key.
 
+**No tracking:** no advertising, no analytics, no crash reporting and no other tracking, neither in the web apps nor in
+the Android apps.
+
 ## Users
 
 - **Single user:** the admin signs in with the password. No mail server needed.
