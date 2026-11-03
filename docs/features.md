@@ -60,7 +60,7 @@ Both can:
 ## Across all devices
 
 Every app works in the browser on a desktop and on a phone, and installs on the home screen (PWA, [install the web apps on Android](apps/android/web-apps.md)). The notes and the
-grocery lists also have an Android app; [install the Android apps](apps/android/installation.md).
+grocery lists also have an Android app; [install the native Android apps](apps/android/native-apps.md).
 
 On a desktop:
 

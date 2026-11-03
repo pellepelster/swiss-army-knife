@@ -10,7 +10,7 @@ weight: 6
 You can install SAK Notes and SAK Grocery List from the browser of your phone. An installed web app has an icon on the
 home screen and opens without the address bar of the browser. You do not download a file, and Android and Play
 Protect show no warnings. The browser keeps the web app up to date. To install the
-[Android apps](installation.md) instead, use their own installation steps.
+[native Android apps](native-apps.md) instead, use their own installation steps.
 
 Each app installs from its own page:
 

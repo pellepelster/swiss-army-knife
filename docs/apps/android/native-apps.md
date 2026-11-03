@@ -1,11 +1,11 @@
 ---
-title: "Install the Android Apps"
-linkTitle: "Installation"
+title: "Install the Native Android Apps"
+linkTitle: "Native apps"
 description: "Where to get the links to SAK Notes and SAK Grocery List, and what to answer when Android or Play Protect shows a warning."
 weight: 5
 ---
 
-# Install the Android apps
+# Install the native Android apps
 
 SAK Notes and SAK Grocery List are Android apps for your SAK instance. You download them from the GitHub release of
 the version your SAK instance runs. Android does not know apps from outside of Google Play, so it shows warnings
