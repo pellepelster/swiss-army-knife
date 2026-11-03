@@ -46,7 +46,7 @@ model {
   token = screen 'Token of the provider' {
     description 'The API token, validated by rust before it is added; a token that is refused stays with its error'
   }
-  deployments = screen 'Deployments' {
+  deployments = screen 'SAK instances' {
     description 'The deployments of the project, each with its state'
   }
   password = screen 'Password of the deployment' {

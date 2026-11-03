@@ -468,8 +468,8 @@ ctl:
         de: "%{path} konnte nicht geschrieben werden: %{error}"
       not_read: { en: "%{path} could not be read: %{error}", de: "%{path} konnte nicht gelesen werden: %{error}" }
       not_decrypted:
-        en: "%{path} does not decrypt with the password of the deployment, or is damaged or not complete: %{error}"
-        de: "%{path} lässt sich mit dem Passwort des Deployments nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
+        en: "%{path} does not decrypt with the password of the SAK instance, or is damaged or not complete: %{error}"
+        de: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
     checks:
       not_finished: { en: "A check did not finish: %{error}", de: "Eine Prüfung wurde nicht beendet: %{error}" }
       splash_not_updated:
@@ -582,63 +582,63 @@ ctl:
         de: "Das Passwort ist zu leicht zu erraten, wähle ein längeres aus unzusammenhängenden Wörtern oder zufälligen Zeichen. %{hint}"
       password_mismatch: { en: "The passwords do not match.", de: "Die Passwörter stimmen nicht überein." }
       plan_failed:
-        en: "The deployment could not be planned at %{provider}: %{error}"
-        de: "Das Deployment konnte bei %{provider} nicht geplant werden: %{error}"
+        en: "The SAK instance could not be planned at %{provider}: %{error}"
+        de: "Die SAK-Instanz konnte bei %{provider} nicht geplant werden: %{error}"
       create_failed:
-        en: "The deployment could not be created at %{provider}: %{error}"
-        de: "Das Deployment konnte bei %{provider} nicht erstellt werden: %{error}"
+        en: "The SAK instance could not be created at %{provider}: %{error}"
+        de: "Die SAK-Instanz konnte bei %{provider} nicht erstellt werden: %{error}"
       destroy_failed:
-        en: "The deployment could not be destroyed at %{provider}: %{error}"
-        de: "Das Deployment konnte bei %{provider} nicht zerstört werden: %{error}"
-      not_found: { en: "There is no deployment named %{name}.", de: "Es gibt kein Deployment namens %{name}." }
+        en: "The SAK instance could not be destroyed at %{provider}: %{error}"
+        de: "Die SAK-Instanz konnte bei %{provider} nicht zerstört werden: %{error}"
+      not_found: { en: "There is no SAK instance named %{name}.", de: "Es gibt keine SAK-Instanz namens %{name}." }
       wrong_password:
-        en: "The password is not the one of the deployment %{name}."
-        de: "Das Passwort ist nicht das des Deployments %{name}."
+        en: "The password is not the one of the SAK instance %{name}."
+        de: "Das Passwort ist nicht das der SAK-Instanz %{name}."
       cancelled:
         en: "Cancelled. What was done stays, a deploy finishes the rest."
         de: "Abgebrochen. Was erledigt ist, bleibt, ein Deploy erledigt den Rest."
       unverifiable:
-        en: "Nothing of the deployment %{name} carries what its password could be checked against, so nothing of it is changed or shown. Delete what is left of it in the console of the Hetzner Cloud project."
-        de: "Nichts vom Deployment %{name} trägt etwas, gegen das sein Passwort geprüft werden kann, darum wird nichts davon geändert oder gezeigt. Lösche, was davon übrig ist, in der Konsole des Hetzner-Cloud-Projekts."
+        en: "Nothing of the SAK instance %{name} carries what its password could be checked against, so nothing of it is changed or shown. Delete what is left of it in the console of the Hetzner Cloud project."
+        de: "Nichts von der SAK-Instanz %{name} trägt etwas, gegen das ihr Passwort geprüft werden kann, darum wird nichts davon geändert oder gezeigt. Lösche, was davon übrig ist, in der Konsole des Hetzner-Cloud-Projekts."
       no_provider:
-        en: "No provider token to create the deployment at."
-        de: "Kein Provider-Token, bei dem das Deployment erstellt werden kann."
+        en: "No provider token to create the SAK instance at."
+        de: "Kein Provider-Token, bei dem die SAK-Instanz erstellt werden kann."
       name_taken:
-        en: "A deployment named %{name} exists already."
-        de: "Ein Deployment namens %{name} gibt es schon."
+        en: "A SAK instance named %{name} exists already."
+        de: "Eine SAK-Instanz namens %{name} gibt es schon."
       failed:
-        en: "The deployments at %{provider} could not be listed: %{error}"
-        de: "Die Deployments bei %{provider} konnten nicht aufgelistet werden: %{error}"
+        en: "The SAK instances at %{provider} could not be listed: %{error}"
+        de: "Die SAK-Instanzen bei %{provider} konnten nicht aufgelistet werden: %{error}"
       recreate_refused:
-        en: "%{error}. SAK never creates the data volume or the primary IPs of a deployment anew; nothing was changed."
-        de: "%{error}. SAK erstellt das Datenvolume und die Primary IPs eines Deployments nie neu; nichts wurde verändert."
+        en: "%{error}. SAK never creates the data volume or the primary IPs of a SAK instance anew; nothing was changed."
+        de: "%{error}. SAK erstellt das Datenvolume und die Primary IPs einer SAK-Instanz nie neu; nichts wurde verändert."
       mixed_locations:
-        en: "The resources of the deployment %{name} are in different locations: %{resources}. SAK does not guess where to deploy."
-        de: "Die Ressourcen des Deployments %{name} sind an verschiedenen Standorten: %{resources}. SAK rät nicht, wohin es ausrollt."
+        en: "The resources of the SAK instance %{name} are in different locations: %{resources}. SAK does not guess where to deploy."
+        de: "Die Ressourcen der SAK-Instanz %{name} sind an verschiedenen Standorten: %{resources}. SAK rät nicht, wohin es ausrollt."
       deploy_without_root_domain:
-        en: "The deployment %{name} has no root domain on its resources. %{hint}"
-        de: "Das Deployment %{name} hat keine Root-Domain auf seinen Ressourcen. %{hint}"
+        en: "The SAK instance %{name} has no root domain on its resources. %{hint}"
+        de: "Die SAK-Instanz %{name} hat keine Root-Domain auf ihren Ressourcen. %{hint}"
       records_in_the_way:
-        en: "The names of the deployment are used by records of another owner: %{records}"
-        de: "Die Namen des Deployments werden von Einträgen eines anderen Besitzers verwendet: %{records}"
+        en: "The names of the SAK instance are used by records of another owner: %{records}"
+        de: "Die Namen der SAK-Instanz werden von Einträgen eines anderen Besitzers verwendet: %{records}"
       smtp_password_needed:
-        en: "The mail server of the running deployment has a password its backend does not tell. %{hint}"
-        de: "Der Mailserver des laufenden Deployments hat ein Passwort, das sein Backend nicht verrät. %{hint}"
+        en: "The mail server of the running SAK instance has a password its backend does not tell. %{hint}"
+        de: "Der Mailserver der laufenden SAK-Instanz hat ein Passwort, das ihr Backend nicht verrät. %{hint}"
       settings_kept:
-        en: "The settings of the deployment are kept in %{path}, encrypted with its password."
-        de: "Die Einstellungen des Deployments liegen in %{path}, verschlüsselt mit seinem Passwort."
+        en: "The settings of the SAK instance are kept in %{path}, encrypted with its password."
+        de: "Die Einstellungen der SAK-Instanz liegen in %{path}, verschlüsselt mit ihrem Passwort."
       settings_not_kept:
-        en: "The deployment is done, but its settings could not be kept on this machine: %{error}"
-        de: "Das Deployment ist fertig, aber seine Einstellungen konnten auf diesem Rechner nicht abgelegt werden: %{error}"
+        en: "The deploy is done, but the settings of the SAK instance could not be kept on this machine: %{error}"
+        de: "Das Ausrollen ist fertig, aber die Einstellungen der SAK-Instanz konnten auf diesem Rechner nicht abgelegt werden: %{error}"
       waiting_for_api:
-        en: "Waiting for the deployment to answer at %{url}…"
-        de: "Warte, bis das Deployment unter %{url} antwortet…"
+        en: "Waiting for the SAK instance to answer at %{url}…"
+        de: "Warte, bis die SAK-Instanz unter %{url} antwortet…"
       not_owned:
-        en: "%{error}. SAK changes and deletes only resources with the label sak.pelle.io/name and the password hash of the deployment; nothing of it was changed."
-        de: "%{error}. SAK ändert und löscht nur Ressourcen mit dem Label sak.pelle.io/name und dem Passwort-Hash des Deployments; nichts davon wurde verändert."
+        en: "%{error}. SAK changes and deletes only resources with the label sak.pelle.io/name and the password hash of the SAK instance; nothing of it was changed."
+        de: "%{error}. SAK ändert und löscht nur Ressourcen mit dem Label sak.pelle.io/name und dem Passwort-Hash der SAK-Instanz; nichts davon wurde verändert."
       no_user_mode:
-        en: "Choose who signs in: single, one user who signs in with the password of the deployment, or multi, users who sign in by e-mail. %{hint}"
-        de: "Wähle, wer sich anmeldet: single, ein Benutzer, der sich mit dem Passwort des Deployments anmeldet, oder multi, Benutzer, die sich per E-Mail anmelden. %{hint}"
+        en: "Choose who signs in: single, one user who signs in with the password of the SAK instance, or multi, users who sign in by e-mail. %{hint}"
+        de: "Wähle, wer sich anmeldet: single, ein Benutzer, der sich mit dem Passwort der SAK-Instanz anmeldet, oder multi, Benutzer, die sich per E-Mail anmelden. %{hint}"
       invalid_smtp_host:
         en: "Multiple users need a mail server with a host name without blanks, for example smtp.example.org. %{hint}"
         de: "Mehrere Benutzer brauchen einen Mailserver mit einem Hostnamen ohne Leerzeichen, zum Beispiel smtp.example.org. %{hint}"
@@ -655,27 +655,27 @@ ctl:
         en: "The e-mail address of the admin is no e-mail address like admin@example.org. %{hint}"
         de: "Die E-Mail-Adresse des Admins ist keine E-Mail-Adresse wie admin@example.org. %{hint}"
       admin_email_single:
-        en: "A single user deployment has no e-mail login, its admin signs in with the password. %{hint}"
-        de: "Ein Deployment mit einem Benutzer hat kein E-Mail-Login, sein Admin meldet sich mit dem Passwort an. %{hint}"
+        en: "A single user SAK instance has no e-mail login, its admin signs in with the password. %{hint}"
+        de: "Eine SAK-Instanz mit einem Benutzer hat kein E-Mail-Login, ihr Admin meldet sich mit dem Passwort an. %{hint}"
       unnamed: { en: "an entry without a name", de: "ein Eintrag ohne SAK-Namen" }
       no_zones:
         en: "The project has no DNS zone. Create the zone of the root domain first, SAK does not create it."
         de: "Das Projekt hat keine DNS-Zone. Erstelle zuerst die Zone der Root-Domain, SAK erstellt sie nicht."
       no_root_domain:
-        en: "Select the root domain of the deployment, one of: %{domains}."
-        de: "Wähle die Root-Domain des Deployments, eine von: %{domains}."
+        en: "Select the root domain of the SAK instance, one of: %{domains}."
+        de: "Wähle die Root-Domain der SAK-Instanz, eine von: %{domains}."
       unknown_root_domain:
         en: "%{domain} is no DNS zone of the project. Create the zone first, or select one of: %{domains}."
         de: "%{domain} ist keine DNS-Zone des Projekts. Erstelle zuerst die Zone oder wähle eine von: %{domains}."
       domain_taken:
-        en: "The deployment %{by} manages %{domain} in domain mode already. A root domain has one domain deployment only."
-        de: "Das Deployment %{by} verwaltet %{domain} schon im Domain-Modus. Eine Root-Domain hat nur ein Domain-Deployment."
+        en: "The SAK instance %{by} manages %{domain} in domain mode already. A root domain has only one SAK instance in domain mode."
+        de: "Die SAK-Instanz %{by} verwaltet %{domain} schon im Domain-Modus. Eine Root-Domain hat nur eine SAK-Instanz im Domain-Modus."
       domain_mixed:
-        en: "The deployment %{by} manages %{domain} in domain mode. A subdomain deployment cannot use %{domain}, a root domain has one domain deployment or only subdomain deployments."
-        de: "Das Deployment %{by} verwaltet %{domain} im Domain-Modus. Ein Subdomain-Deployment kann %{domain} nicht nutzen, eine Root-Domain hat ein Domain-Deployment oder nur Subdomain-Deployments."
+        en: "The SAK instance %{by} manages %{domain} in domain mode. A SAK instance in subdomain mode cannot use %{domain}, a root domain has one SAK instance in domain mode or only SAK instances in subdomain mode."
+        de: "Die SAK-Instanz %{by} verwaltet %{domain} im Domain-Modus. Eine SAK-Instanz im Subdomain-Modus kann %{domain} nicht nutzen, eine Root-Domain hat eine SAK-Instanz im Domain-Modus oder nur SAK-Instanzen im Subdomain-Modus."
       subdomain_only:
-        en: "Subdomain deployments use %{domain} already (%{by}). Only the subdomain mode is possible."
-        de: "Subdomain-Deployments nutzen %{domain} schon (%{by}). Nur der Subdomain-Modus ist möglich."
+        en: "SAK instances in subdomain mode use %{domain} already (%{by}). Only the subdomain mode is possible."
+        de: "SAK-Instanzen im Subdomain-Modus nutzen %{domain} schon (%{by}). Nur der Subdomain-Modus ist möglich."
       resource:
         ssh_key: { en: "ssh key", de: "SSH-Key" }
         volume: { en: "volume", de: "Volume" }
@@ -694,13 +694,13 @@ ctl:
         de: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
       unknown_location:
         en: "%{name} is in a location this sakctl does not know. Update sakctl (sakctl update) to deploy it."
-        de: "%{name} ist an einem Standort, den dieses sakctl nicht kennt. Aktualisiere sakctl (sakctl update), um es zu deployen."
+        de: "%{name} ist an einem Standort, den dieses sakctl nicht kennt. Aktualisiere sakctl (sakctl update), um sie auszurollen."
       not_compared:
         en: "%{name} could not be compared with what a deploy declares: %{error}"
-        de: "%{name} konnte nicht mit dem verglichen werden, was ein Deployment anlegt: %{error}"
+        de: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
       empty:
-        en: "No deployment found. Install one with the button at the top."
-        de: "Kein Deployment gefunden. Installiere eines mit dem Knopf oben."
+        en: "No SAK instance found. Create one with the button at the top."
+        de: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
     config:
       unreachable:
         en: "The backend at %{url} could not be reached: %{error}"
@@ -709,29 +709,29 @@ ctl:
         en: "The backend answered something that is no configuration: %{error}"
         de: "Das Backend hat etwas geantwortet, das keine Konfiguration ist: %{error}"
       refused:
-        en: "The backend refused the signature of this password. Deploy the deployment, so the backend knows its key."
-        de: "Das Backend hat die Signatur dieses Passworts abgelehnt. Rolle das Deployment aus, damit das Backend seinen Schlüssel kennt."
+        en: "The backend refused the signature of this password. Deploy the SAK instance, so the backend knows its key."
+        de: "Das Backend hat die Signatur dieses Passworts abgelehnt. Rolle die SAK-Instanz aus, damit das Backend seinen Schlüssel kennt."
       failed:
         en: "The backend at %{url} answered %{status}."
         de: "Das Backend unter %{url} hat %{status} geantwortet."
       no_root_domain:
-        en: "The deployment %{name} has no DNS records, so its api is not known. %{hint}"
-        de: "Das Deployment %{name} hat keine DNS-Einträge, darum ist seine API nicht bekannt. %{hint}"
+        en: "The SAK instance %{name} has no DNS records, so its api is not known. %{hint}"
+        de: "Die SAK-Instanz %{name} hat keine DNS-Einträge, darum ist ihre API nicht bekannt. %{hint}"
       shown_running:
-        en: "The settings a redeploy of %{name} takes, as the running deployment answers them"
-        de: "Die Einstellungen, die ein erneutes Deployment von %{name} nimmt, wie das laufende Deployment sie nennt"
+        en: "The settings a redeploy of %{name} takes, as the running SAK instance answers them"
+        de: "Die Einstellungen, die ein erneutes Ausrollen von %{name} nimmt, wie die laufende SAK-Instanz sie nennt"
       shown_local:
-        en: "The settings a redeploy of %{name} takes, as this machine kept them at the deploy of %{when}; the deployment did not answer: %{error}"
-        de: "Die Einstellungen, die ein erneutes Deployment von %{name} nimmt, wie dieser Rechner sie beim Deployment am %{when} abgelegt hat; das Deployment hat nicht geantwortet: %{error}"
+        en: "The settings a redeploy of %{name} takes, as this machine kept them at the deploy of %{when}; the SAK instance did not answer: %{error}"
+        de: "Die Einstellungen, die ein erneutes Ausrollen von %{name} nimmt, wie dieser Rechner sie beim Ausrollen am %{when} abgelegt hat; die SAK-Instanz hat nicht geantwortet: %{error}"
       shown_records:
-        en: "Only the DNS records of %{name} tell its settings; the deployment did not answer: %{error}"
-        de: "Nur die DNS-Einträge von %{name} nennen seine Einstellungen; das Deployment hat nicht geantwortet: %{error}"
+        en: "Only the DNS records of %{name} tell its settings; the SAK instance did not answer: %{error}"
+        de: "Nur die DNS-Einträge von %{name} nennen ihre Einstellungen; die SAK-Instanz hat nicht geantwortet: %{error}"
       shown_none:
-        en: "Nothing tells the settings of %{name}; the deployment did not answer: %{error}"
-        de: "Nichts nennt die Einstellungen von %{name}; das Deployment hat nicht geantwortet: %{error}"
+        en: "Nothing tells the settings of %{name}; the SAK instance did not answer: %{error}"
+        de: "Nichts nennt die Einstellungen von %{name}; die SAK-Instanz hat nicht geantwortet: %{error}"
       api_not_answering:
-        en: "The deployment does not answer at %{url} within %{seconds} seconds, the last time: %{error}. New DNS records and the TLS certificate can take a while to be in place: try again later with a deploy, nothing of the deployment is lost."
-        de: "Das Deployment antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, vom Deployment geht nichts verloren."
+        en: "The SAK instance does not answer at %{url} within %{seconds} seconds, the last time: %{error}. New DNS records and the TLS certificate can take a while to be in place: try again later with a deploy, nothing of the SAK instance is lost."
+        de: "Die SAK-Instanz antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, von der SAK-Instanz geht nichts verloren."
       no_smtp: { en: "No mail server", de: "Kein Mailserver" }
       not_https:
         en: "The api %{url} is no https address, sakctl asks the api over https only."
@@ -746,8 +746,8 @@ ctl:
         de: "Wähle zuerst die Root-Domain oder eine Absenderadresse: Ohne Absenderadresse kommt die Test-E-Mail von noreply@<Root-Domain>."
       test_subject: { en: "Test e-mail of %{name}", de: "Test-E-Mail von %{name}" }
       test_body:
-        en: "This e-mail tests the mail server %{host} of the SAK deployment %{name}. It arrived, so the deployment can send its login links with it."
-        de: "Diese E-Mail testet den Mailserver %{host} des SAK-Deployments %{name}. Sie ist angekommen, also kann das Deployment seine Login-Links damit senden."
+        en: "This e-mail tests the mail server %{host} of the SAK instance %{name}. It arrived, so the SAK instance can send its login links with it."
+        de: "Diese E-Mail testet den Mailserver %{host} der SAK-Instanz %{name}. Sie ist angekommen, also kann die SAK-Instanz ihre Login-Links damit senden."
       timeout:
         en: "The mail server %{host} did not answer within %{seconds} seconds."
         de: "Der Mailserver %{host} hat nicht innerhalb von %{seconds} Sekunden geantwortet."
@@ -774,13 +774,13 @@ ctl:
       has_changes: { en: "has changes", de: "hat Änderungen" }
     plan:
       left_out:
-        en: "a second one of the deployment, sakctl leaves it as it is; delete it if it is not needed"
-        de: "ein zweites des Deployments, sakctl lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
-      intro: { en: "Create the Swiss Army Knife deployment", de: "Erstelle das Swiss-Army-Knife-Deployment" }
+        en: "a second one of the SAK instance, sakctl leaves it as it is; delete it if it is not needed"
+        de: "ein zweites der SAK-Instanz, sakctl lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
+      intro: { en: "Create the SAK instance", de: "Erstelle die SAK-Instanz" }
       intro_deploy:
-        en: "Redeploy the Swiss Army Knife deployment"
-        de: "Rolle das Swiss-Army-Knife-Deployment erneut aus"
-      intro_destroy: { en: "Destroy the Swiss Army Knife deployment", de: "Zerstöre das Swiss-Army-Knife-Deployment" }
+        en: "Redeploy the SAK instance"
+        de: "Rolle die SAK-Instanz erneut aus"
+      intro_destroy: { en: "Destroy the SAK instance", de: "Zerstöre die SAK-Instanz" }
       will_create: { en: "will be created", de: "wird erstellt" }
       will_update: { en: "will be updated", de: "wird aktualisiert" }
       will_destroy: { en: "will be destroyed", de: "wird zerstört" }
@@ -802,8 +802,8 @@ ctl:
       failed: { en: "ssh to the server failed: %{error}", de: "ssh zum Server ist fehlgeschlagen: %{error}" }
     sak_backend:
       no_script:
-        en: "The server has no %{script}: deploy the deployment first."
-        de: "Der Server hat kein %{script}: deploye das Deployment zuerst."
+        en: "The server has no %{script}: deploy the SAK instance first."
+        de: "Der Server hat kein %{script}: rolle die SAK-Instanz zuerst aus."
       ended:
         en: "%{script} on the server ended with exit code %{code}."
         de: "%{script} auf dem Server endete mit Exit-Code %{code}."
@@ -835,12 +835,12 @@ ctl:
         de: "%{upgraded} Pakete aktualisiert, %{installed} installiert."
       up_to_date: { en: "All packages of %{name} are up-to-date.", de: "Alle Pakete von %{name} sind aktuell." }
       rebooting:
-        en: "The deployment %{name} is stopped, its server reboots at %{at}."
-        de: "Das Deployment %{name} ist gestoppt, sein Server startet um %{at} neu."
+        en: "The SAK instance %{name} is stopped, its server reboots at %{at}."
+        de: "Die SAK-Instanz %{name} ist gestoppt, ihr Server startet um %{at} neu."
       reboot_not_pending:
         en: "No reboot of %{name} is pending, nothing was changed."
         de: "Kein Neustart von %{name} steht an, nichts wurde geändert."
-      back: { en: "The deployment %{name} answers again.", de: "Das Deployment %{name} antwortet wieder." }
+      back: { en: "The SAK instance %{name} answers again.", de: "Die SAK-Instanz %{name} antwortet wieder." }
     update:
       checking:
         en: "Asking %{receiver} for the newest release of sakctl…"
@@ -884,11 +884,11 @@ ctl:
       reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
       sending: { en: "Sending a test e-mail to %{to} from %{from}…", de: "Sende eine Test-E-Mail an %{to} von %{from}…" }
       no_smtp:
-        en: "The deployment %{name} has no mail server: give one with --smtp-host."
-        de: "Das Deployment %{name} hat keinen Mailserver: Gib einen mit --smtp-host an."
+        en: "The SAK instance %{name} has no mail server: give one with --smtp-host."
+        de: "Die SAK-Instanz %{name} hat keinen Mailserver: Gib einen mit --smtp-host an."
       no_host:
-        en: "No mail server: give the name of a deployment or --smtp-host."
-        de: "Kein Mailserver: Gib den Namen eines Deployments oder --smtp-host an."
+        en: "No mail server: give the name of a SAK instance or --smtp-host."
+        de: "Kein Mailserver: Gib den Namen einer SAK-Instanz oder --smtp-host an."
     hint:
       user_mode: { en: "Give it with --user-mode.", de: "Gib ihn mit --user-mode an." }
       smtp_host: { en: "Give it with --smtp-host.", de: "Gib ihn mit --smtp-host an." }
@@ -898,7 +898,7 @@ ctl:
       admin_email_single:
         en: "Leave out --admin-email, or choose --user-mode multi."
         de: "Lass --admin-email weg, oder wähle --user-mode multi."
-      root_domain: { en: "Deploy it once with --root-domain.", de: "Rolle es einmal mit --root-domain aus." }
+      root_domain: { en: "Deploy it once with --root-domain.", de: "Rolle sie einmal mit --root-domain aus." }
       smtp_password:
         en: "Give it again with SAK_SMTP_PASSWORD or --smtp-password."
         de: "Gib es erneut mit SAK_SMTP_PASSWORD oder --smtp-password an."
@@ -906,11 +906,11 @@ ctl:
         en: "Give it correctly with --smtp-from, or leave it out for noreply@<root domain>."
         de: "Gib sie korrekt mit --smtp-from an, oder lass sie weg für noreply@<Root-Domain>."
     destroyed:
-      en: "The deployment %{name} is destroyed, its data volume stays."
-      de: "Das Deployment %{name} ist zerstört, sein Datenvolume bleibt."
+      en: "The SAK instance %{name} is destroyed, its data volume stays."
+      de: "Die SAK-Instanz %{name} ist zerstört, ihr Datenvolume bleibt."
     destroyed_with_data:
-      en: "The deployment %{name} and its data volume are destroyed."
-      de: "Das Deployment %{name} und sein Datenvolume sind zerstört."
+      en: "The SAK instance %{name} and its data volume are destroyed."
+      de: "Die SAK-Instanz %{name} und ihr Datenvolume sind zerstört."
     task:
       ok: { en: "[ok] %{task}", de: "[ok] %{task}" }
       changed: { en: "[changed] %{task}", de: "[geändert] %{task}" }
@@ -921,7 +921,7 @@ ctl:
     no_password:
       en: "No password: set SAK_PASSWORD, or run the command in a terminal to type it."
       de: "Kein Passwort: setze SAK_PASSWORD oder führe den Befehl in einem Terminal aus, um es einzugeben."
-    password_prompt: { en: "Password of the deployment: ", de: "Passwort des Deployments: " }
+    password_prompt: { en: "Password of the SAK instance: ", de: "Passwort der SAK-Instanz: " }
     password_repeat_prompt: { en: "Repeat the password: ", de: "Passwort wiederholen: " }
     no_smtp_password:
       en: "No terminal to type the password at the mail server: set SAK_SMTP_PASSWORD instead of --smtp-password."
@@ -933,12 +933,12 @@ ctl:
     hcloud_token_prompt:
       en: "API token of the Hetzner Cloud project: "
       de: "API-Token des Hetzner-Cloud-Projekts: "
-    done: { en: "The deployment %{name} is up-to-date.", de: "Das Deployment %{name} ist aktuell." }
+    done: { en: "The SAK instance %{name} is up-to-date.", de: "Die SAK-Instanz %{name} ist aktuell." }
     ssh_connecting:
       en: "Connecting to root@%{host}, the server of %{name}…"
       de: "Verbinde mit root@%{host}, dem Server von %{name}…"
     ssh_ended: { en: "ssh ended with exit code %{code}.", de: "ssh endete mit Exit-Code %{code}." }
-    ssh_no_server: { en: "The deployment %{name} has no server.", de: "Das Deployment %{name} hat keinen Server." }
+    ssh_no_server: { en: "The SAK instance %{name} has no server.", de: "Die SAK-Instanz %{name} hat keinen Server." }
     ssh_not_started:
       en: "%{runtime} could not start the container of the ssh session: %{error}"
       de: "%{runtime} konnte den Container der ssh-Sitzung nicht starten: %{error}"
@@ -950,8 +950,8 @@ ctl:
       en: "Restoring %{name} on root@%{host} from %{path}…"
       de: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
     restore_done:
-      en: "The deployment %{name} is restored from %{path}."
-      de: "Das Deployment %{name} ist aus %{path} wiederhergestellt."
+      en: "The SAK instance %{name} is restored from %{path}."
+      de: "Die SAK-Instanz %{name} ist aus %{path} wiederhergestellt."
     not_confirmed: { en: "Not confirmed, nothing was changed.", de: "Nicht bestätigt, nichts wurde geändert." }
     plan_confirm:
       en: "The plan destroys or creates anew what is marked WARN above. Type the name of %{name} to continue: "
@@ -981,11 +981,11 @@ ctl:
         en: "Empty the e-mail address of the admin, or choose multiple users."
         de: "Leere die E-Mail-Adresse des Admins, oder wähle mehrere Benutzer."
       root_domain:
-        en: "The window cannot set it on an existing deployment: deploy it once with sakctl deploy --root-domain."
-        de: "Das Fenster kann sie bei einem bestehenden Deployment nicht setzen: rolle es einmal mit sakctl deploy --root-domain aus."
+        en: "The window cannot set it on an existing SAK instance: deploy it once with sakctl deploy --root-domain."
+        de: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakctl deploy --root-domain aus."
       smtp_password:
         en: "The window cannot ask for it: deploy it once with sakctl deploy and SAK_SMTP_PASSWORD."
-        de: "Das Fenster kann nicht danach fragen: rolle es einmal mit sakctl deploy und SAK_SMTP_PASSWORD aus."
+        de: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakctl deploy und SAK_SMTP_PASSWORD aus."
       smtp_from: { en: "Correct the sender address in the form.", de: "Korrigiere die Absenderadresse im Formular." }
     quit: { en: "Quit", de: "Beenden" }
     update:
@@ -998,8 +998,8 @@ ctl:
       restart: { en: "Restart", de: "Neu starten" }
       restart_hint: { en: "Restart to use sakctl %{version}.", de: "Starte neu, um sakctl %{version} zu verwenden." }
       restart_while_running:
-        en: "A deployment is being changed, restart when it is done."
-        de: "Ein Deployment wird gerade geändert, starte neu, wenn es fertig ist."
+        en: "A SAK instance is being changed, restart when it is done."
+        de: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
     providers:
       title: { en: "Provider tokens", de: "Provider-Tokens" }
       empty:
@@ -1018,59 +1018,59 @@ ctl:
     next: { en: "Next", de: "Weiter" }
     back: { en: "Back", de: "Zurück" }
     deployments:
-      title: { en: "Deployments", de: "Deployments" }
-      create: { en: "Create deployment", de: "Deployment erstellen" }
-      loading: { en: "Looking for deployments at the providers…", de: "Suche Deployments bei den Providern…" }
+      title: { en: "SAK instances", de: "SAK-Instanzen" }
+      create: { en: "Create SAK instance", de: "SAK-Instanz erstellen" }
+      loading: { en: "Looking for SAK instances at the providers…", de: "Suche SAK-Instanzen bei den Providern…" }
     deployment:
       edit_config: { en: "Config…", de: "Konfiguration…" }
       changed_since_check:
-        en: "The deployment changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
-        de: "Das Deployment hat sich seit seiner Prüfung geändert, nichts wurde geändert. Prüfe es erneut und sieh dir den Plan an, bevor du es ausrollst."
+        en: "The SAK instance changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
+        de: "Die SAK-Instanz hat sich seit ihrer Prüfung geändert, nichts wurde geändert. Prüfe sie erneut und sieh dir den Plan an, bevor du sie ausrollst."
       maintenance: { en: "Maintenance", de: "Wartung" }
       destroy: { en: "Destroy", de: "Zerstören" }
       check: { en: "Check", de: "Prüfen" }
-      checking: { en: "Checking the deployment…", de: "Prüfe das Deployment…" }
+      checking: { en: "Checking the SAK instance…", de: "Prüfe die SAK-Instanz…" }
       changes: { en: "%{count} of its resources have changes.", de: "%{count} seiner Ressourcen haben Änderungen." }
       up_to_date: { en: "Everything is up-to-date.", de: "Alles ist aktuell." }
-      not_checked: { en: "Check the deployment first.", de: "Prüfe das Deployment zuerst." }
+      not_checked: { en: "Check the SAK instance first.", de: "Prüfe die SAK-Instanz zuerst." }
       config:
         loading: { en: "Reading the configuration…", de: "Lese die Konfiguration…" }
         source_running:
-          en: "The configuration the running deployment answered."
-          de: "Die Konfiguration, die das laufende Deployment genannt hat."
+          en: "The configuration the running SAK instance answered."
+          de: "Die Konfiguration, die die laufende SAK-Instanz genannt hat."
         source_local:
-          en: "The configuration this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
-          de: "Die Konfiguration, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
+          en: "The configuration this machine kept at the deploy of %{when}. The SAK instance did not answer: %{error}"
+          de: "Die Konfiguration, die dieser Rechner beim Ausrollen am %{when} abgelegt hat. Die SAK-Instanz hat nicht geantwortet: %{error}"
         source_none:
-          en: "No configuration is known: the deployment did not answer (%{error}) and this machine kept none. Give one with \"Config…\"."
-          de: "Keine Konfiguration bekannt: Das Deployment hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit „Konfiguration…“ an."
+          en: "No configuration is known: the SAK instance did not answer (%{error}) and this machine kept none. Give one with \"Config…\"."
+          de: "Keine Konfiguration bekannt: Die SAK-Instanz hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit „Konfiguration…“ an."
         not_read: { en: "The configuration could not be read: %{error}", de: "Die Konfiguration konnte nicht gelesen werden: %{error}" }
         admin: { en: "Admin", de: "Admin" }
         no_admin: { en: "none, signs in with the password", de: "keiner, meldet sich mit dem Passwort an" }
     maintenance:
       confirm_title: { en: "Reboot %{name}?", de: "%{name} neu starten?" }
       confirm_text:
-        en: "The deployment is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."
-        de: "Das Deployment wird gestoppt und sein Server neu gestartet. Bis es wieder antwortet, ist es nicht erreichbar, meist einige Minuten."
+        en: "The SAK instance is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."
+        de: "Die SAK-Instanz wird gestoppt und ihr Server neu gestartet. Bis sie wieder antwortet, ist sie nicht erreichbar, meist einige Minuten."
       title_status: { en: "Server status", de: "Serverstatus" }
       title_update: { en: "Update the server", de: "Server aktualisieren" }
       title_reboot: { en: "Reboot the server", de: "Server neu starten" }
-      intro: { en: "The server of the deployment", de: "Der Server des Deployments" }
+      intro: { en: "The server of the SAK instance", de: "Der Server der SAK-Instanz" }
       status: { en: "Status", de: "Status" }
       update: { en: "Update", de: "Aktualisieren" }
       reboot: { en: "Reboot", de: "Neu starten" }
       running_status: { en: "Asking the server…", de: "Frage den Server…" }
       running_update: { en: "Upgrading the packages of the server…", de: "Aktualisiere die Pakete des Servers…" }
       running_reboot:
-        en: "Stopping the deployment and rebooting its server…"
-        de: "Stoppe das Deployment und starte seinen Server neu…"
+        en: "Stopping the SAK instance and rebooting its server…"
+        de: "Stoppe die SAK-Instanz und starte ihren Server neu…"
       finished: { en: "Finished.", de: "Fertig." }
       reboot_hint:
         en: "A reboot is pending: Maintenance, Reboot reboots the server."
         de: "Ein Neustart steht an: Wartung, Neu starten startet den Server neu."
     password:
       title: { en: "Password", de: "Passwort" }
-      intro: { en: "The password of the deployment", de: "Das Passwort des Deployments" }
+      intro: { en: "The password of the SAK instance", de: "Das Passwort der SAK-Instanz" }
       checking: { en: "Checking the password…", de: "Das Passwort wird geprüft…" }
       right: { en: "The password is valid.", de: "Das Passwort stimmt." }
       show: { en: "Show the password", de: "Passwort zeigen" }
@@ -1080,33 +1080,33 @@ ctl:
     create:
       title_deploy: { en: "Config", de: "Konfiguration" }
       password_hint_deploy:
-        en: "The password the deployment was created with. Change the settings below, the plan shows what a deploy changes."
-        de: "Das Passwort, mit dem das Deployment erstellt wurde. Ändere die Einstellungen darunter, der Plan zeigt, was ein Deployment ändert."
+        en: "The password the SAK instance was created with. Change the settings below, the plan shows what a deploy changes."
+        de: "Das Passwort, mit dem die SAK-Instanz erstellt wurde. Ändere die Einstellungen darunter, der Plan zeigt, was ein Ausrollen ändert."
       source_running:
-        en: "Filled in with the settings the running deployment answered."
-        de: "Ausgefüllt mit den Einstellungen, die das laufende Deployment genannt hat."
+        en: "Filled in with the settings the running SAK instance answered."
+        de: "Ausgefüllt mit den Einstellungen, die die laufende SAK-Instanz genannt hat."
       source_local:
-        en: "Filled in with the settings this machine kept at the deploy of %{when}. The deployment did not answer: %{error}"
-        de: "Ausgefüllt mit den Einstellungen, die dieser Rechner beim Deployment am %{when} abgelegt hat. Das Deployment hat nicht geantwortet: %{error}"
+        en: "Filled in with the settings this machine kept at the deploy of %{when}. The SAK instance did not answer: %{error}"
+        de: "Ausgefüllt mit den Einstellungen, die dieser Rechner beim Ausrollen am %{when} abgelegt hat. Die SAK-Instanz hat nicht geantwortet: %{error}"
       source_records:
-        en: "Only the root domain and the DNS mode are known, from the DNS records. The deployment did not answer: %{error}"
-        de: "Nur die Root-Domain und der DNS-Modus sind bekannt, aus den DNS-Einträgen. Das Deployment hat nicht geantwortet: %{error}"
+        en: "Only the root domain and the DNS mode are known, from the DNS records. The SAK instance did not answer: %{error}"
+        de: "Nur die Root-Domain und der DNS-Modus sind bekannt, aus den DNS-Einträgen. Die SAK-Instanz hat nicht geantwortet: %{error}"
       source_none:
-        en: "Nothing is known of the settings of the deployment. It did not answer: %{error}"
-        de: "Von den Einstellungen des Deployments ist nichts bekannt. Es hat nicht geantwortet: %{error}"
-      title_destroy: { en: "Destroy the deployment", de: "Deployment zerstören" }
+        en: "Nothing is known of the settings of the SAK instance. It did not answer: %{error}"
+        de: "Von den Einstellungen der SAK-Instanz ist nichts bekannt. Sie hat nicht geantwortet: %{error}"
+      title_destroy: { en: "Destroy the SAK instance", de: "SAK-Instanz zerstören" }
       password_hint_destroy:
-        en: "The password the deployment was created with; everything but its data volume is deleted."
-        de: "Das Passwort, mit dem das Deployment erstellt wurde; alles außer seinem Datenvolume wird gelöscht."
-      title: { en: "Create deployment", de: "Deployment erstellen" }
+        en: "The password the SAK instance was created with; everything but its data volume is deleted."
+        de: "Das Passwort, mit dem die SAK-Instanz erstellt wurde; alles außer ihrem Datenvolume wird gelöscht."
+      title: { en: "Create SAK instance", de: "SAK-Instanz erstellen" }
       name: { en: "Name", de: "Name" }
       name_hint:
-        en: "Lower case letters, digits and dashes; the name of every resource of the deployment."
-        de: "Kleinbuchstaben, Ziffern und Bindestriche; der Name jeder Ressource des Deployments."
+        en: "Lower case letters, digits and dashes; the name of every resource of the SAK instance."
+        de: "Kleinbuchstaben, Ziffern und Bindestriche; der Name jeder Ressource der SAK-Instanz."
       password: { en: "Password", de: "Passwort" }
       password_hint:
-        en: "At least 16 characters. The ssh key of the deployment is derived from the name and the password, the same name and password give the same key again."
-        de: "Mindestens 16 Zeichen. Der SSH-Key des Deployments wird aus Name und Passwort abgeleitet, derselbe Name und dasselbe Passwort ergeben wieder denselben Key."
+        en: "At least 16 characters. The ssh key of the SAK instance is derived from the name and the password, the same name and password give the same key again."
+        de: "Mindestens 16 Zeichen. Der SSH-Key der SAK-Instanz wird aus Name und Passwort abgeleitet, derselbe Name und dasselbe Passwort ergeben wieder denselben Key."
       password_repeat: { en: "Repeat the password", de: "Passwort wiederholen" }
       location: { en: "Location", de: "Standort" }
       location_hint:
@@ -1120,8 +1120,8 @@ ctl:
       smtp_test: { en: "Send test e-mail", de: "Test-E-Mail senden" }
       smtp_test_title: { en: "Send a test e-mail", de: "Test-E-Mail senden" }
       smtp_test_text:
-        en: "sakctl sends it with the mail server above from %{from}, as the deployment will send its login links."
-        de: "sakctl sendet sie mit dem Mailserver oben von %{from}, so wie das Deployment seine Login-Links senden wird."
+        en: "sakctl sends it with the mail server above from %{from}, as the SAK instance will send its login links."
+        de: "sakctl sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
       smtp_test_to: { en: "Send to", de: "Senden an" }
       smtp_test_send: { en: "Send", de: "Senden" }
       smtp_sending: { en: "Sending the test e-mail…", de: "Sende die Test-E-Mail…" }
@@ -1132,18 +1132,18 @@ ctl:
       user_mode_single: { en: "Single user", de: "Ein Benutzer" }
       user_mode_multi: { en: "Multiple users", de: "Mehrere Benutzer" }
       user_mode_hint_single:
-        en: "One user, the admin, who signs in with the password of the deployment. No mail server needed."
-        de: "Ein Benutzer, der Admin, der sich mit dem Passwort des Deployments anmeldet. Kein Mailserver nötig."
+        en: "One user, the admin, who signs in with the password of the SAK instance. No mail server needed."
+        de: "Ein Benutzer, der Admin, der sich mit dem Passwort der SAK-Instanz anmeldet. Kein Mailserver nötig."
       user_mode_hint_multi:
-        en: "Users sign in with a link by e-mail, the admin also with the password of the deployment. Needs a mail server."
-        de: "Benutzer melden sich mit einem Link per E-Mail an, der Admin auch mit dem Passwort des Deployments. Braucht einen Mailserver."
+        en: "Users sign in with a link by e-mail, the admin also with the password of the SAK instance. Needs a mail server."
+        de: "Benutzer melden sich mit einem Link per E-Mail an, der Admin auch mit dem Passwort der SAK-Instanz. Braucht einen Mailserver."
       smtp_host: { en: "Host", de: "Host" }
       smtp_port: { en: "Port", de: "Port" }
       smtp_username: { en: "User name", de: "Benutzername" }
       smtp_password: { en: "Password", de: "Passwort" }
       smtp_password_again:
-        en: "Taken from the running deployment, all but its password: type it again, it never leaves the backend."
-        de: "Aus dem laufenden Deployment übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
+        en: "Taken from the running SAK instance, all but its password: type it again, it never leaves the backend."
+        de: "Aus der laufenden SAK-Instanz übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
       smtp_starttls: { en: "Upgrade the connection with STARTTLS", de: "Verbindung mit STARTTLS absichern" }
       smtp_from: { en: "Sender address", de: "Absenderadresse" }
       smtp_from_hint:
@@ -1163,11 +1163,11 @@ ctl:
       dns_mode_subdomain: { en: "Subdomain", de: "Subdomain" }
       dns_mode_domain: { en: "Domain", de: "Domain" }
       dns_mode_hint_subdomain:
-        en: "The deployment manages %{name}.<root domain> and *.%{name}.<root domain>. Its apps are at sak.%{name}.<root domain>, their api at api.%{name}.<root domain>. More subdomain deployments can use the same root domain."
-        de: "Das Deployment verwaltet %{name}.<root domain> und *.%{name}.<root domain>. Seine Apps sind unter sak.%{name}.<root domain> erreichbar, ihre API unter api.%{name}.<root domain>. Weitere Subdomain-Deployments können dieselbe Root-Domain nutzen."
+        en: "The SAK instance manages %{name}.<root domain> and *.%{name}.<root domain>. Its apps are at sak.%{name}.<root domain>, their api at api.%{name}.<root domain>. More SAK instances in subdomain mode can use the same root domain."
+        de: "Die SAK-Instanz verwaltet %{name}.<root domain> und *.%{name}.<root domain>. Ihre Apps sind unter sak.%{name}.<root domain> erreichbar, ihre API unter api.%{name}.<root domain>. Weitere SAK-Instanzen im Subdomain-Modus können dieselbe Root-Domain nutzen."
       dns_mode_hint_domain:
-        en: "The deployment manages <root domain> and *.<root domain>. Its apps are at sak.<root domain>, their api at api.<root domain>. No other deployment can use the same root domain."
-        de: "Das Deployment verwaltet <root domain> und *.<root domain>. Seine Apps sind unter sak.<root domain> erreichbar, ihre API unter api.<root domain>. Kein anderes Deployment kann dieselbe Root-Domain nutzen."
+        en: "The SAK instance manages <root domain> and *.<root domain>. Its apps are at sak.<root domain>, their api at api.<root domain>. No other SAK instance can use the same root domain."
+        de: "Die SAK-Instanz verwaltet <root domain> und *.<root domain>. Ihre Apps sind unter sak.<root domain> erreichbar, ihre API unter api.<root domain>. Keine andere SAK-Instanz kann dieselbe Root-Domain nutzen."
       plan: { en: "Plan", de: "Planen" }
       planning:
         en: "Planning, the resources are compared with the project…"
@@ -1192,25 +1192,25 @@ ctl:
         de: "Rolle aus, ein Server, der sich ändern muss, wird neu erstellt, sein Datenvolume und seine Adressen bleiben…"
       destroy: { en: "Destroy", de: "Zerstören" }
       destroying:
-        en: "Destroying the deployment, its data volume stays…"
-        de: "Zerstöre das Deployment, sein Datenvolume bleibt…"
+        en: "Destroying the SAK instance, its data volume stays…"
+        de: "Zerstöre die SAK-Instanz, ihr Datenvolume bleibt…"
       destroying_with_data:
-        en: "Destroying the deployment and its data volume…"
-        de: "Zerstöre das Deployment und sein Datenvolume…"
+        en: "Destroying the SAK instance and its data volume…"
+        de: "Zerstöre die SAK-Instanz und ihr Datenvolume…"
       destroyed:
-        en: "The deployment is destroyed, its data volume stays."
-        de: "Das Deployment ist zerstört, sein Datenvolume bleibt."
+        en: "The SAK instance is destroyed, its data volume stays."
+        de: "Die SAK-Instanz ist zerstört, ihr Datenvolume bleibt."
       destroyed_with_data:
-        en: "The deployment and its data volume are destroyed."
-        de: "Das Deployment und sein Datenvolume sind zerstört."
+        en: "The SAK instance and its data volume are destroyed."
+        de: "Die SAK-Instanz und ihr Datenvolume sind zerstört."
       creating:
-        en: "Creating the deployment, this takes a few minutes…"
-        de: "Erstelle das Deployment, das dauert ein paar Minuten…"
+        en: "Creating the SAK instance, this takes a few minutes…"
+        de: "Erstelle die SAK-Instanz, das dauert ein paar Minuten…"
       provisioning:
         failed: { en: "failed at %{task}: %{message}", de: "fehlgeschlagen bei %{task}: %{message}" }
       provisioned:
-        en: "The deployment is up-to-date and its server provisioned."
-        de: "Das Deployment ist aktuell und sein Server eingerichtet."
+        en: "The SAK instance is up-to-date and its server provisioned."
+        de: "Die SAK-Instanz ist aktuell und ihr Server eingerichtet."
 
 grocery:
   common:

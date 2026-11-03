@@ -519,7 +519,7 @@ mod tests {
         };
         assert_eq!(
             waited.lines("alpha", "HINT")[0].text,
-            "The deployment alpha answers again."
+            "The SAK instance alpha answers again."
         );
         let not_waited = Answer::Reboot {
             reboot,
@@ -527,7 +527,7 @@ mod tests {
         };
         assert_eq!(
             not_waited.lines("alpha", "HINT")[0].text,
-            "The deployment alpha is stopped, its server reboots at 2026-10-30T04:00:05Z."
+            "The SAK instance alpha is stopped, its server reboots at 2026-10-30T04:00:05Z."
         );
     }
 

@@ -59,8 +59,7 @@ You need:
 
    ![The provider tokens with the token of Hetzner Cloud](screenshots/sakctl-ui-providers-token.png)
 
-4. **Start the creation.** The list **Deployments** shows your SAK instances; at first it is empty. Click **Create
-   deployment**.
+4. **Start the creation.** The list **SAK instances** is empty at first. Click **Create SAK instance**.
 
    ![No SAK instance yet](screenshots/sakctl-ui-deployments-empty.png)
 
@@ -83,7 +82,7 @@ You need:
 
 6. **Read the plan.** The plan shows each resource that sakctl creates in your project: the SSH key, the data volume,
    the addresses, the firewall, the server, the DNS records and the provisioning of the server. Nothing has changed
-   yet. Click **Create deployment**.
+   yet. Click **Create SAK instance**.
 
    ![The plan of a new SAK instance](screenshots/sakctl-ui-plan.png)
 

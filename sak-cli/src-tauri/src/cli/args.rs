@@ -7,17 +7,17 @@ pub(super) const EXIT_CODES: &str = "Exit codes:
   0  The command did what it should.
   1  The command failed.
   2  The arguments are wrong, e.g. a name that is none.
-  3  Domain mode asked, another deployment manages the root domain in domain mode already.
-  4  The DNS mode asked is not the one other deployments use the root domain in: a root
-     domain has one domain deployment or only subdomain deployments.
-  5  A resource of a name the deployment uses belongs to someone else: it lacks the label
-     sak.pelle.io/name or the password hash of the deployment. Nothing of it was changed.
+  3  Domain mode asked, another SAK instance manages the root domain in domain mode already.
+  4  The DNS mode asked is not the one other SAK instances use the root domain in: a root
+     domain has one SAK instance in domain mode or only SAK instances in subdomain mode.
+  5  A resource of a name the SAK instance uses belongs to someone else: it lacks the label
+     sak.pelle.io/name or the password hash of the SAK instance. Nothing of it was changed.
   6  The data volume or a primary IP would have to be created anew, which would delete its
      data or address. Nothing was changed.
   7  update --check: a newer release of sakctl exists.
 ssh ends with the exit code of the command on the server; when sakctl or ssh itself fails, 255.";
 
-/// Swiss Army Knife: manage the deployments of a Hetzner Cloud project. Without a command the
+/// Swiss Army Knife: manage the SAK instances of a Hetzner Cloud project. Without a command the
 /// window opens.
 #[derive(Parser, Debug)]
 #[command(
@@ -33,10 +33,10 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum Command {
-    /// the commands on the deployments of a project: each needs its token and the checks
+    /// the commands on the SAK instances of a project: each needs its token and the checks
     #[command(flatten)]
     Project(ProjectCommand),
-    /// Send e-mail with the mail server of a deployment
+    /// Send e-mail with the mail server of a SAK instance
     #[command(subcommand)]
     Mail(MailCommand),
     /// Update sakctl to the newest release from github.com
@@ -52,10 +52,10 @@ pub enum Command {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum ProjectCommand {
-    /// List the deployments and the state of their resources
+    /// List the SAK instances and the state of their resources
     #[command(after_help = EXIT_CODES)]
     List(Provider),
-    /// Create a deployment and provision its server
+    /// Create a SAK instance and provision its server
     ///
     /// Creates an ssh key, a data volume, a primary IPv4 and IPv6, a firewall, the server and its
     /// DNS records.
@@ -66,7 +66,7 @@ pub enum ProjectCommand {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
-    /// Update a deployment and provision its server again
+    /// Update a SAK instance and provision its server again
     ///
     /// Creates the server anew only when it must. The data volume and the addresses stay.
     #[command(after_help = EXIT_CODES)]
@@ -76,7 +76,7 @@ pub enum ProjectCommand {
         #[command(flatten)]
         deployment: DeploymentArgs,
     },
-    /// Show the configuration of a running deployment
+    /// Show the configuration of a running SAK instance
     #[command(subcommand)]
     Config(ConfigCommand),
     /// Open an ssh session on the server, or run a command after --
@@ -87,7 +87,7 @@ pub enum ProjectCommand {
     Ssh {
         #[command(flatten)]
         provider: Provider,
-        /// The name of the deployment
+        /// The name of the SAK instance
         #[arg(env = NAME_VARIABLE)]
         name: String,
         /// Ask for the password, even when SAK_PASSWORD is set
@@ -97,7 +97,7 @@ pub enum ProjectCommand {
         #[arg(last = true)]
         command: Vec<String>,
     },
-    /// Back up all data of a deployment
+    /// Back up all data of a SAK instance
     ///
     /// The server compresses the data and encrypts it with a key derived from the password, to
     /// ~/.sak/<name>/backups/<name>-<UTC time>.age.sak.
@@ -105,21 +105,21 @@ pub enum ProjectCommand {
     Backup {
         #[command(flatten)]
         provider: Provider,
-        /// The name of the deployment
+        /// The name of the SAK instance
         #[arg(env = NAME_VARIABLE)]
         name: String,
         /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
         password: bool,
     },
-    /// Replace all data of a deployment with a backup
+    /// Replace all data of a SAK instance with a backup
     ///
-    /// The deployment must exist. The files of its provisioning stay.
+    /// The SAK instance must exist. The files of its provisioning stay.
     #[command(after_help = EXIT_CODES)]
     Restore {
         #[command(flatten)]
         provider: Provider,
-        /// The name of the deployment
+        /// The name of the SAK instance
         #[arg(env = NAME_VARIABLE)]
         name: String,
         /// The backup, a file that `sakctl backup` wrote
@@ -131,10 +131,10 @@ pub enum ProjectCommand {
         #[arg(long)]
         yes: bool,
     },
-    /// Destroy a deployment, keeping its data volume
+    /// Destroy a SAK instance, keeping its data volume
     ///
     /// Deletes its DNS records, server, addresses, firewall and ssh key. --delete-data also
-    /// deletes the data volume. A deployment that is already gone counts as destroyed.
+    /// deletes the data volume. A SAK instance that is already gone counts as destroyed.
     #[command(after_help = EXIT_CODES)]
     Destroy {
         #[command(flatten)]
@@ -145,7 +145,7 @@ pub enum ProjectCommand {
         #[arg(long)]
         delete_data: bool,
     },
-    /// Maintain the server of a deployment: pending reboot, package updates, reboot
+    /// Maintain the server of a SAK instance: pending reboot, package updates, reboot
     #[command(subcommand)]
     Maintenance(MaintenanceCommand),
 }
@@ -161,10 +161,10 @@ pub enum MaintenanceCommand {
     /// pending.
     #[command(after_help = EXIT_CODES)]
     Update(MaintenanceArgs),
-    /// Reboot the server, stopping the deployment first
+    /// Reboot the server, stopping the SAK instance first
     ///
-    /// Stops the deployment in order, waits for a backup or update that runs, reboots the server
-    /// and waits until the deployment answers again.
+    /// Stops the SAK instance in order, waits for a backup or update that runs, reboots the server
+    /// and waits until the SAK instance answers again.
     #[command(after_help = EXIT_CODES)]
     Reboot {
         #[command(flatten)]
@@ -172,7 +172,7 @@ pub enum MaintenanceCommand {
         /// Reboot only when a reboot is pending
         #[arg(long)]
         if_pending: bool,
-        /// Do not wait until the deployment answers again
+        /// Do not wait until the SAK instance answers again
         #[arg(long)]
         no_wait: bool,
     },
@@ -182,7 +182,7 @@ pub enum MaintenanceCommand {
 pub struct MaintenanceArgs {
     #[command(flatten)]
     pub(super) provider: Provider,
-    /// The name of the deployment
+    /// The name of the SAK instance
     #[arg(env = NAME_VARIABLE)]
     pub(super) name: String,
     /// Ask for the password, even when SAK_PASSWORD is set
@@ -194,7 +194,7 @@ pub struct MaintenanceArgs {
 }
 
 /// what a command needs before it runs: the token of its provider, the password of the
-/// deployment (asked again with `--password`, typed once or twice) and, for a create or deploy,
+/// SAK instance (asked again with `--password`, typed once or twice) and, for a create or deploy,
 /// the password at the mail server (asked again with `--smtp-password`)
 pub(super) struct Needs<'a> {
     pub(super) provider: &'a Provider,
@@ -264,7 +264,7 @@ impl MaintenanceCommand {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum ConfigCommand {
-    /// Show the configuration of a running deployment
+    /// Show the configuration of a running SAK instance
     ///
     /// Reads it from the backend with a request signed with the key derived from the password.
     /// No secret is shown.
@@ -272,7 +272,7 @@ pub enum ConfigCommand {
     Show {
         #[command(flatten)]
         provider: Provider,
-        /// The name of the deployment
+        /// The name of the SAK instance
         #[arg(env = NAME_VARIABLE)]
         name: String,
         /// Ask for the password, even when SAK_PASSWORD is set
@@ -283,31 +283,31 @@ pub enum ConfigCommand {
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum MailCommand {
-    /// Send a test e-mail with the mail server of a deployment
+    /// Send a test e-mail with the mail server of a SAK instance
     ///
-    /// With a name, the mail server, the sender and the root domain of the deployment, read from
+    /// With a name, the mail server, the sender and the root domain of the SAK instance, read from
     /// it, else from this machine; the --smtp-* flags change what they name. Without a name, the
     /// mail server of the flags alone, e.g. before a create. It is sent from this machine as the
-    /// deployment sends its login links: from the sender, noreply@<root domain> without one.
+    /// SAK instance sends its login links: from the sender, noreply@<root domain> without one.
     #[command(after_help = EXIT_CODES)]
     Test(MailTestArgs),
 }
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct MailTestArgs {
-    /// The name of the deployment whose mail server to test, none for the flags alone
+    /// The name of the SAK instance whose mail server to test, none for the flags alone
     pub(super) name: Option<String>,
     /// The address the test e-mail goes to
     #[arg(long)]
     pub(super) to: String,
-    /// The root domain of the sender noreply@<root domain>; default: the deployment's own
+    /// The root domain of the sender noreply@<root domain>; default: the SAK instance's own
     #[arg(long)]
     pub(super) root_domain: Option<String>,
     #[command(flatten)]
     pub(super) smtp: SmtpFlags,
     #[command(flatten)]
     pub(super) provider: Provider,
-    /// Ask for the password of the deployment, even when SAK_PASSWORD is set
+    /// Ask for the password of the SAK instance, even when SAK_PASSWORD is set
     #[arg(long)]
     pub(super) password: bool,
 }
@@ -315,7 +315,7 @@ pub struct MailTestArgs {
 /// the mail server of `mail test`, each flag changing only what it names
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct SmtpFlags {
-    /// The mail server; with it the other values are the flags' own, not the deployment's
+    /// The mail server; with it the other values are the flags' own, not the SAK instance's
     #[arg(long, env = SMTP_HOST_VARIABLE)]
     pub(super) smtp_host: Option<String>,
     /// The port of the mail server, default 587
@@ -327,13 +327,13 @@ pub struct SmtpFlags {
     /// Ask for the password at the mail server, even when SAK_SMTP_PASSWORD is set
     ///
     /// It is never an argument: it comes from SAK_SMTP_PASSWORD or is typed without echo.
-    /// Without either, a deployment's own password.
+    /// Without either, a SAK instance's own password.
     #[arg(long)]
     pub(super) smtp_password: bool,
     /// Use STARTTLS with the mail server: true or false, default true
     #[arg(long, action = clap::ArgAction::Set, env = SMTP_STARTTLS_VARIABLE, value_parser = parse_flag)]
     pub(super) smtp_starttls: Option<bool>,
-    /// The sender address, default: the deployment's own, else noreply@<root domain>
+    /// The sender address, default: the SAK instance's own, else noreply@<root domain>
     #[arg(long, env = SMTP_FROM_VARIABLE)]
     pub(super) smtp_from: Option<String>,
 }
@@ -352,12 +352,12 @@ pub struct HetznerToken(pub(super) String);
 
 #[derive(Args, Debug, PartialEq, Eq)]
 pub struct DeploymentArgs {
-    /// The name of the deployment
+    /// The name of the SAK instance
     #[arg(env = NAME_VARIABLE)]
     pub(super) name: String,
     /// Ask for the password, even when SAK_PASSWORD is set
     ///
-    /// The password has at least 16 characters, the keys of the deployment are derived from it.
+    /// The password has at least 16 characters, the keys of the SAK instance are derived from it.
     /// It is never an argument: it comes from SAK_PASSWORD or is typed without echo.
     #[arg(long)]
     pub(super) password: bool,
@@ -367,19 +367,19 @@ pub struct DeploymentArgs {
     /// The DNS mode: domain or subdomain
     ///
     /// domain manages <root domain> and *.<root domain>, subdomain manages <name>.<root domain>
-    /// and *.<name>.<root domain>. Default: subdomain for a create, the deployment's own for a
+    /// and *.<name>.<root domain>. Default: subdomain for a create, the SAK instance's own for a
     /// deploy.
     #[arg(long, value_parser = parse_dns_mode)]
     pub(super) dns_mode: Option<DnsMode>,
-    /// The DNS zone of the deployment, e.g. pelle.io
+    /// The DNS zone of the SAK instance, e.g. pelle.io
     ///
-    /// Needed for a create, a deploy takes the deployment's own. The zone must exist in the
+    /// Needed for a create, a deploy takes the SAK instance's own. The zone must exist in the
     /// project, SAK does not create it.
     #[arg(long)]
     pub(super) root_domain: Option<String>,
     /// Who signs in: single or multi
     ///
-    /// single: one user, the admin, signs in with the password of the deployment. multi: users
+    /// single: one user, the admin, signs in with the password of the SAK instance. multi: users
     /// sign in with a link by e-mail, needs --smtp-host; the admin always signs in with the
     /// password, with --admin-email also by e-mail.
     #[arg(long, env = USER_MODE_VARIABLE, value_parser = parse_user_mode)]
@@ -404,8 +404,8 @@ pub struct DeploymentArgs {
     pub(super) smtp_from: Option<String>,
     /// The CA of the certificates: production or staging
     ///
-    /// staging is the staging CA of Let's Encrypt for test deployments, sakctl then trusts its
-    /// roots. Default: production for a create, the deployment's own for a deploy.
+    /// staging is the staging CA of Let's Encrypt for test SAK instances, sakctl then trusts its
+    /// roots. Default: production for a create, the SAK instance's own for a deploy.
     #[arg(long, value_parser = parse_acme_ca)]
     pub(super) acme_ca: Option<AcmeCa>,
     /// Ask for the password at the mail server, even when SAK_SMTP_PASSWORD is set
