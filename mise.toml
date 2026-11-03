@@ -837,6 +837,23 @@ for (const problem of problems) console.log("warning: " + problem);
 ' "$log"
 '''
 
+# Renovate on github now, as the owner of the token: it creates and updates the branches, the pull
+# requests and the Dependency Dashboard of renovate.json on main, at once instead of on its schedule
+# (the lock files too); it merges what may be merged when the workflow is green. The token from pass
+# unless GITHUB_COM_TOKEN is set, with the scopes repo and workflow (the actions).
+# RENOVATE_DRY_RUN=full shows what it would do without a change
+[tasks."renovate:run"]
+description = "Run Renovate and create the pull requests"
+dir = "{{config_root}}"
+env = { GITHUB_COM_TOKEN = "{{ get_env(name='GITHUB_COM_TOKEN', default=exec(command='pass show github/pellepelster/pat/admin 2>/dev/null | head -n1')) }}" }
+run = '''
+set -eu
+[ -n "$GITHUB_COM_TOKEN" ] || { echo "set GITHUB_COM_TOKEN or put it into pass github/pellepelster/pat/admin" >&2; exit 1; }
+RENOVATE_TOKEN="$GITHUB_COM_TOKEN" RENOVATE_BASE_DIR="{{config_root}}/build/renovate/base" \
+  mise exec node@24 -- npx -y --package renovate@44 renovate --platform=github \
+  --schedule='["at any time"]' ${RENOVATE_DRY_RUN:+--dry-run="$RENOVATE_DRY_RUN"} pellepelster/swiss-army-knife
+'''
+
 [tasks."github:secrets:update"]
 description = "Set the GitHub secrets from pass"
 run = """

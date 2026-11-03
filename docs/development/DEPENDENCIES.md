@@ -88,5 +88,18 @@ that Renovate opens and the dependencies that it skips. The full log is in `buil
 GitHub token, Renovate skips the actions and the tools that come from GitHub releases. The task reads the token from
 `pass github/pellepelster/pat/admin`, `GITHUB_COM_TOKEN` replaces it.
 
+## Run Renovate manually
+
+```sh
+mise run renovate:run                        # creates and updates the pull requests now
+RENOVATE_DRY_RUN=full mise run renovate:run  # shows what it does, without a change
+```
+
+The task runs Renovate on GitHub with the configuration of `renovate.json` on `main`, at once and not on its schedule.
+The lock files are also updated. The pull requests come from the owner of the token
+(`pass github/pellepelster/pat/admin`, `GITHUB_COM_TOKEN` replaces it). The token must have the scopes `repo` and
+`workflow`. Renovate merges a pull request automatically only during a run, so run the task again when the checks pass.
+Use the task or the Renovate app, not both: Renovate does not change a branch that another user changed.
+
 The TOML parser of Renovate does not accept an inline table on more than one line. In `mise.toml`, write the
 environment of a task as a table of its own (`[tasks."<task>".env]`).
