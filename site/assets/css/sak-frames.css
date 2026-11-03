@@ -1,5 +1,5 @@
 /* the frames around the screenshots (layouts/_default/_markup/render-image.html): a browser, a
-   phone and a window of sakctl, drawn here so the files keep their pixels. A frame has the colors of
+   phone and a window of the sakctl ui, drawn here so the files keep their pixels. A frame has the colors of
    its screenshot, light or dark (.sak-frame-dark), whatever mode the page is in; it never clips or
    transforms, so the enlarged image of relearn (position: fixed) still covers the page */
 .sak-frame {

@@ -45,13 +45,13 @@ fun e2e(
 
 e2e("e2eLocal", "local", "Runs the local tests: the apps against the environment of mise run local:run")
 
-// the window of sakctl from its files and the fixtures of `cargo test window_fixtures -- --ignored`
+// the sakctl ui from its files and the fixtures of `cargo test window_fixtures -- --ignored`
 fun Test.window() {
     systemProperty("sak.e2e.window.ui", rootDir.resolve("sak-cli/ui").path)
     systemProperty("sak.e2e.window.fixtures", rootDir.resolve("build/ui-fixtures/window.json").path)
 }
 
-e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the window of sakctl") {
+e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the sakctl ui") {
     systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
     // the help of the command line (CliScreenshotTest): the binary of `cargo build`, the fonts of the theme
     systemProperty("sak.e2e.sakctl", rootDir.resolve("sak-cli/src-tauri/target/debug/sakctl").path)
@@ -59,7 +59,7 @@ e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/
     window()
 }
 
-e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the window of sakctl") {
+e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the sakctl ui") {
     systemProperty("sak.e2e.videos", rootDir.resolve("build/videos").path)
     window()
 }

@@ -1,4 +1,4 @@
-// The screens of sakctl's window (sak-cli/ui) as redesigned, and the buttons that lead from one
+// The screens of the sakctl ui (sak-cli/ui) as redesigned, and the buttons that lead from one
 // to the next. A relation is labeled with its button, or with what leads there without a button.
 // Open it with `npx likec4 start docs/design/ui`.
 
@@ -137,7 +137,7 @@ model {
 
 views {
   view index {
-    title 'Screen flow of the window of sakctl'
+    title 'Screen flow of the sakctl ui'
     description 'Which button leads from one screen to the next'
     include *
     exclude resources

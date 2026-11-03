@@ -44,7 +44,6 @@ ARG ANSIBLE_VERSION=11.13.0
 ## Groups
 
 - One pull request for each ecosystem with its minor and patch updates, for example `mise minor and patch`.
-- The packages of one monorepo come together, for example all `@angular/*` packages.
 - Before version 1.0, a minor update can break the API. These updates come in their own group (`cargo 0.x minor`).
 - **kotlin**: Kotlin of the backend build and of the android build.
 - **tauri**: The tauri cli in `mise.toml` and the crates. They must have the same version.
@@ -81,16 +80,12 @@ Renovate does not update these dependencies. Update them manually:
 ## Test the configuration
 
 ```sh
-# the configuration is valid (Renovate 44 needs node 24)
-mise exec node@24 -- npx --package renovate@44 renovate-config-validator renovate.json
-# the dependencies and the pull requests Renovate finds, without a change
-RENOVATE_CONFIG_FILE=$PWD/renovate.json LOG_LEVEL=debug \
-  mise exec node@24 -- npx --package renovate@44 renovate --platform=local --dry-run=lookup \
-  --require-config=ignored --onboarding=false
+mise run renovate:dry-run
 ```
 
-Without a GitHub token (`GITHUB_COM_TOKEN`), Renovate does not look up the actions and the tools that come from GitHub
-releases.
+The task validates `renovate.json` and runs Renovate on the checkout without a change. It shows the pull requests
+that Renovate opens and the dependencies that it skips. The full log is in `build/renovate/renovate.log`. Without a
+GitHub token (`GITHUB_COM_TOKEN`), Renovate skips the actions and the tools that come from GitHub releases.
 
 The TOML parser of Renovate does not accept an inline table on more than one line. In `mise.toml`, write the
 environment of a task as a table of its own (`[tasks."<task>".env]`).

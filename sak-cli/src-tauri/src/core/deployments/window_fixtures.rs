@@ -1,4 +1,4 @@
-//! the answers of the window's commands for the screenshots and the video of sakctl's window
+//! the answers of the window's commands for the screenshots and the video of the sakctl ui
 //! (`sak-e2e`, its README): what rust sends for a create of `example1` on
 //! `krawallbu.de` in domain mode, built from the real types, texts and resources so the window
 //! shows nothing rust would not send. Not a test of its own: `mise run docs:screenshots` and

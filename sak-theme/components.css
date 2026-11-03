@@ -95,7 +95,7 @@
 
 /* the plus sign every button that creates or adds something starts with, `<i class="sak-icon-plus"
    aria-hidden="true"></i>`; drawn in the color of the text around it. A file next to the theme, no
-   data: url, which a content security policy of 'self' refuses (the window of sakctl) */
+   data: url, which a content security policy of 'self' refuses (the sakctl ui) */
 .sak-icon-plus {
   display: inline-block;
   width: 1em;

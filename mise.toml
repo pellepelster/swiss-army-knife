@@ -146,7 +146,7 @@ cp -r ../sak-theme/fonts ui/theme/fonts
 cp -r ../sak-theme/icons ui/theme/icons
 """
 
-# the window without arguments, the command line with them: `mise run cli:run -- --help`. tauri dev
+# the ui without arguments, the command line with them: `mise run cli:run -- --help`. tauri dev
 # hands what follows its second -- to the app. HCLOUD_TOKEN from pass unless set
 [tasks."cli:run"]
 description = "Run sakctl with reload"
@@ -226,7 +226,7 @@ fi
 gh release upload "v${VERSION}" $files --clobber
 """
 
-# the command line without the window: `mise run cli:sakctl -- --help`. HCLOUD_TOKEN from pass
+# the command line without the ui: `mise run cli:sakctl -- --help`. HCLOUD_TOKEN from pass
 # unless set
 [tasks."cli:sakctl"]
 description = "Run the sakctl command line"
@@ -402,9 +402,9 @@ depends = ["frontend:install"]
 dir = "{{config_root}}/sak-frontend"
 run = "npx ng serve"
 
-# the data the window shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
+# the data the sakctl ui shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
 [tasks."docs:window"]
-description = "Prepare the sakctl window fixtures"
+description = "Prepare the sakctl ui fixtures"
 depends = ["cli:theme"]
 dir = "{{config_root}}/sak-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
@@ -445,7 +445,7 @@ depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
-# docs/screenshots/: the apps against local:run (desktop and phone), the sakctl window (light and
+# docs/screenshots/: the apps against local:run (desktop and phone), the sakctl ui (light and
 # dark), its command line help and the android apps
 [tasks."docs:screenshots"]
 description = "Take the screenshots"
@@ -778,6 +778,64 @@ done
 # the signing secrets of the release apks: the keystore as base64 and its password, also the key's
 # in a pkcs12 keystore; only piped to gh, never an argument or in the environment. The alias
 # sak-grocery is from when grocery was the only app, renaming it means a new keystore
+# renovate.json against this checkout, nothing changed (docs/development/DEPENDENCIES.md): validates
+# it, then lists the pull requests Renovate would open and the dependencies it skips; the full log
+# in build/renovate/renovate.log. Renovate 44 needs node 24; GITHUB_COM_TOKEN, when set, also looks
+# up the actions and the tools of github releases
+[tasks."renovate:dry-run"]
+description = "Run Renovate locally without changes"
+dir = "{{config_root}}"
+run = '''
+set -eu
+dir="{{config_root}}/build/renovate"
+log="$dir/renovate.log"
+mkdir -p "$dir"
+mise exec node@24 -- npx -y --package renovate@44 renovate-config-validator
+echo "looking up the dependencies, the log is in $log…"
+if ! RENOVATE_CONFIG_FILE="{{config_root}}/renovate.json" RENOVATE_BASE_DIR="$dir/base" LOG_LEVEL=debug LOG_FORMAT=json \
+  mise exec node@24 -- npx -y --package renovate@44 renovate --platform=local --dry-run=lookup \
+  --require-config=ignored --onboarding=false > "$log" 2>&1; then
+  echo "renovate failed, see $log" >&2
+  exit 1
+fi
+node -e '
+const lines = require("fs").readFileSync(process.argv[1], "utf8").split(/\r?\n/);
+let files;
+const problems = new Set();
+for (const line of lines) {
+  let entry;
+  try { entry = JSON.parse(line); } catch { continue; }
+  if (entry.msg === "packageFiles with updates") files = entry.config;
+  if (entry.level >= 40) problems.add(entry.msg + (entry.err ? ": " + (entry.err.message || entry.err) : ""));
+}
+if (!files) { console.error("renovate found nothing, see " + process.argv[1]); process.exit(1); }
+// the reasons a dependency has no lookup on purpose
+const expected = new Set(["unspecified-version", "path-dependency", "file", "contains-variable", "disabled"]);
+const branches = new Map();
+const skipped = new Map();
+for (const [manager, packageFiles] of Object.entries(files)) {
+  for (const packageFile of packageFiles) {
+    for (const dep of packageFile.deps) {
+      if (dep.skipReason && !expected.has(dep.skipReason)) {
+        skipped.set(dep.skipReason, (skipped.get(dep.skipReason) || new Set()).add(manager + " " + dep.depName));
+      }
+      for (const update of dep.updates || []) {
+        const branch = branches.get(update.branchName) || new Set();
+        branches.set(update.branchName, branch.add(dep.depName + " " + dep.currentValue + " -> " + update.newVersion));
+      }
+    }
+  }
+}
+console.log("pull requests:");
+for (const name of [...branches.keys()].sort()) {
+  console.log("  " + name);
+  for (const update of [...branches.get(name)].sort()) console.log("    " + update);
+}
+for (const [reason, deps] of skipped) console.log("skipped (" + reason + "): " + [...deps].sort().join(", "));
+for (const problem of problems) console.log("warning: " + problem);
+' "$log"
+'''
+
 [tasks."github:secrets:update"]
 description = "Set the GitHub secrets from pass"
 run = """

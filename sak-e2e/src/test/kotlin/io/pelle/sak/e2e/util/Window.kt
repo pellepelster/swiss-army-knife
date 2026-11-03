@@ -9,7 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-// the page of sakctl's window (sak-cli/ui) and the answers of rust for it, the fixtures that
+// the page of the sakctl ui (sak-cli/ui) and the answers of rust for it, the fixtures that
 // `cargo test window_fixtures -- --ignored` writes (core/deployments/window_fixtures.rs)
 private val UI: Path = Paths.get(System.getProperty("sak.e2e.window.ui") ?: "../sak-cli/ui").toAbsolutePath().normalize()
 private val FIXTURES: Path = Paths.get(System.getProperty("sak.e2e.window.fixtures") ?: "../build/ui-fixtures/window.json")
