@@ -38,7 +38,9 @@ every run on a push could read, and the environment has none, so the next tag fa
 Fix: `mise run github:secrets:update`, which writes them into the environment, then delete the four secrets of the
 repository (`gh secret delete <name> --repo pellepelster/swiss-army-knife`).
 
-### `SC-2` GitHub knows the signing key of the commits only as expired
+### ~~`SC-2` GitHub knows the signing key of the commits only as expired~~
+
+**Fixed:** the key is uploaded again, GitHub has it with its expiry of 2027-07-07; this repository signs its commits and tags with it (`commit.gpgsign`, `tag.gpgsign`).
 
 The ruleset of main and the one of the tags `v*` require signed commits. The commits are signed with the GPG key
 `7CB38B806115B466` (`pelle@pelle.io`), whose expiry was extended to 2027-07-07, but GitHub has the key with its old
