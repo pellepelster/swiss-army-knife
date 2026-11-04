@@ -374,7 +374,11 @@ interface ItemGroup {
             data-testid="discovered"
           >
             <span class="me-auto">{{ 'grocery.discover.none' | t }}</span>
-            <button type="button" class="btn btn-sm btn-primary" (click)="closeDiscovered()">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="closeDiscovered()"
+            >
               {{ 'shared.ok' | t }}
             </button>
           </div>
