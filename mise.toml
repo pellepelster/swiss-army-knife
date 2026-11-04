@@ -5,7 +5,7 @@ java = "temurin-25.0.5+8.0.LTS"
 node = "22.23.4"
 # linux and macOS only; sakctl itself runs ansible in the tools image
 "pipx:ansible-core" = { version = "2.21.5", os = ["linux", "macos"] }
-pipx = { version = "1.18.4", os = ["linux", "macos"] }
+pipx = { version = "1.18.7", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/
 rust = "1.99.1"
 "npm:@tauri-apps/cli" = "2.12.4"
