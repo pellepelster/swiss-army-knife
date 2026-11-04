@@ -126,8 +126,17 @@ export class NotesStore {
   // what was removed last while it can be brought back with undoRemove, null otherwise
   readonly removed = this.removal.current.asReadonly();
 
-  // what went wrong last, null when everything is saved; every action clears it when it starts
-  readonly error = signal<string | null>(null);
+  // what went wrong last and where (UX-15): in the card of a note, at the buttons that create a
+  // note (new) or in the place of the notes (page); null when everything is saved, every action
+  // clears it when it starts
+  readonly failure = signal<{ at: NoteErrorAt; message: string } | null>(null);
+  readonly error = computed(() => this.failure()?.message ?? null);
+
+  // the error that went wrong at the place, null otherwise
+  errorAt(at: NoteErrorAt): string | null {
+    const failure = this.failure();
+    return failure !== null && failure.at === at ? failure.message : null;
+  }
 
   // every label of a note, sorted
   readonly labels = computed(() =>
@@ -170,7 +179,7 @@ export class NotesStore {
   // only when the same page is loaded again
   load(offset = 0, label: string | null = null): void {
     this.loadingNotes?.unsubscribe();
-    this.error.set(null);
+    this.failure.set(null);
     this.loading.set(true);
     this.changedWhileLoading = new Set([...this.pendingText.keys(), ...this.inFlight.keys()]);
     const query = `${offset}|${label ?? ''}`;
@@ -198,7 +207,7 @@ export class NotesStore {
         error: () => {
           this.changedWhileLoading = null;
           this.loading.set(false);
-          this.error.set(this.i18n.t('notes.errors.not_loaded'));
+          this.fail('page', this.i18n.t('notes.errors.not_loaded'));
         },
       });
     fetchAll<{ name: string }>(this.http, '/api/v1/labels').subscribe({
@@ -234,7 +243,7 @@ export class NotesStore {
     photos: readonly number[] = [],
     recordings: readonly number[] = [],
   ): Promise<Note | null> {
-    this.error.set(null);
+    this.failure.set(null);
     try {
       const response = await firstValueFrom(
         this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels, photos, recordings }),
@@ -248,7 +257,7 @@ export class NotesStore {
       if (labels.length) this.loadUsedSoon();
       return note;
     } catch {
-      this.error.set(this.i18n.t('notes.errors.not_created'));
+      this.fail('new', this.i18n.t('notes.errors.not_created'));
       return null;
     }
   }
@@ -296,17 +305,17 @@ export class NotesStore {
 
   // a new note with the photo, null when the photo or the note could not be stored
   async addWithPhoto(photo: Blob, labels: readonly string[] = []): Promise<Note | null> {
-    this.error.set(null);
-    const fileId = await this.uploadPhoto(photo);
+    this.failure.set(null);
+    const fileId = await this.uploadPhoto(photo, 'new');
     return fileId === null ? null : this.add('', 'yellow', labels, [fileId]);
   }
 
   // attached once it is uploaded
   async addPhoto(id: number, photo: Blob): Promise<void> {
-    this.error.set(null);
+    this.failure.set(null);
     this.uploading.update((ids) => new Set([...ids, id]));
     try {
-      const fileId = await this.uploadPhoto(photo);
+      const fileId = await this.uploadPhoto(photo, id);
       if (fileId === null) return;
       const changed = this.change(id, (note) =>
         note.photos.includes(fileId) ? note : { ...note, photos: [...note.photos, fileId] },
@@ -324,13 +333,13 @@ export class NotesStore {
       this.recorder.stop();
       return null;
     }
-    this.error.set(null);
+    this.failure.set(null);
     this.recordingFor.set(target);
     let recording: Blob | null;
     try {
       recording = await this.recorder.record();
     } catch {
-      this.error.set(this.i18n.t('notes.errors.microphone'));
+      this.fail(target, this.i18n.t('notes.errors.microphone'));
       return null;
     } finally {
       this.recordingFor.set(null);
@@ -344,6 +353,7 @@ export class NotesStore {
       const fileId = await this.uploadFile(
         recording,
         this.i18n.t('notes.errors.recording_not_stored'),
+        target,
       );
       if (fileId === null) return null;
       if (id === null) return await this.add('', 'yellow', labels, [], [fileId]);
@@ -380,7 +390,7 @@ export class NotesStore {
   }
 
   async discoverText(id: number, fileId: number): Promise<void> {
-    this.error.set(null);
+    this.failure.set(null);
     const recording = this.all()
       .find((note) => note.id === id)
       ?.recordings.includes(fileId);
@@ -390,7 +400,8 @@ export class NotesStore {
         this.http.post<{ text: string }>(`/api/v1/files/${fileId}/discover/text`, null),
       );
       if (!text) {
-        this.error.set(
+        this.fail(
+          id,
           this.i18n.t(
             recording ? 'notes.errors.no_text_in_recording' : 'notes.errors.no_text_in_photo',
           ),
@@ -403,7 +414,7 @@ export class NotesStore {
       }));
       if (changed) this.save(id);
     } catch (error: unknown) {
-      this.error.set(errorMessages(error)[0] ?? this.i18n.t('notes.errors.not_discovered'));
+      this.fail(id, errorMessages(error)[0] ?? this.i18n.t('notes.errors.not_discovered'));
     } finally {
       this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== fileId)));
     }
@@ -417,7 +428,7 @@ export class NotesStore {
   // the note goes at once, the backend deletes it after UNDO_DELETE_MS unless undoRemove brings it
   // back, and brings it back when it can not delete it
   delete(id: number): void {
-    this.error.set(null);
+    this.failure.set(null);
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
     this.commitRemoval();
@@ -440,7 +451,7 @@ export class NotesStore {
           error: () => {
             this.finishRequest(id);
             this.restore(note);
-            this.error.set(this.i18n.t('notes.errors.not_deleted'));
+            this.fail(id, this.i18n.t('notes.errors.not_deleted'));
           },
           complete: () => {
             this.finishRequest(id);
@@ -470,7 +481,7 @@ export class NotesStore {
       .find((note) => note.id === id)
       ?.[key].indexOf(fileId);
     if (position === undefined || position < 0) return;
-    this.error.set(null);
+    this.failure.set(null);
     this.commitRemoval();
     this.change(id, (note) => ({ ...note, [key]: note[key].filter((file) => file !== fileId) }));
     // a request from now on, notes loaded meanwhile keep the file away
@@ -539,7 +550,7 @@ export class NotesStore {
       })
       .subscribe({
         next: (response) => {
-          this.error.set(null);
+          this.failure.set(null);
           this.all.update((notes) =>
             notes.map((n) => (n.id === id ? { ...n, updated: toDate(response.updatedAt) } : n)),
           );
@@ -547,7 +558,7 @@ export class NotesStore {
         },
         error: () => {
           this.finishRequest(id);
-          this.error.set(this.i18n.t('notes.errors.not_saved'));
+          this.fail(id, this.i18n.t('notes.errors.not_saved'));
         },
         complete: () => this.finishRequest(id),
       });
@@ -613,20 +624,21 @@ export class NotesStore {
     else this.inFlight.delete(id);
   }
 
-  // the id of the scaled down photo in the file storage, null when it could not be stored
-  private async uploadPhoto(photo: Blob): Promise<number | null> {
+  // the id of the scaled down photo in the file storage, null when it could not be stored; the
+  // error shows at the place the photo was taken for
+  private async uploadPhoto(photo: Blob, at: NoteErrorAt): Promise<number | null> {
     let scaled: Blob;
     try {
       scaled = await this.scaler.scale(photo);
     } catch {
-      this.error.set(this.i18n.t('notes.errors.photo_not_stored'));
+      this.fail(at, this.i18n.t('notes.errors.photo_not_stored'));
       return null;
     }
-    return this.uploadFile(scaled, this.i18n.t('notes.errors.photo_not_stored'));
+    return this.uploadFile(scaled, this.i18n.t('notes.errors.photo_not_stored'), at);
   }
 
   // the id of the file in the file storage, null when it could not be stored
-  private async uploadFile(file: Blob, failure: string): Promise<number | null> {
+  private async uploadFile(file: Blob, failure: string, at: NoteErrorAt): Promise<number | null> {
     try {
       const stored = await firstValueFrom(
         this.http.post<{ id: number }>('/api/v1/files', file, {
@@ -635,9 +647,13 @@ export class NotesStore {
       );
       return stored.id;
     } catch {
-      this.error.set(failure);
+      this.fail(at, failure);
       return null;
     }
+  }
+
+  private fail(at: NoteErrorAt, message: string): void {
+    this.failure.set({ at, message });
   }
 
   // false when the note is unknown or nothing changed; a change is an action, it clears the error
@@ -652,12 +668,16 @@ export class NotesStore {
       }),
     );
     if (changed) {
-      this.error.set(null);
+      this.failure.set(null);
       this.changedWhileLoading?.add(id);
     }
     return changed;
   }
 }
+
+// where an error shows (UX-15): the card of a note by its id, the buttons that create a note, or
+// the place of the notes
+export type NoteErrorAt = number | 'new' | 'page';
 
 // as the backend sorts them
 function newestFirst(a: Note, b: Note): number {

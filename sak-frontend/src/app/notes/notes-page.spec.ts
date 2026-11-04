@@ -474,6 +474,7 @@ describe('NotesPage', () => {
     http.expectOne({ method: 'PUT' }).flush(null, { status: 500, statusText: 'Error' });
     await fixture.whenStable();
 
-    expect(page.querySelector('[role=alert]')?.textContent).toContain('could not be saved');
+    // in the card of the note (UX-15)
+    expect(notes()[0].querySelector('[role=alert]')?.textContent).toContain('could not be saved');
   });
 });

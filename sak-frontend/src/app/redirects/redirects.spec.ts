@@ -177,9 +177,10 @@ describe('Redirects', () => {
       .expectOne({ method: 'DELETE', url: '/api/v1/redirects/example.com' })
       .flush(null, forbidden);
     await harness.fixture.whenStable();
-    expect(page().querySelector('[role=alert]')?.textContent).toContain(
-      'Your role does not allow to delete redirects.',
-    );
+    // in the row it was deleted from (UX-15)
+    expect(
+      page().querySelector('[data-testid="redirect-example.com"] [role=alert]')?.textContent,
+    ).toContain('Your role does not allow to delete redirects.');
 
     await open('/redirects/example.com');
     http.expectOne('/api/v1/redirects/example.com').flush(toExternal);

@@ -9,6 +9,7 @@ import { ActionMenu } from '../shared/action-menu';
 import { redirectDeleteErrorMessage } from './redirect-store';
 import { RedirectsService, RedirectTarget } from './redirects.service';
 import { PageHeader } from '../shared/page-header';
+import { RowError } from '../shared/row-error';
 
 const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
   domain: 'redirects.types.domain',
@@ -34,7 +35,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
       {{ 'redirects.list.intro' | t }}
     </p>
 
-    @if (list.error(); as error) {
+    @if (list.error() ?? strayError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
@@ -42,7 +43,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'app.redirects' | t">
         @for (redirect of list.items(); track redirect.sourceDomain) {
           <li
-            class="card card-body flex-row align-items-center gap-3"
+            class="card card-body flex-row flex-wrap align-items-center gap-3"
             [attr.data-testid]="'redirect-' + redirect.sourceDomain"
           >
             <div class="vstack gap-1 flex-grow-1">
@@ -79,6 +80,10 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
                 ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
               >
             </app-action-menu>
+            <!-- the error of the menu of the row, in the row (UX-15) -->
+            @if (rowError.of(redirect.sourceDomain); as error) {
+              <p class="alert alert-danger mb-0 w-100" role="alert">{{ error }}</p>
+            }
           </li>
         } @empty {
           <li class="card card-body text-center py-4">{{ 'redirects.list.empty' | t }}</li>
@@ -115,14 +120,23 @@ export class RedirectList {
       }),
   });
 
+  // the error of a delete from the menu of a row, by the source domain of its redirect
+  protected readonly rowError = new RowError<string>();
+  protected strayError(): string | null {
+    return this.rowError.stray((domain) =>
+      this.list.items().some((redirect) => redirect.sourceDomain === domain),
+    );
+  }
+
   protected delete(domain: string): void {
+    this.rowError.clear();
     this.service
       .delete(domain)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.list.reload(),
         error: (error: unknown) =>
-          this.list.error.set(redirectDeleteErrorMessage(this.i18n, error, domain)),
+          this.rowError.set(domain, redirectDeleteErrorMessage(this.i18n, error, domain)),
       });
   }
 }

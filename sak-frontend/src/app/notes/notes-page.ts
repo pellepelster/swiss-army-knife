@@ -40,11 +40,7 @@ import { PageHeader } from '../shared/page-header';
         (change)="addPhoto($any($event.target))"
       />
       <!-- the actions of the page, the main create action rightmost (UX-2) -->
-      <div
-        class="btn-group"
-        role="group"
-        [attr.aria-label]="'notes.page.create_notes' | t"
-      >
+      <div class="btn-group" role="group" [attr.aria-label]="'notes.page.create_notes' | t">
         <button
           type="button"
           class="btn btn-outline-secondary"
@@ -81,6 +77,11 @@ import { PageHeader } from '../shared/page-header';
       </div>
     </header>
 
+    <!-- the error of creating a note, right under the buttons that create one (UX-15) -->
+    @if (store.errorAt('new'); as error) {
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
+    }
+
     <nav class="d-flex gap-2 pb-3 overflow-x-auto" [attr.aria-label]="'notes.page.filter' | t">
       <button
         type="button"
@@ -109,7 +110,8 @@ import { PageHeader } from '../shared/page-header';
       }
     </nav>
 
-    @if (store.error(); as error) {
+    <!-- the notes could not be loaded, or what was done to a note that is not shown went wrong -->
+    @if (store.errorAt('page') ?? strayError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
@@ -145,10 +147,7 @@ import { PageHeader } from '../shared/page-header';
     />
 
     @for (removal of removed(); track removal) {
-      <app-undo-toast
-        [text]="removedText[removal.kind]"
-        (undo)="store.undoRemove()"
-      />
+      <app-undo-toast [text]="removedText[removal.kind]" (undo)="store.undoRemove()" />
     }
 
     <app-recording-overlay />
@@ -195,6 +194,14 @@ export class NotesPage {
     const notes = this.store.notes();
     return label === null ? notes : notes.filter((note) => note.labels.includes(label));
   });
+
+  // the error of a note that is not shown, e.g. one deleted on another page
+  protected strayError(): string | null {
+    const failure = this.store.failure();
+    if (failure === null || typeof failure.at !== 'number') return null;
+    const at = failure.at;
+    return this.shown().some((note) => note.id === at) ? null : failure.message;
+  }
 
   constructor() {
     // whether the photos and recordings offer to discover their text

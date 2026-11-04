@@ -138,6 +138,11 @@ interface Media {
       </p>
     }
 
+    <!-- the error of what was done to the note, in its card (UX-15) -->
+    @if (store.errorAt(note().id); as error) {
+      <p class="alert alert-danger small py-1 px-2 mb-0" role="alert">{{ error }}</p>
+    }
+
     <footer class="note-footer">
       <div class="note-colors" role="radiogroup" [attr.aria-label]="'notes.card.color' | t">
         @for (color of colors; track color) {

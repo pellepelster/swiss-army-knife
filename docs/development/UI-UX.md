@@ -68,6 +68,11 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
   (`fa-robot`), in every app. Examples are the action that discovers the text of a photo or a recording of a note and
   the action that reads the items in a photo for a grocery list.
+- `UX-15` **An error is shown where it was caused.** The error of a call is shown next to the element that made the
+  call, in the danger color: the error of a save in its form, above its buttons; the error of an action of a row in
+  that row; the error of an action of a page next to its toolbar (`UX-10`); the error of loading a tab in the card of
+  that tab. Only a page that could not be loaded shows its error at the top, in the place of what it would show. The
+  error of a field is the one of `UX-6`, right under the field.
 
 ## Web ui
 

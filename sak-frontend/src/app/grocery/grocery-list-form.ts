@@ -39,6 +39,7 @@ import { apiErrorMessage } from '../shared/api';
 import { GroceryCategory, GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
 import { PageHeader } from '../shared/page-header';
+import { RowError } from '../shared/row-error';
 import { ActionMenu } from '../shared/action-menu';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 
@@ -74,7 +75,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
       </h1>
     </header>
 
-    @if (error(); as error) {
+    @if (loadError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
@@ -145,6 +146,11 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
           </div>
         </div>
 
+        <!-- the error of a save or a delete, above their buttons (UX-15) -->
+        @if (error(); as error) {
+          <p class="alert alert-danger mb-0" role="alert" data-testid="form-error">{{ error }}</p>
+        }
+
         <!-- one group of the actions; a delete asks inline in its place (UX-9) -->
         <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
           @if (confirming()) {
@@ -195,7 +201,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
       <section class="card card-body mt-4" aria-labelledby="categories-title">
         <h2 class="h5" id="categories-title">{{ 'grocery.categories.title' | t }}</h2>
         <p class="form-text mt-0">{{ 'grocery.categories.hint' | t }}</p>
-        @if (categoryError(); as error) {
+        @if (categoriesError() ?? strayCategoryError(); as error) {
           <p class="alert alert-danger" role="alert">{{ error }}</p>
         }
         @if (categories().length) {
@@ -304,6 +310,10 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                     (emoji-click)="iconOf(category, $any($event).detail.unicode)"
                   ></emoji-picker>
                 }
+                <!-- the error of a change of the category, in its row (UX-15) -->
+                @if (categoryError.of(category.id); as error) {
+                  <p class="alert alert-danger mt-2 mb-0" role="alert">{{ error }}</p>
+                }
               </li>
             }
           </ul>
@@ -337,6 +347,9 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
             <!-- always there, shown by is-invalid, so the field keeps square corners at the button -->
             <div class="invalid-feedback">{{ 'grocery.categories.name_required' | t }}</div>
           </div>
+          @if (categoryError.of('new'); as error) {
+            <p class="alert alert-danger mt-2 mb-0" role="alert">{{ error }}</p>
+          }
         </form>
       </section>
     }
@@ -369,12 +382,22 @@ export class GroceryListForm implements OnInit {
   protected readonly confirming = signal(false);
   // the user owns the list, or creates one: only then they share, unshare and delete it (LIST-2)
   protected readonly owner = computed(() => this.list()?.mine ?? true);
+  // the list could not be loaded; a save or a delete failed (UX-15)
+  protected readonly loadError = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
 
   // the categories of the list, in their order (GROCERY-13)
   protected readonly categories = signal<GroceryCategory[]>([]);
   protected readonly categoriesLoaded = signal(false);
-  protected readonly categoryError = signal<string | null>(null);
+  // the categories could not be loaded; a change of one failed, in its row or, adding one, under
+  // the field of the new one (UX-15)
+  protected readonly categoriesError = signal<string | null>(null);
+  protected readonly categoryError = new RowError<number | 'new'>();
+  protected strayCategoryError(): string | null {
+    return this.categoryError.stray(
+      (at) => at === 'new' || this.categories().some((category) => category.id === at),
+    );
+  }
   // a change of the categories on its way, or one waiting for it
   protected readonly busy = computed(() => this.pending() > 0);
   // the categories whose name field was left empty (UX-6)
@@ -419,7 +442,7 @@ export class GroceryListForm implements OnInit {
         next: (lists) => {
           const list = lists.find((each) => String(each.id) === id);
           if (!list) {
-            this.error.set(this.i18n.t('grocery.form.no_such_list'));
+            this.loadError.set(this.i18n.t('grocery.form.no_such_list'));
             return;
           }
           this.list.set(list);
@@ -429,7 +452,7 @@ export class GroceryListForm implements OnInit {
           this.loadCategories();
         },
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_loaded'))),
+          this.loadError.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_loaded'))),
       });
   }
 
@@ -522,6 +545,7 @@ export class GroceryListForm implements OnInit {
         this.focusMenu(id);
       },
       'grocery.categories.not_ordered',
+      id,
     );
   }
 
@@ -545,6 +569,7 @@ export class GroceryListForm implements OnInit {
       },
       (ordered) => this.categories.set(this.inOrderOf(ordered)),
       'grocery.categories.not_ordered',
+      id,
     );
   }
 
@@ -556,6 +581,7 @@ export class GroceryListForm implements OnInit {
       (listId) => this.service.createCategory(listId, name, null),
       (category) => this.categories.update((categories) => [...categories, category]),
       'grocery.categories.not_saved',
+      'new',
       () => this.newName.set(name),
     );
   }
@@ -569,6 +595,7 @@ export class GroceryListForm implements OnInit {
           categories.filter((each) => each.id !== category.id),
         ),
       'grocery.categories.not_deleted',
+      category.id,
     );
   }
 
@@ -595,16 +622,19 @@ export class GroceryListForm implements OnInit {
           categories.map((each) => (each.id === changed.id ? changed : each)),
         ),
       'grocery.categories.not_saved',
+      id,
       failed,
     );
   }
 
-  // a change of the categories, after the ones before it; a refused one says why and loads the
-  // categories again, so the next changes start from what is stored
+  // a change of the categories, after the ones before it; a refused one says why where it was made
+  // (at: the category, or new for the one added) and loads the categories again, so the next
+  // changes start from what is stored
   private change<T>(
     request: (listId: number) => Observable<T>,
     done: (result: T) => void,
     failure: TextKey,
+    at: number | 'new',
     failed?: () => void,
   ): void {
     const listId = this.list()?.id;
@@ -612,13 +642,13 @@ export class GroceryListForm implements OnInit {
     this.pending.update((count) => count + 1);
     this.queue.next(() =>
       defer(() => {
-        this.categoryError.set(null);
+        this.categoryError.clear();
         return request(listId);
       }).pipe(
         tap((result) => done(result)),
         catchError((error: unknown) => {
           failed?.();
-          this.categoryError.set(apiErrorMessage(error, this.i18n.t(failure)));
+          this.categoryError.set(at, apiErrorMessage(error, this.i18n.t(failure)));
           return this.reload(listId);
         }),
         finalize(() => this.pending.update((count) => count - 1)),
@@ -641,9 +671,10 @@ export class GroceryListForm implements OnInit {
       tap((categories) => {
         this.categories.set(categories);
         this.categoriesLoaded.set(true);
+        this.categoriesError.set(null);
       }),
       catchError((error: unknown) => {
-        this.categoryError.set(
+        this.categoriesError.set(
           apiErrorMessage(error, this.i18n.t('grocery.categories.not_loaded')),
         );
         return EMPTY;
@@ -679,6 +710,7 @@ export class GroceryListForm implements OnInit {
     const id = this.list()?.id;
     if (id === undefined) return;
     this.confirming.set(false);
+    this.error.set(null);
     this.service
       .deleteList(id)
       .pipe(takeUntilDestroyed(this.destroyRef))

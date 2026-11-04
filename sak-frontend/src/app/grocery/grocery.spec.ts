@@ -237,7 +237,8 @@ describe('Grocery', () => {
       .expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/3' })
       .flush(null, { status: 500, statusText: 'Server Error' });
     await flushItems(1, [item(3, 'Bread', null)]);
-    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+    // in the row of the item, which is back (UX-15)
+    expect(page().querySelector('[data-testid=item-3] [role=alert]')?.textContent).toContain(
       'The item could not be deleted.',
     );
     expect(page().querySelector('[data-testid=item-3]')).not.toBeNull();
@@ -385,7 +386,7 @@ describe('Grocery', () => {
       .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
       .flush(pageOf(categories));
     await harness.fixture.whenStable();
-    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+    expect(page().querySelector('[data-testid=category-12] [role=alert]')?.textContent).toContain(
       'The list has a category of the name.',
     );
     expect(field.value).toBe('Dairy & eggs');
@@ -421,7 +422,9 @@ describe('Grocery', () => {
       .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
       .flush(pageOf([...categories, frozen]));
     await harness.fixture.whenStable();
-    expect(page().querySelector('[role=alert]')?.textContent).toContain('The order is wrong.');
+    expect(page().querySelector('[data-testid=category-11] [role=alert]')?.textContent).toContain(
+      'The order is wrong.',
+    );
     expect(page().querySelector('[data-testid=category-13]')).not.toBeNull();
 
     await deleteFromRow('Dairy & eggs');
@@ -432,6 +435,7 @@ describe('Grocery', () => {
       .expectOne('/api/v1/grocery/lists/1/categories?offset=0&limit=100')
       .flush(pageOf([categories[0], frozen]));
     await harness.fixture.whenStable();
+    // its row is gone, so above the categories
     expect(page().querySelector('[role=alert]')?.textContent).toContain('Not found.');
     expect(page().querySelector('[data-testid=category-12]')).toBeNull();
   });
@@ -1132,7 +1136,7 @@ describe('Grocery', () => {
     });
     cleared.flush(null, { status: 500, statusText: 'Server Error' });
     await harness.fixture.whenStable();
-    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+    expect(page().querySelector('[data-testid=item-2] [role=alert]')?.textContent).toContain(
       'The quantity could not be saved.',
     );
     await flushItems(1, [{ ...item(2, 'Garlic', null), amount: 3, unit: 'clove' }]);
@@ -1294,7 +1298,7 @@ describe('Grocery', () => {
       expect(page().querySelector('[data-testid=discovered-1]')).toBeNull();
     });
     expect(rowField(0, '[id^=discovered-name]').value).toBe('Mehl');
-    expect(page().querySelector('[role=alert]')?.textContent).toContain(
+    expect(page().querySelector('[data-testid=discovered] [role=alert]')?.textContent).toContain(
       'Not every item could be added.',
     );
     await flushItems(1, [item(31, 'Salz', null)]);

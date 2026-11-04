@@ -9,6 +9,7 @@ import { pagedList, pageOffset } from '../shared/paged-list';
 import { ActionMenu } from '../shared/action-menu';
 import { BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
 import { PageHeader } from '../shared/page-header';
+import { RowError } from '../shared/row-error';
 
 // the buckets with their domains, objects and size, a page at a time; the numbers are counted in
 // the background, the list asks again while a bucket of the page is still being counted; the menu
@@ -29,14 +30,14 @@ import { PageHeader } from '../shared/page-header';
       </a>
     </header>
 
-    @if (list.error(); as error) {
+    @if (list.error() ?? strayError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
     @if (list.loaded()) {
       <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'hosting.list.buckets' | t">
         @for (bucket of list.items(); track bucket.name) {
-          <li class="card card-body flex-row align-items-center gap-3">
+          <li class="card card-body flex-row flex-wrap align-items-center gap-3">
             <a
               class="flex-grow-1 d-flex justify-content-between gap-3 link-body-emphasis text-decoration-none stretched-link"
               [routerLink]="['/static-hosting', bucket.name]"
@@ -68,6 +69,12 @@ import { PageHeader } from '../shared/page-header';
                 ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
               >
             </app-action-menu>
+            <!-- the error of the menu of the row, in the row (UX-15), above its link -->
+            @if (rowError.of(bucket.name); as error) {
+              <p class="alert alert-danger mb-0 w-100 position-relative z-2" role="alert">
+                {{ error }}
+              </p>
+            }
           </li>
         } @empty {
           <li class="card card-body text-center py-4">
@@ -111,15 +118,23 @@ export class BucketList {
   protected readonly formatCount = formatCount;
   protected readonly served = servedDomains;
 
+  // the error of a delete from the menu of a row, by the name of its bucket
+  protected readonly rowError = new RowError<string>();
+  protected strayError(): string | null {
+    return this.rowError.stray((name) => this.list.items().some((bucket) => bucket.name === name));
+  }
+
   // its objects stay, the name stays taken
   protected delete(name: string): void {
+    this.rowError.clear();
     this.service
       .delete(name)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.list.reload(),
         error: (error: unknown) =>
-          this.list.error.set(
+          this.rowError.set(
+            name,
             apiErrorMessage(error, this.i18n.t('hosting.view.delete_failed', { name }), {
               403: this.i18n.t('hosting.view.delete_forbidden'),
             }),

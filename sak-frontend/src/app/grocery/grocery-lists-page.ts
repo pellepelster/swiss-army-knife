@@ -9,6 +9,7 @@ import { GroceryList, GroceryService } from './grocery.service';
 import { ListIcon } from './list-icon';
 import { ActionMenu } from '../shared/action-menu';
 import { PageHeader } from '../shared/page-header';
+import { RowError } from '../shared/row-error';
 
 // the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
 // others, each with how many items are to buy; a list opens on its own page, its menu leads to its
@@ -26,7 +27,7 @@ import { PageHeader } from '../shared/page-header';
       </a>
     </header>
 
-    @if (error(); as error) {
+    @if (error() ?? strayError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
@@ -35,7 +36,7 @@ import { PageHeader } from '../shared/page-header';
         @for (list of lists(); track list.id) {
           <!-- the row opens the list; its menu the settings and the delete, only of a list of the
                user's own (UX-8) -->
-          <li class="card card-body flex-row align-items-center gap-3">
+          <li class="card card-body flex-row flex-wrap align-items-center gap-3">
             <app-list-icon [name]="list.name" [icon]="list.icon" />
             <a
               class="flex-grow-1 link-body-emphasis text-decoration-none stretched-link"
@@ -68,6 +69,12 @@ import { PageHeader } from '../shared/page-header';
                 >{{ 'shared.settings' | t }}</a
               >
             </app-action-menu>
+            <!-- the error of the menu of the row, in the row (UX-15), above its link -->
+            @if (rowError.of(list.id); as error) {
+              <p class="alert alert-danger mb-0 w-100 position-relative z-2" role="alert">
+                {{ error }}
+              </p>
+            }
           </li>
         }
       </ul>
@@ -84,7 +91,13 @@ export class GroceryListsPage {
 
   protected readonly lists = signal<GroceryList[]>([]);
   protected readonly loaded = signal(false);
+  // the lists could not be loaded
   protected readonly error = signal<string | null>(null);
+  // the error of a delete from the menu of a row, by the id of its list
+  protected readonly rowError = new RowError<number>();
+  protected strayError(): string | null {
+    return this.rowError.stray((id) => this.lists().some((list) => list.id === id));
+  }
 
   constructor() {
     this.load();
@@ -120,13 +133,17 @@ export class GroceryListsPage {
   }
 
   protected delete(list: GroceryList): void {
+    this.rowError.clear();
     this.service
       .deleteList(list.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.load(),
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.form.not_deleted'))),
+          this.rowError.set(
+            list.id,
+            apiErrorMessage(error, this.i18n.t('grocery.form.not_deleted')),
+          ),
       });
   }
 

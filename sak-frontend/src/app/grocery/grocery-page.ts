@@ -46,6 +46,7 @@ import {
   GrocerySuggestion,
 } from './grocery.service';
 import { PageHeader } from '../shared/page-header';
+import { RowError } from '../shared/row-error';
 
 // how long a check can be undone, shorter than for the notes: while shopping one
 // item follows the other
@@ -158,7 +159,7 @@ interface ItemGroup {
       </div>
     </header>
 
-    @if (error(); as error) {
+    @if (listsError() ?? itemsError() ?? strayItemError(); as error) {
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
@@ -211,6 +212,10 @@ interface ItemGroup {
             <i class="fa-solid fa-spinner fa-spin me-2" aria-hidden="true"></i
             >{{ 'grocery.discover.reading' | t }}
           </p>
+        }
+        <!-- the error of adding the item or of reading the photo, under the field (UX-15) -->
+        @if (addError(); as error) {
+          <p class="alert alert-danger mt-2 mb-0" role="alert">{{ error }}</p>
         }
         <datalist id="grocery-suggestions">
           @for (suggestion of suggestions(); track suggestion.id) {
@@ -344,6 +349,9 @@ interface ItemGroup {
             } @else {
               <p class="mb-0">{{ 'grocery.discover.none' | t }}</p>
             }
+            @if (discoveredError(); as error) {
+              <p class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</p>
+            }
             <div class="d-flex justify-content-end gap-2 mt-3">
               <button type="button" class="btn btn-outline-secondary" (click)="closeDiscovered()">
                 {{ 'shared.cancel' | t }}
@@ -392,7 +400,7 @@ interface ItemGroup {
            item, shown with the bought ones (GROCERY-14), is struck through, a tap does not check it
            again; its menu changes it as the one of an item to buy -->
       <li
-        class="list-group-item p-0 d-flex align-items-center"
+        class="list-group-item p-0 d-flex flex-wrap align-items-center"
         [attr.data-testid]="'item-' + item.id"
       >
         @if (item.photoId) {
@@ -599,6 +607,12 @@ interface ItemGroup {
             </button>
           </div>
         </app-action-menu>
+        <!-- the error of what was done to the item, in its row (UX-15) -->
+        @if (itemError.of(item.id); as error) {
+          <div class="w-100 px-3 pb-2">
+            <p class="alert alert-danger mb-0" role="alert">{{ error }}</p>
+          </div>
+        }
       </li>
     </ng-template>
 
@@ -677,7 +691,17 @@ export class GroceryPage {
   // whether an item is to buy, what the empty list says
   protected readonly hasToBuy = computed(() => this.items().some((item) => !item.checkedAt));
   protected readonly loaded = signal(false);
-  protected readonly error = signal<string | null>(null);
+  // where an error shows (UX-15): the lists, or the items with the categories could not be loaded,
+  // at the top; adding an item or reading a photo under its field; adding the items read in their
+  // form; what was done to an item in its row, at the top once the item is not shown
+  protected readonly listsError = signal<string | null>(null);
+  protected readonly itemsError = signal<string | null>(null);
+  protected readonly addError = signal<string | null>(null);
+  protected readonly discoveredError = signal<string | null>(null);
+  protected readonly itemError = new RowError<number>();
+  protected strayItemError(): string | null {
+    return this.itemError.stray((id) => this.items().some((item) => item.id === id));
+  }
 
   protected readonly suggestions = signal<GrocerySuggestion[]>([]);
   protected readonly itemName = signal('');
@@ -809,7 +833,7 @@ export class GroceryPage {
     const amount = this.itemAmount().trim() === '' ? null : Number(this.itemAmount());
     const unit = this.itemUnit().trim() || null;
     this.adding.set(true);
-    this.error.set(null);
+    this.addError.set(null);
     const list = this.shown();
     if (!list) return;
     this.service
@@ -832,7 +856,7 @@ export class GroceryPage {
         },
         error: (error: unknown) => {
           this.adding.set(false);
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.not_added')));
+          this.addError.set(apiErrorMessage(error, this.i18n.t('grocery.list.not_added')));
         },
       });
   }
@@ -845,7 +869,7 @@ export class GroceryPage {
       this.undo();
       return;
     }
-    this.error.set(null);
+    this.itemError.clear();
     this.pending.start(
       { text: this.i18n.t('grocery.list.bought', { name: item.name }) },
       () => {
@@ -874,6 +898,7 @@ export class GroceryPage {
               ),
             ),
           this.i18n.t('grocery.list.not_checked'),
+          item.id,
           done,
         );
       },
@@ -896,9 +921,9 @@ export class GroceryPage {
       this.struck.update((ids) => without(ids, item.id));
     }
     this.closeFields(item.id);
-    this.error.set(null);
+    this.itemError.clear();
     this.items.update((items) => items.filter((each) => each.id !== item.id));
-    this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_deleted'));
+    this.send(this.service.deleteItem(item.id), this.i18n.t('grocery.list.not_deleted'), item.id);
   }
 
   protected undo(): void {
@@ -963,7 +988,7 @@ export class GroceryPage {
     this.renaming.set(null);
     if (enter) this.focusRow(item.id);
     if (name === item.name) return;
-    this.error.set(null);
+    this.itemError.clear();
     this.service
       .updateItem(item.id, {
         name,
@@ -978,7 +1003,10 @@ export class GroceryPage {
             items.map((each) => (each.id === changed.id ? changed : each)),
           ),
         error: (error: unknown) => {
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.not_renamed')));
+          this.itemError.set(
+            item.id,
+            apiErrorMessage(error, this.i18n.t('grocery.list.not_renamed')),
+          );
           this.loadItems(this.shown());
         },
       });
@@ -1038,7 +1066,7 @@ export class GroceryPage {
     this.closeFields(item.id);
     this.focusRow(item.id);
     if (amount === (item.amount ?? null) && unit === (item.unit ?? null)) return;
-    this.error.set(null);
+    this.itemError.clear();
     this.service
       .updateItem(item.id, { name: item.name, amount, unit, categoryId: item.categoryId })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1048,7 +1076,10 @@ export class GroceryPage {
             items.map((each) => (each.id === changed.id ? changed : each)),
           ),
         error: (error: unknown) => {
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.quantity.not_saved')));
+          this.itemError.set(
+            item.id,
+            apiErrorMessage(error, this.i18n.t('grocery.quantity.not_saved')),
+          );
           this.loadItems(this.shown());
         },
       });
@@ -1084,7 +1115,7 @@ export class GroceryPage {
     if (!file || list == null) return;
     this.discovering.set(true);
     this.closeDiscoveredOf();
-    this.error.set(null);
+    this.addError.set(null);
     try {
       const scaled = await this.scaler.scale(file);
       const stored = await firstValueFrom(this.service.uploadPhoto(scaled));
@@ -1100,7 +1131,7 @@ export class GroceryPage {
         },
       );
     } catch (error: unknown) {
-      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.discover.not_read')));
+      this.addError.set(apiErrorMessage(error, this.i18n.t('grocery.discover.not_read')));
     } finally {
       this.discovering.set(false);
     }
@@ -1148,7 +1179,7 @@ export class GroceryPage {
       return;
     }
     this.addingDiscovered.set(true);
-    this.error.set(null);
+    this.discoveredError.set(null);
     const failed: DiscoveredRow[] = [];
     for (const row of rows) {
       const amount = parseAmount(row.amount) ?? null;
@@ -1169,7 +1200,7 @@ export class GroceryPage {
     if (this.destroyed || this.discoveredList !== list) return;
     if (failed.length) {
       this.discovered.set(failed);
-      this.error.set(this.i18n.t('grocery.discover.not_all_added'));
+      this.discoveredError.set(this.i18n.t('grocery.discover.not_all_added'));
     } else {
       this.closeDiscoveredOf();
     }
@@ -1189,6 +1220,7 @@ export class GroceryPage {
 
   private closeDiscoveredOf(): void {
     this.discovered.set(null);
+    this.discoveredError.set(null);
     this.discoveredList = null;
   }
 
@@ -1197,7 +1229,7 @@ export class GroceryPage {
   protected setCategory(item: GroceryItem, categoryId: number | null): void {
     if (item.categoryId === categoryId) return;
     this.categoryBusy.set(item.id);
-    this.error.set(null);
+    this.itemError.clear();
     this.service
       .setCategory(item.id, categoryId)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1210,7 +1242,10 @@ export class GroceryPage {
         },
         error: (error: unknown) => {
           this.categoryBusy.set(null);
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.category_not_set')));
+          this.itemError.set(
+            item.id,
+            apiErrorMessage(error, this.i18n.t('grocery.list.category_not_set')),
+          );
           this.loadItems(this.shown());
         },
       });
@@ -1235,14 +1270,17 @@ export class GroceryPage {
     input.value = '';
     if (!file || !item) return;
     this.photoBusy.set(item.id);
-    this.error.set(null);
+    this.itemError.clear();
     try {
       const scaled = await this.scaler.scale(file);
       const stored = await firstValueFrom(this.service.uploadPhoto(scaled));
       const changed = await firstValueFrom(this.service.attachPhoto(item.id, stored.id));
       this.items.update((items) => items.map((each) => (each.id === changed.id ? changed : each)));
     } catch (error: unknown) {
-      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_attached')));
+      this.itemError.set(
+        item.id,
+        apiErrorMessage(error, this.i18n.t('grocery.photo.not_attached')),
+      );
     } finally {
       this.photoBusy.set(null);
     }
@@ -1250,7 +1288,7 @@ export class GroceryPage {
 
   protected removePhoto(item: GroceryItem): void {
     this.photoBusy.set(item.id);
-    this.error.set(null);
+    this.itemError.clear();
     this.service
       .removePhoto(item.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1263,7 +1301,10 @@ export class GroceryPage {
         },
         error: (error: unknown) => {
           this.photoBusy.set(null);
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_removed')));
+          this.itemError.set(
+            item.id,
+            apiErrorMessage(error, this.i18n.t('grocery.photo.not_removed')),
+          );
         },
       });
   }
@@ -1292,7 +1333,7 @@ export class GroceryPage {
     } catch (error: unknown) {
       if (this.viewing()?.id !== item.id) return;
       this.viewing.set(null);
-      this.error.set(apiErrorMessage(error, this.i18n.t('grocery.photo.not_loaded')));
+      this.itemError.set(item.id, apiErrorMessage(error, this.i18n.t('grocery.photo.not_loaded')));
     }
   }
 
@@ -1302,16 +1343,21 @@ export class GroceryPage {
     this.viewing.set(null);
   }
 
-  // not ended with the page: what was done is sent also when the page is left; a failure brings
-  // the list back as the backend has it
-  private send(request: Observable<unknown>, failure: string, done?: () => void): void {
+  // not ended with the page: what was done is sent also when the page is left; a failure says why
+  // in the row of the item and brings the list back as the backend has it
+  private send(
+    request: Observable<unknown>,
+    failure: string,
+    item: number,
+    done?: () => void,
+  ): void {
     request.subscribe({
       next: () => {
         if (!this.destroyed) done?.();
       },
       error: (error: unknown) => {
         if (this.destroyed) return;
-        this.error.set(apiErrorMessage(error, failure));
+        this.itemError.set(item, apiErrorMessage(error, failure));
         this.loadItems(this.shown());
       },
     });
@@ -1324,13 +1370,14 @@ export class GroceryPage {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (lists) => {
+          this.listsError.set(null);
           this.lists.set(lists);
           if (!lists.some((list) => String(list.id) === this.id())) {
             void this.router.navigate(['/grocery'], { replaceUrl: true });
           }
         },
         error: (error: unknown) =>
-          this.error.set(
+          this.listsError.set(
             apiErrorMessage(error, this.i18n.t('grocery.lists_not_loaded'), {
               403: this.i18n.t('grocery.lists_forbidden'),
             }),
@@ -1348,9 +1395,11 @@ export class GroceryPage {
       this.categories.set([]);
       return;
     }
+    // the error of the categories, shown once the items are there
+    let categoriesFailed: string | null = null;
     const categories = this.service.categories(list.id).pipe(
       catchError((error: unknown) => {
-        this.error.set(apiErrorMessage(error, this.i18n.t('grocery.categories.not_loaded')));
+        categoriesFailed = apiErrorMessage(error, this.i18n.t('grocery.categories.not_loaded'));
         return of([]);
       }),
     );
@@ -1365,9 +1414,10 @@ export class GroceryPage {
           this.items.set(items);
           this.categories.set(categories);
           this.loaded.set(true);
+          this.itemsError.set(categoriesFailed);
         },
         error: (error: unknown) =>
-          this.error.set(apiErrorMessage(error, this.i18n.t('grocery.list.items_not_loaded'))),
+          this.itemsError.set(apiErrorMessage(error, this.i18n.t('grocery.list.items_not_loaded'))),
       });
   }
 }
