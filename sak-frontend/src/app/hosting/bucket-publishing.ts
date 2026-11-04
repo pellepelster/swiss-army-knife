@@ -14,12 +14,11 @@ const SECRET_MASK = '•••••••••••••••••••�
   selector: 'app-bucket-publishing',
   imports: [CodeBlock, TranslatePipe],
   template: `
-    @if (store.secretError(); as error) {
-      <p class="alert alert-danger" role="alert">{{ error }}</p>
-    }
-
     @if (store.bucket(); as bucket) {
       <section class="card card-body" [attr.aria-label]="'hosting.publishing.label' | t">
+        @if (store.secretError(); as error) {
+          <p class="alert alert-danger" role="alert">{{ error }}</p>
+        }
         <ol class="list-unstyled vstack gap-4 mb-0">
           <li class="vstack gap-2">
             <p class="mb-0">

@@ -116,7 +116,7 @@ import { PageHeader } from '../shared/page-header';
         }
       </dl>
 
-      <nav class="nav nav-underline mb-3" [attr.aria-label]="'shared.view.details' | t">
+      <nav class="nav nav-tabs" [attr.aria-label]="'shared.view.details' | t">
         <a
           class="nav-link"
           routerLink="configuration"

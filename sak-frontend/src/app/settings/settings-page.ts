@@ -35,7 +35,7 @@ export class SettingScopes {
     }
 
     @if (store.scopes(); as scopes) {
-      <nav class="nav nav-underline mb-3" [attr.aria-label]="'settings.scopes' | t">
+      <nav class="nav nav-tabs" [attr.aria-label]="'settings.scopes' | t">
         @for (scope of scopes; track scope.name) {
           <a
             class="nav-link"

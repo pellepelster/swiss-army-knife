@@ -11,11 +11,10 @@ import { s3Endpoint } from './buckets.service';
   selector: 'app-bucket-credentials',
   imports: [CopyButton, TranslatePipe],
   template: `
-    @if (store.secretError(); as error) {
-      <p class="alert alert-danger" role="alert">{{ error }}</p>
-    }
-
     <section class="card card-body" [attr.aria-label]="'hosting.credentials.label' | t">
+      @if (store.secretError(); as error) {
+        <p class="alert alert-danger" role="alert">{{ error }}</p>
+      }
       <p class="text-body-secondary">
         {{ 'hosting.credentials.intro' | t }}
       </p>

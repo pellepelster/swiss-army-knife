@@ -16,7 +16,9 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
   imports: [RouterLink, TranslatePipe],
   template: `
     @if (loadError(); as error) {
-      <p class="alert alert-danger" role="alert">{{ error }}</p>
+      <section class="card card-body">
+        <p class="alert alert-danger mb-0" role="alert">{{ error }}</p>
+      </section>
     } @else if (scope(); as scope) {
       <form
         class="card card-body vstack gap-3"

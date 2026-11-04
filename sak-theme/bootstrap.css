@@ -189,6 +189,45 @@ code {
   --bs-card-inner-border-radius: calc(var(--sak-radius-lg) - 1px);
 }
 
+/* a tab folder: the card right after the tabs is the folder, the active tab is cut from the same sheet (its fill,
+   its line, none below), the other tabs lie flat on the page; one row, scrolled sideways where it does not fit */
+.nav-tabs {
+  --bs-nav-link-color: var(--sak-muted);
+  --bs-nav-link-hover-color: var(--sak-ink);
+  --bs-nav-link-padding-x: 0.9rem;
+  --bs-nav-tabs-border-radius: var(--sak-radius-lg);
+  --bs-nav-tabs-link-hover-border-color: transparent;
+  --bs-nav-tabs-link-active-color: var(--sak-ink);
+  --bs-nav-tabs-link-active-bg: var(--sak-surface);
+  --bs-nav-tabs-link-active-border-color: var(--sak-line) var(--sak-line) var(--sak-surface);
+  position: relative;
+  z-index: 1;
+  flex-wrap: nowrap;
+  gap: var(--sak-space-1);
+  margin-bottom: -1px;
+  padding-left: var(--sak-space-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 0;
+}
+
+.nav-tabs .nav-link {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+  background-color: var(--sak-raised);
+}
+
+@media (max-width: 575.98px) {
+  .nav-tabs {
+    --bs-nav-link-padding-x: 0.6rem;
+    gap: 0;
+    padding-left: var(--sak-space-2);
+  }
+}
+
 .list-group {
   --bs-list-group-bg: var(--sak-surface);
   --bs-list-group-color: var(--sak-ink);

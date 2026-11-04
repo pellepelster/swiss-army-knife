@@ -131,7 +131,8 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
       items a page, the page in the `offset` query parameter; only choices and suggestions (a
       select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts`).
     - Create on `/<entities>/create`, edit on `/<entities>/<id>/edit`; the tabs of a detail view are
-      child routes.
+      child routes, a `nav nav-tabs` right above the `<router-outlet />`, and each tab starts with its
+      card, so the card is the folder of the active tab; an error of the tab is an alert inside that card.
     - Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
       templates, its spacing and corner radius included; a component sets its own layout with
       `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (its css listed in
