@@ -233,10 +233,9 @@ jobs:
           if-no-files-found: error
 
   # the android apps (android/): their tests, their release apks and their bundles for google play on
-  # every build but a tag, unsigned, so a broken release build shows before a tag. The apks and their checksums are
+  # every build, unsigned, so a broken release build shows before a tag; a tag also needs them. The apks and their checksums are
   # one artifact, the bundles and the maps of r8 another
   sak-android-apps:
-    if: github.ref_type != 'tag'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -249,7 +248,7 @@ jobs:
       - run: mise run android:release:build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-apks
+          name: android-apks-unsigned
           path: |
             android/build/sak-*.apk
             android/build/sak-*.apk.sha256
@@ -258,7 +257,7 @@ jobs:
       - run: mise run android:play:build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-play
+          name: android-play-unsigned
           path: |
             android/build/sak-*.aab
             android/build/sak-*-mapping.txt
@@ -342,7 +341,7 @@ jobs:
   # run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps-release, docs-build]
+    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, sak-android-apps-release, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
