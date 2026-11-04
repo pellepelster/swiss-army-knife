@@ -237,6 +237,10 @@ jobs:
   # one artifact, the bundles and the maps of r8 another
   sak-android-apps:
     runs-on: ubuntu-24.04
+    # unsigned also on a tag, where the tasks would refuse a version without the keystore; the
+    # signed build of a tag is sak-android-apps-release
+    env:
+      ANDROID_UNSIGNED: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6

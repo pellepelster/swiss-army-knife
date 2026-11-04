@@ -793,7 +793,8 @@ if [ -n "${ANDROID_KEYSTORE:-}" ]; then
   export ANDROID_KEYSTORE_FILE="$keys/release.p12"
   signed=true
 fi
-if [ "$VERSION" != latest ] && [ "$signed" != true ]; then
+# ANDROID_UNSIGNED=true: unsigned on purpose, the build of a tag that only shows the build works
+if [ "$VERSION" != latest ] && [ "$signed" != true ] && [ "${ANDROID_UNSIGNED:-}" != true ]; then
   echo "the release $VERSION needs ANDROID_KEYSTORE, a release apk is signed" >&2
   exit 1
 fi
@@ -845,7 +846,8 @@ if [ -n "${ANDROID_KEYSTORE:-}" ]; then
   export ANDROID_KEYSTORE_FILE="$keys/release.p12"
   signed=true
 fi
-if [ "$VERSION" != latest ] && [ "$signed" != true ]; then
+# ANDROID_UNSIGNED=true: unsigned on purpose, the build of a tag that only shows the build works
+if [ "$VERSION" != latest ] && [ "$signed" != true ] && [ "${ANDROID_UNSIGNED:-}" != true ]; then
   echo "the release $VERSION needs ANDROID_KEYSTORE, a bundle for google play is signed" >&2
   exit 1
 fi
