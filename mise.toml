@@ -10,7 +10,7 @@ pipx = { version = "1.18.4", os = ["linux", "macos"] }
 rust = "1.99.1"
 "npm:@tauri-apps/cli" = "2.12.4"
 # the docs site (site/), go for the hugo modules
-"hugo-extended" = "0.168.0"
+"hugo-extended" = "0.169.0"
 go = "1.27.3"
 # the rust tests, with junit reports (.config/nextest.toml of each crate)
 "github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
