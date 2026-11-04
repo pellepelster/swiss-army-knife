@@ -6,5 +6,4 @@ import kotlinx.serialization.Serializable
 data class StatusClassSeriesResponse(
     val statusClass: String,
     val values: List<Long>,
-    val total: Long = values.sum(),
 )

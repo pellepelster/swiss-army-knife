@@ -25,10 +25,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 
-const val OPENAPI_PATH = "/doc/openapi.json"
-
-// swagger ui is part of the build of sak-frontend (sak-frontend/public/swagger) and reads the document here
+// swagger ui is part of the build of sak-frontend (sak-frontend/public/swagger) and reads the document next to it
 const val SWAGGER_PATH = "/swagger"
+
+const val OPENAPI_PATH = "$SWAGGER_PATH/openapi.json"
 
 private val openApiJson = Json { explicitNulls = false }
 
@@ -51,15 +51,13 @@ fun apiDoc(application: Application): OpenApiDoc =
 fun Route.apiDoc() {
     var document: String? = null
 
-    listOf(OPENAPI_PATH, "$SWAGGER_PATH/openapi.json").forEach { path ->
-        get(path) {
-            val json =
-                document ?: openApiJson
-                    .encodeToJsonElement(OpenApiDoc.serializer(), apiDoc(call.application))
-                    .let { openApiJson.encodeToString(JsonElement.serializer(), corrected(it.jsonObject)) }
-                    .also { document = it }
-            call.respondText(json, ContentType.Application.Json)
-        }
+    get(OPENAPI_PATH) {
+        val json =
+            document ?: openApiJson
+                .encodeToJsonElement(OpenApiDoc.serializer(), apiDoc(call.application))
+                .let { openApiJson.encodeToString(JsonElement.serializer(), corrected(it.jsonObject)) }
+                .also { document = it }
+        call.respondText(json, ContentType.Application.Json)
     }
     // swagger ui loads its files relative to its directory
     get(SWAGGER_PATH) { call.respondRedirect("$SWAGGER_PATH/") }

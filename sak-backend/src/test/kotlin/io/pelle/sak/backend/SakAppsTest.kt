@@ -1134,7 +1134,7 @@ class SakAppsTest {
     @Test
     fun `answers every endpoint of the api without a session with 401, only the login is public`() {
         withServer { port ->
-            val paths = get(port, "/doc/openapi.json").json().getValue("paths").jsonObject
+            val paths = get(port, "/swagger/openapi.json").json().getValue("paths").jsonObject
             val methods = setOf("get", "put", "post", "delete", "patch", "head")
             // every endpoint the api documents, the path parameters filled with anything
             val endpoints =
@@ -1190,7 +1190,7 @@ class SakAppsTest {
     fun `the openapi document is the openapi json of the repository`() {
         withServer { port ->
             val pretty = Json { prettyPrint = true }
-            val document = pretty.encodeToString(JsonObject.serializer(), get(port, "/doc/openapi.json").json()) + "\n"
+            val document = pretty.encodeToString(JsonObject.serializer(), get(port, "/swagger/openapi.json").json()) + "\n"
             val committed = Path.of("..", "openapi.json")
             if (System.getenv("SAK_OPENAPI_WRITE") == "true") Files.writeString(committed, document)
             withClue("openapi.json is not the document of the routes, run mise run api:generate") {
@@ -1202,75 +1202,73 @@ class SakAppsTest {
     @Test
     fun `serves the openapi document of the api and swagger ui`() {
         withServer { port ->
-            listOf("/doc/openapi.json", "/swagger/openapi.json").forEach { path ->
-                val response = get(port, path)
-                response.statusCode() shouldBe 200
-                response.headers().firstValue("Content-Type").get() shouldContain "application/json"
-                val doc = response.json()
-                doc.getValue("info").jsonObject.string("version") shouldBe "v1"
+            val response = get(port, "/swagger/openapi.json")
+            response.statusCode() shouldBe 200
+            response.headers().firstValue("Content-Type").get() shouldContain "application/json"
+            val doc = response.json()
+            doc.getValue("info").jsonObject.string("version") shouldBe "v1"
 
-                val paths = doc.getValue("paths").jsonObject
-                paths.keys shouldBe
-                    setOf(
-                        "/api/v1/auth/login/link",
-                        "/api/v1/auth/login/exchange",
-                        "/api/v1/auth/login/password",
-                        "/api/v1/info",
-                        "/api/v1/auth/who-am-i",
-                        "/api/v1/deployment",
-                        "/api/v1/settings",
-                        "/api/v1/settings/{scope}",
-                        "/api/v1/static-hosting",
-                        "/api/v1/static-hosting/{bucket}",
-                        "/api/v1/static-hosting/{bucket}/domains",
-                        "/api/v1/static-hosting/{bucket}/secret",
-                        "/api/v1/static-hosting/{bucket}/access-logs",
-                        "/api/v1/static-hosting/{bucket}/access-logs/metrics",
-                        "/api/v1/static-hosting/{bucket}/access-logs/search",
-                        "/api/v1/redirects",
-                        "/api/v1/redirects/{source}",
-                        "/api/v1/labels",
-                        "/api/v1/labels/{id}",
-                        "/api/v1/notes",
-                        "/api/v1/notes/settings",
-                        "/api/v1/notes/labels",
-                        "/api/v1/notes/{id}",
-                        "/api/v1/grocery/changes",
-                        "/api/v1/users",
-                        "/api/v1/users/app-link",
-                        "/api/v1/users/{id}",
-                        "/api/v1/grocery/settings",
-                        "/api/v1/grocery/discover/{id}",
-                        "/api/v1/grocery/lists",
-                        "/api/v1/grocery/lists/{id}",
-                        "/api/v1/grocery/lists/{id}/items",
-                        "/api/v1/grocery/lists/{id}/suggestions",
-                        "/api/v1/grocery/lists/{id}/categories",
-                        "/api/v1/grocery/lists/{id}/categories/order",
-                        "/api/v1/grocery/lists/{id}/categories/{categoryId}",
-                        "/api/v1/grocery/lists/{id}/suggestions/{suggestionId}",
-                        "/api/v1/grocery/items",
-                        "/api/v1/grocery/items/{id}",
-                        "/api/v1/grocery/items/{id}/category",
-                        "/api/v1/grocery/items/{id}/check",
-                        "/api/v1/grocery/items/{id}/photo",
-                        "/api/v1/grocery/items/{id}/photos/{fileId}",
-                        "/api/v1/files",
-                        "/api/v1/files/{id}",
-                        "/api/v1/files/{id}/thumbnail",
-                        "/api/v1/files/{id}/discover/text",
-                        "/api/v1/health",
-                    )
-                // the routes behind the login require the session token or a signed request of
-                // sakctl, the login itself does not
-                val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
-                me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-signature"))
-                paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
-                listOf("session" to "bearer", "api-signature" to "SAK-Ed25519").forEach { (scheme, httpScheme) ->
-                    doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue(scheme).jsonObject.let {
-                        it.string("type") shouldBe "http"
-                        it.string("scheme") shouldBe httpScheme
-                    }
+            val paths = doc.getValue("paths").jsonObject
+            paths.keys shouldBe
+                setOf(
+                    "/api/v1/auth/login/link",
+                    "/api/v1/auth/login/exchange",
+                    "/api/v1/auth/login/password",
+                    "/api/v1/info",
+                    "/api/v1/auth/who-am-i",
+                    "/api/v1/deployment",
+                    "/api/v1/settings",
+                    "/api/v1/settings/{scope}",
+                    "/api/v1/static-hosting",
+                    "/api/v1/static-hosting/{bucket}",
+                    "/api/v1/static-hosting/{bucket}/domains",
+                    "/api/v1/static-hosting/{bucket}/secret",
+                    "/api/v1/static-hosting/{bucket}/access-logs",
+                    "/api/v1/static-hosting/{bucket}/access-logs/metrics",
+                    "/api/v1/static-hosting/{bucket}/access-logs/search",
+                    "/api/v1/redirects",
+                    "/api/v1/redirects/{source}",
+                    "/api/v1/labels",
+                    "/api/v1/labels/{id}",
+                    "/api/v1/notes",
+                    "/api/v1/notes/settings",
+                    "/api/v1/notes/labels",
+                    "/api/v1/notes/{id}",
+                    "/api/v1/grocery/changes",
+                    "/api/v1/users",
+                    "/api/v1/users/app-link",
+                    "/api/v1/users/{id}",
+                    "/api/v1/grocery/settings",
+                    "/api/v1/grocery/discover/{id}",
+                    "/api/v1/grocery/lists",
+                    "/api/v1/grocery/lists/{id}",
+                    "/api/v1/grocery/lists/{id}/items",
+                    "/api/v1/grocery/lists/{id}/suggestions",
+                    "/api/v1/grocery/lists/{id}/categories",
+                    "/api/v1/grocery/lists/{id}/categories/order",
+                    "/api/v1/grocery/lists/{id}/categories/{categoryId}",
+                    "/api/v1/grocery/lists/{id}/suggestions/{suggestionId}",
+                    "/api/v1/grocery/items",
+                    "/api/v1/grocery/items/{id}",
+                    "/api/v1/grocery/items/{id}/category",
+                    "/api/v1/grocery/items/{id}/check",
+                    "/api/v1/grocery/items/{id}/photo",
+                    "/api/v1/grocery/items/{id}/photos/{fileId}",
+                    "/api/v1/files",
+                    "/api/v1/files/{id}",
+                    "/api/v1/files/{id}/thumbnail",
+                    "/api/v1/files/{id}/discover/text",
+                    "/api/v1/health",
+                )
+            // the routes behind the login require the session token or a signed request of
+            // sakctl, the login itself does not
+            val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
+            me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-signature"))
+            paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
+            listOf("session" to "bearer", "api-signature" to "SAK-Ed25519").forEach { (scheme, httpScheme) ->
+                doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue(scheme).jsonObject.let {
+                    it.string("type") shouldBe "http"
+                    it.string("scheme") shouldBe httpScheme
                 }
             }
 

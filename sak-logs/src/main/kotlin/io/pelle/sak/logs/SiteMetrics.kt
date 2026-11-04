@@ -36,9 +36,7 @@ data class StatusCodeSeries(
     val status: String,
     val statusClass: StatusClass,
     val values: List<Long>,
-) {
-    val total get() = values.sum()
-}
+)
 
 data class UserAgentSeries(
     val group: UserAgentGroup,

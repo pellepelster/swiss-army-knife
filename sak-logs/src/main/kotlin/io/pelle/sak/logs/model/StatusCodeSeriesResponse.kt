@@ -7,5 +7,4 @@ data class StatusCodeSeriesResponse(
     val status: String,
     val statusClass: String,
     val values: List<Long>,
-    val total: Long = values.sum(),
 )

@@ -111,7 +111,6 @@ class TokenServiceTest {
     fun `session tokens carry their roles, tokens without are rejected`() {
         val session = tokens.issueSessionToken("admin@example.org", ADMIN)
 
-        session.roles shouldBe ADMIN
         TokenService.roles(tokens.sessionVerifier.verify(session.token).getClaim("roles").asList(String::class.java)) shouldBe ADMIN
 
         val withoutRoles =

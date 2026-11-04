@@ -23,7 +23,6 @@ data class SessionToken(
     val token: String,
     val email: String,
     val expiresAt: Instant,
-    val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
     val withPassword: Boolean = false,
 )
@@ -118,7 +117,7 @@ class TokenService(
                 .withArrayClaim(ROLES, roles.map { it.key }.toTypedArray())
                 .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
                 .sign(algorithm)
-        return SessionToken(token, email, expiresAt, roles, withPassword)
+        return SessionToken(token, email, expiresAt, withPassword)
     }
 
     private fun sign(

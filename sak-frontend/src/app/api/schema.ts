@@ -3701,14 +3701,12 @@ export interface components {
     StatusClassSeriesResponse: {
       statusClass: string;
       values: number[];
-      total?: number;
     };
     /** StatusCodeSeriesResponse */
     StatusCodeSeriesResponse: {
       status: string;
       statusClass: string;
       values: number[];
-      total?: number;
     };
     /** UserAgentSeriesResponse */
     UserAgentSeriesResponse: {

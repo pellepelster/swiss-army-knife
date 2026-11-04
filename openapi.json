@@ -4461,9 +4461,6 @@
                         "items": {
                             "type": "integer"
                         }
-                    },
-                    "total": {
-                        "type": "integer"
                     }
                 }
             },
@@ -4487,9 +4484,6 @@
                         "items": {
                             "type": "integer"
                         }
-                    },
-                    "total": {
-                        "type": "integer"
                     }
                 }
             },

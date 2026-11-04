@@ -193,7 +193,7 @@ class SiteMetricsServiceTest {
             metrics.status shouldBe HttpStatusCode.OK
             val json = metrics.bodyAsText().json()
             json.string("range") shouldBe "7d"
-            json["series"]!!.jsonArray.first().jsonObject["total"]!!.jsonPrimitive.long shouldBe 5
+            json["series"]!!.jsonArray.first().jsonObject["values"]!!.jsonArray.sumOf { it.jsonPrimitive.long } shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
             // over the 4 hours of the shortest range
