@@ -382,6 +382,32 @@ a {
   --bs-btn-hover-bg: var(--sak-field);
   --bs-btn-active-bg: var(--sak-raised);
   --bs-btn-active-border-color: var(--sak-field-line);
+  --bs-btn-disabled-bg: var(--sak-field);
+  --bs-btn-disabled-border-color: var(--sak-field-line);
+  // not faded, so its line stays the one of the field; the muted icon says it is disabled
+  --bs-btn-disabled-opacity: 1;
+}
+
+// the other buttons of a group in the line of the fields, so they hold their own next to the
+// outlines of danger and the accent
+.btn-group > .btn-outline-secondary:not(.btn-field-primary) {
+  --bs-btn-border-color: var(--sak-field-line);
+  --bs-btn-disabled-border-color: var(--sak-field-line);
+}
+
+// the main action next to a field or in a group in the outline of the accent, e.g. add or save
+.btn-field-primary {
+  --bs-btn-color: var(--sak-accent);
+  --bs-btn-border-color: var(--sak-accent);
+  --bs-btn-hover-color: var(--sak-accent-ink);
+  --bs-btn-hover-bg: var(--sak-accent);
+  --bs-btn-hover-border-color: var(--sak-accent);
+  --bs-btn-active-color: var(--sak-accent-ink);
+  --bs-btn-active-bg: color-mix(in srgb, var(--sak-accent) 88%, var(--sak-ink));
+  --bs-btn-active-border-color: var(--sak-accent);
+  --bs-btn-disabled-color: var(--sak-accent);
+  --bs-btn-disabled-border-color: var(--sak-accent);
+  --bs-btn-disabled-opacity: 0.65;
 }
 
 // the button of the icon of a grocery category in the settings, one width for all, so the names

@@ -193,7 +193,7 @@ interface ItemGroup {
           }
           <!-- only the icon of what it adds, its label and tooltip say what it does (UX-2) -->
           <button
-            class="btn btn-primary"
+            class="btn btn-outline-secondary btn-field btn-field-primary"
             type="submit"
             [attr.aria-label]="'grocery.list.add_item' | t"
             [title]="'grocery.list.add_item' | t"

@@ -169,7 +169,15 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
               <a class="btn btn-outline-secondary" [routerLink]="back()">{{
                 'shared.cancel' | t
               }}</a>
-              <button class="btn btn-primary" type="submit" [disabled]="!name().trim() || saving()">
+              <!-- save in the settings in the outline of the accent, create stays filled -->
+              <button
+                class="btn"
+                [class.btn-primary]="!id()"
+                [class.btn-outline-secondary]="!!id()"
+                [class.btn-field-primary]="!!id()"
+                type="submit"
+                [disabled]="!name().trim() || saving()"
+              >
                 @if (saving()) {
                   <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
                 } @else if (!id()) {
@@ -318,7 +326,11 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
               (input)="newName.set(newCategory.value); newInvalid.set(false)"
               (blur)="newInvalid.set(newName() !== '' && !newName().trim())"
             />
-            <button class="btn btn-outline-primary" type="submit" [disabled]="!newName().trim()">
+            <button
+              class="btn btn-outline-secondary btn-field btn-field-primary"
+              type="submit"
+              [disabled]="!newName().trim()"
+            >
               <i class="fa-solid fa-tag" aria-hidden="true"></i>
               {{ 'grocery.categories.add' | t }}
             </button>
