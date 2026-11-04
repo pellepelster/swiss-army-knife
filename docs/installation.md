@@ -24,7 +24,9 @@ destroys it. It has a UI and a command line. There is no installer: sakctl is a 
 Each release is on the [release page](https://github.com/pellepelster/swiss-army-knife/releases). The commands below
 download sakctl for your system, check its SHA-256 checksum and extract it; if the checksum does not match, they stop.
 
-The program is not signed. Without a command, sakctl opens the UI; `sakctl --help` lists the commands.
+macOS and Windows do not know the program, it is not signed for them. Each zip file is signed with
+[cosign](https://docs.sigstore.dev/cosign/), though: [Check the signature](#check-the-signature) shows that it was built by the
+release workflow of this repository. Without a command, sakctl opens the UI; `sakctl --help` lists the commands.
 
 ## Linux
 
@@ -66,6 +68,23 @@ On Windows, sakctl is two programs, both in `%LOCALAPPDATA%\Programs\sakctl`:
 
 An update, in the UI or with `sakctl-cli.exe update`, replaces both programs. If `sakctl-cli.exe` is missing, run the
 commands above again. The UI needs the Microsoft Edge WebView2 runtime, which Windows 10 and 11 have.
+
+## Check the signature
+
+The checksum shows that the download is complete. The signature also shows who made it: the release workflow of
+[pellepelster/swiss-army-knife](https://github.com/pellepelster/swiss-army-knife) at the tag of the release, with a
+short-lived certificate of [Sigstore](https://www.sigstore.dev/), no key that could leak. With
+[cosign installed](https://docs.sigstore.dev/cosign/system_config/installation/), run in the directory of the zip file, on Linux or macOS:
+
+{{< install platform="linux" signature="true" >}}
+
+{{< install platform="macos" signature="true" >}}
+
+On Windows, in PowerShell:
+
+{{< install platform="windows" signature="true" >}}
+
+cosign answers `Verified OK`. Any other answer means the zip file was not made by the release: delete it.
 
 ## Update
 

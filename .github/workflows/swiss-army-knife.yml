@@ -162,7 +162,8 @@ jobs:
   # one native binary with the page built in (on windows two: sakctl.exe for the window and
   # sakctl-cli.exe, a console program, for the command line), no installers, zipped as
   # sak-cli-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
-  # (<zip>.sha256). Nothing is signed: macOS and windows warn on the first start
+  # (<zip>.sha256). The programs are not signed for macOS and windows, they warn on the first start;
+  # the release signs the zips with cosign
   sakctl:
     name: sakctl (${{ matrix.platform }})
     strategy:
@@ -280,8 +281,9 @@ jobs:
           path: build/site
 
   # from a tag v<version> only, when all images, all zips of sakctl and the apks are built: the images
-  # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips and their checksums as
-  # the github release of the tag (mise run cli:release), where the installation downloads them, and
+  # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips, their checksums and their
+  # cosign signatures (keyless, with the id token of the job) as the github release of the tag (mise
+  # run cli:release), where the installation downloads them, and
   # the signed apks of the android apps with their checksums and their bundles for google play (mise
   # run android:release)
   release:
@@ -291,6 +293,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
@@ -310,6 +313,7 @@ jobs:
           merge-multiple: true
           skip-decompress: true
       - run: ls -l sak-cli/build
+      - run: mise install cosign
       - run: mise run cli:release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

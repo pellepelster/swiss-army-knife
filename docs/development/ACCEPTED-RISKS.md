@@ -59,8 +59,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   to the provisioning container; it never touches disk, but with a remote, unencrypted `DOCKER_HOST` it would cross
   the network. Accepted for now: sakctl expects the local engine. To revisit: refuse a plain tcp engine.
 
-- **Updates are not signed.** sakctl checks an update against the checksum of the same release, which proves it is
-  complete, not who made it. Accepted until releases are signed: the installation trusts the release the same way.
+- **Updates are not verified against their signature.** sakctl checks an update against the checksum of the same
+  release, which proves it is complete, not who made it. The release signs each zip with cosign (keyless, a
+  certificate of the workflow of the tag), but only someone who runs `cosign verify-blob` checks it, sakctl does not.
+  Accepted for now: the release page and the installation are trusted the same way. To revisit: sakctl verifies the
+  signature before it replaces itself.
 
 - **A label can be lost while a note is saved.** If the user deletes a new label on another device in the same
   moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes

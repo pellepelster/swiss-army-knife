@@ -16,6 +16,8 @@ go = "1.27.3"
 "github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
 svu = "3.4.1"
+# the signatures of the zips of sakctl (cli:release), keyless with a certificate of the workflow
+cosign = "3.1.4"
 
 # the version of all artifacts (#127): the tag v<version> in the workflow without the v, latest
 # otherwise
@@ -214,16 +216,24 @@ rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
 
 # the zips of cli:build:<platform> and their checksums as the github release v<VERSION>, where the
 # installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release)
+# each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
+# of the tag (its id token, permission id-token: write), the signature and the certificate in
+# <zip>.sigstore.json. Each signature is verified for the identity the installation names before
+# the release gets it
 [tasks."cli:release"]
 description = "Publish the GitHub release of sakctl"
 dir = "{{config_root}}/sak-cli"
 run = """
 set -eu
+identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}"
 files=""
 for platform in linux-x86_64 macos-universal windows-x86_64; do
   zip="build/sak-cli-${platform}-${VERSION}.zip"
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
-  files="$files $zip $zip.sha256"
+  cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
+  cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com "$zip"
+  files="$files $zip $zip.sha256 $zip.sigstore.json"
 done
 # created once; a release that failed halfway runs again, its files are replaced
 if ! gh release view "v${VERSION}" >/dev/null 2>&1; then

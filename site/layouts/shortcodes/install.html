@@ -1,8 +1,10 @@
 {{- /* the commands that download sakctl for a platform from the github release of its version,
    check its sha-256 and extract it only when it matches, also when they are pasted line by line; the version, its release
    (the tag v<version>) and the checksums come from data/sakctl.yaml (mise run docs:data), a platform without a checksum
-   shows <sha256> */ -}}
+   shows <sha256>. With signature="true" instead the command that verifies the cosign signature of
+   the zip (<zip>.sigstore.json): signed by the workflow of the tag of its release */ -}}
 {{- $platform := .Get "platform" }}
+{{- $signature := eq (.Get "signature") "true" }}
 {{- $version := hugo.Data.sakctl.version | default "latest" }}
 {{- $release := hugo.Data.sakctl.release | default "latest" }}
 {{- $checksum := (index (hugo.Data.sakctl.checksums | default dict) $platform) | default "<sha256>" }}
@@ -12,7 +14,14 @@
 {{- $url := printf "%s/%s/%s" site.Params.sakctlDownloads $release $zip }}
 {{- $code := "" }}
 {{- $language := "sh" }}
-{{- if eq $platform "linux" }}
+{{- $identity := printf "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml@refs/tags/%s" $release }}
+{{- $issuer := "https://token.actions.githubusercontent.com" }}
+{{- if and $signature (eq $platform "windows") }}
+{{- $language = "powershell" }}
+{{- $code = printf "Invoke-WebRequest %s.sigstore.json -OutFile %s.sigstore.json\ncosign verify-blob --bundle %s.sigstore.json --certificate-identity %s --certificate-oidc-issuer %s %s" $url $zip $zip $identity $issuer $zip }}
+{{- else if $signature }}
+{{- $code = printf "curl -fsSLO %s.sigstore.json && \\\n  cosign verify-blob --bundle %s.sigstore.json \\\n  --certificate-identity %s \\\n  --certificate-oidc-issuer %s \\\n  %s" $url $zip $identity $issuer $zip }}
+{{- else if eq $platform "linux" }}
 {{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | sha256sum --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
 {{- else if eq $platform "macos" }}
 {{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | shasum -a 256 --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
