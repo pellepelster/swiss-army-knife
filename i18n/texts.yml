@@ -300,6 +300,7 @@ web:
     all_apps: { en: "All apps", de: "Alle Apps" }
     loading: { en: "Loading…", de: "Wird geladen…" }
     cancel: { en: "Cancel", de: "Abbrechen" }
+    ok: "OK"
     add: { en: "Add", de: "Hinzufügen" }
     create: { en: "Create", de: "Erstellen" }
     edit: { en: "Edit", de: "Bearbeiten" }
@@ -1281,7 +1282,7 @@ grocery:
       hint:
         en: "Correct the items and leave out the ones not to buy."
         de: "Korrigiere die Artikel und lass die weg, die du nicht kaufen willst."
-      none: { en: "There are no items in the photo.", de: "Im Foto sind keine Artikel." }
+      none: { en: "Unable to detect grocery items in the photo.", de: "Im Foto konnten keine Artikel erkannt werden." }
       include: { en: "Add %{name}", de: "%{name} hinzufügen" }
       name_of: { en: "Name of item %{number}", de: "Name von Artikel %{number}" }
       add: { en: "Add to the list", de: "Zur Liste hinzufügen" }

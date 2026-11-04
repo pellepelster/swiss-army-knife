@@ -1314,9 +1314,12 @@ describe('Grocery', () => {
     await load([defaultList], [], true);
     (await discoverPhoto()).flush({ items: [] });
     const panel = await discovered();
-    expect(panel.textContent).toContain('There are no items in the photo.');
+    expect(panel.querySelector('.alert-warning')?.textContent).toContain(
+      'Unable to detect grocery items in the photo.',
+    );
     expect(button('Add to the list', panel)).toBeUndefined();
-    button('Cancel', panel).click();
+    expect(button('Cancel', panel)).toBeUndefined();
+    button('OK', panel).click();
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=discovered]')).toBeNull();
 

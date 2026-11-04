@@ -258,7 +258,14 @@ code {
   --bs-alert-link-color: var(--sak-danger-text);
 }
 
+.alert-warning {
+  --sak-tone: var(--sak-warn);
+  --bs-alert-color: var(--sak-ink);
+  --bs-alert-link-color: var(--sak-ink);
+}
+
 .alert-success,
+.alert-warning,
 .alert-danger {
   --bs-alert-bg: color-mix(in srgb, var(--sak-tone) 13%, transparent);
   --bs-alert-border-color: color-mix(in srgb, var(--sak-tone) 34%, transparent);

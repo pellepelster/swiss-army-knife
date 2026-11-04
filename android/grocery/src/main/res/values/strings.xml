@@ -48,7 +48,7 @@
     <string name="grocery_discover_reading">Reading the photo…</string>
     <string name="grocery_discover_title">Items in the photo</string>
     <string name="grocery_discover_hint">Correct the items and leave out the ones not to buy.</string>
-    <string name="grocery_discover_none">There are no items in the photo.</string>
+    <string name="grocery_discover_none">Unable to detect grocery items in the photo.</string>
     <string name="grocery_discover_include">Add %1$s</string>
     <string name="grocery_discover_name_of">Name of item %1$s</string>
     <string name="grocery_discover_add">Add to the list</string>

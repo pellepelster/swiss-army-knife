@@ -347,16 +347,19 @@ interface ItemGroup {
                 }
               </ul>
             } @else {
-              <p class="mb-0">{{ 'grocery.discover.none' | t }}</p>
+              <!-- nothing to choose from: a warning the user acknowledges with OK -->
+              <p class="alert alert-warning mb-0" role="status">
+                {{ 'grocery.discover.none' | t }}
+              </p>
             }
             @if (discoveredError(); as error) {
               <p class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</p>
             }
             <div class="d-flex justify-content-end gap-2 mt-3">
-              <button type="button" class="btn btn-outline-secondary" (click)="closeDiscovered()">
-                {{ 'shared.cancel' | t }}
-              </button>
               @if (rows.length) {
+                <button type="button" class="btn btn-outline-secondary" (click)="closeDiscovered()">
+                  {{ 'shared.cancel' | t }}
+                </button>
                 <button type="submit" class="btn btn-primary" [disabled]="!canAddDiscovered()">
                   @if (addingDiscovered()) {
                     <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -364,6 +367,10 @@ interface ItemGroup {
                     <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
                   }
                   {{ 'grocery.discover.add' | t }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn-primary" (click)="closeDiscovered()">
+                  {{ 'shared.ok' | t }}
                 </button>
               }
             </div>

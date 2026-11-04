@@ -18,7 +18,7 @@ of the rack-led icon, IBM Plex Sans and Mono.
 - `bootstrap.css` - bootstrap mapped onto the tokens through its `--bs-*` custom properties, loaded
   after `node_modules/bootstrap/dist/css/bootstrap.min.css` and `tokens.css`; `btn-primary` is the
   accent, the one action of a page, `btn-outline-secondary` every other button, in the line of the fields;
-  `form-label`, `form-control`, `card`, `list-group`, `nav-tabs` (a tab folder: the card right after the tabs is the folder, the active tab takes its fill and line), `alert-success`, `alert-danger` and the `text-bg-*` of the
+  `form-label`, `form-control`, `card`, `list-group`, `nav-tabs` (a tab folder: the card right after the tabs is the folder, the active tab takes its fill and line), `alert-success`, `alert-warning`, `alert-danger` and the `text-bg-*` of the
   states take the tokens. `package.json` pins bootstrap,
   `npm ci` here fetches it.
 - `components.css` - `.sak-icon-plus` (the plus sign every button that creates or adds something

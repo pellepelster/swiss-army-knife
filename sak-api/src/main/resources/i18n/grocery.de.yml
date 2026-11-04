@@ -53,7 +53,7 @@ discover:
   reading: "Das Foto wird gelesen…"
   title: "Artikel im Foto"
   hint: "Korrigiere die Artikel und lass die weg, die du nicht kaufen willst."
-  none: "Im Foto sind keine Artikel."
+  none: "Im Foto konnten keine Artikel erkannt werden."
   include: "%{name} hinzufügen"
   name_of: "Name von Artikel %{number}"
   add: "Zur Liste hinzufügen"

@@ -53,7 +53,7 @@ discover:
   reading: "Reading the photo…"
   title: "Items in the photo"
   hint: "Correct the items and leave out the ones not to buy."
-  none: "There are no items in the photo."
+  none: "Unable to detect grocery items in the photo."
   include: "Add %{name}"
   name_of: "Name of item %{number}"
   add: "Add to the list"
