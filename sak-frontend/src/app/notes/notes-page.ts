@@ -43,7 +43,7 @@ import { PageHeader } from '../shared/page-header';
       <div class="btn-group" role="group" [attr.aria-label]="'notes.page.create_notes' | t">
         <button
           type="button"
-          class="btn btn-outline-secondary"
+          class="btn btn-outline-secondary btn-field-primary"
           [attr.aria-label]="'notes.page.create_with_photo' | t"
           [title]="'notes.page.create_with_photo' | t"
           [disabled]="addingPhoto()"
@@ -57,7 +57,7 @@ import { PageHeader } from '../shared/page-header';
         </button>
         <button
           type="button"
-          class="btn btn-outline-secondary"
+          class="btn btn-outline-secondary btn-field-primary"
           [attr.aria-label]="'notes.page.create_with_recording' | t"
           [title]="'notes.page.create_with_recording' | t"
           [disabled]="store.recordingFor() !== null"
