@@ -1,6 +1,6 @@
 [versions]
 angus-mail = "2.0.5"
-awssdk = "2.57.4"
+awssdk = "2.57.5"
 bouncycastle = "1.86"
 caffeine = "3.3.1"
 dnsjava = "3.7.0"
