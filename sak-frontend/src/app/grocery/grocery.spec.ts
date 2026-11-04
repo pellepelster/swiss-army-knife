@@ -308,13 +308,15 @@ describe('Grocery', () => {
     field('Dairy & eggs').value = ' ';
     field('Dairy & eggs').dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
-    expect(page().textContent).toContain('A category needs a name.');
+    // the message is always in the group (has-validation), the invalid field shows it
+    expect(field('Dairy & eggs').classList).toContain('is-invalid');
+    expect(field('Dairy & eggs').parentElement?.textContent).toContain('A category needs a name.');
     http.expectNone({ method: 'PUT' });
     field('Dairy & eggs').value = 'Dairy';
     field('Dairy & eggs').dispatchEvent(new Event('input'));
     field('Dairy & eggs').dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
-    expect(page().textContent).not.toContain('A category needs a name.');
+    expect(field('Dairy & eggs').classList).not.toContain('is-invalid');
     const rename = http.expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/12' });
     expect(rename.request.body).toEqual({ name: 'Dairy', icon: null });
     rename.flush({ ...categories[1], name: 'Dairy' });

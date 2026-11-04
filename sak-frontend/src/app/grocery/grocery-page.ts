@@ -181,7 +181,7 @@ interface ItemGroup {
           @if (discoverItems()) {
             <button
               type="button"
-              class="btn btn-outline-secondary"
+              class="btn btn-outline-secondary btn-field"
               data-testid="discover"
               [attr.aria-label]="'grocery.discover.label' | t"
               [title]="'grocery.discover.label' | t"
@@ -191,13 +191,19 @@ interface ItemGroup {
               <i class="fa-solid fa-robot" aria-hidden="true"></i>
             </button>
           }
-          <button class="btn btn-primary" type="submit" [disabled]="!itemName().trim() || adding()">
+          <!-- only the icon of what it adds, its label and tooltip say what it does (UX-2) -->
+          <button
+            class="btn btn-primary"
+            type="submit"
+            [attr.aria-label]="'grocery.list.add_item' | t"
+            [title]="'grocery.list.add_item' | t"
+            [disabled]="!itemName().trim() || adding()"
+          >
             @if (adding()) {
               <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
             } @else {
               <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
             }
-            {{ 'grocery.list.add_item' | t }}
           </button>
         </div>
         @if (discovering()) {

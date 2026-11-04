@@ -219,7 +219,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                   <div class="input-group has-validation flex-grow-1 min-w-0">
                     <button
                       type="button"
-                      class="btn btn-outline-secondary category-icon-button"
+                      class="btn btn-outline-secondary btn-field category-icon-button"
                       [attr.aria-label]="'grocery.categories.icon_of' | t: { name: category.name }"
                       [attr.aria-expanded]="pickingFor() === category.id"
                       (click)="togglePickerOf(category)"
@@ -242,11 +242,11 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                       (blur)="rename(category, categoryName)"
                       (keydown.enter)="$event.preventDefault(); categoryName.blur()"
                     />
-                    @if (unnamed().has(category.id)) {
-                      <div class="invalid-feedback">
-                        {{ 'grocery.categories.name_required' | t }}
-                      </div>
-                    }
+                    <!-- always there, shown by is-invalid: has-validation squares the corners of
+                         the icon only when two elements follow it -->
+                    <div class="invalid-feedback">
+                      {{ 'grocery.categories.name_required' | t }}
+                    </div>
                   </div>
                   <app-action-menu
                     [name]="category.name"
@@ -322,9 +322,8 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
               <i class="fa-solid fa-tag" aria-hidden="true"></i>
               {{ 'grocery.categories.add' | t }}
             </button>
-            @if (newInvalid()) {
-              <div class="invalid-feedback">{{ 'grocery.categories.name_required' | t }}</div>
-            }
+            <!-- always there, shown by is-invalid, so the field keeps square corners at the button -->
+            <div class="invalid-feedback">{{ 'grocery.categories.name_required' | t }}</div>
           </div>
         </form>
       </section>

@@ -373,15 +373,20 @@ a {
   width: 1.5em;
 }
 
-// the button of the icon of a grocery category in the settings, one width for all, so the names
-// line up; its input group gives it the height of the name field, and it takes the fill and the
-// line of the field, so the icon and the name read as one field, not as a button under it
-.category-icon-button {
+// a button in the input group of a field, e.g. the icon of a category or the robot by the name of
+// an item: in the fill and the line of the field, so the two read as one field, not as a button
+// under it
+.btn-field {
   --bs-btn-bg: var(--sak-field);
   --bs-btn-border-color: var(--sak-field-line);
   --bs-btn-hover-bg: var(--sak-field);
   --bs-btn-active-bg: var(--sak-raised);
   --bs-btn-active-border-color: var(--sak-field-line);
+}
+
+// the button of the icon of a grocery category in the settings, one width for all, so the names
+// line up; its input group gives it the height of the name field
+.category-icon-button {
   width: 3rem;
 }
 
