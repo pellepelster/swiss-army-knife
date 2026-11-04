@@ -337,7 +337,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
               (blur)="newInvalid.set(newName() !== '' && !newName().trim())"
             />
             <button
-              class="btn btn-outline-secondary btn-field btn-field-primary"
+              class="btn btn-outline-secondary btn-field-primary"
               type="submit"
               [disabled]="!newName().trim()"
             >

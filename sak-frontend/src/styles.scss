@@ -348,9 +348,9 @@ a {
   width: 1.5em;
 }
 
-// a button in the input group of a field, e.g. the icon of a category or the robot by the name of
-// an item: in the fill of the field, so the two read as one field, not as a button under it; the
-// line of the field comes with btn-outline-secondary
+// a button in the input group of a field, e.g. the icon of a category: in the fill of the field,
+// so the two read as one field, not as a button under it; the line of the field comes with
+// btn-outline-secondary
 .btn-field {
   --bs-btn-bg: var(--sak-field);
   --bs-btn-hover-bg: var(--sak-field);
@@ -359,7 +359,8 @@ a {
   --bs-btn-disabled-opacity: 1;
 }
 
-// the main action next to a field or in a group in the outline of the accent, e.g. add or save
+// the main action next to a field or in a group in the outline of the accent, e.g. add or save;
+// with btn-outline-secondary, on its raised fill wherever it is, so these buttons all look alike
 .btn-field-primary {
   --bs-btn-color: var(--sak-accent);
   --bs-btn-border-color: var(--sak-accent);

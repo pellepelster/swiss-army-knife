@@ -182,7 +182,7 @@ interface ItemGroup {
           @if (discoverItems()) {
             <button
               type="button"
-              class="btn btn-outline-secondary btn-field btn-field-primary"
+              class="btn btn-outline-secondary btn-field-primary"
               data-testid="discover"
               [attr.aria-label]="'grocery.discover.label' | t"
               [title]="'grocery.discover.label' | t"
