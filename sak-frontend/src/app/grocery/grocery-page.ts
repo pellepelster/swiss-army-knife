@@ -182,7 +182,7 @@ interface ItemGroup {
           @if (discoverItems()) {
             <button
               type="button"
-              class="btn btn-outline-secondary btn-field"
+              class="btn btn-outline-secondary btn-field btn-field-primary"
               data-testid="discover"
               [attr.aria-label]="'grocery.discover.label' | t"
               [title]="'grocery.discover.label' | t"
@@ -194,7 +194,7 @@ interface ItemGroup {
           }
           <!-- only the icon of what it adds, its label and tooltip say what it does (UX-2) -->
           <button
-            class="btn btn-outline-secondary btn-field btn-field-primary"
+            class="btn btn-primary"
             type="submit"
             [attr.aria-label]="'grocery.list.add_item' | t"
             [title]="'grocery.list.add_item' | t"
