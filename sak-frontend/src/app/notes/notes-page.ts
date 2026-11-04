@@ -85,9 +85,8 @@ import { PageHeader } from '../shared/page-header';
     <nav class="d-flex gap-2 pb-3 overflow-x-auto" [attr.aria-label]="'notes.page.filter' | t">
       <button
         type="button"
-        class="btn btn-sm flex-shrink-0"
-        [class.btn-primary]="filter() === null"
-        [class.btn-outline-secondary]="filter() !== null"
+        class="btn btn-sm btn-outline-secondary flex-shrink-0"
+        [class.active]="filter() === null"
         [attr.aria-pressed]="filter() === null"
         (click)="select(null)"
       >
@@ -99,9 +98,8 @@ import { PageHeader } from '../shared/page-header';
       @for (label of chips(); track label) {
         <button
           type="button"
-          class="btn btn-sm flex-shrink-0"
-          [class.btn-primary]="filter() === label"
-          [class.btn-outline-secondary]="filter() !== label"
+          class="btn btn-sm btn-outline-secondary flex-shrink-0"
+          [class.active]="filter() === label"
           [attr.aria-pressed]="filter() === label"
           (click)="toggle(label)"
         >
