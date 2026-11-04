@@ -19,6 +19,10 @@
 #   reboot-pending          whether a reboot is pending and why, as json on standard output
 #   update                  upgrades all packages, none is removed; what changed and whether a
 #                           reboot is pending, as json
+#   restart-services        restarts the services that run old libraries, as needrestart finds
+#                           them: the deployment in order, ssh last, never the bus of the system or
+#                           the sessions of the users (only a reboot renews them); what was
+#                           restarted, skipped or failed and whether a reboot is pending, as json
 #   reboot [--if-pending]   stops the deployment in order and reboots the server in some seconds,
 #                           holding the lock until it goes down; as json. With --if-pending only
 #                           when a reboot is pending
@@ -35,7 +39,7 @@ step() { echo "sak-backend: $*" >&2; }
 lock() {
   exec 9>{{ backend_lock_file | quote }}
   if ! flock -n 9; then
-    step "another backup, restore, update or reboot runs"
+    step "another backup, restore, update, restart or reboot runs"
     exit 2
   fi
 }
@@ -64,16 +68,20 @@ while True:
 EOF
 }
 
+# the services needrestart finds on old libraries, one a line; none without needrestart
+old_services() {
+  if command -v needrestart >/dev/null; then
+    needrestart -b -r l 2>/dev/null | sed -n 's/^NEEDRESTART-SVC: //p' || true
+  fi
+}
+
 # whether a reboot is pending, as json: /run/reboot-required, the running kernel against the
 # newest one installed, the services needrestart finds on old libraries, the upgrades of dpkg
 # since the boot
 pending_json() {
   local installed services
   installed=$(find /boot -maxdepth 1 -name 'vmlinuz-*' -printf '%f\n' 2>/dev/null | sed 's/^vmlinuz-//' | sort -V | tail -n 1)
-  services=""
-  if command -v needrestart >/dev/null; then
-    services=$(needrestart -b -r l 2>/dev/null | sed -n 's/^NEEDRESTART-SVC: //p' || true)
-  fi
+  services=$(old_services)
   python3 - "$(uname -r)" "$installed" "$services" <<'EOF'
 import datetime, json, os, re, sys, time
 running, installed, services = sys.argv[1], sys.argv[2], [s for s in sys.argv[3].split("\n") if s]
@@ -141,6 +149,73 @@ EOF
   step "done"
 }
 
+# the services a restart would break, only a reboot renews them: the bus of the system and the
+# sessions of the users
+never_restarted() {
+  case "$1" in
+    dbus.service | dbus-broker.service | systemd-logind.service | getty@*.service | serial-getty@*.service | user@*.service) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# restarts the services on old libraries: each other service, then the deployment as a restore
+# does it (stopped in order, started again), then ssh, whose restart keeps the open sessions
+restart_services() {
+  lock
+  wait_for_dpkg
+  local service unit deployment=false ssh=false pending
+  local restarted=() skipped=() failed=() others=() services=()
+  while IFS= read -r service; do
+    [ -n "$service" ] || continue
+    if never_restarted "$service"; then
+      skipped+=("$service")
+      continue
+    fi
+    case "$service" in
+      ssh.service) ssh=true; continue ;;
+    esac
+    for unit in "${units[@]}"; do
+      if [ "$service" = "$unit.service" ]; then
+        deployment=true
+        continue 2
+      fi
+    done
+    others+=("$service")
+  done <<<"$(old_services)"
+  for service in "${others[@]}"; do
+    step "restarting $service"
+    if systemctl restart "$service" >&2; then restarted+=("$service"); else failed+=("$service"); fi
+  done
+  if [ "$deployment" = true ]; then
+    for unit in "${units[@]}"; do services+=("$unit.service"); done
+    step "restarting the deployment"
+    if systemctl stop "${units[@]}" >&2 && systemctl start "${units[@]}" >&2; then
+      restarted+=("${services[@]}")
+    else
+      failed+=("${services[@]}")
+    fi
+  fi
+  if [ "$ssh" = true ]; then
+    step "restarting ssh.service"
+    if systemctl restart ssh.service >&2; then restarted+=(ssh.service); else failed+=(ssh.service); fi
+  fi
+  pending=$(pending_json)
+  python3 - "$pending" "$(printf '%s\n' "${restarted[@]}")" "$(printf '%s\n' "${skipped[@]}")" "$(printf '%s\n' "${failed[@]}")" <<'EOF'
+import json, sys
+pending = json.loads(sys.argv[1])
+names = lambda text: [line for line in text.split("\n") if line]
+print(json.dumps({
+    "restarted": names(sys.argv[2]),
+    "skipped": names(sys.argv[3]),
+    "failed": names(sys.argv[4]),
+    "services": pending["services"],
+    "reboot_pending": pending["reboot_pending"],
+    "reasons": pending["reasons"],
+}))
+EOF
+  step "done"
+}
+
 reboot_server() {
   local if_pending=false
   case "${1:-}" in
@@ -174,7 +249,7 @@ print(json.dumps({"rebooting": True, "at": at.strftime("%Y-%m-%dT%H:%M:%SZ"), "r
 }
 
 usage() {
-  step "usage: sak-backend backup <age recipient> | restore | reboot-pending | update | reboot [--if-pending]"
+  step "usage: sak-backend backup <age recipient> | restore | reboot-pending | update | restart-services | reboot [--if-pending]"
   exit 1
 }
 
@@ -391,6 +466,7 @@ case "$command" in
   restore) restore ;;
   reboot-pending) reboot_pending ;;
   update) update ;;
+  restart-services) restart_services ;;
   reboot) reboot_server "$@" ;;
   *) usage ;;
 esac

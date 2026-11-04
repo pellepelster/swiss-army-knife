@@ -189,11 +189,11 @@ for change in m['upgraded'] + m['installed']:
     assert installed == change['to'], (change, installed)
 EOF" || fail "the answer of the update"
 
-echo "an update or a reboot waits for no backup: it stops while one holds the lock"
+echo "an update, a restart or a reboot waits for no backup: it stops while one holds the lock"
 on_server "rm -f /work/systemctl.log"
 docker exec -d "$name" flock /run/sak-backend.lock sleep 20
 sleep 1
-for command in update reboot; do
+for command in update restart-services reboot; do
   on_server "set +e; sak-backend $command >/dev/null 2>&1; [ \$? = 2 ]" || fail "$command does not stop while the lock is held"
 done
 on_server "[ ! -e /work/systemctl.log ]" || fail "the deployment was stopped while the lock was held"
@@ -211,6 +211,33 @@ on_server "grep -qx -- '--quiet --on-active=5s --unit=sak-backend-reboot systemc
 # the lock stays with the server until it goes down
 on_server "set +e; sak-backend backup \$(age-keygen -y /work/backup.key) >/dev/null 2>&1; [ \$? = 2 ]" || fail "a backup starts after the reboot"
 on_server "pkill -f 'sleep 600'" || true
+
+echo "a restart of the services restarts the ones on old libraries: the others, the deployment in order, ssh last; never dbus"
+on_server "rm -f /work/systemctl.log
+cat > /usr/local/bin/needrestart <<'EOF'
+#!/bin/sh
+echo NEEDRESTART-VER: 3.8
+for service in ssh.service dbus.service sak-backend.service cron.service broken.service getty@tty1.service sak-vector.service; do
+  echo NEEDRESTART-SVC: \$service
+done
+EOF
+cat > /usr/local/bin/systemctl <<'EOF'
+#!/bin/sh
+echo \"\$@\" >> /work/systemctl.log
+[ \"\$2\" != broken.service ]
+EOF"
+on_server "sak-backend restart-services 2>/dev/null" | python3 -c '
+import json, sys
+m = json.load(sys.stdin)
+units = ["sak-ingress.service", "sak-backend.service", "sak-vector.service", "sak-victorialogs.service"]
+assert m["restarted"] == ["cron.service"] + units + ["ssh.service"], m
+assert m["skipped"] == ["dbus.service", "getty@tty1.service"], m
+assert m["failed"] == ["broken.service"], m
+assert set(m) == {"restarted", "skipped", "failed", "services", "reboot_pending", "reasons"}, m
+' || fail "the answer of the restart of the services"
+on_server "[ \"\$(cat /work/systemctl.log)\" = \"\$(printf '%s\\n' 'restart cron.service' 'restart broken.service' 'stop sak-ingress sak-backend sak-vector sak-victorialogs' 'start sak-ingress sak-backend sak-vector sak-victorialogs' 'restart ssh.service')\" ]" \
+  || { on_server "cat /work/systemctl.log" >&2; fail "the services were not restarted in order"; }
+! on_server "grep -q dbus /work/systemctl.log" || fail "dbus was restarted"
 
 echo "an unknown command says how to use it"
 on_server "set +e; usage=\$(sak-backend nothing 2>&1 >/dev/null); [ \$? = 1 ] && grep -q 'usage: sak-backend backup' <<<\"\$usage\"" || fail "the usage"

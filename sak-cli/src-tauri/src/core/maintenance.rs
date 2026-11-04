@@ -1,5 +1,5 @@
 //! the maintenance of the server of a deployment: whether a reboot is pending, an update of all
-//! packages, a coordinated reboot. `sak-backend` on the server does the work and answers as json
+//! packages, a restart of the services on old libraries, a coordinated reboot. `sak-backend` on the server does the work and answers as json
 //! on its standard output; each line it writes to standard error goes to the caller while it runs.
 //! The answers as lines are the same on the command line and in the window
 
@@ -10,12 +10,14 @@ use crate::core::sak_backend;
 use crate::core::ssh::{Sessions, SshTarget};
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// how long each command may take on the server. `sak-backend` waits up to 10 minutes for an apt
 /// or dpkg that runs (`backend_apt_wait`) before an update or a reboot starts
 const STATUS_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(45 * 60);
+const RESTART_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 const REBOOT_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// a package that changed: its version before (none for one installed new) and after
@@ -71,6 +73,19 @@ pub struct UpdateResult {
     pub reasons: Vec<Reason>,
 }
 
+/// `sak-backend restart-services`
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct RestartResult {
+    pub restarted: Vec<String>,
+    /// the services a restart would break, only a reboot renews them
+    pub skipped: Vec<String>,
+    pub failed: Vec<String>,
+    /// the services still on old libraries afterwards
+    pub services: Vec<String>,
+    pub reboot_pending: bool,
+    pub reasons: Vec<Reason>,
+}
+
 /// `sak-backend reboot`
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RebootResult {
@@ -102,6 +117,21 @@ fn update(
     on_line: &mut (dyn FnMut(String) + Send),
 ) -> Result<UpdateResult, String> {
     sak_backend::run_json(runtime, target, sak_backend::Command::Update, on_line)
+}
+
+/// restarts the services on old libraries: the deployment in order, ssh last, never the bus of the
+/// system or the sessions of the users
+fn restart_services(
+    runtime: &str,
+    target: &SshTarget,
+    on_line: &mut (dyn FnMut(String) + Send),
+) -> Result<RestartResult, String> {
+    sak_backend::run_json(
+        runtime,
+        target,
+        sak_backend::Command::RestartServices,
+        on_line,
+    )
 }
 
 /// stops the deployment in order and reboots the server; with `if_pending` only when a reboot
@@ -144,7 +174,13 @@ async fn limited<T: Send + 'static>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     Status,
-    Update,
+    /// afterwards with `reboot_server` a reboot when one is pending, waited for; else with
+    /// `restart_services` a restart of the services on old libraries
+    Update {
+        restart_services: bool,
+        reboot_server: bool,
+    },
+    RestartServices,
     /// `if_pending`: only when a reboot is pending; `wait`: until the deployment answers again
     Reboot {
         if_pending: bool,
@@ -156,7 +192,12 @@ pub enum Action {
 #[derive(Clone, Debug)]
 pub enum Answer {
     Status(RebootStatus),
-    Update(UpdateResult),
+    /// `then`: the restart of the services or the reboot that followed the update
+    Update {
+        update: UpdateResult,
+        then: Option<Box<Answer>>,
+    },
+    RestartServices(RestartResult),
     /// `back`: the deployment answered again after the reboot
     Reboot {
         reboot: RebootResult,
@@ -170,9 +211,19 @@ impl Answer {
     pub fn lines(&self, name: &str, reboot_hint: &str) -> Vec<Line> {
         match self {
             Answer::Status(status) => status_lines(name, status),
-            Answer::Update(update) => {
+            Answer::Update { update, then } => {
                 let mut lines = update_lines(name, update);
-                if update.reboot_pending {
+                match then {
+                    // what followed says itself whether a reboot is still pending
+                    Some(then) => lines.extend(then.lines(name, reboot_hint)),
+                    None if update.reboot_pending => lines.push(Line::warn(reboot_hint)),
+                    None => {}
+                }
+                lines
+            }
+            Answer::RestartServices(restart) => {
+                let mut lines = restart_lines(restart);
+                if restart.reboot_pending {
                     lines.push(Line::warn(reboot_hint));
                 }
                 lines
@@ -198,7 +249,7 @@ pub async fn perform(
     action: Action,
     on_line: impl FnMut(String) + Send + Clone + 'static,
 ) -> Result<Answer, SakctlError> {
-    let target = manager.ssh_target(tokens.clone(), name, password).await?;
+    let target = Arc::new(manager.ssh_target(tokens.clone(), name, password).await?);
     let runtime = container
         .get()
         .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
@@ -211,37 +262,96 @@ pub async fn perform(
         )
         .to_string(),
     );
-    let mut on_server = on_line;
     match action {
-        Action::Status => Ok(Answer::Status(
-            limited(STATUS_TIMEOUT, move || {
-                status(runtime, &target, &mut on_server)
-            })
-            .await?,
-        )),
-        Action::Update => Ok(Answer::Update(
-            limited(UPDATE_TIMEOUT, move || {
-                update(runtime, &target, &mut on_server)
-            })
-            .await?,
-        )),
-        Action::Reboot { if_pending, wait } => {
-            let reboot = limited(REBOOT_TIMEOUT, move || {
-                reboot(runtime, &target, if_pending, &mut on_server)
+        Action::Status => {
+            let mut on_server = on_line;
+            Ok(Answer::Status(
+                limited(STATUS_TIMEOUT, move || {
+                    status(runtime, &target, &mut on_server)
+                })
+                .await?,
+            ))
+        }
+        Action::Update {
+            restart_services,
+            reboot_server,
+        } => {
+            let mut on_server = on_line.clone();
+            let server = target.clone();
+            let update = limited(UPDATE_TIMEOUT, move || {
+                update(runtime, &server, &mut on_server)
             })
             .await?;
-            if !(reboot.rebooting && wait) {
-                return Ok(Answer::Reboot {
-                    reboot,
-                    back: false,
-                });
-            }
-            // the wait takes minutes, what it waits for is said first
-            on_step(reboot_line(name, &reboot).text);
-            wait_after_reboot(manager, tokens, name, password, &mut on_step).await?;
-            Ok(Answer::Reboot { reboot, back: true })
+            let then = if reboot_server && update.reboot_pending {
+                let reboot = reboot_and_wait(
+                    manager, tokens, runtime, target, name, password, true, true, on_line,
+                )
+                .await?;
+                Some(reboot)
+            } else if restart_services {
+                Some(restart(runtime, target, on_line).await?)
+            } else {
+                None
+            };
+            Ok(Answer::Update {
+                update,
+                then: then.map(Box::new),
+            })
+        }
+        Action::RestartServices => restart(runtime, target, on_line).await,
+        Action::Reboot { if_pending, wait } => {
+            reboot_and_wait(
+                manager, tokens, runtime, target, name, password, if_pending, wait, on_line,
+            )
+            .await
         }
     }
+}
+
+/// the restart of the services on old libraries
+async fn restart(
+    runtime: &'static str,
+    target: Arc<SshTarget>,
+    mut on_server: impl FnMut(String) + Send + 'static,
+) -> Result<Answer, SakctlError> {
+    Ok(Answer::RestartServices(
+        limited(RESTART_TIMEOUT, move || {
+            restart_services(runtime, &target, &mut on_server)
+        })
+        .await?,
+    ))
+}
+
+/// the reboot, with `if_pending` only when one is pending; with `wait` until the deployment
+/// answers again
+#[allow(clippy::too_many_arguments)]
+async fn reboot_and_wait(
+    manager: &DeploymentManager,
+    tokens: Vec<(ProviderType, String)>,
+    runtime: &'static str,
+    target: Arc<SshTarget>,
+    name: &str,
+    password: &str,
+    if_pending: bool,
+    wait: bool,
+    on_line: impl FnMut(String) + Send + Clone + 'static,
+) -> Result<Answer, SakctlError> {
+    let mut on_server = on_line.clone();
+    let reboot = limited(REBOOT_TIMEOUT, move || {
+        reboot(runtime, &target, if_pending, &mut on_server)
+    })
+    .await?;
+    if !(reboot.rebooting && wait) {
+        return Ok(Answer::Reboot {
+            reboot,
+            back: false,
+        });
+    }
+    // the wait takes minutes, what it waits for is said first
+    let mut on_step = on_line;
+    on_step(reboot_line(name, &reboot).text);
+    wait_after_reboot(manager, tokens, name, password, &mut on_step).await?;
+    Ok(Answer::Reboot { reboot, back: true })
 }
 
 /// a line of an answer; `warn` for one that asks for something to be done
@@ -341,6 +451,34 @@ fn update_lines(name: &str, update: &UpdateResult) -> Vec<Line> {
     lines
 }
 
+/// the answer of `restart-services`: what was restarted, what failed, what only a reboot renews;
+/// whether a reboot is pending is up to the caller
+fn restart_lines(restart: &RestartResult) -> Vec<Line> {
+    let mut lines = Vec::new();
+    if restart.restarted.is_empty() && restart.failed.is_empty() && restart.skipped.is_empty() {
+        lines.push(Line::info(t!("common.maintenance.no_restart")));
+    }
+    if !restart.restarted.is_empty() {
+        lines.push(Line::info(t!(
+            "common.maintenance.restarted",
+            services = restart.restarted.join(", ")
+        )));
+    }
+    if !restart.failed.is_empty() {
+        lines.push(Line::warn(t!(
+            "common.maintenance.restart_failed",
+            services = restart.failed.join(", ")
+        )));
+    }
+    if !restart.skipped.is_empty() {
+        lines.push(Line::warn(t!(
+            "common.maintenance.restart_skipped",
+            services = restart.skipped.join(", ")
+        )));
+    }
+    lines
+}
+
 /// the answer of `reboot`: when the server goes down, or that nothing was changed
 fn reboot_line(name: &str, reboot: &RebootResult) -> Line {
     if reboot.rebooting {
@@ -423,6 +561,13 @@ mod tests {
         .unwrap();
         assert_eq!(update.installed[0].from, None);
 
+        let restart: RestartResult = serde_json::from_slice(
+            br#"{"restarted": ["cron.service"], "skipped": ["dbus.service"], "failed": [],
+                 "services": ["dbus.service"], "reboot_pending": false, "reasons": []}"#,
+        )
+        .unwrap();
+        assert_eq!(restart.skipped, ["dbus.service"]);
+
         let reboot: RebootResult =
             serde_json::from_slice(br#"{"rebooting": false, "reasons": []}"#).unwrap();
         assert!(!reboot.rebooting);
@@ -481,11 +626,14 @@ mod tests {
             reboot_pending: true,
             reasons: vec![Reason::Kernel],
         };
-        let lines: Vec<String> = Answer::Update(update)
-            .lines("alpha", "HINT")
-            .into_iter()
-            .map(|line| line.text)
-            .collect();
+        let lines: Vec<String> = Answer::Update {
+            update: update.clone(),
+            then: None,
+        }
+        .lines("alpha", "HINT")
+        .into_iter()
+        .map(|line| line.text)
+        .collect();
         assert_eq!(
             lines,
             [
@@ -502,8 +650,52 @@ mod tests {
             reasons: vec![],
         };
         assert_eq!(
-            Answer::Update(nothing).lines("alpha", "HINT")[0].text,
+            Answer::Update {
+                update: nothing,
+                then: None
+            }
+            .lines("alpha", "HINT")[0]
+                .text,
             "All packages of alpha are up-to-date."
+        );
+
+        // a restart of the services after the update: the hint follows the restart, not the update
+        let restart = RestartResult {
+            restarted: vec!["cron.service".to_string(), "ssh.service".to_string()],
+            skipped: vec!["dbus.service".to_string()],
+            failed: vec!["broken.service".to_string()],
+            services: vec!["dbus.service".to_string(), "broken.service".to_string()],
+            reboot_pending: true,
+            reasons: vec![Reason::Kernel],
+        };
+        let lines: Vec<Line> = Answer::Update {
+            update,
+            then: Some(Box::new(Answer::RestartServices(restart))),
+        }
+        .lines("alpha", "HINT");
+        let texts: Vec<&str> = lines[3..].iter().map(|line| line.text.as_str()).collect();
+        assert_eq!(
+            texts,
+            [
+                "Restarted: cron.service, ssh.service",
+                "Failed to restart: broken.service",
+                "Not restarted, only a reboot renews them: dbus.service",
+                "HINT"
+            ]
+        );
+        assert_eq!(lines.iter().filter(|line| line.text == "HINT").count(), 1);
+        assert!(lines[4..].iter().all(|line| line.warn));
+        let nothing_to_restart = RestartResult {
+            restarted: vec![],
+            skipped: vec![],
+            failed: vec![],
+            services: vec![],
+            reboot_pending: false,
+            reasons: vec![],
+        };
+        assert_eq!(
+            Answer::RestartServices(nothing_to_restart).lines("alpha", "HINT")[0].text,
+            "No service runs old libraries, none was restarted."
         );
 
         // a reboot that was waited for ends with the deployment answering again; the reboot

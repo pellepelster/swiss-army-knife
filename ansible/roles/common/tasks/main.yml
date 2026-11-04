@@ -31,8 +31,8 @@
     mode: "0644"
 
 # needrestart lists the services that still run old libraries after an upgrade (sak-backend
-# reboot-pending); it only lists them, it restarts nothing. Its configuration comes first, so the
-# hook it adds to apt never restarts a service
+# reboot-pending); it only lists them, it restarts nothing, sak-backend restart-services does. Its
+# configuration comes first, so the hook it adds to apt never restarts a service
 - name: Create the configuration directory of needrestart
   ansible.builtin.file:
     path: /etc/needrestart/conf.d

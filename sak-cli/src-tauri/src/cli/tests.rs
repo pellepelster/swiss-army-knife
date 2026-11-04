@@ -87,6 +87,30 @@ fn maintenance_takes_the_name_and_its_options() {
         Some(ProjectCommand::Maintenance(MaintenanceCommand::Status(_)))
     ));
     assert!(parse(&["maintenance", "update", "alpha", "--if-pending"]).is_err());
+    let Some(ProjectCommand::Maintenance(MaintenanceCommand::Update {
+        reboot_services,
+        reboot_server,
+        ..
+    })) = project(
+        parse(&[
+            "maintenance",
+            "update",
+            "alpha",
+            "--reboot-services",
+            "--reboot-server",
+        ])
+        .unwrap(),
+    )
+    else {
+        panic!("maintenance update");
+    };
+    assert!(reboot_services && reboot_server);
+    assert!(matches!(
+        project(parse(&["maintenance", "restart-services", "alpha"]).unwrap()),
+        Some(ProjectCommand::Maintenance(
+            MaintenanceCommand::RestartServices(_)
+        ))
+    ));
     assert!(is_command_line(&["maintenance".to_string()]));
 }
 

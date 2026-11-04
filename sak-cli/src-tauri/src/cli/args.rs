@@ -145,7 +145,7 @@ pub enum ProjectCommand {
         #[arg(long)]
         delete_data: bool,
     },
-    /// Maintain the server of a SAK instance: pending reboot, package updates, reboot
+    /// Maintain the server of a SAK instance: pending reboot, package updates, restart of services, reboot
     #[command(subcommand)]
     Maintenance(MaintenanceCommand),
 }
@@ -158,9 +158,27 @@ pub enum MaintenanceCommand {
     /// Upgrade all packages of the server
     ///
     /// Installs new dependencies, uninstalls no package. Tells what changed and whether a reboot is
-    /// pending.
+    /// pending. With --reboot-server it reboots the server when a reboot is pending; else, with
+    /// --reboot-services, it restarts the services that run old libraries.
     #[command(after_help = EXIT_CODES)]
-    Update(MaintenanceArgs),
+    Update {
+        #[command(flatten)]
+        args: MaintenanceArgs,
+        /// Restart the services on old libraries afterwards, unless the server reboots
+        #[arg(long)]
+        reboot_services: bool,
+        /// Reboot the server afterwards when a reboot is pending, and wait until the SAK instance
+        /// answers again
+        #[arg(long)]
+        reboot_server: bool,
+    },
+    /// Restart the services that run old libraries
+    ///
+    /// Restarts the SAK instance in order and the other services needrestart lists, ssh last.
+    /// Never restarts the bus of the system or the sessions of the users, only a reboot renews
+    /// them. Tells what was restarted, skipped or failed and whether a reboot is pending.
+    #[command(after_help = EXIT_CODES)]
+    RestartServices(MaintenanceArgs),
     /// Reboot the server, stopping the SAK instance first
     ///
     /// Stops the SAK instance in order, waits for a backup or update that runs, reboots the server
@@ -256,7 +274,8 @@ impl MaintenanceCommand {
     pub(super) fn args(&self) -> &MaintenanceArgs {
         match self {
             MaintenanceCommand::Status(args)
-            | MaintenanceCommand::Update(args)
+            | MaintenanceCommand::RestartServices(args)
+            | MaintenanceCommand::Update { args, .. }
             | MaintenanceCommand::Reboot { args, .. } => args,
         }
     }

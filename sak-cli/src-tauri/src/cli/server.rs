@@ -55,7 +55,8 @@ pub(super) async fn ssh(
 }
 
 /// the maintenance of the server: each line of the server logged, the answer as lines or, with
-/// --json, as it is. A reboot waits until the deployment answers again, unless --no-wait
+/// --json, as it is. A reboot waits until the deployment answers again, unless --no-wait; an
+/// update with --reboot-server waits too
 pub(super) async fn maintenance(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -63,13 +64,21 @@ pub(super) async fn maintenance(
     command: &MaintenanceCommand,
     password: &str,
 ) -> Result<(), SakctlError> {
-    use crate::core::maintenance::{self, Action, Answer};
+    use crate::core::maintenance::{self, Action};
     let args = command.args();
     let name = args.name.trim();
     let json = args.json;
     let action = match command {
         MaintenanceCommand::Status(_) => Action::Status,
-        MaintenanceCommand::Update(_) => Action::Update,
+        MaintenanceCommand::Update {
+            reboot_services,
+            reboot_server,
+            ..
+        } => Action::Update {
+            restart_services: *reboot_services,
+            reboot_server: *reboot_server,
+        },
+        MaintenanceCommand::RestartServices(_) => Action::RestartServices,
         MaintenanceCommand::Reboot {
             if_pending,
             no_wait,
@@ -95,17 +104,38 @@ pub(super) async fn maintenance(
     )
     .await?;
     if json {
-        return match &answer {
-            Answer::Status(status) => print_json(status),
-            Answer::Update(update) => print_json(update),
-            Answer::Reboot { reboot, .. } => print_json(reboot),
-        };
+        return print_json(&maintenance_json(&answer));
     }
     let hint = t!("cli.maintenance.reboot_hint", name = name);
     for line in answer.lines(name, &hint) {
         log(if line.warn { Level::Warn } else { Level::Info }, line.text);
     }
     Ok(())
+}
+
+/// the answer of the server as it is; an update with what followed it below
+/// `restart_services` or `reboot`
+fn maintenance_json(answer: &crate::core::maintenance::Answer) -> serde_json::Value {
+    use crate::core::maintenance::Answer;
+    fn json(value: &impl serde::Serialize) -> serde_json::Value {
+        serde_json::to_value(value).unwrap_or_default()
+    }
+    match answer {
+        Answer::Status(status) => json(status),
+        Answer::RestartServices(restart) => json(restart),
+        Answer::Reboot { reboot, .. } => json(reboot),
+        Answer::Update { update, then } => {
+            let mut value = json(update);
+            if let (Some(then), Some(object)) = (then, value.as_object_mut()) {
+                let key = match **then {
+                    Answer::RestartServices(_) => "restart_services",
+                    _ => "reboot",
+                };
+                object.insert(key.to_string(), maintenance_json(then));
+            }
+            value
+        }
+    }
 }
 
 /// a backup of the deployment to `~/.sak/<name>/backups/`, each step of the server logged

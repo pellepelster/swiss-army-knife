@@ -1,7 +1,7 @@
-//! the command of the maintenance view: the status, the update or the reboot of the server of a
-//! deployment, as `sakctl maintenance` has them (`maintenance::perform`). Each line of the server
-//! goes to the view while it runs, the answer comes as lines. It cannot be cancelled, each command
-//! on the server has its timeout; while it runs, sakctl is not restarted
+//! the command of the maintenance view: the status, the update, the restart of the services or the
+//! reboot of the server of a deployment, as `sakctl maintenance` has them (`maintenance::perform`).
+//! Each line of the server goes to the view while it runs, the answer comes as lines. It cannot be
+//! cancelled, each command on the server has its timeout; while it runs, sakctl is not restarted
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentManager;
@@ -19,6 +19,7 @@ use tauri::ipc::Channel;
 pub enum Action {
     Status,
     Update,
+    RestartServices,
     /// a reboot whether one is pending or not; it waits until the deployment answers again
     Reboot,
 }
@@ -43,7 +44,11 @@ pub async fn run_maintenance(
     let name = request.name.trim();
     let action = match request.action {
         Action::Status => maintenance::Action::Status,
-        Action::Update => maintenance::Action::Update,
+        Action::Update => maintenance::Action::Update {
+            restart_services: false,
+            reboot_server: false,
+        },
+        Action::RestartServices => maintenance::Action::RestartServices,
         Action::Reboot => maintenance::Action::Reboot {
             if_pending: false,
             wait: true,
@@ -77,7 +82,7 @@ mod tests {
             serde_json::from_str(r#"{"action": "reboot", "name": "alpha", "password": "secret"}"#)
                 .unwrap();
         assert_eq!(request.action, Action::Reboot);
-        for action in ["status", "update"] {
+        for action in ["status", "update", "restart_services"] {
             let json = format!(r#"{{"action": "{action}", "name": "a", "password": "p"}}"#);
             assert!(
                 serde_json::from_str::<MaintenanceRequest>(&json).is_ok(),

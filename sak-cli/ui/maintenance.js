@@ -1,5 +1,5 @@
-// the maintenance of the server of a deployment, from the menu of its page: the status, the update
-// or the reboot, as `sakctl maintenance` has them. The view shows each line of the server while it
+// the maintenance of the server of a deployment, from the menu of its page: the status, the update,
+// the restart of the services or the reboot, as `sakctl maintenance` has them. The view shows each line of the server while it
 // runs, then the answer, warnings in their colour. There is no cancel, a command on the server is
 // not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
 // deployment again
@@ -29,7 +29,7 @@ function finished() {
   backButton.focus();
 }
 
-// `action` is status, update or reboot
+// `action` is status, update, restart_services or reboot
 export async function showMaintenance(deployment, action) {
   running = { deployment };
   const { password } = openedDeployment();

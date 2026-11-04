@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 pub const SCRIPT: &str = "sak-backend";
 
-/// another backup, restore, update or reboot holds the lock of the script
+/// another backup, restore, update, restart or reboot holds the lock of the script
 const BUSY: i32 = 2;
 /// what the shell answers for a command that is not there: a server provisioned before the script
 const NOT_FOUND: i32 = 127;
@@ -25,6 +25,8 @@ pub enum Command<'a> {
     RebootPending,
     /// upgrades all packages, the result as json
     Update,
+    /// restarts the services on old libraries, the result as json
+    RestartServices,
     /// stops the deployment and reboots the server; with `if_pending` only when a reboot is
     /// pending. The result as json
     Reboot { if_pending: bool },
@@ -40,6 +42,7 @@ impl Command<'_> {
             Command::Restore => arguments.push("restore".to_string()),
             Command::RebootPending => arguments.push("reboot-pending".to_string()),
             Command::Update => arguments.push("update".to_string()),
+            Command::RestartServices => arguments.push("restart-services".to_string()),
             Command::Reboot { if_pending } => {
                 arguments.push("reboot".to_string());
                 if *if_pending {
@@ -145,6 +148,10 @@ mod tests {
         assert_eq!(words(Command::Restore), "sak-backend restore");
         assert_eq!(words(Command::RebootPending), "sak-backend reboot-pending");
         assert_eq!(words(Command::Update), "sak-backend update");
+        assert_eq!(
+            words(Command::RestartServices),
+            "sak-backend restart-services"
+        );
         assert_eq!(
             words(Command::Reboot { if_pending: true }),
             "sak-backend reboot --if-pending"

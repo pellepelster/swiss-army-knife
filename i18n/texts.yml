@@ -809,7 +809,7 @@ ctl:
         en: "%{script} on the server ended with exit code %{code}."
         de: "%{script} auf dem Server endete mit Exit-Code %{code}."
       busy:
-        en: "Another backup, restore, update or reboot runs on the server, try again when it is done."
+        en: "Another backup, restore, update, restart or reboot runs on the server, try again when it is done."
         de: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
       failed: { en: "The server failed: %{error}", de: "Der Server ist fehlgeschlagen: %{error}" }
       unreadable:
@@ -842,6 +842,14 @@ ctl:
         en: "No reboot of %{name} is pending, nothing was changed."
         de: "Kein Neustart von %{name} steht an, nichts wurde geändert."
       back: { en: "The SAK instance %{name} answers again.", de: "Die SAK-Instanz %{name} antwortet wieder." }
+      restarted: { en: "Restarted: %{services}", de: "Neu gestartet: %{services}" }
+      restart_failed: { en: "Failed to restart: %{services}", de: "Neustart fehlgeschlagen: %{services}" }
+      restart_skipped:
+        en: "Not restarted, only a reboot renews them: %{services}"
+        de: "Nicht neu gestartet, nur ein Neustart des Servers erneuert sie: %{services}"
+      no_restart:
+        en: "No service runs old libraries, none was restarted."
+        de: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
     update:
       checking:
         en: "Asking %{receiver} for the newest release of sakctl…"
@@ -1055,13 +1063,18 @@ ctl:
         de: "Die SAK-Instanz wird gestoppt und ihr Server neu gestartet. Bis sie wieder antwortet, ist sie nicht erreichbar, meist einige Minuten."
       title_status: { en: "Server status", de: "Serverstatus" }
       title_update: { en: "Update the server", de: "Server aktualisieren" }
+      title_restart_services: { en: "Restart the services", de: "Dienste neu starten" }
       title_reboot: { en: "Reboot the server", de: "Server neu starten" }
       intro: { en: "The server of the SAK instance", de: "Der Server der SAK-Instanz" }
       status: { en: "Status", de: "Status" }
       update: { en: "Update", de: "Aktualisieren" }
+      restart_services: { en: "Restart services", de: "Dienste neu starten" }
       reboot: { en: "Reboot", de: "Neu starten" }
       running_status: { en: "Asking the server…", de: "Frage den Server…" }
       running_update: { en: "Upgrading the packages of the server…", de: "Aktualisiere die Pakete des Servers…" }
+      running_restart_services:
+        en: "Restarting the services on old libraries…"
+        de: "Starte die Dienste mit alten Bibliotheken neu…"
       running_reboot:
         en: "Stopping the SAK instance and rebooting its server…"
         de: "Stoppe die SAK-Instanz und starte ihren Server neu…"
