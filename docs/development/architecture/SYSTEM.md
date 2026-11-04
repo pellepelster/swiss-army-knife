@@ -181,7 +181,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   another tag of the images can be set, the images of a release before it is released (`<version>-rc`).
 - `SAKCTL-10` **Updates on request.** sakctl compares its version with the newest release on GitHub and replaces
   itself with it only when the user asks, in the sakctl cli or in the footer of the sakctl ui. It checks the download
-  against the checksum of the release before it replaces itself.
+  against the checksum of the release and against its cosign signature by the release workflow at the tag of the
+  release before it replaces itself; offline, against the trusted root of sigstore built into sakctl.
 - `SAKCTL-11` **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
   (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
   one that does not answer within some minutes fails, with the cause.

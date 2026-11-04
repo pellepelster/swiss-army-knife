@@ -882,6 +882,9 @@ ctl:
       checksum_mismatch:
         en: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
         de: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+      signature_invalid:
+        en: "%{name} is not signed by the release workflow of %{version}, nothing was changed: %{error}"
+        de: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
       no_binary:
         en: "%{name} has no %{binary}, nothing was changed."
         de: "%{name} enthält kein %{binary}, nichts wurde geändert."

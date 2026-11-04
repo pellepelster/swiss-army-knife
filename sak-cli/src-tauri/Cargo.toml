@@ -58,6 +58,9 @@ async-trait = "0.1.89"
 zeroize = "1.8"
 # sends a test e-mail with the mail server of a deployment from the form of the window (core/smtp.rs)
 lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "tokio1", "tokio1-rustls", "rustls-platform-verifier", "aws-lc-rs"] }
+# the cosign signature of an update (core/update.rs), offline against the trusted root of sigstore
+# built into the crate: no tuf, no host but github
+sigstore-verify = { version = "0.15.1", default-features = false, features = ["aws-lc-rs"] }
 
 [target.'cfg(unix)'.dependencies]
 # whether a process lives, without a process of its own (`provision::alive`)

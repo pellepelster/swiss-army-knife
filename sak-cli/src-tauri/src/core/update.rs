@@ -1,8 +1,10 @@
 //! the update of sakctl to the newest release on github. Only on request, never on its own:
 //! github sees the address of the machine (architecture/SYSTEM.md, "Privacy"), so the window and the
 //! command line name it (`RECEIVER`) before they ask. The zip of the platform is checked against
-//! the sha-256 of the same release before its binary replaces the running one. A build that is no
-//! release (`latest`) asks nothing, it has no version to compare with
+//! the sha-256 of the same release and against its cosign signature, by the release workflow of
+//! the tag of the release (`signer`), before its binary replaces the running one; the signature is
+//! checked offline against the trusted root of sigstore built into sakctl, no host but github sees
+//! the update. A build that is no release (`latest`) asks nothing, it has no version to compare with
 
 use crate::core::VERSION;
 use crate::core::config::with_causes;
@@ -22,6 +24,18 @@ pub const RECEIVER: &str = "github.com";
 /// the releases of the repository; `releases/latest` is the newest one that is neither a draft nor
 /// a pre-release
 const API: &str = "https://api.github.com/repos/pellepelster/swiss-army-knife";
+
+/// who signs the zips of a release (`mise run cli:release`): the release workflow of the
+/// repository at the tag of the release, with a certificate of sigstore for its id token
+const SIGNER_WORKFLOW: &str =
+    "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";
+const SIGNER_ISSUER: &str = "https://token.actions.githubusercontent.com";
+
+/// the identity in the certificate of the signature of the zips of `version`: the workflow at its
+/// tag, so a signed zip of another release or another branch is no zip of this one
+fn signer(version: &Version) -> String {
+    format!("{SIGNER_WORKFLOW}@refs/tags/v{version}")
+}
 
 /// the system and architecture in the names of the zips of a release,
 /// `sak-cli-<system>-<architecture>-<version>.zip`: `linux-x86_64`, `windows-x86_64`, and
@@ -100,12 +114,14 @@ impl Status {
     }
 }
 
-/// the newest release and the addresses of its zip for this platform and of its sha-256
+/// the newest release and the addresses of its zip for this platform, of its sha-256 and of its
+/// cosign signature (`<zip>.sigstore.json`)
 #[derive(Debug, PartialEq, Eq)]
 struct Release {
     version: Version,
     zip: Asset,
     checksum: Asset,
+    bundle: Asset,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -134,11 +150,17 @@ pub async fn install() -> Result<Status, String> {
         .await
 }
 
-/// the update against an api, for the tests a mock server over plain http
+/// checks the zip `name` of the release `version` against its cosign signature
+type SignatureCheck =
+    fn(zip: &[u8], bundle: &[u8], name: &str, version: &Version) -> Result<(), String>;
+
+/// the update against an api, for the tests a mock server over plain http and a check of the
+/// signature that needs no zip signed by the release workflow
 struct Updater {
     api: String,
     current: &'static str,
     https_only: bool,
+    signature: SignatureCheck,
 }
 
 impl Updater {
@@ -147,6 +169,7 @@ impl Updater {
             api: API.to_string(),
             current: VERSION,
             https_only: true,
+            signature: verify_signature,
         }
     }
 
@@ -163,7 +186,8 @@ impl Updater {
     }
 
     /// downloads the zip of the newest release when it is newer, checks it against its sha-256
-    /// and hands its binary to `replace`. Nothing is replaced when anything fails before
+    /// and its signature and hands its binary to `replace`. Nothing is replaced when anything
+    /// fails before
     async fn install(
         &self,
         replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
@@ -181,6 +205,8 @@ impl Updater {
             .download(&release.checksum.browser_download_url)
             .await?;
         verify(&zip, &checksum, &release.zip.name)?;
+        let bundle = self.download(&release.bundle.browser_download_url).await?;
+        (self.signature)(&zip, &bundle, &release.zip.name, &release.version)?;
         let binaries = BINARIES
             .iter()
             .map(|binary| Ok((*binary, unzip(&zip, &release.zip.name, binary)?)))
@@ -234,6 +260,7 @@ impl Updater {
         Ok(Release {
             zip: asset(&zip_name)?,
             checksum: asset(&format!("{zip_name}.sha256"))?,
+            bundle: asset(&format!("{zip_name}.sigstore.json"))?,
             version,
         })
     }
@@ -350,6 +377,53 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
     }
 }
 
+/// the zip `name` of the release `version` against its cosign signature: signed by the release
+/// workflow at the tag of `version` (`signer`)
+fn verify_signature(
+    zip: &[u8],
+    bundle: &[u8],
+    name: &str,
+    version: &Version,
+) -> Result<(), String> {
+    let identity = sigstore_verify::IdentityMatcher::Uri(signer(version));
+    verify_signed_by(zip, bundle, name, version, identity, SIGNER_ISSUER)
+}
+
+/// the zip against the bundle of its signature: the certificate of sigstore for `identity` of
+/// `issuer`, the signature of the zip with it and its entry in the transparency log, all against
+/// the trusted root of sigstore built into sakctl
+fn verify_signed_by(
+    zip: &[u8],
+    bundle: &[u8],
+    name: &str,
+    version: &Version,
+    identity: sigstore_verify::IdentityMatcher,
+    issuer: &str,
+) -> Result<(), String> {
+    use sigstore_verify::VerificationPolicy;
+    use sigstore_verify::trust_root::{SIGSTORE_PRODUCTION_TRUSTED_ROOT, TrustedRoot};
+    use sigstore_verify::types::Bundle;
+    let invalid = |error: String| {
+        t!(
+            "common.update.signature_invalid",
+            name = name,
+            version = version.to_string(),
+            error = error
+        )
+        .to_string()
+    };
+    let root = TrustedRoot::from_json(SIGSTORE_PRODUCTION_TRUSTED_ROOT)
+        .map_err(|error| invalid(error.to_string()))?;
+    let bundle = std::str::from_utf8(bundle)
+        .map_err(|error| error.to_string())
+        .and_then(|json| Bundle::from_json(json).map_err(|error| error.to_string()))
+        .map_err(invalid)?;
+    let policy = VerificationPolicy::new(identity, issuer);
+    sigstore_verify::verify(zip, &bundle, &policy, &root)
+        .map(|_| ())
+        .map_err(|error| invalid(error.to_string()))
+}
+
 fn unzip(zip: &[u8], name: &str, binary: &str) -> Result<Vec<u8>, String> {
     let no_binary = |_| t!("common.update.no_binary", name = name, binary = binary).to_string();
     let mut archive = zip::ZipArchive::new(Cursor::new(zip)).map_err(no_binary)?;
@@ -448,8 +522,24 @@ mod tests {
         crate::core::encoding::hex(&Sha256::digest(bytes))
     }
 
-    /// a github with the release `tag`, its zip of this platform and the sha-256 `checksum`
+    /// a github with the release `tag`, its zip of this platform, the sha-256 `checksum` and a
+    /// signature the check of the tests takes (`SIGNED`)
     async fn github(tag: &str, zip: Vec<u8>, checksum: &str) -> MockServer {
+        github_signed(tag, zip, checksum, SIGNED).await
+    }
+
+    /// the bundle of a signature `fake_signature` takes
+    const SIGNED: &[u8] = b"signed by the release workflow";
+
+    fn fake_signature(_: &[u8], bundle: &[u8], name: &str, _: &Version) -> Result<(), String> {
+        if bundle == SIGNED {
+            Ok(())
+        } else {
+            Err(format!("{name} is not signed"))
+        }
+    }
+
+    async fn github_signed(tag: &str, zip: Vec<u8>, checksum: &str, bundle: &[u8]) -> MockServer {
         let server = MockServer::start().await;
         let version = tag.trim_start_matches('v');
         let name = format!("sak-cli-{}-{version}.zip", platform());
@@ -460,6 +550,7 @@ mod tests {
                 "assets": [
                     { "name": name, "browser_download_url": format!("{}/zip", server.uri()) },
                     { "name": format!("{name}.sha256"), "browser_download_url": format!("{}/sha256", server.uri()) },
+                    { "name": format!("{name}.sigstore.json"), "browser_download_url": format!("{}/bundle", server.uri()) },
                 ],
             })))
             .mount(&server)
@@ -476,6 +567,11 @@ mod tests {
             )
             .mount(&server)
             .await;
+        Mock::given(method("GET"))
+            .and(path("/bundle"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(bundle.to_vec()))
+            .mount(&server)
+            .await;
         server
     }
 
@@ -484,6 +580,7 @@ mod tests {
             api: server.uri(),
             current,
             https_only: false,
+            signature: fake_signature,
         }
     }
 
@@ -585,6 +682,86 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_zip_without_the_signature_of_the_release_workflow_replaces_nothing() {
+        let zip = zip_of(BINARIES[0], b"the new sakctl");
+        let checksum = sha256_of(&zip);
+        let server = github_signed("v0.2.0", zip, &checksum, b"signed by someone else").await;
+        let replaced = Mutex::new(Vec::new());
+        let error = updater(&server, "0.1.1")
+            .install(&recording(&replaced))
+            .await
+            .unwrap_err();
+        assert!(error.contains("is not signed"), "{error}");
+        assert!(replaced.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_release_without_a_signature_downloads_nothing() {
+        let server = MockServer::start().await;
+        let name = format!("sak-cli-{}-0.2.0.zip", platform());
+        Mock::given(method("GET"))
+            .and(path("/releases/latest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "tag_name": "v0.2.0",
+                "assets": [
+                    { "name": name, "browser_download_url": format!("{}/zip", server.uri()) },
+                    { "name": format!("{name}.sha256"), "browser_download_url": format!("{}/sha256", server.uri()) },
+                ],
+            })))
+            .mount(&server)
+            .await;
+        let error = updater(&server, "0.1.1")
+            .install(&|_| Ok(()))
+            .await
+            .unwrap_err();
+        assert!(error.contains(&format!("{name}.sigstore.json")), "{error}");
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    }
+
+    /// a blob that cosign 3 signed, keyless (from the tests of sigstore-verify, Apache-2.0): its
+    /// certificate is of an e-mail address that signed in with github
+    const BLOB: &[u8] = include_bytes!("testdata/cosign-v3-blob.txt");
+    const BLOB_BUNDLE: &[u8] = include_bytes!("testdata/cosign-v3-blob.sigstore.json");
+    const BLOB_SIGNER: &str = "w.vollprecht@gmail.com";
+    const BLOB_ISSUER: &str = "https://github.com/login/oauth";
+
+    #[test]
+    fn a_signature_is_verified_for_its_signer_against_the_trusted_root_of_sigstore() {
+        use sigstore_verify::IdentityMatcher;
+        let version = Version::new(0, 2, 0);
+        let check = |blob: &[u8], bundle: &[u8], signer: &str, issuer: &str| {
+            verify_signed_by(
+                blob,
+                bundle,
+                "blob",
+                &version,
+                IdentityMatcher::Email(signer.to_string()),
+                issuer,
+            )
+        };
+        assert_eq!(check(BLOB, BLOB_BUNDLE, BLOB_SIGNER, BLOB_ISSUER), Ok(()));
+        // another signer, another issuer, another content, no bundle
+        assert!(check(BLOB, BLOB_BUNDLE, "someone@example.org", BLOB_ISSUER).is_err());
+        assert!(check(BLOB, BLOB_BUNDLE, BLOB_SIGNER, SIGNER_ISSUER).is_err());
+        assert!(check(b"another blob", BLOB_BUNDLE, BLOB_SIGNER, BLOB_ISSUER).is_err());
+        let error = check(BLOB, b"not json", BLOB_SIGNER, BLOB_ISSUER).unwrap_err();
+        assert!(
+            error.starts_with("blob is not signed by the release workflow of 0.2.0"),
+            "{error}"
+        );
+        // valid, but not by the release workflow
+        assert!(verify_signature(BLOB, BLOB_BUNDLE, "blob", &version).is_err());
+    }
+
+    #[test]
+    fn the_zips_of_a_release_are_signed_by_the_workflow_at_its_tag() {
+        assert_eq!(
+            signer(&Version::new(1, 2, 3)),
+            "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml@refs/tags/v1.2.3"
+        );
+    }
+
+    #[tokio::test]
     async fn a_release_without_the_zip_of_the_platform_says_so() {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
@@ -624,6 +801,7 @@ mod tests {
             api: "http://api.github.com/repos/x".into(),
             current: "0.1.1",
             https_only: true,
+            signature: verify_signature,
         };
         assert!(updater.check().await.is_err());
     }
@@ -634,6 +812,7 @@ mod tests {
             api: API.into(),
             current: "0.1.1",
             https_only: true,
+            signature: verify_signature,
         };
         let error = updater
             .download("https://example.org/sak-cli.zip")

@@ -206,6 +206,7 @@ common:
     unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
     no_asset: "Das Release %{version} hat kein %{name}."
     checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+    signature_invalid: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
     no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
     not_replaced: "sakctl unter %{path} konnte nicht ersetzt werden: %{error}"
 cli:

@@ -59,11 +59,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   to the provisioning container; it never touches disk, but with a remote, unencrypted `DOCKER_HOST` it would cross
   the network. Accepted for now: sakctl expects the local engine. To revisit: refuse a plain tcp engine.
 
-- **Updates are not verified against their signature.** sakctl checks an update against the checksum of the same
-  release, which proves it is complete, not who made it. The release signs each zip with cosign (keyless, a
-  certificate of the workflow of the tag), but only someone who runs `cosign verify-blob` checks it, sakctl does not.
-  Accepted for now: the release page and the installation are trusted the same way. To revisit: sakctl verifies the
-  signature before it replaces itself.
+- **The trusted root of sigstore is built into sakctl.** An update is verified offline against the trusted root of
+  the sakctl that installs it, so no host but GitHub sees the update. If sigstore replaces its root keys, a sakctl
+  older than the change can no longer verify a new release and has to be installed again by hand. Accepted: the keys
+  of the root change rarely and with notice. To revisit: fetch the trusted root through the TUF repository of
+  sigstore.
 
 - **A label can be lost while a note is saved.** If the user deletes a new label on another device in the same
   moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes

@@ -90,7 +90,8 @@ cosign answers `Verified OK`. Any other answer means the zip file was not made b
 
 sakctl only updates when you ask. In the UI, click **Check for updates** in the footer, then **Update to** the new
 version, then **Restart**. On the command line, `sakctl update` updates and `sakctl update --check` only checks. sakctl
-downloads the newest release from GitHub, verifies its SHA-256 checksum and replaces itself.
+downloads the newest release from GitHub, verifies its SHA-256 checksum and its signature by the release workflow of
+the release and replaces itself.
 
 The next deploy updates the server of the SAK instance to the same version.
 
