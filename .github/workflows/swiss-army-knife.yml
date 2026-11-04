@@ -7,7 +7,8 @@
 # all of them as <VERSION> (release), and after the release the documentation as the github pages
 # of the repository. Every image pushed is signed with cosign, keyless, as the workflow at its ref. Everything that
 # can be is cached: the mise tools, gradle, npm, cargo, the apt packages and the docker layers (in
-# the registry).
+# the registry). Every action is pinned to the commit of its version (renovate moves the pins):
+# a moved tag of an action runs nothing here, the jobs sign the releases and the images.
 name: swiss-army-knife
 
 on:
@@ -18,9 +19,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# contents: read only; the jobs that push images or publish declare their own permissions, the
+# others get no token that writes anything (e.g. the build cache of the images, which a push
+# reads)
 permissions:
   contents: read
-  packages: write
 
 # one run at a time per branch, a newer push cancels the run before: only the newest commit
 # counts, and the images are never pushed by two runs at once (an older run can not overwrite
@@ -62,26 +65,26 @@ jobs:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # sakctl builds against webkitgtk
       - if: matrix.part == 'cli'
-        uses: awalsh128/cache-apt-pkgs-action@v1
+        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
         with:
           packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
           version: 1
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install_args: ${{ matrix.tools }}
       - if: matrix.part != 'cli'
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - if: matrix.part != 'cli'
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.npm
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
       - if: matrix.part == 'cli'
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: |
             sak-cli/src-tauri -> target
@@ -89,7 +92,7 @@ jobs:
           key: test-unit
       - run: mise run ${{ matrix.part }}:test:unit
       - if: ${{ !cancelled() }}
-        uses: mikepenz/action-junit-report@v6
+        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
         with:
           check_name: unit tests (${{ matrix.part }})
           report_paths: ${{ matrix.reports }}
@@ -115,20 +118,20 @@ jobs:
       id-token: write
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # the backend's distribution comes from gradle, which builds the frontend with npm
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install_args: java node
-      - uses: gradle/actions/setup-gradle@v6
-      - uses: actions/cache@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.npm
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
       # arm64 is built with qemu, buildx pushes both platforms under one tag
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       # the cache of the images may be private
       - run: mise run registry:login
         env:
@@ -157,13 +160,13 @@ jobs:
       id-token: write
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
       # arm64 is built with qemu, buildx pushes both platforms under one tag
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       # the images and their cache may be private
       - run: mise run registry:login
         env:
@@ -200,56 +203,88 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.platform == 'linux'
-        uses: awalsh128/cache-apt-pkgs-action@v1
+        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
         with:
           packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
           version: 1
       # the tools are installed after the action, saved to its cache in its post step
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
           cache_save_post: true
       - run: mise install rust node npm:@tauri-apps/cli
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: sak-cli/src-tauri -> target
           key: ${{ matrix.platform }}
       - run: mise run cli:build:${{ matrix.platform }}
       # the zip as it is, named like the file; a zip of the artifact would lose the executable bit
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip
           archive: false
           if-no-files-found: error
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip.sha256
           archive: false
           if-no-files-found: error
 
   # the android apps (android/): their tests, their release apks and their bundles for google play on
-  # every build, so a broken release build shows before a tag; signed only for a tag, with the key of
-  # the secrets (mise run github:secrets:update), unsigned otherwise. The apks and their checksums are
+  # every build but a tag, unsigned, so a broken release build shows before a tag. The apks and their checksums are
   # one artifact, the bundles and the maps of r8 another
   sak-android-apps:
+    if: github.ref_type != 'tag'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install_args: java
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - run: mise run android:sdk:build
+      - run: mise run android:test
+      - run: mise run android:release:build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-apks
+          path: |
+            android/build/sak-*.apk
+            android/build/sak-*.apk.sha256
+          if-no-files-found: error
+      # the bundles for google play and the maps of r8, uploaded to the play console by hand
+      - run: mise run android:play:build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-play
+          path: |
+            android/build/sak-*.aab
+            android/build/sak-*-mapping.txt
+          if-no-files-found: error
+
+  # the same on a tag, signed: the keystore is a secret of the environment release, which only a
+  # job of a tag v* gets, so no other job and no other build sees it (mise run github:secrets:update)
+  sak-android-apps-release:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: java
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - run: mise run android:sdk:build
       - run: mise run android:test
       - run: mise run android:release:build
         env:
-          ANDROID_KEYSTORE: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE || '' }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
-          ANDROID_KEY_ALIAS: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_ALIAS || '' }}
-          ANDROID_KEY_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_PASSWORD || '' }}
-      - uses: actions/upload-artifact@v7
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-apks
           path: |
@@ -259,11 +294,11 @@ jobs:
       # the bundles for google play and the maps of r8, uploaded to the play console by hand
       - run: mise run android:play:build
         env:
-          ANDROID_KEYSTORE: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE || '' }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
-          ANDROID_KEY_ALIAS: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_ALIAS || '' }}
-          ANDROID_KEY_PASSWORD: ${{ github.ref_type == 'tag' && secrets.ANDROID_KEY_PASSWORD || '' }}
-      - uses: actions/upload-artifact@v7
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-play
           path: |
@@ -278,24 +313,24 @@ jobs:
     needs: sakctl
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # go fetches the theme, a hugo module
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install_args: hugo-extended go
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: sak-cli-*.sha256
           path: sak-cli/build
           merge-multiple: true
       - id: pages
         if: github.ref_type == 'tag'
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - run: mise run docs:build
         env:
           HUGO_BASEURL: ${{ steps.pages.outputs.base_url }}/
       - if: github.ref_type == 'tag'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: build/site
 
@@ -307,25 +342,25 @@ jobs:
   # run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
+    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps-release, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       packages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - run: mise run registry:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run release:docker
       # the zips as they are; without skip-decompress they would be extracted
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: sak-cli-*
           path: sak-cli/build
@@ -336,11 +371,11 @@ jobs:
       - run: mise run cli:release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: android-apks
           path: android/build
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: android-play
           path: android/build
@@ -363,4 +398,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

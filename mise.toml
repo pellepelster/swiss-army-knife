@@ -228,8 +228,10 @@ rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
 # installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release)
 # each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
 # of the tag (its id token, permission id-token: write), the signature and the certificate in
-# <zip>.sigstore.json. Each signature is verified for the identity the installation names before
-# the release gets it
+# <zip>.sigstore.json. Each signature is verified for the identity the installation names and
+# against the trusted root of sigstore that sakctl embeds (sak-cli/src-tauri/trusted_root.json, the
+# one sakctl update verifies with), so a root cosign knows but sakctl does not fails the release
+# here, not the users
 [tasks."cli:release"]
 description = "Publish the GitHub release of sakctl"
 dir = "{{config_root}}/sak-cli"
@@ -242,7 +244,8 @@ for platform in linux-x86_64 macos-universal windows-x86_64; do
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
   cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
   cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com "$zip"
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --trusted-root {{config_root}}/sak-cli/src-tauri/trusted_root.json "$zip"
   files="$files $zip $zip.sha256 $zip.sigstore.json"
 done
 # created once; a release that failed halfway runs again, its files are replaced
@@ -349,7 +352,8 @@ set -eu
 git fetch --tags origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "main is not the same as origin/main" >&2; exit 1; }
 version=$(svu patch)
-git tag -a "$version" -m "Release $version"
+# signed: the ruleset of the tags v* takes no other
+git tag -s "$version" -m "Release $version"
 git push origin "$version"
 echo "tagged $version, the workflow builds and releases it"
 """
@@ -357,8 +361,8 @@ echo "tagged $version, the workflow builds and releases it"
 # the image IMAGE as buildx pushed it (its --metadata-file METADATA) signed with cosign, keyless:
 # a short-lived certificate of sigstore for the workflow run (its id token, permission
 # id-token: write), the signature next to the digest in the registry. Verified for the identity
-# sakctl checks before it pulls the image. Outside of the workflow nothing is signed: a push from
-# a machine of a developer has no id token of the workflow
+# sakctl checks before it pulls the image, against the trusted root sakctl embeds. Outside of the
+# workflow nothing is signed: a push from a machine of a developer has no id token of the workflow
 [tasks."image:sign"]
 description = "Sign a pushed image with cosign, in the workflow only"
 run = """
@@ -370,7 +374,8 @@ fi
 digest=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$METADATA")
 cosign sign --yes "$IMAGE@$digest"
 cosign verify --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com "$IMAGE@$digest" >/dev/null
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --trusted-root {{config_root}}/sak-cli/src-tauri/trusted_root.json "$IMAGE@$digest" >/dev/null
 echo "signed $IMAGE@$digest"
 """
 
@@ -961,16 +966,18 @@ RENOVATE_TOKEN="$GITHUB_COM_TOKEN" RENOVATE_BASE_DIR="{{config_root}}/build/reno
   --schedule='["at any time"]' ${RENOVATE_DRY_RUN:+--dry-run="$RENOVATE_DRY_RUN"} pellepelster/swiss-army-knife
 '''
 
+# the secrets of the environment release of the repository, which only the jobs of a tag v* get
+# (the signed android apps): the keystore is the identity of the apps, no other job sees it
 [tasks."github:secrets:update"]
-description = "Set the GitHub secrets from pass"
+description = "Set the GitHub secrets of the environment release from pass"
 run = """
 #!/usr/bin/env bash
 set -euo pipefail
 repo=pellepelster/swiss-army-knife
-pass show sak/android/signing-key | head -n1 | gh secret set ANDROID_KEYSTORE --repo "$repo"
-pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEYSTORE_PASSWORD --repo "$repo"
-pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEY_PASSWORD --repo "$repo"
-printf sak-grocery | gh secret set ANDROID_KEY_ALIAS --repo "$repo"
+pass show sak/android/signing-key | head -n1 | gh secret set ANDROID_KEYSTORE --repo "$repo" --env release
+pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEYSTORE_PASSWORD --repo "$repo" --env release
+pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEY_PASSWORD --repo "$repo" --env release
+printf sak-grocery | gh secret set ANDROID_KEY_ALIAS --repo "$repo" --env release
 """
 
 [tasks."android:test"]

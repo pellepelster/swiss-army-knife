@@ -753,6 +753,17 @@ mod tests {
         assert!(verify_signature(BLOB, BLOB_BUNDLE, "blob", &version).is_err());
     }
 
+    /// the release verifies what it signed with cosign against this file (`mise run cli:release`,
+    /// `image:sign`), so a root of sigstore that cosign knows and sakctl does not fails there
+    #[test]
+    fn the_trusted_root_of_the_repository_is_the_one_sakctl_embeds() {
+        assert_eq!(
+            include_str!("../../trusted_root.json"),
+            sigstore_verify::trust_root::SIGSTORE_PRODUCTION_TRUSTED_ROOT,
+            "trusted_root.json next to Cargo.toml is not the trusted root of sigstore-verify, copy it from the crate"
+        );
+    }
+
     #[test]
     fn the_zips_of_a_release_are_signed_by_the_workflow_at_its_tag() {
         assert_eq!(
