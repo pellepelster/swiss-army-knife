@@ -25,7 +25,7 @@ function chartSurface(): string {
   const sheet =
     typeof document === 'undefined'
       ? ''
-      : getComputedStyle(document.documentElement).getPropertyValue('--sheet').trim();
+      : getComputedStyle(document.documentElement).getPropertyValue('--sak-surface').trim();
   return sheet || '#fbfaf6';
 }
 

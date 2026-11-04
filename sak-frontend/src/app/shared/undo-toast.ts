@@ -33,7 +33,7 @@ export const UNDO_DELETE_MS = 2000;
       // bootstrap sets these on .progress itself
       .progress {
         --bs-progress-height: 4px;
-        --bs-progress-bar-bg: var(--ink);
+        --bs-progress-bar-bg: var(--sak-ink);
       }
     }
 

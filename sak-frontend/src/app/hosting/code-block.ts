@@ -9,19 +9,13 @@ import { CopyButton } from '../shared/copy-button';
   selector: 'app-code-block',
   imports: [CopyButton, TranslatePipe],
   styles: `
-    // a terminal window, dark in light and dark mode alike
+    // a terminal window, dark in light and dark mode alike (the terminal tokens of sak-theme)
     :host {
-      --terminal: #1d1c1a;
-      --terminal-bar: #2b2a27;
-      --terminal-text: #ece8dd;
-      --terminal-muted: #9b968b;
-      --terminal-prompt: #8fd18b;
-
       display: block;
       overflow: hidden;
       border-radius: var(--bs-border-radius-lg);
-      background: var(--terminal);
-      color: var(--terminal-text);
+      background: var(--sak-terminal);
+      color: var(--sak-terminal-ink);
       box-shadow: 0 6px 16px -10px rgb(0 0 0 / 60%);
     }
     .bar {
@@ -29,8 +23,8 @@ import { CopyButton } from '../shared/copy-button';
       align-items: center;
       gap: 8px;
       padding: 6px 8px 6px 12px;
-      background: var(--terminal-bar);
-      color: var(--terminal-muted);
+      background: var(--sak-terminal-bar);
+      color: var(--sak-terminal-muted);
       font-size: 0.85rem;
     }
     .dots {
@@ -44,19 +38,19 @@ import { CopyButton } from '../shared/copy-button';
       border-radius: 50%;
     }
     .dots span:nth-child(1) {
-      background: #ff5f57;
+      background: var(--sak-danger);
     }
     .dots span:nth-child(2) {
-      background: #febc2e;
+      background: var(--sak-warn);
     }
     .dots span:nth-child(3) {
-      background: #28c840;
+      background: var(--sak-ok);
     }
     .name {
       flex: 1;
       min-width: 0;
       overflow: hidden;
-      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      font-family: var(--sak-font-mono);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -64,18 +58,18 @@ import { CopyButton } from '../shared/copy-button';
       margin: 0;
       padding: 12px 14px;
       overflow-x: auto;
-      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      font-family: var(--sak-font-mono);
       font-size: 0.85rem;
       line-height: 1.55;
     }
     .prompt {
-      color: var(--terminal-prompt);
+      color: var(--sak-accent);
       user-select: none;
     }
     p {
       margin: 0;
       padding: 0 14px 12px;
-      color: #f2b8b5;
+      color: var(--sak-danger);
     }
   `,
   template: `

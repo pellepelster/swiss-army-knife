@@ -1,30 +1,39 @@
 /* the components every consumer draws the same way, on the tokens: the state of a thing as
-   an led square, the led pill with a word, the mono label over data */
+   an led square, the led pill with a word, the plus sign, mono data */
 
-/* a state as a small square led that glows in its color, `data-sak-state` names the state */
-.sak-led {
-  display: inline-block;
+/* the color of a state, `data-sak-state` one of ok, info, warn, danger, neutral, busy (still
+   changing, in the color of info) */
+[data-sak-state='ok'] { --sak-state: var(--sak-ok); }
+[data-sak-state='info'],
+[data-sak-state='busy'] { --sak-state: var(--sak-info); }
+[data-sak-state='warn'] { --sak-state: var(--sak-warn); }
+[data-sak-state='danger'] { --sak-state: var(--sak-danger); }
+[data-sak-state='neutral'] { --sak-state: var(--sak-neutral); }
+
+/* a state as a small square led that glows in its color; a neutral one does not glow */
+.sak-led,
+.sak-status::before {
   flex: none;
   width: 7px;
   height: 7px;
   border-radius: 1px;
   background: currentColor;
   box-shadow: 0 0 5px currentColor;
+}
+
+.sak-led {
+  display: inline-block;
+  color: var(--sak-state);
   vertical-align: middle;
 }
 
-.sak-led[data-sak-state='ok'] { color: var(--sak-ok); }
-.sak-led[data-sak-state='info'] { color: var(--sak-info); }
-.sak-led[data-sak-state='warn'] { color: var(--sak-warn); }
-.sak-led[data-sak-state='danger'] { color: var(--sak-danger); }
-.sak-led[data-sak-state='neutral'] {
-  color: var(--sak-neutral);
+.sak-led[data-sak-state='neutral'],
+.sak-status[data-sak-state='neutral']::before {
   box-shadow: none;
 }
 
 /* a state still changing: the led pulses */
 .sak-led[data-sak-state='busy'] {
-  color: var(--sak-info);
   animation: sak-led-pulse 0.9s ease-out infinite;
 }
 
@@ -45,52 +54,10 @@
   text-transform: uppercase;
   white-space: nowrap;
   padding: 0.18rem 0.55rem 0.18rem 0.45rem;
-  border: 1px solid transparent;
+  border: 1px solid color-mix(in srgb, var(--sak-state) 34%, transparent);
   border-radius: var(--sak-radius-sm);
-}
-
-.sak-status::before {
-  content: '';
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 1px;
-  background: currentColor;
-  box-shadow: 0 0 5px currentColor;
-}
-
-.sak-status[data-sak-state='ok'] {
-  color: var(--sak-ok);
-  background: color-mix(in srgb, var(--sak-ok) 13%, transparent);
-  border-color: color-mix(in srgb, var(--sak-ok) 34%, transparent);
-}
-
-.sak-status[data-sak-state='info'] {
-  color: var(--sak-info);
-  background: color-mix(in srgb, var(--sak-info) 13%, transparent);
-  border-color: color-mix(in srgb, var(--sak-info) 34%, transparent);
-}
-
-.sak-status[data-sak-state='warn'] {
-  color: var(--sak-warn);
-  background: color-mix(in srgb, var(--sak-warn) 13%, transparent);
-  border-color: color-mix(in srgb, var(--sak-warn) 34%, transparent);
-}
-
-.sak-status[data-sak-state='danger'] {
-  color: var(--sak-danger);
-  background: color-mix(in srgb, var(--sak-danger) 13%, transparent);
-  border-color: color-mix(in srgb, var(--sak-danger) 34%, transparent);
-}
-
-.sak-status[data-sak-state='neutral'] {
-  color: var(--sak-neutral);
-  background: color-mix(in srgb, var(--sak-neutral) 13%, transparent);
-  border-color: color-mix(in srgb, var(--sak-neutral) 34%, transparent);
-}
-
-.sak-status[data-sak-state='neutral']::before {
-  box-shadow: none;
+  background: color-mix(in srgb, var(--sak-state) 13%, transparent);
+  color: var(--sak-state);
 }
 
 /* the plus sign every button that creates or adds something starts with, `<i class="sak-icon-plus"
@@ -104,34 +71,6 @@
   background: currentColor;
   -webkit-mask: url('icons/plus.svg') center / contain no-repeat;
   mask: url('icons/plus.svg') center / contain no-repeat;
-}
-
-/* a terminal: what a tool prints, always dark whatever the scheme */
-.sak-terminal {
-  margin: 0;
-  padding: 0.9rem;
-  max-height: 20rem;
-  overflow: auto;
-  background: #0a0c0b;
-  color: #cdd6d0;
-  font-family: var(--sak-font-mono);
-  font-size: 0.78rem;
-  line-height: 1.6;
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius-lg);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-/* a label over data, small uppercase mono */
-.sak-label {
-  font-family: var(--sak-font-mono);
-  font-size: var(--sak-text-label);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--sak-muted);
 }
 
 /* data: identifiers, addresses, keys */

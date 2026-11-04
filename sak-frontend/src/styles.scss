@@ -1,15 +1,6 @@
-// the colors of the wall are the tokens of sak-theme (node_modules/sak-theme/tokens.css, light and
-// dark), bootstrap is mapped onto them there; the names below are what the components and the
-// notes read. The post-its keep their paper colors in dark mode
+// the colors are the tokens of sak-theme (node_modules/sak-theme/tokens.css, light and dark),
+// bootstrap is mapped onto them there; the post-its keep their paper colors in dark mode
 :root {
-  --wall: var(--sak-bg);
-  --ink: var(--sak-ink);
-  --muted: var(--sak-muted);
-  --line: var(--sak-line);
-  // a surface on the wall, e.g. a form or a table
-  --sheet: var(--sak-surface);
-  --danger: var(--sak-danger);
-
   --note-yellow: #fff59d;
   --note-pink: #f8bbd0;
   --note-blue: #b3e5fc;
@@ -24,26 +15,26 @@
 .list-group-flush {
   --bs-list-group-bg: transparent;
   --bs-list-group-color: inherit;
-  --bs-list-group-border-color: var(--line);
+  --bs-list-group-border-color: var(--sak-line);
 }
 
 // the menu of a row (shared/row-menu.ts) on the surface, as the cards it opens over
 .dropdown-menu {
   --bs-dropdown-bg: var(--sak-surface);
-  --bs-dropdown-color: var(--ink);
-  --bs-dropdown-border-color: var(--line);
-  --bs-dropdown-link-color: var(--ink);
-  --bs-dropdown-link-hover-color: var(--ink);
+  --bs-dropdown-color: var(--sak-ink);
+  --bs-dropdown-border-color: var(--sak-line);
+  --bs-dropdown-link-color: var(--sak-ink);
+  --bs-dropdown-link-hover-color: var(--sak-ink);
   --bs-dropdown-link-hover-bg: var(--sak-raised);
-  --bs-dropdown-link-active-color: var(--ink);
+  --bs-dropdown-link-active-color: var(--sak-ink);
   --bs-dropdown-link-active-bg: var(--sak-raised);
-  --bs-dropdown-link-disabled-color: var(--muted);
+  --bs-dropdown-link-disabled-color: var(--sak-muted);
 }
 
 .table {
   --bs-table-bg: transparent;
   --bs-table-color: inherit;
-  --bs-table-border-color: var(--line);
+  --bs-table-border-color: var(--sak-line);
 }
 
 body {
@@ -51,7 +42,7 @@ body {
 }
 
 a {
-  text-decoration-color: var(--muted);
+  text-decoration-color: var(--sak-muted);
   text-underline-offset: 3px;
 }
 
@@ -265,22 +256,6 @@ a {
 }
 
 .photo-discover {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(0 0 0 / 55%);
-  color: #fff;
-  font-size: 0.8rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.photo-discover {
   top: auto;
   bottom: 4px;
 
@@ -335,7 +310,7 @@ a {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--bs-border-radius);
   background: transparent;
   color: inherit;
   font-size: 1rem;
@@ -374,25 +349,14 @@ a {
 }
 
 // a button in the input group of a field, e.g. the icon of a category or the robot by the name of
-// an item: in the fill and the line of the field, so the two read as one field, not as a button
-// under it
+// an item: in the fill of the field, so the two read as one field, not as a button under it; the
+// line of the field comes with btn-outline-secondary
 .btn-field {
   --bs-btn-bg: var(--sak-field);
-  --bs-btn-border-color: var(--sak-field-line);
   --bs-btn-hover-bg: var(--sak-field);
-  --bs-btn-active-bg: var(--sak-raised);
-  --bs-btn-active-border-color: var(--sak-field-line);
   --bs-btn-disabled-bg: var(--sak-field);
-  --bs-btn-disabled-border-color: var(--sak-field-line);
   // not faded, so its line stays the one of the field; the muted icon says it is disabled
   --bs-btn-disabled-opacity: 1;
-}
-
-// the other buttons of a group in the line of the fields, so they hold their own next to the
-// outlines of danger and the accent
-.btn-group > .btn-outline-secondary:not(.btn-field-primary) {
-  --bs-btn-border-color: var(--sak-field-line);
-  --bs-btn-disabled-border-color: var(--sak-field-line);
 }
 
 // the main action next to a field or in a group in the outline of the accent, e.g. add or save
@@ -468,6 +432,6 @@ a {
 // thick red line, seen at once
 .item-struck {
   text-decoration-line: line-through;
-  text-decoration-color: var(--bs-danger);
+  text-decoration-color: var(--sak-danger);
   text-decoration-thickness: 2px;
 }

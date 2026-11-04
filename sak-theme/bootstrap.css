@@ -1,7 +1,7 @@
 /* bootstrap in the colors, fonts and radii of the tokens: bootstrap 5.3 reads its --bs-*
    custom properties at runtime, so this maps them and nothing of bootstrap is built. Load
    after bootstrap.min.css and tokens.css. Buttons: btn-primary is the accent, the one action
-   of a page; btn-outline-secondary every other, on the raised fill with the line;
+   of a page; btn-outline-secondary every other, on the raised fill in the line of the fields;
    btn-outline-danger one that leads to a delete, on the same fill in the color of danger */
 :root,
 [data-bs-theme] {
@@ -45,6 +45,11 @@
 .text-warning { color: var(--sak-warn) !important; }
 .text-danger { color: var(--sak-danger) !important; }
 
+/* a badge filled in a state, its text in the ink that reads on the accent */
+.text-bg-success { color: var(--sak-accent-ink) !important; background-color: var(--sak-ok) !important; }
+.text-bg-danger { color: var(--sak-accent-ink) !important; background-color: var(--sak-danger) !important; }
+.text-bg-secondary { color: var(--sak-accent-ink) !important; background-color: var(--sak-neutral) !important; }
+
 h1, h2, h3, .h1, .h2, .h3 {
   letter-spacing: -0.01em;
 }
@@ -64,34 +69,29 @@ code {
 }
 
 .btn-primary {
-  --bs-btn-color: var(--sak-accent-ink);
-  --bs-btn-bg: var(--sak-accent);
-  --bs-btn-border-color: var(--sak-accent);
-  --bs-btn-hover-color: var(--sak-accent-ink);
-  --bs-btn-hover-bg: color-mix(in srgb, var(--sak-accent) 88%, var(--sak-ink));
-  --bs-btn-hover-border-color: color-mix(in srgb, var(--sak-accent) 88%, var(--sak-ink));
-  --bs-btn-active-color: var(--sak-accent-ink);
-  --bs-btn-active-bg: color-mix(in srgb, var(--sak-accent) 80%, var(--sak-ink));
-  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-accent) 80%, var(--sak-ink));
-  --bs-btn-disabled-color: var(--sak-accent-ink);
-  --bs-btn-disabled-bg: var(--sak-accent);
-  --bs-btn-disabled-border-color: var(--sak-accent);
+  --sak-tone: var(--sak-accent);
 }
 
 /* the one action that takes something away */
 .btn-danger {
+  --sak-tone: var(--sak-danger);
+}
+
+/* filled in the tone, a little darker on hover and when pressed */
+.btn-primary,
+.btn-danger {
   --bs-btn-color: var(--sak-accent-ink);
-  --bs-btn-bg: var(--sak-danger);
-  --bs-btn-border-color: var(--sak-danger);
+  --bs-btn-bg: var(--sak-tone);
+  --bs-btn-border-color: var(--sak-tone);
   --bs-btn-hover-color: var(--sak-accent-ink);
-  --bs-btn-hover-bg: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
-  --bs-btn-hover-border-color: color-mix(in srgb, var(--sak-danger) 88%, var(--sak-ink));
+  --bs-btn-hover-bg: color-mix(in srgb, var(--sak-tone) 88%, var(--sak-ink));
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--sak-tone) 88%, var(--sak-ink));
   --bs-btn-active-color: var(--sak-accent-ink);
-  --bs-btn-active-bg: color-mix(in srgb, var(--sak-danger) 80%, var(--sak-ink));
-  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-danger) 80%, var(--sak-ink));
+  --bs-btn-active-bg: color-mix(in srgb, var(--sak-tone) 80%, var(--sak-ink));
+  --bs-btn-active-border-color: color-mix(in srgb, var(--sak-tone) 80%, var(--sak-ink));
   --bs-btn-disabled-color: var(--sak-accent-ink);
-  --bs-btn-disabled-bg: var(--sak-danger);
-  --bs-btn-disabled-border-color: var(--sak-danger);
+  --bs-btn-disabled-bg: var(--sak-tone);
+  --bs-btn-disabled-border-color: var(--sak-tone);
 }
 
 /* the button that leads to taking something away (UX-3): the raised fill of the other buttons,
@@ -111,19 +111,21 @@ code {
   --bs-btn-disabled-border-color: var(--sak-danger);
 }
 
+/* every other button: the raised fill in the line of the fields, so it holds its own next to the
+   outlines of danger and the accent */
 .btn-outline-secondary {
   --bs-btn-color: var(--sak-ink);
   --bs-btn-bg: var(--sak-raised);
-  --bs-btn-border-color: var(--sak-line);
+  --bs-btn-border-color: var(--sak-field-line);
   --bs-btn-hover-color: var(--sak-ink);
   --bs-btn-hover-bg: var(--sak-raised);
   --bs-btn-hover-border-color: var(--sak-accent);
   --bs-btn-active-color: var(--sak-ink);
   --bs-btn-active-bg: var(--sak-line);
-  --bs-btn-active-border-color: var(--sak-line);
+  --bs-btn-active-border-color: var(--sak-field-line);
   --bs-btn-disabled-color: var(--sak-muted);
   --bs-btn-disabled-bg: var(--sak-raised);
-  --bs-btn-disabled-border-color: var(--sak-line);
+  --bs-btn-disabled-border-color: var(--sak-field-line);
 }
 
 /* a label over its input, small uppercase mono; the input on the raised fill */
@@ -137,12 +139,7 @@ code {
   color: var(--sak-muted);
 }
 
-.form-control {
-  background-color: var(--sak-field);
-  border-color: var(--sak-field-line);
-  color: var(--sak-ink);
-}
-
+.form-control,
 .form-select {
   background-color: var(--sak-field);
   border-color: var(--sak-field-line);
@@ -154,14 +151,13 @@ code {
   border-color: var(--sak-field-line);
 }
 
-.form-select:focus,
-.form-control:focus {
+.form-control:focus,
+.form-select:focus {
   background-color: var(--sak-field);
-  border-color: var(--sak-accent);
   color: var(--sak-ink);
-  box-shadow: 0 0 0 0.2rem var(--sak-accent-ring);
 }
 
+.form-control:focus,
 .form-select:focus,
 .form-check-input:focus {
   border-color: var(--sak-accent);
@@ -208,4 +204,23 @@ code {
 .list-group-item-action:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 1px var(--sak-accent);
+}
+
+/* an alert tinted with its state, as .sak-status; the text in the ink that reads on it */
+.alert-success {
+  --sak-tone: var(--sak-ok);
+  --bs-alert-color: var(--sak-ink);
+  --bs-alert-link-color: var(--sak-ink);
+}
+
+.alert-danger {
+  --sak-tone: var(--sak-danger);
+  --bs-alert-color: var(--sak-danger-text);
+  --bs-alert-link-color: var(--sak-danger-text);
+}
+
+.alert-success,
+.alert-danger {
+  --bs-alert-bg: color-mix(in srgb, var(--sak-tone) 13%, transparent);
+  --bs-alert-border-color: color-mix(in srgb, var(--sak-tone) 34%, transparent);
 }

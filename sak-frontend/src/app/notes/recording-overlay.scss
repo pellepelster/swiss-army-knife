@@ -10,7 +10,7 @@
   aspect-ratio: 1;
   border: 6px solid rgb(255 255 255 / 85%);
   font-size: clamp(2.5rem, 12vw, 4rem);
-  box-shadow: 0 0 0 0 rgb(198 40 40 / 60%);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--sak-danger) 60%, transparent);
   animation: recording-pulse 1.6s ease-out infinite;
 
   &:focus-visible {
@@ -21,7 +21,7 @@
 
 @keyframes recording-pulse {
   to {
-    box-shadow: 0 0 0 24px rgb(198 40 40 / 0%);
+    box-shadow: 0 0 0 24px transparent;
   }
 }
 

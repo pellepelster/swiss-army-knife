@@ -10,20 +10,21 @@ of the rack-led icon, IBM Plex Sans and Mono.
   `--sak-ink`, `--sak-muted`; `--sak-field` and `--sak-field-line`, the fill and the outline of a field to type in,
   3:1 against the page, the card, the raised fill and the field; `--sak-accent` and `--sak-accent-ink`; the states `--sak-ok`,
   `--sak-info`, `--sak-warn`, `--sak-danger`, `--sak-neutral`; `--sak-danger-text`, danger as
-  text on the raised fill (darker in light mode, to be readable); fonts and text sizes
+  text on the raised fill (darker in light mode, to be readable); `--sak-terminal`,
+  `--sak-terminal-bar`, `--sak-terminal-ink` and `--sak-terminal-muted`, a terminal, dark in both modes; fonts and text sizes
   (`--sak-font-sans`, `--sak-font-mono`, `--sak-text*`); `--sak-radius*`; `--sak-space-1..5`.
 - `fonts.css` and `fonts/` - IBM Plex Sans 400/600 and Mono 400/500, the latin subset, under the
   SIL open font license (`fonts/LICENSE`), self-hosted; a consumer loads nothing from outside.
 - `bootstrap.css` - bootstrap mapped onto the tokens through its `--bs-*` custom properties, loaded
   after `node_modules/bootstrap/dist/css/bootstrap.min.css` and `tokens.css`; `btn-primary` is the
-  accent, the one action of a page, `btn-outline-secondary` every other button; `form-label`,
-  `form-control`, `card` and `list-group` take the tokens. `package.json` pins bootstrap,
+  accent, the one action of a page, `btn-outline-secondary` every other button, in the line of the fields;
+  `form-label`, `form-control`, `card`, `list-group`, `alert-success`, `alert-danger` and the `text-bg-*` of the
+  states take the tokens. `package.json` pins bootstrap,
   `npm ci` here fetches it.
 - `components.css` - `.sak-icon-plus` (the plus sign every button that creates or adds something
   starts with, `icons/plus.svg` next to it: a consumer copies `icons/` with the css, a `data:` url
   would break a content security policy of `'self'`), `.sak-led` (a state as a glowing square, `data-sak-state` one of ok, info,
-  warn, danger, neutral, busy), `.sak-status` (the led with a word), `.sak-label` (a mono label
-  over data), `.sak-mono`.
+  warn, danger, neutral, busy), `.sak-status` (the led with a word), `.sak-mono`.
 
 - `images/` - every image and icon of the apps, once, read from here by each build:
   - `web/` - the favicons and `icons/` (the icons of the apps as svg and png, also for the manifests), copied to the

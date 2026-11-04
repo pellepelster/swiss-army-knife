@@ -15,8 +15,8 @@ import { Component, computed, input } from '@angular/core';
   },
   styles: `
     :host(.list-icon-letter) {
-      background: var(--bs-primary-bg-subtle);
-      color: var(--bs-primary-text-emphasis);
+      background: color-mix(in srgb, var(--sak-accent) 22%, var(--sak-surface));
+      color: var(--sak-ink);
     }
   `,
   template: `{{ icon() ?? letter() }}`,

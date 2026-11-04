@@ -35,6 +35,12 @@
   --sak-danger-text: #b8432f;
   --sak-neutral: #7c857f;
 
+  /* a terminal: what a tool prints, dark in light and dark mode alike */
+  --sak-terminal: #1d1c1a;
+  --sak-terminal-bar: #2b2a27;
+  --sak-terminal-ink: #ece8dd;
+  --sak-terminal-muted: #9b968b;
+
   --sak-font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --sak-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
   --sak-text: 0.9375rem;

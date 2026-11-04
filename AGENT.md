@@ -135,9 +135,8 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
     - Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
       templates, its spacing and corner radius included; a component sets its own layout with
       `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (its css listed in
-      `angular.json`): `bootstrap.css` there maps bootstrap onto the tokens, `src/styles.scss` only
-      aliases the names the components read (`--wall`, `--ink`, `--line`, `--sheet`, `--muted`,
-      `--danger`) and keeps the post-it colors. No color literal elsewhere. Custom css only for what
+      `angular.json`): `bootstrap.css` there maps bootstrap onto the tokens, the components read the
+      `--sak-*` tokens directly, `src/styles.scss` keeps the post-it colors. No color literal elsewhere. Custom css only for what
       bootstrap has no class for (the post-its, the terminal look of `app-code-block`, the charts,
       the stop button of the recording overlay), in the component's own stylesheet.
 
