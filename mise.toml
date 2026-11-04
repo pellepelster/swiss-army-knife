@@ -47,8 +47,10 @@ printf '%s' "$REGISTRY_PASSWORD" | docker login ghcr.io --username "$REGISTRY_US
 
 # the images: <image>:image:build|test|push, each on its own (the workflow runs them in parallel).
 # build loads the image of this platform into the local images, push builds amd64 and arm64 (the
-# other platform needs qemu) as <VERSION>-rc and the commit; release:docker makes it <VERSION>.
-# The layers are cached in the registry as tag buildcache, read by every build, written by push
+# other platform needs qemu) as SAK_PUSH_TAG (<VERSION>-rc unless set; the workflow pushes main as
+# latest) and the commit, and signs it in the workflow (image:sign); release:docker makes it
+# <VERSION>. The layers are cached in the registry as tag buildcache, read by every build, written
+# by push
 [tasks."backend:image:build"]
 description = "Build the sak-backend image"
 run = """
@@ -72,12 +74,16 @@ echo "the image of sak-backend works"
 [tasks."backend:image:push"]
 description = "Push the sak-backend image"
 run = """
+set -eu
+metadata=$(mktemp)
 ./gradlew :sak-backend:installDist
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
-  --tag {{vars.backend_image}}:${VERSION}-rc --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.backend_image}}:${SAK_PUSH_TAG:-${VERSION}-rc} --tag {{vars.backend_image}}:$(git rev-parse --short=12 HEAD) \
+  --metadata-file "$metadata" \
   --cache-from type=registry,ref={{vars.backend_image}}:buildcache \
   --cache-to type=registry,ref={{vars.backend_image}}:buildcache,mode=max,image-manifest=true \
   --push sak-backend
+IMAGE={{vars.backend_image}} METADATA="$metadata" mise run image:sign
 """
 
 [tasks."ingress:image:build"]
@@ -102,11 +108,15 @@ echo "the image of sak-ingress works"
 [tasks."ingress:image:push"]
 description = "Push the sak-ingress image"
 run = """
+set -eu
+metadata=$(mktemp)
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
-  --tag {{vars.ingress_image}}:${VERSION}-rc --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.ingress_image}}:${SAK_PUSH_TAG:-${VERSION}-rc} --tag {{vars.ingress_image}}:$(git rev-parse --short=12 HEAD) \
+  --metadata-file "$metadata" \
   --cache-from type=registry,ref={{vars.ingress_image}}:buildcache \
   --cache-to type=registry,ref={{vars.ingress_image}}:buildcache,mode=max,image-manifest=true \
   --push sak-ingress
+IMAGE={{vars.ingress_image}} METADATA="$metadata" mise run image:sign
 """
 
 # sakctl on linux needs the webkitgtk headers, on debian/ubuntu:
@@ -285,11 +295,15 @@ echo "the image of the tools works"
 description = "Push the tools image"
 dir = "{{config_root}}/sak-cli"
 run = """
+set -eu
+metadata=$(mktemp)
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" --file Dockerfile \
-  --tag {{vars.cli_image}}:${VERSION}-rc --tag {{vars.cli_image}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.cli_image}}:${SAK_PUSH_TAG:-${VERSION}-rc} --tag {{vars.cli_image}}:$(git rev-parse --short=12 HEAD) \
+  --metadata-file "$metadata" \
   --cache-from type=registry,ref={{vars.cli_image}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_image}}:buildcache,mode=max,image-manifest=true \
   --push ..
+IMAGE={{vars.cli_image}} METADATA="$metadata" mise run image:sign
 """
 
 [tasks."canary:image:build"]
@@ -312,11 +326,15 @@ echo "the canary works"
 description = "Push the canary image"
 dir = "{{config_root}}/sak-cli/canary"
 run = """
+set -eu
+metadata=$(mktemp)
 docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}" \
-  --tag {{vars.cli_canary}}:${VERSION}-rc --tag {{vars.cli_canary}}:$(git rev-parse --short=12 HEAD) \
+  --tag {{vars.cli_canary}}:${SAK_PUSH_TAG:-${VERSION}-rc} --tag {{vars.cli_canary}}:$(git rev-parse --short=12 HEAD) \
+  --metadata-file "$metadata" \
   --cache-from type=registry,ref={{vars.cli_canary}}:buildcache \
   --cache-to type=registry,ref={{vars.cli_canary}}:buildcache,mode=max,image-manifest=true \
   --push .
+IMAGE={{vars.cli_canary}} METADATA="$metadata" mise run image:sign
 """
 
 # tags and pushes the next patch version, which the workflow builds and releases; only from a clean
@@ -334,6 +352,26 @@ version=$(svu patch)
 git tag -a "$version" -m "Release $version"
 git push origin "$version"
 echo "tagged $version, the workflow builds and releases it"
+"""
+
+# the image IMAGE as buildx pushed it (its --metadata-file METADATA) signed with cosign, keyless:
+# a short-lived certificate of sigstore for the workflow run (its id token, permission
+# id-token: write), the signature next to the digest in the registry. Verified for the identity
+# sakctl checks before it pulls the image. Outside of the workflow nothing is signed: a push from
+# a machine of a developer has no id token of the workflow
+[tasks."image:sign"]
+description = "Sign a pushed image with cosign, in the workflow only"
+run = """
+set -eu
+if [ -z "${GITHUB_ACTIONS:-}" ]; then
+  echo "$IMAGE is not signed, only the workflow signs"
+  exit 0
+fi
+digest=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$METADATA")
+cosign sign --yes "$IMAGE@$digest"
+cosign verify --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com "$IMAGE@$digest" >/dev/null
+echo "signed $IMAGE@$digest"
 """
 
 [tasks."image:all:build"]

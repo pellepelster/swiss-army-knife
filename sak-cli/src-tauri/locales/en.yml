@@ -173,6 +173,12 @@ common:
     busy: "Another backup, restore, update, restart or reboot runs on the server, try again when it is done."
     failed: "The server failed: %{error}"
     unreadable: "The server answered something that is not readable: %{error}"
+  images:
+    not_signed: "%{image} has no signature, sakctl does not pull it."
+    signature_invalid: "%{image} is not signed by %{signer}, sakctl does not pull it: %{error}"
+    failed: "%{url} answered %{status}."
+    unreachable: "%{url} could not be reached: %{error}"
+    unreadable: "The answer of %{url} could not be read: %{error}"
   maintenance:
     timeout: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."
     connecting: "Asking the server of %{name} at root@%{host}…"

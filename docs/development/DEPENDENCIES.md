@@ -21,7 +21,7 @@ group of updates. The workflow tests each pull request as it tests every other p
 | `sak-frontend/package.json`, `sak-theme/package.json` | The npm packages and npm (`packageManager`). |
 | `sak-cli/src-tauri/Cargo.toml`, `sak-cli/cloud/Cargo.toml` | The crates. |
 | `*/Dockerfile` | The base images. In `sak-cli/Dockerfile` also the `ansible` package (the `# renovate:` comment). |
-| `ansible/roles/*/defaults/main.yml` | The images with a pinned tag (`<name>_image: docker.io/<image>:<tag>`). |
+| `ansible/roles/*/defaults/main.yml` | The images with a pinned tag and digest (`<name>_image: docker.io/<image>:<tag>@<digest>`). |
 | `ansible/requirements.yml` | The Ansible collections. |
 | `config/local-compose.yaml` | The images of the local environment. |
 | `site/go.mod` | Go. |

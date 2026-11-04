@@ -12,29 +12,24 @@ use std::time::{Duration, Instant};
 
 // tried in this order; sakctl uses the first one that works
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
-// a small image that shows that a runtime pulls and runs images (canary/Dockerfile). The name
-// is fully qualified, because without a tty podman refuses a short name
-fn canary_image() -> &'static str {
-    static CANARY: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-        format!(
-            "ghcr.io/pellepelster/sak-cli-docker-canary:{}",
-            crate::core::image_tag()
-        )
-    });
-    &CANARY
+// a small image that shows that a runtime pulls and runs images (canary/Dockerfile), run by the
+// digest whose signature is verified (`core::images`). The name is fully qualified, because
+// without a tty podman refuses a short name
+fn canary_image() -> Result<String, String> {
+    crate::core::images::reference(crate::core::images::CANARY)
 }
 const CANARY_ANSWER: &str = "sak-cli-docker-canary";
 // the image of the tools (Dockerfile) of the tag of sakctl (`core::image_tag`, its version unless
-// SAK_DOCKER_IMAGE_TAG says otherwise), pulled on every start
+// SAK_DOCKER_IMAGE_TAG says otherwise), pulled on every start: by the digest whose signature the
+// pull verified (`pinned`) once it is pulled, by its tag before
 pub fn image() -> &'static str {
-    static IMAGE: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-        format!(
-            "ghcr.io/pellepelster/sak-cli-tools:{}",
-            crate::core::image_tag()
-        )
+    static TAGGED: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        crate::core::images::tagged(crate::core::images::TOOLS, crate::core::image_tag())
     });
-    &IMAGE
+    PINNED.get().map(String::as_str).unwrap_or(&TAGGED)
 }
+// the image of the tools as the pull verified it, what every run of the tools runs
+static PINNED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 // the user of the image; only this image answers `id -un` with it
 const IMAGE_USER: &str = "sak";
 // the timeout of each request to the docker api, the pull of the image is one request, and of
@@ -97,13 +92,14 @@ fn canary(runtime: &str) -> Result<String, String> {
     };
     let version =
         output(runtime, &["version", "--format", "{{.Client.Version}}"]).map_err(not_working)?;
+    let canary = canary_image().map_err(not_working)?;
     let answer =
-        output(runtime, &["run", "--rm", "--pull=always", canary_image()]).map_err(not_working)?;
+        output(runtime, &["run", "--rm", "--pull=always", &canary]).map_err(not_working)?;
     if answer != CANARY_ANSWER {
         return Err(not_working(
             t!(
                 "common.checks.container_runtime.wrong_answer",
-                image = canary_image(),
+                image = canary.as_str(),
                 answer = answer,
                 expected = CANARY_ANSWER
             )

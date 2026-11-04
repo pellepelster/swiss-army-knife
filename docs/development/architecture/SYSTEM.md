@@ -186,6 +186,12 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `SAKCTL-11` **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
   (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
   one that does not answer within some minutes fails, with the cause.
+- `SAKCTL-12` **Signed images.** The workflow signs every image it pushes with cosign, keyless, as the workflow at
+  its ref: a tag for `<version>` and `<version>-rc`, main for `latest`. sakctl verifies the signature of the digest
+  of each image before it runs it (the canary, the tools) or hands it to the server (the backend, the ingress, in
+  the inventory by its digest), offline against the trusted root of sigstore built into sakctl; an image without
+  the signature of its workflow is not pulled. A tag no workflow pushes, set with `SAK_DOCKER_IMAGE_TAG`, is pulled
+  unchecked. The images of others (victorialogs, vector) are pinned by their digests.
 
 ## Cloud resources
 

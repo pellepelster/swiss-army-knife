@@ -815,6 +815,18 @@ ctl:
       unreadable:
         en: "The server answered something that is not readable: %{error}"
         de: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
+    images:
+      not_signed:
+        en: "%{image} has no signature, sakctl does not pull it."
+        de: "%{image} hat keine Signatur, sakctl lädt es nicht."
+      signature_invalid:
+        en: "%{image} is not signed by %{signer}, sakctl does not pull it: %{error}"
+        de: "%{image} ist nicht von %{signer} signiert, sakctl lädt es nicht: %{error}"
+      failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
+      unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
+      unreadable:
+        en: "The answer of %{url} could not be read: %{error}"
+        de: "Die Antwort von %{url} konnte nicht gelesen werden: %{error}"
     maintenance:
       timeout:
         en: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."

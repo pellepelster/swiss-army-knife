@@ -57,8 +57,9 @@ backend_ingress_image: "ghcr.io/pellepelster/sak-ingress:{{ sak_image_tag }}"
 # caddy keeps its certificates and acme state here
 backend_ingress_data_path: "{{ sak_data_dir }}/ingress"
 # victorialogs keeps the ingress access logs the console computes the metrics of the sites
-# from, it only listens on localhost; both log images are pulled at a pinned tag
-backend_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0
+# from, it only listens on localhost; both log images are pulled at a pinned tag and its digest, so
+# the server runs the image the release was tested with (renovate updates both)
+backend_victorialogs_image: docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
 backend_victorialogs_data_path: "{{ sak_data_dir }}/victorialogs"
 # longer than the longest range the console shows (30 days)
 backend_victorialogs_retention: 35d
@@ -69,7 +70,7 @@ backend_victorialogs_auth_key_file: "{{ backend_base_path }}/victorialogs-partit
 # a snapshot that a killed sak-backend backup did not delete goes after this time
 backend_victorialogs_snapshots_max_age: 1d
 # vector ships the access log from the ingress data directory to victorialogs
-backend_vector_image: docker.io/timberio/vector:0.60.0-alpine
+backend_vector_image: docker.io/timberio/vector:0.60.0-alpine@sha256:1c6a6c4c5c9de08df357fa8adbe72e5a7abcea458b0bd82de0b14ac9b79d5b31
 backend_vector_data_path: "{{ sak_data_dir }}/vector"
 backend_vector_config_file: "{{ backend_base_path }}/vector.yaml"
 # sak-backend backup and restore (docs/development/fdr/FDR-007-backup.md) keep their working copies on the data volume,

@@ -29,9 +29,9 @@
     },
     {
       "customType": "regex",
-      "description": "The pinned images of the ansible roles, <name>_image: docker.io/<image>:<tag>",
+      "description": "The pinned images of the ansible roles, <name>_image: docker.io/<image>:<tag>@<digest>",
       "managerFilePatterns": ["/^ansible/roles/[^/]+/defaults/main\\.yml$/"],
-      "matchStrings": ["_image: \"?(?<depName>docker\\.io/[^:\\s\"]+):(?<currentValue>[^\\s\"]+)\"?"],
+      "matchStrings": ["_image: \"?(?<depName>docker\\.io/[^:\\s\"]+):(?<currentValue>[^\\s\"@]+)@(?<currentDigest>sha256:[a-f0-9]{64})\"?"],
       "datasourceTemplate": "docker"
     }
   ],

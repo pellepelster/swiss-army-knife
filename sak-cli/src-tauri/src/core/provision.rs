@@ -97,9 +97,11 @@ impl ProvisionRun {
     }
 
     /// the inventory of the run: the host, how ansible reaches it, the variables of the roles and
-    /// the fingerprints the last role writes as their markers; every value quoted as json, which
-    /// yaml reads as a string
-    fn inventory(&self) -> String {
+    /// the fingerprints the last role writes as their markers, and the images the server pulls
+    /// (`pinned`: by the digests whose signatures sakctl verified, `core::images`); every value
+    /// quoted as json, which yaml reads as a string. The images are no input of the fingerprints:
+    /// the plan names them by their tags, without asking the registry
+    fn inventory(&self, pinned: &[(&'static str, String)]) -> String {
         let quoted = |value: &str| serde_json::to_string(value).unwrap_or_default();
         let mut text = format!(
             "all:\n  hosts:\n    {name}:\n      ansible_host: {host}\n      ansible_user: root\n      \
@@ -108,8 +110,8 @@ impl ProvisionRun {
             host = self.host,
             dir = RUN_DIR,
         );
-        for (name, value) in self.variables() {
-            text.push_str(&format!("      {name}: {}\n", quoted(&value)));
+        for (name, value) in self.variables().iter().chain(pinned) {
+            text.push_str(&format!("      {name}: {}\n", quoted(value)));
         }
         text.push_str("      sak_role_markers:\n");
         for (role, fingerprint) in crate::core::roles::fingerprints(self) {
@@ -215,8 +217,19 @@ impl ProvisionManager {
         let runtime = runtime
             .get()
             .ok_or_else(|| t!("common.provision.no_runtime").to_string())?;
+        // the server pulls the images by the digests whose signatures are verified here
+        let pinned = [
+            (
+                "backend_image",
+                crate::core::images::reference(crate::core::images::BACKEND)?,
+            ),
+            (
+                "backend_ingress_image",
+                crate::core::images::reference(crate::core::images::INGRESS)?,
+            ),
+        ];
         let dir = RunDir::create(runtime)?;
-        dir.write_run(run)?;
+        dir.write_run(run, &pinned)?;
 
         // the lines and the events go into one channel in the order they arrive; the endpoint
         // lives as long as the run
@@ -527,8 +540,12 @@ impl RunDir {
 
     /// the files of `run`: inventory, ssh configuration, known host key, public client key and
     /// environment of the backend. The token of the events endpoint follows once it runs
-    fn write_run(&self, run: &ProvisionRun) -> Result<(), String> {
-        self.write("inventory.yml", &run.inventory())?;
+    fn write_run(
+        &self,
+        run: &ProvisionRun,
+        pinned: &[(&'static str, String)],
+    ) -> Result<(), String> {
+        self.write("inventory.yml", &run.inventory(pinned))?;
         self.write("ssh_config", &run.ssh_config())?;
         self.write("known_hosts", &run.known_hosts())?;
         self.write("id_ed25519.pub", &run.client_key.public_key())?;
@@ -811,7 +828,7 @@ pub(crate) mod tests {
 
     #[test]
     fn the_inventory_tells_the_backend_role_the_admin_and_the_mail_server() {
-        let inventory = run().inventory();
+        let inventory = run().inventory(&[]);
         assert!(inventory.contains("      sak_admin_email: \"admin@example.org\"\n"));
         assert!(inventory.contains(
             "      sak_acme_ca: \"https://acme-staging-v02.api.letsencrypt.org/directory\"\n"
@@ -832,7 +849,7 @@ pub(crate) mod tests {
         if let Some(smtp) = given.smtp.as_mut() {
             smtp.starttls = true;
         }
-        let inventory = given.inventory();
+        let inventory = given.inventory(&[]);
         assert!(
             inventory
                 .contains("      sak_smtp_tls: \"false\"\n      sak_smtp_starttls: \"true\"\n")
@@ -842,13 +859,35 @@ pub(crate) mod tests {
             smtp: None,
             ..run()
         }
-        .inventory();
+        .inventory(&[]);
         assert!(without_smtp.contains("      sak_smtp_enabled: \"false\"\n"));
     }
 
     #[test]
+    fn the_inventory_hands_the_server_the_images_by_their_verified_digests() {
+        let digest = format!("sha256:{}", "a".repeat(64));
+        let pinned = [(
+            "backend_image",
+            format!("ghcr.io/pellepelster/sak-backend@{digest}"),
+        )];
+        let inventory = run().inventory(&pinned);
+        assert!(inventory.contains(&format!(
+            "      backend_image: \"ghcr.io/pellepelster/sak-backend@{digest}\"\n"
+        )));
+        // the plan names the images by their tags: the digests change no fingerprint
+        let markers = |inventory: &str| {
+            inventory
+                .split("sak_role_markers:")
+                .nth(1)
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(markers(&inventory), markers(&run().inventory(&[])));
+    }
+
+    #[test]
     fn the_inventory_names_the_host_its_key_and_its_volume() {
-        let inventory = run().inventory();
+        let inventory = run().inventory(&[]);
         assert!(inventory.contains("    alpha:\n      ansible_host: 203.0.113.1\n"));
         // what the backend role writes into the configuration of the backend
         assert!(inventory.contains(

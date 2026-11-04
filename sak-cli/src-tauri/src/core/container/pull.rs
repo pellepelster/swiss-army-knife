@@ -1,7 +1,7 @@
 //! the pull of the image of the tools: through the api of docker with the bytes pulled, else
 //! through the command line of docker or podman, which reports nothing
 
-use super::{API_TIMEOUT_SECONDS, IMAGE_USER, image, output};
+use super::{API_TIMEOUT_SECONDS, IMAGE_USER, PINNED, image, output};
 use crate::core::runtime::block_on;
 use bollard::models::CreateImageInfo;
 use bollard::query_parameters::CreateImageOptionsBuilder;
@@ -10,9 +10,13 @@ use futures_util::StreamExt;
 use rust_i18n::t;
 use std::collections::HashMap;
 
-/// pulls the image again and runs it to prove it. The api of docker reports the bytes pulled, the
-/// command line of docker and podman reports nothing
+/// pulls the image again, by the digest whose signature is verified (`core::images`), and runs it
+/// to prove it; from then on every run of the tools runs that digest (`image`). The api of docker
+/// reports the bytes pulled, the command line of docker and podman reports nothing
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
+    let verified = crate::core::images::reference(crate::core::images::TOOLS)?;
+    // a second pull in the same run of sakctl verified the same digest
+    let _ = PINNED.set(verified);
     let (pulled, api_error) = if runtime == "docker" {
         match block_on(pull_with_api(on_progress)) {
             Ok(()) => (true, None),
@@ -63,7 +67,11 @@ pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String
 // on an error `pull` uses the command line, and shows both errors
 async fn pull_with_api(on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let docker = docker_api().ok_or_else(|| t!("common.checks.image.no_api").to_string())?;
-    let (image, tag) = image().rsplit_once(':').ok_or("no tag")?;
+    // the api takes a digest as the tag
+    let (image, tag) = image()
+        .split_once('@')
+        .or_else(|| image().rsplit_once(':'))
+        .ok_or("no tag")?;
     let options = CreateImageOptionsBuilder::new()
         .from_image(image)
         .tag(tag)

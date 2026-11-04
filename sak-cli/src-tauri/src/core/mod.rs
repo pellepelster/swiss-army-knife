@@ -13,6 +13,7 @@ pub mod encoding;
 pub mod error;
 pub mod events;
 pub mod i18n;
+pub mod images;
 pub mod keys;
 pub mod local;
 pub mod maintenance;

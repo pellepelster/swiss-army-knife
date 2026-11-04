@@ -2,9 +2,10 @@
 # when they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress)
 # and of sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a
 # native binary for linux, macOS and windows, and
-# the documentation of docs/ as a site. Only the build of a tag v<version> (mise run release)
-# publishes: the images pushed to ghcr.io as <VERSION>-rc, then all of them as <VERSION> (release),
-# and after the release the documentation as the github pages of the repository. Everything that
+# the documentation of docs/ as a site. A push to main pushes the images to ghcr.io as latest; the
+# build of a tag v<version> (mise run release) publishes: the images pushed as <VERSION>-rc, then
+# all of them as <VERSION> (release), and after the release the documentation as the github pages
+# of the repository. Every image pushed is signed with cosign, keyless, as the workflow at its ref. Everything that
 # can be is cached: the mise tools, gradle, npm, cargo, the apt packages and the docker layers (in
 # the registry).
 name: swiss-army-knife
@@ -107,6 +108,11 @@ jobs:
             tasks: backend:image
           - image: ingress
             tasks: ingress:image
+    # the id token of the job signs its images (mise run image:sign)
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -129,8 +135,12 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run ${{ matrix.tasks }}:test
-      - if: github.ref_type == 'tag'
-        run: mise run ${{ matrix.tasks }}:push
+      # a tag as <VERSION>-rc, main as latest; signed as the workflow at the tag or at main
+      - if: github.ref_type == 'tag' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: mise install cosign && mise run ${{ matrix.tasks }}:push
+        env:
+          # empty for a tag: the push tasks push <VERSION>-rc
+          SAK_PUSH_TAG: ${{ github.ref_type != 'tag' && 'latest' || '' }}
 
   sak-cli-images:
     name: sak-cli-images (${{ matrix.image }})
@@ -140,6 +150,11 @@ jobs:
       matrix:
         # the mise tasks <image>:image:test and <image>:image:push
         image: [tools, canary]
+    # the id token of the job signs its images (mise run image:sign)
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -155,8 +170,12 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       - run: mise run ${{ matrix.image }}:image:test
-      - if: github.ref_type == 'tag'
-        run: mise run ${{ matrix.image }}:image:push
+      # a tag as <VERSION>-rc, main as latest; signed as the workflow at the tag or at main
+      - if: github.ref_type == 'tag' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: mise install cosign && mise run ${{ matrix.image }}:image:push
+        env:
+          # empty for a tag: the push tasks push <VERSION>-rc
+          SAK_PUSH_TAG: ${{ github.ref_type != 'tag' && 'latest' || '' }}
 
   # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
   # one native binary with the page built in (on windows two: sakctl.exe for the window and

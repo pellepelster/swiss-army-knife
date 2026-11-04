@@ -173,6 +173,12 @@ common:
     busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
     failed: "Der Server ist fehlgeschlagen: %{error}"
     unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
+  images:
+    not_signed: "%{image} hat keine Signatur, sakctl lädt es nicht."
+    signature_invalid: "%{image} ist nicht von %{signer} signiert, sakctl lädt es nicht: %{error}"
+    failed: "%{url} hat %{status} geantwortet."
+    unreachable: "%{url} ist nicht erreichbar: %{error}"
+    unreadable: "Die Antwort von %{url} konnte nicht gelesen werden: %{error}"
   maintenance:
     timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     connecting: "Frage den Server von %{name} unter root@%{host}…"

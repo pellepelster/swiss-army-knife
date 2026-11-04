@@ -65,6 +65,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   of the root change rarely and with notice. To revisit: fetch the trusted root through the TUF repository of
   sigstore.
 
+- **The server checks no signature of an image.** sakctl verifies the images and hands the server their digests, so
+  the server pulls exactly the images sakctl verified; a sakctl that does not verify (a tag set with
+  `SAK_DOCKER_IMAGE_TAG`) hands it tags. Accepted: podman reads only the older signatures of cosign, not the bundles
+  of cosign 3. To revisit when podman reads them (issue #145).
+
 - **A label can be lost while a note is saved.** If the user deletes a new label on another device in the same
   moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes
   two devices within milliseconds, and the user sees and fixes it at once.
