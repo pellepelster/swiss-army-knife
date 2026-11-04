@@ -23,11 +23,13 @@ deploys only from the tags `v*`; there are no deploy keys and no webhooks.
 
 Only the open findings are listed. Fixed with this review: the actions pinned (SHA pinning required, selected actions
 only), `packages: write` only for the jobs that push, the ruleset of the tags `v*`, the keystore in the environment
-`release` (but see `SC-1`) and the trusted root shared by CI and sakctl.
+`release` and the trusted root shared by CI and sakctl.
 
 ## Must fix
 
-### `SC-1` The keystore of the android apps is still a secret of the repository
+### ~~`SC-1` The keystore of the android apps is still a secret of the repository~~
+
+**Fixed:** the four secrets are secrets of the environment `release` only, the repository has none.
 
 The workflow reads `ANDROID_KEYSTORE` and its passwords from the environment `release`, which only the job of a tag
 `v*` gets. The secrets themselves are not there yet: they are still secrets of the repository, which every job of
