@@ -1314,9 +1314,10 @@ describe('Grocery', () => {
     await load([defaultList], [], true);
     (await discoverPhoto()).flush({ items: [] });
     const panel = await discovered();
-    expect(panel.querySelector('.alert-warning')?.textContent).toContain(
-      'Unable to detect grocery items in the photo.',
-    );
+    // only the warning, no card around it
+    expect(panel.classList).toContain('alert-warning');
+    expect(panel.textContent).toContain('Unable to detect grocery items in the photo.');
+    expect(panel.querySelector('h2')).toBeNull();
     expect(button('Add to the list', panel)).toBeUndefined();
     expect(button('Cancel', panel)).toBeUndefined();
     button('OK', panel).click();

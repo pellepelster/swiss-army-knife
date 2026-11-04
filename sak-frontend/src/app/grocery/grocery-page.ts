@@ -227,18 +227,18 @@ interface ItemGroup {
       <!-- the items read in the photo, in the page, not in a dialog (WEB-3): corrected, left out or
            added at once; cancel adds none (GROCERY-16) -->
       @if (discovered(); as rows) {
-        <form
-          id="discovered"
-          class="card card-body mb-4"
-          tabindex="-1"
-          aria-labelledby="discovered-title"
-          data-testid="discovered"
-          (submit)="$event.preventDefault(); addDiscovered()"
-        >
-          <!-- nothing changes while the items are added, their answers would undo it -->
-          <fieldset class="border-0 p-0 m-0" [disabled]="addingDiscovered()">
-            <h2 class="h5" id="discovered-title">{{ 'grocery.discover.title' | t }}</h2>
-            @if (rows.length) {
+        @if (rows.length) {
+          <form
+            id="discovered"
+            class="card card-body mb-4"
+            tabindex="-1"
+            aria-labelledby="discovered-title"
+            data-testid="discovered"
+            (submit)="$event.preventDefault(); addDiscovered()"
+          >
+            <!-- nothing changes while the items are added, their answers would undo it -->
+            <fieldset class="border-0 p-0 m-0" [disabled]="addingDiscovered()">
+              <h2 class="h5" id="discovered-title">{{ 'grocery.discover.title' | t }}</h2>
               <p class="text-body-secondary">{{ 'grocery.discover.hint' | t }}</p>
               <ul class="list-unstyled mb-0">
                 @for (row of rows; track row.key; let index = $index) {
@@ -346,17 +346,10 @@ interface ItemGroup {
                   </li>
                 }
               </ul>
-            } @else {
-              <!-- nothing to choose from: a warning the user acknowledges with OK -->
-              <p class="alert alert-warning mb-0" role="status">
-                {{ 'grocery.discover.none' | t }}
-              </p>
-            }
-            @if (discoveredError(); as error) {
-              <p class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</p>
-            }
-            <div class="d-flex justify-content-end gap-2 mt-3">
-              @if (rows.length) {
+              @if (discoveredError(); as error) {
+                <p class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</p>
+              }
+              <div class="d-flex justify-content-end gap-2 mt-3">
                 <button type="button" class="btn btn-outline-secondary" (click)="closeDiscovered()">
                   {{ 'shared.cancel' | t }}
                 </button>
@@ -368,14 +361,24 @@ interface ItemGroup {
                   }
                   {{ 'grocery.discover.add' | t }}
                 </button>
-              } @else {
-                <button type="button" class="btn btn-primary" (click)="closeDiscovered()">
-                  {{ 'shared.ok' | t }}
-                </button>
-              }
-            </div>
-          </fieldset>
-        </form>
+              </div>
+            </fieldset>
+          </form>
+        } @else {
+          <!-- nothing to choose from: only a warning, acknowledged with OK -->
+          <div
+            id="discovered"
+            class="alert alert-warning d-flex align-items-center gap-3 mb-4"
+            tabindex="-1"
+            role="status"
+            data-testid="discovered"
+          >
+            <span class="me-auto">{{ 'grocery.discover.none' | t }}</span>
+            <button type="button" class="btn btn-sm btn-primary" (click)="closeDiscovered()">
+              {{ 'shared.ok' | t }}
+            </button>
+          </div>
+        }
       }
 
       @for (group of toBuy(); track group.key) {
