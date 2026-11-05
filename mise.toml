@@ -12,7 +12,7 @@ rust = "1.99.1"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.169.0"
 go = "1.27.3"
-# the rust tests, with junit reports (.config/nextest.toml of each crate)
+# the rust tests
 "github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
 svu = "3.4.1"
@@ -537,8 +537,7 @@ ffmpeg -v error -y -i build/videos/sakctl-ui.mp4 -vf "fps=6,scale=560:-1:flags=l
 
 # the tests, <part>:test:<kind> (docs/development/architecture/SYSTEM.md, "Tests"): unit tests need
 # only the tools above, integration tests the machine (docker, a browser, ssh-keygen), e2e tests a
-# Hetzner Cloud project. The junit reports of the unit tests go to build/test-results/ and
-# target/nextest/, the workflow shows them
+# Hetzner Cloud project
 
 # every gradle module, the build of sak-backend builds the frontend too
 [tasks."backend:test:unit"]

@@ -5,10 +5,11 @@
 # the documentation of docs/ as a site. A push to main pushes the images to ghcr.io as latest; the
 # build of a tag v<version> (mise run release) publishes: the images pushed as <VERSION>-rc, then
 # all of them as <VERSION> (release), and after the release the documentation as the github pages
-# of the repository. Every image pushed is signed with cosign, keyless, as the workflow at its ref. Everything that
-# can be is cached: the mise tools, gradle, npm, cargo, the apt packages and the docker layers (in
-# the registry). Every action is pinned to the commit of its version (renovate moves the pins):
-# a moved tag of an action runs nothing here, the jobs sign the releases and the images.
+# of the repository. Every image pushed is signed with cosign, keyless, as the workflow at its ref.
+# Cached: the mise tools, gradle, npm, cargo (written by main only) and the docker layers (in the
+# registry). Every action is pinned to the commit of its version (renovate moves the pins), and the
+# actions of others are few: a moved tag of an action runs nothing here, the jobs sign the releases
+# and the images.
 name: swiss-army-knife
 
 on:
@@ -38,11 +39,16 @@ env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   # each job installs the tools it needs only, not every tool of the mise.toml files
   MISE_TASK_RUN_AUTO_INSTALL: "false"
+  # what sakctl builds against on linux, webkitgtk for its window
+  SAKCTL_APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+  # the target directories stay small enough for the cache: no incremental builds, the debug info of
+  # the tests only for the lines of a backtrace (the release profile strips everything)
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   # the unit tests of the backend, the frontend and the cli (mise run <part>:test:unit), each in a
-  # job of its own; their junit reports show as a check of the run, failed tests also when the
-  # tests fail. The images are built only when all of them are green
+  # job of its own. The images are built only when all of them are green
   test-unit:
     name: test-unit (${{ matrix.part }})
     strategy:
@@ -52,26 +58,16 @@ jobs:
           # the jdk of the gradle toolchain, node for the frontend the build calls npm for
           - part: backend
             tools: java node
-            reports: '**/build/test-results/test/*.xml'
           - part: frontend
             tools: java node
-            reports: sak-frontend/build/test-results/unit/*.xml
-          # node copies sak-theme for sakctl, nextest writes the junit reports
+          # node copies sak-theme for sakctl, nextest runs the tests
           - part: cli
             tools: rust node github:nextest-rs/nextest
-            reports: sak-cli/*/target/nextest/default/junit.xml
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # sakctl builds against webkitgtk
       - if: matrix.part == 'cli'
-        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
-        with:
-          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-          version: 1
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKCTL_APT_PACKAGES
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install_args: ${{ matrix.tools }}
@@ -83,21 +79,33 @@ jobs:
           path: ~/.npm
           key: npm-${{ hashFiles('sak-frontend/package-lock.json') }}
           restore-keys: npm-
+      # the downloads of cargo and the target directories, by the version of rust and the lockfiles,
+      # without a fallback to an older key (a target restored from one would only grow); only a push
+      # to main saves, so a pull request writes no cache a release could read
       - if: matrix.part == 'cli'
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        id: rust
+        run: echo "version=$(rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - if: matrix.part == 'cli'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          workspaces: |
-            sak-cli/src-tauri -> target
-            sak-cli/cloud -> target
-          key: test-unit
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            sak-cli/src-tauri/target
+            sak-cli/cloud/target
+          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock', 'sak-cli/cloud/Cargo.lock') }}
       - run: mise run ${{ matrix.part }}:test:unit
-      - if: ${{ !cancelled() }}
-        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
+      - if: matrix.part == 'cli' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          check_name: unit tests (${{ matrix.part }})
-          report_paths: ${{ matrix.reports }}
-          require_tests: true
-          detailed_summary: true
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            sak-cli/src-tauri/target
+            sak-cli/cloud/target
+          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock', 'sak-cli/cloud/Cargo.lock') }}
 
   sak-backend-images:
     name: sak-backend-images (${{ matrix.image }})
@@ -131,7 +139,8 @@ jobs:
           restore-keys: npm-
       # arm64 is built with qemu, buildx pushes both platforms under one tag
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # a builder of buildx in a container: it builds both platforms and writes the cache
+      - run: docker buildx create --use --driver docker-container
       # the cache of the images may be private
       - run: mise run registry:login
         env:
@@ -166,7 +175,8 @@ jobs:
           install: false
       # arm64 is built with qemu, buildx pushes both platforms under one tag
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # a builder of buildx in a container: it builds both platforms and writes the cache
+      - run: docker buildx create --use --driver docker-container
       # the images and their cache may be private
       - run: mise run registry:login
         env:
@@ -205,21 +215,34 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.platform == 'linux'
-        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
-        with:
-          packages: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-          version: 1
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKCTL_APT_PACKAGES
       # the tools are installed after the action, saved to its cache in its post step
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
           cache_save_post: true
       - run: mise install rust node npm:@tauri-apps/cli
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # as in test-unit: by the version of rust and the lockfile, saved by a push to main only
+      - id: rust
+        run: echo "version=$(mise exec -- rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          workspaces: sak-cli/src-tauri -> target
-          key: ${{ matrix.platform }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            sak-cli/src-tauri/target
+          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock') }}
       - run: mise run cli:build:${{ matrix.platform }}
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            sak-cli/src-tauri/target
+          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock') }}
       # the zip as it is, named like the file; a zip of the artifact would lose the executable bit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -356,7 +379,7 @@ jobs:
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # docker buildx imagetools copies the manifests in the registry, it needs no builder
       - run: mise run registry:login
         env:
           REGISTRY_USERNAME: ${{ github.actor }}
