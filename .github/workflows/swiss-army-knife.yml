@@ -256,46 +256,14 @@ jobs:
           if-no-files-found: error
 
   # the android apps (android/): their tests, their release apks and their bundles for google play on
-  # every build, unsigned, so a broken release build shows before a tag; a tag also needs them. The apks and their checksums are
-  # one artifact, the bundles and the maps of r8 another
+  # every build, so a broken release build shows before a tag. Signed on a tag only: the keystore is a
+  # secret of the environment release, which only a job of a tag v* gets (mise run
+  # github:secrets:update); every other build has no environment, so its secrets are empty and the
+  # apps of latest stay unsigned. The apks and their checksums are one artifact, the bundles and the
+  # maps of r8 another
   sak-android-apps:
     runs-on: ubuntu-24.04
-    # unsigned also on a tag, where the tasks would refuse a version without the keystore; the
-    # signed build of a tag is sak-android-apps-release
-    env:
-      ANDROID_UNSIGNED: "true"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
-        with:
-          install_args: java
-      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-      - run: mise run android:sdk:build
-      - run: mise run android:test
-      - run: mise run android:release:build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: android-apks-unsigned
-          path: |
-            android/build/sak-*.apk
-            android/build/sak-*.apk.sha256
-          if-no-files-found: error
-      # the bundles for google play and the maps of r8, uploaded to the play console by hand
-      - run: mise run android:play:build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: android-play-unsigned
-          path: |
-            android/build/sak-*.aab
-            android/build/sak-*-mapping.txt
-          if-no-files-found: error
-
-  # the same on a tag, signed: the keystore is a secret of the environment release, which only a
-  # job of a tag v* gets, so no other job and no other build sees it (mise run github:secrets:update)
-  sak-android-apps-release:
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-24.04
-    environment: release
+    environment: ${{ github.ref_type == 'tag' && 'release' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
@@ -368,7 +336,7 @@ jobs:
   # run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, sak-android-apps-release, docs-build]
+    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

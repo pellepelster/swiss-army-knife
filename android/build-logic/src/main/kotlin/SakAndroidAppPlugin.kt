@@ -98,9 +98,8 @@ class SakAndroidAppPlugin : Plugin<Project> {
             }
         }
         // a release is signed: the apk or bundle of a version without the keystore fails, latest may
-        // stay unsigned, and so may a build that says it is unsigned on purpose (ANDROID_UNSIGNED,
-        // the unsigned build of a tag beside the signed one)
-        val unsigned = !sak.latest && keystore == null && System.getenv("ANDROID_UNSIGNED") != "true"
+        // stay unsigned
+        val unsigned = !sak.latest && keystore == null
         val packaging = Regex("(package|bundle)[A-Za-z]*Release")
         target.tasks.configureEach {
             if (unsigned && packaging.matches(name)) {
