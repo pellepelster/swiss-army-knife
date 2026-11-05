@@ -7,5 +7,7 @@ Unattended-Upgrade::Origins-Pattern {
 
 Unattended-Upgrade::Remove-Unused-Dependencies "{{ common_unattended_upgrades_remove_unused_dependencies | bool | lower }}";
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-Unattended-Upgrade::Automatic-Reboot "{{ common_unattended_upgrades_automatic_reboot | bool | lower }}";
-Unattended-Upgrade::Automatic-Reboot-Time "{{ common_unattended_upgrades_automatic_reboot_time }}";
+// never reboots on its own: its reboot knows no deployment, it would interrupt a backup and stop
+// the containers in any order. The role backend reboots in order when a reboot is pending
+// (sak-automatic-reboot.timer, sak-backend reboot --if-pending)
+Unattended-Upgrade::Automatic-Reboot "false";

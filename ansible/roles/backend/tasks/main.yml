@@ -123,6 +123,26 @@
     group: root
     mode: "0700"
 
+# the automatic reboot in order when a reboot is pending, instead of the one of unattended upgrades
+- name: Install the automatic reboot
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - sak-automatic-reboot.service
+    - sak-automatic-reboot.timer
+  register: backend_automatic_reboot_units
+
+- name: Enable the automatic reboot
+  ansible.builtin.systemd_service:
+    name: sak-automatic-reboot.timer
+    enabled: "{{ backend_automatic_reboot | bool }}"
+    state: "{{ 'started' if backend_automatic_reboot | bool else 'stopped' }}"
+    daemon_reload: "{{ backend_automatic_reboot_units is changed }}"
+
 # every run pulls every image: sak-backend and sak-ingress at the tag CI pushes from main
 # (latest), the log images at their pinned tags. A pull that brings another image than the one
 # there restarts its container and removes the replaced image. Pulled here already, the vector

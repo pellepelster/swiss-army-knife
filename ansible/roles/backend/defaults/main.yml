@@ -80,6 +80,12 @@ backend_restore_staging_path: "{{ sak_mount_dir }}/.restore-{{ sak_name }}"
 backend_restore_replaced_path: "{{ sak_mount_dir }}/.replaced-{{ sak_name }}"
 # one backup, restore, update or reboot at a time
 backend_lock_file: /run/sak-backend.lock
+# the automatic reboot when an upgrade (e.g. a new kernel) needs one: every day at this local time
+# sak-backend reboot --if-pending, which stops the deployment in order and never interrupts a
+# backup (a reboot refused for one is tried the next day); false for none. Unattended upgrades
+# never reboot on their own (role common)
+backend_automatic_reboot: true
+backend_automatic_reboot_time: "04:00"
 # how long sak-backend update and reboot wait for apt and dpkg (unattended upgrades), in seconds
 backend_apt_wait: 600
 # how long sak-backend restore waits for the backend to answer after the restore, in seconds

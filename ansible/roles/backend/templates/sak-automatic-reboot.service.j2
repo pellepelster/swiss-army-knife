@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# the automatic reboot of the server of {{ sak_name }} when a reboot is pending, started by
+# sak-automatic-reboot.timer: sak-backend reboot --if-pending stops the deployment in order and
+# reboots, or changes nothing
+[Unit]
+Description=Reboot the server of {{ sak_name }} in order when a reboot is pending
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sak-backend reboot --if-pending
+# 2: a backup, restore, update or reboot holds the lock; no failure, the next run tries again
+SuccessExitStatus=2
+# sak-backend reboot leaves a process that holds its lock until the server goes down; the end of
+# the service must not stop it, a backup could start before the reboot
+KillMode=process

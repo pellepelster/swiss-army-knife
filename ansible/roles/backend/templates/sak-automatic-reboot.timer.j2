@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# every day at {{ backend_automatic_reboot_time }}, local time: the automatic reboot of the server
+# of {{ sak_name }} when a reboot is pending (sak-automatic-reboot.service)
+[Unit]
+Description=Reboot the server of {{ sak_name }} in order when a reboot is pending, daily
+
+[Timer]
+OnCalendar=*-*-* {{ backend_automatic_reboot_time }}:00
+
+[Install]
+WantedBy=timers.target
