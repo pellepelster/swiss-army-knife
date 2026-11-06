@@ -7,7 +7,8 @@ weight: 25
 
 # Dependency Updates
 
-The [Renovate](https://docs.renovatebot.com/) GitHub app updates the dependencies of SAK. Its configuration is
+[Renovate](https://docs.renovatebot.com/) updates the dependencies of SAK. The workflow
+[`renovate`](../../.github/workflows/renovate.yml) runs it every day at 03:17 UTC. Its configuration is
 [`renovate.json`](../../renovate.json) at the root of the repository. Renovate opens a pull request for each update or
 group of updates. The workflow tests each pull request as it tests every other pull request.
 
@@ -36,10 +37,12 @@ ARG ANSIBLE_VERSION=11.13.0
 
 ## When
 
-- Renovate opens pull requests on Monday before 06:00 (Europe/Berlin), at most 5 at the same time.
+- Renovate opens pull requests on Monday before 06:00 (Europe/Berlin), at most 5 at the same time. The other daily
+  runs merge the green pull requests, rebase the pull requests and update the Dependency Dashboard.
 - Renovate uses a release only when it is 7 days old. A release that is removed again in this time does not come in.
 - On the first day of each month Renovate updates the lock files (`Cargo.lock`, `package-lock.json`).
-- The Dependency Dashboard (an issue of the repository) shows all open, pending and manual updates.
+- The Dependency Dashboard (an issue of the repository) shows all open, pending and manual updates. When you tick a
+  checkbox on it, the workflow runs at once.
 
 ## Groups
 
@@ -88,18 +91,37 @@ that Renovate opens and the dependencies that it skips. The full log is in `buil
 GitHub token, Renovate skips the actions and the tools that come from GitHub releases. The task reads the token from
 `pass github/pellepelster/pat/admin`, `GITHUB_COM_TOKEN` replaces it.
 
+## The GitHub App
+
+The workflow runs Renovate as a GitHub App of the repository, not with `GITHUB_TOKEN`:
+
+- The pull requests of the app start the workflow `swiss-army-knife`. A pull request of `GITHUB_TOKEN` starts no
+  workflow.
+- Renovate commits through the GitHub API (`platformCommit`), so GitHub signs the commits of the app. They show as
+  Verified.
+
+Create the app once:
+
+1. GitHub → Settings → Developer settings → GitHub Apps → New GitHub App. A name, for example
+   `pellepelster-renovate`, any homepage URL, no webhook.
+2. The repository permissions: Contents, Pull requests, Issues, Workflows, Checks, Commit statuses: read and write.
+   Administration, Dependabot alerts: read. Metadata: read (always).
+3. Only on this account. Create the app, then generate a private key.
+4. Install the app on `pellepelster/swiss-army-knife` only.
+5. Put the client ID into `pass github/pellepelster/renovate-app/client-id`, the private key (the whole `.pem`) into
+   `pass github/pellepelster/renovate-app/private-key`, and run `mise run github:secrets:update`. This sets the
+   secrets `RENOVATE_APP_CLIENT_ID` and `RENOVATE_APP_PRIVATE_KEY` of the repository.
+
 ## Run Renovate manually
 
 ```sh
-mise run renovate:run                        # creates and updates the pull requests now
-RENOVATE_DRY_RUN=full mise run renovate:run  # shows what it does, without a change
+mise run renovate:run                        # runs the workflow renovate now
+RENOVATE_DRY_RUN=true mise run renovate:run  # shows what it does, without a change
 ```
 
-The task runs Renovate on GitHub with the configuration of `renovate.json` on `main`, at once and not on its schedule.
-The lock files are also updated. The pull requests come from the owner of the token
-(`pass github/pellepelster/pat/admin`, `GITHUB_COM_TOKEN` replaces it). The token must have the scopes `repo` and
-`workflow`. Renovate merges a pull request automatically only during a run, so run the task again when the checks pass.
-Use the task or the Renovate app, not both: Renovate does not change a branch that another user changed.
+The task starts the workflow `renovate` (Actions → renovate → Run workflow does the same). The manual run ignores
+the schedules of `renovate.json` and also updates the lock files. Renovate merges a pull request automatically only
+during a run, so the next daily run merges a pull request whose checks passed, or you run the task again.
 
 The TOML parser of Renovate does not accept an inline table on more than one line. In `mise.toml`, write the
 environment of a task as a table of its own (`[tasks."<task>".env]`).

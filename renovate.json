@@ -10,6 +10,7 @@
   "prHourlyLimit": 0,
   "semanticCommits": "disabled",
   "platformAutomerge": false,
+  "platformCommit": "enabled",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on the first day of the month"]

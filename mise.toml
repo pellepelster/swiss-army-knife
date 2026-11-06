@@ -948,27 +948,25 @@ for (const problem of problems) console.log("warning: " + problem);
 ' "$log"
 '''
 
-# Renovate on github now, as the owner of the token: it creates and updates the branches, the pull
-# requests and the Dependency Dashboard of renovate.json on main, at once instead of on its schedule
-# (the lock files too); it merges what may be merged when the workflow is green. The token from pass
-# unless GITHUB_COM_TOKEN is set, with the scopes repo and workflow (the actions).
-# RENOVATE_DRY_RUN=full shows what it would do without a change
+# Renovate on github now: starts the workflow renovate (.github/workflows/renovate.yml), which runs
+# as the GitHub App of the repository and creates and updates the branches, the pull requests and
+# the Dependency Dashboard at once instead of on the schedules of renovate.json (the lock files
+# too); it merges what may be merged when the workflow is green. RENOVATE_DRY_RUN=true shows what it
+# would do without a change
 [tasks."renovate:run"]
-description = "Run Renovate and create the pull requests"
+description = "Run the Renovate workflow and create the pull requests"
 dir = "{{config_root}}"
-env = { GITHUB_COM_TOKEN = "{{ get_env(name='GITHUB_COM_TOKEN', default=exec(command='pass show github/pellepelster/pat/admin 2>/dev/null | head -n1')) }}" }
 run = '''
 set -eu
-[ -n "$GITHUB_COM_TOKEN" ] || { echo "set GITHUB_COM_TOKEN or put it into pass github/pellepelster/pat/admin" >&2; exit 1; }
-RENOVATE_TOKEN="$GITHUB_COM_TOKEN" RENOVATE_BASE_DIR="{{config_root}}/build/renovate/base" \
-  mise exec node@24 -- npx -y --package renovate@44 renovate --platform=github \
-  --schedule='["at any time"]' ${RENOVATE_DRY_RUN:+--dry-run="$RENOVATE_DRY_RUN"} pellepelster/swiss-army-knife
+gh workflow run renovate.yml --repo pellepelster/swiss-army-knife -f dry_run="${RENOVATE_DRY_RUN:-false}"
+echo "started, see gh run list --workflow renovate.yml --repo pellepelster/swiss-army-knife"
 '''
 
 # the secrets of the environment release of the repository, which only the jobs of a tag v* get
-# (the signed android apps): the keystore is the identity of the apps, no other job sees it
+# (the signed android apps): the keystore is the identity of the apps, no other job sees it. And the
+# GitHub App of the workflow renovate, its client id and its private key, secrets of the repository
 [tasks."github:secrets:update"]
-description = "Set the GitHub secrets of the environment release from pass"
+description = "Set the GitHub secrets of the environment release and of Renovate from pass"
 run = """
 #!/usr/bin/env bash
 set -euo pipefail
@@ -977,6 +975,8 @@ pass show sak/android/signing-key | head -n1 | gh secret set ANDROID_KEYSTORE --
 pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEYSTORE_PASSWORD --repo "$repo" --env release
 pass show sak/android/signing-key-password | head -n1 | gh secret set ANDROID_KEY_PASSWORD --repo "$repo" --env release
 printf sak-grocery | gh secret set ANDROID_KEY_ALIAS --repo "$repo" --env release
+pass show github/pellepelster/renovate-app/client-id | head -n1 | gh secret set RENOVATE_APP_CLIENT_ID --repo "$repo"
+pass show github/pellepelster/renovate-app/private-key | gh secret set RENOVATE_APP_PRIVATE_KEY --repo "$repo"
 """
 
 [tasks."android:test"]

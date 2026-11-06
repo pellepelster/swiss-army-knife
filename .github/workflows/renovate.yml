@@ -1,0 +1,75 @@
+# Renovate (renovate.json, docs/development/DEPENDENCIES.md), as the GitHub App of the repository
+# (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY, mise run github:secrets:update):
+# daily, so the automerge of green pull requests, the rebases and the Dependency Dashboard follow
+# within a day, while renovate.json says when new pull requests open (Monday before 06:00). The
+# pull requests of the app start the workflow swiss-army-knife (a pull request of GITHUB_TOKEN
+# would not), and with platformCommit GitHub signs the commits of the app (Verified).
+# workflow_dispatch: mise run renovate:run, at once (the schedules of renovate.json forced to
+# "at any time", the lock files too), dry_run changes nothing.
+# A tick of a checkbox on the Dependency Dashboard runs it at once
+name: renovate
+
+on:
+  schedule:
+    # 03:17 UTC, before 06:00 in Berlin in winter and in summer
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Show what Renovate would do, without a change'
+        type: boolean
+        default: false
+      any_time:
+        description: 'Ignore the schedule of renovate.json'
+        type: boolean
+        default: true
+  issues:
+    types: [edited]
+
+# the app token does everything, GITHUB_TOKEN nothing
+permissions: {}
+
+# one run at a time, a run that started is never cancelled (it may be pushing)
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    # the dashboard ticked by a person, not its update by Renovate itself
+    if: >-
+      github.event_name != 'issues' ||
+      (github.event.issue.title == 'Dependency Dashboard' && github.event.sender.type != 'Bot')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+      # the author of the commits is the bot user of the app, <id>+<slug>[bot]@users.noreply.github.com
+      - id: author
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          id="$(gh api "/users/${SLUG}%5Bbot%5D" --jq .id)"
+          echo "git_author=${SLUG}[bot] <${id}+${SLUG}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+      # Renovate 44 needs node 24, the runner has an older one
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: node@24
+      - env:
+          RENOVATE_TOKEN: ${{ steps.app.outputs.token }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_GIT_AUTHOR: ${{ steps.author.outputs.git_author }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          ANY_TIME: ${{ github.event_name == 'workflow_dispatch' && inputs.any_time }}
+          LOG_LEVEL: info
+        run: |
+          set -eu
+          if [ "$DRY_RUN" = true ]; then export RENOVATE_DRY_RUN=full; fi
+          if [ "$ANY_TIME" = true ]; then export RENOVATE_FORCE='{"schedule":["at any time"],"lockFileMaintenance":{"schedule":["at any time"]}}'; fi
+          mise exec node@24 -- npx -y --package renovate@44 renovate
