@@ -57,6 +57,8 @@ const TASKS: &[&str] = &[
     "Create the log data directories",
     "Create the key of the partition endpoints of victorialogs",
     "Install sak-backend",
+    "Install the automatic reboot",
+    "Enable the automatic reboot",
     "Pull the images",
     "Upload the vector configuration",
     "Write the backend configuration",
