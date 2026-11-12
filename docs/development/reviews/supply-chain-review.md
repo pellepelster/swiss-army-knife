@@ -9,6 +9,8 @@ weight: 6
 
 **Created:** 2026-11-04
 
+**Checked again:** 2026-11-12, every finding listed is still open; the fixed ones are in the history of git.
+
 Scope: the signing of the zips of sakctl and of the images with cosign (`mise run cli:release`, `image:sign`), their
 verification in sakctl (`sakctl update`, `core/images.rs`, `SAKCTL-12` in [SYSTEM.md](../architecture/SYSTEM.md)), the
 workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the repository on GitHub. The question: what
@@ -24,31 +26,6 @@ deploys only from the tags `v*`; there are no deploy keys and no webhooks.
 Only the open findings are listed. Fixed with this review: the actions pinned (SHA pinning required, selected actions
 only), `packages: write` only for the jobs that push, the ruleset of the tags `v*`, the keystore in the environment
 `release` and the trusted root shared by CI and sakctl.
-
-## Must fix
-
-### ~~`SC-1` The keystore of the android apps is still a secret of the repository~~
-
-**Fixed:** the four secrets are secrets of the environment `release` only, the repository has none.
-
-The workflow reads `ANDROID_KEYSTORE` and its passwords from the environment `release`, which only the job of a tag
-`v*` gets. The secrets themselves are not there yet: they are still secrets of the repository, which every job of
-every run on a push could read, and the environment has none, so the next tag fails at the signed apks.
-
-Fix: `mise run github:secrets:update`, which writes them into the environment, then delete the four secrets of the
-repository (`gh secret delete <name> --repo pellepelster/swiss-army-knife`).
-
-### ~~`SC-2` GitHub knows the signing key of the commits only as expired~~
-
-**Fixed:** the key is uploaded again, GitHub has it with its expiry of 2027-07-07; this repository signs its commits and tags with it (`commit.gpgsign`, `tag.gpgsign`).
-
-The ruleset of main and the one of the tags `v*` require signed commits. The commits are signed with the GPG key
-`7CB38B806115B466` (`pelle@pelle.io`), whose expiry was extended to 2027-07-07, but GitHub has the key with its old
-expiry, 2023-06-30 (`https://github.com/pellepelster.gpg`). GitHub then shows the signatures as not verified, and
-the rulesets may refuse the push.
-
-Fix: upload the public key again (`gpg --armor --export 7CB38B806115B466`, Settings, SSH and GPG keys), so GitHub has
-the new expiry.
 
 ## Should fix
 
@@ -73,10 +50,11 @@ attestation in the job `release`.
 
 ### `SC-5` The server checks no signature of an image
 
-sakctl verifies the images and hands the server their digests, so the server pulls exactly what sakctl verified.
-The server itself checks nothing: podman reads only the older signatures of cosign, not the bundles of cosign 3.
-Accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md); tracked in
-[issue #145](https://github.com/pellepelster/swiss-army-knife/issues/145).
+sakctl verifies the images and hands the server their digests, so the server pulls exactly what sakctl verified. The
+server itself checks nothing: podman reads only the older signatures of cosign, not the bundles of cosign 3. Accepted
+in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md); tracked in
+[issue #145](https://github.com/pellepelster/swiss-army-knife/issues/145), which is open; nothing to do here until
+podman reads the bundles.
 
 ## Could fix
 
@@ -114,8 +92,7 @@ Fix: `./gradlew --write-verification-metadata sha256` in both builds, and Renova
 
 ### `SC-10` The tauri command line is installed without a lockfile
 
-`mise install npm:@tauri-apps/cli` installs it by its version, its dependencies as npm resolves them on that day,
+mise installs `npm:@tauri-apps/cli` by its version (`mise.toml`), its dependencies as npm resolves them on that day,
 in the job that builds the binaries of sakctl, which become the signed zips.
 
-Fix: install it from `sak-cli/package.json` with its lockfile (`npm ci`), or pin it in a `package-lock.json` of its
-own.
+Fix: install it from a `sak-cli/package.json` (there is none today) with its lockfile (`npm ci`).
