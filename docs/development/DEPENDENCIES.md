@@ -69,6 +69,20 @@ ansible, the `0.x` minor updates and all major updates. The workflow does not ru
 tests. Before you merge one of these pull requests, run the tests that apply (`mise run backend:test:integration`,
 `mise run cli:test:integration`, `mise run cli:test:e2e`).
 
+## Checksums of the Gradle dependencies
+
+Both Gradle builds verify every dependency and plugin against its sha256 in `gradle/verification-metadata.xml` and
+`android/gradle/verification-metadata.xml`; a file with another checksum, or one without an entry, fails the build.
+Renovate runs Gradle to write the checksums of what it updates into these files. Where it cannot (the Android build
+needs the Android SDK), the build of its pull request fails; then, and after a dependency changed by hand, write them
+on the branch:
+
+```sh
+mise run gradle:verification
+```
+
+Look at the diff before you commit it: a checksum that changes for a version that stays is a file that changed.
+
 ## Manual updates
 
 Renovate does not update these dependencies. Update them manually:

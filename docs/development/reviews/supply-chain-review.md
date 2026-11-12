@@ -81,7 +81,14 @@ Fix: sign with an annotation of the name (`cosign sign -a image=<name>`) and che
 `latest-rc`, a commit or any other tag has no signer, so sakctl pulls it by its tag (`SAKCTL-12`). Meant for the
 images a developer pushes; whoever can set the variable on the machine could also replace sakctl.
 
-### `SC-9` Gradle has no verification of its dependencies
+### ~~`SC-9` Gradle has no verification of its dependencies~~
+
+**Fixed:** `gradle/verification-metadata.xml` (454 components) and `android/gradle/verification-metadata.xml` (730)
+have the sha256 of every dependency and plugin of the two builds, metadata included; Gradle refuses a file with another
+checksum or without one. `mise run gradle:verification` writes them, resolving every configuration and building what
+the workflow builds; Renovate writes them with its updates, and where it can not, the build of its pull request fails
+(docs/development/DEPENDENCIES.md). Lockfiles are not needed besides: the versions are fixed in the build files and a
+checksum pins the file of each.
 
 Neither the backend nor the android apps have `gradle/verification-metadata.xml` or lockfiles. The versions are fixed
 in the build files and Maven Central does not change a published version, so this is about a compromised mirror, a

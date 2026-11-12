@@ -578,6 +578,19 @@ description = "Generate the texts of the apps from i18n/texts.yml"
 dir = "{{config_root}}"
 run = "./gradlew -q :sak-i18n:run --args=generate"
 
+# gradle/verification-metadata.xml and android/gradle/verification-metadata.xml, the sha256 of every
+# dependency and plugin of the two gradle builds, which gradle checks before it uses one (SC-9); after a
+# dependency changed by hand, Renovate writes them with its updates. Resolves every configuration and
+# builds what the workflow builds, so the dependencies of tasks are in it too
+[tasks."gradle:verification"]
+description = "Write the checksums of the dependencies of the gradle builds"
+dir = "{{config_root}}"
+run = """
+./gradlew --no-configuration-cache -I gradle/resolve-all-dependencies.gradle --write-verification-metadata sha256 resolveAllDependencies assemble testClasses
+cd android
+ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew -I ../gradle/resolve-all-dependencies.gradle --write-verification-metadata sha256 resolveAllDependencies assembleDebug assembleGithubRelease bundlePlayRelease compileGithubDebugUnitTestKotlin
+"""
+
 # the icons of Font Awesome sak-frontend uses (sak-frontend/src/icons): their css and the solid font cut
 # to them, from the names fa-<name> in sak-frontend/src/app; a spec fails while they are not current
 [tasks."frontend:icons"]

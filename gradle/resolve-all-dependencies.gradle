@@ -1,0 +1,17 @@
+// an init script of mise run gradle:verification: a task resolveAllDependencies in every project that
+// resolves every configuration that can be resolved, so --write-verification-metadata takes the
+// checksums of all dependencies, also of the ones no task of that run uses
+allprojects {
+    tasks.register("resolveAllDependencies") {
+        def configs = provider { project.configurations.findAll { it.canBeResolved } }
+        doLast {
+            configs.get().each { configuration ->
+                try {
+                    configuration.resolve()
+                } catch (Exception e) {
+                    logger.warn("not resolved: ${project.path}:${configuration.name}: ${e.message}")
+                }
+            }
+        }
+    }
+}
