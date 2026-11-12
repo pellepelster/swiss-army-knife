@@ -1,19 +1,24 @@
 package io.pelle.sak.backend.files
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
+import io.pelle.sak.storage.BlobContent
 import io.pelle.sak.storage.BlobPath
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import javax.imageio.ImageIO
+import javax.sound.sampled.UnsupportedAudioFileException
 import io.pelle.sak.model.testing.Media
 import io.pelle.sak.api.testing.testClock
 
@@ -167,6 +172,51 @@ class FileServiceTest {
         val recordings = service(maxSize = 10_000_000)
         recordings.store(Media.wav(seconds = 300, rate = 100f).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
         recordings.store(Media.wav(seconds = 301, rate = 100f).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.RecordingTooLong
+    }
+
+    // SEC-1: the header of a recording is of the uploader, a frame of 32767 channels made the block
+    // the waveform reads into 1 GB
+    @Test
+    fun `takes no recording but mono or stereo pcm of 8 or 16 bit`() {
+        val recordings = service(maxSize = 10_000_000)
+        recordings.store(wavHeader(channels = 32767).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        recordings.store(wavHeader(channels = 3).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        recordings.store(wavHeader(channels = 1, bits = 24).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        recordings.store(wavHeader(channels = 2).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        recordings.store(wavHeader(channels = 1, bits = 8).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+    }
+
+    @Test
+    fun `draws no waveform of a recording of many channels, stored before they were refused`() {
+        val header = wavHeader(channels = 32767)
+        shouldThrow<UnsupportedAudioFileException> {
+            FileService.waveform(BlobContent(header.size.toLong()) { header.inputStream() })
+        }
+    }
+
+    // a wav of pcm at 16 kHz without samples
+    private fun wavHeader(
+        channels: Int,
+        bits: Int = 16,
+    ): ByteArray {
+        val frameSize = channels * bits / 8
+        return ByteBuffer
+            .allocate(44)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .put("RIFF".toByteArray())
+            .putInt(36)
+            .put("WAVE".toByteArray())
+            .put("fmt ".toByteArray())
+            .putInt(16)
+            .putShort(1)
+            .putShort(channels.toShort())
+            .putInt(16_000)
+            .putInt(16_000 * frameSize)
+            .putShort(frameSize.toShort())
+            .putShort(bits.toShort())
+            .put("data".toByteArray())
+            .putInt(0)
+            .array()
     }
 
     @Test

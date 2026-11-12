@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
@@ -30,6 +31,8 @@ import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.UnsupportedAudioFileException
 import kotlin.math.abs
+
+private val logger = KotlinLogging.logger {}
 
 sealed interface StoreFileResult {
     data class Stored(
@@ -155,6 +158,11 @@ class FileService(
             null
         } catch (_: UnsupportedAudioFileException) {
             null
+        } catch (e: RuntimeException) {
+            // a decoder that fails on what the header promised: no thumbnail, the marker keeps it
+            // from being decoded with every request
+            logger.warn(e) { "no thumbnail of a file of the type $contentType, it can not be decoded" }
+            null
         }
 
     // reads the content to its end, at most maxSize bytes are taken. It is written to a blob of its
@@ -221,22 +229,39 @@ class FileService(
         fun recordingSeconds(format: AudioFileFormat): Float? =
             format.takeIf { it.frameLength >= 0 && it.format.frameRate > 0 }?.let { it.frameLength / it.format.frameRate }
 
+        // whether the recording is one the apps record or close to it: pcm of 8 or 16 bit, mono or
+        // stereo. The header is of the uploader; what reads a recording (the waveform) sizes its
+        // buffers from it, so nothing else is stored
+        fun isRecording(format: AudioFormat): Boolean =
+            format.encoding in PCM &&
+                format.sampleSizeInBits in RECORDING_BITS &&
+                format.channels in 1..MAX_RECORDING_CHANNELS &&
+                format.frameSize == format.channels * format.sampleSizeInBits / 8
+
+        private val PCM = setOf(AudioFormat.Encoding.PCM_SIGNED, AudioFormat.Encoding.PCM_UNSIGNED)
+
+        private val RECORDING_BITS = setOf(8, 16)
+
+        private const val MAX_RECORDING_CHANNELS = 2
+
         // why the content can not be stored, null when it can
         internal fun check(
             content: BlobContent,
             contentType: String,
         ): StoreFileResult? =
             if (contentType.startsWith("audio/")) {
-                val seconds =
+                val format =
                     try {
                         // the reader marks and resets the stream
-                        recordingSeconds(content.open().use { AudioSystem.getAudioFileFormat(BufferedInputStream(it)) })
+                        content.open().use { AudioSystem.getAudioFileFormat(BufferedInputStream(it)) }
                     } catch (_: UnsupportedAudioFileException) {
                         return StoreFileResult.UnsupportedType
                     } catch (_: IOException) {
                         return StoreFileResult.UnsupportedType
                     }
+                val seconds = recordingSeconds(format)
                 when {
+                    !isRecording(format.format) -> StoreFileResult.UnsupportedType
                     seconds == null -> StoreFileResult.UnsupportedType
                     seconds > MAX_RECORDING_SECONDS -> StoreFileResult.RecordingTooLong
                     else -> null
@@ -351,9 +376,8 @@ class FileService(
             val format = input.format
             val frameSize = format.frameSize
             val bits = format.sampleSizeInBits
-            if (format.encoding !in setOf(AudioFormat.Encoding.PCM_SIGNED, AudioFormat.Encoding.PCM_UNSIGNED) || bits !in setOf(8, 16)) {
-                throw UnsupportedAudioFileException("only 8 and 16 bit pcm is drawn, not $format")
-            }
+            // also of a recording stored before only these were taken
+            if (!isRecording(format)) throw UnsupportedAudioFileException("only mono and stereo pcm of 8 and 16 bit is drawn, not $format")
             val frames = input.frameLength
             if (frames < 0) throw UnsupportedAudioFileException("the number of frames is not known")
             val from = LongArray(WAVEFORM_BARS) { frames * it / WAVEFORM_BARS }
@@ -362,7 +386,8 @@ class FileService(
             // the first bar that has not ended before the frame
             var first = 0
             var frame = 0L
-            val block = ByteArray(frameSize * WAVEFORM_BLOCK_FRAMES)
+            // whole frames; its size is bounded in bytes, the size of a frame is of the header
+            val block = ByteArray(frameSize * maxOf(1, WAVEFORM_BLOCK_SIZE / frameSize))
             while (true) {
                 val read = input.readNBytes(block, 0, block.size)
                 if (read < frameSize) break
@@ -390,7 +415,7 @@ class FileService(
             return peaks.toList()
         }
 
-        private const val WAVEFORM_BLOCK_FRAMES = 16 * 1024
+        private const val WAVEFORM_BLOCK_SIZE = 64 * 1024
 
         private val WAVEFORM_BACKGROUND = Color(0xF7, 0xF5, 0xEF)
 

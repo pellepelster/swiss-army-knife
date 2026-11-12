@@ -61,7 +61,10 @@ both end the backend, which systemd then starts again.
 
 ## Must fix
 
-### `SEC-1` A recording of 44 bytes ends the backend with every request for its thumbnail
+### ~~`SEC-1` A recording of 44 bytes ends the backend with every request for its thumbnail~~
+
+**Fixed:** a recording is stored only as mono or stereo pcm of 8 or 16 bit (`FileService.isRecording`), the waveform
+reads in blocks of at most 64 KiB, and a decoder that fails for any reason writes the marker.
 
 Any signed in user. `POST /api/v1/files` with a WAV header of 44 bytes (PCM, 16 bit, 32767 channels, no data) is
 stored: `FileService.check` looks at the length of a recording only, here 0 seconds. `GET /api/v1/files/{id}/thumbnail`
