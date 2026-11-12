@@ -1,5 +1,7 @@
 package io.pelle.sak.notes
 
+import androidx.compose.ui.res.stringResource
+import io.pelle.sak.core.ui.SakContent
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import io.ktor.http.HttpStatusCode
@@ -90,7 +92,7 @@ class NotesScreenshots {
     fun signIn() =
         runTest {
             val model = model(Stored(apiUrl = URL, address = "https://sak.example.org"))
-            screenshots.show { NotesApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.notes_app_name)) { NotesApp(model) } }
             screenshots.shoot("notes-sign-in") { settle() }
         }
 
@@ -98,7 +100,7 @@ class NotesScreenshots {
     fun notes() =
         runTest {
             val model = signedIn()
-            screenshots.show { NotesApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.notes_app_name)) { NotesApp(model) } }
             screenshots.shoot("notes") { settle() }
         }
 
@@ -106,7 +108,7 @@ class NotesScreenshots {
     fun note() =
         runTest {
             val model = signedIn()
-            screenshots.show { NotesApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.notes_app_name)) { NotesApp(model) } }
             settle()
             model.open(5)
             screenshots.shoot("notes-note") { settle() }
@@ -118,7 +120,7 @@ class NotesScreenshots {
     fun notesLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { NotesApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.notes_app_name)) { NotesApp(model) } }
             screenshots.shoot("notes-land") { settle() }
         }
 
@@ -127,7 +129,7 @@ class NotesScreenshots {
     fun noteLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { NotesApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.notes_app_name)) { NotesApp(model) } }
             settle()
             model.open(5)
             screenshots.shoot("notes-note-land") { settle() }

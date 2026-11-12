@@ -1239,6 +1239,8 @@ class SakAppsTest {
                     "post" to "/api/v1/auth/login/link",
                     "post" to "/api/v1/auth/login/exchange",
                     "post" to "/api/v1/auth/login/password",
+                    // the token of the QR code of a session is all an app has (SECURITY-3)
+                    "post" to "/api/v1/auth/login/connect",
                 )
         }
     }
@@ -1297,8 +1299,11 @@ class SakAppsTest {
                     "/api/v1/auth/login/link",
                     "/api/v1/auth/login/exchange",
                     "/api/v1/auth/login/password",
+                    "/api/v1/auth/login/connect",
                     "/api/v1/info",
                     "/api/v1/auth/who-am-i",
+                    "/api/v1/auth/connect",
+                    "/api/v1/auth/connect/{id}",
                     "/api/v1/deployment",
                     "/api/v1/settings",
                     "/api/v1/settings/{scope}",

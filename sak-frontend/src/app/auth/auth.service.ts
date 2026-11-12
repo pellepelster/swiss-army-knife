@@ -1,8 +1,15 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
-import { DeploymentInfo, ExchangeResponse, UserMode, WhoAmI } from '../api/models';
+import {
+  Connect,
+  ConnectStatus,
+  DeploymentInfo,
+  ExchangeResponse,
+  UserMode,
+  WhoAmI,
+} from '../api/models';
 
 interface Session {
   token: string;
@@ -116,6 +123,17 @@ export class AuthService {
 
   whoAmI(): Observable<WhoAmI> {
     return this.http.get<WhoAmI>('/api/v1/auth/who-am-i');
+  }
+
+  // a QR code that connects an app as the signed in user (SECURITY-3), with the response, whose
+  // Date header tells the time of the backend its expiry is in
+  connect(): Observable<HttpResponse<Connect>> {
+    return this.http.post<Connect>('/api/v1/auth/connect', null, { observe: 'response' });
+  }
+
+  // whether an app used the code; 404 once it expired
+  connectStatus(id: string): Observable<ConnectStatus> {
+    return this.http.get<ConnectStatus>(`/api/v1/auth/connect/${encodeURIComponent(id)}`);
   }
 
   logout(): void {

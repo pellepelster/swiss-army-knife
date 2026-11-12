@@ -28,4 +28,6 @@ dependencies {
     api(libs.roborazzi.compose)
     api(libs.roborazzi.junit.rule)
     api(libs.compose.ui.test.junit4)
+    // the QR code the fake camera of the scan shows (FakeQrCamera)
+    implementation(libs.zxing.core)
 }

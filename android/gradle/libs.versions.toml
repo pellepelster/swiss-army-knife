@@ -11,6 +11,10 @@ kotlinx-serialization = "1.12.0"
 kotlinx-coroutines = "1.11.0"
 junit = "4.13.2"
 emoji2 = "1.7.0"
+# the scan of the QR code of the web app that connects an app (SECURITY-3): the camera by camerax,
+# decoded on the phone by zxing, no google play services (PRIVACY-7)
+camerax = "1.6.2"
+zxing = "3.5.4"
 # the screenshots of the apps (docs/screenshots/android-*.png), rendered on the jvm
 robolectric = "4.17"
 roborazzi = "1.77.0"
@@ -23,6 +27,11 @@ android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 emoji2-emojipicker = { module = "androidx.emoji2:emoji2-emojipicker", version.ref = "emoji2" }
+camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }

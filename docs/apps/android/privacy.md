@@ -13,7 +13,7 @@ This policy applies to these Android apps of Swiss Army Knife (SAK):
 - SAK Grocery List (`io.pelle.sak.grocery`)
 - SAK Todo (`io.pelle.sak.todo`)
 
-Effective date: 3 November 2026
+Effective date: 12 November 2026
 
 ## Summary
 
@@ -42,6 +42,8 @@ uninstall the app, Android deletes all of this data.
 
 - **Internet:** to connect to your SAK instance.
 - **Microphone (SAK Notes only):** to record a voice note, only when you start a recording.
+- **Camera:** only when you tap **Scan QR code** or take a photo. The app reads the QR code that connects it to your SAK
+  instance on your phone; it keeps no picture of it and sends none.
 - **Photos:** the apps get only the photos that you take with the camera app or select, or that you share with the
   app.
 

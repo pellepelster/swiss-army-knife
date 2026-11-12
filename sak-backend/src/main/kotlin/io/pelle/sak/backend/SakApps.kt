@@ -5,6 +5,8 @@ import io.pelle.sak.backend.config.deployment
 import io.ktor.http.HttpHeaders
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole
+import io.pelle.sak.auth.connect
+import io.pelle.sak.auth.connectExchange
 import io.ktor.http.HttpMethod
 import io.ktor.server.application.Application
 import io.ktor.server.application.createRouteScopedPlugin
@@ -181,9 +183,12 @@ fun Application.apps(
                             if (adminPassword != null) {
                                 passwordLogin(tokens, admin, adminPassword, rolesOf, onLogin = onLogin)
                             }
+                            // an app connected with the QR code of a session (SECURITY-3)
+                            connectExchange(tokens, rolesOf, onLogin = onLogin)
                         }
                         authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                             whoAmI(nameOf = userService::name)
+                            connect(tokens, loginApp(config))
                         }
                     }
                     authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {

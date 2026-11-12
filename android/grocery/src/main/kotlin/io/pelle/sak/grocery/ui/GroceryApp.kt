@@ -17,12 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.core.R as CoreR
-import io.pelle.sak.core.Screen
 import io.pelle.sak.core.ui.Busy
-import io.pelle.sak.core.ui.DeploymentScreen
 import io.pelle.sak.core.ui.ListTexts
 import io.pelle.sak.core.ui.ListsHome
-import io.pelle.sak.core.ui.SignInScreen
 import io.pelle.sak.core.ui.UndoTime
 import io.pelle.sak.grocery.summary
 import io.pelle.sak.grocery.GroceryModel
@@ -55,8 +52,6 @@ fun GroceryApp(model: GroceryModel) {
     UndoTime(UNDO_MS) { model.undoMs = it }
     CompositionLocalProvider(LocalPhotoPicker provides rememberPhotoPicker(model)) {
         when (val current = screen) {
-            is Screen.Deployment -> DeploymentScreen(stringResource(R.string.grocery_app_name), current, model::connect)
-            is Screen.SignIn -> SignInScreen(current, model)
             is ListsScreen -> GroceryScreen(current, model)
             else -> Busy()
         }

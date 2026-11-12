@@ -1,5 +1,7 @@
 package io.pelle.sak.grocery
 
+import androidx.compose.ui.res.stringResource
+import io.pelle.sak.core.ui.SakContent
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import io.ktor.http.HttpStatusCode
@@ -120,7 +122,7 @@ class GroceryScreenshots {
     fun signIn() =
         runTest {
             val model = model(Stored(apiUrl = URL, address = "https://sak.example.org"))
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             screenshots.shoot("grocery-sign-in") { settle() }
         }
 
@@ -128,7 +130,7 @@ class GroceryScreenshots {
     fun lists() =
         runTest {
             val model = signedIn()
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             screenshots.shoot("grocery-lists") { settle() }
         }
 
@@ -136,7 +138,7 @@ class GroceryScreenshots {
     fun list() =
         runTest {
             val model = signedIn()
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             settle()
             model.open(1)
             screenshots.shoot("grocery-list") { settle() }
@@ -146,7 +148,7 @@ class GroceryScreenshots {
     fun settings() =
         runTest {
             val model = signedIn()
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             settle()
             model.openSettings(1)
             screenshots.shoot("grocery-list-settings") { settle() }
@@ -158,7 +160,7 @@ class GroceryScreenshots {
     fun listsLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             screenshots.shoot("grocery-lists-land") { settle() }
         }
 
@@ -167,7 +169,7 @@ class GroceryScreenshots {
     fun listLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { GroceryApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
             settle()
             model.open(1)
             screenshots.shoot("grocery-list-land") { settle() }

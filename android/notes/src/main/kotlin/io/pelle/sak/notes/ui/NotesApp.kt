@@ -99,15 +99,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.core.R as CoreR
-import io.pelle.sak.core.Screen
 import io.pelle.sak.core.ui.AccountMenu
 import io.pelle.sak.core.ui.Busy
 import io.pelle.sak.core.ui.ConfirmDelete
-import io.pelle.sak.core.ui.DeploymentScreen
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Page
 import io.pelle.sak.core.ui.resolve
-import io.pelle.sak.core.ui.SignInScreen
 import io.pelle.sak.core.ui.UpdateBanner
 import io.pelle.sak.core.ui.UpdateNotice
 import io.pelle.sak.core.ui.UndoBar
@@ -192,8 +189,6 @@ fun NotesApp(model: NotesModel) {
         LocalPlayer provides player,
     ) {
         when (val current = screen) {
-            is Screen.Deployment -> DeploymentScreen(stringResource(R.string.notes_app_name), current, model::connect)
-            is Screen.SignIn -> SignInScreen(current, model)
             is NotesScreen -> {
                 val open = current.note(current.open)
                 if (open != null) NoteScreen(current, open, model) else WallScreen(current, model)
@@ -262,17 +257,27 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
                 cameraFile.delete()
             }
         }
+    // the app declares the camera for the scan of a QR code (core), so android lets the camera app take
+    // a photo for it only once the user allowed the camera; asked for when the user takes a photo
+    val permission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+            if (allowed) camera.launch(cameraUri) else pending = null
+        }
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) send(uri) else pending = null
         }
     val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
-    return remember(camera, picker) {
+    return remember(camera, permission, picker) {
         PhotoPicker(
             hasCamera,
             take = { noteId ->
                 pending = noteId
-                camera.launch(cameraUri)
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    camera.launch(cameraUri)
+                } else {
+                    permission.launch(Manifest.permission.CAMERA)
+                }
             },
             choose = { noteId ->
                 pending = noteId

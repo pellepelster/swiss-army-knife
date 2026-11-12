@@ -19,6 +19,8 @@ class MainActivity : SakActivity() {
 
     override val sakModel get() = viewModel.model
 
+    override val appName = R.string.notes_app_name
+
     @Composable
     override fun Content() = NotesApp(viewModel.model)
 

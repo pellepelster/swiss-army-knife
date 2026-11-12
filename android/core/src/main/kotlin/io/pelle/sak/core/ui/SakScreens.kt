@@ -1,6 +1,12 @@
 package io.pelle.sak.core.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -123,16 +129,49 @@ fun Error(text: UiText?) {
     }
 }
 
-// the deployment, its SAK address typed in; title is the name of the app
+// the scan of the QR code of the web app, the first way to connect the app (SECURITY-3); the typed
+// address or the sign-in below it stays
+@Composable
+private fun ScanQr(scan: () -> Unit) {
+    SignInWay(stringResource(R.string.qr_hint), stringResource(R.string.qr_scan), scan, Modifier.testTag("scan-qr"), icon = R.drawable.ic_qrcode)
+    HorizontalDivider(Modifier.padding(vertical = 4.dp))
+}
+
+// one way to sign in: what it is for, and its button; disabled with why below it (UX-8)
+@Composable
+private fun SignInWay(
+    hint: String,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: Int? = null,
+    disabledWhy: String? = null,
+) {
+    Text(hint)
+    Button(onClick = onClick, enabled = disabledWhy == null, modifier = modifier) {
+        icon?.let {
+            Icon(painterResource(it), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        }
+        Text(label)
+    }
+    disabledWhy?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+}
+
+// the deployment: the QR code of the web app scanned, or its SAK address typed in; title is the name
+// of the app
 @Composable
 fun DeploymentScreen(
     title: String,
     screen: Screen.Deployment,
     connect: (String) -> Unit,
+    scan: () -> Unit,
 ) {
     var input by rememberSaveable { mutableStateOf(screen.input) }
     Page(title) { padding ->
         Form(padding) {
+            ScanQr(scan)
+            Text(stringResource(R.string.qr_or_address))
             Text(stringResource(R.string.deployment_hint))
             OutlinedTextField(
                 value = input,
@@ -144,14 +183,16 @@ fun DeploymentScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Error(screen.error)
-            Button(onClick = { connect(input) }, enabled = input.isNotBlank() && !screen.busy) {
+            OutlinedButton(onClick = { connect(input) }, enabled = input.isNotBlank() && !screen.busy, modifier = Modifier.testTag("connect")) {
                 Text(stringResource(if (screen.busy) R.string.connecting else R.string.connect))
             }
         }
     }
 }
 
-// the sign-in by a link by e-mail or by the password, as the user mode of the deployment has it (UX-7)
+// the sign-in: first the three ways, the QR code of the web app, the password of a single user
+// deployment and a link by e-mail of a multi user one, each with what it is for; a way chosen shows its
+// form, back leads to the three again (UX-7)
 @Composable
 fun SignInScreen(
     screen: Screen.SignIn,
@@ -160,6 +201,7 @@ fun SignInScreen(
     var email by rememberSaveable { mutableStateOf("") }
     // not in the saved state of the activity, which android writes to the disk (AN-9)
     var password by remember { mutableStateOf("") }
+    BackHandler(enabled = screen.method != null && screen.linkSentTo == null && !screen.busy) { model.chooseMethod(null) }
     Page(screen.address, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
         Form(padding) {
             Text(stringResource(R.string.login_sign_in), style = MaterialTheme.typography.headlineSmall)
@@ -180,12 +222,32 @@ fun SignInScreen(
                         }
                     }
                 }
-                // the deployment did not answer: asked again (AN-42)
-                screen.multiUser == null ->
+                // the deployment did not answer: the QR code still works, the rest is asked again (AN-42)
+                screen.multiUser == null -> {
+                    ScanQr(model::scanQr)
                     if (!screen.busy) {
                         Button(onClick = { model.retrySignIn() }, modifier = Modifier.testTag("retry")) { Text(stringResource(R.string.retry)) }
                     }
-                !screen.withPassword -> {
+                }
+                screen.method == null -> {
+                    ScanQr(model::scanQr)
+                    SignInWay(
+                        stringResource(R.string.sign_in_password_hint),
+                        stringResource(R.string.login_use_password),
+                        { model.chooseMethod(Screen.SignInMethod.PASSWORD) },
+                        Modifier.testTag("use-password"),
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                    SignInWay(
+                        stringResource(R.string.sign_in_email_hint),
+                        stringResource(R.string.sign_in_email),
+                        { model.chooseMethod(Screen.SignInMethod.EMAIL) },
+                        Modifier.testTag("use-email"),
+                        disabledWhy = if (screen.multiUser) null else stringResource(R.string.sign_in_email_single),
+                    )
+                }
+                screen.method == Screen.SignInMethod.EMAIL -> {
+                    Text(stringResource(R.string.sign_in_email_hint))
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -193,16 +255,15 @@ fun SignInScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = { if (!screen.busy) model.requestLink(email) }),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag("email"),
                     )
-                    Button(onClick = { model.requestLink(email) }, enabled = email.isNotBlank() && !screen.busy) {
+                    Button(onClick = { model.requestLink(email) }, enabled = email.isNotBlank() && !screen.busy, modifier = Modifier.testTag("send-link")) {
                         Text(stringResource(R.string.login_send_link))
                     }
-                    TextButton(onClick = { model.usePassword(true) }, modifier = Modifier.testTag("use-password")) {
-                        Text(stringResource(R.string.login_use_password))
-                    }
+                    OtherWays(screen, model)
                 }
                 else -> {
+                    Text(stringResource(R.string.sign_in_password_hint))
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -211,20 +272,27 @@ fun SignInScreen(
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { if (!screen.busy) model.signInWithPassword(password) }),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag("password"),
                     )
-                    Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy) {
+                    Button(onClick = { model.signInWithPassword(password) }, enabled = password.isNotEmpty() && !screen.busy, modifier = Modifier.testTag("sign-in-password")) {
                         Text(stringResource(R.string.login_use_password))
                     }
-                    if (screen.multiUser) {
-                        TextButton(onClick = { model.usePassword(false) }, modifier = Modifier.testTag("use-email")) {
-                            Text(stringResource(R.string.login_use_email))
-                        }
-                    }
+                    OtherWays(screen, model)
                 }
             }
             if (screen.busy) CircularProgressIndicator()
         }
+    }
+}
+
+// back to the three ways to sign in
+@Composable
+private fun OtherWays(
+    screen: Screen.SignIn,
+    model: SakModel<*>,
+) {
+    TextButton(onClick = { model.chooseMethod(null) }, enabled = !screen.busy, modifier = Modifier.testTag("other-ways")) {
+        Text(stringResource(R.string.sign_in_other_ways))
     }
 }
 
@@ -254,6 +322,15 @@ fun AccountMenu(
                 modifier = Modifier.testTag("check-update"),
             )
         }
+        // another user or deployment by the QR code of the web app; it asks before the session goes
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.qr_scan)) },
+            onClick = {
+                menu = false
+                model.scanQr()
+            },
+            modifier = Modifier.testTag("menu-scan-qr"),
+        )
         DropdownMenuItem(text = { Text(stringResource(R.string.login_sign_out)) }, onClick = {
             menu = false
             model.signOut()

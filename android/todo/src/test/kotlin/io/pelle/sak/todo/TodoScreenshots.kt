@@ -1,13 +1,16 @@
 package io.pelle.sak.todo
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.Stored
+import io.pelle.sak.core.ui.SakContent
 import io.pelle.sak.testing.FakeBackend
 import io.pelle.sak.testing.Screenshots
 import io.pelle.sak.testing.URL
+import io.pelle.sak.testing.fakeCamera
 import io.pelle.sak.testing.page
 import io.pelle.sak.todo.ui.TodoApp
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,9 +27,10 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
-// the screenshots of the todo app (docs/screenshots/android-todo-*.png): the sign-in, the home with
-// the lists, a list with its tasks of every priority, with and without a due date, open and done, and
-// the settings of a list, against the fake backend; the home and a list also in landscape (-land).
+// the screenshots of the todo app (docs/screenshots/android-todo-*.png): the sign-in, the scan of the
+// QR code that connects the app, the home with the lists, a list with its tasks of every priority,
+// with and without a due date, open and done, and the settings of a list, against the fake backend;
+// the scan, the home and a list also in landscape (-land).
 // Only with mise run android:screenshots
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -96,7 +100,7 @@ class TodoScreenshots {
     fun lists() =
         runTest {
             val model = signedIn()
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             screenshots.shoot("todo-lists") { settle() }
         }
 
@@ -104,7 +108,7 @@ class TodoScreenshots {
     fun list() =
         runTest {
             val model = signedIn()
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             settle()
             model.open(1)
             screenshots.shoot("todo-list") { settle() }
@@ -115,15 +119,41 @@ class TodoScreenshots {
         runTest {
             backend.dispatcher = StandardTestDispatcher(testScheduler)
             val model = TodoModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false).also { it.start() }
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             screenshots.shoot("todo-sign-in") { settle() }
+        }
+
+    // the scan of the QR code of the web app, over the sign-in, the camera a fake
+    private fun TestScope.scanning(): TodoModel {
+        fakeCamera()
+        backend.dispatcher = StandardTestDispatcher(testScheduler)
+        val model = TodoModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false).also { it.start() }
+        screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
+        settle()
+        model.scanQr()
+        return model
+    }
+
+    @Test
+    fun scan() =
+        runTest {
+            scanning()
+            screenshots.shoot("todo-scan") { settle() }
+        }
+
+    @Test
+    @Config(qualifiers = "+land")
+    fun scanLandscape() =
+        runTest {
+            scanning()
+            screenshots.shoot("todo-scan-land") { settle() }
         }
 
     @Test
     fun settings() =
         runTest {
             val model = signedIn()
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             settle()
             model.openSettings(1)
             screenshots.shoot("todo-list-settings") { settle() }
@@ -135,7 +165,7 @@ class TodoScreenshots {
     fun listsLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             screenshots.shoot("todo-lists-land") { settle() }
         }
 
@@ -144,7 +174,7 @@ class TodoScreenshots {
     fun listLandscape() =
         runTest {
             val model = signedIn()
-            screenshots.show { TodoApp(model) }
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
             settle()
             model.open(1)
             screenshots.shoot("todo-list-land") { settle() }

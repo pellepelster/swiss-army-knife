@@ -211,6 +211,67 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/login/connect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Exchange the token of a QR code for a session token
+     * @description The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days. Only a few attempts an hour are answered.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ConnectExchangeRequest'];
+        };
+      };
+      responses: {
+        /** @description The session token */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ExchangeResponse'];
+          };
+        };
+        /** @description The token is invalid, expired or was already used, or the user may no longer sign in */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description Too many attempts from this client */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/who-am-i': {
     parameters: {
       query?: never;
@@ -239,6 +300,111 @@ export interface paths {
         };
         /** @description No valid session token */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/connect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * A QR code that connects an app
+     * @description The link the QR code shows: the SAK address with a token in its fragment, valid for 2 minutes and only once, that an app exchanges for a session of the signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it expires. Only for a session, a few codes an hour.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The link of the QR code, its id and when it expires */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ConnectResponse'];
+          };
+        };
+        /** @description A signed request of sakctl, which has no session to connect */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description Too many codes of this user */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/connect/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether an app was connected with a QR code */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the code */
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Whether the code was used */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ConnectStatusResponse'];
+          };
+        };
+        /** @description The user has no such code, or it expired */
+        404: {
           headers: {
             [name: string]: unknown;
           };
@@ -4270,12 +4436,26 @@ export interface components {
       password: string;
       redirect?: string | null;
     };
+    /** ConnectExchangeRequest */
+    ConnectExchangeRequest: {
+      token: string;
+    };
     /** WhoAmIResponse */
     WhoAmIResponse: {
       username: string;
       name?: string | null;
       expiresAt?: string | null;
       roles: string[];
+    };
+    /** ConnectResponse */
+    ConnectResponse: {
+      link: string;
+      id: string;
+      expiresAt: string;
+    };
+    /** ConnectStatusResponse */
+    ConnectStatusResponse: {
+      used: boolean;
     };
     /** BucketStatisticsResponse */
     BucketStatisticsResponse: {

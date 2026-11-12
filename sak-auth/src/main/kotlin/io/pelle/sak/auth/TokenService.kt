@@ -20,6 +20,20 @@ data class LoginClaims(
     val redirect: String,
 )
 
+// a connect token of the QR code that connects an app (SECURITY-3): what it is, its id to ask whether
+// it was used, and when it expires
+data class ConnectToken(
+    val token: String,
+    val id: String,
+    val expiresAt: Instant,
+)
+
+// who a connect token signs in, and whether their session was one of the admin password
+data class ConnectClaims(
+    val email: String,
+    val withPassword: Boolean,
+)
+
 data class SessionToken(
     val token: String,
     val email: String,
@@ -30,19 +44,27 @@ data class SessionToken(
 
 private val logger = KotlinLogging.logger {}
 
-// login tokens travel in the e-mailed link and are only good for one exchange against a
-// session token, session tokens are what the apps send with every api request; both
-// are ES256 jwts, the token_use claim keeps one from being accepted as the other
+// login tokens travel in the e-mailed link and connect tokens in the QR code that connects an app,
+// each only good for one exchange against a session token; session tokens are what the apps send
+// with every api request. All are ES256 jwts, the token_use claim keeps one from being accepted as
+// another
 class TokenService(
     private val key: SigningKey,
     private val issuer: String,
     private val clock: Clock = Clock.systemUTC(),
     val loginTokenTtl: Duration = DEFAULT_LOGIN_TOKEN_TTL,
     val sessionTokenTtl: Duration = DEFAULT_SESSION_TOKEN_TTL,
+    val connectTokenTtl: Duration = DEFAULT_CONNECT_TOKEN_TTL,
 ) {
     private val algorithm = Algorithm.ECDSA256(key.publicKey, key.privateKey)
 
     private val loginVerifier = verifier(LOGIN)
+
+    private val connectVerifier = verifier(CONNECT)
+
+    // the ids of the connect tokens issued and not yet expired, with the user they were issued for:
+    // only that user asks whether one was used
+    private val issuedConnectTokens = ConcurrentHashMap<String, Pair<String, Instant>>()
 
     // session tokens without roles are from before there were roles
     val sessionVerifier: JWTVerifier =
@@ -107,6 +129,57 @@ class TokenService(
         return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/")
     }
 
+    // a token of the QR code that connects an app as the user of the session (SECURITY-3), good for one
+    // exchange within connectTokenTtl; a session of the admin password connects one too
+    fun issueConnectToken(
+        email: String,
+        withPassword: Boolean,
+    ): ConnectToken {
+        val id = UUID.randomUUID().toString()
+        val expiresAt = clock.instant().plus(connectTokenTtl)
+        val token =
+            sign(email, CONNECT, connectTokenTtl)
+                .withJWTId(id)
+                .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
+                .sign(algorithm)
+        val now = clock.instant()
+        issuedConnectTokens.values.removeIf { it.second.isBefore(now) }
+        issuedConnectTokens[id] = email to expiresAt
+        return ConnectToken(token, id, expiresAt)
+    }
+
+    // null for an invalid, expired or already used connect token; why is logged, never the token
+    fun exchangeConnectToken(token: String): ConnectClaims? {
+        val jwt =
+            try {
+                connectVerifier.verify(token)
+            } catch (e: JWTVerificationException) {
+                logger.info { "rejected a connect token: ${e.javaClass.simpleName}" }
+                return null
+            }
+        val id = jwt.id ?: return null
+        val email = jwt.subject ?: return null
+        val expiresAt = jwt.expiresAtAsInstant ?: return null
+        val now = clock.instant()
+        usedLoginTokens.values.removeIf { it.isBefore(now) }
+        if (usedLoginTokens.putIfAbsent(id, expiresAt) != null) {
+            logger.info { "rejected the connect token of ${logAddress(email)}: it was used already" }
+            return null
+        }
+        return ConnectClaims(email, jwt.getClaim(LOGIN_METHOD).asString() == PASSWORD)
+    }
+
+    // whether the connect token of the id, issued for the user, was used; null when the user has no
+    // such token that is not expired
+    fun connectTokenUsed(
+        email: String,
+        id: String,
+    ): Boolean? {
+        val (owner, expiresAt) = issuedConnectTokens[id] ?: return null
+        if (owner != email || expiresAt.isBefore(clock.instant())) return null
+        return usedLoginTokens.containsKey(id)
+    }
+
     fun issueSessionToken(
         email: String,
         roles: Set<Role>,
@@ -143,11 +216,16 @@ class TokenService(
 
         val DEFAULT_SESSION_TOKEN_TTL: Duration = Duration.ofDays(30)
 
+        // short: whoever photographs the code signs in with it until then (SECURITY-3)
+        val DEFAULT_CONNECT_TOKEN_TTL: Duration = Duration.ofMinutes(2)
+
         private const val TOKEN_USE = "token_use"
 
         private const val LOGIN = "login"
 
         private const val SESSION = "session"
+
+        private const val CONNECT = "connect"
 
         private const val REDIRECT = "redirect"
         private const val NONCE = "nonce"

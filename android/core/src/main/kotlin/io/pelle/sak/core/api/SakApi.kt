@@ -1,6 +1,7 @@
 package io.pelle.sak.core.api
 
 import io.pelle.sak.api.model.ApiErrorResponse
+import io.pelle.sak.api.model.ConnectExchangeRequest
 import io.pelle.sak.api.model.ExchangeRequest
 import io.pelle.sak.api.model.ExchangeResponse
 import io.pelle.sak.api.model.InfoResponse
@@ -133,6 +134,16 @@ open class SakApi(
                 contentType(ContentType.Application.Json)
                 setBody(ExchangeRequest(loginToken, nonce))
             }.answer(R.string.login_link_invalid, unauthorized = R.string.login_link_invalid)
+
+    // the session of the user who showed the QR code of the web app (SECURITY-3), for its connect
+    // token; a 401 is a token that is not valid, used or expired
+    suspend fun connectExchange(token: String): ExchangeResponse =
+        client
+            .post("$url/auth/login/connect") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(ConnectExchangeRequest(token))
+            }.answer(R.string.error_qr_not_used, unauthorized = R.string.error_qr_invalid)
 
     suspend fun passwordLogin(password: String): ExchangeResponse =
         client

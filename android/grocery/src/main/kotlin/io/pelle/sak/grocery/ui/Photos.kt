@@ -1,5 +1,6 @@
 package io.pelle.sak.grocery.ui
 
+import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.core.ui.PhotoScaling
@@ -119,18 +121,32 @@ internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
                 cameraFile.delete()
             }
         }
+    // the app declares the camera for the scan of a QR code (core), so android lets the camera app take
+    // a photo for it only once the user allowed the camera; asked for when the user takes a photo
+    val permission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+            if (allowed) camera.launch(cameraUri) else drop()
+        }
+
+    fun takePhoto() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            camera.launch(cameraUri)
+        } else {
+            permission.launch(Manifest.permission.CAMERA)
+        }
+    }
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) send(uri) else drop()
         }
     val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
-    return remember(camera, picker) {
+    return remember(camera, permission, picker) {
         PhotoPicker(
             hasCamera,
             take = { itemId ->
                 pendingItem = itemId
                 pendingDiscover = false
-                camera.launch(cameraUri)
+                takePhoto()
             },
             choose = { itemId ->
                 pendingItem = itemId
@@ -140,7 +156,7 @@ internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
             takeToDiscover = {
                 pendingItem = null
                 pendingDiscover = true
-                camera.launch(cameraUri)
+                takePhoto()
             },
             chooseToDiscover = {
                 pendingItem = null

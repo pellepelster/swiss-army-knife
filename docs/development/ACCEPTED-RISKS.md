@@ -84,3 +84,6 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
 
 - **Logs name a user by a short hash of the e-mail address.** Whoever guesses an address can confirm it. Accepted: the
   admin finds a user's lines with `sha256sum` alone.
+
+- **A photographed QR code signs in.** Whoever sees the code that connects an app signs in as its user (`SECURITY-3`).
+  Accepted: it is valid for 2 minutes and once, shows only on request, and the page says when an app used it.

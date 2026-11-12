@@ -3,6 +3,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- the scan of the QR code of the web app that connects the app, asked for only when the user
+         scans (PRIVACY-7); a phone without a camera signs in without it -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <!-- the update to the version of the deployment, the apk of its release (AndroidUpdater) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 

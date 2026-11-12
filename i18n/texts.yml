@@ -69,6 +69,9 @@ backend:
     link_invalid:
       en: "The login link is not valid, or it was used or expired."
       de: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
+    code_invalid:
+      en: "The QR code is not valid, or it was used or expired. Show a new one."
+      de: "Der QR-Code ist nicht gültig, oder er wurde benutzt oder ist abgelaufen. Zeige einen neuen an."
     wrong_password: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     mail_subject: { en: "Sign in to %{app}", de: "Anmelden bei %{app}" }
     mail_body:
@@ -278,6 +281,28 @@ web:
     users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
     downloads: { en: "Android apps", de: "Android-Apps" }
     downloads_description: { en: "The apps for Android phones to download", de: "Die Apps für Android-Handys zum Herunterladen" }
+  connect:
+    title: { en: "Connect an app", de: "App verbinden" }
+    instructions:
+      en: "Open SAK Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code."
+      de: "Öffne SAK Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code."
+    warning:
+      en: "Whoever scans this code signs in as you. Show it only to your own phone."
+      de: "Wer diesen Code scannt, ist als du angemeldet. Zeige ihn nur deinem eigenen Handy."
+    code: { en: "QR code to connect an app", de: "QR-Code zum Verbinden einer App" }
+    valid_for: { en: "Valid for %{time}", de: "Noch %{time} gültig" }
+    expired: { en: "The code expired.", de: "Der Code ist abgelaufen." }
+    connected: { en: "Connected", de: "Verbunden" }
+    connected_text:
+      en: "An app signed in with this code."
+      de: "Eine App hat sich mit diesem Code angemeldet."
+    another: { en: "Show another code", de: "Anderen Code anzeigen" }
+    too_many:
+      en: "Too many codes, please try again later."
+      de: "Zu viele Codes, bitte versuche es später erneut."
+    failed:
+      en: "The code could not be created, please try again."
+      de: "Der Code konnte nicht erstellt werden, bitte versuche es erneut."
   signin:
     page_title: { en: "Signing in", de: "Anmeldung läuft" }
     grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }
@@ -423,6 +448,48 @@ android:
     en: "Your SAK instance runs no release, there is no update for the app."
     de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
+  # the three ways to sign in, the QR code first (UX-7)
+  sign_in_password_hint:
+    en: "Sign in to a single user SAK instance with a password."
+    de: "Bei einer SAK-Instanz mit einem Benutzer mit dem Passwort anmelden."
+  sign_in_email_hint:
+    en: "Sign in to a multi user SAK instance by e-mail."
+    de: "Bei einer SAK-Instanz mit mehreren Benutzern per E-Mail anmelden."
+  sign_in_email: { en: "Sign in by e-mail", de: "Per E-Mail anmelden" }
+  sign_in_email_single:
+    en: "This SAK instance has a single user, it has no e-mail login."
+    de: "Diese SAK-Instanz hat einen Benutzer, sie hat kein E-Mail-Login."
+  sign_in_other_ways: { en: "Other ways to sign in", de: "Andere Arten der Anmeldung" }
+  # the QR code of the web app that connects an app (SECURITY-3), scanned with the camera (PRIVACY-7)
+  qr:
+    scan: { en: "Scan QR code", de: "QR-Code scannen" }
+    hint:
+      en: "Signed in to the web app? Open “Connect an app” there and scan its QR code."
+      de: "In der Web-App angemeldet? Öffne dort „App verbinden“ und scanne den QR-Code."
+    or_address: { en: "Or enter the SAK address:", de: "Oder gib die SAK-Adresse ein:" }
+    point:
+      en: "Point the camera at the QR code the web app shows."
+      de: "Richte die Kamera auf den QR-Code, den die Web-App zeigt."
+    signing_in: { en: "Signing in…", de: "Anmeldung läuft…" }
+    scan_again: { en: "Scan again", de: "Erneut scannen" }
+    back: { en: "Back", de: "Zurück" }
+    torch_on: { en: "Turn on the light", de: "Licht einschalten" }
+    torch_off: { en: "Turn off the light", de: "Licht ausschalten" }
+    denied:
+      en: "The app may not use the camera, so it cannot scan the QR code. Allow the camera in the settings of the app, or sign in without a code."
+      de: "Die App darf die Kamera nicht benutzen und kann den QR-Code daher nicht scannen. Erlaube die Kamera in den Einstellungen der App oder melde dich ohne Code an."
+    open_settings: { en: "Open settings", de: "Einstellungen öffnen" }
+    without_code: { en: "Sign in without a code", de: "Ohne Code anmelden" }
+    switch_title: { en: "Switch the SAK instance?", de: "SAK-Instanz wechseln?" }
+    switch_text:
+      en: "You are signed in to %{from}. The QR code signs you in to %{to} instead."
+      de: "Du bist bei %{from} angemeldet. Der QR-Code meldet dich stattdessen bei %{to} an."
+    switch: { en: "Switch", de: "Wechseln" }
+    again_title: { en: "Sign in anew?", de: "Neu anmelden?" }
+    again_text:
+      en: "You are signed in to %{address} as %{user}. The QR code signs you in anew, as the user who shows it."
+      de: "Du bist bei %{address} als %{user} angemeldet. Der QR-Code meldet dich neu an, als der Benutzer, der ihn zeigt."
+    stay: { en: "Stay signed in", de: "Angemeldet bleiben" }
   # the lists of the list-based apps (grocery, todo): the home, the settings of a list (apps/INDEX.md)
   no_lists:
     en: "You have no list yet, create one with the plus at the top."
@@ -465,6 +532,16 @@ android:
     too_many_attempts:
       en: "Too many attempts, please try again later."
       de: "Zu viele Versuche, bitte versuche es später erneut."
+    qr_no_sak:
+      en: "This is no QR code of SAK. Scan the code the web app shows under “Connect an app”."
+      de: "Das ist kein QR-Code von SAK. Scanne den Code, den die Web-App unter „App verbinden“ zeigt."
+    qr_invalid:
+      en: "The QR code is not valid, or it was used or expired. Show a new one in the web app."
+      de: "Der QR-Code ist nicht gültig, oder er wurde benutzt oder ist abgelaufen. Zeige in der Web-App einen neuen an."
+    qr_unreachable:
+      en: "The SAK instance %{address} could not be reached."
+      de: "Die SAK-Instanz %{address} war nicht erreichbar."
+    qr_not_used: { en: "The QR code could not be used.", de: "Der QR-Code konnte nicht benutzt werden." }
     update_not_downloaded:
       en: "The update could not be downloaded, check the connection."
       de: "Das Update konnte nicht heruntergeladen werden, prüfe die Verbindung."

@@ -4,6 +4,8 @@ import androidx.annotation.StringRes
 import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.core.api.ApiException
 import io.pelle.sak.core.api.SakApi
+import io.pelle.sak.core.qr.QrScan
+import io.pelle.sak.core.qr.QrSwitch
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.SessionStore
 import io.pelle.sak.core.session.Stored
@@ -19,6 +21,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -50,13 +53,17 @@ interface Screen {
 
     // the sign-in follows the user mode (UX-7): in the multi user mode the e-mail login with a link to
     // the password login, in the single user mode only the password login
+    // a way to sign in, beside the QR code of the web app
+    enum class SignInMethod { PASSWORD, EMAIL }
+
     data class SignIn(
         // the SAK address, else the url of the api
         val address: String,
         // the multi user mode, null until the deployment answered
         val multiUser: Boolean?,
-        // the password login is shown: chosen, or the only one in the single user mode
-        val withPassword: Boolean = multiUser == false,
+        // the way to sign in the user chose, null while the three ways show: the QR code, the
+        // password, a link by e-mail (UX-7)
+        val method: SignInMethod? = null,
         val busy: Boolean = false,
         val error: UiText? = null,
         // the address a link went to, the app waits for it
@@ -121,8 +128,19 @@ abstract class SakModel<A : SakApi>(
     // start(), which a link of a cold start waits for, so its screen does not come after the app's
     private var starting: Job? = null
 
-    // one login link at a time (AN-2)
+    // one login link or QR code at a time (AN-2)
     private val links = Mutex()
+
+    private val scanning = MutableStateFlow<QrScan?>(null)
+
+    // the scan of a QR code of the web app, over the screen while it is open; null when closed
+    val scan: StateFlow<QrScan?> = scanning.asStateFlow()
+
+    // the code that waits for the user to confirm the switch of the session
+    private var confirming: ConnectCode? = null
+
+    // the work of the code scanned, cancelled when the scan closes
+    private var exchanging: Job? = null
 
     // counts up with every change of the session (AN-3)
     @Volatile
@@ -173,11 +191,7 @@ abstract class SakModel<A : SakApi>(
         val since = epoch
         scope.launch {
             try {
-                // the SAK address names its api (SERVER-6), which must answer as a SAK instance
-                val url =
-                    announcedApi(apiOf(address, null).wellKnown().api, allowUrl)
-                        ?: throw ApiException(0, uiText(R.string.error_no_sak_address))
-                apiOf(url, null).info()
+                val url = discover(address)
                 if (since != epoch || state.value !== connecting) return@launch
                 val stored = Stored(apiUrl = url, address = address)
                 store.save(stored)
@@ -190,6 +204,124 @@ abstract class SakModel<A : SakApi>(
                 }
             }
         }
+    }
+
+    // the url of the api of a SAK address, which names it (SERVER-6) and must answer as a SAK instance
+    private suspend fun discover(address: String): String {
+        val url =
+            announcedApi(apiOf(address, null).wellKnown().api, allowUrl)
+                ?: throw ApiException(0, uiText(R.string.error_no_sak_address))
+        apiOf(url, null).info()
+        return url
+    }
+
+    // the scan of a QR code opens; the ui asks for the camera now, not before (PRIVACY-7)
+    fun scanQr() {
+        if (scanning.value == null) scanning.value = QrScan()
+    }
+
+    // the scan closes, what its code still asked of the deployment changes nothing
+    fun closeScan() {
+        exchanging?.cancel()
+        exchanging = null
+        confirming = null
+        scanning.value = null
+    }
+
+    // the camera was refused, or allowed in the settings of the app afterwards
+    fun cameraDenied() = scanning.update { it?.copy(denied = true) }
+
+    fun cameraAllowed() = scanning.update { it?.copy(denied = false) }
+
+    // after a code that did not sign in: the next code is taken
+    fun scanAgain() = scanning.update { if (it?.busy == false && it.confirm == null) it.copy(error = null) else it }
+
+    // the text of a QR code the camera read: a code of the web app (connectCode) signs in to its
+    // deployment; a session there or elsewhere is replaced only once the user confirmed it. One code at
+    // a time: the camera reads the same code again and again, it is taken while nothing else runs and
+    // no error waits for the user (scanAgain)
+    fun signInWithQr(text: String) {
+        val current = scanning.value ?: QrScan()
+        if (current.busy || current.confirm != null || current.error != null) return
+        val code = connectCode(text, allowUrl)
+        if (code == null) {
+            scanning.value = current.copy(error = uiText(R.string.error_qr_no_sak))
+            return
+        }
+        scanning.value = current.copy(busy = true)
+        exchanging =
+            scope.launch {
+                starting?.join()
+                val stored = store.load()
+                if (signedIn(stored)) {
+                    confirming = code
+                    val from = stored.address ?: stored.apiUrl.orEmpty()
+                    scanning.update { it?.copy(busy = false, confirm = QrSwitch(from, code.address, stored.email.orEmpty())) }
+                } else {
+                    exchange(code)
+                }
+            }
+    }
+
+    // the user confirmed that the code replaces the session
+    fun confirmQr() {
+        val code = confirming ?: return
+        confirming = null
+        scanning.update { it?.copy(busy = true, confirm = null) }
+        exchanging = scope.launch { exchange(code) }
+    }
+
+    // the code of a QR code exchanged at its deployment; the session it brings replaces the one before,
+    // whose app sends first what it still has (as on the sign-out). A failure leaves the session as it
+    // was and says why
+    private suspend fun exchange(code: ConnectCode) =
+        links.withLock {
+            val unreachable = uiText(R.string.error_qr_unreachable, code.address)
+            val url =
+                try {
+                    discover(code.address)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    return@withLock qrFailed(unreachable)
+                }
+            val exchanged =
+                try {
+                    apiOf(url, null).connectExchange(code.token)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ApiException) {
+                    return@withLock qrFailed(
+                        when (e.status) {
+                            401 -> uiText(R.string.error_qr_invalid)
+                            429 -> uiText(R.string.error_too_many_attempts)
+                            else -> e.text
+                        },
+                    )
+                } catch (e: IOException) {
+                    return@withLock qrFailed(unreachable)
+                } catch (e: Exception) {
+                    return@withLock qrFailed(uiText(R.string.error_qr_not_used))
+                }
+            // the code is used up: the switch is done also when the scan closes meanwhile
+            withContext(NonCancellable) {
+                if (signedIn(store.load())) runCatchingNonCancel { signingOut() }
+                epoch++
+                try {
+                    store.save(Stored(apiUrl = url, address = code.address))
+                } catch (e: Exception) {
+                    return@withContext qrFailed(uiText(R.string.error_qr_not_used))
+                }
+                clearSession()
+                confirming = null
+                scanning.value = null
+                signedIn(url, exchanged.sessionToken, exchanged.email, exchanged.expiresAt)
+                sessionChanged()
+            }
+        }
+
+    private fun qrFailed(text: UiText) {
+        scanning.update { it?.copy(busy = false, error = text) }
     }
 
     // back to the deployment, the session and a pending login go; what is still asked of the old
@@ -250,10 +382,12 @@ abstract class SakModel<A : SakApi>(
         scope.launch { showSignIn(store.load()) }
     }
 
-    // between the e-mail login and the password login, in the multi user mode
-    fun usePassword(withPassword: Boolean) {
+    // one of the ways to sign in, or back to all three (null); the e-mail login only in the multi user
+    // mode, a single user deployment has none (UX-7)
+    fun chooseMethod(method: Screen.SignInMethod?) {
         val signIn = state.value as? Screen.SignIn ?: return
-        if (signIn.multiUser == true) state.value = signIn.copy(withPassword = withPassword, error = null)
+        if (signIn.busy || (method == Screen.SignInMethod.EMAIL && signIn.multiUser != true)) return
+        state.value = signIn.copy(method = method, error = null)
     }
 
     fun signInWithPassword(password: String) {

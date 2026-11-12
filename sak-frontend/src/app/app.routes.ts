@@ -58,6 +58,13 @@ export const routes: Routes = [
     // a tab for every scope, the first is opened without one
     children: [{ path: ':scope', component: SettingsScopeTab }],
   },
+  // the QR code that connects an app, with the qr generator, which only this page needs
+  {
+    path: 'connect-app',
+    loadComponent: () => import('./connect/connect-page').then((m) => m.ConnectPage),
+    canActivate: [authGuard],
+    title: pageTitle('connect.title'),
+  },
   { path: 'login', component: Login, title: pageTitle('login.sign_in') },
   { path: 'signin', component: Signin, title: pageTitle('signin.page_title') },
   { path: '**', redirectTo: '' },

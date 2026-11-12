@@ -9,6 +9,8 @@ import io.pelle.sak.core.SakModel
 import io.pelle.sak.core.Screen
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.api.SakApi
+import io.pelle.sak.core.qr.QrScan
+import io.pelle.sak.core.qr.QrSwitch
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.SessionStore
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -307,5 +310,173 @@ class SakModelTest {
             model.signOut()
             advanceUntilIdle()
             assertEquals(emptyMap<String, String>(), store.load().app)
+        }
+
+    private val code = "https://sak.example.org/connect#token=the.connect-token"
+
+    // the deployment of the old session, before a code of another one
+    private fun signedInElsewhere() =
+        MemorySessionStore(
+            Stored(apiUrl = "https://api.old.example.org/v1", address = "https://old.example.org", token = "old", email = "admin", expiresAt = now.plusSeconds(3600)),
+        )
+
+    @Test
+    fun `a QR code signs in to its deployment, from the first screen`() =
+        runTest {
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.OK to session("qr-session", "anna@example.org")
+            val store = MemorySessionStore(Stored())
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(Screen.Deployment(), model.screen.value)
+            model.scanQr()
+            assertEquals(QrScan(), model.scan.value)
+            model.signInWithQr(code)
+            assertTrue(model.scan.value!!.busy)
+            // the camera reads the code again while it is exchanged: once
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
+            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.connect-token"}"""))
+            // the SAK address of the code names its api, which answers as a SAK instance
+            assertTrue(backend.requests.contains("GET /.well-known/sak.json"))
+            assertNull(backend.tokens["/auth/login/connect"])
+            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
+            assertNull(model.scan.value)
+            val stored = store.load()
+            assertEquals(URL, stored.apiUrl)
+            assertEquals("https://sak.example.org", stored.address)
+            assertEquals("qr-session", stored.token)
+        }
+
+    @Test
+    fun `a code that is no code of SAK, refused, used too often or of a deployment out of reach says why`() =
+        runTest {
+            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            advanceUntilIdle()
+            model.scanQr()
+            model.signInWithQr("https://evil.example.org/login?token=abc")
+            assertEquals(
+                "This is no QR code of SAK. Scan the code the web app shows under “Connect an app”.",
+                model.scan.value!!.error.english(),
+            )
+            // the error waits for the user: no other code is taken meanwhile
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
+
+            // the error body of the backend, the code is not valid, used or expired
+            backend.answers["POST /auth/login/connect"] =
+                HttpStatusCode.Unauthorized to """{"errors":[{"code":"auth.code_invalid","message":"The QR code is not valid."}]}"""
+            model.scanAgain()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.scan.value!!.error.english())
+            assertFalse(model.scan.value!!.busy)
+
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.TooManyRequests to ""
+            model.scanAgain()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals("Too many attempts, please try again later.", model.scan.value!!.error.english())
+
+            backend.unreachable += "POST /auth/login/connect"
+            model.scanAgain()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
+
+            // no SAK instance answers at the address of the code
+            backend.unreachable.clear()
+            backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.NotFound to ""
+            model.scanAgain()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
+            // the sign-in stays below the scan
+            assertTrue(model.screen.value is Screen.SignIn)
+            model.closeScan()
+            assertNull(model.scan.value)
+        }
+
+    @Test
+    fun `signed in to another deployment, a code asks first, kept nothing changes, confirmed the session is replaced`() =
+        runTest {
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.OK to session("qr-session", "anna@example.org")
+            val store = signedInElsewhere()
+            val before = store.load()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.scanQr()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertEquals(QrSwitch("https://old.example.org", "https://sak.example.org", "admin"), model.scan.value!!.confirm)
+            assertFalse(model.scan.value!!.confirm!!.same)
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
+
+            // kept: the session stays
+            model.closeScan()
+            advanceUntilIdle()
+            assertNull(model.scan.value)
+            assertEquals(before, store.load())
+            assertTrue(model.screen.value is ThingsScreen)
+
+            model.scanQr()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            model.confirmQr()
+            advanceUntilIdle()
+            assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
+            assertNull(model.scan.value)
+            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
+            assertEquals(Stored(apiUrl = URL, address = "https://sak.example.org", token = "qr-session", email = "anna@example.org", expiresAt = Instant.parse("2026-12-02T08:00:00Z")), store.load())
+        }
+
+    @Test
+    fun `signed in to the same deployment, a code asks whether to sign in anew, a refused code keeps the session`() =
+        runTest {
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.Unauthorized to ""
+            val store = signedIn()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.scanQr()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            assertTrue(model.scan.value!!.confirm!!.same)
+            model.confirmQr()
+            advanceUntilIdle()
+            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.scan.value!!.error.english())
+            assertEquals("session", store.load().token)
+            assertTrue(model.screen.value is ThingsScreen)
+
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.OK to session("qr-session", "anna@example.org")
+            model.scanAgain()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            model.confirmQr()
+            advanceUntilIdle()
+            assertEquals("qr-session", store.load().token)
+            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
+        }
+
+    @Test
+    fun `a camera refused shows the scan without it until the camera is allowed`() =
+        runTest {
+            val model = model(MemorySessionStore(Stored())).also { it.start() }
+            advanceUntilIdle()
+            model.cameraDenied()
+            // no scan open: nothing
+            assertNull(model.scan.value)
+            model.scanQr()
+            model.cameraDenied()
+            assertEquals(QrScan(denied = true), model.scan.value)
+            model.cameraAllowed()
+            assertEquals(QrScan(), model.scan.value)
+            model.cameraDenied()
+            model.closeScan()
+            assertNull(model.scan.value)
+            // the next scan asks again
+            model.scanQr()
+            assertEquals(QrScan(), model.scan.value)
+            assertEquals(Screen.Deployment(), model.screen.value)
         }
 }

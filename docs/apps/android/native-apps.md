@@ -43,7 +43,11 @@ are the same.
    - **"App scan recommended"** or **"Send app for security check?"**: tap **Install without scanning** or **Don't
      send**. **Scan app** or **Send** is also safe: Google gets the app file, not your data.
    - **"Unsafe app blocked"** or **"Blocked by Play Protect"**: tap **More details**, then **Install anyway**.
-6. **Open the app.** Enter your SAK address and sign in.
+6. **Open the app and connect it.** The fastest way is the QR code: in the browser, sign in to your SAK instance,
+   open the ⋮ menu next to your name on the start page and select **Connect an app**. In the app, tap **Scan QR
+   code** and point the camera at the code. The app is signed in, without typing the address or a password. The code
+   is valid for 2 minutes and only once; whoever scans it signs in as you, so don't show it to others. Instead of the
+   code, you can also enter your SAK address and sign in with an e-mail link or the admin password.
 
 After the installation, you can turn off **Allow from this source** for the browser again.
 

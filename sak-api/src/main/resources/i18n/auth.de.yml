@@ -2,6 +2,7 @@
 invalid_email: "Keine gültige E-Mail-Adresse."
 invalid_nonce: "Eine App sendet eine Nonce mit 16 bis 128 Zeichen."
 link_invalid: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
+code_invalid: "Der QR-Code ist nicht gültig, oder er wurde benutzt oder ist abgelaufen. Zeige einen neuen an."
 wrong_password: "Das Passwort ist falsch."
 mail_subject: "Anmelden bei %{app}"
 mail_body: |

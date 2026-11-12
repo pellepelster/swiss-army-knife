@@ -16,6 +16,7 @@ val models =
         "ExchangeRequest",
         "PasswordLoginRequest",
         "ExchangeResponse",
+        "ConnectExchangeRequest",
         "WhoAmIResponse",
         "PaginationResponse",
         "FileResponse",

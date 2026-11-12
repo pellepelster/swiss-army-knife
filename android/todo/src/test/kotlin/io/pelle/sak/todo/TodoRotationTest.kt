@@ -1,6 +1,8 @@
 package io.pelle.sak.todo
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -12,6 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.session.Stored
 import io.pelle.sak.core.session.withOpenList
 import io.pelle.sak.testing.FakeBackend
+import io.pelle.sak.testing.fakeCamera
 import io.pelle.sak.testing.URL
 import io.pelle.sak.testing.forActivities
 import io.pelle.sak.testing.page
@@ -98,6 +101,48 @@ class TodoRotationTest {
             shows("list-1")
             compose.onNodeWithTag("list-1").assertIsDisplayed()
             compose.onNodeWithTag("new-list").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun `the scan of a QR code stays over a rotation, fits a phone in landscape and signs in`() {
+        backend.answers["POST /auth/login/connect"] =
+            HttpStatusCode.OK to """{"sessionToken":"qr","email":"anna@example.org","expiresAt":"2099-01-01T00:00:00.000Z","roles":["user"],"redirect":"/"}"""
+        backend.forActivities(Stored(apiUrl = URL, address = "https://sak.example.org"))
+        val camera = fakeCamera()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            shows("scan-qr")
+            compose.onNodeWithTag("scan-qr").performClick()
+            compose.onNodeWithTag("qr-scanner").assertIsDisplayed()
+
+            scenario.rotate()
+            compose.onNodeWithTag("qr-scanner").assertIsDisplayed()
+            compose.onNodeWithTag("qr-back").assertIsDisplayed()
+            compose.onNodeWithTag("qr-point").assertIsDisplayed()
+            compose.onNodeWithTag("qr-torch").assertIsDisplayed().assertIsEnabled().performClick()
+            compose.waitForIdle()
+            assertTrue(camera.torch)
+
+            scenario.rotate(landscape = false)
+            compose.onNodeWithTag("qr-scanner").assertIsDisplayed()
+            camera.code = "https://sak.example.org/connect#token=the.token"
+            shows("list-1")
+            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.token"}"""))
+            compose.onAllNodesWithTag("qr-scanner").assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun `back closes the scan, the sign-in below it is as it was`() {
+        backend.forActivities(Stored(apiUrl = URL, address = "https://sak.example.org"))
+        fakeCamera()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            shows("scan-qr")
+            compose.onNodeWithTag("scan-qr").performClick()
+            scenario.rotate()
+            compose.onNodeWithTag("qr-back").performClick()
+            compose.onAllNodesWithTag("qr-scanner").assertCountEquals(0)
+            compose.onNodeWithTag("use-password").performScrollTo().assertIsDisplayed()
         }
     }
 }

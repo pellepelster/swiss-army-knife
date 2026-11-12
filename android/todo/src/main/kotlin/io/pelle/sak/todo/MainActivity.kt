@@ -13,6 +13,8 @@ class MainActivity : SakActivity() {
 
     override val sakModel get() = viewModel.model
 
+    override val appName = R.string.todo_app_name
+
     @Composable
     override fun Content() = TodoApp(viewModel.model)
 

@@ -15,6 +15,9 @@ export type WhoAmI = Schemas['WhoAmIResponse'];
 // the admin by password
 export type DeploymentInfo = Schemas['InfoResponse'];
 export type UserMode = DeploymentInfo['userMode'];
+// the QR code that connects an app (SECURITY-3): its link holds the token, never shown or logged
+export type Connect = Schemas['ConnectResponse'];
+export type ConnectStatus = Schemas['ConnectStatusResponse'];
 
 // grocery
 export type GroceryCategory = Schemas['GroceryCategoryResponse'];

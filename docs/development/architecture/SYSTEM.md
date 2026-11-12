@@ -248,6 +248,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   send only synthetic test data; a deployment of a user never connects to them.
 - `PRIVACY-6` **User data stays.** User data leaves the backend only when the user asks for it (for example text
   discovery), and only to providers that do not collect it.
+- `PRIVACY-7` **The camera only when the user uses it.** An Android app asks for the camera only when the user scans a
+  QR code (`SECURITY-3`) or takes a photo. A QR code is decoded on the phone, its picture kept nowhere and sent nowhere.
 
 ## Security
 
@@ -270,6 +272,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
   Nothing of it is stored on the user's machine: sakctl derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
 - `SECURITY-2` **The ssh key must never be written to disk.**
+- `SECURITY-3` **An app is connected with a QR code.** A signed in session of the web app, by e-mail or with the admin
+  password, shows a QR code on request: the SAK address with a connect token in the fragment of the link
+  (`https://<sak address>/connect#token=…`), which a browser never sends. The token is good for one exchange within 2
+  minutes, for a session of the same user with its own full time; the roles are the ones the user has at the exchange.
+  Only the app scans it, in the app, never the browser. Whoever photographs the code signs in as the user until it is
+  used or expired: it shows only while asked for, a few codes an hour, and the page tells when an app used it. A signed
+  request of sakctl shows no code.
 
 ## Tests
 

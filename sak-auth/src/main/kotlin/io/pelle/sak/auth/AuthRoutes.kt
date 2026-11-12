@@ -35,6 +35,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
+import io.pelle.sak.auth.model.ConnectExchangeRequest
+import io.pelle.sak.auth.model.ConnectResponse
+import io.pelle.sak.auth.model.ConnectStatusResponse
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
 import io.pelle.sak.auth.model.LoginClient
@@ -295,6 +298,130 @@ fun Route.passwordLogin(
     }
 }
 
+// the token of a QR code an app scanned for a session (SECURITY-3), meant to be mounted without a
+// session next to the login: the user and the login method are the ones of the session that showed
+// the code, the roles the ones the address has now. A client tries only a few codes an hour
+@OptIn(ExperimentalKtorApi::class)
+fun Route.connectExchange(
+    tokens: TokenService,
+    rolesOf: (email: String) -> Set<Role>,
+    attemptsPerClient: RateLimiter = RateLimiter(30, Duration.ofHours(1)),
+    // told of every exchange that issued a session
+    onLogin: LoginListener = LoginListener { _, _ -> },
+) {
+    route("/connect") {
+        installApi()
+
+        post {
+            val request = call.receive<ConnectExchangeRequest>()
+            if (!attemptsPerClient.tryAcquire(call.clientAddress())) {
+                call.respond(HttpStatusCode.TooManyRequests)
+                return@post
+            }
+            val claims = tokens.exchangeConnectToken(request.token)
+            val roles = claims?.let { rolesOf(it.email) }.orEmpty()
+            if (claims == null || roles.isEmpty()) {
+                call.respondErrors(AuthTexts.CODE_INVALID, status = HttpStatusCode.Unauthorized)
+                return@post
+            }
+            val session = tokens.issueSessionToken(claims.email, roles, withPassword = claims.withPassword)
+            onLogin.notifySignedIn(session.email, call.language())
+            logger.info { "connected an app as ${logAddress(session.email)}" }
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respond(ExchangeResponse(session.token, session.email, session.expiresAt.apiTime(), roles.keys(), "/"))
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "Exchange the token of a QR code for a session token"
+            description =
+                "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for " +
+                "${tokens.connectTokenTtl.toMinutes()} minutes and only once; the session token is valid for " +
+                "${tokens.sessionTokenTtl.toDays()} days. Only a few attempts an hour are answered."
+            requestBody {
+                required = true
+                schema = jsonSchema<ConnectExchangeRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The session token"
+                    schema = jsonSchema<ExchangeResponse>()
+                }
+                errors(HttpStatusCode.Unauthorized, "The token is invalid, expired or was already used, or the user may no longer sign in")
+                errors(HttpStatusCode.TooManyRequests, "Too many attempts from this client")
+            }
+        }
+    }
+}
+
+// the QR code that connects an app as the signed in user (SECURITY-3), meant to be mounted behind
+// authenticate(SESSION_AUTH): a link to the SAK address with a token of a few minutes in its fragment,
+// which a browser never sends; only a session shows one, not a signed request of sakctl. A user gets
+// only a few codes an hour
+@OptIn(ExperimentalKtorApi::class)
+fun Route.connect(
+    tokens: TokenService,
+    app: LoginApp,
+    codesPerUser: RateLimiter = RateLimiter(10, Duration.ofHours(1)),
+) {
+    route("/connect") {
+        installApi()
+
+        post {
+            val principal = call.principal<SessionPrincipal>()!!
+            if (principal.expiresAt == null) {
+                call.respond(HttpStatusCode.Forbidden)
+                return@post
+            }
+            if (!codesPerUser.tryAcquire(principal.email)) {
+                call.respond(HttpStatusCode.TooManyRequests)
+                return@post
+            }
+            val connect = tokens.issueConnectToken(principal.email, principal.withPassword)
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respond(ConnectResponse("${app.url.trimEnd('/')}/connect#token=${connect.token}", connect.id, connect.expiresAt.apiTime()))
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "A QR code that connects an app"
+            description =
+                "The link the QR code shows: the SAK address with a token in its fragment, valid for " +
+                "${tokens.connectTokenTtl.toMinutes()} minutes and only once, that an app exchanges for a session of the " +
+                "signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it " +
+                "expires. Only for a session, a few codes an hour."
+            responses {
+                HttpStatusCode.OK {
+                    description = "The link of the QR code, its id and when it expires"
+                    schema = jsonSchema<ConnectResponse>()
+                }
+                errors(HttpStatusCode.Forbidden, "A signed request of sakctl, which has no session to connect")
+                errors(HttpStatusCode.TooManyRequests, "Too many codes of this user")
+            }
+        }
+
+        get("/{id}") {
+            val principal = call.principal<SessionPrincipal>()!!
+            val used = call.parameters["id"]?.let { tokens.connectTokenUsed(principal.email, it) }
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            if (used == null) call.respond(HttpStatusCode.NotFound) else call.respond(ConnectStatusResponse(used))
+        }.describe {
+            tag(AUTH_TAG)
+            summary = "Whether an app was connected with a QR code"
+            parameters {
+                path("id") {
+                    description = "The id of the code"
+                    required = true
+                    schema = jsonSchema<String>()
+                }
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "Whether the code was used"
+                    schema = jsonSchema<ConnectStatusResponse>()
+                }
+                errors(HttpStatusCode.NotFound, "The user has no such code, or it expired")
+            }
+        }
+    }
+}
+
 // the key of the limit of all clients together
 private const val ALL_CLIENTS = "*"
 
@@ -379,6 +506,7 @@ object AuthTexts : Catalog("auth") {
     val INVALID_EMAIL = text("invalid_email")
     val INVALID_NONCE = text("invalid_nonce")
     val LINK_INVALID = text("link_invalid")
+    val CODE_INVALID = text("code_invalid")
     val WRONG_PASSWORD = text("wrong_password")
     val MAIL_SUBJECT = text("mail_subject")
     val MAIL_BODY = text("mail_body")

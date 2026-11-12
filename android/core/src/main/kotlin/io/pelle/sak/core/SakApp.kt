@@ -1,5 +1,7 @@
 package io.pelle.sak.core
 
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
@@ -15,6 +17,9 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.pelle.sak.core.api.sakClient
 import io.pelle.sak.core.session.DataStoreSessionStore
 import io.pelle.sak.core.session.SessionStore
+import io.pelle.sak.core.qr.CameraXQrCamera
+import io.pelle.sak.core.qr.QrCamera
+import io.pelle.sak.core.ui.SakContent
 import io.pelle.sak.core.ui.SakTheme
 import io.pelle.sak.core.update.AndroidUpdater
 import io.pelle.sak.core.update.PendingInstall
@@ -43,6 +48,9 @@ object SakProcess {
 
     // the store of the session of an app by its name, encrypted with a key of the android keystore
     var sessionStore: (Application, String) -> SessionStore = ::DataStoreSessionStore
+
+    // the camera of the scan of a QR code, a fake in the tests
+    var qrCamera: QrCamera = CameraXQrCamera
 
     val scope: CoroutineScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
 }
@@ -73,10 +81,11 @@ abstract class SakViewModel<M : SakModel<*>>(
     }
 }
 
-// the one activity of an app: its compose content in the theme of SAK, and the login links the signin
-// page of the web app hands on (<scheme>://signin?token=…). A link is taken once: not again after a
-// rotation, and not when android starts the activity again from the recent apps with the intent it
-// had (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY, AN-2). The confirmation of an update the installer asked
+// the one activity of an app: its compose content in the theme of SAK, after the sign-in that every app
+// shares and with the scan of a QR code over it (SakContent), and the login links the signin page of the web app hands on
+// (<scheme>://signin?token=…). A link is taken once: not again after a rotation, and not when android
+// starts the activity again from the recent apps with the intent it had
+// (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY, AN-2). The confirmation of an update the installer asked
 // for while the app was not seen shows when it is seen again (AN-12). The app comes to the foreground
 // and goes to the background with foreground() and background(), not with a rotation or another
 // change of the configuration: the activity is made anew then, the model and what it waits for stay
@@ -87,6 +96,10 @@ abstract class SakActivity : ComponentActivity() {
     protected abstract val signinScheme: String
 
     protected abstract val sakModel: SakModel<*>
+
+    // the name of the app, on the first screen of the sign-in (SakContent)
+    @get:StringRes
+    protected abstract val appName: Int
 
     @Composable
     protected abstract fun Content()
@@ -99,7 +112,7 @@ abstract class SakActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null) take(intent)
-        setContent { SakTheme { Content() } }
+        setContent { SakTheme { SakContent(sakModel, stringResource(appName)) { Content() } } }
     }
 
     override fun onNewIntent(intent: Intent) {

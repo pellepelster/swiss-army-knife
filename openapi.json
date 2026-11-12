@@ -163,6 +163,57 @@
                 }
             }
         },
+        "/api/v1/auth/login/connect": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Exchange the token of a QR code for a session token",
+                "description": "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days. Only a few attempts an hour are answered.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConnectExchangeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The session token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExchangeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The token is invalid, expired or was already used, or the user may no longer sign in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts from this client",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/who-am-i": {
             "get": {
                 "tags": [
@@ -182,6 +233,104 @@
                     },
                     "401": {
                         "description": "No valid session token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/connect": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "A QR code that connects an app",
+                "description": "The link the QR code shows: the SAK address with a token in its fragment, valid for 2 minutes and only once, that an app exchanges for a session of the signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it expires. Only for a session, a few codes an hour.",
+                "responses": {
+                    "200": {
+                        "description": "The link of the QR code, its id and when it expires",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConnectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "A signed request of sakctl, which has no session to connect",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many codes of this user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/connect/{id}": {
+            "get": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Whether an app was connected with a QR code",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the code",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Whether the code was used",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConnectStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user has no such code, or it expired",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4920,6 +5069,18 @@
                     }
                 }
             },
+            "ConnectExchangeRequest": {
+                "type": "object",
+                "title": "ConnectExchangeRequest",
+                "required": [
+                    "token"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    }
+                }
+            },
             "WhoAmIResponse": {
                 "type": "object",
                 "title": "WhoAmIResponse",
@@ -4948,6 +5109,38 @@
                         "items": {
                             "type": "string"
                         }
+                    }
+                }
+            },
+            "ConnectResponse": {
+                "type": "object",
+                "title": "ConnectResponse",
+                "required": [
+                    "link",
+                    "id",
+                    "expiresAt"
+                ],
+                "properties": {
+                    "link": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ConnectStatusResponse": {
+                "type": "object",
+                "title": "ConnectStatusResponse",
+                "required": [
+                    "used"
+                ],
+                "properties": {
+                    "used": {
+                        "type": "boolean"
                     }
                 }
             },

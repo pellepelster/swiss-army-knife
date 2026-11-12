@@ -13,6 +13,7 @@ import io.ktor.http.headersOf
 import io.ktor.client.HttpClient
 import io.pelle.sak.core.api.sakClient
 import kotlinx.coroutines.CoroutineDispatcher
+import java.io.IOException
 
 // a backend of one deployment at URL for the tests: the answers by method and path, what was asked
 const val URL = "https://api.example.org/v1"
@@ -31,6 +32,10 @@ class FakeBackend {
     // the content type of the answers by key, application/json when there is none, e.g. a body of an
     // error that is no json
     val contentTypes = mutableMapOf<String, String>()
+
+    // the requests by key whose connection fails, e.g. "POST /auth/login/connect": the deployment can
+    // not be reached
+    val unreachable = mutableSetOf<String>()
 
     // the session token of the requests, by path
     val tokens = mutableMapOf<String, String?>()
@@ -62,6 +67,7 @@ class FakeBackend {
             tokens[path] = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
             languages += request.headers[HttpHeaders.AcceptLanguage]
             queries += "$key?${request.url.encodedQuery}"
+            if (key in unreachable) throw IOException("$key can not be reached")
             val (status, body) = answersByQuery["$key?${request.url.encodedQuery}"] ?: answers[key] ?: (HttpStatusCode.NotFound to "")
             answer(status, body, contentTypes[key] ?: "application/json")
         }

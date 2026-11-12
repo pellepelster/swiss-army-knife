@@ -81,6 +81,9 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
         whoAmI()?.name ?? whoAmI()?.username
       }}</span>
       <app-action-menu>
+        <a class="dropdown-item" role="menuitem" routerLink="/connect-app">
+          <i class="fa-solid fa-qrcode me-2" aria-hidden="true"></i>{{ 'connect.title' | t }}
+        </a>
         <button type="button" class="dropdown-item" role="menuitem" (click)="signOut()">
           <i class="fa-solid fa-right-from-bracket me-2" aria-hidden="true"></i
           >{{ 'login.sign_out' | t }}

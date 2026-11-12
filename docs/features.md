@@ -42,8 +42,14 @@ that collect data are never used.
 - **Multiple users:** the admin adds users by their e-mail address. Needs a mail server.
 - **No passwords for users:** no sign-up, users sign in with a link sent by e-mail.
 - **Simple sharing:** data is private, or shared with everyone. No roles, no groups.
+- **Connect an app with a QR code:** the web app shows a QR code, the Android app scans it and is signed in, without
+  typing the address or a password.
 
 ![The users an admin added](screenshots/web-users-desktop.png)
+
+Connect an Android app with a QR code, from the menu of the start page:
+
+![The QR code that connects an app](screenshots/web-connect-app-desktop.png)
 
 Sign in with just your e-mail address:
 

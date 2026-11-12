@@ -253,6 +253,18 @@ class ScreenshotTest {
         }
     }
 
+    // the QR code that connects an app (SECURITY-3), from the menu of the home; a new code each run
+    @ParameterizedTest
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
+    fun `the QR code that connects an app`(device: Device) {
+        val context = context(device, signedIn = true)
+        val page = context.newPage()
+        page.navigate("/connect-app")
+        assertThat(page.getByTestId("qr")).isVisible()
+        page.shot("connect-app", device, idle = false)
+        context.close()
+    }
+
     @ParameterizedTest
     @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `static hosting`(device: Device) {

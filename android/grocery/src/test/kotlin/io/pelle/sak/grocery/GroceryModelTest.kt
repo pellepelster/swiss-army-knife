@@ -997,26 +997,28 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the sign-in follows the user mode, the multi user mode offers the password login after the e-mail login`() =
+    fun `the sign-in offers its three ways, a way chosen shows its form, back the three again, no e-mail in the single user mode`() =
         runTest {
             val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
             val multi = model(store).also { it.start() }
             advanceUntilIdle()
-            val signIn = multi.screen.value as Screen.SignIn
-            assertEquals(true, signIn.multiUser)
-            assertEquals(false, signIn.withPassword)
-            multi.usePassword(true)
-            assertEquals(true, (multi.screen.value as Screen.SignIn).withPassword)
-            multi.usePassword(false)
-            assertEquals(false, (multi.screen.value as Screen.SignIn).withPassword)
+            assertEquals(Screen.SignIn("https://sak.example.org", multiUser = true), multi.screen.value)
+            multi.chooseMethod(Screen.SignInMethod.PASSWORD)
+            assertEquals(Screen.SignInMethod.PASSWORD, (multi.screen.value as Screen.SignIn).method)
+            multi.chooseMethod(null)
+            assertEquals(null, (multi.screen.value as Screen.SignIn).method)
+            multi.chooseMethod(Screen.SignInMethod.EMAIL)
+            assertEquals(Screen.SignInMethod.EMAIL, (multi.screen.value as Screen.SignIn).method)
 
             backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"single"}"""
             val single = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
             advanceUntilIdle()
-            assertEquals(Screen.SignIn("https://sak.example.org", multiUser = false, withPassword = true), single.screen.value)
+            assertEquals(Screen.SignIn("https://sak.example.org", multiUser = false), single.screen.value)
             // no e-mail login to go to
-            single.usePassword(false)
-            assertEquals(true, (single.screen.value as Screen.SignIn).withPassword)
+            single.chooseMethod(Screen.SignInMethod.EMAIL)
+            assertEquals(null, (single.screen.value as Screen.SignIn).method)
+            single.chooseMethod(Screen.SignInMethod.PASSWORD)
+            assertEquals(Screen.SignInMethod.PASSWORD, (single.screen.value as Screen.SignIn).method)
         }
 
     private fun changed(listId: Int) = "event: changed\ndata: {\"listId\":$listId}\n\n"

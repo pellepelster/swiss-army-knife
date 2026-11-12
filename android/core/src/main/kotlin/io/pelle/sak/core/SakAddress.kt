@@ -41,3 +41,38 @@ fun announcedApi(
     val secure = uri.scheme == "https" || (allowUrl && uri.scheme == "http")
     return api.trim().trimEnd('/').takeIf { secure && !uri.host.isNullOrEmpty() }
 }
+
+// what the QR code of the web app holds that connects an app (SECURITY-3): the SAK address and the
+// connect token; the token stays out of toString, e.g. of a log
+class ConnectCode(
+    val address: String,
+    val token: String,
+) {
+    override fun toString() = "ConnectCode($address)"
+}
+
+// the characters of a token (a jwt: base64url and dots)
+private val TOKEN = Regex("^[A-Za-z0-9_.-]+$")
+
+// the code of a QR code: only https://<sak address>/connect#token=<token>, the address as sakAddress
+// takes it (http and a port only when allowUrl, the debug build); null for anything else, e.g. a
+// user or a query in the link, another path or no token
+fun connectCode(
+    text: String,
+    allowUrl: Boolean,
+): ConnectCode? {
+    val uri = runCatching { URI(text.trim()) }.getOrNull() ?: return null
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "https" && scheme != "http") return null
+    val authority = uri.rawAuthority?.takeIf { it.isNotEmpty() && '@' !in it } ?: return null
+    if (uri.rawPath != "/connect" || uri.rawQuery != null) return null
+    val token =
+        uri.rawFragment
+            ?.split('&')
+            ?.mapNotNull { it.split('=', limit = 2).takeIf { pair -> pair.size == 2 && pair[0] == "token" }?.get(1) }
+            ?.singleOrNull()
+            ?.takeIf { TOKEN.matches(it) }
+            ?: return null
+    val address = sakAddress("$scheme://$authority", allowUrl) ?: return null
+    return ConnectCode(address, token)
+}
