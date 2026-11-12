@@ -56,8 +56,7 @@
               }
             ],
             "styles": [
-              "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
-              "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
+              "src/icons/icons.css",
               "node_modules/sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/sak-theme/fonts.css",
               "node_modules/sak-theme/tokens.css",
@@ -71,7 +70,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "900kB",
+                  "maximumWarning": "700kB",
                   "maximumError": "1.5MB"
                 },
                 {

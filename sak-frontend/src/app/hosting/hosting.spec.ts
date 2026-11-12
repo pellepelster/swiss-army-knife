@@ -6,7 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { pageHelpers, pageOf } from '../testing/page';
 import { COPIED_MS } from '../shared/copy-button';
 import { POLL_INTERVAL_MS, s3Endpoint } from './buckets.service';
-import { hostingRoutes } from './hosting.routes';
+import { HOSTING_PAGES } from './hosting.pages';
 
 const CREATED = '2026-10-27T07:00:00Z';
 
@@ -47,7 +47,7 @@ describe('Hosting', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter(
-          [{ path: 'static-hosting', children: hostingRoutes }],
+          [{ path: 'static-hosting', children: HOSTING_PAGES }],
           withComponentInputBinding(),
         ),
       ],

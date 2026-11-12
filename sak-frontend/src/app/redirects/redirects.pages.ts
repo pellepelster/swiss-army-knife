@@ -1,0 +1,25 @@
+import { Routes } from '@angular/router';
+import { pageTitle } from '../i18n/i18n';
+import { RedirectConfiguration } from './redirect-configuration';
+import { RedirectCreate } from './redirect-create';
+import { RedirectEdit } from './redirect-edit';
+import { RedirectList } from './redirect-list';
+import { RedirectView } from './redirect-view';
+
+// the redirects, loaded with the first of their pages (redirects.routes.ts): the list, a page to
+// create one, a redirect's page with its tabs and a page to edit it; create and edit come first,
+// the redirect's page would take them as its domain
+export const REDIRECTS_PAGES: Routes = [
+  { path: '', component: RedirectList, title: pageTitle('app.redirects') },
+  { path: 'create', component: RedirectCreate, title: pageTitle('redirects.route.create') },
+  { path: ':source/edit', component: RedirectEdit, title: pageTitle('redirects.route.edit') },
+  {
+    path: ':source',
+    component: RedirectView,
+    title: pageTitle('redirects.route.redirect'),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'configuration' },
+      { path: 'configuration', component: RedirectConfiguration },
+    ],
+  },
+];

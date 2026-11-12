@@ -6,6 +6,8 @@ node = "22.23.4"
 # linux and macOS only; sakctl itself runs ansible in the tools image
 "pipx:ansible-core" = { version = "2.21.5", os = ["linux", "macos"] }
 pipx = { version = "1.18.7", os = ["linux", "macos"] }
+# the icon font of sak-frontend cut to the icons it uses (frontend:icons), woff2 needs brotli
+"pipx:fonttools" = { version = "4.68.0", extras = "woff", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/
 rust = "1.99.1"
 "npm:@tauri-apps/cli" = "2.12.4"
@@ -568,6 +570,14 @@ run = [
 description = "Generate the texts of the apps from i18n/texts.yml"
 dir = "{{config_root}}"
 run = "./gradlew -q :sak-i18n:run --args=generate"
+
+# the icons of Font Awesome sak-frontend uses (sak-frontend/src/icons): their css and the solid font cut
+# to them, from the names fa-<name> in sak-frontend/src/app; a spec fails while they are not current
+[tasks."frontend:icons"]
+description = "Generate the icon css and font of the frontend"
+depends = ["frontend:install"]
+dir = "{{config_root}}/sak-frontend"
+run = "node scripts/icons.mjs"
 
 [tasks."frontend:test:unit"]
 description = "Run the frontend unit tests"

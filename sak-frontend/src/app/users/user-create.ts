@@ -3,17 +3,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
+import { validEmail } from '../shared/email';
 import { UsersService } from './users.service';
 import { PageHeader } from '../shared/page-header';
 
 // the longest name of a user (UserService.MAX_NAME_LENGTH)
 const MAX_NAME_LENGTH = 64;
-
-// one @ with something before it, a domain with a dot after it, no spaces (UserService.isEmail)
-export function validEmail(email: string): boolean {
-  const address = email.trim();
-  return address.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
-}
 
 // adds a user by their address, with an optional name, on a page of its own; afterwards the users
 // show. The address is checked when it loses focus (UX-6); no mail is sent, the user requests a

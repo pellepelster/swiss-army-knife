@@ -1,20 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { appPath } from '../apps';
 import { AuthService, UserMode } from '../auth/auth.service';
 import { TranslatePipe } from '../i18n/i18n';
+import { validEmail } from '../shared/email';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 
 // the login of the apps, by the user mode of the deployment (UX-7): in the multi user mode with a
 // link by e-mail (the link leads to the frontend's signin page) and a link to the admin password
-// login, in the single user mode only with the admin password
+// login, in the single user mode only with the admin password. The fields are signals, as in the other
+// forms: @angular/forms would be in the bundle every page loads at the start for this one (TD-5)
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, TranslatePipe],
+  imports: [TranslatePipe],
   host: { class: 'd-block container' },
   template: `
     <div class="row min-vh-100 align-items-center justify-content-center py-3">
@@ -29,24 +30,26 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
             }
           } @else if (state() === 'sent') {
             <p class="mb-0" role="status" data-testid="login-sent">
-              {{ 'login.sent_before' | t }} <strong>{{ email.value }}</strong>
+              {{ 'login.sent_before' | t }} <strong>{{ email() }}</strong>
               {{ 'login.sent_after' | t }}
             </p>
           } @else if (withPassword()) {
-            <form [formGroup]="passwordForm" (ngSubmit)="signInWithPassword()">
+            <form (submit)="$event.preventDefault(); signInWithPassword()">
               <label class="form-label" for="password">{{ 'login.admin_password' | t }}</label>
               <input
                 class="form-control mb-3"
                 id="password"
                 type="password"
                 autocomplete="current-password"
-                formControlName="password"
                 required
+                #passwordField
+                [value]="password()"
+                (input)="password.set(passwordField.value)"
               />
               <button
                 class="btn btn-primary w-100"
                 type="submit"
-                [disabled]="password.invalid || state() === 'sending'"
+                [disabled]="!password() || state() === 'sending'"
               >
                 {{ (state() === 'sending' ? 'login.signing_in' : 'login.sign_in') | t }}
               </button>
@@ -63,20 +66,22 @@ type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | '
               </p>
             }
           } @else {
-            <form [formGroup]="emailForm" (ngSubmit)="requestLink()">
+            <form (submit)="$event.preventDefault(); requestLink()">
               <label class="form-label" for="email">{{ 'shared.email' | t }}</label>
               <input
                 class="form-control mb-3"
                 id="email"
                 type="email"
                 autocomplete="email"
-                formControlName="email"
                 required
+                #emailField
+                [value]="email()"
+                (input)="email.set(emailField.value)"
               />
               <button
                 class="btn btn-primary w-100"
                 type="submit"
-                [disabled]="email.invalid || state() === 'sending'"
+                [disabled]="!emailValid() || state() === 'sending'"
               >
                 {{ (state() === 'sending' ? 'login.sending' : 'login.send_link') | t }}
               </button>
@@ -117,17 +122,10 @@ export class Login {
   // parameter, a short form for links and bookmarks (/login?app=grocery); else the start page
   private readonly redirect = this.params.get('redirect') ?? appPath(this.params.get('app'));
 
-  protected readonly email = new FormControl('', {
-    nonNullable: true,
-    validators: [Validators.required, Validators.email],
-  });
-  protected readonly emailForm = new FormGroup({ email: this.email });
+  protected readonly email = signal('');
+  protected readonly emailValid = computed(() => validEmail(this.email()));
 
-  protected readonly password = new FormControl('', {
-    nonNullable: true,
-    validators: [Validators.required],
-  });
-  protected readonly passwordForm = new FormGroup({ password: this.password });
+  protected readonly password = signal('');
 
   // the user mode of the deployment, null until the backend answered
   protected readonly userMode = signal<UserMode | null>(null);
@@ -154,25 +152,25 @@ export class Login {
   }
 
   protected requestLink(): void {
-    if (this.email.invalid) {
+    if (!this.emailValid()) {
       return;
     }
     this.state.set('sending');
-    this.auth.requestLogin(this.email.value, this.redirect).subscribe({
+    this.auth.requestLogin(this.email().trim(), this.redirect).subscribe({
       next: () => this.state.set('sent'),
       error: (error: unknown) => this.state.set(this.failure(error)),
     });
   }
 
   protected signInWithPassword(): void {
-    if (this.password.invalid) {
+    if (!this.password()) {
       return;
     }
     this.state.set('sending');
-    this.auth.signInWithPassword(this.password.value, this.redirect).subscribe({
+    this.auth.signInWithPassword(this.password(), this.redirect).subscribe({
       next: (redirect) => void this.router.navigateByUrl(redirect),
       error: (error: unknown) => {
-        this.password.reset();
+        this.password.set('');
         this.state.set(
           error instanceof HttpErrorResponse && error.status === 401
             ? 'wrong-password'
