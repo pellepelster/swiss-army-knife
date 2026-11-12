@@ -129,6 +129,35 @@ Fix: a claim with the time of the login the user made (carried through every con
 largest age from it; or one time for each user, "sessions from before are not valid", checked against `iat`, which
 also gives a sign out everywhere without a list of sessions. At least the entry in ACCEPTED-RISKS says it.
 
+#### Plan
+
+Open, for the user to decide: the largest age (proposed: 90 days), whether the second step comes with it, and the
+change of `SECURITY-3` and of ACCEPTED-RISKS (a rule changes only with the consent of the user).
+
+1. **The time of the login in every session.** `TokenService` gets a claim `login_at`, the time of the login the
+   user made: the exchange of a login link (`exchangeLoginToken`) and the password login set it to now.
+   `issueSessionToken` takes it as a parameter, `SessionPrincipal` carries it.
+2. **Carried through the QR code.** `issueConnectToken` writes the `login_at` of the session that asks for the code
+   into the connect token, `exchangeConnectToken` gives it back in `ConnectClaims`, and the session of the app
+   (`POST /api/v1/auth/login/connect`) gets the `login_at` of the code, not now.
+3. **A largest age.** `TokenService` gets `sessionMaxAge` (default 90 days, next to `sessionTokenTtl`). A session
+   expires at the earlier of now + `sessionTokenTtl` and `login_at` + `sessionMaxAge`; the answer of the exchange
+   and of the connect says that time (`expiresAt`), so the clients need no change.
+4. **Checked with every request.** `session()` refuses a token without `login_at` or with one older than
+   `sessionMaxAge`; a connect token without it is refused too. Without backwards compatibility every user signs in
+   once after the update, the apps and the web app answer the 401 with their sign-in already.
+5. **Tests.** In `TokenServiceTest` and `ConnectTest`, with the test clock: a chain of codes ends at `login_at` +
+   `sessionMaxAge`, whatever its length; a session of an app made on day 80 ends on day 90; a token without the
+   claim is a 401; the link and the password start a new `login_at`.
+6. **The texts.** The descriptions of the OpenAPI of the exchange, the password login and the connect name the
+   largest age (`mise run api:generate`). `SECURITY-3`: an app gets a session of its own full time, but none past
+   the largest age of the login it came from. ACCEPTED-RISKS: a copied token stays valid until it expires, at most
+   the largest age after the login of the user.
+7. **Second step, if wanted: a sign out everywhere.** One time for each user in the settings, "sessions issued
+   before are not valid", checked in `session()` against `iat`; a route and a button set it for the user, an admin
+   sets it for a user and for themselves. It is the first state of the sessions in the backend, so it is a decision
+   of its own.
+
 ### `SEC-5` The limits of a client count one IPv6 address, and the limiter grows with every key
 
 `clientAddress()` is the whole address, and a host has a /64 of them. Three things follow:
