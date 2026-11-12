@@ -139,7 +139,10 @@ also gives a sign out everywhere without a list of sessions. At least the entry 
 Fix: the key of a client is its network (/64, `maskedAddress` of `ApiSignature` has it); a largest number of keys;
 old entries removed for the key that is asked and by a sweep now and then, not with every call.
 
-### `SEC-6` A login link asked for the web app signs an Android app in
+### ~~`SEC-6` A login link asked for the web app signs an Android app in~~
+
+**Fixed:** `exchangeLoginToken` refuses a nonce for a token without one, so a link asked for the web app signs in no
+app that waits for its own; the nonce does not use the link up.
 
 A user of a multi user instance against another user. `exchangeLoginToken` compares the nonce only when the token
 has one (`expected != null && …`), and a link asked with `client=web` has none. The attacker asks a link for their

@@ -109,10 +109,18 @@ class TokenService(
             }
         val id = jwt.id ?: return null
         val email = jwt.subject ?: return null
-        // a token of a login with a nonce only with that nonce; checked before it counts as used, so
-        // a wrong one does not use up the link of the one who asked for it
+        // a token of a login with a nonce only with that nonce, and one without only without: who
+        // sends a nonce (an android app) waits for the link it asked for, a link asked for the web
+        // app must not sign it in as another user. Checked before the token counts as used, so a
+        // wrong nonce does not use up the link of the one who asked for it
         val expected = jwt.getClaim(NONCE).asString()
-        if (expected != null && (nonce == null || !MessageDigest.isEqual(expected.toByteArray(), sha256(nonce).toByteArray()))) {
+        val nonceMatches =
+            when {
+                expected == null -> nonce == null
+                nonce == null -> false
+                else -> MessageDigest.isEqual(expected.toByteArray(), sha256(nonce).toByteArray())
+            }
+        if (!nonceMatches) {
             logger.info { "rejected a login token: its nonce does not match" }
             return null
         }

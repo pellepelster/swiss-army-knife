@@ -217,7 +217,7 @@ fun Route.login(
         tag(AUTH_TAG)
         summary = "Exchange a login token for a session token"
         description =
-            "Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce; the session " +
+            "Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce, one asked for without only without; the session " +
             "token is valid for ${tokens.sessionTokenTtl.toDays()} days."
         requestBody {
             required = true

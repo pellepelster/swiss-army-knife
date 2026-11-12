@@ -109,7 +109,7 @@ export interface paths {
     put?: never;
     /**
      * Exchange a login token for a session token
-     * @description Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce; the session token is valid for 30 days.
+     * @description Every login token can be exchanged once, a token of a link asked for with a nonce only with that nonce, one asked for without only without; the session token is valid for 30 days.
      */
     post: {
       parameters: {

@@ -176,6 +176,16 @@ class AuthRoutesTest {
                 client.exchangeWithNonce(token, "the nonce of $app").status shouldBe HttpStatusCode.OK
             }
 
+            // a link asked for the web app signs in no app that waits for a link of its own (SEC-6);
+            // the nonce does not use the link up, the web app still signs in with it
+            client.post("/api/v1/auth/login/link") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"email":"admin@example.org"}""")
+            }.status shouldBe HttpStatusCode.Accepted
+            val webToken = receiveLink().parameters["token"]!!
+            client.exchangeWithNonce(webToken, "the nonce of an app").status shouldBe HttpStatusCode.Unauthorized
+            client.exchange(webToken).status shouldBe HttpStatusCode.OK
+
             // an android app without its nonce, or one too short, gets no link
             listOf("""{"email":"admin@example.org","client":"notes-android"}""", """{"email":"admin@example.org","client":"notes-android","nonce":"short"}""")
                 .forEach { body ->
