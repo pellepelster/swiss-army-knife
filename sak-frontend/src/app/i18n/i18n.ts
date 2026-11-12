@@ -1,8 +1,8 @@
 import { Injectable, Pipe, PipeTransform, inject } from '@angular/core';
-import { CATALOG, TextKey } from './catalog';
+import type { TextKey } from './catalog.en';
 import { Language, LANGUAGES, Strings } from './texts';
 
-export type { TextKey } from './catalog';
+export type { TextKey } from './catalog.en';
 
 // the values of the placeholders of a text
 export type TextParams = Readonly<Record<string, string | number>>;
@@ -17,6 +17,26 @@ export function languageOf(languages: readonly string[]): Language {
   return 'en';
 }
 
+// the language of the browser, the same one for the whole visit
+export function browserLanguage(): Language {
+  return languageOf(
+    typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language]),
+  );
+}
+
+// the texts of the language of the visit: only its catalog is loaded, before the app starts
+// (main.ts), the other languages are never downloaded (TD-5)
+let current: { language: Language; texts: Strings } = { language: 'en', texts: {} };
+
+export function useTexts(language: Language, texts: Strings): void {
+  current = { language, texts };
+}
+
+export async function loadTexts(language: Language): Promise<void> {
+  const catalog = language === 'de' ? await import('./catalog.de') : await import('./catalog.en');
+  useTexts(language, catalog.TEXTS);
+}
+
 function lookup(texts: Strings, key: string): string | undefined {
   let value: string | Strings | undefined = texts;
   for (const part of key.split('.')) {
@@ -26,23 +46,21 @@ function lookup(texts: Strings, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-// a text in a language, its placeholders %{name} filled in; a text german misses is english
-export function translate(language: Language, key: TextKey, params: TextParams = {}): string {
-  const text = lookup(CATALOG[language], key) ?? lookup(CATALOG.en, key) ?? key;
+// a text of the texts, its placeholders %{name} filled in; a missing text is its key
+export function translate(texts: Strings, key: TextKey, params: TextParams = {}): string {
+  const text = lookup(texts, key) ?? key;
   return text.replace(/%\{([a-z_]+)\}/g, (placeholder, name: string) =>
     String(params[name] ?? placeholder),
   );
 }
 
-// the texts of the apps in the language of the browser, the same one for the whole visit
+// the texts of the apps in the language of the visit (loadTexts)
 @Injectable({ providedIn: 'root' })
 export class I18n {
-  readonly language: Language = languageOf(
-    typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language]),
-  );
+  readonly language: Language = current.language;
 
   t(key: TextKey, params?: TextParams): string {
-    return translate(this.language, key, params);
+    return translate(current.texts, key, params);
   }
 }
 

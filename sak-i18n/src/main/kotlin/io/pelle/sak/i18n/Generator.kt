@@ -12,7 +12,9 @@ const val SOURCE = "i18n/texts.yml"
 
 // the catalogs of the backend, i18n/<catalog>.<language>.yml on the class path of every module
 const val BACKEND_DIR = "sak-api/src/main/resources/i18n"
-const val WEB_FILE = "sak-frontend/src/app/i18n/catalog.ts"
+// the catalogs of the web apps, one for each language (catalog.<language>.ts): the web app loads the one of
+// the browser only
+const val WEB_DIR = "sak-frontend/src/app/i18n"
 // the android apps (android/): the texts of no app go to core, the ones of an app to its module; the
 // apps are the lines of android/apps.txt, relative to the repository (sak.root of the tests, the
 // working directory of the run)
@@ -95,7 +97,7 @@ class Generator(
                 files["$BACKEND_DIR/$catalog.$language.yml"] = Yaml.write(node, language, "# the texts of the catalog $catalog in $language, $GENERATED")
             }
         }
-        files[WEB_FILE] = TypeScript.write(web)
+        for (language in LANGUAGES) files["$WEB_DIR/catalog.$language.ts"] = TypeScript.write(web, language)
         for ((res, group) in android) {
             files["$res/values/strings.xml"] = AndroidXml.write(group, LANGUAGES.first(), problems)
             for (language in LANGUAGES.drop(1)) {
@@ -145,18 +147,19 @@ class Generator(
             return written
         }
 
-        // a catalog of the backend that texts.yml has no longer
+        // a catalog of the backend or of the web apps that texts.yml has no longer
         private fun leftovers(
             root: Path,
             generated: Set<String>,
-        ): List<String> {
-            val dir = root.resolve(BACKEND_DIR)
-            if (!dir.isDirectory()) return emptyList()
-            return dir
-                .listDirectoryEntries("*.yml")
-                .map { "$BACKEND_DIR/${it.name}" }
-                .filter { it !in generated }
-        }
+        ): List<String> =
+            listOf(BACKEND_DIR to "*.yml", WEB_DIR to "catalog*.ts").flatMap { (dirName, glob) ->
+                val dir = root.resolve(dirName)
+                if (!dir.isDirectory()) {
+                    emptyList()
+                } else {
+                    dir.listDirectoryEntries(glob).map { "$dirName/${it.name}" }.filter { it !in generated }
+                }
+            }
     }
 }
 
@@ -230,28 +233,28 @@ private object Yaml {
     }
 }
 
-// the catalog of the web apps: an object per language, its type gives the keys (TextKey)
+// a catalog of the web apps, the texts of one language; the english one gives the keys (TextKey), german
+// has every text of english (sak-i18n checks)
 private object TypeScript {
+    private val LANGUAGE_NAMES = mapOf("en" to "English", "de" to "German")
+
     private val IDENTIFIER = Regex("""[A-Za-z_$][A-Za-z0-9_$]*""")
 
-    fun write(group: Group): String {
-        val lines =
-            mutableListOf(
-                "// $GENERATED",
-                "import { Paths } from './texts';",
-                "",
-                "// the texts of the web apps by language; german has every text of english (sak-i18n checks)",
-                "export const CATALOG = {",
-            )
-        for (language in LANGUAGES) {
-            lines += "  $language: {"
-            write(group, language, "    ", lines)
-            lines += "  },"
-        }
+    fun write(
+        group: Group,
+        language: String,
+    ): String {
+        val lines = mutableListOf("// $GENERATED")
+        if (language == LANGUAGES.first()) lines += listOf("import { Paths } from './texts';", "")
+        lines += "// the texts of the web apps in ${LANGUAGE_NAMES.getValue(language)}"
+        lines += "export const TEXTS = {"
+        write(group, language, "  ", lines)
         lines += "} as const;"
-        lines += ""
-        lines += "// every key of a text, e.g. login.title"
-        lines += "export type TextKey = Paths<typeof CATALOG.en>;"
+        if (language == LANGUAGES.first()) {
+            lines += ""
+            lines += "// every key of a text, e.g. login.title"
+            lines += "export type TextKey = Paths<typeof TEXTS>;"
+        }
         return lines.joinToString("\n", postfix = "\n")
     }
 

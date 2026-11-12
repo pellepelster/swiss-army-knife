@@ -1,4 +1,5 @@
-import { CATALOG } from './catalog';
+import { TEXTS as DE } from './catalog.de';
+import { TEXTS as EN } from './catalog.en';
 import { languageOf, translate } from './i18n';
 import { Strings } from './texts';
 
@@ -15,8 +16,8 @@ const placeholders = (text: string) =>
 
 describe('texts', () => {
   it('german has every text of english with the same placeholders, and no other', () => {
-    const english = new Map(paths(CATALOG.en));
-    const german = new Map(paths(CATALOG.de));
+    const english = new Map(paths(EN));
+    const german = new Map(paths(DE));
     expect([...german.keys()].sort()).toEqual([...english.keys()].sort());
     for (const [key, text] of english) {
       expect({ key, placeholders: placeholders(german.get(key) ?? '') }).toEqual({
@@ -34,7 +35,7 @@ describe('texts', () => {
   });
 
   it('fills in the placeholders', () => {
-    expect(translate('de', 'login.sign_in')).toBe('Anmelden');
-    expect(translate('en', 'login.sign_in', { unused: 1 })).toBe('Sign in');
+    expect(translate(DE, 'login.sign_in')).toBe('Anmelden');
+    expect(translate(EN, 'login.sign_in', { unused: 1 })).toBe('Sign in');
   });
 });

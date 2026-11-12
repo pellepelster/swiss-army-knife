@@ -48,8 +48,7 @@ sakctl's tests check that for its `ui/style.css`.
   before its own `style.css`, which holds the layout alone. `cli:run`, `cli:build` and
   `cli:test:unit` copy first. The toolbars are button groups: the one at the bottom right moves
   through the wizard, the one at the top right acts on the data of the view.
-- sak-frontend: not wired yet. The way to do it: depend on `"sak-theme": "file:../sak-theme"`
-  instead of on bootstrap, list `node_modules/sak-theme/{fonts,tokens,bootstrap,components}.css`
-  after bootstrap in the `styles` of `angular.json`, and drop from `src/styles.scss` the
-  mapping of bootstrap onto its own palette, which `bootstrap.css` here replaces; the post-it
-  colors stay its own.
+- sak-frontend: builds bootstrap from its scss here (`node_modules/bootstrap/scss`) with only the components and
+  utilities its pages use (`sak-frontend/src/bootstrap.scss`), with bootstrap's own settings, then lists
+  `fonts.css`, `tokens.css`, `bootstrap.css` and `components.css` in the `styles` of its `angular.json`; the
+  post-it colors stay its own.

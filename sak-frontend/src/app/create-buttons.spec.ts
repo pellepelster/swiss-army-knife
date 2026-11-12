@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { TEXTS } from './i18n/catalog.en';
 import { translate, TextKey } from './i18n/i18n';
 
 function templates(dir: string): string[] {
@@ -27,7 +28,7 @@ const PLUS = 'sak-icon-plus';
 // a key of a text in a template, 'notes.page.new' | t, is its english text
 function english(element: string): string {
   return element.replace(/'([a-z_]+(?:\.[a-z0-9_]+)+)'/g, (key, path: string) => {
-    const text = translate('en', path as TextKey);
+    const text = translate(TEXTS, path as TextKey);
     return text === path ? key : text;
   });
 }

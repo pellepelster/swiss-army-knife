@@ -55,8 +55,11 @@ return void, or a rule of detekt; until then, `: Unit =` on every test that is a
 **Fixed:** 1 to 3 below. Every page but the home, the login and the sign-in is loaded with its first visit (the
 pages of an app in `<app>.pages.ts`), the login has signals instead of `@angular/forms`, and `src/icons` has the css
 of the 43 icons the app uses and the solid font cut to them (`mise run frontend:icons`, a spec fails while they are
-not current). The initial bundle is 631 kB (127 kB to transfer, was 197 kB), the font 4 kB instead of 117 kB; the
-budget warns from 700 kB. 4 and 5 are still possible.
+not current). Then 4 and 5: `src/bootstrap.scss` builds bootstrap from its scss with only the components and utility
+groups the pages use and no utility for each breakpoint (styles 168 kB instead of 319 kB), and sak-i18n writes a
+catalog for each language (`catalog.<language>.ts`), of which `main.ts` loads the one of the browser before the app
+starts (22 kB instead of 53 kB). The initial bundle is 488 kB (111 kB to transfer, was 197 kB) and the catalog, the
+font 4 kB instead of 117 kB; the budget warns from 600 kB.
 
 `ng build` warns: the initial bundle is 996.18 kB (977.76 kB when the todo app was added), the budget warns from 900
 kB (`angular.json`, the error is at 1.5 MB). Only the access logs of a bucket and the page that connects an app are

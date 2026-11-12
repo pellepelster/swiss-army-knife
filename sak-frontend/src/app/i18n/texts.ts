@@ -1,6 +1,7 @@
 // the texts of the web apps are in i18n/texts.yml at the root of the repository, the one source of
-// the texts of every app; sak-i18n writes them into catalog.ts (mise run i18n:generate) and checks
-// that german has every text of english with the same placeholders. A placeholder is %{name}
+// the texts of every app; sak-i18n writes them into catalog.<language>.ts (mise run
+// i18n:generate) and checks that german has every text of english with the same placeholders. A
+// placeholder is %{name}
 export interface Strings {
   readonly [key: string]: string | Strings;
 }

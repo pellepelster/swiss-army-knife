@@ -39,8 +39,9 @@ class GeneratorTest {
         files.getValue("$BACKEND_DIR/notes.de.yml") shouldContain "photo_removed: \"Foto entfernt\"\ntoo_many: \"Höchstens %{max}\"\n"
         files.getValue("$BACKEND_DIR/api.en.yml") shouldContain "malformed: \"Malformed\""
         files.getValue("$BACKEND_DIR/shared.en.yml") shouldContain "save: \"Save\""
-        val web = files.getValue(WEB_FILE)
-        web shouldContain "notes: {\n      photo_removed: 'Photo removed',\n      page: {\n        new: 'New note',"
+        val web = files.getValue("$WEB_DIR/catalog.en.ts")
+        web shouldContain "notes: {\n    photo_removed: 'Photo removed',\n    page: {\n      new: 'New note',"
+        files.getValue("$WEB_DIR/catalog.de.ts") shouldContain "new: 'Neue Notiz',"
         web shouldNotContain "too_many"
         web shouldNotContain "Malformed"
         // the common texts of the notes go to the module of the notes app, never to core

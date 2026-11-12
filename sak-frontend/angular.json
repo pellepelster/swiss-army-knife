@@ -55,9 +55,13 @@
                 "output": "swagger/fonts"
               }
             ],
+            "stylePreprocessorOptions": {
+              "includePaths": ["node_modules/sak-theme/node_modules"],
+              "sass": { "silenceDeprecations": ["import", "global-builtin", "color-functions"] }
+            },
             "styles": [
               "src/icons/icons.css",
-              "node_modules/sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "src/bootstrap.scss",
               "node_modules/sak-theme/fonts.css",
               "node_modules/sak-theme/tokens.css",
               "node_modules/sak-theme/bootstrap.css",
@@ -70,7 +74,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "700kB",
+                  "maximumWarning": "600kB",
                   "maximumError": "1.5MB"
                 },
                 {
@@ -116,7 +120,8 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "reporters": ["default"]
+            "reporters": ["default"],
+            "setupFiles": ["src/test-setup.ts"]
           }
         }
       }

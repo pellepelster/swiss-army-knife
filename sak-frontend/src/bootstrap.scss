@@ -1,0 +1,78 @@
+// bootstrap of sak-theme, built from its scss with only the components the pages use: the whole
+// bootstrap.min.css would be in the bundle every page loads at the start (TD-5). The settings are
+// bootstrap's own, as in bootstrap.min.css, which sak-theme/bootstrap.css maps onto the tokens.
+// A page that uses another component (modal, tooltip, accordion, navbar, ...) adds it here
+@import 'bootstrap/scss/functions';
+@import 'bootstrap/scss/variables';
+@import 'bootstrap/scss/variables-dark';
+@import 'bootstrap/scss/maps';
+@import 'bootstrap/scss/mixins';
+@import 'bootstrap/scss/utilities';
+
+// the utilities without the groups no page uses, and none for each breakpoint: the pages use a
+// breakpoint only with the grid (col-md-6, row-cols-lg-4). A page that needs one adds it here
+$sak-unused-utilities: (
+  'float',
+  'overflow-y',
+  'focus-ring',
+  'border-top',
+  'border-end',
+  'border-start',
+  'border-opacity',
+  'min-viewport-width',
+  'viewport-height',
+  'align-content',
+  'padding-top',
+  'row-gap',
+  'column-gap',
+  'line-height',
+  'text-opacity',
+  'link-opacity',
+  'link-offset',
+  'link-underline',
+  'link-underline-opacity',
+  'rounded-top',
+  'rounded-end',
+  'rounded-bottom',
+  'rounded-start',
+  'visibility'
+);
+$sak-utilities: ();
+@each $key, $utility in $utilities {
+  @if not index($sak-unused-utilities, $key) {
+    $sak-utilities: map-merge(
+      $sak-utilities,
+      (
+        $key: map-merge(
+            $utility,
+            (
+              'responsive': false,
+            )
+          ),
+      )
+    );
+  }
+}
+$utilities: $sak-utilities;
+
+@import 'bootstrap/scss/root';
+@import 'bootstrap/scss/reboot';
+@import 'bootstrap/scss/type';
+@import 'bootstrap/scss/containers';
+@import 'bootstrap/scss/grid';
+@import 'bootstrap/scss/tables';
+@import 'bootstrap/scss/forms';
+@import 'bootstrap/scss/buttons';
+@import 'bootstrap/scss/transitions';
+@import 'bootstrap/scss/dropdown';
+@import 'bootstrap/scss/button-group';
+@import 'bootstrap/scss/nav';
+@import 'bootstrap/scss/card';
+@import 'bootstrap/scss/badge';
+@import 'bootstrap/scss/alert';
+@import 'bootstrap/scss/progress';
+@import 'bootstrap/scss/list-group';
+@import 'bootstrap/scss/close';
+@import 'bootstrap/scss/toasts';
+@import 'bootstrap/scss/helpers';
+@import 'bootstrap/scss/utilities/api';
