@@ -56,7 +56,33 @@ return void, or a rule of detekt; until then, `: Unit =` on every test that is a
 kB (`angular.json`, the error is at 1.5 MB). Only the access logs of a bucket and the page that connects an app are
 loaded lazily.
 
-Fix: load the list apps lazily (their routes with `loadChildren`), or raise the budget knowingly.
+What it is (`ng build --stats-json`, 2026-11-12): 677 kB of script and 319 kB of css.
+
+| Part | Initial | What |
+|---|---|---|
+| the pages of the apps | 260 kB | grocery 61, hosting 42, notes 40, redirects 29, todo 22, settings 12, users 11, health 6, downloads 3, all loaded at the start |
+| `@angular/cdk` | 81 kB | only for the drag and drop of the categories (`grocery-list-form.ts`) |
+| `@angular/forms` | 45 kB | only for the form of the login (`login.ts`), every other form uses signals |
+| the texts | 53 kB | `i18n/catalog.ts` with English and German, one of them is used |
+| Bootstrap | 225 kB | the whole `bootstrap.min.css`; the pages use alerts, forms, cards, dropdowns, buttons, list groups, badges and a few more |
+| Font Awesome | 70 kB | the css of every icon (and a font of 117 kB, not counted); the pages use 45 icons |
+| Angular, rxjs, the rest | 260 kB | core 178, router 97, common 35, rxjs 28, platform-browser 16, service worker 7 |
+
+What helps, the most first:
+
+1. **Every app a route of its own, loaded lazily** (`loadChildren`/`loadComponent` for notes, grocery, todo, hosting,
+   redirects, users, settings, health, downloads): about 340 kB less at the start, the CDK goes with grocery. The home,
+   the login and the sign-in stay. Alone it takes the initial bundle to about 650 kB.
+2. **The login without `@angular/forms`**, with signals like the other forms: 45 kB.
+3. **Only the icons that are used**: a css of the 45 icons (a script of the build, from the names in `src/app`) instead
+   of `fontawesome.min.css`, about 65 kB less, and the font cut to them (`pyftsubset`), about 110 kB less to download.
+   `fa-face-smile` is asked for as `fa-regular`, whose font is not loaded.
+4. **Only the parts of Bootstrap that are used**, built from its scss in `sak-theme`: perhaps 100 to 150 kB. sakctl
+   uses the same css (`sak-cli/ui/theme`), so `sak-theme` would build it for both.
+5. **The texts of one language**: a catalog for each language, the one of the user loaded at the start: about 26 kB.
+
+Fix: 1 first, it is the largest and the simplest; then 2 and 3. The budget can then go back below 900 kB, so a page
+that is no longer lazy shows at once.
 
 ### `TD-9` Not checked with this review
 
