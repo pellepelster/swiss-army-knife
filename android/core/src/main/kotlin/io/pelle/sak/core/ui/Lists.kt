@@ -363,6 +363,8 @@ private fun ListSettingsForm(
             value = settings.name,
             onValueChange = { edit(it, settings.shared, settings.icon) },
             label = { Text(stringResource(R.string.shared_name)) },
+            // only the owner renames a list (LIST-2)
+            enabled = settings.mine,
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),

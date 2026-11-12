@@ -228,9 +228,11 @@ class GroceryServiceTest {
         service.addItem(OTHER, private.id, input("Wine")) shouldBe GroceryItemResult.UnknownList
         service.items(OTHER, private.id) shouldBe null
 
-        // every user renames a shared list, only its owner unshares and deletes it (LIST-2)
-        (service.updateList(OTHER, shared.id, "Ours", shared = true, icon = "🎉") as ListResult.Saved).list.name shouldBe "Ours"
-        service.updateList(OTHER, shared.id, "Ours", shared = false) shouldBe ListResult.NotOwner
+        // every user changes the icon of a shared list, only its owner renames, unshares and deletes it (LIST-2)
+        val name = shared.name
+        (service.updateList(OTHER, shared.id, name, shared = true, icon = "🎉") as ListResult.Saved).list.icon shouldBe "🎉"
+        service.updateList(OTHER, shared.id, "Ours", shared = true) shouldBe ListResult.NotOwner
+        service.updateList(OTHER, shared.id, name, shared = false) shouldBe ListResult.NotOwner
         service.updateList(OTHER, private.id, "Mine now", shared = false) shouldBe ListResult.NotFound
         service.deleteList(OTHER, shared.id) shouldBe ListDelete.NotFound
         service.deleteList(PELLE, shared.id) shouldBe ListDelete.Deleted

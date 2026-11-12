@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="todo_only_owner_shares">Only the owner of a list shares or unshares it.</string>
+    <string name="todo_only_owner_shares">Only the owner of a list renames, shares or unshares it.</string>
     <string name="todo_list_gone">The list is gone, or its owner no longer shares it.</string>
     <string name="todo_all_lists">All lists</string>
     <string name="todo_lists_not_loaded">The lists could not be loaded.</string>

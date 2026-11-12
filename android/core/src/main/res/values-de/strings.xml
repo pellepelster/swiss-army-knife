@@ -62,7 +62,7 @@
     <string name="no_lists">Du hast noch keine Liste, erstelle oben mit dem Plus eine.</string>
     <string name="shared_with_all">Mit allen Benutzern geteilt</string>
     <string name="shared_badge">Geteilt</string>
-    <string name="only_owner_share_delete">Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie.</string>
+    <string name="only_owner_share_delete">Nur der Besitzer benennt eine Liste um, teilt sie, hebt das Teilen auf oder löscht sie.</string>
     <string name="saving">Wird gespeichert…</string>
     <string name="menu_of">Menü von %1$s</string>
     <string name="back_to_list">Zurück zur Liste</string>

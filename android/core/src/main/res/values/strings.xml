@@ -63,7 +63,7 @@
     <string name="no_lists">You have no list yet, create one with the plus at the top.</string>
     <string name="shared_with_all">Shared with all users</string>
     <string name="shared_badge">Shared</string>
-    <string name="only_owner_share_delete">Only the owner shares or unshares a list, or deletes it.</string>
+    <string name="only_owner_share_delete">Only the owner renames, shares or unshares a list, or deletes it.</string>
     <string name="saving">Saving…</string>
     <string name="menu_of">Menu of %1$s</string>
     <string name="back_to_list">Back to the list</string>

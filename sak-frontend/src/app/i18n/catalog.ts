@@ -169,7 +169,7 @@ export const CATALOG = {
       forbidden_change: 'Your role does not allow to change the settings.',
     },
     grocery: {
-      only_owner_shares: 'Only the owner of a list shares or unshares it.',
+      only_owner_shares: 'Only the owner of a list renames, shares or unshares it.',
       list_gone: 'The list is gone, or its owner no longer shares it.',
       all_lists: 'All lists',
       lists_not_loaded: 'The lists could not be loaded.',
@@ -562,7 +562,7 @@ export const CATALOG = {
       },
     },
     todo: {
-      only_owner_shares: 'Only the owner of a list shares or unshares it.',
+      only_owner_shares: 'Only the owner of a list renames, shares or unshares it.',
       list_gone: 'The list is gone, or its owner no longer shares it.',
       all_lists: 'All lists',
       lists_not_loaded: 'The lists could not be loaded.',
@@ -798,7 +798,7 @@ export const CATALOG = {
       forbidden_change: 'Deine Rolle erlaubt nicht, die Einstellungen zu ändern.',
     },
     grocery: {
-      only_owner_shares: 'Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.',
+      only_owner_shares: 'Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf.',
       list_gone: 'Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.',
       all_lists: 'Alle Listen',
       lists_not_loaded: 'Die Listen konnten nicht geladen werden.',
@@ -1191,7 +1191,7 @@ export const CATALOG = {
       },
     },
     todo: {
-      only_owner_shares: 'Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.',
+      only_owner_shares: 'Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf.',
       list_gone: 'Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.',
       all_lists: 'Alle Listen',
       lists_not_loaded: 'Die Listen konnten nicht geladen werden.',

@@ -273,7 +273,7 @@ class ListsModelTest {
         }
 
     @Test
-    fun `the settings of a shared list of another user change its name and icon, not whether it is shared`() =
+    fun `the settings of a shared list of another user change its icon, not its name or whether it is shared`() =
         runTest {
             val model = signedIn()
             advanceUntilIdle()
@@ -282,10 +282,11 @@ class ListsModelTest {
             assertEquals(ThingSettings(2, "Party", shared = true, mine = false), model.lists().settings)
             model.editSettings("Feast", shared = false, icon = "🎉")
             assertTrue(model.lists().settings!!.shared)
-            backend.answers["PUT /things/lists/2"] = HttpStatusCode.OK to list(2, "Feast", shared = true, mine = false)
+            assertEquals("Party", model.lists().settings!!.name)
+            backend.answers["PUT /things/lists/2"] = HttpStatusCode.OK to list(2, "Party", shared = true, mine = false)
             model.saveSettings()
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""PUT /things/lists/2 {"name":"Feast","shared":true,"icon":"🎉"}"""))
+            assertTrue(backend.requests.contains("""PUT /things/lists/2 {"name":"Party","shared":true,"icon":"🎉"}"""))
             assertNull(model.lists().settings)
             // only its owner deletes it
             model.openSettings(2)

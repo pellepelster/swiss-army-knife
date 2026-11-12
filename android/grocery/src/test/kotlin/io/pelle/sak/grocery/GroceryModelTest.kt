@@ -1106,13 +1106,13 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `every user who sees a shared list changes its name, icon and categories, only its owner shares and deletes it`() =
+    fun `every user who sees a shared list changes its icon and categories, only its owner renames, shares and deletes it`() =
         runTest {
             backend.answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to page(list(1, "Default"), """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-10-30T08:00:00.000Z"}""")
             backend.answers["GET /grocery/lists/3/categories"] = HttpStatusCode.OK to page(category(5, "Snacks", null))
             backend.answers["PUT /grocery/lists/3"] =
-                HttpStatusCode.OK to """{"id":3,"name":"Ours","shared":true,"mine":false,"items":0,"icon":"🎉","createdAt":"2026-10-30T08:00:00.000Z"}"""
+                HttpStatusCode.OK to """{"id":3,"name":"Theirs","shared":true,"mine":false,"items":0,"icon":"🎉","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["POST /grocery/lists/3/categories"] = HttpStatusCode.Created to category(6, "Drinks", null)
             backend.answers["DELETE /grocery/lists/3"] = HttpStatusCode.NoContent to ""
             val model = signedIn(openList = null)
@@ -1130,12 +1130,14 @@ class GroceryModelTest {
             advanceUntilIdle()
             assertTrue(backend.requests.contains("""POST /grocery/lists/3/categories {"name":"Drinks"}"""))
 
-            // it stays shared: the switch changes nothing, the unchanged flag is sent
+            // its name and that it is shared stay: the field and the switch change nothing, the unchanged
+            // name and flag are sent
             model.editSettings("Ours", shared = false, icon = "🎉")
             assertEquals(true, settings().shared)
+            assertEquals("Theirs", settings().name)
             model.saveSettings()
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""PUT /grocery/lists/3 {"name":"Ours","shared":true,"icon":"🎉"}"""))
+            assertTrue(backend.requests.contains("""PUT /grocery/lists/3 {"name":"Theirs","shared":true,"icon":"🎉"}"""))
 
             // only the owner deletes it
             model.openSettings(3)

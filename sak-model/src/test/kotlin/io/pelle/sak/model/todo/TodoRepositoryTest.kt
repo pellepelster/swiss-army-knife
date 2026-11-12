@@ -84,13 +84,15 @@ class TodoRepositoryTest {
         // every user who sees the list marks a task done, also one another user added (LIST-2)
         repository.setDone(OTHER, invite.id, done = true)!!.doneAt shouldBe now
         repository.items(PELLE, party.id)!!.map { it.title } shouldBe listOf("Send the invitations", "Bring music")
-        (repository.updateList(OTHER, party.id, "Ours", shared = true) as ListUpdate.Updated).list.let {
-            it.name shouldBe "Ours"
+        // only the owner renames it, another user changes its icon (LIST-2, SEC-19)
+        (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdate.Updated).list.let {
+            it.icon shouldBe "🎉"
             it.owner shouldBe PELLE
             it.items shouldBe 1
         }
-        repository.updateList(OTHER, party.id, "Ours", shared = false) shouldBe ListUpdate.NotOwner
-        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdate.OwnerNameTaken
+        repository.updateList(OTHER, party.id, "Party", shared = false) shouldBe ListUpdate.NotOwner
+        repository.updateList(OTHER, party.id, "Ours", shared = true) shouldBe ListUpdate.NotOwner
+        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdate.NotOwner
         repository.updateList(PELLE, party.id, "Secret", shared = true) shouldBe ListUpdate.NameTaken
         repository.deleteList(OTHER, party.id) shouldBe ListDelete.NotFound
         // unshared by its owner, the list is none of the other user's to change

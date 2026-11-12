@@ -427,7 +427,8 @@ class TodoModelTest {
             model.openSettings(4)
             model.editSettings("Ours", shared = false, icon = null)
             assertEquals(true, model.lists().settings?.shared)
-            assertEquals("Ours", model.lists().settings?.name)
+            // only its owner renames it (LIST-2)
+            assertEquals("Theirs", model.lists().settings?.name)
         }
 
     @Test

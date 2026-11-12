@@ -184,6 +184,5 @@ object TodoTexts : Catalog("todo") {
     val LIST_EXISTS = text("list_exists")
     val UNKNOWN_LIST = text("unknown_list")
     val ONLY_OWNER_SHARES = text("only_owner_shares")
-    val OWNER_LIST_EXISTS = text("owner_list_exists")
-    val LISTS = ListTexts(INVALID_ICON, INVALID_LIST_NAME, LIST_EXISTS, ONLY_OWNER_SHARES, OWNER_LIST_EXISTS)
+    val LISTS = ListTexts(INVALID_ICON, INVALID_LIST_NAME, LIST_EXISTS, ONLY_OWNER_SHARES)
 }

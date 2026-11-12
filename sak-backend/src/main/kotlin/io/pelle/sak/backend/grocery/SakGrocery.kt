@@ -254,9 +254,9 @@ fun Route.grocery(
                     schema = jsonSchema<GroceryListResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name or a malformed request")
-                errors(HttpStatusCode.Forbidden, "The user is not the owner and would share or unshare the list")
+                errors(HttpStatusCode.Forbidden, "The user is not the owner and would rename, share or unshare the list")
                 errors(HttpStatusCode.NotFound, "The user sees no such list")
-                errors(HttpStatusCode.Conflict, "Another list of the owner has the name, also when another user renames a shared list")
+                errors(HttpStatusCode.Conflict, "Another list of the owner has the name")
             }
         }
 

@@ -2020,7 +2020,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user is not the owner and would share or unshare the list */
+        /** @description The user is not the owner and would rename, share or unshare the list */
         403: {
           headers: {
             [name: string]: unknown;
@@ -2038,7 +2038,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description Another list of the owner has the name, also when another user renames a shared list */
+        /** @description Another list of the owner has the name */
         409: {
           headers: {
             [name: string]: unknown;
@@ -3191,7 +3191,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user is not the owner and would share or unshare the list */
+        /** @description The user is not the owner and would rename, share or unshare the list */
         403: {
           headers: {
             [name: string]: unknown;
@@ -3209,7 +3209,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description Another list of the owner has the name, also when another user renames a shared list */
+        /** @description Another list of the owner has the name */
         409: {
           headers: {
             [name: string]: unknown;

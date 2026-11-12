@@ -108,15 +108,17 @@ class GroceryRepositoryTest {
         repository.updateItem(OTHER, chips.id, values("Crisps"))!!.name shouldBe "Crisps"
         repository.insertItem(OTHER, party.id, values("Beer"))!!.owner shouldBe OTHER
         repository.checkItem(OTHER, chips.id) shouldBe true
-        // every user renames a shared list, only its owner unshares and deletes it (LIST-2)
-        (repository.updateList(OTHER, party.id, "Ours", shared = true) as ListUpdate.Updated).list.let {
-            it.name shouldBe "Ours"
+        // every user changes the icon of a shared list, only its owner renames, unshares and deletes it
+        // (LIST-2); a rename of another user would tell the names of the private lists (SEC-19)
+        (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdate.Updated).list.let {
+            it.icon shouldBe "🎉"
             it.owner shouldBe PELLE
         }
-        repository.updateList(OTHER, party.id, "Ours", shared = false) shouldBe ListUpdate.NotOwner
-        // the names are unique among the lists of the owner, also when another user renames
-        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdate.OwnerNameTaken
+        repository.updateList(OTHER, party.id, "Party", shared = false) shouldBe ListUpdate.NotOwner
+        repository.updateList(OTHER, party.id, "Ours", shared = true) shouldBe ListUpdate.NotOwner
+        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdate.NotOwner
         repository.updateList(PELLE, party.id, "Secret", shared = true) shouldBe ListUpdate.NameTaken
+        repository.list(PELLE, party.id)!!.name shouldBe "Party"
         repository.updateList(OTHER, secret.id, "Mine", shared = false) shouldBe ListUpdate.NotFound
         repository.deleteList(OTHER, party.id) shouldBe ListDelete.NotFound
         // unshared by its owner, the list is none of the other user's to change, also with the flag they had

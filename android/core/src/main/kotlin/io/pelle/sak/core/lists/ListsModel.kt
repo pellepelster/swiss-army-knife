@@ -47,7 +47,7 @@ data class ListTexts(
 // the logic of a list-based app (grocery, todo) on top of SakModel: a list of the home opens, the
 // settings of a new list or of one the user sees, saved (created or changed) or deleted, and a list
 // of the user's own deleted from the menu of its row on the home. A shared list of another user
-// changes its name and icon, only its owner shares, unshares and deletes it (LIST-2). The app shows
+// changes its icon, only its owner renames, shares, unshares and deletes it (LIST-2). The app shows
 // a list or the home (show), loads the lists (load) and makes its settings; it hooks into the
 // settings opened and saved, e.g. grocery for its categories
 abstract class ListsModel<A, L, S : ListForm>(
@@ -124,8 +124,11 @@ abstract class ListsModel<A, L, S : ListForm>(
     ) {
         val lists = listsScreen() ?: return
         val settings = lists.settings ?: return
-        // only the owner shares or unshares a list
-        state.value = lists.withSettings(edited(settings, name, if (settings.mine) shared else settings.shared, icon))
+        // only the owner renames, shares or unshares a list
+        state.value =
+            lists.withSettings(
+                edited(settings, if (settings.mine) name else settings.name, if (settings.mine) shared else settings.shared, icon),
+            )
     }
 
     // a new list is created and opens, a changed one shows where its settings were opened; a failure,

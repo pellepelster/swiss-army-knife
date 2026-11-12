@@ -1529,7 +1529,7 @@ describe('Grocery', () => {
     });
   });
 
-  it("a shared list of another user: its name, icon and categories change, sharing and deleting are the owner's", async () => {
+  it("a shared list of another user: its icon and categories change, renaming, sharing and deleting are the owner's", async () => {
     await open('/grocery/lists/2/edit');
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList, party]));
     http
@@ -1537,26 +1537,28 @@ describe('Grocery', () => {
       .flush(pageOf(categories));
     await harness.fixture.whenStable();
 
-    // the switch and the delete stay in their place, disabled, and say why (UX-8)
+    // the name, the switch and the delete stay in their place, disabled, and say why (UX-8)
+    const name = page().querySelector<HTMLInputElement>('#list-name')!;
+    expect(name.disabled).toBe(true);
+    expect(name.title).toBe('Only the owner of a list renames, shares or unshares it.');
     const shared = page().querySelector<HTMLInputElement>('#list-shared')!;
     expect(shared.checked).toBe(true);
     expect(shared.disabled).toBe(true);
-    expect(shared.title).toBe('Only the owner of a list shares or unshares it.');
+    expect(shared.title).toBe('Only the owner of a list renames, shares or unshares it.');
     expect(page().querySelector('[data-testid=shared-hint]')?.textContent?.trim()).toBe(
-      'Only the owner of a list shares or unshares it. Only the owner of a list deletes it.',
+      'Only the owner of a list renames, shares or unshares it. Only the owner of a list deletes it.',
     );
     expect(button('Delete list').disabled).toBe(true);
     expect(button('Delete list').title).toBe('Only the owner of a list deletes it.');
 
     // a category of the list changes as on an own list
     expect(page().querySelector('input[aria-label="Name of Fruit & vegetables"]')).not.toBeNull();
-    await type('list-name', 'Garden party');
     button('No icon').click();
     await harness.fixture.whenStable();
     button('Save').click();
-    // the shared flag goes back unchanged
+    // the name and the shared flag go back unchanged
     expect(http.expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/2' }).request.body).toEqual({
-      name: 'Garden party',
+      name: party.name,
       shared: true,
       icon: null,
     });

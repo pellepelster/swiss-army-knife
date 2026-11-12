@@ -1,5 +1,5 @@
 # the texts of the catalog todo in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
-only_owner_shares: "Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf."
+only_owner_shares: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
 list_gone: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
 all_lists: "Alle Listen"
 lists_not_loaded: "Die Listen konnten nicht geladen werden."
@@ -43,4 +43,3 @@ invalid_due_date: "Ein Fälligkeitsdatum muss ein Tag im Format jjjj-mm-tt sein.
 invalid_priority: "Eine Priorität muss hoch, normal oder niedrig sein."
 list_exists: "Eine Liste mit diesem Namen gibt es schon."
 unknown_list: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
-owner_list_exists: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."

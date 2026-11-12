@@ -497,8 +497,8 @@ android:
   shared_with_all: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
   shared_badge: { en: "Shared", de: "Geteilt" }
   only_owner_share_delete:
-    en: "Only the owner shares or unshares a list, or deletes it."
-    de: "Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie."
+    en: "Only the owner renames, shares or unshares a list, or deletes it."
+    de: "Nur der Besitzer benennt eine Liste um, teilt sie, hebt das Teilen auf oder löscht sie."
   saving: { en: "Saving…", de: "Wird gespeichert…" }
   menu_of: { en: "Menu of %{name}", de: "Menü von %{name}" }
   back_to_list: { en: "Back to the list", de: "Zurück zur Liste" }
@@ -1342,8 +1342,8 @@ ctl:
 grocery:
   common:
     only_owner_shares:
-      en: "Only the owner of a list shares or unshares it."
-      de: "Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf."
+      en: "Only the owner of a list renames, shares or unshares it."
+      de: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
     list_gone:
       en: "The list is gone, or its owner no longer shares it."
       de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
@@ -1452,9 +1452,6 @@ grocery:
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
-    owner_list_exists:
-      en: "The owner of the list has another list of the name."
-      de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."
     not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
     too_many_discoveries:
       en: "Too many photos were read, please try again later."
@@ -2024,8 +2021,8 @@ redirects:
 todo:
   common:
     only_owner_shares:
-      en: "Only the owner of a list shares or unshares it."
-      de: "Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf."
+      en: "Only the owner of a list renames, shares or unshares it."
+      de: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
     list_gone:
       en: "The list is gone, or its owner no longer shares it."
       de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
@@ -2132,6 +2129,3 @@ todo:
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
-    owner_list_exists:
-      en: "The owner of the list has another list of the name."
-      de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."

@@ -49,11 +49,8 @@ sealed interface ListUpdate {
     // the owner has another list of the name
     data object NameTaken : ListUpdate
 
-    // the user is not the owner and would share or unshare it
+    // the user is not the owner and would rename, share or unshare it
     data object NotOwner : ListUpdate
-
-    // another user renames a shared list to a name the owner has for another list
-    data object OwnerNameTaken : ListUpdate
 }
 
 // the table of the lists of a list-based app and how many items are left on each, what every such app
@@ -137,8 +134,9 @@ class ListTable<R : Record>(
             null
         }
 
-    // a list the user sees: their own, or a shared one of another user, whose name and icon every user
-    // changes (LIST-2); only the owner shares or unshares a list
+    // a list the user sees: their own, or a shared one of another user, whose icon every user changes
+    // (LIST-2); only the owner renames, shares or unshares a list. A rename of another user would
+    // also tell the names of the owner's private lists, which are unique with the shared ones (SEC-19)
     fun update(
         user: String,
         id: Int,
@@ -150,15 +148,16 @@ class ListTable<R : Record>(
             val dsl = DSL.using(configuration)
             val current = dsl.selectFrom(table).where(this.id.eq(id), visible(user)).fetchOne() ?: return@transactionResult ListUpdate.NotFound
             val isOwner = current.get(owner) == user
-            if (!isOwner && shared != current.get(this.shared)) return@transactionResult ListUpdate.NotOwner
+            if (!isOwner && (shared != current.get(this.shared) || name != current.get(this.name))) {
+                return@transactionResult ListUpdate.NotOwner
+            }
             try {
-                // another user never writes the shared flag, and changes only a list they still see:
-                // one the owner unshared or deleted meanwhile stays as it is
+                // another user never writes the name or the shared flag, and changes only a list they
+                // still see: one the owner unshared or deleted meanwhile stays as it is
                 val updated =
                     dsl
                         .update(table)
-                        .set(this.name, name)
-                        .apply { if (isOwner) set(this@ListTable.shared, shared) }
+                        .apply { if (isOwner) set(this@ListTable.name, name).set(this@ListTable.shared, shared) }
                         .set(this.icon, icon)
                         .set(updatedAt, clock.instant())
                         .where(this.id.eq(id), if (isOwner) own(user) else visible(user))
@@ -166,8 +165,8 @@ class ListTable<R : Record>(
                 val unshared = isOwner && current.get(this.shared) == true && !shared
                 if (updated) ListUpdate.Updated(list(dsl, user, id)!!, unshared) else ListUpdate.NotFound
             } catch (_: IntegrityConstraintViolationException) {
-                // the names are unique among the lists of the owner, also for another user who renames
-                if (isOwner) ListUpdate.NameTaken else ListUpdate.OwnerNameTaken
+                // the names are unique among the lists of the owner, only the owner writes one
+                ListUpdate.NameTaken
             }
         }
 

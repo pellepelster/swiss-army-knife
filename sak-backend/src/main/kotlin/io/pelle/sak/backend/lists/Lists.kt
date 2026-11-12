@@ -48,7 +48,6 @@ data class ListTexts(
     val invalidListName: TextKey,
     val listExists: TextKey,
     val onlyOwnerShares: TextKey,
-    val ownerListExists: TextKey,
 )
 
 sealed interface ListResult {
@@ -64,11 +63,8 @@ sealed interface ListResult {
 
     data object Exists : ListResult
 
-    // only the owner shares or unshares a list (LIST-2)
+    // only the owner renames, shares or unshares a list (LIST-2)
     data object NotOwner : ListResult
-
-    // another user renames a shared list to a name the owner has for another list
-    data object OwnerExists : ListResult
 }
 
 // the name and the icon of a list as they are stored: trimmed, an empty icon none
@@ -104,7 +100,6 @@ fun ListUpdate.result(): ListResult =
         ListUpdate.NotFound -> ListResult.NotFound
         ListUpdate.NameTaken -> ListResult.Exists
         ListUpdate.NotOwner -> ListResult.NotOwner
-        ListUpdate.OwnerNameTaken -> ListResult.OwnerExists
     }
 
 // the list as response answers it, 201 for a new one
@@ -119,7 +114,6 @@ suspend fun ApplicationCall.respondList(
     ListResult.NotFound -> respond(HttpStatusCode.NotFound)
     ListResult.Exists -> respondErrors(texts.listExists, status = HttpStatusCode.Conflict)
     ListResult.NotOwner -> respondErrors(texts.onlyOwnerShares, status = HttpStatusCode.Forbidden)
-    ListResult.OwnerExists -> respondErrors(texts.ownerListExists, status = HttpStatusCode.Conflict)
 }
 
 // the ids of the lists of an app that changed, as they change (LIST-4); the backend is one process,

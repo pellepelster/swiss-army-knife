@@ -22,7 +22,7 @@ import { PageHeader } from './page-header';
 
 // creates a list of a list-based app (LIST_APP), or changes the settings of a list the user sees
 // (its name, whether it is shared, its icon) and deletes it, on a page of its own; on a shared list
-// of another user every user changes the name and the icon, only the owner shares, unshares and
+// of another user every user changes the icon, only the owner renames, shares, unshares and
 // deletes it (LIST-2). Afterwards the list shows. The icon is one emoji, chosen in the picker of
 // emoji-picker-element, loaded when it is opened; its data comes from the frontend itself
 // (/emoji/data.json), not from a cdn. Settings of an app of its own, e.g. the categories of a
@@ -53,6 +53,8 @@ import { PageHeader } from './page-header';
             class="form-control"
             maxlength="64"
             autocomplete="off"
+            [disabled]="!owner()"
+            [title]="owner() ? '' : (texts.onlyOwnerShares | t)"
             [value]="name()"
             (input)="name.set(nameField.value)"
           />

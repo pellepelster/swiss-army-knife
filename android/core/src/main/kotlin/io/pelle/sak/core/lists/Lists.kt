@@ -18,7 +18,7 @@ data class ListSummary(
 
 // the settings of a list the user creates (no id) or changes: its name, whether all users see it and
 // its icon, one emoji; busy while they are sent, error why they were refused. A shared list of another
-// user changes its name and icon, only its owner shares, unshares and deletes it (LIST-2)
+// user changes its icon, only its owner renames, shares, unshares and deletes it (LIST-2)
 interface ListForm {
     val id: Int?
     val name: String

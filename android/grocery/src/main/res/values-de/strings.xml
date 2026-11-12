@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="grocery_only_owner_shares">Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.</string>
+    <string name="grocery_only_owner_shares">Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf.</string>
     <string name="grocery_list_gone">Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.</string>
     <string name="grocery_all_lists">Alle Listen</string>
     <string name="grocery_lists_not_loaded">Die Listen konnten nicht geladen werden.</string>

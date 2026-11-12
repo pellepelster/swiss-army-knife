@@ -114,8 +114,9 @@ class TodoServiceTest {
         // every user who sees the list marks a task done and purges it, also one of another user (LIST-2)
         done(PELLE, music.id).doneAt shouldNotBe null
         service.purge(OTHER, party, listOf(music.id)) shouldBe 1
-        service.updateList(OTHER, party, "Ours", shared = false) shouldBe ListResult.NotOwner
-        (service.updateList(OTHER, party, "Ours", shared = true) as ListResult.Saved).list.name shouldBe "Ours"
+        service.updateList(OTHER, party, "Party", shared = false) shouldBe ListResult.NotOwner
+        service.updateList(OTHER, party, "Ours", shared = true) shouldBe ListResult.NotOwner
+        (service.updateList(OTHER, party, "Party", shared = true, icon = "🎉") as ListResult.Saved).list.icon shouldBe "🎉"
         service.deleteList(OTHER, party) shouldBe ListDelete.NotFound
         service.deleteList(PELLE, party) shouldBe ListDelete.Deleted
     }

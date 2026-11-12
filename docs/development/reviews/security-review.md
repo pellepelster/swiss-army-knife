@@ -280,7 +280,11 @@ their own answer comes, and under the error when it fails. Traced for the notes;
 
 Fix: load the page anew on a sign out (`location.assign('/login')`).
 
-### `SEC-19` A user can test the names of the private lists of another
+### ~~`SEC-19` A user can test the names of the private lists of another~~
+
+**Fixed:** only the owner renames a list (`LIST-2`, decided with the user); another user who sees a shared list
+changes its icon and categories, a new name from them is a 403. The web app and the Android apps show the name of such
+a list disabled.
 
 A user who sees a shared list renames it (`LIST-2`). The names are unique among all lists of the owner, the private
 ones too, and the rename of another user answers 409 with a text of its own (`OwnerNameTaken`): a 409 says the owner
