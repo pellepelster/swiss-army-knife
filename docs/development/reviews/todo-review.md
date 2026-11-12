@@ -33,7 +33,13 @@ done and purging the list. LIST-2 says every user who sees a list deletes an ite
 Fix: decide whether the todo app follows LIST-2 here; if so, `DELETE /api/v1/todo/items/{id}` and a rename, from the
 menu of a row, as the grocery lists have them.
 
-### `TD-4` Nothing stops a test that JUnit skips without a word
+### ~~`TD-4` Nothing stops a test that JUnit skips without a word~~
+
+**Fixed:** the tests of every module of `sak.java-conventions` run with
+`junit.platform.discovery.issue.severity.critical=WARNING`: JUnit reports a `@Test` method that returns a value
+("must not return a value") as a discovery issue of that severity, which now fails the run. None of the 451 tests
+did; a test that returns a value fails the build from now on. The Android apps run JUnit 4, which fails such a test
+already.
 
 A test written as `fun x() = runBlocking { … }` whose last expression is a value (e.g. `shouldBe`) returns that value,
 and JUnit 5 skips a test method that is not void without failing. 141 functions of the test classes are written as
